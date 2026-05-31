@@ -1,5 +1,5 @@
 @echo off
-title HaYTool Youtube Download v4.4
+title HaYTool Youtube Download v4.5
 cd /d "%~dp0"
 cls
 color 0E
@@ -54,7 +54,7 @@ echo  ^| ^|  ^| ^| \__,_^|    ^| ^|      ^| ^|               ^| ^|____
 echo  ^|_^|  ^|_^|           ^|_^|      ^|_^|               ^|______^|
 echo.
 echo              -- Premium Otomasyonu --
-echo              Versiyon: v4.4
+echo              Versiyon: v4.5
 echo   ====================================================
 echo.
 echo   [+] Sunucu Port: 3000 denetleniyor...

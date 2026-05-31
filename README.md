@@ -1,8 +1,8 @@
-# HaYTool Youtube Download (v4.4)
+# HaYTool Youtube Download (v4.5)
 
 [![Platform Support](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-v4.4-purple.svg)](#)
+[![Version](https://img.shields.io/badge/version-v4.5-purple.svg)](#)
 
 A premium, lightweight, and cross-platform automation software that automatically monitors YouTube channels via RSS feeds and downloads new videos in the background. Built entirely in vanilla JavaScript, CSS, and HTML5.
 
@@ -75,7 +75,7 @@ If you encounter any issues or want to send feedback, feel free to reach out:
 <br>
 <br>
 
-# TR - HaYTool Youtube Download (v4.4)
+# TR - HaYTool Youtube Download (v4.5)
 
 YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni videoları arka planda otomatik olarak indiren şık, hafif ve kararlı bir otomasyon sistemidir. Tamamen vanilla JavaScript, CSS ve HTML5 standartlarıyla geliştirilmiştir.
 

@@ -1551,26 +1551,150 @@ let videoPlayerInstance = null;
 let currentPlayingVideoId = null;
 let seekedForCurrentVideo = false;
 
-// Klavye ok tuşları ile 5 saniye ileri/geri sarma (Oynatıcı modalı açıkken çalışır)
+// Türkçe Açıklama: Gömülü video oynatıcı açıkken YouTube klavye kısayollarını (Space, F, M, yön tuşları, sayılar vb.) etkinleştirir.
+/**
+ * Video oynatıcı modalı açıkken YouTube klavye kısayollarını dinler ve yürütür.
+ */
 document.addEventListener('keydown', (e) => {
   const modal = document.getElementById('player-modal');
   if (modal && !modal.classList.contains('hidden')) {
-    if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      if (videoPlayerInstance) {
-        videoPlayerInstance.currentTime = Math.min(videoPlayerInstance.duration || 0, videoPlayerInstance.currentTime + 5);
-      } else {
-        const player = document.getElementById('embedded-video-player');
-        if (player) player.currentTime = Math.min(player.duration || 0, player.currentTime + 5);
+    // Input veya textarea üzerinde yazı yazılıyorsa kısayolları çalıştırma
+    const activeEl = document.activeElement;
+    const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+    if (isTyping) return;
+
+    if (!videoPlayerInstance) {
+      // Oynatıcı henüz Plyr olarak ilklendirilmediyse yedek HTML5 oynatıcı kontrolleri
+      const player = document.getElementById('embedded-video-player');
+      if (!player) return;
+      const duration = player.duration || 0;
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        player.currentTime = Math.min(duration, player.currentTime + 5);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        player.currentTime = Math.max(0, player.currentTime - 5);
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        if (player.paused) player.play().catch(() => {});
+        else player.pause();
       }
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      if (videoPlayerInstance) {
+      return;
+    }
+
+    const duration = videoPlayerInstance.duration || 0;
+    const speeds = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
+    switch (e.key) {
+      case ' ':
+      case 'k':
+      case 'K':
+        e.preventDefault();
+        if (videoPlayerInstance.paused) {
+          videoPlayerInstance.play().catch(() => {});
+        } else {
+          videoPlayerInstance.pause();
+        }
+        break;
+
+      case 'f':
+      case 'F':
+        e.preventDefault();
+        if (videoPlayerInstance.fullscreen) {
+          videoPlayerInstance.fullscreen.toggle();
+        }
+        break;
+
+      case 'm':
+      case 'M':
+        e.preventDefault();
+        videoPlayerInstance.muted = !videoPlayerInstance.muted;
+        break;
+
+      case 'ArrowRight':
+        e.preventDefault();
+        videoPlayerInstance.currentTime = Math.min(duration, videoPlayerInstance.currentTime + 5);
+        break;
+
+      case 'ArrowLeft':
+        e.preventDefault();
         videoPlayerInstance.currentTime = Math.max(0, videoPlayerInstance.currentTime - 5);
-      } else {
-        const player = document.getElementById('embedded-video-player');
-        if (player) player.currentTime = Math.max(0, player.currentTime - 5);
-      }
+        break;
+
+      case 'l':
+      case 'L':
+        e.preventDefault();
+        videoPlayerInstance.currentTime = Math.min(duration, videoPlayerInstance.currentTime + 10);
+        break;
+
+      case 'j':
+      case 'J':
+        e.preventDefault();
+        videoPlayerInstance.currentTime = Math.max(0, videoPlayerInstance.currentTime - 10);
+        break;
+
+      case 'ArrowUp':
+        e.preventDefault();
+        videoPlayerInstance.volume = Math.min(1, videoPlayerInstance.volume + 0.05);
+        break;
+
+      case 'ArrowDown':
+        e.preventDefault();
+        videoPlayerInstance.volume = Math.max(0, videoPlayerInstance.volume - 0.05);
+        break;
+
+      case 'Home':
+        e.preventDefault();
+        videoPlayerInstance.currentTime = 0;
+        break;
+
+      case 'End':
+        e.preventDefault();
+        videoPlayerInstance.currentTime = duration;
+        break;
+
+      case '>':
+        e.preventDefault();
+        {
+          const idx = speeds.indexOf(videoPlayerInstance.speed);
+          if (idx !== -1 && idx < speeds.length - 1) {
+            videoPlayerInstance.speed = speeds[idx + 1];
+          }
+        }
+        break;
+
+      case '<':
+        e.preventDefault();
+        {
+          const idx = speeds.indexOf(videoPlayerInstance.speed);
+          if (idx !== -1 && idx > 0) {
+            videoPlayerInstance.speed = speeds[idx - 1];
+          }
+        }
+        break;
+
+      default:
+        // Sayı tuşları (0-9) ile videonun %0 ila %90'ına atlama
+        if (e.key >= '0' && e.key <= '9') {
+          e.preventDefault();
+          const percent = parseInt(e.key, 10) * 10;
+          videoPlayerInstance.currentTime = duration * (percent / 100);
+        }
+        // Shift + . veya Shift + , durumları için hız kontrolü
+        if (e.key === '.' && e.shiftKey) {
+          e.preventDefault();
+          const idx = speeds.indexOf(videoPlayerInstance.speed);
+          if (idx !== -1 && idx < speeds.length - 1) {
+            videoPlayerInstance.speed = speeds[idx + 1];
+          }
+        } else if (e.key === ',' && e.shiftKey) {
+          e.preventDefault();
+          const idx = speeds.indexOf(videoPlayerInstance.speed);
+          if (idx !== -1 && idx > 0) {
+            videoPlayerInstance.speed = speeds[idx - 1];
+          }
+        }
+        break;
     }
   }
 });

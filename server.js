@@ -3558,7 +3558,7 @@ app.listen(PORT, async () => {
   |_|  |_|           |_|      |_|               |______|
 
              -- Premium Otomasyonu --
-             Versiyon: v4.4
+             Versiyon: v4.5
              Yapımcı: HaYTo
   ====================================================
   `);
