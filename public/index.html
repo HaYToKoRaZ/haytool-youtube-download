@@ -1,0 +1,588 @@
+<!-- 
+  HaYTool Youtube Download - Arayüz Tasarımı
+  Yapımcı: HaYTo
+  İletişim: korazhayto@gmail.com
+-->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HaYTool Youtube Download</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%238a2be2%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4%22/><polyline points=%227 10 12 15 17 10%22/><line x1=%2212%22 y1=%2215%22 x2=%2212%22 y2=%223%22/></svg>">
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Plyr Video Player -->
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Üst Panel (Navigasyon & Sistem Durumu) -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">
+          <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
+        </div>
+        <div class="brand-text">
+          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTool Youtube Download <span class="version-badge" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);">v4.4</span></h1>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="history">
+          <i data-lucide="history"></i>
+          <span>Kütüphane</span>
+        </button>
+        <button class="nav-item" data-tab="queue" id="nav-queue-btn">
+          <i data-lucide="list-ordered"></i>
+          <span>Kuyruk</span>
+        </button>
+        <button class="nav-item" data-tab="downloaded">
+          <i data-lucide="folder-check"></i>
+          <span>İndirilenler</span>
+        </button>
+        <button class="nav-item" data-tab="channels">
+          <i data-lucide="tv"></i>
+          <span>Kanallar</span>
+        </button>
+        <button class="nav-item pd-btn" id="pd-btn" onclick="pasteAndDownload()" title="Kopyalanan YouTube Linkini Yapıştır ve İndir">
+          <i data-lucide="clipboard-copy"></i>
+          <span>PD</span>
+        </button>
+        <button class="nav-item" data-tab="settings">
+          <i data-lucide="settings"></i>
+          <span>Ayarlar</span>
+        </button>
+      </nav>
+
+      <div class="topbar-status-badges">
+        <div class="status-badge" id="badge-connection" title="Sunucu Bağlantı Durumu">
+          <span class="status-dot online" id="status-indicator"></span>
+          <span id="topbar-status-text">Bağlantı: Bağlanıyor...</span>
+        </div>
+        <div class="status-badge" id="badge-cookie" title="Premium Çerezleri">
+          <i data-lucide="cookie"></i>
+          <span>Çerez: <span id="cookie-status">Evet</span></span>
+          <span class="cookie-test-indicator" id="cookie-test-indicator" style="width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-left: 6px; background-color: var(--text-muted);" title="Çerez Canlılık Testi Bekleniyor"></span>
+        </div>
+        <div class="status-badge" id="badge-quality" title="Varsayılan İndirme Kalitesi">
+          <i data-lucide="sliders"></i>
+          <span>Kalite: <span id="quality-status">En Yüksek</span></span>
+        </div>
+        <div class="status-badge" id="badge-disk" title="İndirme Sürücüsü Boş Alanı ve Klasör Boyutu">
+          <i data-lucide="hard-drive"></i>
+          <span>Boş: <span id="disk-status-free">--</span> | Alan: <span id="disk-status-folder">--</span></span>
+        </div>
+        <button id="sync-now-btn" class="btn btn-secondary btn-icon-only" title="Kanalları Şimdi Denetle">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Ana İçerik Alanı -->
+    <main class="main-content">
+      <!-- Bildirim Log Çubuğu (Anlık Bilgilendirme) -->
+      <div id="toast-container"></div>
+
+      <section id="tab-channels" class="tab-content">
+        <header class="content-header">
+          <div>
+            <h2>İzlenen Kanallar</h2>
+            <p>Yeni videolarını otomatik indirmek istediğiniz kanalları ekleyin veya çıkarın.</p>
+          </div>
+          <div class="channels-header-badge" id="channels-count-badge">
+            <i data-lucide="tv" style="width:14px;height:14px;"></i>
+            <span id="channels-total-count">0 Kanal</span>
+          </div>
+        </header>
+
+        <div class="channel-action-row card">
+          <form id="add-channel-form" class="form-row">
+            <div class="input-group">
+              <i data-lucide="search" class="input-icon"></i>
+              <input type="text" id="channel-input" placeholder="YouTube Kanal linki veya kullanıcı adı girin (Örn: @BarisOzcan veya youtube.com/@GezenAdam)" required>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap: wrap;">
+              <button type="submit" class="btn btn-primary" id="add-channel-btn">
+                <i data-lucide="plus"></i>
+                <span id="btn-add-channel-text">Kanalı Takip Et</span>
+              </button>
+              <button type="button" class="btn btn-secondary" id="search-channel-btn" onclick="triggerChannelSearch()" style="background: #1e88e5; border-color: #1e88e5; color: #fff;">
+                <i data-lucide="search"></i>
+                <span id="btn-search-channel-text">Kanal Ara</span>
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="updateAllChannelAvatars()" id="update-all-logos-btn" style="white-space: nowrap;">
+                <i data-lucide="refresh-cw"></i>
+                <span id="btn-update-all-logos-text">Tüm Logoları Güncelle</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Arama Sonuçları Listesi -->
+        <div id="channel-search-results" class="card margin-top-md" style="display: none; border: 1px solid var(--border-color); background: var(--bg-card); padding: 15px; border-radius: 8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+            <h4 id="search-results-title" style="margin:0; font-size:1.1rem; color:var(--text-color);">Kanal Arama Sonuçları</h4>
+            <button class="btn btn-secondary btn-sm" onclick="closeChannelSearchResults()" style="padding: 2px 8px; font-size: 0.8rem;">X</button>
+          </div>
+          <div id="search-results-list" style="display:flex; flex-direction:column; gap:12px; max-height: 300px; overflow-y: auto; padding-right:5px;">
+            <!-- Arama sonuçları buraya eklenecek -->
+          </div>
+        </div>
+
+        <div class="margin-top-lg">
+          <div class="channels-list-container" id="channels-list">
+            <!-- Kanal satırları buraya JS ile dinamik eklenecek -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Video Kütüphanesi (Geçmiş ve Aktif İndirmelerin Birleşimi) -->
+      <section id="tab-history" class="tab-content active">
+        <header class="content-header">
+          <div>
+            <h2>Video Kütüphanesi</h2>
+            <p>Aktif indirmeleri, indirme sırasını ve tüm indirilmiş videoları buradan yönetin.</p>
+          </div>
+          <button id="open-folder-btn" class="btn btn-primary">
+            <i data-lucide="folder-open"></i>
+            <span>İndirilenler Klasörünü Aç</span>
+          </button>
+        </header>
+
+
+
+        <div class="card-title-bar" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+          <h3 style="font-size: 1.15rem; font-weight: 600; margin-bottom: 0;">Kütüphane & Geçmiş</h3>
+        </div>
+
+        <div class="history-toolbar">
+          <div class="filter-group">
+            <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
+            <select id="history-channel-filter">
+              <option value="all">Tüm Kanallar</option>
+            </select>
+          </div>
+          <div class="filter-group" style="display: flex; align-items: center; gap: 8px; margin-left: 15px;">
+            <input type="checkbox" id="history-show-shorts" class="toggle-input">
+            <label for="history-show-shorts" class="toggle-label"></label>
+            <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-show-shorts').click()">Shorts Videolarını Göster</span>
+          </div>
+          <div class="view-toggle-container">
+            <button id="view-grid-btn" class="view-btn active" title="Kart Görünümü">
+              <i data-lucide="layout-grid"></i>
+              <span>Kartlar</span>
+            </button>
+            <button id="view-list-btn" class="view-btn" title="Sade Liste Görünümü">
+              <i data-lucide="list"></i>
+              <span>Sade Liste</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="history-grid" id="history-grid">
+          <!-- Video kartları JS ile buraya yüklenecek -->
+        </div>
+      </section>
+
+      <!-- Tab: İndirme Sırası ve Kontrolü -->
+      <section id="tab-queue" class="tab-content">
+        <header class="content-header">
+          <div>
+            <h2 id="tab-queue-title">İndirme Sırası & Kontrol</h2>
+            <p id="tab-queue-desc">Aktif indirmeyi izleyin, sıradaki videoları sürükleyip bırakarak önceliklerini değiştirin.</p>
+          </div>
+          <div class="queue-header-actions" style="display:flex; gap:10px; align-items:center;">
+            <button id="queue-pause-btn" class="btn btn-secondary" onclick="toggleQueuePause()">
+              <i data-lucide="pause"></i>
+              <span id="queue-pause-text">Kuyruğu Duraklat</span>
+            </button>
+            <div class="speed-limit-wrap" style="display:flex; align-items:center; gap:8px; background:var(--bg-card); padding: 6px 12px; border-radius: 8px; border:1px solid var(--border-color);">
+              <i data-lucide="gauge" style="color:var(--text-muted); width:16px; height:16px;"></i>
+              <span id="speed-limit-label" style="font-size:0.8rem; color:var(--text-muted);">Hız Sınırı:</span>
+              <input type="number" id="queue-speed-limit-input" min="0" max="100000" style="width: 70px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem;" title="0 = Sınırsız" placeholder="0">
+              <span style="font-size:0.8rem; color:var(--text-muted);">KB/s</span>
+              <button class="btn btn-primary" onclick="updateQueueSpeedLimit()" id="speed-limit-set-btn" style="padding: 2px 8px; font-size: 0.75rem;">Ayarla</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="queue-layout">
+          <!-- Aktif İndirme Detaylı Kartı -->
+          <div class="card card-hero" style="min-height: 250px; padding: 25px; display:flex; flex-direction:column; justify-content:center;">
+            <div class="card-header" style="margin-bottom: 15px;">
+              <span class="badge badge-pulse" id="queue-active-badge">Aktif İndirme</span>
+              <span class="speed-indicator" id="active-speed">0 MB/s</span>
+            </div>
+            
+            <div id="no-active-download" class="empty-state" style="padding: 20px;">
+              <div class="empty-icon-wrapper" style="width: 60px; height: 60px; margin-bottom: 15px;">
+                <i data-lucide="cloud-download" class="pulse-animation" style="width: 28px; height: 28px;"></i>
+              </div>
+              <h3 id="queue-empty-title" style="font-size: 1.1rem; margin-bottom: 6px;">Kuyruk Beklemede</h3>
+              <p id="queue-empty-desc" style="font-size: 0.85rem; max-width: 340px;">Aktif indirme bulunmuyor. Yeni videolar çıktığında veya kuyruğa video eklendiğinde otomatik indirilecektir.</p>
+            </div>
+
+            <div id="active-download-details" class="download-progress-container hidden" style="width:100%;">
+              <h3 class="download-video-title" id="active-title" style="font-size: 1.25rem; margin-bottom: 8px; font-weight:700; color:var(--text-main);">Kanal Adı - Video Başlığı</h3>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px;">
+                <span class="download-channel-name" id="active-channel" style="margin-bottom:0; font-size: 0.9rem; color:var(--text-muted);"><i data-lucide="tv" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> Kanal Adı</span>
+                <button id="cancel-active-btn" class="btn btn-secondary" style="padding: 5px 12px; font-size: 0.8rem; background: rgba(255,0,85,0.08); border-color: rgba(255,0,85,0.2); color: var(--accent-red); font-weight:600;">
+                  <i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> <span>İptal Et</span>
+                </button>
+              </div>
+              
+              <div class="progress-bar-wrapper" style="height: 8px; margin-bottom: 15px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow:hidden;">
+                <div class="progress-bar-fill" id="active-progress-bar" style="width: 0%; height:100%; background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary)); transition: width 0.2s ease;"></div>
+              </div>
+
+              <div class="download-stats" style="padding: 15px; gap: 15px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border-color);">
+                <div>
+                  <span class="stat-label" id="active-progress-label" style="font-size: 0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">İlerleme</span>
+                  <span class="stat-value" id="active-percent" style="font-size: 1.1rem; font-weight:700; color:var(--text-main);">0%</span>
+                </div>
+                <div>
+                  <span class="stat-label" id="active-size-label" style="font-size: 0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Boyut</span>
+                  <span class="stat-value" id="active-size" style="font-size: 1.1rem; font-weight:700; color:var(--text-main);">-- MB</span>
+                </div>
+                <div>
+                  <span class="stat-label" id="active-eta-label" style="font-size: 0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Kalan Süre</span>
+                  <span class="stat-value" id="active-eta" style="font-size: 1.1rem; font-weight:700; color:var(--text-main);">--:--</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gelişmiş Sıralama Listesi -->
+          <div class="card" style="padding: 25px; display: flex; flex-direction: column; min-height: 250px; overflow: hidden;">
+            <div class="card-title-bar" style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+              <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 0; color:var(--text-main);">
+                <i data-lucide="list-ordered" style="width: 18px; height: 18px; color: var(--warning);"></i>
+                <span id="queue-list-title">Sıradaki Videolar</span> (<span id="stat-waiting-count">0</span>)
+              </h3>
+              <small id="drag-drop-hint" style="color:var(--text-muted); font-size:0.75rem; font-style:italic;">Sürükleyip bırakarak sırayı değiştirin</small>
+            </div>
+            <div class="queue-list" id="queue-list" style="flex:1; overflow-y:auto; max-height: 400px; display:flex; flex-direction:column; gap:8px; padding-right:5px;">
+              <div class="text-center text-muted" id="queue-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Kuyrukta bekleyen video yok.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: İndirilen Videolar -->
+      <section id="tab-downloaded" class="tab-content">
+        <header class="content-header">
+          <div>
+            <h2>İndirilen Videolar</h2>
+            <p>Bilgisayarınıza başarıyla indirilmiş olan tüm videoların listesi.</p>
+          </div>
+          <button onclick="openFolder()" class="btn btn-primary">
+            <i data-lucide="folder-open"></i>
+            <span>İndirilenler Klasörünü Aç</span>
+          </button>
+        </header>
+
+        <div class="history-toolbar">
+          <div class="filter-group">
+            <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
+            <select id="downloaded-channel-filter">
+              <option value="all">Tüm Kanallar</option>
+            </select>
+          </div>
+          <div class="filter-group" style="display: flex; align-items: center; gap: 8px; margin-left: 15px;">
+            <input type="checkbox" id="downloaded-show-shorts" class="toggle-input">
+            <label for="downloaded-show-shorts" class="toggle-label"></label>
+            <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('downloaded-show-shorts').click()">Shorts Videolarını Göster</span>
+          </div>
+          <div class="view-toggle-container">
+            <button id="downloaded-view-grid-btn" class="view-btn active" title="Kart Görünümü">
+              <i data-lucide="layout-grid"></i>
+              <span>Kartlar</span>
+            </button>
+            <button id="downloaded-view-list-btn" class="view-btn" title="Sade Liste Görünümü">
+              <i data-lucide="list"></i>
+              <span>Sade Liste</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="history-grid" id="downloaded-grid">
+          <!-- İndirilmiş video kartları JS ile buraya yüklenecek -->
+        </div>
+      </section>
+
+      <!-- Tab: Ayarlar -->
+      <section id="tab-settings" class="tab-content">
+        <header class="content-header">
+          <div>
+            <h2>Ayarlar</h2>
+            <p>Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
+          </div>
+          <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="info" style="width:14px; height:14px; color: var(--primary);"></i>
+            <span>Sürüm: <strong style="color: var(--text-main);">v4.4</strong></span>
+          </div>
+        </header>
+
+        <div class="card card-settings" style="max-width: 1000px;">
+          <form id="settings-form">
+            <div class="settings-layout">
+              <!-- Sol Alt Menü Sekmeleri -->
+              <div class="settings-sidebar">
+                <button type="button" class="settings-tab-btn active" data-subtab="general">
+                  <i data-lucide="settings"></i>
+                  <span>Genel Ayarlar</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-subtab="download">
+                  <i data-lucide="download-cloud"></i>
+                  <span>İndirme ve Kalite</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-subtab="automation">
+                  <i data-lucide="cpu"></i>
+                  <span>Otomasyon & RSS</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-subtab="notifications">
+                  <i data-lucide="bell"></i>
+                  <span>Çerez & Bildirim</span>
+                </button>
+                <a href="mailto:korazhayto@gmail.com?subject=HaYTool%20Youtube%20Download%20Geri%20Bildirimi" class="feedback-btn">
+                  <i data-lucide="mail"></i>
+                  <span>Geri Bildirim Gönder</span>
+                </a>
+              </div>
+
+              <!-- Sağ Alt Menü İçerikleri -->
+              <div class="settings-main">
+                <!-- Alt Sekme 1: Genel -->
+                <div class="settings-subtab-content active" id="subtab-general">
+                  <div class="form-group">
+                    <label for="settings-download-path">İndirme Klasörü Konumu</label>
+                    <div class="input-action-row">
+                      <input type="text" id="settings-download-path" required>
+                      <button type="button" id="select-folder-btn" class="btn btn-secondary">
+                        <i data-lucide="folder"></i>
+                        <span>Klasör Seç</span>
+                      </button>
+                      <button type="button" id="test-folder-btn" class="btn btn-secondary">
+                        <i data-lucide="folder-open"></i>
+                        <span>Test Et</span>
+                      </button>
+                    </div>
+                    <small class="form-text">Videoların kaydedileceği bilgisayarınızdaki klasör yolu.</small>
+                  </div>
+                  
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-lang">Uygulama Dili / App Language</label>
+                      <select id="settings-lang">
+                        <option value="tr">Türkçe (TR)</option>
+                        <option value="en">English (EN)</option>
+                      </select>
+                      <small class="form-text">Arayüz dilini ve video başlıklarının indirileceği dili seçin.</small>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-theme">Görünüm Teması</label>
+                      <select id="settings-theme">
+                        <option value="dark">Koyu Tema (Karanlık)</option>
+                        <option value="light">Açık Tema (Aydınlık)</option>
+                      </select>
+                      <small class="form-text">Arayüzün görünüm rengini buradan değiştirebilirsiniz.</small>
+                    </div>
+                  </div>
+
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-port">Uygulama Port Numarası</label>
+                      <input type="number" id="settings-port" min="80" max="65535" required>
+                      <small class="form-text">Uygulama arayüzünün portu (Yeniden başlatma gerektirir).</small>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-autoopenbrowser">Tarayıcıyı Otomatik Aç</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-autoopenbrowser" class="toggle-input" checked>
+                        <label for="settings-autoopenbrowser" class="toggle-label"></label>
+                        <span>Uygulama başladığında tarayıcıda localhost sayfasını otomatik aç</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Alt Sekme 2: İndirme ve Kalite -->
+                <div class="settings-subtab-content" id="subtab-download">
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-quality">Varsayılan İndirme Kalitesi</label>
+                      <select id="settings-quality">
+                        <option value="best">En Yüksek Kalite (Otomatik)</option>
+                        <option value="1080p">Maksimum 1080p Full HD</option>
+                        <option value="720p">Maksimum 720p HD</option>
+                      </select>
+                      <small class="form-text">Kanala özel ayar yapılmadığında bu varsayılan kalite kullanılacaktır.</small>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-mergetype">İndirme Yöntemi (FFmpeg / Dosya Yapısı)</label>
+                      <select id="settings-mergetype">
+                        <option value="single" selected>Tek Hazır Dosya (En Fazla 720p, ffmpeg gerektirmez)</option>
+                        <option value="merge">Otomatik Birleştir (Yüksek Çözünürlük, ffmpeg gerektirir)</option>
+                        <option value="separate">Ses ve Videoyu Ayrı İndir (ffmpeg gerektirmez)</option>
+                      </select>
+                      <small class="form-text">Yüksek çözünürlükleri tek dosya yapmak için FFmpeg gereklidir.</small>
+                    </div>
+                  </div>
+
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-speedlimit">Maksimum İndirme Hızı (KB/s)</label>
+                      <input type="number" id="settings-speedlimit" min="0" max="100000" required>
+                      <small class="form-text">Bant genişliğini sınırlamak için değer girin (Sınırsız için 0 yazın).</small>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-writethumbnail">Kapak Resmi</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-writethumbnail" class="toggle-input">
+                        <label for="settings-writethumbnail" class="toggle-label"></label>
+                        <span>Videoların kapak resimlerini (thumbnail) yanına indir</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Alt Sekme 3: Otomasyon & RSS -->
+                <div class="settings-subtab-content" id="subtab-automation">
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-autodownload">Otomatik İndirme</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-autodownload" class="toggle-input">
+                        <label for="settings-autodownload" class="toggle-label"></label>
+                        <span>Yeni videolar algılandığında hemen indirmeyi başlat</span>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-channelcheckinterval">Kanal Kontrol Sıklığı (Saniye)</label>
+                      <input type="number" id="settings-channelcheckinterval" min="5" max="3600" required>
+                      <small class="form-text">Sıradaki kanalı denetlemek için beklenecek süre.</small>
+                    </div>
+                  </div>
+
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-rsslimit">RSS Denetleme Limiti (Video)</label>
+                      <input type="number" id="settings-rsslimit" min="1" max="15" required>
+                      <small class="form-text">Kanal başına RSS akışındaki en yeni kaç video kontrol edilsin?</small>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-autodelete">Videoları Otomatik Sil (Gün)</label>
+                      <input type="number" id="settings-autodelete" min="0" max="365" required>
+                      <small class="form-text">Kaç gün sonra otomatik silinsin? (Kapatmak için 0 yazın)</small>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="settings-showshorts">Shorts Videoları</label>
+                    <div class="toggle-container">
+                      <input type="checkbox" id="settings-showshorts" class="toggle-input">
+                      <label for="settings-showshorts" class="toggle-label"></label>
+                      <span>Geçmiş video listesinde Shorts videolarını göster</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Alt Sekme 4: Çerez & Bildirim -->
+                <div class="settings-subtab-content" id="subtab-notifications">
+                  <div class="form-group">
+                    <label for="settings-browser">Premium Çerez Tarayıcısı</label>
+                    <select id="settings-browser">
+                      <option value="none">Çerez Kullanma (Sadece Açık Videolar)</option>
+                      <option value="chrome" selected>Google Chrome</option>
+                      <option value="edge">Microsoft Edge</option>
+                      <option value="firefox">Mozilla Firefox</option>
+                      <option value="brave">Brave</option>
+                      <option value="opera">Opera</option>
+                    </select>
+                    <small class="form-text">YouTube Premium hesabınızın açık olduğu tarayıcıyı seçin. Bu sayede Premium yüksek indirme hızı ve yüksek kalite kullanılabilir.</small>
+                  </div>
+
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-playsounds">Sesli Bildirimler</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-playsounds" class="toggle-input" checked>
+                        <label for="settings-playsounds" class="toggle-label"></label>
+                        <span>Video indirme durumlarında (başlama, başarı, hata) sesli uyarı çal</span>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-shownotifications">Masaüstü Bildirimleri</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-shownotifications" class="toggle-input" checked>
+                        <label for="settings-shownotifications" class="toggle-label"></label>
+                        <span>İndirme başlama ve bitişlerinde Windows bildirimleri göster</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tüm sekmeler için ortak kaydetme alanı -->
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-primary btn-lg">
+                    <i data-lucide="save"></i>
+                    <span>Ayarları Kaydet</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Silme Onay Modalı -->
+  <div id="delete-modal" class="modal hidden">
+    <div class="modal-content card">
+      <div class="modal-header">
+        <h3>Videoyu Geçmişten Kaldır</h3>
+        <button class="modal-close-btn" id="close-delete-modal-btn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p id="delete-modal-msg">Bu videoyu indirme geçmişinden kaldırmak istediğinize emin misiniz?</p>
+        <div class="checkbox-container margin-top-lg">
+          <input type="checkbox" id="delete-file-checkbox" class="toggle-input" checked>
+          <label for="delete-file-checkbox" class="toggle-label"></label>
+          <span class="checkbox-text">İndirilen video dosyasını bilgisayardan da kalıcı olarak sil</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancel-delete-btn">İptal</button>
+        <button class="btn btn-primary" id="confirm-delete-btn" style="background: linear-gradient(135deg, var(--accent-red), #ff4d88); box-shadow: 0 4px 15px var(--accent-red-glow);">Sil</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gömülü Oynatıcı Modalı -->
+  <div id="player-modal" class="modal hidden">
+    <div class="modal-content card player-modal-content">
+      <div class="modal-header" style="margin-bottom: 12px; padding-bottom: 12px;">
+        <h3 id="player-modal-title">Gömülü Video Oynatıcı</h3>
+        <button class="modal-close-btn" id="close-player-modal-btn" onclick="closePlayerModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body player-modal-body">
+        <video id="embedded-video-player" controls autoplay style="width: 100%; height: 100%; display: block; outline: none;"></video>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,2365 @@
+/**
+ * HaYTool Youtube Download - İstemci Mantığı (Frontend)
+ * 
+ * Yapımcı: HaYTo
+ * İletişim: korazhayto@gmail.com
+ */
+
+let localDb = { channels: [], history: [], settings: {} };
+let eventSource = null;
+
+// Çoklu Dil Sözlüğü (İngilizce & Türkçe)
+const translations = {
+  tr: {
+    premium_automation: 'Premium Otomasyonu',
+    tab_library: 'Kütüphane',
+    tab_downloaded: 'İndirilenler',
+    tab_channels: 'Kanallar',
+    tab_settings: 'Ayarlar',
+    cookie_yes: 'Çerez: Evet',
+    cookie_no: 'Çerez: Hayır',
+    cookie_status_active: 'Çerez Aktif ve Geçerli',
+    cookie_status_locked: 'Çerez Kilitli veya Hatalı',
+    cookie_status_none: 'Çerez Kullanılmıyor',
+    channels_title: 'Kanallar',
+    channels_desc: 'Yeni yüklenen videolarını otomatik indirmek istediğiniz YouTube kanallarını buradan yönetin.',
+    input_channel_placeholder: 'YouTube Kanal linki veya kullanıcı adı girin (Örn: @BarisOzcan veya youtube.com/@GezenAdam)',
+    btn_follow_channel: 'Kanalı Takip Et',
+    // Türkçe Açıklama: Toplu güncelleme butonu dil etiketi eklendi.
+    btn_update_all_logos: 'Tüm Logoları Güncelle',
+    empty_channels_title: 'Henüz takip edilen kanal yok',
+    empty_channels_desc: 'Yukarıdaki formdan YouTube kanal linki veya kullanıcı adı girerek kanal ekleyebilirsiniz.',
+    select_quality_default: 'Varsayılan Kalite',
+    select_quality_best: 'En Yüksek',
+    select_quality_1080p: '1080p FHD',
+    select_quality_720p: '720p HD',
+    select_shorts_true: 'Shorts İndir',
+    select_shorts_false: 'Shorts İndirme',
+    library_title: 'Kütüphane & Geçmiş',
+    library_desc: 'Tüm video geçmişini, indirme durumlarını ve kuyruğu tek ekrandan takip edin.',
+    btn_open_downloads: 'İndirilenler Klasörünü Aç',
+    badge_active_download: 'Aktif İndirme',
+    queue_empty_title: 'Kuyruk Boş',
+    queue_empty_desc: 'Aktif indirme bulunmuyor. Yeni videolar çıktığında otomatik indirilecektir.',
+    active_download_progress: 'İlerleme',
+    active_download_size: 'Boyut',
+    active_download_eta: 'Kalan',
+    active_download_cancel: 'İptal Et',
+    queue_title: 'İndirme Sırası',
+    queue_empty: 'Kuyrukta bekleyen video yok.',
+    library_history_title: 'Kütüphane & Geçmiş',
+    filter_all_channels: 'Tüm Kanallar',
+    show_shorts: 'Shorts Videolarını Göster',
+    view_grid: 'Kartlar',
+    view_list: 'Sade Liste',
+    no_videos_filter: 'Filtreye uygun video kaydı bulunmuyor.',
+    downloaded_title: 'İndirilenler',
+    downloaded_desc: 'Sisteme başarıyla indirilmiş ve çevrimdışı izlemeye hazır videolar.',
+    settings_title: 'Sistem Ayarları',
+    settings_desc: 'Otomasyon parametrelerini, indirme kalitesini, çerez tarayıcısını ve genel sistem tercihlerini özelleştirin.',
+    label_download_path: 'İndirme Klasörü Konumu',
+    btn_select_folder: 'Klasör Seç',
+    btn_test_folder: 'Test Et',
+    label_browser: 'Premium Çerez Tarayıcısı',
+    label_quality: 'Varsayılan İndirme Kalitesi',
+    label_merge_type: 'İndirme Yöntemi (FFmpeg / Dosya Yapısı)',
+    label_interval: 'Kanal Kontrol Sıklığı (Saniye)',
+    label_auto_download: 'Otomatik İndirme',
+    label_write_thumbnail: 'Kapak Resmi',
+    label_show_shorts: 'Shorts Videoları',
+    label_theme: 'Görünüm Teması',
+    label_auto_delete: 'Videoları Otomatik Sil (Gün)',
+    label_rss_limit: 'RSS Denetleme Limiti (Video)',
+    // Türkçe Açıklama: Ayarlar sekmesindeki hız sınırı etiket ismi KB/s olarak güncellendi.
+    label_settings_speed_limit: 'Maksimum İndirme Hızı (KB/s)',
+    label_port: 'Uygulama Port Numarası',
+    label_play_sounds: 'Sesli Bildirimler',
+    desc_play_sounds: 'Video indirme durumlarında (başlama, başarı, hata) sesli uyarı çal',
+    label_show_notifications: 'Masaüstü Bildirimleri',
+    desc_show_notifications: 'İndirme başlama ve bitişlerinde Windows bildirimleri göster',
+    label_auto_open_browser: 'Tarayıcıyı Otomatik Aç',
+    desc_auto_open_browser: 'Uygulama başladığında tarayıcıda localhost sayfasını otomatik aç',
+    btn_search_channel: 'Kanal Ara',
+    btn_add_channel: 'Kanalı Takip Et',
+    desc_auto_download: 'Yeni videolar algılandığında hemen indirmeyi başlat',
+    desc_write_thumbnail: 'Videoların kapak resimlerini (thumbnail) yanına indir',
+    desc_show_shorts: 'Geçmiş video listesinde Shorts videolarını göster',
+    label_lang: 'Uygulama Dili / App Language',
+    btn_save_settings: 'Ayarları Kaydet',
+    modal_delete_title: 'Videoyu Geçmişten Kaldır',
+    modal_delete_desc: 'Bu videoyu indirme geçmişinden kaldırmak istediğinize emin misiniz?',
+    modal_delete_file_checkbox: 'İndirilen video dosyasını bilgisayardan da kalıcı olarak sil',
+    modal_delete_btn: 'Sil',
+    modal_cancel_btn: 'İptal',
+    modal_player_title: 'Gömülü Video Oynatıcı',
+    tab_queue: 'Kuyruk',
+    tab_queue_title: 'İndirme Sırası & Kontrol',
+    tab_queue_desc: 'Aktif indirmeyi izleyin, sıradaki videoları sürükleyip bırakarak önceliklerini değiştirin.',
+    btn_pause_queue: 'Kuyruğu Duraklat',
+    btn_resume_queue: 'Kuyruğu Devam Ettir',
+    // Türkçe Açıklama: Kuyruk sekmesindeki hız sınırı etiket ismi güncellendi.
+    label_queue_speed_limit: 'Hız Sınırı:',
+    btn_speed_limit_set: 'Ayarla',
+    active_progress: 'İlerleme',
+    active_size: 'Boyut',
+    active_eta: 'Kalan Süre',
+    queue_empty_title: 'Kuyruk Beklemede',
+    queue_empty_desc: 'Aktif indirme bulunmuyor. Yeni videolar çıktığında veya kuyruğa video eklendiğinde otomatik indirilecektir.',
+    queue_list_title: 'Sıradaki Videolar',
+    drag_drop_hint: 'Sürükleyip bırakarak sırayı değiştirin',
+    queue_list_empty: 'Kuyrukta bekleyen video yok.'
+  },
+  en: {
+    premium_automation: 'Premium Automation',
+    tab_library: 'Library',
+    tab_downloaded: 'Downloads',
+    tab_channels: 'Channels',
+    tab_settings: 'Settings',
+    cookie_yes: 'Cookies: Yes',
+    cookie_no: 'Cookies: No',
+    cookie_status_active: 'Cookies Active and Valid',
+    cookie_status_locked: 'Cookies Locked or Invalid',
+    cookie_status_none: 'Cookies Disabled',
+    channels_title: 'Channels',
+    channels_desc: 'Manage YouTube channels you want to monitor and download videos from automatically.',
+    input_channel_placeholder: 'Enter YouTube channel link or username (e.g. @BarisOzcan or youtube.com/@GezenAdam)',
+    btn_follow_channel: 'Follow Channel',
+    // Türkçe Açıklama: İngilizce toplu güncelleme butonu dil etiketi eklendi.
+    btn_update_all_logos: 'Update All Logos',
+    empty_channels_title: 'No monitored channels yet',
+    empty_channels_desc: 'You can add channels by entering a YouTube channel link or username from the form above.',
+    select_quality_default: 'Default Quality',
+    select_quality_best: 'Highest',
+    select_quality_1080p: '1080p FHD',
+    select_quality_720p: '720p HD',
+    select_shorts_true: 'Download Shorts',
+    select_shorts_false: 'Ignore Shorts',
+    library_title: 'Library & History',
+    library_desc: 'Track download queue, active progress, and complete history in one place.',
+    btn_open_downloads: 'Open Downloads Folder',
+    badge_active_download: 'Active Download',
+    queue_empty_title: 'Queue Empty',
+    queue_empty_desc: 'No active download. New videos will be downloaded automatically when published.',
+    active_download_progress: 'Progress',
+    active_download_size: 'Size',
+    active_download_eta: 'Remaining',
+    active_download_cancel: 'Cancel',
+    queue_title: 'Download Queue',
+    queue_empty: 'No videos waiting in the queue.',
+    library_history_title: 'Library & History',
+    filter_all_channels: 'All Channels',
+    show_shorts: 'Show Shorts Videos',
+    view_grid: 'Cards',
+    view_list: 'Simple List',
+    no_videos_filter: 'No video records match the filter.',
+    downloaded_title: 'Downloads',
+    downloaded_desc: 'List of all videos successfully downloaded and ready for offline playback.',
+    settings_title: 'System Settings',
+    settings_desc: 'Configure automation options, download quality, cookie browser, and system preferences.',
+    label_download_path: 'Downloads Folder Path',
+    btn_select_folder: 'Select Folder',
+    btn_test_folder: 'Test Folder',
+    label_browser: 'Premium Cookie Browser',
+    label_quality: 'Default Download Quality',
+    label_merge_type: 'Download Method (FFmpeg / File Structure)',
+    label_interval: 'Channel Check Interval (Seconds)',
+    label_auto_download: 'Auto Download',
+    label_write_thumbnail: 'Cover Image',
+    label_show_shorts: 'Shorts Videos',
+    label_theme: 'UI Theme',
+    label_auto_delete: 'Auto Delete Videos (Days)',
+    label_rss_limit: 'RSS Check Limit (Videos)',
+    // Türkçe Açıklama: İngilizce ayarlar sekmesindeki hız sınırı etiketi KB/s yapıldı.
+    label_settings_speed_limit: 'Maximum Download Speed (KB/s)',
+    label_port: 'Application Port Number',
+    label_play_sounds: 'Audio Notifications',
+    desc_play_sounds: 'Play sound notifications for video download events (start, success, error)',
+    label_show_notifications: 'Desktop Notifications',
+    desc_show_notifications: 'Show Windows desktop notifications when downloads start and finish',
+    label_auto_open_browser: 'Auto-Open Browser',
+    desc_auto_open_browser: 'Automatically open the localhost page in browser when application starts',
+    btn_search_channel: 'Search Channel',
+    btn_add_channel: 'Follow Channel',
+    desc_auto_download: 'Start downloading immediately when new videos are detected',
+    desc_write_thumbnail: 'Download video cover images (thumbnails) alongside them',
+    desc_show_shorts: 'Show Shorts videos in the history library list',
+    label_lang: 'App Language',
+    btn_save_settings: 'Save Settings',
+    modal_delete_title: 'Remove Video from History',
+    modal_delete_desc: 'Are you sure you want to remove this video from download history?',
+    modal_delete_file_checkbox: 'Permanently delete the downloaded video file from computer as well',
+    modal_delete_btn: 'Delete',
+    modal_cancel_btn: 'Cancel',
+    modal_player_title: 'Embedded Video Player',
+    tab_queue: 'Queue',
+    tab_queue_title: 'Download Queue & Control',
+    tab_queue_desc: 'Monitor active downloads, drag and drop videos in the queue to change their priority.',
+    btn_pause_queue: 'Pause Queue',
+    btn_resume_queue: 'Resume Queue',
+    // Türkçe Açıklama: İngilizce kuyruk sekmesindeki hız sınırı etiketi güncellendi.
+    label_queue_speed_limit: 'Speed Limit:',
+    btn_speed_limit_set: 'Set Limit',
+    active_progress: 'Progress',
+    active_size: 'Size',
+    active_eta: 'Remaining',
+    queue_empty_title: 'Queue Idle',
+    queue_empty_desc: 'No active download. It will start automatically when new videos are published or added to the queue.',
+    queue_list_title: 'Queue Videos',
+    drag_drop_hint: 'Drag and drop items to reorder the queue',
+    queue_list_empty: 'No videos waiting in the queue.'
+  }
+};
+
+// Türkçe Açıklama: Seçilen dil paketine (TR veya EN) göre sayfadaki tüm metin etiketlerini ve açıklamaları dinamik olarak günceller.
+/**
+ * Arayüz dilini seçilen dile göre günceller.
+ * 
+ * @param {string} lang Seçilen dil kodu ('tr' veya 'en')
+ */
+function applyLanguage(lang) {
+  const t = translations[lang] || translations.tr;
+  
+  const el = (id, key, prop = 'textContent') => {
+    const element = document.getElementById(id);
+    if (element && t[key]) {
+      element[prop] = t[key];
+    }
+  };
+  
+  const elQuery = (selector, key, prop = 'textContent') => {
+    const element = document.querySelector(selector);
+    if (element && t[key]) {
+      element[prop] = t[key];
+    }
+  };
+
+  // HTML lang attribute
+  document.documentElement.lang = lang;
+
+  // Header Navigasyon ve Başlıklar
+  // elQuery('.brand-text span', 'premium_automation');
+  elQuery('button[data-tab="history"] span', 'tab_library');
+  elQuery('button[data-tab="queue"] span', 'tab_queue');
+  elQuery('button[data-tab="downloaded"] span', 'tab_downloaded');
+  elQuery('button[data-tab="channels"] span', 'tab_channels');
+  elQuery('button[data-tab="settings"] span', 'tab_settings');
+
+  // Kanallar Sekmesi
+  elQuery('#tab-channels .content-header h2', 'channels_title');
+  elQuery('#tab-channels .content-header p', 'channels_desc');
+  const channelInput = document.getElementById('channel-input');
+  if (channelInput) channelInput.placeholder = t.input_channel_placeholder;
+  elQuery('#add-channel-btn span', 'btn_follow_channel');
+  // Türkçe Açıklama: Toplu güncelleme butonu dil etiketine bağlandı.
+  elQuery('#btn-update-all-logos-text', 'btn_update_all_logos');
+
+  // İndirme Sırası Sekmesi
+  elQuery('#tab-queue-title', 'tab_queue_title');
+  elQuery('#tab-queue-desc', 'tab_queue_desc');
+  elQuery('#queue-pause-text', localDb.settings && localDb.settings.isPaused ? 'btn_resume_queue' : 'btn_pause_queue');
+  // Türkçe Açıklama: Kuyruk sekmesindeki hız sınırı etiketi yeni dil anahtarına bağlandı.
+  elQuery('#speed-limit-label', 'label_queue_speed_limit');
+  elQuery('#speed-limit-set-btn', 'btn_speed_limit_set');
+  elQuery('#queue-active-badge', 'badge_active_download');
+  elQuery('#no-active-download h3', 'queue_empty_title');
+  elQuery('#no-active-download p', 'queue_empty_desc');
+  elQuery('#active-progress-label', 'active_progress');
+  elQuery('#active-size-label', 'active_size');
+  elQuery('#active-eta-label', 'active_eta');
+  elQuery('#cancel-active-btn span', 'active_download_cancel');
+  elQuery('#queue-list-title', 'queue_list_title');
+  elQuery('#drag-drop-hint', 'drag_drop_hint');
+  elQuery('#queue-list-empty', 'queue_list_empty');
+
+  // Kütüphane Sekmesi
+  elQuery('#tab-history .content-header h2', 'library_title');
+  elQuery('#tab-history .content-header p', 'library_desc');
+  elQuery('#open-folder-btn span', 'btn_open_downloads');
+  elQuery('#tab-history > .card-title-bar h3', 'library_history_title');
+  elQuery('label[for="history-show-shorts"] + span', 'show_shorts');
+  elQuery('#view-grid-btn span', 'view_grid');
+  elQuery('#view-list-btn span', 'view_list');
+
+  // İndirilen Videolar Sekmesi
+  elQuery('#tab-downloaded .content-header h2', 'downloaded_title');
+  elQuery('#tab-downloaded .content-header p', 'downloaded_desc');
+  elQuery('#tab-downloaded .content-header button span', 'btn_open_downloads');
+  elQuery('label[for="downloaded-show-shorts"] + span', 'show_shorts');
+  elQuery('#downloaded-view-grid-btn span', 'view_grid');
+  elQuery('#downloaded-view-list-btn span', 'view_list');
+
+  // Ayarlar Sekmesi
+  elQuery('#tab-settings .content-header h2', 'settings_title');
+  elQuery('#tab-settings .content-header p', 'settings_desc');
+  elQuery('label[for="settings-download-path"]', 'label_download_path');
+  elQuery('#select-folder-btn span', 'btn_select_folder');
+  elQuery('#test-folder-btn span', 'btn_test_folder');
+  elQuery('label[for="settings-browser"]', 'label_browser');
+  elQuery('label[for="settings-quality"]', 'label_quality');
+  elQuery('label[for="settings-mergetype"]', 'label_merge_type');
+  elQuery('label[for="settings-channelcheckinterval"]', 'label_interval');
+  elQuery('label[for="settings-autodownload"]:not(.toggle-label)', 'label_auto_download');
+  elQuery('label[for="settings-autodownload"] + span', 'desc_auto_download');
+  elQuery('label[for="settings-writethumbnail"]:not(.toggle-label)', 'label_write_thumbnail');
+  elQuery('label[for="settings-writethumbnail"] + span', 'desc_write_thumbnail');
+  elQuery('label[for="settings-showshorts"]:not(.toggle-label)', 'label_show_shorts');
+  elQuery('label[for="settings-showshorts"] + span', 'desc_show_shorts');
+  elQuery('label[for="settings-theme"]', 'label_theme');
+  elQuery('label[for="settings-autodelete"]', 'label_auto_delete');
+  elQuery('label[for="settings-rsslimit"]', 'label_rss_limit');
+  // Türkçe Açıklama: Ayarlar sekmesindeki hız sınırı etiketi yeni dil anahtarına bağlandı.
+  elQuery('label[for="settings-speedlimit"]', 'label_settings_speed_limit');
+  elQuery('label[for="settings-port"]', 'label_port');
+  elQuery('label[for="settings-playsounds"]:not(.toggle-label)', 'label_play_sounds');
+  elQuery('label[for="settings-playsounds"] + span', 'desc_play_sounds');
+  elQuery('label[for="settings-shownotifications"]:not(.toggle-label)', 'label_show_notifications');
+  elQuery('label[for="settings-shownotifications"] + span', 'desc_show_notifications');
+  elQuery('label[for="settings-autoopenbrowser"]:not(.toggle-label)', 'label_auto_open_browser');
+  elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
+  elQuery('#btn-search-channel-text', 'btn_search_channel');
+  elQuery('#btn-add-channel-text', 'btn_add_channel');
+  elQuery('label[for="settings-lang"]', 'label_lang');
+  elQuery('.form-actions button span', 'btn_save_settings');
+
+  // Onay Modalları
+  elQuery('#delete-modal h3', 'modal_delete_title');
+  elQuery('#delete-modal-msg', 'modal_delete_desc');
+  elQuery('#delete-file-checkbox + label + span', 'modal_delete_file_checkbox');
+  elQuery('#confirm-delete-btn', 'modal_delete_btn');
+  elQuery('#cancel-delete-btn', 'modal_cancel_btn');
+  elQuery('#player-modal-title', 'modal_player_title');
+}
+
+// Türkçe Açıklama: Seçilen tarayıcıya ait çerezlerin geçerli olup olmadığını backend'e sorarak arayüzdeki çerez durum lambasını günceller.
+/**
+ * Tarayıcı çerezlerinin geçerliliğini test eder ve durum göstergesini günceller.
+ * 
+ * @returns {Promise<void>}
+ */
+async function testCookies() {
+  const indicator = document.getElementById('cookie-test-indicator');
+  if (!indicator) return;
+  
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  
+  if (!localDb.settings || !localDb.settings.browser || localDb.settings.browser === 'none') {
+    indicator.style.backgroundColor = 'var(--text-muted)';
+    indicator.title = isEn ? 'Cookies not used' : 'Çerez kullanılmıyor';
+    return;
+  }
+  
+  indicator.style.backgroundColor = 'var(--warning)';
+  indicator.title = isEn ? 'Testing cookies...' : 'Çerezler test ediliyor...';
+  
+  try {
+    const res = await fetch('/api/test-cookies');
+    const data = await res.json();
+    if (data.success) {
+      indicator.style.backgroundColor = '#10b981'; // Green
+      indicator.title = isEn ? 'Cookies are active and valid' : 'Çerezler aktif ve geçerli';
+    } else {
+      indicator.style.backgroundColor = '#ef4444'; // Red
+      indicator.title = (isEn ? 'Cookie error: ' : 'Çerez hatası: ') + (data.error || 'Unknown error');
+      console.error('[Çerez Testi Hata]:', data.error);
+    }
+  } catch (err) {
+    indicator.style.backgroundColor = '#ef4444'; // Red
+    indicator.title = isEn ? 'Failed to communicate with server for cookie test' : 'Çerez testi için sunucuyla iletişim kurulamadı';
+  }
+}
+
+// Sayfa açıldığında masaüstü bildirim izni talep et
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
+// DOM Elemanları
+const statusIndicator = document.getElementById('status-indicator');
+const connectionStatus = document.getElementById('connection-status');
+const cookieStatus = document.getElementById('cookie-status');
+const qualityStatus = document.getElementById('quality-status');
+
+const navItems = document.querySelectorAll('.nav-item');
+const tabContents = document.querySelectorAll('.tab-content');
+
+// Dashboard Tab Elemanları
+const noActiveDownload = document.getElementById('no-active-download');
+const activeDownloadDetails = document.getElementById('active-download-details');
+const activeSpeed = document.getElementById('active-speed');
+const activeTitle = document.getElementById('active-title');
+const activeChannel = document.getElementById('active-channel');
+const activeProgressBar = document.getElementById('active-progress-bar');
+const activePercent = document.getElementById('active-percent');
+const activeSize = document.getElementById('active-size');
+const activeEta = document.getElementById('active-eta');
+
+const statChannelCount = document.getElementById('stat-channel-count');
+const statDownloadedCount = document.getElementById('stat-downloaded-count');
+const statWaitingCount = document.getElementById('stat-waiting-count');
+const queueList = document.getElementById('queue-list');
+
+// Kanallar Tab Elemanları
+const addChannelForm = document.getElementById('add-channel-form');
+const channelInput = document.getElementById('channel-input');
+const channelsList = document.getElementById('channels-list');
+const addChannelBtn = document.getElementById('add-channel-btn');
+
+// Geçmiş Tab Elemanları
+const historyGrid = document.getElementById('history-grid');
+const historyChannelFilter = document.getElementById('history-channel-filter');
+const viewGridBtn = document.getElementById('view-grid-btn');
+const viewListBtn = document.getElementById('view-list-btn');
+
+let historyViewMode = 'grid'; // grid veya list
+let historyFilterChannel = 'all'; // all veya kanalId
+let downloadedViewMode = 'grid'; // grid veya list
+let downloadedFilterChannel = 'all'; // all veya kanalId
+
+// İndirilen Videolar Tab Elemanları
+const downloadedGrid = document.getElementById('downloaded-grid');
+const downloadedChannelFilter = document.getElementById('downloaded-channel-filter');
+const downloadedViewGridBtn = document.getElementById('downloaded-view-grid-btn');
+const downloadedViewListBtn = document.getElementById('downloaded-view-list-btn');
+
+// Silme Modalı Elemanları
+const deleteModal = document.getElementById('delete-modal');
+const closeDeleteModalBtn = document.getElementById('close-delete-modal-btn');
+const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+const deleteFileCheckbox = document.getElementById('delete-file-checkbox');
+const deleteModalMsg = document.getElementById('delete-modal-msg');
+let videoIdToDelete = null;
+
+// Ayarlar Tab Elemanları
+const settingsForm = document.getElementById('settings-form');
+const settingsDownloadPath = document.getElementById('settings-download-path');
+const settingsBrowser = document.getElementById('settings-browser');
+const settingsQuality = document.getElementById('settings-quality');
+const settingsChannelCheckInterval = document.getElementById('settings-channelcheckinterval');
+const settingsAutoDownload = document.getElementById('settings-autodownload');
+
+// Diğer Butonlar
+const syncNowBtn = document.getElementById('sync-now-btn');
+const openFolderBtn = document.getElementById('open-folder-btn');
+const selectFolderBtn = document.getElementById('select-folder-btn');
+const testFolderBtn = document.getElementById('test-folder-btn');
+
+/**
+ * Ekranda anlık bildirim (toast) mesajı gösterir.
+ * 
+ * @param {string} message Gösterilecek mesaj metni
+ * @param {string} type Bildirim tipi ('info', 'success', 'error')
+ */
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  
+  let iconName = 'info';
+  if (type === 'success') iconName = 'check-circle';
+  if (type === 'error') iconName = 'alert-triangle';
+
+  toast.innerHTML = `
+    <div class="toast-icon">
+      <i data-lucide="${iconName}"></i>
+    </div>
+    <div class="toast-message">${message}</div>
+  `;
+  
+  container.appendChild(toast);
+  lucide.createIcons(); // Yeni ikonu işle
+
+  // 4 saniye sonra bildirimi kaldır
+  setTimeout(() => {
+    toast.style.animation = 'slideIn 0.3s reverse forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+// Türkçe Açıklama: SPA yönlendirmeleri için sekmeler arası gezinme ve HTML5 History API entegrasyonu.
+const tabPathMap = {
+  history: '/home',
+  queue: '/download',
+  downloaded: '/downlist',
+  channels: '/channels',
+  settings: '/settings'
+};
+
+const pathTabMap = {
+  '/home': 'history',
+  '/download': 'queue',
+  '/downlist': 'downloaded',
+  '/channels': 'channels',
+  '/settings': 'settings'
+};
+
+// Türkçe Açıklama: Sekmeler arası geçişi sağlar, aktif sekmeyi görsel olarak vurgular ve tarayıcının adres satırını History API ile günceller.
+/**
+ * Sekme geçişini yönetir ve tarayıcı geçmişini günceller.
+ * 
+ * @param {string} targetTab Hedef sekme adı
+ * @param {boolean} triggerPushState Adres satırı geçmişine kaydedilip kaydedilmeyeceği (varsayılan: true)
+ */
+function switchTab(targetTab, triggerPushState = true) {
+  navItems.forEach(n => {
+    if (n.getAttribute('data-tab') === targetTab) {
+      n.classList.add('active');
+    } else {
+      n.classList.remove('active');
+    }
+  });
+
+  tabContents.forEach(content => {
+    if (content.id === `tab-${targetTab}`) {
+      content.classList.add('active');
+    } else {
+      content.classList.remove('active');
+    }
+  });
+
+  if (triggerPushState) {
+    const targetPath = tabPathMap[targetTab];
+    if (targetPath && window.location.pathname !== targetPath) {
+      history.pushState({ tab: targetTab }, '', targetPath);
+    }
+  }
+}
+
+// Sekme Değiştirme
+navItems.forEach(item => {
+  item.addEventListener('click', () => {
+    const targetTab = item.getAttribute('data-tab');
+    switchTab(targetTab, true);
+  });
+});
+
+// Tarayıcı Geri/İleri Buton Dinleyicisi
+window.addEventListener('popstate', (event) => {
+  const tabId = (event.state && event.state.tab) || pathTabMap[window.location.pathname] || 'history';
+  switchTab(tabId, false);
+});
+
+/**
+ * Sunucu ile Server-Sent Events (SSE) bağlantısı kurar,
+ * canlı indirme ilerlemelerini, veritabanı güncellemelerini ve bildirimleri dinler.
+ */
+function connectSSE() {
+  if (eventSource) {
+    eventSource.close();
+  }
+
+  eventSource = new EventSource('/api/events');
+
+  eventSource.onopen = () => {
+    if (statusIndicator) statusIndicator.className = 'status-dot online';
+    if (connectionStatus) {
+      connectionStatus.textContent = 'Bağlandı';
+      connectionStatus.className = 'value text-muted';
+    }
+    const statusText = document.getElementById('topbar-status-text');
+    if (statusText) statusText.textContent = 'Bağlantı: Aktif';
+    updateDiskSpace();
+  };
+
+  eventSource.onerror = (err) => {
+    if (statusIndicator) statusIndicator.className = 'status-dot offline';
+    if (connectionStatus) {
+      connectionStatus.textContent = 'Bağlantı Kesildi';
+      connectionStatus.className = 'value text-muted';
+    }
+    const statusText = document.getElementById('topbar-status-text');
+    if (statusText) statusText.textContent = 'Bağlantı: Kesildi';
+  };
+
+  // Veritabanı Güncelleme Bildirimi
+  eventSource.addEventListener('db_update', (e) => {
+    const db = JSON.parse(e.data);
+    localDb = db;
+    updateUI(db);
+  });
+
+  // İndirme İlerleme Bildirimi
+  eventSource.addEventListener('progress', (e) => {
+    const data = JSON.parse(e.data);
+    updateActiveDownloadProgress(data);
+  });
+
+  // Sistem Log Bildirimi (Toast ve Masaüstü Bildirimi)
+  eventSource.addEventListener('status_log', (e) => {
+    const log = JSON.parse(e.data);
+    showToast(log.message, log.type);
+
+    // Masaüstü Bildirimi (Sadece indirme tamamlanma başarısında)
+    if (log.type === 'success' && 'Notification' in window && Notification.permission === 'granted') {
+      const isEn = localDb.settings.lang === 'en';
+      new Notification(isEn ? 'HaYTool Download Completed' : 'HaYTool İndirme Tamamlandı', {
+        body: log.message,
+        icon: '/logo.png'
+      });
+    }
+  });
+}
+
+/**
+ * Aktif indirme ilerlemesini (yüzde, hız, boyut vb.) canlı olarak arayüzde günceller.
+ * 
+ * @param {object} data İlerleme veri nesnesi
+ */
+function updateActiveDownloadProgress(data) {
+  noActiveDownload.classList.add('hidden');
+  activeDownloadDetails.classList.remove('hidden');
+
+  activeProgressBar.style.width = `${data.progress}%`;
+  activePercent.textContent = `${data.progress}%`;
+  activeSize.textContent = data.fileSize || '-- MB';
+  activeEta.textContent = data.eta || '--:--';
+  activeSpeed.textContent = data.speed || '0 KB/s';
+}
+
+// Türkçe Açıklama: ISO formatındaki tarih dizgelerini Türkiye saat dilimi ve formatına uygun şekilde (GG.AA.YYYY SS:DK) biçimlendirir.
+/**
+ * ISO tarih dizgesini Türkçe yerel tarih ve saat formatına çevirir (GG.AA.YYYY SS:DK).
+ * 
+ * @param {string} isoString ISO tarih dizgesi
+ * @returns {string} Biçimlendirilmiş tarih metni
+ */
+function formatDate(isoString) {
+  if (!isoString) return '--';
+  const date = new Date(isoString);
+  return date.toLocaleString('tr-TR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+// Türkçe Açıklama: Arayüzdeki kütüphane veya indirilenler listesindeki video kartlarını grid (ızgara) ya da liste görünümünde dinamik olarak çizer.
+/**
+ * Video listesini belirtilen grid elementi içerisine kart veya liste düzeninde çizer.
+ * 
+ * @param {HTMLElement} gridElement Hedef DOM elemanı
+ * @param {Array<object>} videosList Çizilecek videoların dizisi
+ * @param {string} viewMode Görünüm modu ('grid' veya 'list')
+ */
+function renderVideoGrid(gridElement, videosList, viewMode) {
+  if (!gridElement) return;
+  gridElement.innerHTML = '';
+  
+  if (viewMode === 'list') {
+    gridElement.classList.add('compact-list');
+  } else {
+    gridElement.classList.remove('compact-list');
+  }
+
+  if (videosList.length === 0) {
+    gridElement.innerHTML = `
+      <div class="card text-center" style="grid-column: 1 / -1; padding: 40px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px;">
+        <p class="text-muted">Filtreye uygun video kaydı bulunmuyor.</p>
+      </div>
+    `;
+    return;
+  }
+
+  videosList.forEach(item => {
+    const isShort = isShortVideo(item.duration, item.title);
+    const card = document.createElement('div');
+    card.className = 'video-card' + (isShort ? ' is-short' : '');
+    
+    let statusHtml = '';
+    let actionsHtml = '';
+
+    if (item.status === 'completed') {
+      statusHtml = `<span class="status-dot-completed" title="İndirildi"></span>`;
+      actionsHtml = `
+        <button class="btn-icon btn-icon-success" onclick="playVideoEmbedded('${item.id}')" title="Gömülü Oynatıcıda Aç">
+          <i data-lucide="play"></i>
+        </button>
+        <button class="btn-icon btn-icon-primary" onclick="playVideoSystem('${item.id}')" title="Sistem Oynatıcısında Aç">
+          <i data-lucide="tv"></i>
+        </button>
+        <button class="btn-icon" onclick="openFolder(decodeURIComponent('${encodeURIComponent(item.channelName)}'))" title="Kanal Klasörünü Aç">
+          <i data-lucide="folder-open"></i>
+        </button>
+        <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
+          <i data-lucide="youtube"></i>
+        </button>
+      `;
+    } else if (item.status === 'downloading') {
+      statusHtml = `<span class="status-pill downloading"><i data-lucide="loader" class="pulse-animation" style="width:12px;height:12px;margin-right:4px;"></i> İndiriliyor (${item.progress}%)</span>`;
+      actionsHtml = `
+        <button class="btn-icon" onclick="cancelDownload('${item.id}')" title="İndirmeyi İptal Et" style="color: var(--accent-red); background: rgba(255, 0, 85, 0.05); border: 1px solid rgba(255, 0, 85, 0.15);">
+          <i data-lucide="square"></i>
+        </button>
+        <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
+          <i data-lucide="youtube"></i>
+        </button>
+      `;
+    } else if (item.status === 'waiting') {
+      statusHtml = `<span class="status-pill waiting"><i data-lucide="clock" style="width:12px;height:12px;margin-right:4px;"></i> Kuyrukta</span>`;
+      actionsHtml = `
+        <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
+          <i data-lucide="youtube"></i>
+        </button>
+      `;
+    } else if (item.status === 'failed') {
+      statusHtml = `<span class="status-pill failed" title="${item.error || ''}"><i data-lucide="alert-circle" style="width:12px;height:12px;margin-right:4px;"></i> Hata</span>`;
+      actionsHtml = `
+        <button class="btn-icon" onclick="downloadVideoManual('${item.id}')" title="Yeniden İndirmeyi Dene">
+          <i data-lucide="rotate-ccw"></i>
+        </button>
+        <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
+          <i data-lucide="youtube"></i>
+        </button>
+      `;
+    } else if (item.status === 'ignored') {
+      statusHtml = `<span class="status-pill ignored"><i data-lucide="skip-forward" style="width:12px;height:12px;margin-right:4px;"></i> Göz Ardı Edildi</span>`;
+      actionsHtml = `
+        <button class="btn-icon" onclick="downloadVideoManual('${item.id}')" title="Videoyu Şimdi İndir">
+          <i data-lucide="download"></i>
+        </button>
+        <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
+          <i data-lucide="youtube"></i>
+        </button>
+      `;
+    }
+
+    if (item.status !== 'downloading') {
+      actionsHtml += `
+        <button class="btn-icon video-action-delete" onclick="showDeleteModal('${item.id}')" title="Geçmişten/Diskten Sil">
+          <i data-lucide="trash-2"></i>
+        </button>
+      `;
+    }
+
+    const durationBadgeHtml = item.duration 
+      ? `<div class="video-duration-badge">${item.duration}</div>` 
+      : '';
+
+    const shortsBadgeHtml = isShort 
+      ? `<div class="video-shorts-badge"><i data-lucide="zap" style="width:10px;height:10px;margin-right:2px;"></i> Shorts</div>` 
+      : '';
+
+    const shortsTagHtml = isShort 
+      ? `<span class="video-card-shorts-tag"><i data-lucide="zap" style="width:10px;height:10px;margin-right:2px;"></i> Shorts</span>` 
+      : '';
+
+    card.innerHTML = `
+      <div class="video-thumbnail-wrapper" onclick="openYouTube('${item.id}')" style="cursor: pointer;" title="YouTube'da Aç">
+        <img class="video-thumbnail" src="https://img.youtube.com/vi/${item.id}/mqdefault.jpg" alt="Video Resmi" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
+        ${durationBadgeHtml}
+        ${shortsBadgeHtml}
+      </div>
+      <div class="video-card-content">
+        <h3 class="video-card-title" onclick="openYouTube('${item.id}')" style="cursor: pointer;" title="YouTube'da Aç: ${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span class="video-card-duration-text">${item.duration || 'Süre Belirtilmedi'}</span>
+          ${shortsTagHtml}
+        </div>
+        <div class="video-card-metadata">
+          <span class="video-card-channel"><i data-lucide="tv" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ${escapeHtml(item.channelName)}</span>
+          <span>Tarih: ${formatDate(item.publishedAt || item.downloadedAt)}</span>
+          <span>Boyut: ${item.fileSize || '-- MB'}</span>
+        </div>
+        <div class="video-card-bottom">
+          ${statusHtml}
+          <div class="video-card-actions">
+            ${actionsHtml}
+          </div>
+        </div>
+      </div>
+    `;
+    gridElement.appendChild(card);
+  });
+  
+  lucide.createIcons();
+}
+
+// Türkçe Açıklama: Sunucudan veya SSE bağlantısından gelen güncel veritabanı verilerine göre tüm ekran kartlarını, istatistikleri ve listeleri günceller.
+/**
+ * Veritabanı nesnesine göre arayüzdeki istatistikleri, video listelerini ve ayar formlarını günceller.
+ * 
+ * @param {object} db Veritabanı veri nesnesi
+ */
+function updateUI(db) {
+  if (!db) return;
+
+  // 1. Sistem Durum Detayları
+  const browserNames = {
+    chrome: 'Google Chrome',
+    edge: 'Microsoft Edge',
+    msedge: 'Microsoft Edge',
+    firefox: 'Mozilla Firefox',
+    brave: 'Brave',
+    opera: 'Opera',
+    none: 'Devre Dışı'
+  };
+  
+  if (cookieStatus && db.settings) {
+    cookieStatus.textContent = browserNames[db.settings.browser] || 'Belirtilmedi';
+  }
+  
+  const qualityNames = {
+    best: 'En Yüksek',
+    '1080p': '1080p FHD',
+    '720p': '720p HD'
+  };
+  if (qualityStatus && db.settings) {
+    qualityStatus.textContent = qualityNames[db.settings.quality] || 'Otomatik';
+  }
+
+  // 2. İstatistik Sayıcılar
+  if (statChannelCount && db.channels) statChannelCount.textContent = db.channels.length;
+  const channelsTotalCount = document.getElementById('channels-total-count');
+  if (channelsTotalCount && db.channels) channelsTotalCount.textContent = `${db.channels.length} Kanal`;
+  
+  if (db.history) {
+    const downloadedVideos = db.history.filter(h => h.status === 'completed');
+    if (statDownloadedCount) statDownloadedCount.textContent = downloadedVideos.length;
+
+    const waitingVideos = db.history.filter(h => h.status === 'waiting');
+    if (statWaitingCount) statWaitingCount.textContent = waitingVideos.length;
+
+    // 3. Aktif İndirme ve İndirme Sırası
+    const activeDownload = db.history.find(h => h.status === 'downloading');
+    if (activeDownload) {
+      if (noActiveDownload) noActiveDownload.classList.add('hidden');
+      if (activeDownloadDetails) {
+        activeDownloadDetails.classList.remove('hidden');
+        if (activeTitle) activeTitle.textContent = activeDownload.title;
+        if (activeChannel) activeChannel.textContent = activeDownload.channelName;
+        if (activeProgressBar) activeProgressBar.style.width = `${activeDownload.progress}%`;
+        if (activePercent) activePercent.textContent = `${activeDownload.progress}%`;
+        if (activeSize) activeSize.textContent = activeDownload.fileSize || '-- MB';
+        if (activeEta) activeEta.textContent = activeDownload.eta || '--:--';
+      }
+      if (activeSpeed) activeSpeed.textContent = activeDownload.speed || '0 KB/s';
+    } else {
+      if (noActiveDownload) noActiveDownload.classList.remove('hidden');
+      if (activeDownloadDetails) activeDownloadDetails.classList.add('hidden');
+      if (activeSpeed) activeSpeed.textContent = '0 MB/s';
+    }
+
+    // 4. Kuyruk Listesi
+    if (queueList) {
+      queueList.innerHTML = '';
+      const isEn = db.settings && db.settings.lang === 'en';
+      if (waitingVideos.length === 0) {
+        queueList.innerHTML = `
+          <div class="text-center text-muted" id="queue-list-empty" style="padding: 30px 0; font-size: 0.85rem;">${isEn ? 'No videos waiting in the queue.' : 'Kuyrukta bekleyen video yok.'}</div>
+        `;
+      } else {
+        waitingVideos.forEach(video => {
+          const item = document.createElement('div');
+          item.className = 'queue-item';
+          item.setAttribute('draggable', 'true');
+          item.setAttribute('data-id', video.id);
+          item.innerHTML = `
+            <div class="queue-item-drag-handle" style="cursor: grab; display: flex; align-items: center; justify-content: center; padding-right: 12px; color: var(--text-muted);" title="${isEn ? 'Drag to reorder' : 'Sürükleyip sıralayın'}">
+              <i data-lucide="grip-vertical" style="width:16px; height:16px;"></i>
+            </div>
+            <div class="queue-item-info" style="flex:1;">
+              <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main);">${escapeHtml(video.title)}</div>
+              <div class="queue-item-channel" style="font-size:0.78rem;">
+                <i data-lucide="tv" style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin-right: 2px;"></i>
+                ${escapeHtml(video.channelName)}
+              </div>
+            </div>
+            <div class="queue-item-actions">
+              <button class="btn-cancel-queue" onclick="cancelQueuedVideo('${video.id}')" title="${isEn ? 'Cancel' : 'İptal Et'}">
+                <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+                <span>${isEn ? 'Cancel' : 'İptal Et'}</span>
+              </button>
+            </div>
+          `;
+          
+          // Drag and drop olaylarını ekle
+          item.addEventListener('dragstart', handleDragStart);
+          item.addEventListener('dragover', handleDragOver);
+          item.addEventListener('drop', handleDrop);
+          item.addEventListener('dragend', handleDragEnd);
+          
+          queueList.appendChild(item);
+        });
+      }
+    }
+  }
+
+  // 5. Kanallar Listesi (Alfabetik Sıralı)
+  if (channelsList && db.channels) {
+    channelsList.innerHTML = '';
+    if (db.channels.length === 0) {
+      channelsList.innerHTML = `
+        <div class="channels-empty-state">
+          <div class="channels-empty-icon">
+            <i data-lucide="tv-2"></i>
+          </div>
+          <h3>Henüz takip edilen kanal yok</h3>
+          <p>Yukarıdaki formdan YouTube kanal linki veya kullanıcı adı girerek kanal ekleyebilirsiniz.</p>
+        </div>
+      `;
+    } else {
+      // Alfabetik sıralama
+      const sortedChannels = [...db.channels].sort((a, b) => 
+        (a.name || '').localeCompare(b.name || '', 'tr', { sensitivity: 'base' })
+      );
+      
+      sortedChannels.forEach((channel, index) => {
+        const channelInitial = (channel.name || 'Y').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        
+        // YouTube kanal URL'si oluştur
+        const channelUrl = channel.handle 
+          ? (channel.handle.startsWith('http') ? channel.handle : `https://www.youtube.com/${channel.handle.startsWith('@') ? channel.handle : '@' + channel.handle}`)
+          : `https://www.youtube.com/channel/${channel.id}`;
+        
+        // Kanal profil resmi URL'si (YouTube thumbnail API)
+        const avatarImgId = `ch-avatar-${channel.id}`;
+        
+        const row = document.createElement('div');
+        row.className = 'channel-list-item';
+        row.style.animationDelay = `${index * 0.04}s`;
+        row.innerHTML = `
+          <div class="channel-list-rank">${index + 1}</div>
+          <div class="channel-list-avatar-wrap">
+            <img 
+              id="${avatarImgId}"
+              class="channel-list-avatar-img"
+              // Türkçe Açıklama: Kanal logosu yerel sunucu API'si üzerinden linklendi.
+              src="/api/channels/${channel.id}/avatar"
+              alt="${escapeHtml(channel.name)}"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <div class="channel-list-avatar-fallback" style="display:none;">${channelInitial}</div>
+          </div>
+          <div class="channel-list-info">
+            <a class="channel-list-name" href="${channelUrl}" target="_blank" rel="noopener noreferrer" title="YouTube'da Aç: ${escapeHtml(channel.name)}">
+              ${escapeHtml(channel.name)}
+              <i data-lucide="external-link" style="width:13px;height:13px;display:inline-block;vertical-align:middle;margin-left:5px;opacity:0.5;"></i>
+            </a>
+            <span class="channel-list-handle">${escapeHtml(channel.handle || '')}</span>
+          </div>
+          <div class="channel-list-quality">
+            <select onchange="changeChannelQuality('${channel.id}', this.value)" class="channel-quality-select" title="İndirme Kalitesi">
+              <option value="default" ${(!channel.quality || channel.quality === 'default') ? 'selected' : ''}>Varsayılan Kalite</option>
+              <option value="best" ${channel.quality === 'best' ? 'selected' : ''}>En Yüksek</option>
+              <option value="1080p" ${channel.quality === '1080p' ? 'selected' : ''}>1080p FHD</option>
+              <option value="720p" ${channel.quality === '720p' ? 'selected' : ''}>720p HD</option>
+            </select>
+          </div>
+          <div class="channel-list-shorts">
+            <select onchange="changeChannelShorts('${channel.id}', this.value)" class="channel-shorts-select" title="Shorts İndirme Durumu">
+              <option value="true" ${channel.downloadShorts !== false ? 'selected' : ''}>Shorts İndir</option>
+              <option value="false" ${channel.downloadShorts === false ? 'selected' : ''}>Shorts İndirme</option>
+            </select>
+          </div>
+          <div class="channel-list-meta">
+            <span class="channel-list-date">
+              <i data-lucide="calendar" style="width:11px;height:11px;vertical-align:middle;margin-right:3px;"></i>
+              ${formatDate(channel.addedAt).split(' ')[0]}
+            </span>
+          </div>
+          <div class="channel-list-actions">
+            <button class="btn-icon channel-logo-update-btn" onclick="updateChannelAvatar('${channel.id}')" title="Logoyu Güncelle">
+              <i data-lucide="image" style="color:#38bdf8;"></i>
+            </button>
+            <a href="${channelUrl}" target="_blank" rel="noopener noreferrer" class="btn-icon channel-open-btn" title="YouTube'da Aç">
+              <i data-lucide="youtube" style="color:#ff0000;"></i>
+            </a>
+            <button class="btn-icon channel-delete-icon-btn" onclick="deleteChannel('${channel.id}')" title="Takipten Çıkar">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+        `;
+        channelsList.appendChild(row);
+      });
+    }
+  }
+
+  // 6. Geçmiş Kanal Filtresi Seçeneklerini Doldur (Alfabetik Sıralı)
+  if (historyChannelFilter && db.channels) {
+    const currentFilterVal = historyChannelFilter.value || 'all';
+    historyChannelFilter.innerHTML = '<option value="all">Tüm Kanallar</option>';
+    
+    // Kanalları alfabetik olarak sırala
+    const sortedFilterChannels = [...db.channels].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+    sortedFilterChannels.forEach(channel => {
+      const opt = document.createElement('option');
+      opt.value = channel.id;
+      opt.textContent = channel.name;
+      historyChannelFilter.appendChild(opt);
+    });
+    historyChannelFilter.value = currentFilterVal;
+    historyFilterChannel = historyChannelFilter.value; // Senkronize et
+  }
+
+  // İndirilen Videolar Kanal Filtresi Seçeneklerini Doldur
+  if (downloadedChannelFilter && db.channels) {
+    const currentFilterVal = downloadedChannelFilter.value || 'all';
+    downloadedChannelFilter.innerHTML = '<option value="all">Tüm Kanallar</option>';
+    
+    // Kanalları alfabetik olarak sırala
+    const sortedFilterChannels = [...db.channels].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+    sortedFilterChannels.forEach(channel => {
+      const opt = document.createElement('option');
+      opt.value = channel.id;
+      opt.textContent = channel.name;
+      downloadedChannelFilter.appendChild(opt);
+    });
+    downloadedChannelFilter.value = currentFilterVal;
+    downloadedFilterChannel = downloadedChannelFilter.value; // Senkronize et
+  }
+
+  // Görünüm butonlarının aktiflik durumunu güncelle
+  if (viewGridBtn) viewGridBtn.classList.toggle('active', historyViewMode === 'grid');
+  if (viewListBtn) viewListBtn.classList.toggle('active', historyViewMode === 'list');
+  
+  if (downloadedViewGridBtn) downloadedViewGridBtn.classList.toggle('active', downloadedViewMode === 'grid');
+  if (downloadedViewListBtn) downloadedViewListBtn.classList.toggle('active', downloadedViewMode === 'list');
+  
+  if (historyGrid) {
+    if (historyViewMode === 'list') {
+      historyGrid.classList.add('compact-list');
+    } else {
+      historyGrid.classList.remove('compact-list');
+    }
+  }
+
+  if (downloadedGrid) {
+    if (downloadedViewMode === 'list') {
+      downloadedGrid.classList.add('compact-list');
+    } else {
+      downloadedGrid.classList.remove('compact-list');
+    }
+  }
+
+  // Geçmişi filtrele ve çiz
+  if (historyGrid && db.history && db.settings) {
+    let filteredHistory = [...db.history];
+    if (historyFilterChannel !== 'all') {
+      filteredHistory = filteredHistory.filter(item => item.channelId === historyFilterChannel);
+    }
+    
+    const showShorts = db.settings.showShorts !== false;
+    if (!showShorts) {
+      filteredHistory = filteredHistory.filter(item => !isShortVideo(item.duration, item.title));
+    }
+    
+    // Yüklenme tarihine göre sırala (Yeni olan en üstte)
+    filteredHistory.sort((a, b) => {
+      const dateA = new Date(a.publishedAt || a.downloadedAt || 0).getTime();
+      const dateB = new Date(b.publishedAt || b.downloadedAt || 0).getTime();
+      return dateB - dateA;
+    });
+    
+    renderVideoGrid(historyGrid, filteredHistory, historyViewMode);
+  }
+
+  // İndirilen Videoları filtrele ve çiz
+  if (downloadedGrid && db.history && db.settings) {
+    let filteredDownloaded = db.history.filter(item => item.status === 'completed');
+    
+    if (downloadedFilterChannel !== 'all') {
+      filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
+    }
+    
+    const showShorts = db.settings.showShorts !== false;
+    if (!showShorts) {
+      filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title));
+    }
+    
+    // Yüklenme tarihine göre sırala (Yeni olan en üstte)
+    filteredDownloaded.sort((a, b) => {
+      const dateA = new Date(a.publishedAt || a.downloadedAt || 0).getTime();
+      const dateB = new Date(b.publishedAt || b.downloadedAt || 0).getTime();
+      return dateB - dateA;
+    });
+    
+    renderVideoGrid(downloadedGrid, filteredDownloaded, downloadedViewMode);
+  }
+
+  // 7. Ayarlar Değerleri (Sadece alan odaklanılmamışsa doldur)
+  if (db.settings) {
+    if (settingsDownloadPath && document.activeElement !== settingsDownloadPath) settingsDownloadPath.value = db.settings.downloadPath || '';
+    if (settingsBrowser && document.activeElement !== settingsBrowser) settingsBrowser.value = db.settings.browser || 'none';
+    if (settingsQuality && document.activeElement !== settingsQuality) settingsQuality.value = db.settings.quality || 'best';
+    if (settingsChannelCheckInterval && document.activeElement !== settingsChannelCheckInterval) settingsChannelCheckInterval.value = db.settings.channelCheckInterval || 60;
+    if (settingsAutoDownload && document.activeElement !== settingsAutoDownload) settingsAutoDownload.checked = !!db.settings.autoDownload;
+
+    const settingsMergeType = document.getElementById('settings-mergetype');
+    const settingsWriteThumbnail = document.getElementById('settings-writethumbnail');
+    if (settingsMergeType && document.activeElement !== settingsMergeType) settingsMergeType.value = db.settings.mergeType || 'single';
+    if (settingsWriteThumbnail && document.activeElement !== settingsWriteThumbnail) settingsWriteThumbnail.checked = db.settings.writeThumbnail !== false;
+
+    const settingsShowShorts = document.getElementById('settings-showshorts');
+    if (settingsShowShorts && document.activeElement !== settingsShowShorts) settingsShowShorts.checked = db.settings.showShorts !== false;
+
+    const historyShowShorts = document.getElementById('history-show-shorts');
+    if (historyShowShorts && document.activeElement !== historyShowShorts) historyShowShorts.checked = db.settings.showShorts !== false;
+
+    // Yeni Ayarlar: Tema, Otomatik Silme, RSS Limiti ve Hız Limiti
+    const settingsTheme = document.getElementById('settings-theme');
+    const settingsAutoDelete = document.getElementById('settings-autodelete');
+    const settingsRssLimit = document.getElementById('settings-rsslimit');
+    const settingsSpeedLimit = document.getElementById('settings-speedlimit');
+    if (settingsTheme && document.activeElement !== settingsTheme) settingsTheme.value = db.settings.theme || 'dark';
+    if (settingsAutoDelete && document.activeElement !== settingsAutoDelete) settingsAutoDelete.value = db.settings.autoDeleteDays || 0;
+    if (settingsRssLimit && document.activeElement !== settingsRssLimit) settingsRssLimit.value = db.settings.rssLimit || 5;
+    if (settingsSpeedLimit && document.activeElement !== settingsSpeedLimit) settingsSpeedLimit.value = db.settings.downloadSpeedLimit || 0;
+
+    const settingsPort = document.getElementById('settings-port');
+    if (settingsPort && document.activeElement !== settingsPort) settingsPort.value = db.settings.port || 3000;
+
+    const settingsPlaySounds = document.getElementById('settings-playsounds');
+    if (settingsPlaySounds && document.activeElement !== settingsPlaySounds) settingsPlaySounds.checked = db.settings.playSounds !== false;
+
+    const settingsShowNotifications = document.getElementById('settings-shownotifications');
+    if (settingsShowNotifications && document.activeElement !== settingsShowNotifications) settingsShowNotifications.checked = db.settings.showNotifications !== false;
+
+    const settingsAutoOpenBrowser = document.getElementById('settings-autoopenbrowser');
+    if (settingsAutoOpenBrowser && document.activeElement !== settingsAutoOpenBrowser) settingsAutoOpenBrowser.checked = db.settings.autoOpenBrowser !== false;
+
+    const settingsLang = document.getElementById('settings-lang');
+    if (settingsLang && document.activeElement !== settingsLang) settingsLang.value = db.settings.lang || 'tr';
+
+    // Kuyruk duraklatma butonu görünümü ve ikonu
+    const pauseBtn = document.getElementById('queue-pause-btn');
+    if (pauseBtn) {
+      const iconEl = pauseBtn.querySelector('i');
+      if (db.settings.isPaused) {
+        pauseBtn.classList.add('btn-warning');
+        if (iconEl) iconEl.setAttribute('data-lucide', 'play');
+      } else {
+        pauseBtn.classList.remove('btn-warning');
+        if (iconEl) iconEl.setAttribute('data-lucide', 'pause');
+      }
+    }
+
+    // Sıradaki hız sınırı giriş kutusu senkronizasyonu
+    const queueSpeedLimitInput = document.getElementById('queue-speed-limit-input');
+    if (queueSpeedLimitInput && document.activeElement !== queueSpeedLimitInput) {
+      queueSpeedLimitInput.value = db.settings.downloadSpeedLimit || 0;
+    }
+
+    // Tema Sınıfı Eşitlemesi
+    document.body.classList.toggle('light-theme', db.settings.theme === 'light');
+    
+    // Dil Çevirisini Uygula
+    if (db.settings.lang) {
+      applyLanguage(db.settings.lang);
+    }
+    
+    // Çerez canlılık testini tetikle
+    if (db.settings.browser) {
+      const currentBrowser = db.settings.browser;
+      if (window.lastTestedBrowser !== currentBrowser) {
+        window.lastTestedBrowser = currentBrowser;
+        testCookies();
+      }
+    }
+  }
+
+  // İkonları yeniden yükle
+  lucide.createIcons();
+}
+
+/**
+ * XSS açıklarını önlemek amacıyla metin içerisindeki tehlikeli HTML karakterlerini kaçış dizgilerine çevirir.
+ * 
+ * @param {string} str Kaçış yapılacak metin
+ * @returns {string} Güvenli hale getirilmiş metin
+ */
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Türkçe Açıklama: Video başlığında '#shorts' etiketi olup olmamasına veya video süresinin 3 dakikadan kısa olup olmamasına bakarak Shorts videosu ayrımı yapar.
+/**
+ * Süre değerine ve başlığına bakarak bir videonun Shorts olup olmadığını belirler.
+ * 
+ * @param {string} durationStr Biçimlendirilmiş süre metni (Örn: 1:30)
+ * @param {string} title Video başlığı
+ * @returns {boolean} Video Shorts ise true
+ */
+function isShortVideo(durationStr, title) {
+  if (title && (title.toLowerCase().includes('#shorts') || title.toLowerCase().includes('shorts'))) {
+    return true;
+  }
+  if (!durationStr) return false;
+  const parts = durationStr.split(':').map(Number);
+  
+  if (parts.length === 1) {
+    return parts[0] <= 180;
+  } else if (parts.length === 2) {
+    const minutes = parts[0];
+    const seconds = parts[1];
+    const totalSeconds = (minutes * 60) + seconds;
+    return totalSeconds <= 180;
+  }
+  return false;
+}
+
+// Türkçe Açıklama: Belirtilen kanal ID'sini backend API'sine ileterek kanalı izleme listesinden çıkarır ve geçmiş verilerini siler.
+/**
+ * Belirtilen kanalı takipten çıkarır ve veritabanından siler.
+ * 
+ * @param {string} id Silinecek kanal ID'si
+ */
+window.deleteChannel = async function(id) {
+  if (!confirm('Bu kanalı takipten çıkarmak istediğinizden emin misiniz?')) return;
+  
+  try {
+    const res = await fetch(`/api/channels/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Kanal takipten çıkarıldı.', 'info');
+    } else {
+      showToast(data.error || 'Hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+};
+
+// Türkçe Açıklama: Belirtilen kanalın güncel profil resmini YouTube üzerinden indirip yerel diske kaydetmek üzere backend rotasını tetikler.
+/**
+ * Belirtilen kanalın profil resmini (logosunu) YouTube'dan yeniden çözümler ve günceller.
+ * 
+ * @param {string} id Güncellenecek kanal ID'si
+ */
+window.updateChannelAvatar = async function(id) {
+  try {
+    showToast('Kanal logosu güncelleniyor...', 'info');
+    const res = await fetch(`/api/channels/${id}/update-avatar`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Kanal logosu başarıyla güncellendi.', 'success');
+      // Logo güncellendikten sonra resmi yenilemek için cache-busting yapıyoruz
+      const img = document.getElementById(`ch-avatar-${id}`);
+      if (img) {
+        img.src = `/api/channels/${id}/avatar?t=${Date.now()}`;
+      }
+    } else {
+      showToast(data.error || 'Hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+};
+
+/**
+ * Takip edilen tüm kanalların logolarını arka planda toplu olarak günceller.
+ */
+// Türkçe Açıklama: Arayüzden toplu kanal logosu güncelleme API'sini çağırır.
+window.updateAllChannelAvatars = async function() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (!confirm(isEn ? 'Are you sure you want to update all channel logos? This may take some time.' : 'Tüm kanal logolarını güncellemek istediğinize emin misiniz? Bu işlem biraz zaman alabilir.')) return;
+  
+  showToast(isEn ? 'Updating all channel logos...' : 'Tüm kanal logoları güncelleniyor...', 'info');
+  
+  const btn = document.getElementById('update-all-logos-btn');
+  if (btn) btn.disabled = true;
+  
+  try {
+    const res = await fetch('/api/channels/update-all-avatars', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      // Başarı logları SSE kanalıyla sunucudan gelecektir.
+      // Her resim için cache-busting uygulayarak arayüzü yenileriz
+      setTimeout(() => {
+        document.querySelectorAll('.channel-list-avatar-img').forEach(img => {
+          const idMatch = img.id.match(/ch-avatar-(UC[a-zA-Z0-9_-]{22})/);
+          if (idMatch) {
+            img.src = `/api/channels/${idMatch[1]}/avatar?t=${Date.now()}`;
+          }
+        });
+      }, 2000);
+    } else {
+      showToast(data.error || 'İşlem başarısız oldu.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+};
+
+/**
+ * Belirtilen videoyu manuel olarak indirme sırasına (kuyruğa) ekler.
+ * 
+ * @param {string} videoId İndirilecek video ID'si
+ */
+window.downloadVideoManual = async function(videoId) {
+  const item = localDb.history.find(h => h.id === videoId);
+  const title = item ? item.title : 'Bilinmeyen Video';
+  const channelName = item ? item.channelName : 'Manuel İndirme';
+  const channelId = item ? item.channelId : 'manual';
+
+  try {
+    showToast(`İndirme başlatılıyor: ${title}`, 'info');
+    const res = await fetch('/api/download-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId, title, channelName, channelId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Kuyruğa eklendi.', 'success');
+    } else {
+      showToast(data.error || 'İndirme tetiklenemedi.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+};
+
+// Türkçe Açıklama: Sunucuya istek göndererek, indirilen videoların bulunduğu klasörü Windows Dosya Gezgini'nde otomatik olarak açar.
+/**
+ * Sunucuya istek atarak indirme klasörünü (varsa kanal klasörünü) Windows Gezgini'nde açar.
+ * 
+ * @param {string} channelName Açılacak kanal klasörünün ismi
+ */
+window.openFolder = async function(channelName) {
+  // Eğer parametre bir PointerEvent vb. ise temizle
+  if (typeof channelName !== 'string') {
+    channelName = '';
+  }
+  try {
+    const res = await fetch('/api/open-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channelName })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || 'Klasör açılamadı.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+};
+
+// Form Gönderimleri
+if (addChannelForm) {
+  addChannelForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const inputVal = channelInput.value.trim();
+    if (!inputVal) return;
+
+    const downloadShorts = confirm('Bu kanal için Shorts videoları da otomatik indirilsin mi? (İptal seçilirse Shorts videoları otomatik indirilmeyecektir)');
+
+    addChannelBtn.disabled = true;
+    addChannelBtn.querySelector('span').textContent = 'Kanal Çözümleniyor...';
+    showToast('Kanal sorgulanıyor, lütfen bekleyin...', 'info');
+
+    try {
+      const res = await fetch('/api/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: inputVal, downloadShorts })
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        channelInput.value = '';
+        showToast('Kanal başarıyla takip listesine eklendi!', 'success');
+      } else {
+        showToast(data.error || 'Kanal eklenirken bir hata oluştu.', 'error');
+      }
+    } catch (err) {
+      showToast('Bağlantı hatası.', 'error');
+    } finally {
+      addChannelBtn.disabled = false;
+      addChannelBtn.querySelector('span').textContent = 'Kanalı Takip Et';
+      lucide.createIcons();
+    }
+  });
+}
+
+if (settingsForm) {
+  settingsForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const settingsPortInput = document.getElementById('settings-port');
+    const port = settingsPortInput ? parseInt(settingsPortInput.value, 10) : 3000;
+    
+    const settings = {
+      downloadPath: settingsDownloadPath.value.trim(),
+      browser: settingsBrowser.value,
+      quality: settingsQuality.value,
+      channelCheckInterval: parseInt(settingsChannelCheckInterval.value, 10) || 60,
+      autoDownload: settingsAutoDownload.checked,
+      mergeType: document.getElementById('settings-mergetype').value,
+      writeThumbnail: document.getElementById('settings-writethumbnail').checked,
+      showShorts: document.getElementById('settings-showshorts').checked,
+      theme: document.getElementById('settings-theme').value,
+      autoDeleteDays: parseInt(document.getElementById('settings-autodelete').value, 10) || 0,
+      rssLimit: parseInt(document.getElementById('settings-rsslimit').value, 10) || 5,
+      downloadSpeedLimit: parseInt(document.getElementById('settings-speedlimit').value, 10) || 0,
+      port: port,
+      playSounds: document.getElementById('settings-playsounds').checked,
+      showNotifications: document.getElementById('settings-shownotifications').checked,
+      autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
+      lang: document.getElementById('settings-lang').value
+    };
+
+    const oldPort = localDb.settings.port || 3000;
+
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (port !== oldPort) {
+          showToast(`Ayarlar kaydedildi! Port ${port} olarak değiştirildi. Yeni portun aktif olması için uygulamayı yeniden başlatın.`, 'warning');
+        } else {
+          showToast('Ayarlar başarıyla kaydedildi!', 'success');
+        }
+        updateDiskSpace();
+      } else {
+        showToast(data.error || 'Hata oluştu.', 'error');
+      }
+    } catch (err) {
+      showToast('Bağlantı hatası.', 'error');
+    }
+  });
+}
+
+if (syncNowBtn) {
+  syncNowBtn.addEventListener('click', async () => {
+    syncNowBtn.disabled = true;
+    showToast('Tüm kanallar manuel taranıyor...', 'info');
+    
+    try {
+      const res = await fetch('/api/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Kanallar başarıyla denetlendi.', 'success');
+      } else {
+        showToast(data.error || 'Hata oluştu.', 'error');
+      }
+    } catch (err) {
+      showToast('Bağlantı hatası.', 'error');
+    } finally {
+      syncNowBtn.disabled = false;
+    }
+  });
+}
+
+if (openFolderBtn) {
+  openFolderBtn.addEventListener('click', openFolder);
+}
+
+if (selectFolderBtn) {
+  selectFolderBtn.addEventListener('click', async () => {
+    showToast('Klasör seçim penceresi açılıyor, lütfen bekleyin...', 'info');
+    try {
+      const res = await fetch('/api/select-folder', { method: 'POST' });
+      const data = await res.json();
+      if (data.success && data.path) {
+        settingsDownloadPath.value = data.path;
+        showToast(`Yeni indirme dizini seçildi: ${data.path}`, 'success');
+      } else if (data.message) {
+        showToast(data.message, 'warning');
+      }
+    } catch (err) {
+      showToast('Klasör seçilirken bir bağlantı hatası oluştu.', 'error');
+    }
+  });
+}
+
+if (testFolderBtn) {
+  testFolderBtn.addEventListener('click', async () => {
+    // Klasör yolu geçerliliğini test etmek için backend'i tetikleyelim
+    const folder = settingsDownloadPath.value.trim();
+    if (!folder) return showToast('Klasör yolu boş bırakılamaz.', 'error');
+    
+    try {
+      const res = await fetch('/api/open-folder', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Klasör yolu geçerli ve başarıyla açıldı!', 'success');
+      } else {
+        showToast(data.error || 'Klasör açılamadı.', 'error');
+      }
+    } catch (err) {
+      showToast('Test hatası.', 'error');
+    }
+  });
+}
+
+/**
+ * Belirli bir kanal için varsayılan indirme kalitesini günceller.
+ * 
+ * @param {string} id Kanal ID'si
+ * @param {string} quality Kalite değeri ('default', 'best', '1080p', '720p')
+ */
+window.changeChannelQuality = async function(id, quality) {
+  try {
+    const res = await fetch(`/api/channels/${id}/quality`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quality })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Kanal kalitesi başarıyla güncellendi.', 'success');
+    } else {
+      showToast(data.error || 'Hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu bağlantı hatası.', 'error');
+  }
+};
+
+// Türkçe Açıklama: Belirtilen kanal için Shorts videolarının indirilip indirilmeyeceğini güncelleyen backend rotasını tetikler.
+/**
+ * Belirli bir kanal için Shorts videolarının indirilip indirilmeyeceğini günceller.
+ * 
+ * @param {string} id Kanal ID'si
+ * @param {string} downloadShorts Shorts indirme durumu ('true' veya 'false')
+ */
+window.changeChannelShorts = async function(id, downloadShorts) {
+  try {
+    const res = await fetch(`/api/channels/${id}/shorts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ downloadShorts: downloadShorts === 'true' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Kanal Shorts indirme ayarı başarıyla güncellendi.', 'success');
+    } else {
+      showToast(data.error || 'Hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu bağlantı hatası.', 'error');
+  }
+};
+
+let videoPlayerInstance = null;
+let currentPlayingVideoId = null;
+let seekedForCurrentVideo = false;
+
+// Klavye ok tuşları ile 5 saniye ileri/geri sarma (Oynatıcı modalı açıkken çalışır)
+document.addEventListener('keydown', (e) => {
+  const modal = document.getElementById('player-modal');
+  if (modal && !modal.classList.contains('hidden')) {
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      if (videoPlayerInstance) {
+        videoPlayerInstance.currentTime = Math.min(videoPlayerInstance.duration || 0, videoPlayerInstance.currentTime + 5);
+      } else {
+        const player = document.getElementById('embedded-video-player');
+        if (player) player.currentTime = Math.min(player.duration || 0, player.currentTime + 5);
+      }
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      if (videoPlayerInstance) {
+        videoPlayerInstance.currentTime = Math.max(0, videoPlayerInstance.currentTime - 5);
+      } else {
+        const player = document.getElementById('embedded-video-player');
+        if (player) player.currentTime = Math.max(0, player.currentTime - 5);
+      }
+    }
+  }
+});
+
+// Türkçe Açıklama: İndirilen videoyu arayüz içerisindeki gömülü video oynatıcı (Plyr) modalında açarak yürütür.
+/**
+ * Videoyu gömülü tarayıcı oynatıcısında (Plyr) açar.
+ * Shorts videoları dikey gösterilir ve kalınan izleme süresinden devam eder.
+ * 
+ * @param {string} videoId Oynatılacak video ID'si
+ */
+window.playVideoEmbedded = function(videoId) {
+  const modal = document.getElementById('player-modal');
+  const player = document.getElementById('embedded-video-player');
+  const titleEl = document.getElementById('player-modal-title');
+  if (modal && player) {
+    const video = localDb.history.find(h => h.id === videoId);
+    if (titleEl && video) {
+      titleEl.textContent = video.title;
+    } else if (titleEl) {
+      titleEl.textContent = 'Gömülü Video Oynatıcı';
+    }
+    
+    // Kısa video (Shorts) kontrolü ve dikey arayüz sınıfı eklenmesi
+    const isShort = video ? isShortVideo(video.duration, video.title) : false;
+    if (isShort) {
+      modal.classList.add('is-short-player');
+    } else {
+      modal.classList.remove('is-short-player');
+    }
+    
+    const streamUrl = `/api/video-stream?videoId=${videoId}`;
+    modal.classList.remove('hidden');
+
+    seekedForCurrentVideo = false;
+    currentPlayingVideoId = videoId;
+
+    if (typeof Plyr !== 'undefined') {
+      if (!videoPlayerInstance) {
+        player.src = streamUrl;
+        videoPlayerInstance = new Plyr('#embedded-video-player', {
+          controls: [
+            'play-large', 'restart', 'rewind', 'play', 'fast-forward',
+            'progress', 'current-time', 'duration', 'mute', 'volume',
+            'settings', 'pip', 'fullscreen'
+          ],
+          settings: ['speed', 'loop'],
+          speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] }
+        });
+
+        // Fare tekerleği ile ses açma/kapama (%1 hassasiyet)
+        const plyrContainer = modal.querySelector('.plyr');
+        if (plyrContainer) {
+          plyrContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            let currentVolume = videoPlayerInstance.volume;
+            if (e.deltaY < 0) {
+              videoPlayerInstance.volume = Math.min(1, currentVolume + 0.01);
+            } else {
+              videoPlayerInstance.volume = Math.max(0, currentVolume - 0.01);
+            }
+          }, { passive: false });
+        }
+
+        // İzleme süresini tarayıcı belleğine (localStorage) kaydet
+        videoPlayerInstance.on('timeupdate', () => {
+          if (!currentPlayingVideoId) return;
+          const currentTime = videoPlayerInstance.currentTime;
+          const duration = videoPlayerInstance.duration || 0;
+          if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
+            const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+            resumeData[currentPlayingVideoId] = currentTime;
+            localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+          } else if (duration > 0 && (duration - currentTime) <= 5) {
+            const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+            delete resumeData[currentPlayingVideoId];
+            localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+          }
+        });
+
+        // Kaldığı yerden oynatmaya devam et
+        videoPlayerInstance.on('canplay', () => {
+          if (!seekedForCurrentVideo && currentPlayingVideoId) {
+            const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+            const savedTime = resumeData[currentPlayingVideoId];
+            if (savedTime && savedTime > 0) {
+              videoPlayerInstance.currentTime = savedTime;
+            }
+            seekedForCurrentVideo = true;
+          }
+        });
+      } else {
+        videoPlayerInstance.source = {
+          type: 'video',
+          sources: [
+            {
+              src: streamUrl,
+              type: 'video/mp4'
+            }
+          ]
+        };
+      }
+      
+      videoPlayerInstance.play().catch(err => {
+        console.warn('Otomatik oynatma engellendi:', err);
+      });
+    } else {
+      player.src = streamUrl;
+      player.load();
+      player.play().catch(err => {
+        console.warn('Otomatik oynatma engellendi:', err);
+      });
+    }
+  }
+};
+
+// Türkçe Açıklama: İndirilen video dosyasını işletim sisteminin (Windows) varsayılan medya oynatıcısında (VLC, Windows Media Player vb.) açar.
+/**
+ * Videoyu işletim sisteminin varsayılan medya oynatıcısında (VLC, KMPlayer vb.) çalıştırır.
+ * 
+ * @param {string} videoId Oynatılacak video ID'si
+ */
+window.playVideoSystem = async function(videoId) {
+  try {
+    showToast('Video oynatıcıda açılıyor...', 'info');
+    const res = await fetch('/api/play-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || 'Video oynatılamadı. Dosya taşınmış veya silinmiş olabilir.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+};
+
+// Türkçe Açıklama: Arayüzdeki gömülü Plyr video oynatıcı modalını kapatır ve çalmakta olan videoyu durdurup kaynağını temizler.
+/**
+ * Gömülü video oynatıcı modalını kapatır ve çalmakta olan videoyu durdurur.
+ */
+window.closePlayerModal = function() {
+  const modal = document.getElementById('player-modal');
+  const player = document.getElementById('embedded-video-player');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('is-short-player');
+  }
+  if (videoPlayerInstance) {
+    videoPlayerInstance.pause();
+  } else if (player) {
+    player.pause();
+    player.src = '';
+  }
+  currentPlayingVideoId = null;
+  seekedForCurrentVideo = false;
+};
+
+// Türkçe Açıklama: Belirtilen video ID'sine ait YouTube izleme sayfasını tarayıcıda yeni bir sekmede açar.
+/**
+ * Belirtilen videonun YouTube sayfasını yeni tarayıcı sekmesinde açar.
+ * 
+ * @param {string} videoId Açılacak video ID'si
+ */
+window.openYouTube = function(videoId) {
+  window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+};
+
+// Türkçe Açıklama: Seçilen videoyu geçmişten veya diskteki dosyasından silmek üzere kullanıcıya onay modalı (penceresi) gösterir.
+/**
+ * Geçmişten veya diskten video silmek için onay modalını açar.
+ * 
+ * @param {string} id Silinecek video ID'si
+ */
+window.showDeleteModal = function(id) {
+  const item = localDb.history.find(h => h.id === id);
+  if (!item) return;
+
+  videoIdToDelete = id;
+  deleteModalMsg.innerHTML = `<strong>"${escapeHtml(item.title)}"</strong> başlıklı videoyu geçmişten kaldırmak istediğinize emin misiniz?`;
+  
+  // Bilgisayardan dosya silme kutusunu her zaman gösterelim (kullanıcı diskteki dosyayı da temizlemek isteyebilir)
+  const checkboxContainer = deleteModal.querySelector('.checkbox-container');
+  checkboxContainer.classList.remove('hidden');
+  deleteFileCheckbox.checked = true;
+  
+  deleteModal.classList.remove('hidden');
+};
+
+/**
+ * Silme onay modalını kapatır ve seçili video ID'sini sıfırlar.
+ */
+function hideDeleteModal() {
+  deleteModal.classList.add('hidden');
+  videoIdToDelete = null;
+}
+
+if (closeDeleteModalBtn) closeDeleteModalBtn.addEventListener('click', hideDeleteModal);
+if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+
+// Silme Onaylama Butonu Dinleyicisi
+if (confirmDeleteBtn) {
+  confirmDeleteBtn.addEventListener('click', async () => {
+    if (!videoIdToDelete) return;
+    
+    const id = videoIdToDelete;
+    const deleteFile = deleteFileCheckbox.checked;
+    hideDeleteModal();
+    
+    try {
+      showToast('İşlem gerçekleştiriliyor...', 'info');
+      const res = await fetch(`/api/history/${id}?deleteFile=${deleteFile}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Başarı bildirimi sunucudan (SSE status_log) gelecek
+        setTimeout(updateDiskSpace, 1500); // Dosya silinmesinin tamamlanması için kısa bir süre bekle
+      } else {
+        showToast(data.error || 'Silme işlemi başarısız oldu.', 'error');
+      }
+    } catch (err) {
+      showToast('Sunucu ile iletişim hatası.', 'error');
+    }
+  });
+}
+
+// Görünüm ve Filtre Olay Dinleyicileri
+// Görünüm ve Filtre Olay Dinleyicileri
+if (viewGridBtn) {
+  viewGridBtn.addEventListener('click', () => {
+    historyViewMode = 'grid';
+    updateUI(localDb);
+  });
+}
+
+if (viewListBtn) {
+  viewListBtn.addEventListener('click', () => {
+    historyViewMode = 'list';
+    updateUI(localDb);
+  });
+}
+
+if (historyChannelFilter) {
+  historyChannelFilter.addEventListener('change', () => {
+    historyFilterChannel = historyChannelFilter.value;
+    updateUI(localDb);
+  });
+}
+
+if (downloadedViewGridBtn) {
+  downloadedViewGridBtn.addEventListener('click', () => {
+    downloadedViewMode = 'grid';
+    updateUI(localDb);
+  });
+}
+
+if (downloadedViewListBtn) {
+  downloadedViewListBtn.addEventListener('click', () => {
+    downloadedViewMode = 'list';
+    updateUI(localDb);
+  });
+}
+
+if (downloadedChannelFilter) {
+  downloadedChannelFilter.addEventListener('change', () => {
+    downloadedFilterChannel = downloadedChannelFilter.value;
+    updateUI(localDb);
+  });
+}
+
+// Shorts Göster/Gizle Değiştiğinde Sunucuya Kaydet
+document.addEventListener('DOMContentLoaded', () => {
+  const historyShowShorts = document.getElementById('history-show-shorts');
+  if (historyShowShorts) {
+    historyShowShorts.addEventListener('change', async () => {
+      const showShorts = historyShowShorts.checked;
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...localDb.settings, showShorts })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(showShorts ? 'Shorts videoları gösteriliyor.' : 'Shorts videoları gizlendi.', 'success');
+        }
+      } catch (err) {
+        showToast('Ayarlar kaydedilemedi.', 'error');
+      }
+    });
+  }
+
+  const downloadedShowShorts = document.getElementById('downloaded-show-shorts');
+  if (downloadedShowShorts) {
+    downloadedShowShorts.addEventListener('change', async () => {
+      const showShorts = downloadedShowShorts.checked;
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...localDb.settings, showShorts })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(showShorts ? 'Shorts videoları gösteriliyor.' : 'Shorts videoları gizlendi.', 'success');
+        }
+      } catch (err) {
+        showToast('Ayarlar kaydedilemedi.', 'error');
+      }
+    });
+  }
+});
+
+// Türkçe Açıklama: Devam eden veya kuyrukta bekleyen bir indirme işlemini durdurup iptal etmesi için backend API'sine istek yollar.
+/**
+ * Devam etmekte olan aktif bir video indirme işlemini iptal eder.
+ * 
+ * @param {string} videoId İptal edilecek video ID'si
+ */
+window.cancelDownload = async function(videoId) {
+  if (!confirm('Bu indirme işlemini iptal etmek istediğinizden emin misiniz?')) return;
+  
+  try {
+    showToast('İndirme iptal ediliyor...', 'info');
+    const res = await fetch('/api/cancel-download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Başarı durumunda sunucu bildirim gönderecektir
+    } else {
+      showToast(data.error || 'İptal işlemi başarısız oldu.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+};
+
+/**
+ * İndirme kuyruğunda (sırasında) bekleyen bir videoyu sıradan çıkarır.
+ * 
+ * @param {string} videoId Sıradan çıkarılacak video ID'si
+ */
+window.cancelQueuedVideo = async function(videoId) {
+  if (!confirm('Bu videoyu indirme sırasından çıkarmak istediğinizden emin misiniz?')) return;
+  
+  try {
+    showToast('Sıradan çıkarılıyor...', 'info');
+    const res = await fetch('/api/cancel-download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Başarı durumunda sunucu bildirim gönderecektir (SSE ile)
+    } else {
+      showToast(data.error || 'İptal işlemi başarısız oldu.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+};
+
+// Aktif İndirme İptal Butonu Dinleyicisi
+document.addEventListener('DOMContentLoaded', () => {
+  const cancelActiveBtn = document.getElementById('cancel-active-btn');
+  if (cancelActiveBtn) {
+    cancelActiveBtn.addEventListener('click', () => {
+      const activeDownload = localDb.history.find(h => h.status === 'downloading');
+      if (activeDownload) {
+        cancelDownload(activeDownload.id);
+      } else {
+        showToast('Şu anda aktif bir indirme bulunmuyor.', 'info');
+      }
+    });
+  }
+
+  // Türkçe Açıklama: Ayarlar sayfasında alt sekmeler arasında tıklama ile geçiş yapılmasını ve ilgili ayar gruplarının görüntülenmesini sağlar.
+  const settingsTabBtns = document.querySelectorAll('.settings-tab-btn');
+  settingsTabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      settingsTabBtns.forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.settings-subtab-content').forEach(c => c.classList.remove('active'));
+      
+      btn.classList.add('active');
+      const targetSubtab = btn.getAttribute('data-subtab');
+      const targetContent = document.getElementById(`subtab-${targetSubtab}`);
+      if (targetContent) {
+        targetContent.classList.add('active');
+      }
+    });
+  });
+});
+
+// Türkçe Açıklama: İndirme yapılan disk bölümündeki boş alan miktarı ile indirme klasörünün toplam boyutunu API'den sorgulayarak sağ üst köşedeki durum çubuğuna yansıtır.
+/**
+ * Disk boş alanını ve indirme klasörü boyutunu sunucudan çekip durum çubuğunu günceller.
+ * 
+ * @returns {Promise<void>}
+ */
+async function updateDiskSpace() {
+  const diskStatusFree = document.getElementById('disk-status-free');
+  const diskStatusFolder = document.getElementById('disk-status-folder');
+  if (!diskStatusFree) return;
+  
+  try {
+    const res = await fetch('/api/disk-space');
+    const data = await res.json();
+    if (data.success) {
+      const freeGB = Math.round(data.freeBytes / (1024 * 1024 * 1024));
+      const totalGB = Math.round(data.totalBytes / (1024 * 1024 * 1024));
+      const folderGB = Math.round(data.folderSizeBytes / (1024 * 1024 * 1024));
+      
+      diskStatusFree.textContent = `${freeGB} GB`;
+      if (diskStatusFolder) {
+        diskStatusFolder.textContent = `${folderGB} GB`;
+      }
+      
+      diskStatusFree.title = `Sürücü Boş Alanı: ${freeGB} GB / Toplam: ${totalGB} GB (${data.driveLetter}:)`;
+      if (diskStatusFolder) {
+        diskStatusFolder.title = `Ana İndirme Klasörü Toplam Boyutu: ${folderGB} GB`;
+      }
+    } else {
+      diskStatusFree.textContent = 'Bilinmiyor';
+      if (diskStatusFolder) diskStatusFolder.textContent = 'Bilinmiyor';
+    }
+  } catch (err) {
+    diskStatusFree.textContent = 'Hata';
+    if (diskStatusFolder) diskStatusFolder.textContent = 'Hata';
+  }
+}
+
+// Türkçe Açıklama: Kanal ekleme kutusundaki arama sorgusunu alarak YouTube'da arama yapar ve sonuçları kart yapısında listeler.
+/**
+ * YouTube kanal arama işlemini tetikler ve arayüzde sonuçları gösterir.
+ */
+window.triggerChannelSearch = async function() {
+  const inputEl = document.getElementById('channel-input');
+  if (!inputEl) return;
+  
+  const query = inputEl.value.trim();
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  
+  if (!query) {
+    showToast(isEn ? 'Please enter a search query.' : 'Lütfen aramak için bir metin girin.', 'error');
+    return;
+  }
+  
+  // Eğer girilen değer bir URL ise doğrudan eklemeyi önerebilir veya aramayı durdurabiliriz
+  if (query.startsWith('http') || query.includes('youtube.com') || query.includes('youtu.be')) {
+    showToast(isEn ? 'This is a URL. Please click "Follow Channel" button instead.' : 'Bu bir adres. Lütfen "Kanalı Takip Et" butonunu kullanın.', 'info');
+    return;
+  }
+  
+  const resultsContainer = document.getElementById('channel-search-results');
+  const resultsList = document.getElementById('search-results-list');
+  const searchBtn = document.getElementById('search-channel-btn');
+  
+  if (!resultsContainer || !resultsList) return;
+  
+  try {
+    if (searchBtn) searchBtn.disabled = true;
+    showToast(isEn ? 'Searching channels on YouTube...' : 'YouTube üzerinde kanallar aranıyor...', 'info');
+    
+    const res = await fetch(`/api/channels/search?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    
+    resultsList.innerHTML = '';
+    
+    if (data && data.length > 0) {
+      data.forEach(channel => {
+        const item = document.createElement('div');
+        item.className = 'channel-item card';
+        item.style.display = 'flex';
+        item.style.justifyContent = 'space-between';
+        item.style.alignItems = 'center';
+        item.style.padding = '10px 15px';
+        item.style.background = 'var(--bg-card-hover)';
+        item.style.border = '1px solid var(--border-color)';
+        item.style.borderRadius = '6px';
+        
+        // Kanala daha önce ekli mi kontrolü
+        const isFollowed = localDb.channels.some(c => c.id === channel.id);
+        
+        item.innerHTML = `
+          <div style="display:flex; align-items:center; gap:12px;">
+            <img src="${channel.avatar || '/api/channels/' + channel.id + '/avatar'}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid var(--border-color);" onerror="this.src='https://www.youtube.com/s/desktop/9c83acbb/img/avatar_placeholder_40.png'">
+            <div>
+              <div style="font-weight:600; color:var(--text-color);">${channel.name}</div>
+              <div style="font-size:0.8rem; color:var(--text-muted);">${channel.handle} • ${channel.subscribers}</div>
+            </div>
+          </div>
+          <div>
+            ${isFollowed 
+              ? `<button class="btn btn-secondary btn-sm" disabled style="opacity: 0.6;">${isEn ? 'Following' : 'Takip Ediliyor'}</button>`
+              : `<button class="btn btn-primary btn-sm" onclick="followChannelFromSearch('${channel.id}', '${channel.name.replace(/'/g, "\\'")}', '${channel.handle}', '${channel.avatar}')">${isEn ? 'Follow' : 'Takip Et'}</button>`
+            }
+          </div>
+        `;
+        resultsList.appendChild(item);
+      });
+      resultsContainer.style.display = 'block';
+      showToast(isEn ? 'Search completed.' : 'Arama tamamlandı.', 'success');
+    } else {
+      resultsList.innerHTML = `<div style="text-align:center; padding:15px; color:var(--text-muted);">${isEn ? 'No channels found.' : 'Kanal bulunamadı.'}</div>`;
+      resultsContainer.style.display = 'block';
+      showToast(isEn ? 'No results found.' : 'Sonuç bulunamadı.', 'warning');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Search error.' : 'Arama sırasında hata oluştu.', 'error');
+  } finally {
+    if (searchBtn) searchBtn.disabled = false;
+  }
+};
+
+// Türkçe Açıklama: YouTube arama sonuçları panelini kapatarak görünürlüğünü gizler.
+/**
+ * Arama sonuçları panelini kapatır.
+ */
+window.closeChannelSearchResults = function() {
+  const resultsContainer = document.getElementById('channel-search-results');
+  if (resultsContainer) {
+    resultsContainer.style.display = 'none';
+  }
+};
+
+// Türkçe Açıklama: Arama sonuçlarındaki kanalı backend'e isim, handle, avatar ve ID ile hızlıca takip listesine eklemek üzere gönderir.
+/**
+ * Arama sonuçlarındaki bir kanalı takip listesine ekler.
+ * 
+ * @param {string} id Kanal ID'si
+ * @param {string} name Kanal adı
+ * @param {string} handle Kanal handle adı (@ ile başlayan)
+ * @param {string} avatar Kanal profil resmi URL'si
+ */
+window.followChannelFromSearch = async function(id, name, handle, avatar) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  try {
+    showToast(isEn ? 'Following channel...' : 'Kanal takibe alınıyor...', 'info');
+    const res = await fetch('/api/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        input: id, 
+        name: name,
+        handle: handle,
+        avatar: avatar,
+        downloadShorts: false 
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? `Following ${name}!` : `"${name}" başarıyla takibe alındı!`, 'success');
+      closeChannelSearchResults();
+    } else {
+      showToast(data.error || 'Hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+};
+
+// Türkçe Açıklama: Sağ üst köşedeki sistem durumu ikonuna tıklandığında disk/çerez durumu özet menüsünün açılıp kapanmasını sağlar.
+/**
+ * Sistem durumu açılır kutusunun (dropdown) görünürlüğünü değiştirir.
+ * 
+ * @param {Event} e Olay nesnesi
+ */
+window.toggleStatusDropdown = function(e) {
+  if (e) e.stopPropagation();
+  const dropdown = document.getElementById('status-dropdown');
+  if (dropdown) {
+    dropdown.classList.toggle('hidden');
+  }
+};
+
+// Dışarı tıklanınca dropdown menüyü kapat
+window.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('status-dropdown');
+  const summary = document.querySelector('.status-summary');
+  if (dropdown && !dropdown.classList.contains('hidden')) {
+    if (!dropdown.contains(e.target) && !summary.contains(e.target)) {
+      dropdown.classList.add('hidden');
+    }
+  }
+});
+
+/**
+ * Pano içeriğini veya girilen YouTube linkini okuyarak doğrudan indirme kuyruğuna ekler.
+ */
+window.pasteAndDownload = async function() {
+  let urlText = '';
+  try {
+    // Tarayıcı panosundaki metni okumayı dene
+    urlText = await navigator.clipboard.readText();
+    urlText = urlText.trim();
+  } catch (err) {
+    console.warn('Pano okuma izni alınamadı:', err);
+  }
+
+  const youtubeRegex = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([^?&"'>\s]{11})/;
+  
+  // Eğer panoda geçerli bir youtube linki yoksa kullanıcıya girdi kutusu göster
+  if (!urlText || !youtubeRegex.test(urlText)) {
+    urlText = prompt('Lütfen indirmek istediğiniz YouTube video linkini buraya yapıştırın:');
+    if (!urlText) return;
+    urlText = urlText.trim();
+  }
+
+  const match = urlText.match(youtubeRegex);
+  if (match) {
+    const videoId = match[1];
+    showToast('Video çözümleniyor ve kuyruğa ekleniyor...', 'info');
+    try {
+      const res = await fetch('/api/download-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Video kuyruğa başarıyla eklendi!', 'success');
+      } else {
+        showToast(data.error || 'İndirme eklenemedi.', 'error');
+      }
+    } catch (err) {
+      showToast('Sunucu ile iletişim hatası.', 'error');
+    }
+  } else {
+    showToast('Geçersiz YouTube video linki girildi.', 'error');
+  }
+};
+
+// Türkçe Açıklama: Kuyruk indirme sırasını duraklatır veya kaldığı yerden devam ettirir. Aktif indirme varsa süreci güvenle durdurup kuyruğun başına alır.
+/**
+ * Kuyruk duraklatma ve devam ettirme durumunu değiştirir.
+ */
+window.toggleQueuePause = async function() {
+  const isPaused = localDb.settings && localDb.settings.isPaused;
+  const endpoint = isPaused ? '/api/queue/resume' : '/api/queue/pause';
+  const actionText = isPaused 
+    ? (localDb.settings.lang === 'en' ? 'Resuming queue...' : 'Kuyruk devam ettiriliyor...')
+    : (localDb.settings.lang === 'en' ? 'Pausing queue...' : 'Kuyruk duraklatılıyor...');
+    
+  showToast(actionText, 'info');
+  
+  try {
+    const res = await fetch(endpoint, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      localDb.settings.isPaused = data.isPaused;
+      updateUI(localDb);
+    } else {
+      showToast(data.error || 'İşlem başarısız.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu bağlantı hatası.', 'error');
+  }
+};
+
+// Türkçe Açıklama: Kullanıcının girdiği hız limitini (KB/s) sunucuya göndererek kaydeder ve indirme sırasına anlık uygular.
+/**
+ * İndirme hız limitini günceller.
+ */
+window.updateQueueSpeedLimit = async function() {
+  const input = document.getElementById('queue-speed-limit-input');
+  if (!input) return;
+  
+  const limit = parseInt(input.value, 10);
+  if (isNaN(limit) || limit < 0) {
+    showToast('Lütfen geçerli bir hız sınırı değeri girin (0 veya daha büyük).', 'error');
+    return;
+  }
+  
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  showToast(isEn ? 'Updating speed limit...' : 'Hız sınırı güncelleniyor...', 'info');
+  
+  try {
+    const updatedSettings = { ...localDb.settings, downloadSpeedLimit: limit };
+    
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedSettings)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Speed limit updated successfully!' : 'Hız sınırı başarıyla güncellendi!', 'success');
+    } else {
+      showToast(data.error || 'Hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast('Bağlantı hatası.', 'error');
+  }
+};
+
+let dragSrcEl = null;
+
+// Türkçe Açıklama: Liste elemanı sürüklenmeye başlandığında şeffaflığı azaltarak görsel bildirim verir ve sürükleme verilerini ayarlar.
+/**
+ * Sürükleme başladığında tetiklenen olay yöneticisi.
+ * 
+ * @param {DragEvent} e Sürükleme olayı nesnesi
+ */
+function handleDragStart(e) {
+  this.style.opacity = '0.4';
+  dragSrcEl = this;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/html', this.innerHTML);
+}
+
+// Türkçe Açıklama: Sürüklenen eleman diğer elemanın üzerine geldiğinde tarayıcının varsayılan sürükleme davranışını engelleyerek taşımaya izin verir.
+/**
+ * Sürüklenen öğe başka bir öğenin üzerine geldiğinde tetiklenir.
+ * 
+ * @param {DragEvent} e Sürükleme olayı nesnesi
+ */
+function handleDragOver(e) {
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+  e.dataTransfer.dropEffect = 'move';
+  return false;
+}
+
+// Türkçe Açıklama: Sürüklenen eleman hedef konum üzerine bırakıldığında DOM üzerindeki sırasını değiştirir ve güncel sıralamayı backend API'sine kaydeder.
+/**
+ * Sürüklenen öğe bırakıldığında tetiklenen olay yöneticisi.
+ * Sıralamayı DOM üzerinde günceller ve sunucuya bildirir.
+ * 
+ * @param {DragEvent} e Sürükleme olayı nesnesi
+ */
+function handleDrop(e) {
+  if (e.stopPropagation) {
+    e.stopPropagation();
+  }
+  
+  if (dragSrcEl !== this) {
+    const list = document.getElementById('queue-list');
+    const children = Array.from(list.children);
+    const fromIndex = children.indexOf(dragSrcEl);
+    const toIndex = children.indexOf(this);
+    
+    if (fromIndex < toIndex) {
+      this.after(dragSrcEl);
+    } else {
+      this.before(dragSrcEl);
+    }
+    
+    const newOrderIds = Array.from(list.querySelectorAll('.queue-item')).map(el => el.getAttribute('data-id'));
+    
+    fetch('/api/queue/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: newOrderIds })
+    }).catch(err => console.error('Error reordering queue:', err));
+  }
+  
+  return false;
+}
+
+// Türkçe Açıklama: Sürükleme işlemi bittiğinde elemanların şeffaflıklarını sıfırlayarak görünümü normale döndürür.
+/**
+ * Sürükleme işlemi bittiğinde tetiklenen olay yöneticisi.
+ * 
+ * @param {DragEvent} e Sürükleme olayı nesnesi
+ */
+function handleDragEnd(e) {
+  this.style.opacity = '1';
+  document.querySelectorAll('.queue-item').forEach(item => {
+    item.style.opacity = '1';
+  });
+}
+
+// Başlangıç
+connectSSE();
+updateDiskSpace();
+setInterval(updateDiskSpace, 60 * 60 * 1000); // Her 60 dakikada bir güncelle
+
+// Türkçe Açıklama: Sayfa yüklendiğinde mevcut URL path'ine göre doğru sekmeyi aktif ediyoruz.
+const currentPath = window.location.pathname;
+const initialTab = pathTabMap[currentPath] || 'history';
+history.replaceState({ tab: initialTab }, '', currentPath === '/' ? '/home' : currentPath);
+switchTab(initialTab, false);
+
+lucide.createIcons();
