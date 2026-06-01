@@ -1847,6 +1847,8 @@ body.light-theme .history-toolbar #history-channel-filter {
   display: flex;
   justify-content: center;
   align-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   max-height: 500px;
   transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1858,6 +1860,7 @@ body.light-theme .history-toolbar #history-channel-filter {
 
 #player-modal.is-short-player .player-modal-body {
   max-height: 70vh;
+  aspect-ratio: 9 / 16;
 }
 
 #player-modal.is-short-player .plyr {

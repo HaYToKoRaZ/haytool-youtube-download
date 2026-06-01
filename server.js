@@ -3175,7 +3175,15 @@ app.get('/api/video-stream', (req, res) => {
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
       const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      
+      if (start >= fileSize) {
+        res.status(416).set('Content-Range', `bytes */${fileSize}`).send();
+        return;
+      }
+
+      // 2MB'lık maksimum parça boyutu limitlenerek ilk yükleme hızı artırılır.
+      const maxChunk = 1024 * 1024 * 2;
+      const end = parts[1] ? parseInt(parts[1], 10) : Math.min(start + maxChunk, fileSize - 1);
       const chunksize = (end - start) + 1;
       const file = fs.createReadStream(fileToPlay, { start, end });
       const head = {
@@ -3186,13 +3194,23 @@ app.get('/api/video-stream', (req, res) => {
       };
       res.writeHead(206, head);
       file.pipe(res);
+
+      // Bağlantı kesildiğinde veya ileri sarıldığında eski okuma akışı yok edilir.
+      req.on('close', () => {
+        file.destroy();
+      });
     } else {
       const head = {
         'Content-Length': fileSize,
         'Content-Type': contentType,
       };
       res.writeHead(200, head);
-      fs.createReadStream(fileToPlay).pipe(res);
+      const file = fs.createReadStream(fileToPlay);
+      file.pipe(res);
+
+      req.on('close', () => {
+        file.destroy();
+      });
     }
   } else {
     console.error(`[Stream Hatası] Dosya bulunamadı. ID: ${videoId}`);

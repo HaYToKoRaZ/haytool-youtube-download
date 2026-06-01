@@ -8,6 +8,9 @@
 let localDb = { channels: [], history: [], settings: {} };
 let eventSource = null;
 
+// YouTube SVG İkon Şablonu (Lucide bağımlılığı olmadan her ortamda çalışması için yerel SVG kullanıyoruz)
+const youtubeSvgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#ff0000" style="display:inline-block;vertical-align:middle;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>`;
+
 // Çoklu Dil Sözlüğü (İngilizce & Türkçe)
 const translations = {
   tr: {
@@ -735,7 +738,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
         statusHtml = `<span class="status-dot-warning" title="${isEn ? 'File not found on disk!' : 'Dosya disk üzerinde bulunamadı!'}"></span>`;
         actionsHtml = `
           <button class="btn-icon" onclick="openYouTube('${item.id}')" title="${isEn ? 'Open on YouTube' : 'YouTube\'da Aç'}">
-            <i data-lucide="youtube" style="color: #ff0000;"></i>
+            ${youtubeSvgIcon}
           </button>
           <button class="btn-icon btn-icon-primary" disabled title="${isEn ? 'File missing on disk' : 'Dosya diskte mevcut değil'}" style="opacity:0.4; cursor:not-allowed;">
             <i data-lucide="tv"></i>
@@ -748,7 +751,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
         statusHtml = `<span class="status-dot-completed" title="${isEn ? 'Downloaded' : 'İndirildi'}"></span>`;
         actionsHtml = `
           <button class="btn-icon" onclick="openYouTube('${item.id}')" title="${isEn ? 'Open on YouTube' : 'YouTube\'da Aç'}">
-            <i data-lucide="youtube" style="color: #ff0000;"></i>
+            ${youtubeSvgIcon}
           </button>
           <button class="btn-icon btn-icon-primary" onclick="playVideoSystem('${item.id}')" title="${isEn ? 'Open in System Player' : 'Sistem Oynatıcısında Aç'}">
             <i data-lucide="tv"></i>
@@ -765,7 +768,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
           <i data-lucide="square"></i>
         </button>
         <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç">
-          <i data-lucide="youtube" style="color: #ff0000;"></i>
+          ${youtubeSvgIcon}
         </button>
       `;
     } else if (item.status === 'waiting') {
@@ -775,7 +778,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
           <i data-lucide="square"></i>
         </button>
         <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç">
-          <i data-lucide="youtube" style="color: #ff0000;"></i>
+          ${youtubeSvgIcon}
         </button>
       `;
     } else if (item.status === 'failed') {
@@ -785,7 +788,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
           <i data-lucide="rotate-ccw"></i>
         </button>
         <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç">
-          <i data-lucide="youtube" style="color: #ff0000;"></i>
+          ${youtubeSvgIcon}
         </button>
       `;
     } else if (item.status === 'ignored') {
@@ -795,7 +798,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
           <i data-lucide="download"></i>
         </button>
         <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç">
-          <i data-lucide="youtube" style="color: #ff0000;"></i>
+          ${youtubeSvgIcon}
         </button>
       `;
     }
@@ -1039,7 +1042,7 @@ function updateUI(db) {
               <i data-lucide="image" style="color:#38bdf8;"></i>
             </button>
             <a href="${channelUrl}" target="_blank" rel="noopener noreferrer" class="btn-icon channel-open-btn" title="YouTube'da Aç">
-              <i data-lucide="youtube" style="color:#ff0000;"></i>
+              ${youtubeSvgIcon}
             </a>
             <button class="btn-icon channel-delete-icon-btn" onclick="deleteChannel('${channel.id}')" title="Takipten Çıkar">
               <i data-lucide="trash-2"></i>
