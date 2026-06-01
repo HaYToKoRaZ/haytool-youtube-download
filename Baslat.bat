@@ -1,5 +1,5 @@
 @echo off
-title HaYTool Youtube Download v4.5
+title HaYTool Youtube Download v4.6
 cd /d "%~dp0"
 cls
 color 0E
@@ -54,7 +54,7 @@ echo  ^| ^|  ^| ^| \__,_^|    ^| ^|      ^| ^|               ^| ^|____
 echo  ^|_^|  ^|_^|           ^|_^|      ^|_^|               ^|______^|
 echo.
 echo              -- Premium Otomasyonu --
-echo              Versiyon: v4.5
+echo              Versiyon: v4.6
 echo   ====================================================
 echo.
 echo   [+] Sunucu Port: 3000 denetleniyor...
@@ -65,5 +65,12 @@ echo   ----------------------------------------------------
 echo   [Sistem] Arayuz baslatiliyor...
 echo.
 color 0A
-call npm start
+if exist HaYTool.exe (
+    echo   [+] Sistem tepsisi uygulamasi baslatiliyor (HaYTool.exe)...
+    start "" HaYTool.exe
+    timeout /t 2 >nul
+    exit
+) else (
+    call npm start
+)
 pause

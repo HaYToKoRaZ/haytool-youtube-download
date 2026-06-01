@@ -2030,3 +2030,55 @@ body.light-theme .settings-tab-btn.active {
   height: 15px;
   color: var(--primary);
 }
+
+/* Warning / File Missing Dot Status */
+.status-dot-warning {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #eab308;
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.8);
+  margin-right: 4px;
+}
+
+/* Gömülü Oynatıcı Modalı (Floating Layout) */
+#player-modal {
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  pointer-events: none !important;
+  justify-content: flex-end !important;
+  align-items: flex-end !important;
+  padding: 20px !important;
+}
+
+#player-modal .player-modal-content {
+  pointer-events: auto !important;
+  width: 600px !important;
+  max-width: 90vw !important;
+  margin: 0 !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 16px !important;
+  transform: none !important;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#player-modal.is-short-player .player-modal-content {
+  width: 340px !important;
+}
+
+#player-modal.minimized .player-modal-content {
+  width: 320px !important;
+}
+
+#player-modal.minimized.is-short-player .player-modal-content {
+  width: 200px !important;
+}
+
+#player-modal .player-modal-body {
+  padding: 0;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+}

@@ -791,7 +791,7 @@ function readDb() {
       writeDb(db);
     }
     
-    // Diskten el ile silinen dosyaları kontrol et ve veritabanını güncelle
+    // Diskten el ile silinen veya başka platformda olan dosyaları kontrol et ve veritabanını güncelle
     let dbUpdated = false;
     if (db.history && db.history.length > 0) {
       for (const item of db.history) {
@@ -807,12 +807,60 @@ function readDb() {
               console.log(`[ReadDB] Video dosyası yeni konumda tespit edildi: ${item.title} -> ${foundPath}`);
             }
           }
-          if (!exists) {
-            console.log(`Dosya diskte bulunamadı, durum 'ignored' olarak güncelleniyor: ${item.title}`);
-            item.status = 'ignored';
-            item.filePath = '';
-            item.fileSize = '';
+          if (exists) {
+            if (item.fileMissing) {
+              item.fileMissing = false;
+              dbUpdated = true;
+            }
+            // Türkçe Açıklama: Disk üzerindeki gerçek dosya boyutunu okur ve veritabanını günceller.
+            try {
+              const stats = fs.statSync(item.filePath);
+              const sizeInBytes = stats.size;
+              let calculatedSize = '';
+              if (sizeInBytes >= 1024 * 1024 * 1024) {
+                calculatedSize = (sizeInBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+              } else {
+                calculatedSize = (sizeInBytes / (1024 * 1024)).toFixed(2) + ' MB';
+              }
+              if (item.fileSize !== calculatedSize) {
+                item.fileSize = calculatedSize;
+                dbUpdated = true;
+              }
+            } catch (err) {
+              console.error(`Boyut okuma hatası: ${item.title}`, err.message);
+            }
+          } else {
+            // Türkçe Açıklama: Dosya diskte bulunamadı. Veriyi kaybetmemek (dual boot vb.) için silmiyoruz, sadece fileMissing = true yapıyoruz.
+            if (!item.fileMissing) {
+              item.fileMissing = true;
+              dbUpdated = true;
+              console.log(`[ReadDB] Video dosyası diskte bulunamadı (geçici olabilir): ${item.title}`);
+            }
+          }
+        } else if (item.status === 'ignored' || item.status === 'failed') {
+          // Türkçe Açıklama: Otomatik Onarma (Healing) - Eğer ignored/failed durumundaki video diskte fiziksel olarak mevcutsa, durumunu tamamlandı olarak geri yükle.
+          const foundPath = findVideoFileInDownloadDir(item.id, db.settings.downloadPath);
+          if (foundPath) {
+            item.status = 'completed';
+            item.filePath = foundPath;
+            item.fileMissing = false;
             dbUpdated = true;
+            console.log(`[ReadDB] Ignored/Failed video diskte bulundu, 'completed' olarak geri yüklendi: ${item.title} -> ${foundPath}`);
+            
+            // Boyutunu da hesapla
+            try {
+              const stats = fs.statSync(foundPath);
+              const sizeInBytes = stats.size;
+              let calculatedSize = '';
+              if (sizeInBytes >= 1024 * 1024 * 1024) {
+                calculatedSize = (sizeInBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+              } else {
+                calculatedSize = (sizeInBytes / (1024 * 1024)).toFixed(2) + ' MB';
+              }
+              item.fileSize = calculatedSize;
+            } catch (err) {
+              console.error(`Boyut okuma hatası: ${item.title}`, err.message);
+            }
           }
         }
       }
@@ -1681,6 +1729,14 @@ class DownloadQueue {
       console.log('[Kuyruk] Kuyruk duraklatıldı. Bir sonraki indirme bekletiliyor.');
       return;
     }
+
+    // Türkçe Açıklama: Emniyet kontrolü - Aktif bir indirme süreci yoksa ancak sayaç sıfırlanmamışsa otomatik olarak düzelt.
+    if (!this.activeProcess && this.activeDownloads > 0) {
+      console.log(`[Kuyruk Emniyeti] Aktif süreç bulunamadı fakat activeDownloads = ${this.activeDownloads}. Sayaç sıfırlanıyor.`);
+      this.activeDownloads = 0;
+      this.activeVideoId = null;
+    }
+
     if (this.activeDownloads >= this.maxConcurrent || this.queue.length === 0) return;
 
     const nextVideo = this.queue.shift();
@@ -1812,7 +1868,11 @@ class DownloadQueue {
     console.log(`İndirme başlatılıyor: ${video.title}`);
     console.log(`Komut: yt-dlp ${args.join(' ')}`);
 
-    const downloadProc = spawn(ytdlpPath, args);
+    // Türkçe Açıklama: Windows'ta penceresiz, Unix'te süreç grubu halinde (detached) ve girdi (stdin) kilitlenmelerini önlemek için ignore stdio ile başlatırız.
+    const spawnOptions = process.platform === 'win32' 
+      ? { stdio: ['ignore', 'pipe', 'pipe'] } 
+      : { stdio: ['ignore', 'pipe', 'pipe'], detached: true };
+    const downloadProc = spawn(ytdlpPath, args, spawnOptions);
     this.activeProcess = downloadProc;
     this.activeVideoId = video.id;
 
@@ -1987,13 +2047,30 @@ class DownloadQueue {
           actualPath = path.join(settings.downloadPath, video.channelName, `${video.channelName} - ${video.title} [${video.id}].mp4`);
         }
 
+        // Türkçe Açıklama: Disk üzerindeki gerçek dosya boyutunu okur ve formatlar.
+        let calculatedSize = '';
+        try {
+          if (fs.existsSync(actualPath)) {
+            const stats = fs.statSync(actualPath);
+            const sizeInBytes = stats.size;
+            if (sizeInBytes >= 1024 * 1024 * 1024) {
+              calculatedSize = (sizeInBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+            } else {
+              calculatedSize = (sizeInBytes / (1024 * 1024)).toFixed(2) + ' MB';
+            }
+          }
+        } catch (err) {
+          console.error(`Boyut okuma hatası: ${resolvedTitle}`, err.message);
+        }
+
         updateHistoryItem(video.id, {
           status: 'completed',
           progress: 100,
           filePath: actualPath,
           title: resolvedTitle,
           speed: '',
-          eta: ''
+          eta: '',
+          fileSize: calculatedSize
         });
         console.log(`İndirme tamamlandı: ${resolvedTitle}`);
         broadcast('status_log', { message: `İndirme tamamlandı: ${resolvedTitle}`, type: 'success' });
@@ -3285,12 +3362,25 @@ app.post('/api/cancel-download', localhostOnly, (req, res) => {
       downloadQueue.activeDownloads--;
     }
 
-    // Windows'ta tüm alt süreçleri (yt-dlp, ffmpeg vb.) öldürmek için taskkill kullanalım
-    exec(`taskkill /F /T /PID ${pid}`, (err) => {
-      try {
-        proc.kill('SIGKILL');
-      } catch (e) {}
-    });
+    if (pid) {
+      if (process.platform === 'win32') {
+        // Windows'ta tüm alt süreçleri (yt-dlp, ffmpeg vb.) öldürmek için taskkill kullanalım
+        exec(`taskkill /F /T /PID ${pid}`, (err) => {
+          try {
+            proc.kill('SIGKILL');
+          } catch (e) {}
+        });
+      } else {
+        // Unix/Linux'ta detached olarak başlatılmış tüm alt süreçleri (process group) öldür
+        try {
+          process.kill(-pid, 'SIGKILL');
+        } catch (e) {
+          try {
+            proc.kill('SIGKILL');
+          } catch (err2) {}
+        }
+      }
+    }
 
     broadcast('status_log', { message: 'Aktif indirme iptal edildi.', type: 'info' });
     broadcast('db_update', readDb());
@@ -3321,19 +3411,32 @@ app.post('/api/cancel-download', localhostOnly, (req, res) => {
     return res.json({ success: true });
   }
 
-  // 3. Durum: Kuyrukta değil ama veritabanında 'waiting' durumunda kalmış olabilir
+  // 3. Durum: Kuyrukta veya aktif süreç değil ama veritabanında 'waiting' veya 'downloading' durumunda kalmış (zombi) olabilir
   const db = readDb();
   const historyItem = db.history.find(h => h.id === videoId);
-  if (historyItem && historyItem.status === 'waiting') {
+  if (historyItem && (historyItem.status === 'waiting' || historyItem.status === 'downloading')) {
     updateHistoryItem(videoId, {
       status: 'ignored',
       progress: 0,
       speed: '',
       eta: '',
-      error: 'Kuyruktan kaldırıldı.'
+      error: 'İptal edildi.'
     });
-    broadcast('status_log', { message: 'Video indirme kuyruğundan çıkarıldı.', type: 'info' });
+
+    // Eğer bu video yanlışlıkla aktif süreç olarak görünüyorsa ama activeDownloads 0'dan büyükse, onu da sıfırlayalım/azaltalım
+    if (downloadQueue.activeVideoId === videoId) {
+      downloadQueue.activeProcess = null;
+      downloadQueue.activeVideoId = null;
+      if (downloadQueue.activeDownloads > 0) {
+        downloadQueue.activeDownloads--;
+      }
+    }
+
+    broadcast('status_log', { message: 'Video indirme iptal edildi ve durumu temizlendi.', type: 'info' });
     broadcast('db_update', readDb());
+
+    // Bir sonraki videoyu indirmeye çalış
+    downloadQueue.process();
     return res.json({ success: true });
   }
 
@@ -3558,7 +3661,7 @@ app.listen(PORT, async () => {
   |_|  |_|           |_|      |_|               |______|
 
              -- Premium Otomasyonu --
-             Versiyon: v4.5
+             Versiyon: v4.6
              Yapımcı: HaYTo
   ====================================================
   `);

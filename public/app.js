@@ -635,6 +635,28 @@ function formatDate(isoString) {
   });
 }
 
+// Türkçe Açıklama: Dosya boyutu metnini (Örn: 15.4 MB, 1.2 GB) karşılaştırma yapabilmek için sayısal byte değerine çevirir.
+/**
+ * Dosya boyutu dizgesini byte cinsinden sayısal değere çevirir.
+ * 
+ * @param {string} sizeStr Dosya boyutu dizgesi (Örn: "15.4 MB")
+ * @returns {number} Byte cinsinden sayısal değer
+ */
+function parseSizeToBytes(sizeStr) {
+  if (!sizeStr || sizeStr === '--' || sizeStr === '-- MB') return 0;
+  const cleanStr = sizeStr.replace(/[^0-9.,a-zA-Z]/g, '').trim();
+  const match = cleanStr.match(/^([0-9.,]+)\s*([a-zA-Z]+)$/i) || cleanStr.match(/^([0-9.,]+)$/);
+  if (!match) return 0;
+  const numStr = match[1].replace(',', '.');
+  const val = parseFloat(numStr);
+  if (isNaN(val)) return 0;
+  const unit = (match[2] || '').toUpperCase();
+  if (unit.includes('G')) return val * 1024 * 1024 * 1024;
+  if (unit.includes('M')) return val * 1024 * 1024;
+  if (unit.includes('K')) return val * 1024;
+  return val;
+}
+
 // Türkçe Açıklama: Arayüzdeki kütüphane veya indirilenler listesindeki video kartlarını grid (ızgara) ya da liste görünümünde dinamik olarak çizer.
 /**
  * Video listesini belirtilen grid elementi içerisine kart veya liste düzeninde çizer.
@@ -653,10 +675,12 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
     gridElement.classList.remove('compact-list');
   }
 
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+
   if (videosList.length === 0) {
     gridElement.innerHTML = `
       <div class="card text-center" style="grid-column: 1 / -1; padding: 40px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px;">
-        <p class="text-muted">Filtreye uygun video kaydı bulunmuyor.</p>
+        <p class="text-muted">${isEn ? 'No video records match the filter.' : 'Filtreye uygun video kaydı bulunmuyor.'}</p>
       </div>
     `;
     return;
@@ -671,25 +695,44 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
     let actionsHtml = '';
 
     if (item.status === 'completed') {
-      statusHtml = `<span class="status-dot-completed" title="İndirildi"></span>`;
-      actionsHtml = `
-        <button class="btn-icon btn-icon-success" onclick="playVideoEmbedded('${item.id}')" title="Gömülü Oynatıcıda Aç">
-          <i data-lucide="play"></i>
-        </button>
-        <button class="btn-icon btn-icon-primary" onclick="playVideoSystem('${item.id}')" title="Sistem Oynatıcısında Aç">
-          <i data-lucide="tv"></i>
-        </button>
-        <button class="btn-icon" onclick="openFolder(decodeURIComponent('${encodeURIComponent(item.channelName)}'))" title="Kanal Klasörünü Aç">
-          <i data-lucide="folder-open"></i>
-        </button>
-        <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
-          <i data-lucide="youtube"></i>
-        </button>
-      `;
+      const isMissing = item.fileMissing === true;
+      if (isMissing) {
+        statusHtml = `<span class="status-dot-warning" title="${isEn ? 'File not found on disk!' : 'Dosya disk üzerinde bulunamadı!'}"></span>`;
+        actionsHtml = `
+          <button class="btn-icon btn-icon-success" disabled title="${isEn ? 'File missing on disk' : 'Dosya diskte mevcut değil'}" style="opacity:0.4; cursor:not-allowed;">
+            <i data-lucide="play"></i>
+          </button>
+          <button class="btn-icon btn-icon-primary" disabled title="${isEn ? 'File missing on disk' : 'Dosya diskte mevcut değil'}" style="opacity:0.4; cursor:not-allowed;">
+            <i data-lucide="tv"></i>
+          </button>
+          <button class="btn-icon" disabled title="${isEn ? 'File missing on disk' : 'Dosya diskte mevcut değil'}" style="opacity:0.4; cursor:not-allowed;">
+            <i data-lucide="folder-open"></i>
+          </button>
+          <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
+            <i data-lucide="youtube"></i>
+          </button>
+        `;
+      } else {
+        statusHtml = `<span class="status-dot-completed" title="${isEn ? 'Downloaded' : 'İndirildi'}"></span>`;
+        actionsHtml = `
+          <button class="btn-icon btn-icon-success" onclick="playVideoEmbedded('${item.id}')" title="${isEn ? 'Open in Embedded Player' : 'Gömülü Oynatıcıda Aç'}">
+            <i data-lucide="play"></i>
+          </button>
+          <button class="btn-icon btn-icon-primary" onclick="playVideoSystem('${item.id}')" title="${isEn ? 'Open in System Player' : 'Sistem Oynatıcısında Aç'}">
+            <i data-lucide="tv"></i>
+          </button>
+          <button class="btn-icon" onclick="openFolder(decodeURIComponent('${encodeURIComponent(item.channelName)}'))" title="${isEn ? 'Open Channel Folder' : 'Kanal Klasörünü Aç'}">
+            <i data-lucide="folder-open"></i>
+          </button>
+          <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
+            <i data-lucide="youtube"></i>
+          </button>
+        `;
+      }
     } else if (item.status === 'downloading') {
-      statusHtml = `<span class="status-pill downloading"><i data-lucide="loader" class="pulse-animation" style="width:12px;height:12px;margin-right:4px;"></i> İndiriliyor (${item.progress}%)</span>`;
+      statusHtml = `<span class="status-pill downloading"><i data-lucide="loader" class="pulse-animation" style="width:12px;height:12px;margin-right:4px;"></i> ${isEn ? 'Downloading' : 'İndiriliyor'} (${item.progress}%)</span>`;
       actionsHtml = `
-        <button class="btn-icon" onclick="cancelDownload('${item.id}')" title="İndirmeyi İptal Et" style="color: var(--accent-red); background: rgba(255, 0, 85, 0.05); border: 1px solid rgba(255, 0, 85, 0.15);">
+        <button class="btn-icon" onclick="cancelDownload('${item.id}')" title="${isEn ? 'Cancel Download' : 'İndirmeyi İptal Et'}" style="color: var(--accent-red); background: rgba(255, 0, 85, 0.05); border: 1px solid rgba(255, 0, 85, 0.15);">
           <i data-lucide="square"></i>
         </button>
         <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
@@ -697,16 +740,19 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
         </button>
       `;
     } else if (item.status === 'waiting') {
-      statusHtml = `<span class="status-pill waiting"><i data-lucide="clock" style="width:12px;height:12px;margin-right:4px;"></i> Kuyrukta</span>`;
+      statusHtml = `<span class="status-pill waiting"><i data-lucide="clock" style="width:12px;height:12px;margin-right:4px;"></i> ${isEn ? 'In Queue' : 'Kuyrukta'}</span>`;
       actionsHtml = `
+        <button class="btn-icon" onclick="cancelQueuedVideo('${item.id}')" title="${isEn ? 'Cancel' : 'İptal Et'}" style="color: var(--accent-red); background: rgba(255, 0, 85, 0.05); border: 1px solid rgba(255, 0, 85, 0.15);">
+          <i data-lucide="square"></i>
+        </button>
         <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
           <i data-lucide="youtube"></i>
         </button>
       `;
     } else if (item.status === 'failed') {
-      statusHtml = `<span class="status-pill failed" title="${item.error || ''}"><i data-lucide="alert-circle" style="width:12px;height:12px;margin-right:4px;"></i> Hata</span>`;
+      statusHtml = `<span class="status-pill failed" title="${item.error || ''}"><i data-lucide="alert-circle" style="width:12px;height:12px;margin-right:4px;"></i> ${isEn ? 'Error' : 'Hata'}</span>`;
       actionsHtml = `
-        <button class="btn-icon" onclick="downloadVideoManual('${item.id}')" title="Yeniden İndirmeyi Dene">
+        <button class="btn-icon" onclick="downloadVideoManual('${item.id}')" title="${isEn ? 'Retry Download' : 'Yeniden İndirmeyi Dene'}">
           <i data-lucide="rotate-ccw"></i>
         </button>
         <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
@@ -714,9 +760,9 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
         </button>
       `;
     } else if (item.status === 'ignored') {
-      statusHtml = `<span class="status-pill ignored"><i data-lucide="skip-forward" style="width:12px;height:12px;margin-right:4px;"></i> Göz Ardı Edildi</span>`;
+      statusHtml = `<span class="status-pill ignored"><i data-lucide="skip-forward" style="width:12px;height:12px;margin-right:4px;"></i> ${isEn ? 'Ignored' : 'Göz Ardı Edildi'}</span>`;
       actionsHtml = `
-        <button class="btn-icon" onclick="downloadVideoManual('${item.id}')" title="Videoyu Şimdi İndir">
+        <button class="btn-icon" onclick="downloadVideoManual('${item.id}')" title="${isEn ? 'Download Now' : 'Videoyu Şimdi İndir'}">
           <i data-lucide="download"></i>
         </button>
         <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
@@ -727,7 +773,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
 
     if (item.status !== 'downloading') {
       actionsHtml += `
-        <button class="btn-icon video-action-delete" onclick="showDeleteModal('${item.id}')" title="Geçmişten/Diskten Sil">
+        <button class="btn-icon video-action-delete" onclick="showDeleteModal('${item.id}')" title="${isEn ? 'Delete from History/Disk' : 'Geçmişten/Diskten Sil'}">
           <i data-lucide="trash-2"></i>
         </button>
       `;
@@ -759,8 +805,8 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
         </div>
         <div class="video-card-metadata">
           <span class="video-card-channel"><i data-lucide="tv" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ${escapeHtml(item.channelName)}</span>
-          <span>Tarih: ${formatDate(item.publishedAt || item.downloadedAt)}</span>
-          <span>Boyut: ${item.fileSize || '-- MB'}</span>
+          <span>${isEn ? 'Date' : 'Tarih'}: ${formatDate(item.publishedAt || item.downloadedAt)}</span>
+          <span>${isEn ? 'Size' : 'Boyut'}: ${item.fileSize || '-- MB'}</span>
         </div>
         <div class="video-card-bottom">
           ${statusHtml}
@@ -1068,11 +1114,19 @@ function updateUI(db) {
       filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title));
     }
     
-    // Yüklenme tarihine göre sırala (Yeni olan en üstte)
+    // Seçilen kritere göre sırala (Tarih veya Boyut)
+    const sortSelect = document.getElementById('downloaded-sort-select');
+    const sortVal = sortSelect ? sortSelect.value : 'date-desc';
     filteredDownloaded.sort((a, b) => {
-      const dateA = new Date(a.publishedAt || a.downloadedAt || 0).getTime();
-      const dateB = new Date(b.publishedAt || b.downloadedAt || 0).getTime();
-      return dateB - dateA;
+      if (sortVal.startsWith('size-')) {
+        const sizeA = parseSizeToBytes(a.fileSize);
+        const sizeB = parseSizeToBytes(b.fileSize);
+        return sortVal === 'size-desc' ? sizeB - sizeA : sizeA - sizeB;
+      } else {
+        const dateA = new Date(a.publishedAt || a.downloadedAt || 0).getTime();
+        const dateB = new Date(b.publishedAt || b.downloadedAt || 0).getTime();
+        return sortVal === 'date-asc' ? dateA - dateB : dateB - dateA;
+      }
     });
     
     renderVideoGrid(downloadedGrid, filteredDownloaded, downloadedViewMode);
@@ -1125,7 +1179,7 @@ function updateUI(db) {
     // Kuyruk duraklatma butonu görünümü ve ikonu
     const pauseBtn = document.getElementById('queue-pause-btn');
     if (pauseBtn) {
-      const iconEl = pauseBtn.querySelector('i');
+      const iconEl = pauseBtn.querySelector('i') || pauseBtn.querySelector('[data-lucide]');
       if (db.settings.isPaused) {
         pauseBtn.classList.add('btn-warning');
         if (iconEl) iconEl.setAttribute('data-lucide', 'play');
@@ -1706,11 +1760,39 @@ document.addEventListener('keydown', (e) => {
  * 
  * @param {string} videoId Oynatılacak video ID'si
  */
+// Türkçe Açıklama: Gömülü video oynatıcı modalının boyutunu küçültür veya eski boyutuna geri getirir.
+/**
+ * Oynatıcı modalını küçültür (minimize) veya geri yükler.
+ */
+window.togglePlayerMinimize = function() {
+  const modal = document.getElementById('player-modal');
+  const btn = document.getElementById('minimize-player-modal-btn');
+  if (!modal) return;
+  
+  modal.classList.toggle('minimized');
+  const isMinimized = modal.classList.contains('minimized');
+  
+  if (btn) {
+    const icon = btn.querySelector('i') || btn.querySelector('[data-lucide]');
+    if (icon) {
+      icon.setAttribute('data-lucide', isMinimized ? 'maximize-2' : 'minus');
+    }
+    btn.title = isMinimized ? (localDb.settings && localDb.settings.lang === 'en' ? 'Maximize' : 'Büyüt') : (localDb.settings && localDb.settings.lang === 'en' ? 'Minimize' : 'Küçült');
+  }
+  lucide.createIcons();
+};
+
+// Türkçe Açıklama: İndirilen videoyu arayüz içerisindeki gömülü video oynatıcı (Plyr) modalında açarak yürütür.
+/**
+ * Videoyu gömülü tarayıcı oynatıcısında (Plyr) açar.
+ * Shorts videoları dikey gösterilir ve kalınan izleme süresinden devam eder.
+ * 
+ * @param {string} videoId Oynatılacak video ID'si
+ */
 window.playVideoEmbedded = function(videoId) {
   const modal = document.getElementById('player-modal');
-  const player = document.getElementById('embedded-video-player');
   const titleEl = document.getElementById('player-modal-title');
-  if (modal && player) {
+  if (modal) {
     const video = localDb.history.find(h => h.id === videoId);
     if (titleEl && video) {
       titleEl.textContent = video.title;
@@ -1718,6 +1800,30 @@ window.playVideoEmbedded = function(videoId) {
       titleEl.textContent = 'Gömülü Video Oynatıcı';
     }
     
+    // Kanal logosunu güncelle
+    const logoEl = document.getElementById('player-modal-logo');
+    if (logoEl && video && video.channelId) {
+      logoEl.src = `/api/channels/${video.channelId}/avatar`;
+      logoEl.style.display = 'block';
+      logoEl.onerror = function() {
+        this.src = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22><rect width=%2224%22 height=%2224%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2210%22>?</text></svg>';
+      };
+    } else if (logoEl) {
+      logoEl.style.display = 'none';
+    }
+
+    // Küçültme (minimize) durumunu sıfırla
+    modal.classList.remove('minimized');
+    const minBtn = document.getElementById('minimize-player-modal-btn');
+    if (minBtn) {
+      const icon = minBtn.querySelector('i') || minBtn.querySelector('[data-lucide]');
+      if (icon) {
+        icon.setAttribute('data-lucide', 'minus');
+      }
+      minBtn.title = localDb.settings && localDb.settings.lang === 'en' ? 'Minimize' : 'Küçült';
+    }
+    lucide.createIcons();
+
     // Kısa video (Shorts) kontrolü ve dikey arayüz sınıfı eklenmesi
     const isShort = video ? isShortVideo(video.duration, video.title) : false;
     if (isShort) {
@@ -1732,8 +1838,24 @@ window.playVideoEmbedded = function(videoId) {
     seekedForCurrentVideo = false;
     currentPlayingVideoId = videoId;
 
-    if (typeof Plyr !== 'undefined') {
-      if (!videoPlayerInstance) {
+    // Önceki oynatıcıyı yok et ve temiz video elementi oluştur
+    if (videoPlayerInstance) {
+      try {
+        videoPlayerInstance.destroy();
+      } catch (e) {
+        console.error("Error destroying video player instance:", e);
+      }
+      videoPlayerInstance = null;
+    }
+
+    const modalBody = modal.querySelector('.player-modal-body');
+    if (modalBody) {
+      modalBody.innerHTML = '<video id="embedded-video-player" controls autoplay style="width: 100%; height: 100%; display: block; outline: none;"></video>';
+    }
+
+    const player = document.getElementById('embedded-video-player');
+    if (player) {
+      if (typeof Plyr !== 'undefined') {
         player.src = streamUrl;
         videoPlayerInstance = new Plyr('#embedded-video-player', {
           controls: [
@@ -1786,27 +1908,17 @@ window.playVideoEmbedded = function(videoId) {
             seekedForCurrentVideo = true;
           }
         });
+
+        videoPlayerInstance.play().catch(err => {
+          console.warn('Otomatik oynatma engellendi:', err);
+        });
       } else {
-        videoPlayerInstance.source = {
-          type: 'video',
-          sources: [
-            {
-              src: streamUrl,
-              type: 'video/mp4'
-            }
-          ]
-        };
+        player.src = streamUrl;
+        player.load();
+        player.play().catch(err => {
+          console.warn('Otomatik oynatma engellendi:', err);
+        });
       }
-      
-      videoPlayerInstance.play().catch(err => {
-        console.warn('Otomatik oynatma engellendi:', err);
-      });
-    } else {
-      player.src = streamUrl;
-      player.load();
-      player.play().catch(err => {
-        console.warn('Otomatik oynatma engellendi:', err);
-      });
     }
   }
 };
@@ -1840,19 +1952,34 @@ window.playVideoSystem = async function(videoId) {
  */
 window.closePlayerModal = function() {
   const modal = document.getElementById('player-modal');
-  const player = document.getElementById('embedded-video-player');
   if (modal) {
     modal.classList.add('hidden');
     modal.classList.remove('is-short-player');
+    modal.classList.remove('minimized');
   }
   if (videoPlayerInstance) {
-    videoPlayerInstance.pause();
-  } else if (player) {
-    player.pause();
-    player.src = '';
+    try {
+      videoPlayerInstance.destroy();
+    } catch (e) {
+      console.error("Error destroying video player instance on close:", e);
+    }
+    videoPlayerInstance = null;
+  }
+  const modalBody = document.querySelector('.player-modal-body');
+  if (modalBody) {
+    modalBody.innerHTML = '<video id="embedded-video-player" controls autoplay style="width: 100%; height: 100%; display: block; outline: none;"></video>';
   }
   currentPlayingVideoId = null;
   seekedForCurrentVideo = false;
+  
+  const minBtn = document.getElementById('minimize-player-modal-btn');
+  if (minBtn) {
+    const icon = minBtn.querySelector('i') || minBtn.querySelector('[data-lucide]');
+    if (icon) {
+      icon.setAttribute('data-lucide', 'minus');
+    }
+  }
+  lucide.createIcons();
 };
 
 // Türkçe Açıklama: Belirtilen video ID'sine ait YouTube izleme sayfasını tarayıcıda yeni bir sekmede açar.
@@ -1964,6 +2091,13 @@ if (downloadedViewListBtn) {
 if (downloadedChannelFilter) {
   downloadedChannelFilter.addEventListener('change', () => {
     downloadedFilterChannel = downloadedChannelFilter.value;
+    updateUI(localDb);
+  });
+}
+
+const downloadedSortSelect = document.getElementById('downloaded-sort-select');
+if (downloadedSortSelect) {
+  downloadedSortSelect.addEventListener('change', () => {
     updateUI(localDb);
   });
 }

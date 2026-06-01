@@ -14,11 +14,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Plyr Video Player -->
-  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+  <!-- Lucide Icons (Yerel) -->
+  <script src="lucide.min.js"></script>
+  <!-- Plyr Video Player (Yerel) -->
+  <link rel="stylesheet" href="plyr.css" />
+  <script src="plyr.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,7 +30,7 @@
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
         <div class="brand-text">
-          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTool Youtube Download <span class="version-badge" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);">v4.5</span></h1>
+          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTool Youtube Download <span class="version-badge" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);">v4.6</span></h1>
         </div>
       </div>
 
@@ -293,6 +293,15 @@
             <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
             <select id="downloaded-channel-filter">
               <option value="all">Tüm Kanallar</option>
+            </select>
+          </div>
+          <div class="filter-group" style="margin-left: 15px;">
+            <i data-lucide="arrow-up-down" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);margin-right:6px;"></i>
+            <select id="downloaded-sort-select">
+              <option value="date-desc">Tarih: Yeniden Eskiye</option>
+              <option value="date-asc">Tarih: Eskiden Yeniye</option>
+              <option value="size-desc">Boyut: Büyükten Küçüğe</option>
+              <option value="size-asc">Boyut: Küçükten Büyüğe</option>
             </select>
           </div>
           <div class="filter-group" style="display: flex; align-items: center; gap: 8px; margin-left: 15px;">
@@ -571,11 +580,19 @@
   <!-- Gömülü Oynatıcı Modalı -->
   <div id="player-modal" class="modal hidden">
     <div class="modal-content card player-modal-content">
-      <div class="modal-header" style="margin-bottom: 12px; padding-bottom: 12px;">
-        <h3 id="player-modal-title">Gömülü Video Oynatıcı</h3>
-        <button class="modal-close-btn" id="close-player-modal-btn" onclick="closePlayerModal()">
-          <i data-lucide="x"></i>
-        </button>
+      <div class="modal-header" style="margin-bottom: 12px; padding-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 10px; max-width: 85%; overflow: hidden;">
+          <img id="player-modal-logo" src="" alt="" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); display: none;">
+          <h3 id="player-modal-title" style="margin: 0; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; font-size: 1.15rem; font-weight: 700;">Gömülü Video Oynatıcı</h3>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <button class="modal-close-btn" id="minimize-player-modal-btn" onclick="togglePlayerMinimize()" title="Küçült" style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="minus"></i>
+          </button>
+          <button class="modal-close-btn" id="close-player-modal-btn" onclick="closePlayerModal()" style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
       </div>
       <div class="modal-body player-modal-body">
         <video id="embedded-video-player" controls autoplay style="width: 100%; height: 100%; display: block; outline: none;"></video>
