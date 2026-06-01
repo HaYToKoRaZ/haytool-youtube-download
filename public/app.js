@@ -694,13 +694,24 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
     let statusHtml = '';
     let actionsHtml = '';
 
+    const isMissing = item.fileMissing === true;
+    const isCompleted = item.status === 'completed';
+    const canPlayEmbedded = isCompleted && !isMissing;
+
+    const clickAction = canPlayEmbedded 
+      ? `playVideoEmbedded('${item.id}')` 
+      : `openYouTube('${item.id}')`;
+      
+    const clickTitle = canPlayEmbedded
+      ? (isEn ? 'Play video' : 'Videoyu Gömülü Oynatıcıda Aç')
+      : (isEn ? 'Open on YouTube' : 'YouTube\'da Aç');
+
     if (item.status === 'completed') {
-      const isMissing = item.fileMissing === true;
       if (isMissing) {
         statusHtml = `<span class="status-dot-warning" title="${isEn ? 'File not found on disk!' : 'Dosya disk üzerinde bulunamadı!'}"></span>`;
         actionsHtml = `
-          <button class="btn-icon btn-icon-success" disabled title="${isEn ? 'File missing on disk' : 'Dosya diskte mevcut değil'}" style="opacity:0.4; cursor:not-allowed;">
-            <i data-lucide="play"></i>
+          <button class="btn-icon" onclick="openYouTube('${item.id}')" title="${isEn ? 'Open on YouTube' : 'YouTube\'da Aç'}" style="color: #ff0000;">
+            <i data-lucide="youtube"></i>
           </button>
           <button class="btn-icon btn-icon-primary" disabled title="${isEn ? 'File missing on disk' : 'Dosya diskte mevcut değil'}" style="opacity:0.4; cursor:not-allowed;">
             <i data-lucide="tv"></i>
@@ -708,15 +719,15 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon" disabled title="${isEn ? 'File missing on disk' : 'Dosya diskte mevcut değil'}" style="opacity:0.4; cursor:not-allowed;">
             <i data-lucide="folder-open"></i>
           </button>
-          <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
-            <i data-lucide="youtube"></i>
+          <button class="btn-icon btn-icon-success" disabled title="${isEn ? 'File missing on disk' : 'Dosya diskte mevcut değil'}" style="opacity:0.4; cursor:not-allowed;">
+            <i data-lucide="play"></i>
           </button>
         `;
       } else {
         statusHtml = `<span class="status-dot-completed" title="${isEn ? 'Downloaded' : 'İndirildi'}"></span>`;
         actionsHtml = `
-          <button class="btn-icon btn-icon-success" onclick="playVideoEmbedded('${item.id}')" title="${isEn ? 'Open in Embedded Player' : 'Gömülü Oynatıcıda Aç'}">
-            <i data-lucide="play"></i>
+          <button class="btn-icon" onclick="openYouTube('${item.id}')" title="${isEn ? 'Open on YouTube' : 'YouTube\'da Aç'}" style="color: #ff0000;">
+            <i data-lucide="youtube"></i>
           </button>
           <button class="btn-icon btn-icon-primary" onclick="playVideoSystem('${item.id}')" title="${isEn ? 'Open in System Player' : 'Sistem Oynatıcısında Aç'}">
             <i data-lucide="tv"></i>
@@ -724,8 +735,8 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon" onclick="openFolder(decodeURIComponent('${encodeURIComponent(item.channelName)}'))" title="${isEn ? 'Open Channel Folder' : 'Kanal Klasörünü Aç'}">
             <i data-lucide="folder-open"></i>
           </button>
-          <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç" style="color: #ff0000;">
-            <i data-lucide="youtube"></i>
+          <button class="btn-icon btn-icon-success" onclick="playVideoEmbedded('${item.id}')" title="${isEn ? 'Open in Embedded Player' : 'Gömülü Oynatıcıda Aç'}">
+            <i data-lucide="play"></i>
           </button>
         `;
       }
@@ -792,13 +803,13 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
       : '';
 
     card.innerHTML = `
-      <div class="video-thumbnail-wrapper" onclick="openYouTube('${item.id}')" style="cursor: pointer;" title="YouTube'da Aç">
+      <div class="video-thumbnail-wrapper" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}">
         <img class="video-thumbnail" src="https://img.youtube.com/vi/${item.id}/mqdefault.jpg" alt="Video Resmi" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
         ${durationBadgeHtml}
         ${shortsBadgeHtml}
       </div>
       <div class="video-card-content">
-        <h3 class="video-card-title" onclick="openYouTube('${item.id}')" style="cursor: pointer;" title="YouTube'da Aç: ${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
+        <h3 class="video-card-title" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}: ${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
           <span class="video-card-duration-text">${item.duration || 'Süre Belirtilmedi'}</span>
           ${shortsTagHtml}

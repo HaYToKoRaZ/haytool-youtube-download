@@ -2062,6 +2062,8 @@ body.light-theme .settings-tab-btn.active {
   border-radius: 16px !important;
   transform: none !important;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
 }
 
 #player-modal.is-short-player .player-modal-content {
@@ -2079,6 +2081,6 @@ body.light-theme .settings-tab-btn.active {
 #player-modal .player-modal-body {
   padding: 0;
   background: #000;
-  border-radius: 12px;
+  border-radius: 0 0 16px 16px;
   overflow: hidden;
 }

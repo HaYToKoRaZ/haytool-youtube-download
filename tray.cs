@@ -92,6 +92,8 @@ namespace HaYToolTray
                 psi.UseShellExecute = false;
                 psi.RedirectStandardOutput = true;
                 psi.RedirectStandardError = true;
+                psi.StandardOutputEncoding = Encoding.UTF8;
+                psi.StandardErrorEncoding = Encoding.UTF8;
                 psi.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
 
                 nodeProcess = new Process();
@@ -187,7 +189,7 @@ namespace HaYToolTray
 
             logForm = new Form();
             logForm.Text = "HaYTool - Terminal Çıktısı";
-            logForm.Size = new Size(700, 450);
+            logForm.Size = new Size(950, 600);
             logForm.StartPosition = FormStartPosition.CenterScreen;
             
             // Logo.ico dosyasını forma da ekle
@@ -207,7 +209,7 @@ namespace HaYToolTray
             logTextBox.Dock = DockStyle.Fill;
             logTextBox.BackColor = Color.FromArgb(15, 14, 32);
             logTextBox.ForeColor = Color.FromArgb(220, 220, 220);
-            logTextBox.Font = new Font("Consolas", 10);
+            logTextBox.Font = new Font("Consolas", 12f);
 
             lock (bufferLock)
             {

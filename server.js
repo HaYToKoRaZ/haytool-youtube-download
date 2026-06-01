@@ -818,9 +818,9 @@ function readDb() {
               const sizeInBytes = stats.size;
               let calculatedSize = '';
               if (sizeInBytes >= 1024 * 1024 * 1024) {
-                calculatedSize = (sizeInBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+                calculatedSize = Math.round(sizeInBytes / (1024 * 1024 * 1024)) + ' GB';
               } else {
-                calculatedSize = (sizeInBytes / (1024 * 1024)).toFixed(2) + ' MB';
+                calculatedSize = Math.round(sizeInBytes / (1024 * 1024)) + ' MB';
               }
               if (item.fileSize !== calculatedSize) {
                 item.fileSize = calculatedSize;
@@ -853,9 +853,9 @@ function readDb() {
               const sizeInBytes = stats.size;
               let calculatedSize = '';
               if (sizeInBytes >= 1024 * 1024 * 1024) {
-                calculatedSize = (sizeInBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+                calculatedSize = Math.round(sizeInBytes / (1024 * 1024 * 1024)) + ' GB';
               } else {
-                calculatedSize = (sizeInBytes / (1024 * 1024)).toFixed(2) + ' MB';
+                calculatedSize = Math.round(sizeInBytes / (1024 * 1024)) + ' MB';
               }
               item.fileSize = calculatedSize;
             } catch (err) {
@@ -2054,9 +2054,9 @@ class DownloadQueue {
             const stats = fs.statSync(actualPath);
             const sizeInBytes = stats.size;
             if (sizeInBytes >= 1024 * 1024 * 1024) {
-              calculatedSize = (sizeInBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+              calculatedSize = Math.round(sizeInBytes / (1024 * 1024 * 1024)) + ' GB';
             } else {
-              calculatedSize = (sizeInBytes / (1024 * 1024)).toFixed(2) + ' MB';
+              calculatedSize = Math.round(sizeInBytes / (1024 * 1024)) + ' MB';
             }
           }
         } catch (err) {
@@ -3157,7 +3157,36 @@ app.get('/api/video-stream', (req, res) => {
 
   if (fileToPlay && fs.existsSync(fileToPlay)) {
     console.log(`[Stream] Video akıtılıyor: ${fileToPlay}`);
-    res.sendFile(fileToPlay);
+    
+    // Türkçe Açıklama: Gelişmiş seek/ilerletme desteği için Range isteklerini manuel olarak işleyip okuma akışı (read stream) ile sunar.
+    const stat = fs.statSync(fileToPlay);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+    const ext = path.extname(fileToPlay).toLowerCase();
+    const contentType = ext === '.webm' ? 'video/webm' : 'video/mp4';
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(fileToPlay, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': contentType,
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': contentType,
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(fileToPlay).pipe(res);
+    }
   } else {
     console.error(`[Stream Hatası] Dosya bulunamadı. ID: ${videoId}`);
     res.status(404).send('Video dosyası bulunamadı.');
