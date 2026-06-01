@@ -2084,3 +2084,26 @@ body.light-theme .settings-tab-btn.active {
   border-radius: 0 0 16px 16px;
   overflow: hidden;
 }
+
+/* Çerez kilitleme uyarı kutusu */
+.cookie-warning-box {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: rgba(255, 179, 0, 0.08);
+  border-left: 4px solid var(--warning);
+  color: var(--text-light);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.cookie-warning-box i {
+  color: var(--warning);
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+

@@ -216,6 +216,7 @@ const defaultDb = {
     downloadSpeedLimit: 0,
     port: 3000,
     playerPreference: 'system',
+    playerType: 'plyr', // gömülü oynatıcı türü: plyr, artplayer, html5
     lang: 'tr',
     isPaused: false, // İndirme kuyruğunun duraklatılma durumu
     showNotifications: true, // Windows masaüstü bildirimlerinin gösterilme durumu
@@ -577,6 +578,11 @@ function syncWithIni(db) {
         db.settings.playerPreference = playerPreference; // 'system' or 'embedded'
       }
 
+      const playerType = getCaseInsensitiveKey(settingsSection, 'playerType');
+      if (playerType !== undefined) {
+        db.settings.playerType = playerType; // 'plyr', 'artplayer', 'html5'
+      }
+
       const playSounds = getCaseInsensitiveKey(settingsSection, 'playSounds');
       if (playSounds !== undefined) {
         db.settings.playSounds = playSounds !== 'false';
@@ -703,6 +709,7 @@ function saveSettingsToIni(db) {
   iniData.Settings.downloadSpeedLimit = (db.settings.downloadSpeedLimit || 0).toString();
   iniData.Settings.port = (db.settings.port || 3000).toString();
   iniData.Settings.playerPreference = (db.settings.playerPreference || 'system').toString();
+  iniData.Settings.playerType = (db.settings.playerType || 'plyr').toString();
   iniData.Settings.playSounds = (db.settings.playSounds !== false).toString();
   iniData.Settings.lang = (db.settings.lang || 'tr').toString();
   iniData.Settings.isPaused = (db.settings.isPaused === true).toString();
@@ -3690,7 +3697,7 @@ app.listen(PORT, async () => {
   |_|  |_|           |_|      |_|               |______|
 
              -- Premium Otomasyonu --
-             Versiyon: v4.6
+             Versiyon: v4.7.0
              Yapımcı: HaYTo
   ====================================================
   `);

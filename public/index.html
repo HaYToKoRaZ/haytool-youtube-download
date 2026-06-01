@@ -19,6 +19,8 @@
   <!-- Plyr Video Player (Yerel) -->
   <link rel="stylesheet" href="plyr.css" />
   <script src="plyr.min.js"></script>
+  <!-- ArtPlayer (Yerel) -->
+  <script src="artplayer.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,7 +32,7 @@
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
         <div class="brand-text">
-          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTool Youtube Download <span class="version-badge" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);">v4.6</span></h1>
+          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTool Youtube Download <span class="version-badge" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);">v4.7.0</span></h1>
         </div>
       </div>
 
@@ -420,6 +422,18 @@
                       </div>
                     </div>
                   </div>
+
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label id="label-settings-player-type" for="settings-player-type">Gömülü Oynatıcı Türü</label>
+                      <select id="settings-player-type">
+                        <option id="opt-player-plyr" value="plyr">Plyr Player (Modern & Özelleştirilmiş)</option>
+                        <option id="opt-player-artplayer" value="artplayer">ArtPlayer (Gelişmiş & Şık Oynatıcı)</option>
+                        <option id="opt-player-html5" value="html5">Standart HTML5 Player (Hızlı & Sade)</option>
+                      </select>
+                      <small id="desc-settings-player-type" class="form-text">Gömülü video oynatıcı arayüz tipini seçin.</small>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Alt Sekme 2: İndirme ve Kalite -->
@@ -516,6 +530,13 @@
                       <option value="opera">Opera</option>
                     </select>
                     <small class="form-text">YouTube Premium hesabınızın açık olduğu tarayıcıyı seçin. Bu sayede Premium yüksek indirme hızı ve yüksek kalite kullanılabilir.</small>
+                    <div class="cookie-warning-box">
+                      <i data-lucide="alert-triangle"></i>
+                      <div>
+                        <strong id="cookie-warning-title">Önemli Çerez Kilidi Uyarısı:</strong>
+                        <span id="cookie-warning-desc">İndirme işlemleri başlamadan önce seçtiğiniz tarayıcıyı (Chrome, Edge vb.) tamamen kapattığınızdan emin olun. Aksi takdirde tarayıcı çerez dosyasını (SQLite) kilitleyeceğinden indirmeler hata verecektir.</span>
+                      </div>
+                    </div>
                   </div>
 
                   <div class="form-grid">
