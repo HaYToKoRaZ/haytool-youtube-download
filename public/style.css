@@ -2086,6 +2086,14 @@ body.light-theme .settings-tab-btn.active {
   background: #000;
   border-radius: 0 0 16px 16px;
   overflow: hidden;
+  position: relative;
+}
+
+#embedded-artplayer, .artplayer-app {
+  width: 100% !important;
+  height: 100% !important;
+  flex: 1 1 auto !important;
+  align-self: stretch !important;
 }
 
 /* Çerez kilitleme uyarı kutusu */

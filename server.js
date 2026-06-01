@@ -3181,9 +3181,8 @@ app.get('/api/video-stream', (req, res) => {
         return;
       }
 
-      // 2MB'lık maksimum parça boyutu limitlenerek ilk yükleme hızı artırılır.
-      const maxChunk = 1024 * 1024 * 2;
-      const end = parts[1] ? parseInt(parts[1], 10) : Math.min(start + maxChunk, fileSize - 1);
+      // Türkçe Açıklama: Tarayıcının talep ettiği aralığı (range) tam olarak sunar. maxChunk gibi suni sınırlandırmalar yavaşlığa ve takılmaya sebep olduğu için kaldırılmıştır.
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
       const chunksize = (end - start) + 1;
       const file = fs.createReadStream(fileToPlay, { start, end });
       const head = {
