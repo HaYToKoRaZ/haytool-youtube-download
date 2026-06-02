@@ -798,20 +798,44 @@ function readDb() {
       writeDb(db);
     }
     
-    // Diskten el ile silinen veya başka platformda olan dosyaları kontrol et ve veritabanını güncelle
+    return db;
+  } catch (err) {
+    console.error('Veritabanı okuma hatası:', err);
+    return defaultDb;
+  }
+}
+
+/**
+ * Disk üzerindeki dosyaları veritabanıyla senkronize eder (dosya varlığı, boyutu ve otomatik onarım).
+ * Bu işlem yoğun disk I/O ve klasör tarama gerektirdiğinden arka plan görevine dönüştürülmüştür.
+ */
+function syncDbWithDisk() {
+  try {
+    // Disk işlemlerinde readDb()'nin sadece raw okumasını yapıyoruz
+    let db = defaultDb;
+    if (fs.existsSync(dbPath)) {
+      try {
+        db = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+      } catch (e) {
+        return;
+      }
+    } else {
+      return;
+    }
+
     let dbUpdated = false;
     if (db.history && db.history.length > 0) {
       for (const item of db.history) {
         if (item.status === 'completed') {
           let exists = item.filePath && fs.existsSync(item.filePath);
           if (!exists) {
-            // Klasörde video ID'sini içeren dosyayı dinamik bulmayı dene (örn. downloadPath değiştiyse veya dosya taşındıysa)
-            const foundPath = findVideoFileInDownloadDir(item.id, db.settings.downloadPath);
+            // Klasörde video ID'sini içeren dosyayı dinamik bulmayı dene
+            const foundPath = findVideoFileInDownloadDir(item.id, db.settings.downloadPath || defaultDownloadDir);
             if (foundPath) {
               item.filePath = foundPath;
               exists = true;
               dbUpdated = true;
-              console.log(`[ReadDB] Video dosyası yeni konumda tespit edildi: ${item.title} -> ${foundPath}`);
+              console.log(`[Disk Sync] Video dosyası yeni konumda tespit edildi: ${item.title} -> ${foundPath}`);
             }
           }
           if (exists) {
@@ -819,7 +843,6 @@ function readDb() {
               item.fileMissing = false;
               dbUpdated = true;
             }
-            // Türkçe Açıklama: Disk üzerindeki gerçek dosya boyutunu okur ve veritabanını günceller.
             try {
               const stats = fs.statSync(item.filePath);
               const sizeInBytes = stats.size;
@@ -837,24 +860,21 @@ function readDb() {
               console.error(`Boyut okuma hatası: ${item.title}`, err.message);
             }
           } else {
-            // Türkçe Açıklama: Dosya diskte bulunamadı. Veriyi kaybetmemek (dual boot vb.) için silmiyoruz, sadece fileMissing = true yapıyoruz.
             if (!item.fileMissing) {
               item.fileMissing = true;
               dbUpdated = true;
-              console.log(`[ReadDB] Video dosyası diskte bulunamadı (geçici olabilir): ${item.title}`);
+              console.log(`[Disk Sync] Video dosyası diskte bulunamadı: ${item.title}`);
             }
           }
         } else if (item.status === 'ignored' || item.status === 'failed') {
-          // Türkçe Açıklama: Otomatik Onarma (Healing) - Eğer ignored/failed durumundaki video diskte fiziksel olarak mevcutsa, durumunu tamamlandı olarak geri yükle.
-          const foundPath = findVideoFileInDownloadDir(item.id, db.settings.downloadPath);
+          const foundPath = findVideoFileInDownloadDir(item.id, db.settings.downloadPath || defaultDownloadDir);
           if (foundPath) {
             item.status = 'completed';
             item.filePath = foundPath;
             item.fileMissing = false;
             dbUpdated = true;
-            console.log(`[ReadDB] Ignored/Failed video diskte bulundu, 'completed' olarak geri yüklendi: ${item.title} -> ${foundPath}`);
+            console.log(`[Disk Sync] Ignored/Failed video diskte bulundu, 'completed' olarak geri yüklendi: ${item.title} -> ${foundPath}`);
             
-            // Boyutunu da hesapla
             try {
               const stats = fs.statSync(foundPath);
               const sizeInBytes = stats.size;
@@ -875,12 +895,10 @@ function readDb() {
 
     if (dbUpdated) {
       fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), 'utf8');
+      broadcast('db_update', db);
     }
-    
-    return db;
   } catch (err) {
-    console.error('Veritabanı okuma hatası:', err);
-    return defaultDb;
+    console.error('Disk senkronizasyon hatası:', err);
   }
 }
 
@@ -2766,6 +2784,11 @@ app.post('/api/settings', (req, res) => {
   startIntervalTimer(); // Süre değiştiyse zamanlayıcıyı güncelle
   broadcast('db_update', db);
 
+  // Arka planda veritabanı ile disk senkronizasyonunu tetikle (örn. indirme klasörü değiştiyse)
+  setTimeout(() => {
+    syncDbWithDisk();
+  }, 100);
+
   // Türkçe Açıklama: Aktif indirme varken hız sınırı değiştirilirse, indirme sürecini sonlandırıp yeni sınırla sıranın başına ekleyerek yeniden başlatıyoruz.
   if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
     const videoId = downloadQueue.activeVideoId;
@@ -3722,6 +3745,14 @@ app.listen(PORT, async () => {
   
   // İndirme klasörünü kontrol et, yoksa oluştur
   const db = readDb();
+
+  // Arka planda veritabanı ile disk senkronizasyonunu (auto-healing, dosya boyutu kontrolü vb.) başlat
+  setTimeout(() => {
+    syncDbWithDisk();
+  }, 1000);
+
+  // Her 5 dakikada bir disk senkronizasyonunu arka planda tekrarla
+  setInterval(syncDbWithDisk, 5 * 60 * 1000);
   
   // Türkçe Açıklama: Önceki hatalı kanal eklemelerinden kalmış, ismi ve ID'si aynı olan bozuk kanalları otomatik temizliyoruz.
   const originalCount = db.channels.length;
