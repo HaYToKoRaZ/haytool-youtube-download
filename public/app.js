@@ -626,6 +626,16 @@ function connectSSE() {
       });
     }
   });
+
+  // Sunucudan gelen sekme geçiş bildirimini dinler
+  eventSource.addEventListener('switch_tab', (e) => {
+    try {
+      const tabName = JSON.parse(e.data);
+      if (window.switchTab) window.switchTab(tabName);
+    } catch (err) {
+      console.error('Sekme geçiş hatası:', err);
+    }
+  });
 }
 
 /**
@@ -661,6 +671,38 @@ function formatDate(isoString) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+/**
+ * Verilen ISO tarih dizgesine göre bugünden geriye kaç gün geçtiğini hesaplar ve Türkçe/İngilizce metin döner.
+ * 
+ * @param {string} dateStr ISO tarih dizgesi
+ * @param {boolean} isEn İngilizce dil desteği aktif mi
+ * @returns {string} Kaç gün geçtiğini belirten metin
+ */
+function getDaysAgoText(dateStr, isEn = false) {
+  if (!dateStr || dateStr === '-') return '';
+  try {
+    const pubDate = new Date(dateStr);
+    const now = new Date();
+    
+    // Saat, dakika, saniyeleri sıfırlayarak sadece gün farkını al
+    const pubZero = new Date(pubDate.getFullYear(), pubDate.getMonth(), pubDate.getDate());
+    const nowZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    const diffMs = nowZero - pubZero;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 0) {
+      return isEn ? 'Today' : 'Bugün';
+    } else if (diffDays === 1) {
+      return isEn ? 'Yesterday' : 'Dün';
+    } else {
+      return isEn ? `${diffDays} days ago` : `${diffDays} gün önce`;
+    }
+  } catch (e) {
+    return '';
+  }
 }
 
 // Türkçe Açıklama: Dosya boyutu metnini (Örn: 15.4 MB, 1.2 GB) karşılaştırma yapabilmek için sayısal byte değerine çevirir.
@@ -842,7 +884,12 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
           <span>${isEn ? 'Size' : 'Boyut'}: ${item.fileSize || '-- MB'}</span>
         </div>
         <div class="video-card-bottom">
-          ${statusHtml}
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${statusHtml}
+            <span class="video-card-age-text" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: inline-block;">
+              ${getDaysAgoText(item.publishedAt || item.downloadedAt, isEn)}
+            </span>
+          </div>
           <div class="video-card-actions">
             ${actionsHtml}
           </div>
@@ -2749,7 +2796,7 @@ window.pasteAndDownload = async function() {
       const data = await res.json();
       if (data.success) {
         showToast('Video kuyruğa başarıyla eklendi!', 'success');
-        if (window.switchTab) window.switchTab('download');
+        if (window.switchTab) window.switchTab('queue');
       } else {
         showToast(data.error || 'İndirme eklenemedi.', 'error');
       }

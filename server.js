@@ -1689,18 +1689,20 @@ async function resolveMissingDurations() {
             itemUpdated = true;
           }
           
-          // Türkçe Açıklama: Süre çözülemediğinde sonsuz döngüyü önlemek için deneme sayısı artırılır. 3 başarısız denemeden sonra '-' olarak işaretlenir.
-          if (!result.duration && needsDuration) {
+          // Türkçe Açıklama: Süre veya yayın tarihi çözülemediğinde sonsuz döngüyü önlemek için deneme sayısı artırılır. 3 başarısız denemeden sonra '-' olarak işaretlenir.
+          if ((!result.duration && needsDuration) || (!result.publishedAt && needsPublishDate)) {
             item.resolveAttempts = (item.resolveAttempts || 0) + 1;
             if (item.resolveAttempts >= 3) {
-              item.duration = '-';
+              if (needsDuration) item.duration = '-';
+              if (needsPublishDate) item.publishedAt = '-';
             }
             itemUpdated = true;
           }
         } else {
           item.resolveAttempts = (item.resolveAttempts || 0) + 1;
           if (item.resolveAttempts >= 3) {
-            item.duration = '-';
+            if (needsDuration) item.duration = '-';
+            if (needsPublishDate) item.publishedAt = '-';
           }
           itemUpdated = true;
         }
@@ -1714,7 +1716,8 @@ async function resolveMissingDurations() {
         console.error(`Süre alınamadı: ${item.id}`, e.message);
         item.resolveAttempts = (item.resolveAttempts || 0) + 1;
         if (item.resolveAttempts >= 3) {
-          item.duration = '-';
+          if (needsDuration) item.duration = '-';
+          if (needsPublishDate) item.publishedAt = '-';
         }
         updated = true;
       }
@@ -3459,6 +3462,9 @@ app.post('/api/download-video', async (req, res) => {
 
   resolveMissingDurations();
 
+  // İstemcileri kuyruk sekmesine yönlendir
+  broadcast('switch_tab', 'queue');
+
   res.json({ success: true, message: 'İndirme kuyruğuna eklendi.', videoId: targetVideoId });
 });
 
@@ -4430,6 +4436,7 @@ process.stdin.on('data', (data) => {
       .then(vid => {
         addTerminalLog(`[Konsol] Video kuyruğa başarıyla eklendi. ID: ${vid}`, 'success');
         console.log(`[Konsol] Video kuyruga basariyla eklendi. ID: ${vid}`);
+        broadcast('switch_tab', 'queue');
       })
       .catch(err => {
         addTerminalLog(`[Konsol] Hata: ${err.message}`, 'error');
