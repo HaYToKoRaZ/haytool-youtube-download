@@ -117,7 +117,22 @@ const translations = {
     queue_empty_desc: 'Aktif indirme bulunmuyor. Yeni videolar çıktığında veya kuyruğa video eklendiğinde otomatik indirilecektir.',
     queue_list_title: 'Sıradaki Videolar',
     drag_drop_hint: 'Sürükleyip bırakarak sırayı değiştirin',
-    queue_list_empty: 'Kuyrukta bekleyen video yok.'
+    queue_list_empty: 'Kuyrukta bekleyen video yok.',
+    settings_desc: 'Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.',
+    settings_tab_general: 'Genel Ayarlar',
+    settings_tab_download: 'İndirme ve Kalite',
+    settings_tab_automation: 'Otomasyon & RSS',
+    settings_tab_notifications: 'Çerez & Bildirim',
+    settings_tab_feedback: 'Geri Bildirim Gönder',
+    sort_btn_date_desc: 'Tarih ▼',
+    sort_btn_date_asc: 'Tarih ▲',
+    sort_btn_size_desc: 'Boyut ▼',
+    sort_btn_size_asc: 'Boyut ▲',
+    topbar_cookie_title: 'Çerez',
+    topbar_quality_title: 'Kalite',
+    topbar_disk_title_free: 'Boş',
+    topbar_disk_title_folder: 'Alan',
+    settings_version_title: 'Sürüm'
   },
   en: {
     premium_automation: 'Premium Automation',
@@ -223,7 +238,22 @@ const translations = {
     queue_empty_desc: 'No active download. It will start automatically when new videos are published or added to the queue.',
     queue_list_title: 'Queue Videos',
     drag_drop_hint: 'Drag and drop items to reorder the queue',
-    queue_list_empty: 'No videos waiting in the queue.'
+    queue_list_empty: 'No videos waiting in the queue.',
+    settings_desc: 'Configure automation options, cookie browser, and download folder.',
+    settings_tab_general: 'General Settings',
+    settings_tab_download: 'Download & Quality',
+    settings_tab_automation: 'Automation & RSS',
+    settings_tab_notifications: 'Cookie & Notification',
+    settings_tab_feedback: 'Send Feedback',
+    sort_btn_date_desc: 'Date ▼',
+    sort_btn_date_asc: 'Date ▲',
+    sort_btn_size_desc: 'Size ▼',
+    sort_btn_size_asc: 'Size ▲',
+    topbar_cookie_title: 'Cookie',
+    topbar_quality_title: 'Quality',
+    topbar_disk_title_free: 'Free',
+    topbar_disk_title_folder: 'Size',
+    settings_version_title: 'Version'
   }
 };
 
@@ -355,6 +385,45 @@ function applyLanguage(lang) {
   elQuery('#confirm-delete-btn', 'modal_delete_btn');
   elQuery('#cancel-delete-btn', 'modal_cancel_btn');
   elQuery('#player-modal-title', 'modal_player_title');
+
+  // Üst bar badges çevirileri
+  el('topbar-cookie-title', 'topbar_cookie_title');
+  el('topbar-quality-title', 'topbar_quality_title');
+  el('topbar-disk-title-free', 'topbar_disk_title_free');
+  el('topbar-disk-title-folder', 'topbar_disk_title_folder');
+
+  // Sıralama butonları ve başlıkları (title)
+  const sortBtnDateDesc = document.getElementById('sort-btn-date-desc');
+  const sortBtnDateAsc = document.getElementById('sort-btn-date-asc');
+  const sortBtnSizeDesc = document.getElementById('sort-btn-size-desc');
+  const sortBtnSizeAsc = document.getElementById('sort-btn-size-asc');
+
+  if (sortBtnDateDesc) {
+    sortBtnDateDesc.textContent = t.sort_btn_date_desc;
+    sortBtnDateDesc.title = lang === 'en' ? 'Date: Newest to Oldest' : 'Tarih: Yeniden Eskiye';
+  }
+  if (sortBtnDateAsc) {
+    sortBtnDateAsc.textContent = t.sort_btn_date_asc;
+    sortBtnDateAsc.title = lang === 'en' ? 'Date: Oldest to Newest' : 'Tarih: Eskiden Yeniye';
+  }
+  if (sortBtnSizeDesc) {
+    sortBtnSizeDesc.textContent = t.sort_btn_size_desc;
+    sortBtnSizeDesc.title = lang === 'en' ? 'Size: Largest to Smallest' : 'Boyut: Büyükten Küçüğe';
+  }
+  if (sortBtnSizeAsc) {
+    sortBtnSizeAsc.textContent = t.sort_btn_size_asc;
+    sortBtnSizeAsc.title = lang === 'en' ? 'Size: Smallest to Largest' : 'Boyut: Küçükten Büyüğe';
+  }
+
+  // Ayarlar alt sekmeleri ve açıklamaları
+  el('settings-desc', 'settings_desc');
+  el('settings-version-title', 'settings_version_title');
+  
+  elQuery('.settings-tab-btn[data-subtab="general"] span', 'settings_tab_general');
+  elQuery('.settings-tab-btn[data-subtab="download"] span', 'settings_tab_download');
+  elQuery('.settings-tab-btn[data-subtab="automation"] span', 'settings_tab_automation');
+  elQuery('.settings-tab-btn[data-subtab="notifications"] span', 'settings_tab_notifications');
+  elQuery('.feedback-btn span', 'settings_tab_feedback');
 }
 
 // Türkçe Açıklama: Seçilen tarayıcıya ait çerezlerin geçerli olup olmadığını backend'e sorarak arayüzdeki çerez durum lambasını günceller.
@@ -912,7 +981,16 @@ function updateUI(db) {
   if (!db) return;
 
   // 1. Sistem Durum Detayları
-  const browserNames = {
+  const isEn = db.settings && db.settings.lang === 'en';
+  const browserNames = isEn ? {
+    chrome: 'Google Chrome',
+    edge: 'Microsoft Edge',
+    msedge: 'Microsoft Edge',
+    firefox: 'Mozilla Firefox',
+    brave: 'Brave',
+    opera: 'Opera',
+    none: 'Disabled'
+  } : {
     chrome: 'Google Chrome',
     edge: 'Microsoft Edge',
     msedge: 'Microsoft Edge',
@@ -923,16 +1001,20 @@ function updateUI(db) {
   };
   
   if (cookieStatus && db.settings) {
-    cookieStatus.textContent = browserNames[db.settings.browser] || 'Belirtilmedi';
+    cookieStatus.textContent = browserNames[db.settings.browser] || (isEn ? 'Not Specified' : 'Belirtilmedi');
   }
   
-  const qualityNames = {
+  const qualityNames = isEn ? {
+    best: 'Best Quality',
+    '1080p': '1080p FHD',
+    '720p': '720p HD'
+  } : {
     best: 'En Yüksek',
     '1080p': '1080p FHD',
     '720p': '720p HD'
   };
   if (qualityStatus && db.settings) {
-    qualityStatus.textContent = qualityNames[db.settings.quality] || 'Otomatik';
+    qualityStatus.textContent = qualityNames[db.settings.quality] || (isEn ? 'Automatic' : 'Otomatik');
   }
 
   // 2. İstatistik Sayıcılar
@@ -1195,8 +1277,7 @@ function updateUI(db) {
     }
     
     // Seçilen kritere göre sırala (Tarih veya Boyut)
-    const sortSelect = document.getElementById('downloaded-sort-select');
-    const sortVal = sortSelect ? sortSelect.value : 'date-desc';
+    const sortVal = downloadedSortVal || 'date-desc';
     filteredDownloaded.sort((a, b) => {
       if (sortVal.startsWith('size-')) {
         const sizeA = parseSizeToBytes(a.fileSize);
@@ -2434,12 +2515,24 @@ if (downloadedChannelFilter) {
   });
 }
 
-const downloadedSortSelect = document.getElementById('downloaded-sort-select');
-if (downloadedSortSelect) {
-  downloadedSortSelect.addEventListener('change', () => {
+// Sıralama Butonları Dinleyicisi
+let downloadedSortVal = 'date-desc';
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.sort-btn');
+  if (btn && btn.closest('#downloaded-sort-group')) {
+    const sortVal = btn.getAttribute('data-sort');
+    downloadedSortVal = sortVal;
+    
+    // Aktif sınıfını güncelle
+    const group = document.getElementById('downloaded-sort-group');
+    if (group) {
+      group.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    }
+    btn.classList.add('active');
+    
     updateUI(localDb);
-  });
-}
+  }
+});
 
 // Shorts Göster/Gizle Değiştiğinde Sunucuya Kaydet
 document.addEventListener('DOMContentLoaded', () => {
@@ -2587,22 +2680,29 @@ async function updateDiskSpace() {
       const totalGB = Math.round(data.totalBytes / (1024 * 1024 * 1024));
       const folderGB = Math.round(data.folderSizeBytes / (1024 * 1024 * 1024));
       
+      const isEn = localDb.settings && localDb.settings.lang === 'en';
       diskStatusFree.textContent = `${freeGB} GB`;
       if (diskStatusFolder) {
         diskStatusFolder.textContent = `${folderGB} GB`;
       }
       
-      diskStatusFree.title = `Sürücü Boş Alanı: ${freeGB} GB / Toplam: ${totalGB} GB (${data.driveLetter}:)`;
+      diskStatusFree.title = isEn 
+        ? `Drive Free Space: ${freeGB} GB / Total: ${totalGB} GB (${data.driveLetter}:)`
+        : `Sürücü Boş Alanı: ${freeGB} GB / Toplam: ${totalGB} GB (${data.driveLetter}:)`;
       if (diskStatusFolder) {
-        diskStatusFolder.title = `Ana İndirme Klasörü Toplam Boyutu: ${folderGB} GB`;
+        diskStatusFolder.title = isEn
+          ? `Main Download Folder Total Size: ${folderGB} GB`
+          : `Ana İndirme Klasörü Toplam Boyutu: ${folderGB} GB`;
       }
     } else {
-      diskStatusFree.textContent = 'Bilinmiyor';
-      if (diskStatusFolder) diskStatusFolder.textContent = 'Bilinmiyor';
+      const isEn = localDb.settings && localDb.settings.lang === 'en';
+      diskStatusFree.textContent = isEn ? 'Unknown' : 'Bilinmiyor';
+      if (diskStatusFolder) diskStatusFolder.textContent = isEn ? 'Unknown' : 'Bilinmiyor';
     }
   } catch (err) {
-    diskStatusFree.textContent = 'Hata';
-    if (diskStatusFolder) diskStatusFolder.textContent = 'Hata';
+    const isEn = localDb.settings && localDb.settings.lang === 'en';
+    diskStatusFree.textContent = isEn ? 'Error' : 'Hata';
+    if (diskStatusFolder) diskStatusFolder.textContent = isEn ? 'Error' : 'Hata';
   }
 }
 

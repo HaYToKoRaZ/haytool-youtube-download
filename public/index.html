@@ -32,7 +32,7 @@
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
         <div class="brand-text">
-          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTool Youtube Download <span class="version-badge" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);">v4.7.0</span></h1>
+          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTool Youtube Download <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);">v4.9.0</span></h1>
         </div>
       </div>
 
@@ -70,16 +70,16 @@
         </div>
         <div class="status-badge" id="badge-cookie" title="Premium Çerezleri">
           <i data-lucide="cookie"></i>
-          <span>Çerez: <span id="cookie-status">Evet</span></span>
+          <span id="topbar-cookie-label"><span id="topbar-cookie-title">Çerez</span>: <span id="cookie-status">Evet</span></span>
           <span class="cookie-test-indicator" id="cookie-test-indicator" style="width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-left: 6px; background-color: var(--text-muted);" title="Çerez Canlılık Testi Bekleniyor"></span>
         </div>
         <div class="status-badge" id="badge-quality" title="Varsayılan İndirme Kalitesi">
           <i data-lucide="sliders"></i>
-          <span>Kalite: <span id="quality-status">En Yüksek</span></span>
+          <span id="topbar-quality-label"><span id="topbar-quality-title">Kalite</span>: <span id="quality-status">En Yüksek</span></span>
         </div>
         <div class="status-badge" id="badge-disk" title="İndirme Sürücüsü Boş Alanı ve Klasör Boyutu">
           <i data-lucide="hard-drive"></i>
-          <span>Boş: <span id="disk-status-free">--</span> | Alan: <span id="disk-status-folder">--</span></span>
+          <span id="topbar-disk-label"><span id="topbar-disk-title-free">Boş</span>: <span id="disk-status-free">--</span> | <span id="topbar-disk-title-folder">Alan</span>: <span id="disk-status-folder">--</span></span>
         </div>
         <button id="sync-now-btn" class="btn btn-secondary btn-icon-only" title="Kanalları Şimdi Denetle">
           <i data-lucide="refresh-cw"></i>
@@ -300,14 +300,12 @@
               <option value="all">Tüm Kanallar</option>
             </select>
           </div>
-          <div class="filter-group" style="margin-left: 15px;">
-            <i data-lucide="arrow-up-down" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);margin-right:6px;"></i>
-            <select id="downloaded-sort-select">
-              <option value="date-desc">Tarih: Yeniden Eskiye</option>
-              <option value="date-asc">Tarih: Eskiden Yeniye</option>
-              <option value="size-desc">Boyut: Büyükten Küçüğe</option>
-              <option value="size-asc">Boyut: Küçükten Büyüğe</option>
-            </select>
+          <div class="filter-group sort-button-group" style="margin-left: 15px; display: flex; gap: 6px;" id="downloaded-sort-group">
+            <i data-lucide="arrow-up-down" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);margin-right:6px;align-self:center;"></i>
+            <button type="button" class="sort-btn active" data-sort="date-desc" id="sort-btn-date-desc" title="Tarih: Yeniden Eskiye">Tarih ▼</button>
+            <button type="button" class="sort-btn" data-sort="date-asc" id="sort-btn-date-asc" title="Tarih: Eskiden Yeniye">Tarih ▲</button>
+            <button type="button" class="sort-btn" data-sort="size-desc" id="sort-btn-size-desc" title="Boyut: Büyükten Küçüğe">Boyut ▼</button>
+            <button type="button" class="sort-btn" data-sort="size-asc" id="sort-btn-size-asc" title="Boyut: Küçükten Büyüğe">Boyut ▲</button>
           </div>
           <div class="filter-group" style="display: flex; align-items: center; gap: 8px; margin-left: 15px;">
             <input type="checkbox" id="downloaded-show-shorts" class="toggle-input">
@@ -336,12 +334,9 @@
         <header class="content-header">
           <div>
             <h2>Ayarlar</h2>
-            <p>Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
+            <p id="settings-desc">Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
           </div>
-          <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 6px;">
-            <i data-lucide="info" style="width:14px; height:14px; color: var(--primary);"></i>
-            <span>Sürüm: <strong style="color: var(--text-main);">v4.7.0</strong></span>
-          </div>
+          <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version">v4.9.0</strong></span>
         </header>
 
         <div class="card card-settings" style="max-width: 1000px;">

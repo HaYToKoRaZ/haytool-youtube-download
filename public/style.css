@@ -93,20 +93,61 @@ body {
 }
 
 .brand-icon {
-  background: linear-gradient(135deg, var(--accent-red), var(--primary));
+  background: transparent;
   width: 36px;
   height: 36px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px var(--accent-red-glow);
+  box-shadow: none;
 }
 
 .brand-icon i {
   color: #fff;
   width: 18px;
   height: 18px;
+}
+
+/* Sorting Buttons */
+.sort-btn {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sort-btn:hover {
+  color: var(--text-main);
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.sort-btn.active {
+  background: linear-gradient(135deg, var(--primary), #b35dfc);
+  color: #fff;
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px var(--primary-glow);
+}
+body.light-theme .sort-btn {
+  background-color: rgba(0, 0, 0, 0.03);
+  color: var(--text-muted);
+}
+body.light-theme .sort-btn:hover {
+  color: var(--text-main);
+  background-color: rgba(0, 0, 0, 0.06);
+}
+body.light-theme .sort-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
 }
 
 .brand-text h1 {

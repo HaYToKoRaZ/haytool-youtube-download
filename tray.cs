@@ -95,8 +95,9 @@ namespace HaYToolTray
                 psi.StandardErrorEncoding = Encoding.UTF8;
                 psi.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
 
-                using (Process proc = Process.Start(psi))
+                using (Process proc = new Process())
                 {
+                    proc.StartInfo = psi;
                     proc.OutputDataReceived += (s, e) => {
                         if (e.Data != null) Console.WriteLine(e.Data);
                     };
@@ -314,6 +315,93 @@ namespace HaYToolTray
                 if (nodeProcess != null && !nodeProcess.HasExited)
                 {
                     return;
+                }
+
+                // Bağımlılık kontrolü (node_modules klasörü yoksa indir)
+                string nodeModulesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "node_modules");
+                if (!Directory.Exists(nodeModulesPath))
+                {
+                    Form installForm = new Form();
+                    installForm.Text = "HaYTool - İlk Kurulum";
+                    installForm.Size = new Size(500, 180);
+                    installForm.StartPosition = FormStartPosition.CenterScreen;
+                    installForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                    installForm.MaximizeBox = false;
+                    installForm.MinimizeBox = false;
+                    if (File.Exists("logo.ico"))
+                    {
+                        try { installForm.Icon = new Icon("logo.ico"); } catch {}
+                    }
+
+                    Label label = new Label();
+                    label.Text = "Uygulama ilk kez çalıştırılıyor. Bağımlılıklar indiriliyor (npm install)...\nLütfen bekleyin, bu işlem internet hızınıza bağlı olarak birkaç dakika sürebilir.";
+                    label.Size = new Size(460, 60);
+                    label.Location = new Point(20, 25);
+                    label.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
+                    installForm.Controls.Add(label);
+
+                    ProgressBar progressBar = new ProgressBar();
+                    progressBar.Style = ProgressBarStyle.Marquee;
+                    progressBar.Size = new Size(440, 23);
+                    progressBar.Location = new Point(20, 90);
+                    installForm.Controls.Add(progressBar);
+
+                    // npm install işlemini ayrı bir thread'de çalıştıralım
+                    bool success = false;
+                    string installError = "";
+
+                    Thread thread = new Thread(() => {
+                        try
+                        {
+                            ProcessStartInfo npmPsi = new ProcessStartInfo("cmd.exe", "/c npm install");
+                            npmPsi.CreateNoWindow = true;
+                            npmPsi.UseShellExecute = false;
+                            npmPsi.RedirectStandardError = false;
+                            npmPsi.RedirectStandardOutput = false;
+                            npmPsi.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
+
+                            using (Process npmProc = Process.Start(npmPsi))
+                            {
+                                npmProc.WaitForExit();
+                                if (npmProc.ExitCode == 0)
+                                {
+                                    success = true;
+                                }
+                                else
+                                {
+                                    installError = "npm çıkış kodu: " + npmProc.ExitCode;
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            installError = ex.Message;
+                        }
+
+                        // Formu kapat
+                        try
+                        {
+                            if (installForm.IsHandleCreated)
+                            {
+                                installForm.BeginInvoke(new Action(() => installForm.Close()));
+                            }
+                            else
+                            {
+                                installForm.Load += (s, e) => installForm.Close();
+                            }
+                        }
+                        catch {}
+                    });
+
+                    installForm.Load += (s, e) => thread.Start();
+                    installForm.ShowDialog();
+
+                    if (!success)
+                    {
+                        MessageBox.Show("Bağımlılıklar yüklenemedi. Lütfen internet bağlantınızı kontrol edin veya manuel olarak 'npm install' komutunu çalıştırın.\nHata: " + installError, "Kurulum Hatası", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        ExitApp(null, null);
+                        return;
+                    }
                 }
 
                 ProcessStartInfo psi = new ProcessStartInfo("node", "server.js");

@@ -1,1 +1,0 @@
-& "$PSScriptRoot\HaYTool.exe" @args
