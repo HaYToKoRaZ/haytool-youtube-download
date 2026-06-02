@@ -6,6 +6,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 namespace HaYToolTray
 {
@@ -86,9 +87,17 @@ namespace HaYToolTray
                     argString.Append(EscapeArgument(arg));
                 }
 
-                ProcessStartInfo psi = new ProcessStartInfo("node", argString.ToString());
+                string backendPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "haytool-backend.exe");
+                if (!File.Exists(backendPath))
+                {
+                    Console.Error.WriteLine("Hata: Taşınabilir backend motoru bulunamadı: bin\\haytool-backend.exe");
+                    return;
+                }
+
+                ProcessStartInfo psi = new ProcessStartInfo(backendPath, argString.ToString());
                 psi.CreateNoWindow = true;
                 psi.UseShellExecute = false;
+                psi.WindowStyle = ProcessWindowStyle.Hidden;
                 psi.RedirectStandardOutput = true;
                 psi.RedirectStandardError = true;
                 psi.StandardOutputEncoding = Encoding.UTF8;
@@ -182,6 +191,14 @@ namespace HaYToolTray
             altSpeedItem.Click += ToggleAlternativeSpeed;
             contextMenu.MenuItems.Add(altSpeedItem);
 
+            MenuItem bootItem = new MenuItem("Sistem Başlangıcında Çalıştır");
+            bootItem.Click += (s, e) => {
+                bool current = GetStartOnBootSetting();
+                SetStartOnBoot(!current);
+                bootItem.Checked = !current;
+            };
+            contextMenu.MenuItems.Add(bootItem);
+
             contextMenu.MenuItems.Add("-"); // Ayırıcı çizgi
             contextMenu.MenuItems.Add("Yeniden Başlat", RestartNode);
             contextMenu.MenuItems.Add("Konsol Çıktısını Göster", ShowConsoleWindow);
@@ -191,6 +208,7 @@ namespace HaYToolTray
             // Menü her açıldığında ayarı okuyarak işareti güncelliyoruz
             contextMenu.Popup += (s, e) => {
                 altSpeedItem.Checked = GetUseAlternativeSpeedSetting();
+                bootItem.Checked = GetStartOnBootSetting();
             };
 
             trayIcon.ContextMenu = contextMenu;
@@ -404,9 +422,18 @@ namespace HaYToolTray
                     }
                 }
 
-                ProcessStartInfo psi = new ProcessStartInfo("node", "server.js");
+                string backendPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "haytool-backend.exe");
+                if (!File.Exists(backendPath))
+                {
+                    MessageBox.Show("Taşınabilir backend motoru bulunamadı: bin\\haytool-backend.exe", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ExitApp(null, null);
+                    return;
+                }
+
+                ProcessStartInfo psi = new ProcessStartInfo(backendPath, "server.js");
                 psi.CreateNoWindow = true;
                 psi.UseShellExecute = false;
+                psi.WindowStyle = ProcessWindowStyle.Hidden;
                 psi.RedirectStandardOutput = true;
                 psi.RedirectStandardError = true;
                 psi.RedirectStandardInput = true; // Stdin yönlendirmesi aktif
@@ -680,6 +707,41 @@ namespace HaYToolTray
         {
             CleanUp();
             Environment.Exit(0);
+        }
+
+        // Türkçe Açıklama: Sistem başlangıcında çalıştırma Registry ayarını kaydeder veya siler.
+        private void SetStartOnBoot(bool start)
+        {
+            try
+            {
+                RegistryKey rk = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+                if (start)
+                {
+                    rk.SetValue("HaYTool", "\"" + Application.ExecutablePath + "\"");
+                }
+                else
+                {
+                    rk.DeleteValue("HaYTool", false);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Başlangıç ayarı güncellenemedi: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Türkçe Açıklama: Uygulamanın sistem başlangıcında çalıştırılmak üzere kayıtlı olup olmadığını denetler.
+        private bool GetStartOnBootSetting()
+        {
+            try
+            {
+                RegistryKey rk = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", false);
+                return rk.GetValue("HaYTool") != null;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

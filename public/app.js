@@ -132,7 +132,32 @@ const translations = {
     topbar_quality_title: 'Kalite',
     topbar_disk_title_free: 'Boş',
     topbar_disk_title_folder: 'Alan',
-    settings_version_title: 'Sürüm'
+    settings_version_title: 'Sürüm',
+    desc_download_path: 'Videoların kaydedileceği bilgisayarınızdaki klasör yolu.',
+    desc_lang: 'Arayüz dilini ve video başlıklarının indirileceği dili seçin.',
+    opt_theme_dark: 'Koyu Tema (Karanlık)',
+    opt_theme_light: 'Açık Tema (Aydınlık)',
+    desc_theme: 'Arayüzün görünüm rengini buradan değiştirebilirsiniz.',
+    desc_port: 'Uygulama arayüzünün portu (Yeniden başlatma gerektirir).',
+    opt_quality_best: 'En Yüksek Kalite (Otomatik)',
+    opt_quality_1080p: 'Maksimum 1080p Full HD',
+    opt_quality_720p: 'Maksimum 720p HD',
+    desc_quality: 'Kanala özel ayar yapılmadığında bu varsayılan kalite kullanılacaktır.',
+    opt_merge_single: 'Tek Hazır Dosya (En Fazla 720p, ffmpeg gerektirmez)',
+    opt_merge_merge: 'Otomatik Birleştir (Yüksek Çözünürlük, ffmpeg gerektirir)',
+    opt_merge_separate: 'Ses ve Videoyu Ayrı İndir (ffmpeg gerektirmez)',
+    desc_merge_type: 'Yüksek çözünürlükleri tek dosya yapmak için FFmpeg gereklidir.',
+    desc_speed_limit: 'Bant genişliğini sınırlamak için değer girin (Sınırsız için 0 yazın).',
+    desc_alt_speed_limit: 'Alternatif hız profili aktifken kullanılacak limit (varsayılan 500).',
+    cli_info_title: 'CLI ve Konsol Hız Komutları',
+    cli_info_desc: "Hız sınırlarını konsoldan veya terminal/CLI üzerinden kontrol edebilirsiniz (Windows'ta <code>HaYTool.exe &lt;komut&gt;</code> veya <code>haytool &lt;komut&gt;</code> kullanabilirsiniz):<br>• <b>Hız Sınırını Ayarlama:</b> <code>HaYTool.exe speed &lt;değer&gt;</code> (örn: <code>HaYTool.exe speed 2500</code>)<br>• <b>Hız Sınırını Açma/Kapatma:</b> <code>HaYTool.exe speed off</code> (kapatır) / <code>HaYTool.exe speed on</code> (son değere açar)<br>• <b>Alternatif Sınırı Belirleme:</b> <code>HaYTool.exe altspeed &lt;değer&gt;</code> (örn: <code>HaYTool.exe altspeed 500</code>)<br>• <b>Alternatif Sınırı Kesin Aç/Kapat (Turtle):</b> <code>HaYTool.exe turtleon / turtleac</code> (açar) / <code>HaYTool.exe turtleoff / turtlekapat</code> (kapatır)<br>• <b>Alternatif Sınır Profil Geçişi (Toggle):</b> <code>HaYTool.exe toggle</code> veya <code>HaYTool.exe altspeed toggle</code><br>• <b>Durum Sorgulama:</b> <code>HaYTool.exe status</code> (limit durumunu yazdırır)",
+    cli_info_note: "(Tray \"Konsol Çıktısını Göster\" penceresinde \'HaYTool.exe\' veya \'node\' yazmadan doğrudan komutu girin: \'speed 2500\', \'speed off\', \'turtleon\', \'turtleoff\', \'toggle\' vb.)",
+    desc_channel_check_interval: 'Sıradaki kanalı denetlemek için beklenecek süre.',
+    desc_rss_limit: 'Kanal başına RSS akışındaki en yeni kaç video kontrol edilsin?',
+    desc_auto_delete: 'Kaç gün sonra otomatik silinsin? (Kapatmak için 0 yazın)',
+    opt_browser_none: 'Çerez Kullanma (Sadece Açık Videolar)',
+    desc_browser: 'YouTube Premium hesabınızın açık olduğu tarayıcıyı seçin. Bu sayede Premium yüksek indirme hızı ve yüksek kalite kullanılabilir.',
+    settings_status_text: 'Değişiklikler anında otomatik kaydedilir.'
   },
   en: {
     premium_automation: 'Premium Automation',
@@ -253,7 +278,32 @@ const translations = {
     topbar_quality_title: 'Quality',
     topbar_disk_title_free: 'Free',
     topbar_disk_title_folder: 'Size',
-    settings_version_title: 'Version'
+    settings_version_title: 'Version',
+    desc_download_path: 'The directory path on your computer where videos will be saved.',
+    desc_lang: 'Choose the interface language and the language for video titles.',
+    opt_theme_dark: 'Dark Theme',
+    opt_theme_light: 'Light Theme',
+    desc_theme: 'You can change the interface color theme here.',
+    desc_port: 'Application port number (Requires restart).',
+    opt_quality_best: 'Highest Quality (Automatic)',
+    opt_quality_1080p: 'Maximum 1080p Full HD',
+    opt_quality_720p: 'Maximum 720p HD',
+    desc_quality: 'This default quality will be used unless a channel-specific setting is set.',
+    opt_merge_single: 'Single Ready File (Max 720p, no ffmpeg required)',
+    opt_merge_merge: 'Auto Merge (High Resolution, requires ffmpeg)',
+    opt_merge_separate: 'Download Audio & Video Separately (no ffmpeg required)',
+    desc_merge_type: 'FFmpeg is required to merge high resolutions into a single file.',
+    desc_speed_limit: 'Enter value to limit bandwidth (Write 0 for unlimited).',
+    desc_alt_speed_limit: 'Limit to be used when alternative speed profile is active (default 500).',
+    cli_info_title: 'CLI and Console Speed Commands',
+    cli_info_desc: "You can control speed limits from the console or terminal/CLI (you can use <code>HaYTool.exe &lt;command&gt;</code> or <code>haytool &lt;command&gt;</code> on Windows):<br>• <b>Set Speed Limit:</b> <code>HaYTool.exe speed &lt;value&gt;</code> (e.g. <code>HaYTool.exe speed 2500</code>)<br>• <b>Speed Limit On/Off:</b> <code>HaYTool.exe speed off</code> (disables) / <code>HaYTool.exe speed on</code> (restores to last value)<br>• <b>Set Alt Speed Limit:</b> <code>HaYTool.exe altspeed &lt;value&gt;</code> (e.g. <code>HaYTool.exe altspeed 500</code>)<br>• <b>Alt Speed Limit Forced On/Off (Turtle):</b> <code>HaYTool.exe turtleon / turtleac</code> (enables) / <code>HaYTool.exe turtleoff / turtlekapat</code> (disables)<br>• <b>Alt Speed Profile Toggle:</b> <code>HaYTool.exe toggle</code> or <code>HaYTool.exe altspeed toggle</code><br>• <b>Query Status:</b> <code>HaYTool.exe status</code> (prints limit status)",
+    cli_info_note: "(In the Tray 'Show Console Output' window, enter the command directly without writing 'HaYTool.exe' or 'node': 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' etc.)",
+    desc_channel_check_interval: 'Waiting time to check the next channel.',
+    desc_rss_limit: 'How many of the latest videos in the RSS feed should be checked per channel?',
+    desc_auto_delete: 'After how many days should it be deleted automatically? (Write 0 to disable)',
+    opt_browser_none: 'Do Not Use Cookies (Public Videos Only)',
+    desc_browser: 'Select the browser where your YouTube Premium account is logged in. This enables Premium high download speed and high quality.',
+    settings_status_text: 'Changes are automatically saved instantly.'
   }
 };
 
@@ -424,6 +474,37 @@ function applyLanguage(lang) {
   elQuery('.settings-tab-btn[data-subtab="automation"] span', 'settings_tab_automation');
   elQuery('.settings-tab-btn[data-subtab="notifications"] span', 'settings_tab_notifications');
   elQuery('.feedback-btn span', 'settings_tab_feedback');
+
+  // Yeni eklenen Ayarlar alanı etiket, option ve açıklama çevirileri
+  el('desc-download-path', 'desc_download_path');
+  el('desc-lang', 'desc_lang');
+  el('opt-theme-dark', 'opt_theme_dark');
+  el('opt-theme-light', 'opt_theme_light');
+  el('desc-theme', 'desc_theme');
+  el('desc-port', 'desc_port');
+  el('opt-quality-best', 'opt_quality_best');
+  el('opt-quality-1080p', 'opt_quality_1080p');
+  el('opt-quality-720p', 'opt_quality_720p');
+  el('desc-quality', 'desc_quality');
+  el('opt-merge-single', 'opt_merge_single');
+  el('opt-merge-merge', 'opt_merge_merge');
+  el('opt-merge-separate', 'opt_merge_separate');
+  el('desc-merge-type', 'desc_merge_type');
+  el('desc-speed-limit', 'desc_speed_limit');
+  el('desc-alt-speed-limit', 'desc_alt_speed_limit');
+  el('cli-info-title', 'cli_info_title');
+  el('desc-channel-check-interval', 'desc_channel_check_interval');
+  el('desc-rss-limit', 'desc_rss_limit');
+  el('desc-auto-delete', 'desc_auto_delete');
+  el('opt-browser-none', 'opt_browser_none');
+  el('desc-browser', 'desc_browser');
+  el('settings-status-text', 'settings_status_text');
+
+  // CLI açıklama HTML kutusu dinamik güncellemesi
+  const cliInfoDesc = document.getElementById('cli-info-desc');
+  if (cliInfoDesc) {
+    cliInfoDesc.innerHTML = t.cli_info_desc + `<br><small style="color: var(--accent-color); opacity: 0.8; font-weight: bold;" id="cli-info-note">${t.cli_info_note}</small>`;
+  }
 }
 
 // Türkçe Açıklama: Seçilen tarayıcıya ait çerezlerin geçerli olup olmadığını backend'e sorarak arayüzdeki çerez durum lambasını günceller.
@@ -765,9 +846,9 @@ function getDaysAgoText(dateStr, isEn = false) {
     if (diffDays <= 0) {
       return isEn ? 'Today' : 'Bugün';
     } else if (diffDays === 1) {
-      return isEn ? 'Yesterday' : 'Dün';
+      return isEn ? 'Yest.' : 'Dün';
     } else {
-      return isEn ? `${diffDays} days ago` : `${diffDays} gün önce`;
+      return isEn ? `${diffDays}d` : `${diffDays}g`;
     }
   } catch (e) {
     return '';
