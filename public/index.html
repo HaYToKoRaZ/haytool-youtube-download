@@ -211,6 +211,9 @@
               <input type="number" id="queue-speed-limit-input" min="0" max="100000" style="width: 70px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem;" title="0 = Sınırsız" placeholder="0">
               <span style="font-size:0.8rem; color:var(--text-muted);">KB/s</span>
               <button class="btn btn-primary" onclick="updateQueueSpeedLimit()" id="speed-limit-set-btn" style="padding: 2px 8px; font-size: 0.75rem;">Ayarla</button>
+              <button class="btn btn-secondary" onclick="toggleAlternativeSpeed()" id="alt-speed-toggle-btn" style="padding: 2px 6px; display:flex; align-items:center; justify-content:center;" title="Alternatif Hız Sınırı (Turtle) Aç/Kapat">
+                <i data-lucide="turtle" style="width:16px; height:16px;"></i>
+              </button>
             </div>
           </div>
         </header>
@@ -466,6 +469,31 @@
                       <small class="form-text">Bant genişliğini sınırlamak için değer girin (Sınırsız için 0 yazın).</small>
                     </div>
                     <div class="form-group">
+                      <label for="settings-altspeedlimit">Alternatif İndirme Hızı (KB/s) <i data-lucide="turtle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-left:4px;"></i></label>
+                      <input type="number" id="settings-altspeedlimit" min="0" max="100000" required>
+                      <small class="form-text">Alternatif hız profili aktifken kullanılacak limit (varsayılan 500).</small>
+                    </div>
+                  </div>
+
+                  <div class="cli-info-box" style="margin: 15px 0; padding: 12px; background: rgba(56, 189, 248, 0.08); border: 1px dashed rgba(56, 189, 248, 0.3); border-radius: 8px;">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px; color: var(--accent-color); font-weight:bold; font-size:0.85rem;">
+                      <i data-lucide="terminal" style="width:16px; height:16px;"></i>
+                      <span>CLI ve Konsol Hız Komutları</span>
+                    </div>
+                    <p style="font-size:0.75rem; color:var(--text-muted); margin:0; line-height:1.45;">
+                      Hız sınırlarını konsoldan veya terminal/CLI üzerinden kontrol edebilirsiniz (Windows'ta <code>HaYTool.exe &lt;komut&gt;</code> veya <code>haytool &lt;komut&gt;</code> kullanabilirsiniz):<br>
+                      • <b>Hız Sınırını Ayarlama:</b> <code>HaYTool.exe speed &lt;değer&gt;</code> (örn: <code>HaYTool.exe speed 2500</code>)<br>
+                      • <b>Hız Sınırını Açma/Kapatma:</b> <code>HaYTool.exe speed off</code> (kapatır) / <code>HaYTool.exe speed on</code> (son değere açar)<br>
+                      • <b>Alternatif Sınırı Belirleme:</b> <code>HaYTool.exe altspeed &lt;değer&gt;</code> (örn: <code>HaYTool.exe altspeed 500</code>)<br>
+                      • <b>Alternatif Sınırı Kesin Aç/Kapat (Turtle):</b> <code>HaYTool.exe turtleon / turtleac</code> (açar) / <code>HaYTool.exe turtleoff / turtlekapat</code> (kapatır)<br>
+                      • <b>Alternatif Sınır Profil Geçişi (Toggle):</b> <code>HaYTool.exe toggle</code> veya <code>HaYTool.exe altspeed toggle</code><br>
+                      • <b>Durum Sorgulama:</b> <code>HaYTool.exe status</code> (limit durumunu yazdırır)<br>
+                      <small style="color: var(--accent-color); opacity: 0.8; font-weight: bold;">(Tray "Konsol Çıktısını Göster" penceresinde 'HaYTool.exe' veya 'node' yazmadan doğrudan komutu girin: 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' vb.)</small>
+                    </p>
+                  </div>
+
+                  <div class="form-grid">
+                    <div class="form-group">
                       <label for="settings-writethumbnail">Kapak Resmi</label>
                       <div class="toggle-container" style="margin-top: 12px;">
                         <input type="checkbox" id="settings-writethumbnail" class="toggle-input">
@@ -560,8 +588,12 @@
                 </div>
 
                 <!-- Tüm sekmeler için ortak kaydetme alanı -->
-                <div class="form-actions">
-                  <button type="submit" class="btn btn-primary btn-lg">
+                <div class="form-actions" style="justify-content: flex-end; align-items: center; gap: 10px;">
+                  <span id="settings-status" style="font-size: 0.9rem; color: var(--accent-color); display: flex; align-items: center; gap: 5px; opacity: 0.8;">
+                    <i data-lucide="check-circle" style="width:16px; height:16px;"></i>
+                    <span>Değişiklikler anında otomatik kaydedilir.</span>
+                  </span>
+                  <button type="submit" class="btn btn-primary btn-lg" style="display: none;">
                     <i data-lucide="save"></i>
                     <span>Ayarları Kaydet</span>
                   </button>

@@ -214,6 +214,8 @@ const defaultDb = {
     theme: 'dark',
     shortsMigrationDone: false,
     downloadSpeedLimit: 0,
+    useAlternativeSpeed: false,
+    alternativeSpeedLimit: 500,
     port: 3000,
     playerPreference: 'system',
     playerType: 'plyr', // gömülü oynatıcı türü: plyr, artplayer, html5
@@ -223,6 +225,20 @@ const defaultDb = {
     autoOpenBrowser: true // Başlangıçta tarayıcıda localhost sayfasını otomatik açma durumu
   }
 };
+
+// Türkçe Açıklama: Etkin indirme hız sınırını belirler. Eğer alternatif hız sınırı aktif ise alternatif sınırı, değilse normal sınırı döner.
+/**
+ * Etkin indirme hız sınırını belirler.
+ * 
+ * @param {object} settings Ayarlar nesnesi
+ * @returns {number} Etkin hız sınırı (KB/s)
+ */
+function getEffectiveSpeedLimit(settings) {
+  if (settings.useAlternativeSpeed) {
+    return settings.alternativeSpeedLimit || 0;
+  }
+  return settings.downloadSpeedLimit || 0;
+}
 
 // Türkçe Açıklama: Belirtilen INI dosya yolundaki içeriği okuyup JavaScript nesnesi (bölümler ve anahtar-değer çiftleri halinde) olarak ayrıştırır.
 /**
@@ -565,6 +581,16 @@ function syncWithIni(db) {
         db.settings.downloadSpeedLimit = parseInt(downloadSpeedLimit, 10) || 0;
       }
 
+      const useAlternativeSpeed = getCaseInsensitiveKey(settingsSection, 'useAlternativeSpeed');
+      if (useAlternativeSpeed !== undefined) {
+        db.settings.useAlternativeSpeed = useAlternativeSpeed === 'true';
+      }
+
+      const alternativeSpeedLimit = getCaseInsensitiveKey(settingsSection, 'alternativeSpeedLimit');
+      if (alternativeSpeedLimit !== undefined) {
+        db.settings.alternativeSpeedLimit = parseInt(alternativeSpeedLimit, 10) || 500;
+      }
+
       const theme = getCaseInsensitiveKey(settingsSection, 'theme');
       if (theme !== undefined) db.settings.theme = theme;
 
@@ -707,6 +733,8 @@ function saveSettingsToIni(db) {
   iniData.Settings.autoDeleteDays = (db.settings.autoDeleteDays || 0).toString();
   iniData.Settings.theme = (db.settings.theme || 'dark').toString();
   iniData.Settings.downloadSpeedLimit = (db.settings.downloadSpeedLimit || 0).toString();
+  iniData.Settings.useAlternativeSpeed = (db.settings.useAlternativeSpeed === true).toString();
+  iniData.Settings.alternativeSpeedLimit = (db.settings.alternativeSpeedLimit || 500).toString();
   iniData.Settings.port = (db.settings.port || 3000).toString();
   iniData.Settings.playerPreference = (db.settings.playerPreference || 'system').toString();
   iniData.Settings.playerType = (db.settings.playerType || 'plyr').toString();
@@ -915,6 +943,115 @@ function writeDb(data) {
     saveChannelsToIni(data); // channels.ini dosyasına yaz
   } catch (err) {
     console.error('Veritabanı yazma hatası:', err);
+  }
+}
+
+// CLI (Command Line Interface) Desteği
+// Türkçe Açıklama: Uygulama terminalden komut parametreleri ile çalıştırıldığında (örn: haytool status veya HaYTool.exe status) komutları işler ve uygulamayı kapatır.
+if (process.argv.length > 2) {
+  const cliArgs = process.argv.slice(2);
+  const cliCmd = cliArgs[0].toLowerCase();
+  const cliVal = cliArgs[1] ? cliArgs[1].toLowerCase() : '';
+
+  const db = readDb();
+
+  const turtleOnCmds = ['turtleon', 'turtle-on', 'turtleac', 'turtle-ac', 'turtle_on', 'turtle_ac', 'altspeedon', 'altspeed-on', 'altspeedac', 'altspeed-ac'];
+  const turtleOffCmds = ['turtleoff', 'turtle-off', 'turtlekapat', 'turtle-kapat', 'turtle_off', 'turtle_kapat', 'altspeedoff', 'altspeed-off', 'altspeedkapat', 'altspeed-kapat'];
+
+  if (turtleOnCmds.includes(cliCmd)) {
+    db.settings.useAlternativeSpeed = true;
+    writeDb(db);
+    console.log(`Alternatif hiz siniri (Turtle) ETKINLESTIRILDI. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+    process.exit(0);
+  } else if (turtleOffCmds.includes(cliCmd)) {
+    db.settings.useAlternativeSpeed = false;
+    writeDb(db);
+    console.log(`Alternatif hiz siniri (Turtle) DEVRE DISI BIRAKILDI. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+    process.exit(0);
+  } else if (cliCmd === 'speed' || cliCmd === 'limit') {
+    if (cliVal === 'off' || cliVal === 'kapat' || cliVal === '0') {
+      const oldLimit = getEffectiveSpeedLimit(db.settings);
+      if (db.settings.downloadSpeedLimit > 0) {
+        db.settings.lastNonZeroSpeedLimit = db.settings.downloadSpeedLimit;
+      }
+      db.settings.downloadSpeedLimit = 0;
+      db.settings.useAlternativeSpeed = false;
+      writeDb(db);
+      console.log('Hiz siniri kapatildi (Sinirsiz).');
+    } else if (cliVal === 'on' || cliVal === 'ac') {
+      const targetLimit = db.settings.lastNonZeroSpeedLimit || 1000;
+      db.settings.downloadSpeedLimit = targetLimit;
+      writeDb(db);
+      console.log(`Hiz siniri acildi: ${targetLimit} KB/s.`);
+    } else if (cliVal === 'toggle') {
+      db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
+      writeDb(db);
+      console.log(`Alternatif hiz siniri ${db.settings.useAlternativeSpeed ? 'aktif' : 'pasif'} edildi. Etkin limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+    } else {
+      const val = parseInt(cliVal, 10);
+      if (!isNaN(val) && val >= 0) {
+        db.settings.downloadSpeedLimit = val;
+        if (val > 0) {
+          db.settings.lastNonZeroSpeedLimit = val;
+        }
+        writeDb(db);
+        console.log(`Hiz siniri ${val} KB/s olarak belirlendi.`);
+      } else {
+        console.error('Hata: Gecersiz hiz degeri. Ornek: haytool speed 1500');
+        process.exit(1);
+      }
+    }
+    process.exit(0);
+  } else if (cliCmd === 'altspeed' || cliCmd === 'turtle') {
+    if (cliVal === 'on' || cliVal === 'ac' || cliVal === '1') {
+      db.settings.useAlternativeSpeed = true;
+      writeDb(db);
+      console.log(`Alternatif hiz siniri (Turtle) ETKINLESTIRILDI. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+    } else if (cliVal === 'off' || cliVal === 'kapat' || cliVal === '0') {
+      db.settings.useAlternativeSpeed = false;
+      writeDb(db);
+      console.log(`Alternatif hiz siniri (Turtle) DEVRE DISI BIRAKILDI. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+    } else if (cliVal === 'toggle') {
+      db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
+      writeDb(db);
+      console.log(`Alternatif hiz siniri (Turtle) ${db.settings.useAlternativeSpeed ? 'aktif' : 'pasif'} edildi. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+    } else {
+      const val = parseInt(cliVal, 10);
+      if (!isNaN(val) && val >= 0) {
+        db.settings.alternativeSpeedLimit = val;
+        writeDb(db);
+        console.log(`Alternatif hiz siniri ${val} KB/s olarak belirlendi.`);
+      } else {
+        console.error('Hata: Gecersiz deger. Ornek: haytool altspeed 500, haytool altspeed ac, haytool altspeed kapat, haytool turtle ac, haytool turtle kapat');
+        process.exit(1);
+      }
+    }
+    process.exit(0);
+  } else if (cliCmd === 'toggle') {
+    db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
+    writeDb(db);
+    console.log(`Alternatif hiz siniri ${db.settings.useAlternativeSpeed ? 'aktif' : 'pasif'} edildi. Etkin limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+    process.exit(0);
+  } else if (cliCmd === 'status') {
+    const effective = getEffectiveSpeedLimit(db.settings);
+    const altStatus = db.settings.useAlternativeSpeed ? 'Aktif' : 'Pasif';
+    console.log(`Durum:
+- Normal Hiz Siniri: ${db.settings.downloadSpeedLimit} KB/s
+- Alternatif Hiz Siniri: ${db.settings.alternativeSpeedLimit} KB/s
+- Alternatif Hiz (Turtle) Aktif mi: ${altStatus}
+- Etkin Hiz Siniri: ${effective} KB/s`);
+    process.exit(0);
+  } else {
+    console.log(`Kullanilabilir CLI komutlari (haytool veya HaYTool.exe):
+  status                               (Durum raporu)
+  speed <deger/on/off/ac/kapat/toggle> (Normal hiz ayari)
+  limit <deger/on/off/ac/kapat/toggle> (Normal hiz ayari)
+  altspeed <deger/on/off/ac/kapat/toggle> (Alternatif hiz ayari)
+  turtle <deger/on/off/ac/kapat/toggle>   (Alternatif hiz ayari)
+  turtleon / turtleac / turtle-on      (Alternatif hızı KESİN AÇ)
+  turtleoff / turtlekapat / turtle-off (Alternatif hızı KESİN KAPAT)
+  toggle                               (Alternatif hizi ac/kapat)`);
+    process.exit(0);
   }
 }
 
@@ -1831,8 +1968,9 @@ class DownloadQueue {
     }
 
     // Türkçe Açıklama: Hız sınırı parametresi KB/s (K) olarak yt-dlp'ye iletiliyor.
-    if (settings.downloadSpeedLimit && settings.downloadSpeedLimit > 0) {
-      args.push('--limit-rate', `${settings.downloadSpeedLimit}K`);
+    const effectiveSpeed = getEffectiveSpeedLimit(settings);
+    if (effectiveSpeed && effectiveSpeed > 0) {
+      args.push('--limit-rate', `${effectiveSpeed}K`);
     }
 
     // Premium Çerezlerini Ekleme
@@ -2775,11 +2913,22 @@ app.get('/api/logs', (req, res) => {
 // Ayarları kaydet
 app.post('/api/settings', (req, res) => {
   const db = readDb();
-  const oldSpeedLimit = db.settings.downloadSpeedLimit;
-  const newSpeedLimit = req.body.downloadSpeedLimit !== undefined ? parseInt(req.body.downloadSpeedLimit, 10) : undefined;
-  const speedLimitChanged = newSpeedLimit !== undefined && newSpeedLimit !== oldSpeedLimit;
+  const oldSpeedLimit = getEffectiveSpeedLimit(db.settings);
+
+  if (req.body.downloadSpeedLimit !== undefined) {
+    req.body.downloadSpeedLimit = parseInt(req.body.downloadSpeedLimit, 10) || 0;
+  }
+  if (req.body.alternativeSpeedLimit !== undefined) {
+    req.body.alternativeSpeedLimit = parseInt(req.body.alternativeSpeedLimit, 10) || 500;
+  }
+  if (req.body.useAlternativeSpeed !== undefined) {
+    req.body.useAlternativeSpeed = req.body.useAlternativeSpeed === true || req.body.useAlternativeSpeed === 'true';
+  }
 
   db.settings = { ...db.settings, ...req.body };
+  const newSpeedLimit = getEffectiveSpeedLimit(db.settings);
+  const speedLimitChanged = newSpeedLimit !== oldSpeedLimit;
+
   writeDb(db);
   startIntervalTimer(); // Süre değiştiyse zamanlayıcıyı güncelle
   broadcast('db_update', db);
@@ -2844,6 +2993,67 @@ app.post('/api/settings', (req, res) => {
     ensureFfmpeg().catch(e => console.error('FFmpeg otomatik indirme hatası:', e.message));
   }
 
+  res.json({ success: true, settings: db.settings });
+});
+
+// Alternatif Hız Sınırını Aç/Kapat
+app.post('/api/settings/toggle-alt-speed', (req, res) => {
+  const db = readDb();
+  const oldSpeedLimit = getEffectiveSpeedLimit(db.settings);
+  
+  db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
+  
+  const newSpeedLimit = getEffectiveSpeedLimit(db.settings);
+  const speedLimitChanged = newSpeedLimit !== oldSpeedLimit;
+  
+  writeDb(db);
+  broadcast('db_update', db);
+  
+  // Hız sınırı değiştiyse ve aktif indirme varsa yeniden başlat
+  if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+    const videoId = downloadQueue.activeVideoId;
+    const historyItem = db.history.find(h => h.id === videoId);
+    if (historyItem) {
+      console.log(`[Ayarlar] Hız sınırı alternatif geçişi ile değişti (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: ${historyItem.title}`);
+      addTerminalLog(`[Ayarlar] Hız sınırı alternatif geçişi ile değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
+      
+      downloadQueue.queue.unshift({
+        id: videoId,
+        title: historyItem.title,
+        channelId: historyItem.channelId,
+        channelName: historyItem.channelName,
+        url: `https://www.youtube.com/watch?v=${videoId}`,
+        publishedAt: historyItem.publishedAt || ''
+      });
+      
+      updateHistoryItem(videoId, {
+        status: 'waiting',
+        progress: historyItem.progress || 0,
+        speed: '',
+        eta: ''
+      });
+      
+      const proc = downloadQueue.activeProcess;
+      const pid = proc.pid;
+      
+      downloadQueue.activeProcess = null;
+      downloadQueue.activeVideoId = null;
+      if (downloadQueue.activeDownloads > 0) {
+        downloadQueue.activeDownloads--;
+      }
+      
+      exec(`taskkill /F /T /PID ${pid}`, (err) => {
+        try {
+          proc.kill('SIGKILL');
+        } catch (e) {}
+        
+        setTimeout(() => {
+          downloadQueue.process();
+        }, 1000);
+      });
+    }
+  }
+  
   res.json({ success: true, settings: db.settings });
 });
 
@@ -3727,6 +3937,8 @@ app.get(['/home', '/download', '/downlist', '/channels', '/settings'], (req, res
 
 // Sunucu Başlatıldığında
 app.listen(PORT, async () => {
+  cleanOldLogs(); // 7 günden eski logları temizle
+
   console.log(`
   ====================================================
    _    _         __     __ _______  ___   ___   _      
@@ -3737,7 +3949,7 @@ app.listen(PORT, async () => {
   |_|  |_|           |_|      |_|               |______|
 
              -- Premium Otomasyonu --
-             Versiyon: v4.7.0
+             Versiyon: v4.8.0
              Yapımcı: HaYTo
   ====================================================
   `);
@@ -3843,3 +4055,276 @@ app.listen(PORT, async () => {
     console.log('Otomatik tarayıcı açılışı devre dışı bırakıldı. Lütfen http://localhost:3000 adresine el ile gidin.');
   }
 });
+
+// Türkçe Açıklama: 7 günden eski log dosyalarını logs klasöründen temizler.
+/**
+ * 7 günden eski log dosyalarını logs klasöründen temizler.
+ */
+function cleanOldLogs() {
+  try {
+    if (!fs.existsSync(logsDir)) return;
+    const files = fs.readdirSync(logsDir);
+    const now = Date.now();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    
+    let deletedCount = 0;
+    for (const file of files) {
+      if (file.endsWith('.log')) {
+        const filePath = path.join(logsDir, file);
+        const stats = fs.statSync(filePath);
+        if (now - stats.mtimeMs > sevenDaysMs) {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+        }
+      }
+    }
+    if (deletedCount > 0) {
+      console.log(`[Log Temizleme] 7 günden eski ${deletedCount} adet log dosyası silindi.`);
+    }
+  } catch (err) {
+    console.error('[Log Temizleme] Log dosyaları temizlenirken hata oluştu:', err.message);
+  }
+}
+
+// Türkçe Açıklama: Standart giriş (stdin) üzerinden gelen komutları dinler ve işler.
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (data) => {
+  const line = data.toString().trim();
+  if (!line) return;
+
+  const parts = line.split(' ');
+  const command = parts[0].toLowerCase();
+  const args = parts.slice(1);
+
+  const db = readDb();
+
+  const turtleOnCmds = ['turtleon', 'turtle-on', 'turtleac', 'turtle-ac', 'turtle_on', 'turtle_ac', 'altspeedon', 'altspeed-on', 'altspeedac', 'altspeed-ac'];
+  const turtleOffCmds = ['turtleoff', 'turtle-off', 'turtlekapat', 'turtle-kapat', 'turtle_off', 'turtle_kapat', 'altspeedoff', 'altspeed-off', 'altspeedkapat', 'altspeed-kapat'];
+
+  if (turtleOnCmds.includes(command)) {
+    const oldLimit = getEffectiveSpeedLimit(db.settings);
+    db.settings.useAlternativeSpeed = true;
+    const newLimit = getEffectiveSpeedLimit(db.settings);
+    const speedLimitChanged = oldLimit !== newLimit;
+    writeDb(db);
+    broadcast('db_update', db);
+    addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) etkinleştirildi.`, 'info');
+    console.log(`[Konsol] Alternatif hiz siniri (Turtle) etkinlestirildi. Limit: ${newLimit} KB/s`);
+    if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+      restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+    }
+  } else if (turtleOffCmds.includes(command)) {
+    const oldLimit = getEffectiveSpeedLimit(db.settings);
+    db.settings.useAlternativeSpeed = false;
+    const newLimit = getEffectiveSpeedLimit(db.settings);
+    const speedLimitChanged = oldLimit !== newLimit;
+    writeDb(db);
+    broadcast('db_update', db);
+    addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) devre dışı bırakıldı.`, 'info');
+    console.log(`[Konsol] Alternatif hiz siniri (Turtle) devre disi birakildi. Limit: ${newLimit} KB/s`);
+    if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+      restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+    }
+  } else if (command === 'speed' || command === 'limit') {
+    const arg = args[0] ? args[0].toLowerCase() : '';
+    if (arg === 'off' || arg === 'kapat' || arg === '0') {
+      const oldLimit = getEffectiveSpeedLimit(db.settings);
+      if (db.settings.downloadSpeedLimit > 0) {
+        db.settings.lastNonZeroSpeedLimit = db.settings.downloadSpeedLimit;
+      }
+      db.settings.downloadSpeedLimit = 0;
+      db.settings.useAlternativeSpeed = false;
+      const newLimit = getEffectiveSpeedLimit(db.settings);
+      const speedLimitChanged = oldLimit !== newLimit;
+      writeDb(db);
+      broadcast('db_update', db);
+      addTerminalLog(`[Konsol] Hız sınırı kapatıldı (Sınırsız).`, 'info');
+      console.log(`[Konsol] Hiz siniri kapatildi (Sinirsiz).`);
+      
+      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+      }
+    } else if (arg === 'on' || arg === 'ac') {
+      const oldLimit = getEffectiveSpeedLimit(db.settings);
+      const targetLimit = db.settings.lastNonZeroSpeedLimit || 1000;
+      db.settings.downloadSpeedLimit = targetLimit;
+      const newLimit = getEffectiveSpeedLimit(db.settings);
+      const speedLimitChanged = oldLimit !== newLimit;
+      writeDb(db);
+      broadcast('db_update', db);
+      addTerminalLog(`[Konsol] Hız sınırı açıldı: ${targetLimit} KB/s.`, 'success');
+      console.log(`[Konsol] Hiz siniri acildi: ${targetLimit} KB/s.`);
+      
+      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+      }
+    } else if (arg === 'toggle') {
+      const oldLimit = getEffectiveSpeedLimit(db.settings);
+      db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
+      const newLimit = getEffectiveSpeedLimit(db.settings);
+      const speedLimitChanged = oldLimit !== newLimit;
+      writeDb(db);
+      broadcast('db_update', db);
+      const statusStr = db.settings.useAlternativeSpeed ? 'aktif' : 'pasif';
+      addTerminalLog(`[Konsol] Alternatif hız sınırı ${statusStr} edildi.`, 'info');
+      console.log(`[Konsol] Alternatif hiz siniri ${statusStr} edildi. Etkin limit: ${newLimit} KB/s`);
+      
+      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+      }
+    } else {
+      const val = parseInt(arg, 10);
+      if (!isNaN(val) && val >= 0) {
+        const oldLimit = getEffectiveSpeedLimit(db.settings);
+        db.settings.downloadSpeedLimit = val;
+        if (val > 0) {
+          db.settings.lastNonZeroSpeedLimit = val;
+        }
+        const newLimit = getEffectiveSpeedLimit(db.settings);
+        const speedLimitChanged = oldLimit !== newLimit;
+        writeDb(db);
+        broadcast('db_update', db);
+        addTerminalLog(`[Konsol] Hız sınırı ${val} KB/s olarak belirlendi.`, 'success');
+        console.log(`[Konsol] Hiz siniri ${val} KB/s olarak belirlendi.`);
+        
+        if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+          restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+        }
+      } else {
+        console.log('[Konsol] Gecersiz komut veya hiz degeri. Kullanilabilir komutlar:\n' +
+                    '  - speed <deger> (Hiz siniri belirler)\n' +
+                    '  - speed on/off (Hiz sinirini acar/kapatir)\n' +
+                    '  - speed ac/kapat (Hiz sinirini acar/kapatir)\n' +
+                    '  - speed toggle (Alternatif hizi acar/kapatir)\n' +
+                    '  - limit ... (speed ile ayni sekilde calisir)');
+      }
+    }
+  } else if (command === 'altspeed' || command === 'turtle') {
+    const arg = args[0] ? args[0].toLowerCase() : '';
+    if (arg === 'on' || arg === 'ac' || arg === '1') {
+      const oldLimit = getEffectiveSpeedLimit(db.settings);
+      db.settings.useAlternativeSpeed = true;
+      const newLimit = getEffectiveSpeedLimit(db.settings);
+      const speedLimitChanged = oldLimit !== newLimit;
+      writeDb(db);
+      broadcast('db_update', db);
+      addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) etkinleştirildi.`, 'info');
+      console.log(`[Konsol] Alternatif hiz siniri (Turtle) etkinlestirildi. Limit: ${newLimit} KB/s`);
+      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+      }
+    } else if (arg === 'off' || arg === 'kapat' || arg === '0') {
+      const oldLimit = getEffectiveSpeedLimit(db.settings);
+      db.settings.useAlternativeSpeed = false;
+      const newLimit = getEffectiveSpeedLimit(db.settings);
+      const speedLimitChanged = oldLimit !== newLimit;
+      writeDb(db);
+      broadcast('db_update', db);
+      addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) devre dışı bırakıldı.`, 'info');
+      console.log(`[Konsol] Alternatif hiz siniri (Turtle) devre disi birakildi. Limit: ${newLimit} KB/s`);
+      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+      }
+    } else if (arg === 'toggle') {
+      const oldLimit = getEffectiveSpeedLimit(db.settings);
+      db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
+      const newLimit = getEffectiveSpeedLimit(db.settings);
+      const speedLimitChanged = oldLimit !== newLimit;
+      writeDb(db);
+      broadcast('db_update', db);
+      const statusStr = db.settings.useAlternativeSpeed ? 'aktif' : 'pasif';
+      addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) ${statusStr} edildi.`, 'info');
+      console.log(`[Konsol] Alternatif hiz siniri (Turtle) ${statusStr} edildi. Limit: ${newLimit} KB/s`);
+      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+      }
+    } else {
+      const val = parseInt(arg, 10);
+      if (!isNaN(val) && val >= 0) {
+        const oldLimit = getEffectiveSpeedLimit(db.settings);
+        db.settings.alternativeSpeedLimit = val;
+        const newLimit = getEffectiveSpeedLimit(db.settings);
+        const speedLimitChanged = oldLimit !== newLimit;
+        writeDb(db);
+        broadcast('db_update', db);
+        addTerminalLog(`[Konsol] Alternatif hız sınırı ${val} KB/s olarak belirlendi.`, 'success');
+        console.log(`[Konsol] Alternatif hiz siniri ${val} KB/s olarak belirlendi.`);
+        if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+          restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+        }
+      } else {
+        console.log('[Konsol] Gecersiz komut veya deger. Ornek: altspeed 500, altspeed ac, altspeed kapat, turtle ac, turtle kapat');
+      }
+    }
+  } else if (command === 'toggle') {
+    const oldLimit = getEffectiveSpeedLimit(db.settings);
+    db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
+    const newLimit = getEffectiveSpeedLimit(db.settings);
+    const speedLimitChanged = oldLimit !== newLimit;
+    writeDb(db);
+    broadcast('db_update', db);
+    const statusStr = db.settings.useAlternativeSpeed ? 'aktif' : 'pasif';
+    addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) ${statusStr} edildi.`, 'info');
+    console.log(`[Konsol] Alternatif hiz siniri (Turtle) ${statusStr} edildi. Limit: ${newLimit} KB/s`);
+    
+    if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+      restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+    }
+  } else if (command === 'status') {
+    const effective = getEffectiveSpeedLimit(db.settings);
+    const altStatus = db.settings.useAlternativeSpeed ? 'Aktif' : 'Pasif';
+    console.log(`[Konsol] Durum:
+      - Normal Hiz Siniri: ${db.settings.downloadSpeedLimit} KB/s
+      - Alternatif Hiz Siniri: ${db.settings.alternativeSpeedLimit} KB/s
+      - Alternatif Hiz (Turtle) Aktif mi: ${altStatus}
+      - Etkin Hiz Siniri: ${effective} KB/s
+      - Aktif Indirme Var mi: ${downloadQueue.activeVideoId ? 'Evet' : 'Hayir'}`);
+  } else {
+    console.log('[Konsol] Bilinmeyen komut. Kullanilabilir komutlar: speed/limit <deger/on/off/ac/kapat/toggle>, altspeed/turtle <deger/on/off/ac/kapat/toggle>, turtleon, turtleoff, turtleac, turtlekapat, toggle, status');
+  }
+});
+
+// Türkçe Açıklama: Aktif indirmeyi yeni hız sınırı ile yeniden başlatır.
+function restartActiveDownloadWithNewLimit(db, oldSpeedLimit, newSpeedLimit) {
+  const videoId = downloadQueue.activeVideoId;
+  const historyItem = db.history.find(h => h.id === videoId);
+  if (historyItem) {
+    console.log(`[Ayarlar] Hız sınırı değişti (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: ${historyItem.title}`);
+    addTerminalLog(`[Ayarlar] Hız sınırı değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
+    
+    downloadQueue.queue.unshift({
+      id: videoId,
+      title: historyItem.title,
+      channelId: historyItem.channelId,
+      channelName: historyItem.channelName,
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      publishedAt: historyItem.publishedAt || ''
+    });
+    
+    updateHistoryItem(videoId, {
+      status: 'waiting',
+      progress: historyItem.progress || 0,
+      speed: '',
+      eta: ''
+    });
+    
+    const proc = downloadQueue.activeProcess;
+    const pid = proc.pid;
+    
+    downloadQueue.activeProcess = null;
+    downloadQueue.activeVideoId = null;
+    if (downloadQueue.activeDownloads > 0) {
+      downloadQueue.activeDownloads--;
+    }
+    
+    exec(`taskkill /F /T /PID ${pid}`, (err) => {
+      try {
+        proc.kill('SIGKILL');
+      } catch (e) {}
+      
+      setTimeout(() => {
+        downloadQueue.process();
+      }, 1000);
+    });
+  }
+}

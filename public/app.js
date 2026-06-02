@@ -1188,10 +1188,12 @@ function updateUI(db) {
     const settingsAutoDelete = document.getElementById('settings-autodelete');
     const settingsRssLimit = document.getElementById('settings-rsslimit');
     const settingsSpeedLimit = document.getElementById('settings-speedlimit');
+    const settingsAltSpeedLimit = document.getElementById('settings-altspeedlimit');
     if (settingsTheme && document.activeElement !== settingsTheme) settingsTheme.value = db.settings.theme || 'dark';
     if (settingsAutoDelete && document.activeElement !== settingsAutoDelete) settingsAutoDelete.value = db.settings.autoDeleteDays || 0;
     if (settingsRssLimit && document.activeElement !== settingsRssLimit) settingsRssLimit.value = db.settings.rssLimit || 5;
     if (settingsSpeedLimit && document.activeElement !== settingsSpeedLimit) settingsSpeedLimit.value = db.settings.downloadSpeedLimit || 0;
+    if (settingsAltSpeedLimit && document.activeElement !== settingsAltSpeedLimit) settingsAltSpeedLimit.value = db.settings.alternativeSpeedLimit || 500;
 
     const settingsPort = document.getElementById('settings-port');
     if (settingsPort && document.activeElement !== settingsPort) settingsPort.value = db.settings.port || 3000;
@@ -1224,10 +1226,38 @@ function updateUI(db) {
       }
     }
 
-    // Sıradaki hız sınırı giriş kutusu senkronizasyonu
+    // Sıradaki hız sınırı giriş kutusu senkronizasyonu ve etiket güncellemesi
     const queueSpeedLimitInput = document.getElementById('queue-speed-limit-input');
-    if (queueSpeedLimitInput && document.activeElement !== queueSpeedLimitInput) {
-      queueSpeedLimitInput.value = db.settings.downloadSpeedLimit || 0;
+    const speedLimitLabel = document.getElementById('speed-limit-label');
+    const altSpeedToggleBtn = document.getElementById('alt-speed-toggle-btn');
+    const isEn = db.settings.lang === 'en';
+
+    if (db.settings.useAlternativeSpeed) {
+      if (queueSpeedLimitInput && document.activeElement !== queueSpeedLimitInput) {
+        queueSpeedLimitInput.value = db.settings.alternativeSpeedLimit || 500;
+      }
+      if (speedLimitLabel) {
+        speedLimitLabel.textContent = isEn ? 'Alt. Speed Limit:' : 'Alt. Hız Sınırı:';
+        speedLimitLabel.style.color = 'var(--accent-color)';
+      }
+      if (altSpeedToggleBtn) {
+        altSpeedToggleBtn.classList.add('btn-warning');
+        altSpeedToggleBtn.classList.remove('btn-secondary');
+        altSpeedToggleBtn.setAttribute('title', isEn ? 'Disable Alternative Speed Limit' : 'Alternatif Hız Sınırını Kapat');
+      }
+    } else {
+      if (queueSpeedLimitInput && document.activeElement !== queueSpeedLimitInput) {
+        queueSpeedLimitInput.value = db.settings.downloadSpeedLimit || 0;
+      }
+      if (speedLimitLabel) {
+        speedLimitLabel.textContent = isEn ? 'Speed Limit:' : 'Hız Sınırı:';
+        speedLimitLabel.style.color = 'var(--text-muted)';
+      }
+      if (altSpeedToggleBtn) {
+        altSpeedToggleBtn.classList.remove('btn-warning');
+        altSpeedToggleBtn.classList.add('btn-secondary');
+        altSpeedToggleBtn.setAttribute('title', isEn ? 'Enable Alternative Speed Limit' : 'Alternatif Hız Sınırını Aç');
+      }
     }
 
     // Tema Sınıfı Eşitlemesi
@@ -1472,55 +1502,98 @@ if (addChannelForm) {
   });
 }
 
-if (settingsForm) {
-  settingsForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const settingsPortInput = document.getElementById('settings-port');
-    const port = settingsPortInput ? parseInt(settingsPortInput.value, 10) : 3000;
-    
-    const settings = {
-      downloadPath: settingsDownloadPath.value.trim(),
-      browser: settingsBrowser.value,
-      quality: settingsQuality.value,
-      channelCheckInterval: parseInt(settingsChannelCheckInterval.value, 10) || 60,
-      autoDownload: settingsAutoDownload.checked,
-      mergeType: document.getElementById('settings-mergetype').value,
-      writeThumbnail: document.getElementById('settings-writethumbnail').checked,
-      showShorts: document.getElementById('settings-showshorts').checked,
-      theme: document.getElementById('settings-theme').value,
-      autoDeleteDays: parseInt(document.getElementById('settings-autodelete').value, 10) || 0,
-      rssLimit: parseInt(document.getElementById('settings-rsslimit').value, 10) || 5,
-      downloadSpeedLimit: parseInt(document.getElementById('settings-speedlimit').value, 10) || 0,
-       port: port,
-      playerType: document.getElementById('settings-player-type').value,
-      playSounds: document.getElementById('settings-playsounds').checked,
-      showNotifications: document.getElementById('settings-shownotifications').checked,
-      autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
-      lang: document.getElementById('settings-lang').value
-    };
+let autoSaveTimeout = null;
 
-    const oldPort = localDb.settings.port || 3000;
+async function triggerAutoSave(immediate = false) {
+  if (autoSaveTimeout) {
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = null;
+  }
+  
+  if (immediate) {
+    await performAutoSave();
+  } else {
+    autoSaveTimeout = setTimeout(performAutoSave, 500);
+  }
+}
 
-    try {
-      const res = await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-      });
-      const data = await res.json();
-      if (data.success) {
-        if (port !== oldPort) {
-          showToast(`Ayarlar kaydedildi! Port ${port} olarak değiştirildi. Yeni portun aktif olması için uygulamayı yeniden başlatın.`, 'warning');
-        } else {
-          showToast('Ayarlar başarıyla kaydedildi!', 'success');
-        }
-        updateDiskSpace();
-      } else {
-        showToast(data.error || 'Hata oluştu.', 'error');
+async function performAutoSave() {
+  if (!settingsForm) return;
+  
+  const settingsPortInput = document.getElementById('settings-port');
+  const port = settingsPortInput ? parseInt(settingsPortInput.value, 10) : 3000;
+  
+  const settings = {
+    downloadPath: settingsDownloadPath.value.trim(),
+    browser: settingsBrowser.value,
+    quality: settingsQuality.value,
+    channelCheckInterval: parseInt(settingsChannelCheckInterval.value, 10) || 60,
+    autoDownload: settingsAutoDownload.checked,
+    mergeType: document.getElementById('settings-mergetype').value,
+    writeThumbnail: document.getElementById('settings-writethumbnail').checked,
+    showShorts: document.getElementById('settings-showshorts').checked,
+    theme: document.getElementById('settings-theme').value,
+    autoDeleteDays: parseInt(document.getElementById('settings-autodelete').value, 10) || 0,
+    rssLimit: parseInt(document.getElementById('settings-rsslimit').value, 10) || 5,
+    downloadSpeedLimit: parseInt(document.getElementById('settings-speedlimit').value, 10) || 0,
+    alternativeSpeedLimit: parseInt(document.getElementById('settings-altspeedlimit').value, 10) || 500,
+     port: port,
+    playerType: document.getElementById('settings-player-type').value,
+    playSounds: document.getElementById('settings-playsounds').checked,
+    showNotifications: document.getElementById('settings-shownotifications').checked,
+    autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
+    lang: document.getElementById('settings-lang').value
+  };
+
+  const oldPort = localDb.settings.port || 3000;
+  const statusSpan = document.getElementById('settings-status');
+  if (statusSpan) {
+    const isEn = localDb.settings && localDb.settings.lang === 'en';
+    statusSpan.innerHTML = `<i data-lucide="loader" class="pulse-animation" style="width:16px; height:16px; margin-right:4px;"></i><span>${isEn ? 'Saving changes...' : 'Ayarlar kaydediliyor...'}</span>`;
+    lucide.createIcons();
+  }
+
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (statusSpan) {
+        const isEn = localDb.settings && localDb.settings.lang === 'en';
+        statusSpan.innerHTML = `<i data-lucide="check-circle" style="width:16px; height:16px; margin-right:4px; color:var(--success-color);"></i><span style="color:var(--success-color);">${isEn ? 'All changes saved.' : 'Tüm değişiklikler kaydedildi.'}</span>`;
+        lucide.createIcons();
       }
-    } catch (err) {
-      showToast('Bağlantı hatası.', 'error');
+      if (port !== oldPort) {
+        showToast(localDb.settings.lang === 'en' ? 'Port changed. Please restart the app to apply.' : 'Port değiştirildi. Yeni portun aktif olması için uygulamayı yeniden başlatın.', 'warning');
+      }
+      updateDiskSpace();
+    }
+  } catch (err) {
+    console.error('Otomatik kaydetme hatası:', err);
+    if (statusSpan) {
+      const isEn = localDb.settings && localDb.settings.lang === 'en';
+      statusSpan.innerHTML = `<i data-lucide="alert-circle" style="width:16px; height:16px; margin-right:4px; color:var(--danger-color);"></i><span style="color:var(--danger-color);">${isEn ? 'Save error!' : 'Kaydedilemedi!'}</span>`;
+      lucide.createIcons();
+    }
+  }
+}
+
+if (settingsForm) {
+  settingsForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    triggerAutoSave(true);
+  });
+
+  // Form içindeki tüm girdi elemanlarını dinle
+  const inputs = settingsForm.querySelectorAll('input, select, textarea');
+  inputs.forEach(input => {
+    if (input.type === 'checkbox' || input.tagName.toLowerCase() === 'select') {
+      input.addEventListener('change', () => triggerAutoSave(true));
+    } else {
+      input.addEventListener('input', () => triggerAutoSave(false));
     }
   });
 }
@@ -2713,6 +2786,26 @@ window.toggleQueuePause = async function() {
   }
 };
 
+// Türkçe Açıklama: Alternatif hız sınırı (kaplumbağa) profilini açıp kapatır.
+window.toggleAlternativeSpeed = async function() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  showToast(isEn ? 'Toggling speed limit profile...' : 'Hız sınırı profili değiştiriliyor...', 'info');
+  try {
+    const res = await fetch('/api/settings/toggle-alt-speed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Speed profile changed successfully!' : 'Hız profili başarıyla değiştirildi!', 'success');
+    } else {
+      showToast(data.error || 'Hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast('Bağlantı hatası.', 'error');
+  }
+};
+
 // Türkçe Açıklama: Kullanıcının girdiği hız limitini (KB/s) sunucuya göndererek kaydeder ve indirme sırasına anlık uygular.
 /**
  * İndirme hız limitini günceller.
@@ -2731,7 +2824,12 @@ window.updateQueueSpeedLimit = async function() {
   showToast(isEn ? 'Updating speed limit...' : 'Hız sınırı güncelleniyor...', 'info');
   
   try {
-    const updatedSettings = { ...localDb.settings, downloadSpeedLimit: limit };
+    const updatedSettings = { ...localDb.settings };
+    if (localDb.settings.useAlternativeSpeed) {
+      updatedSettings.alternativeSpeedLimit = limit;
+    } else {
+      updatedSettings.downloadSpeedLimit = limit;
+    }
     
     const res = await fetch('/api/settings', {
       method: 'POST',
