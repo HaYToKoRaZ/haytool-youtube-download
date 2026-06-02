@@ -528,6 +528,7 @@ const pathTabMap = {
  * @param {boolean} triggerPushState Adres satırı geçmişine kaydedilip kaydedilmeyeceği (varsayılan: true)
  */
 function switchTab(targetTab, triggerPushState = true) {
+  window.switchTab = switchTab;
   navItems.forEach(n => {
     if (n.getAttribute('data-tab') === targetTab) {
       n.classList.add('active');
@@ -2748,6 +2749,7 @@ window.pasteAndDownload = async function() {
       const data = await res.json();
       if (data.success) {
         showToast('Video kuyruğa başarıyla eklendi!', 'success');
+        if (window.switchTab) window.switchTab('download');
       } else {
         showToast(data.error || 'İndirme eklenemedi.', 'error');
       }

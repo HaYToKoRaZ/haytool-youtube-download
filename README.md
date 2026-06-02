@@ -57,33 +57,36 @@ Access the dashboard at [http://localhost:3000](http://localhost:3000) (default 
 
 ## 💻 CLI & Console Commands
 
-You can manage speed limits and view application status directly using `HaYTool.exe` from the command line, or through the Interactive Terminal Console in the Windows tray app:
+You can manage speed limits, start downloads, and view application status directly using `hayto`, `haytool`, or `HaYTool.exe` from the command line, or through the Interactive Terminal Console in the Windows tray app:
 
 ### CLI Commands:
-Run these commands from your terminal in the project directory (use `haytool` or `HaYTool.exe` on Windows, or `node server.js` on Linux/macOS):
+Run these commands from your terminal in the project directory (use `hayto` or `haytool` on Windows, or `node server.js` on Linux/macOS):
 
 * **Check Status:**
-  * `haytool status`
+  * `hayto status` (or `haytool status`)
+* **Download Video (Paste & Download):**
+  * `hayto pd https://www.youtube.com/watch?v=dQw4w9WgXcQ` (Starts download for the link)
+  * `haytool pd https://www.youtube.com/watch?v=dQw4w9WgXcQ` (Starts download for the link)
 * **Set Normal Speed Limit:**
-  * `haytool speed 2500` (Sets speed limit to 2500 KB/s)
-  * `haytool limit 1500` (Sets speed limit to 1500 KB/s)
+  * `hayto speed 2500` (Sets speed limit to 2500 KB/s)
+  * `hayto limit 1500` (Sets speed limit to 1500 KB/s)
 * **Disable/Enable Normal Limit:**
-  * `haytool speed off` (Disables limit, makes it unlimited)
-  * `haytool speed on` (Enables limit, restores the last active limit)
-  * `haytool speed ac` (Enables limit)
-  * `haytool speed kapat` (Disables limit)
+  * `hayto speed off` (Disables limit, makes it unlimited)
+  * `hayto speed on` (Enables limit, restores the last active limit)
+  * `hayto speed ac` (Enables limit)
+  * `hayto speed kapat` (Disables limit)
 * **Set Alternative Speed Limit Value:**
-  * `haytool altspeed 500` (Sets alternative limit to 500 KB/s)
-  * `haytool turtle 500` (Sets alternative limit to 500 KB/s)
+  * `hayto altspeed 500` (Sets alternative limit to 500 KB/s)
+  * `hayto turtle 500` (Sets alternative limit to 500 KB/s)
 * **Turtle Mode Direct Safe Controls (Definite State Change):**
-  * `haytool turtleon` (Definitely enables turtle mode)
-  * `haytool turtleoff` (Definitely disables turtle mode)
-  * `haytool turtleac` (Definitely enables turtle mode)
-  * `haytool turtlekapat` (Definitely disables turtle mode)
+  * `hayto turtleon` (Definitely enables turtle mode)
+  * `hayto turtleoff` (Definitely disables turtle mode)
+  * `hayto turtleac` (Definitely enables turtle mode)
+  * `hayto turtlekapat` (Definitely disables turtle mode)
 * **Alternative Speed Profile Status Toggle/Change:**
-  * `haytool toggle` (Toggles alternative speed mode status)
-  * `haytool altspeed on` (Forces alternative speed profile active)
-  * `haytool altspeed off` (Forces alternative speed profile inactive)
+  * `hayto toggle` (Toggles alternative speed mode status)
+  * `hayto altspeed on` (Forces alternative speed profile active)
+  * `hayto altspeed off` (Forces alternative speed profile inactive)
 
 ### Console Commands (from the Tray App window):
 Type these commands in the textbox at the bottom of the "Konsol Çıktısını Göster" window and press Enter (no prefix needed):
@@ -175,33 +178,36 @@ Arayüze varsayılan olarak [http://localhost:3000](http://localhost:3000) adres
 
 ## 💻 CLI ve Konsol Komutları
 
-Uygulamanın hız limitlerini ve durum bilgisini doğrudan terminalden `HaYTool.exe` yardımıyla (CLI) veya Windows tepsi uygulamasının İnteraktif Konsol penceresinden yönetebilirsiniz:
+Uygulamanın hız limitlerini, indirmelerini ve durum bilgisini doğrudan terminalden `hayto`, `haytool` veya `HaYTool.exe` yardımıyla (CLI) veya Windows tepsi uygulamasının İnteraktif Konsol penceresinden yönetebilirsiniz:
 
 ### CLI Komutları:
-Proje dizininde terminalden çalıştırabileceğiniz komutlar (Windows için `haytool` veya `HaYTool.exe`, Linux/macOS için `node server.js` kullanabilirsiniz):
+Proje dizininde terminalden çalıştırabileceğiniz komutlar (Windows için `hayto` veya `haytool` kullanabilirsiniz, Linux/macOS için `node server.js` kullanabilirsiniz):
 
 * **Durum Bilgisi Sorgulama:**
-  * `haytool status`
+  * `hayto status` (veya `haytool status`)
+* **Video İndirme (Paste & Download):**
+  * `hayto pd https://www.youtube.com/watch?v=dQw4w9WgXcQ` (Belirtilen videoyu hemen kuyruğa ekler ve indirmeyi başlatır)
+  * `haytool pd https://www.youtube.com/watch?v=dQw4w9WgXcQ` (Belirtilen videoyu hemen kuyruğa ekler ve indirmeyi başlatır)
 * **Normal Hız Sınırı Belirleme:**
-  * `haytool speed 2500` (Hız limitini 2500 KB/s yapar)
-  * `haytool limit 1500` (Hız limitini 1500 KB/s yapar)
+  * `hayto speed 2500` (Hız limitini 2500 KB/s yapar)
+  * `hayto limit 1500` (Hız limitini 1500 KB/s yapar)
 * **Normal Hız Sınırını Açma/Kapatma:**
-  * `haytool speed off` (Limit kapatılır - sınırsız indirme)
-  * `haytool speed on` (Limit son aktif değerine açılır)
-  * `haytool speed ac` (Limit açılır)
-  * `haytool speed kapat` (Limit kapatılır)
+  * `hayto speed off` (Limit kapatılır - sınırsız indirme)
+  * `hayto speed on` (Limit son aktif değerine açılır)
+  * `hayto speed ac` (Limit açılır)
+  * `hayto speed kapat` (Limit kapatılır)
 * **Alternatif Hız Değeri Belirleme:**
-  * `haytool altspeed 500` (Alternatif hız limitini 500 KB/s yapar)
-  * `haytool turtle 500` (Alternatif hız limitini 500 KB/s yapar)
+  * `hayto altspeed 500` (Alternatif hız limitini 500 KB/s yapar)
+  * `hayto turtle 500` (Alternatif hız limitini 500 KB/s yapar)
 * **Kaplumbağa Modu Kesin Durum Komutları (Güvenli):**
-  * `haytool turtleon` (Kaplumbağa modunu kesin olarak etkinleştirir)
-  * `haytool turtleoff` (Kaplumbağa modunu kesin olarak devre dışı bırakır)
-  * `haytool turtleac` (Kaplumbağa modunu kesin olarak etkinleştirir)
-  * `haytool turtlekapat` (Kaplumbağa modunu kesin olarak devre dışı bırakır)
+  * `hayto turtleon` (Kaplumbağa modunu kesin olarak etkinleştirir)
+  * `hayto turtleoff` (Kaplumbağa modunu kesin olarak devre dışı bırakır)
+  * `hayto turtleac` (Kaplumbağa modunu kesin olarak etkinleştirir)
+  * `hayto turtlekapat` (Kaplumbağa modunu kesin olarak devre dışı bırakır)
 * **Alternatif Hız Profil Durumu Toggle / Değiştirme:**
-  * `haytool toggle` (Mevcut kaplumbağa modunu tersine çevirir)
-  * `haytool altspeed on` (Alternatif hız profilini kesin açar)
-  * `haytool altspeed off` (Alternatif hız profilini kesin kapatır)
+  * `hayto toggle` (Mevcut kaplumbağa modunu tersine çevirir)
+  * `hayto altspeed on` (Alternatif hız profilini kesin açar)
+  * `hayto altspeed off` (Alternatif hız profilini kesin kapatır)
 
 ### Konsol Komutları (Tray Log Ekranından):
 Tepsi simgesinden "Konsol Çıktısını Göster" dediğinizde açılan pencerenin altındaki metin kutusuna komut yazıp Enter'a basabilirsiniz (başında `HaYTool.exe` veya `node` olmadan doğrudan):

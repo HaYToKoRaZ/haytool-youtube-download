@@ -12,6 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawn, exec, execSync } from 'child_process';
 import https from 'https';
+import http from 'http';
 import os from 'os';
 import Parser from 'rss-parser';
 import open from 'open';
@@ -1041,9 +1042,92 @@ if (process.argv.length > 2) {
 - Alternatif Hiz (Turtle) Aktif mi: ${altStatus}
 - Etkin Hiz Siniri: ${effective} KB/s`);
     process.exit(0);
+  } else if (cliCmd === 'pd') {
+    if (!cliVal) {
+      console.error('Hata: Gecersiz link. Ornek: haytool pd https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      process.exit(1);
+    }
+
+    const targetUrl = cliArgs[1]; // Orijinal URL'yi al
+    const youtubeRegex = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([^?&"'>\s]{11})/;
+    const match = targetUrl.match(youtubeRegex);
+    if (!match) {
+      console.error('Hata: Gecersiz YouTube video linki.');
+      process.exit(1);
+    }
+    const videoId = match[1];
+
+    // Aktif sunucuya HTTP POST isteği göndermeyi dene
+    const postData = JSON.stringify({ url: targetUrl });
+    const reqOptions = {
+      hostname: 'localhost',
+      port: PORT,
+      path: '/api/download-video',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
+    const req = http.request(reqOptions, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        try {
+          const resJson = JSON.parse(data);
+          if (resJson.success) {
+            console.log(`[Basarili] Video kuyruga başarıyla eklendi (Sunucu aktif). ID: ${videoId}`);
+            process.exit(0);
+          } else {
+            console.error(`Hata: ${resJson.error || 'İndirme tetiklenemedi.'}`);
+            process.exit(1);
+          }
+        } catch (e) {
+          fallbackWriteToDb(videoId, targetUrl);
+        }
+      });
+    });
+
+    req.on('error', (e) => {
+      // Sunucu kapalıysa doğrudan veritabanına yaz
+      fallbackWriteToDb(videoId, targetUrl);
+    });
+
+    req.write(postData);
+    req.end();
+
+    function fallbackWriteToDb(vid, url) {
+      try {
+        const localDbData = readDb();
+        const alreadyInQueue = localDbData.queue && localDbData.queue.some(item => item.id === vid);
+        const alreadyInHistory = localDbData.history && localDbData.history.some(item => item.id === vid);
+        if (alreadyInQueue || alreadyInHistory) {
+          console.log(`[Bilgi] Video zaten kuyrukta veya geçmişte mevcut. ID: ${vid}`);
+          process.exit(0);
+        }
+
+        if (!localDbData.queue) localDbData.queue = [];
+        localDbData.queue.push({
+          id: vid,
+          title: 'Bilinmeyen Video (CLI)',
+          channelId: 'manual',
+          channelName: 'Manuel İndirme (CLI)',
+          url: url,
+          publishedAt: ''
+        });
+        writeDb(localDbData);
+        console.log(`[Basarili] Video veritabanına eklendi (Sunucu aktif degil, acildiginda indirilecek). ID: ${vid}`);
+        process.exit(0);
+      } catch (err) {
+        console.error('Hata: Veritabanına yazılamadı:', err.message);
+        process.exit(1);
+      }
+    }
   } else {
     console.log(`Kullanilabilir CLI komutlari (haytool veya HaYTool.exe):
   status                               (Durum raporu)
+  pd <video-linki>                     (Video indir - Paste & Download)
   speed <deger/on/off/ac/kapat/toggle> (Normal hiz ayari)
   limit <deger/on/off/ac/kapat/toggle> (Normal hiz ayari)
   altspeed <deger/on/off/ac/kapat/toggle> (Alternatif hiz ayari)
@@ -1521,6 +1605,50 @@ function findVideoFileInDownloadDir(videoId, downloadPath) {
     console.error(`Error searching recursively for video ${videoId} in ${downloadPath}:`, e.message);
   }
   return null;
+}
+
+// Türkçe Açıklama: YouTube URL'sini doğrular, gerekirse YouTube'dan video başlığı ve kanal adı gibi bilgileri çeker ve indirme kuyruğuna ekler.
+/**
+ * Verilen video URL'sini çözümleyip indirme kuyruğuna ekler.
+ * 
+ * @param {string} urlText YouTube video URL'si
+ * @returns {Promise<string>} Video ID'si
+ */
+async function addVideoToQueueByUrl(urlText) {
+  const youtubeRegex = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([^?&"'>\s]{11})/;
+  const match = urlText.match(youtubeRegex);
+  if (!match) {
+    throw new Error('Geçersiz YouTube video linki.');
+  }
+  const videoId = match[1];
+
+  let title = '';
+  let channelName = '';
+  let channelId = '';
+
+  try {
+    console.log(`[Manuel İndirme] Video detayları YouTube'dan çekiliyor: ${videoId}`);
+    const details = await fetchVideoDuration(videoId);
+    if (details) {
+      if (details.title) title = details.title;
+      if (details.channelName) channelName = details.channelName;
+      if (details.channelId) channelId = details.channelId;
+    }
+  } catch (err) {
+    console.error(`[Manuel İndirme] Detaylar çekilirken hata oluştu:`, err.message);
+  }
+
+  downloadQueue.add({
+    id: videoId,
+    title: title || 'Bilinmeyen Video',
+    channelId: channelId || 'manual',
+    channelName: channelName || 'Manuel İndirme',
+    url: `https://www.youtube.com/watch?v=${videoId}`,
+    publishedAt: ''
+  });
+
+  resolveMissingDurations();
+  return videoId;
 }
 
 let isResolvingDurations = false;
@@ -3287,18 +3415,29 @@ app.post('/api/channels/update-all-avatars', localhostOnly, async (req, res) => 
 
 // Manuel Video İndirmeyi Başlat (Kuyruğa yeni video ekler ve eksik süre/tarih çözücüyü tetikler)
 app.post('/api/download-video', async (req, res) => {
-  const { videoId } = req.body;
+  const { videoId, url } = req.body;
   let { title, channelName, channelId } = req.body;
-  if (!videoId) return res.status(400).json({ error: 'Video ID gereklidir.' });
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-    return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
+
+  let targetVideoId = videoId;
+
+  if (!targetVideoId && url) {
+    const youtubeRegex = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([^?&"'>\s]{11})/;
+    const match = url.match(youtubeRegex);
+    if (match) {
+      targetVideoId = match[1];
+    }
+  }
+
+  if (!targetVideoId) return res.status(400).json({ error: 'Video ID veya URL gereklidir.' });
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(targetVideoId)) {
+    return res.status(400).json({ error: 'Geçersiz Video ID veya URL formatı.' });
   }
 
   // Eğer kanal ismi veya başlık eksikse (örneğin PD butonu ile link yapıştırıldığında), YouTube'dan detayları çek
   if (!channelName || !title) {
     try {
-      console.log(`[Manuel İndirme] Video detayları YouTube'dan çekiliyor: ${videoId}`);
-      const details = await fetchVideoDuration(videoId);
+      console.log(`[Manuel İndirme] Video detayları YouTube'dan çekiliyor: ${targetVideoId}`);
+      const details = await fetchVideoDuration(targetVideoId);
       if (details) {
         if (details.title) title = details.title;
         if (details.channelName) channelName = details.channelName;
@@ -3310,17 +3449,17 @@ app.post('/api/download-video', async (req, res) => {
   }
 
   downloadQueue.add({
-    id: videoId,
+    id: targetVideoId,
     title: title || 'Bilinmeyen Video',
     channelId: channelId || 'manual',
     channelName: channelName || 'Manuel İndirme',
-    url: `https://www.youtube.com/watch?v=${videoId}`,
+    url: `https://www.youtube.com/watch?v=${targetVideoId}`,
     publishedAt: '' // Boş bırakarak arka plandaki çözücünün gerçek yayınlanma tarihini YouTube'dan çekmesini sağlarız
   });
 
   resolveMissingDurations();
 
-  res.json({ success: true, message: 'İndirme kuyruğuna eklendi.' });
+  res.json({ success: true, message: 'İndirme kuyruğuna eklendi.', videoId: targetVideoId });
 });
 
 // Şimdi Kontrol Et (Manuel RSS tetikleme) - Tüm kanalları sırayla 1 saniye aralıklarla denetler
@@ -3935,126 +4074,128 @@ app.get(['/home', '/download', '/downlist', '/channels', '/settings'], (req, res
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Sunucu Başlatıldığında
-app.listen(PORT, async () => {
-  cleanOldLogs(); // 7 günden eski logları temizle
+// Sunucu Başlatıldığında (Sadece CLI modu dışında)
+if (process.argv.length <= 2) {
+  app.listen(PORT, async () => {
+    cleanOldLogs(); // 7 günden eski logları temizle
 
-  console.log(`
-  ====================================================
-   _    _         __     __ _______  ___   ___   _      
-  | |  | |  __ _  \\ \\   / /|__   __|/ _ \\ / _ \\ | |     
-  | |__| | / _\` |  \\ \\_/ /    | |  | (_) | (_) || |     
-  |  __  || (_| |   \\   /     | |   \\___/ \\___/ | |     
-  | |  | | \\__,_|    | |      | |               | |____ 
-  |_|  |_|           |_|      |_|               |______|
+    console.log(`
+    ====================================================
+     _    _         __     __ _______  ___   ___   _      
+    | |  | |  __ _  \\ \\   / /|__   __|/ _ \\ / _ \\ | |     
+    | |__| | / _\` |  \\ \\_/ /    | |  | (_) | (_) || |     
+    |  __  || (_| |   \\   /     | |   \\___/ \\___/ | |     
+    | |  | | \\__,_|    | |      | |               | |____ 
+    |_|  |_|           |_|      |_|               |______|
 
-             -- Premium Otomasyonu --
-             Versiyon: v4.8.0
-             Yapımcı: HaYTo
-  ====================================================
-  `);
-  console.log(`Sunucu http://localhost:${PORT} portunda çalışıyor.`);
-  
-  // İndirme klasörünü kontrol et, yoksa oluştur
-  const db = readDb();
+               -- Premium Otomasyonu --
+               Versiyon: v4.8.0
+               Yapımcı: HaYTo
+    ====================================================
+    `);
+    console.log(`Sunucu http://localhost:${PORT} portunda çalışıyor.`);
+    
+    // İndirme klasörünü kontrol et, yoksa oluştur
+    const db = readDb();
 
-  // Arka planda veritabanı ile disk senkronizasyonunu (auto-healing, dosya boyutu kontrolü vb.) başlat
-  setTimeout(() => {
-    syncDbWithDisk();
-  }, 1000);
+    // Arka planda veritabanı ile disk senkronizasyonunu (auto-healing, dosya boyutu kontrolü vb.) başlat
+    setTimeout(() => {
+      syncDbWithDisk();
+    }, 1000);
 
-  // Her 5 dakikada bir disk senkronizasyonunu arka planda tekrarla
-  setInterval(syncDbWithDisk, 5 * 60 * 1000);
-  
-  // Türkçe Açıklama: Önceki hatalı kanal eklemelerinden kalmış, ismi ve ID'si aynı olan bozuk kanalları otomatik temizliyoruz.
-  const originalCount = db.channels.length;
-  db.channels = db.channels.filter(c => c.name !== c.id);
-  if (db.channels.length !== originalCount) {
-    console.log(`[AYARLAR] İsmi ve ID'si aynı olan ${originalCount - db.channels.length} bozuk kanal veritabanından temizlendi.`);
-    writeDb(db);
-  }
-
-  addTerminalLog(`[Sistem] Sunucu başarıyla başlatıldı. Adres: http://localhost:${PORT}`, 'success');
-  addTerminalLog(`[Sistem] Otomatik indirme klasörü: "${db.settings.downloadPath}"`, 'info');
-  
-  if (!fs.existsSync(db.settings.downloadPath)) {
-    try {
-      fs.mkdirSync(db.settings.downloadPath, { recursive: true });
-    } catch (err) {}
-  }
-
-  // Başlangıçta yt-dlp kontrolünü ve güncellemesini yap
-  try {
-    await ensureYtdlp();
-    updateYtdlp(); // Güncellemeyi arka planda başlat
-  } catch (e) {
-    console.error('yt-dlp kurulumu başlatılamadı:', e.message);
-  }
-
-  // Başlangıçta ffmpeg kontrolünü yap (eğer merge seçildiyse ve ffmpeg yoksa)
-  if (db.settings.mergeType === 'merge' && !fs.existsSync(getFfmpegPath())) {
-    ensureFfmpeg().catch(e => console.error('FFmpeg otomatik indirme hatası:', e.message));
-  }
-
-  // Zamanlayıcıyı başlat
-  startIntervalTimer();
-
-  // İlk açılışta mevcut kanalların denetimini sırayla başlat
-  setTimeout(() => {
-    checkNextChannelRss();
-  }, 3000);
-
-  // Sunucu başlangıcında ve 1 saatte bir otomatik silme kontrolünü çalıştır
-  setTimeout(() => {
-    autoDeleteOldVideos();
-  }, 8000);
-  setInterval(autoDeleteOldVideos, 60 * 60 * 1000);
-
-  // Başlangıçta eksik kanal logolarını arka planda tamamla (Devre dışı bırakıldı - Kullanıcı isteğiyle buton üzerinden manuel yapılacak)
-  // setTimeout(() => {
-  //   resolveMissingChannelAvatars();
-  // }, 10000);
-
-  // Eksik video sürelerini arka planda çöz
-  setTimeout(() => {
-    resolveMissingDurations();
-  }, 6000);
-
-  // Sunucu başladığında veritabanında 'waiting' veya yarım kalan 'downloading' durumundaki videoları kuyruğa yeniden ekle
-  setTimeout(() => {
-    const currentDb = readDb();
-    let queuedCount = 0;
-    currentDb.history.forEach(item => {
-      if (item.status === 'waiting' || item.status === 'downloading') {
-        downloadQueue.add({
-          id: item.id,
-          title: item.title,
-          channelId: item.channelId,
-          channelName: item.channelName,
-          url: `https://www.youtube.com/watch?v=${item.id}`,
-          publishedAt: item.publishedAt || ''
-        });
-        queuedCount++;
-      }
-    });
-    if (queuedCount > 0) {
-      console.log(`[Sistem] Sunucu başlangıcında ${queuedCount} adet yarım kalan/bekleyen indirme kuyruğa yeniden eklendi.`);
-      addTerminalLog(`[Sistem] Sunucu başlangıcında ${queuedCount} adet yarım kalan/bekleyen indirme kuyruğa yeniden eklendi.`, 'info');
+    // Her 5 dakikada bir disk senkronizasyonunu arka planda tekrarla
+    setInterval(syncDbWithDisk, 5 * 60 * 1000);
+    
+    // Türkçe Açıklama: Önceki hatalı kanal eklemelerinden kalmış, ismi ve ID'si aynı olan bozuk kanalları otomatik temizliyoruz.
+    const originalCount = db.channels.length;
+    db.channels = db.channels.filter(c => c.name !== c.id);
+    if (db.channels.length !== originalCount) {
+      console.log(`[AYARLAR] İsmi ve ID'si aynı olan ${originalCount - db.channels.length} bozuk kanal veritabanından temizlendi.`);
+      writeDb(db);
     }
-  }, 4000);
 
-  // Tarayıcıda uygulamayı otomatik aç (Eğer ayar aktifse)
-  const currentDbState = readDb();
-  if (currentDbState.settings.autoOpenBrowser !== false) {
+    addTerminalLog(`[Sistem] Sunucu başarıyla başlatıldı. Adres: http://localhost:${PORT}`, 'success');
+    addTerminalLog(`[Sistem] Otomatik indirme klasörü: "${db.settings.downloadPath}"`, 'info');
+    
+    if (!fs.existsSync(db.settings.downloadPath)) {
+      try {
+        fs.mkdirSync(db.settings.downloadPath, { recursive: true });
+      } catch (err) {}
+    }
+
+    // Başlangıçta yt-dlp kontrolünü ve güncellemesini yap
     try {
-      await open(`http://localhost:${PORT}`);
+      await ensureYtdlp();
+      updateYtdlp(); // Güncellemeyi arka planda başlat
     } catch (e) {
-      console.log('Tarayıcı otomatik açılamadı, lütfen http://localhost:3000 adresine manuel gidin.');
+      console.error('yt-dlp kurulumu başlatılamadı:', e.message);
     }
-  } else {
-    console.log('Otomatik tarayıcı açılışı devre dışı bırakıldı. Lütfen http://localhost:3000 adresine el ile gidin.');
-  }
-});
+
+    // Başlangıçta ffmpeg kontrolünü yap (eğer merge seçildiyse ve ffmpeg yoksa)
+    if (db.settings.mergeType === 'merge' && !fs.existsSync(getFfmpegPath())) {
+      ensureFfmpeg().catch(e => console.error('FFmpeg otomatik indirme hatası:', e.message));
+    }
+
+    // Zamanlayıcıyı başlat
+    startIntervalTimer();
+
+    // İlk açılışta mevcut kanalların denetimini sırayla başlat
+    setTimeout(() => {
+      checkNextChannelRss();
+    }, 3000);
+
+    // Sunucu başlangıcında ve 1 saatte bir otomatik silme kontrolünü çalıştır
+    setTimeout(() => {
+      autoDeleteOldVideos();
+    }, 8000);
+    setInterval(autoDeleteOldVideos, 60 * 60 * 1000);
+
+    // Başlangıçta eksik kanal logolarını arka planda tamamla (Devre dışı bırakıldı - Kullanıcı isteğiyle buton üzerinden manuel yapılacak)
+    // setTimeout(() => {
+    //   resolveMissingChannelAvatars();
+    // }, 10000);
+
+    // Eksik video sürelerini arka planda çöz
+    setTimeout(() => {
+      resolveMissingDurations();
+    }, 6000);
+
+    // Sunucu başladığında veritabanında 'waiting' veya yarım kalan 'downloading' durumundaki videoları kuyruğa yeniden ekle
+    setTimeout(() => {
+      const currentDb = readDb();
+      let queuedCount = 0;
+      currentDb.history.forEach(item => {
+        if (item.status === 'waiting' || item.status === 'downloading') {
+          downloadQueue.add({
+            id: item.id,
+            title: item.title,
+            channelId: item.channelId,
+            channelName: item.channelName,
+            url: `https://www.youtube.com/watch?v=${item.id}`,
+            publishedAt: item.publishedAt || ''
+          });
+          queuedCount++;
+        }
+      });
+      if (queuedCount > 0) {
+        console.log(`[Sistem] Sunucu başlangıcında ${queuedCount} adet yarım kalan/bekleyen indirme kuyruğa yeniden eklendi.`);
+        addTerminalLog(`[Sistem] Sunucu başlangıcında ${queuedCount} adet yarım kalan/bekleyen indirme kuyruğa yeniden eklendi.`, 'info');
+      }
+    }, 4000);
+
+    // Tarayıcıda uygulamayı otomatik aç (Eğer ayar aktifse)
+    const currentDbState = readDb();
+    if (currentDbState.settings.autoOpenBrowser !== false) {
+      try {
+        await open(`http://localhost:${PORT}`);
+      } catch (e) {
+        console.log('Tarayıcı otomatik açılamadı, lütfen http://localhost:3000 adresine manuel gidin.');
+      }
+    } else {
+      console.log('Otomatik tarayıcı açılışı devre dışı bırakıldı. Lütfen http://localhost:3000 adresine el ile gidin.');
+    }
+  });
+}
 
 // Türkçe Açıklama: 7 günden eski log dosyalarını logs klasöründen temizler.
 /**
@@ -4279,8 +4420,23 @@ process.stdin.on('data', (data) => {
       - Alternatif Hiz (Turtle) Aktif mi: ${altStatus}
       - Etkin Hiz Siniri: ${effective} KB/s
       - Aktif Indirme Var mi: ${downloadQueue.activeVideoId ? 'Evet' : 'Hayir'}`);
+  } else if (command === 'pd') {
+    const link = args[0];
+    if (!link) {
+      console.log('[Konsol] Hata: Bir YouTube video linki belirtmelisiniz. Ornek: pd https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      return;
+    }
+    addVideoToQueueByUrl(link)
+      .then(vid => {
+        addTerminalLog(`[Konsol] Video kuyruğa başarıyla eklendi. ID: ${vid}`, 'success');
+        console.log(`[Konsol] Video kuyruga basariyla eklendi. ID: ${vid}`);
+      })
+      .catch(err => {
+        addTerminalLog(`[Konsol] Hata: ${err.message}`, 'error');
+        console.log(`[Konsol] Hata: ${err.message}`);
+      });
   } else {
-    console.log('[Konsol] Bilinmeyen komut. Kullanilabilir komutlar: speed/limit <deger/on/off/ac/kapat/toggle>, altspeed/turtle <deger/on/off/ac/kapat/toggle>, turtleon, turtleoff, turtleac, turtlekapat, toggle, status');
+    console.log('[Konsol] Bilinmeyen komut. Kullanilabilir komutlar: speed/limit <deger/on/off/ac/kapat/toggle>, altspeed/turtle <deger/on/off/ac/kapat/toggle>, pd <video-linki>, turtleon, turtleoff, turtleac, turtlekapat, toggle, status');
   }
 });
 

@@ -165,6 +165,7 @@ namespace HaYToolTray
             // Sağ tık menüsünü oluştur
             ContextMenu contextMenu = new ContextMenu();
             contextMenu.MenuItems.Add("Arayüzü Aç", OpenWebPage);
+            contextMenu.MenuItems.Add("Panodan İndir (Paste & Download)", PasteAndDownload);
 
             // Türkçe Açıklama: Sekmeler için doğrudan hızlı açılış bağlantıları (menü öğeleri)
             MenuItem shortcutsMenu = new MenuItem("Sekmelere Git");
@@ -405,6 +406,28 @@ namespace HaYToolTray
         private void OpenWebPage(object sender, EventArgs e)
         {
             OpenUrl("/downlist");
+        }
+
+        // Türkçe Açıklama: Panodaki YouTube bağlantısını okur, Node.js sunucusuna indirme komutunu gönderir ve İndirme Sırası sekmesini açar.
+        private void PasteAndDownload(object sender, EventArgs e)
+        {
+            if (Clipboard.ContainsText())
+            {
+                string text = Clipboard.GetText().Trim();
+                if (text.Contains("youtube.com/") || text.Contains("youtu.be/"))
+                {
+                    SendCommandToNode("pd " + text);
+                    OpenUrl("/download");
+                }
+                else
+                {
+                    MessageBox.Show("Panodaki metin geçerli bir YouTube bağlantısı değil:\n" + text, "Geçersiz Bağlantı", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Pano boş veya metin içermiyor.", "Pano Boş", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         // Türkçe Açıklama: Çalışmakta olan Node.js sunucusunu kapatır ve temiz bir şekilde yeniden başlatır.
