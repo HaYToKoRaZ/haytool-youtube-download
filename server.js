@@ -1,5 +1,5 @@
 /**
- * HaYTool Youtube Download - Sunucu Giriş Noktası
+ * HaYTooL YouTube Downloader - Sunucu Giriş Noktası
  * 
  * Bu yazılım YouTube kanallarını otomatik izler ve yeni videoları indirir.
  * Yapımcı: HaYTo
@@ -29,6 +29,14 @@ const originalError = console.error;
 const logsDir = path.join(__dirname, 'logs');
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
+}
+
+// Eski ve artık kullanılmayan server_tray.log dosyasını temizle
+const trayLogPath = path.join(logsDir, 'server_tray.log');
+if (fs.existsSync(trayLogPath)) {
+  try {
+    fs.unlinkSync(trayLogPath);
+  } catch (e) {}
 }
 
 // Tarih ve saat formatlı log dosyası ismi
@@ -162,7 +170,7 @@ const dbPath = path.join(__dirname, 'db.json');
 const configIniName = os.platform() === 'win32' ? 'configwin.ini' : 'configunix.ini';
 const configIniPath = path.join(__dirname, configIniName);
 const channelsIniPath = path.join(__dirname, 'channels.ini');
-const ytdlpPath = path.join(__dirname, os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+const ytdlpPath = path.join(__dirname, 'yt-dlp', os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
 const defaultDownloadDir = path.join(os.homedir(), 'Downloads', 'YouTubeAutoDownloads');
 
 // Determing port from config.ini early
@@ -223,7 +231,8 @@ const defaultDb = {
     lang: 'tr',
     isPaused: false, // İndirme kuyruğunun duraklatılma durumu
     showNotifications: true, // Windows masaüstü bildirimlerinin gösterilme durumu
-    autoOpenBrowser: true // Başlangıçta tarayıcıda localhost sayfasını otomatik açma durumu
+    autoOpenBrowser: true, // Başlangıçta tarayıcıda localhost sayfasını otomatik açma durumu
+    historyLimitPerChannel: 20 // Kanal başına gösterilecek geçmiş video sınırı
   }
 };
 
@@ -323,7 +332,7 @@ function getCaseInsensitiveKey(obj, targetKey) {
  * @param {object} data Yazılacak veri nesnesi (Bölümler ve anahtar-değerler)
  */
 function writeIni(filePath, data) {
-  let content = '; HaYTool Youtube Download Yapilandirma Dosyasi\n';
+  let content = '; HaYTooL YouTube Downloader Yapilandirma Dosyasi\n';
   content += '; Bu dosya arayuzdeki Ayarlar veya Kanallar degistikce otomatik guncellenir.\n\n';
   for (const section in data) {
     content += `[${section}]\n`;
@@ -367,9 +376,9 @@ function convertPngToIco(pngPath, icoPath) {
     pngBuffer.copy(icoBuffer, 22);
     
     fs.writeFileSync(icoPath, icoBuffer);
-    console.log('logo.ico dosyası başarıyla oluşturuldu.');
+    console.log('icon.ico dosyası başarıyla oluşturuldu.');
   } catch (err) {
-    console.error('logo.ico oluşturulurken hata oluştu:', err.message);
+    console.error('icon.ico oluşturulurken hata oluştu:', err.message);
   }
 }
 
@@ -491,9 +500,9 @@ function setFolderIcon(folderPath, imagePath) {
  * @param {object} db Senkronize edilecek veritabanı nesnesi
  */
 function syncWithIni(db) {
-  // logo.ico kontrolü
+  // icon.ico kontrolü
   const pngPath = path.join(__dirname, 'public', 'logo.png');
-  const icoPath = path.join(__dirname, 'logo.ico');
+  const icoPath = path.join(__dirname, 'icon.ico');
   if (!fs.existsSync(icoPath) && fs.existsSync(pngPath)) {
     convertPngToIco(pngPath, icoPath);
   }
@@ -948,7 +957,7 @@ function writeDb(data) {
 }
 
 // CLI (Command Line Interface) Desteği
-// Türkçe Açıklama: Uygulama terminalden komut parametreleri ile çalıştırıldığında (örn: haytool status veya HaYTool.exe status) komutları işler ve uygulamayı kapatır.
+// Türkçe Açıklama: Uygulama terminalden komut parametreleri ile çalıştırıldığında (örn: haytool status veya HaYTooL YT Downloader.exe status) komutları işler ve uygulamayı kapatır.
 if (process.argv.length > 2) {
   const cliArgs = process.argv.slice(2);
   const cliCmd = cliArgs[0].toLowerCase();
@@ -1125,7 +1134,7 @@ if (process.argv.length > 2) {
       }
     }
   } else {
-    console.log(`Kullanilabilir CLI komutlari (haytool veya HaYTool.exe):
+    console.log(`Kullanilabilir CLI komutlari (haytool veya HaYTooL YT Downloader.exe):
   status                               (Durum raporu)
   pd <video-linki>                     (Video indir - Paste & Download)
   speed <deger/on/off/ac/kapat/toggle> (Normal hiz ayari)
@@ -1164,6 +1173,15 @@ function updateHistoryItem(videoId, updates) {
 function ensureYtdlp() {
   return new Promise((resolve, reject) => {
     const filename = os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+    const ytdlpDir = path.dirname(ytdlpPath);
+    if (!fs.existsSync(ytdlpDir)) {
+      try {
+        fs.mkdirSync(ytdlpDir, { recursive: true });
+      } catch (err) {
+        console.error('yt-dlp klasörü oluşturulurken hata:', err.message);
+      }
+    }
+
     if (fs.existsSync(ytdlpPath)) {
       console.log(`${filename} zaten mevcut.`);
       return resolve(ytdlpPath);
@@ -1927,8 +1945,28 @@ let clients = [];
  * @param {*} data Gönderilecek olay verisi
  */
 function broadcast(event, data) {
+  let dataToSend = data;
+  if (event === 'db_update' && data && data.history) {
+    const limit = data.settings ? (data.settings.historyLimitPerChannel || 20) : 20;
+    const limitedHistory = [];
+    const channelHistoryCounts = {};
+    for (const item of data.history) {
+      const channelId = item.channelId || 'manual';
+      if (!channelHistoryCounts[channelId]) {
+        channelHistoryCounts[channelId] = 0;
+      }
+      if (channelHistoryCounts[channelId] < limit) {
+        limitedHistory.push(item);
+        channelHistoryCounts[channelId]++;
+      }
+    }
+    dataToSend = {
+      ...data,
+      history: limitedHistory
+    };
+  }
   clients.forEach(client => {
-    client.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    client.write(`event: ${event}\ndata: ${JSON.stringify(dataToSend)}\n\n`);
   });
 }
 
@@ -3026,7 +3064,25 @@ app.get('/api/events', (req, res) => {
 
 // Veritabanını getir
 app.get('/api/db', (req, res) => {
-  res.json(readDb());
+  const db = readDb();
+  const limit = db.settings.historyLimitPerChannel || 20;
+  const limitedHistory = [];
+  const channelHistoryCounts = {};
+  for (const item of db.history) {
+    const channelId = item.channelId || 'manual';
+    if (!channelHistoryCounts[channelId]) {
+      channelHistoryCounts[channelId] = 0;
+    }
+    if (channelHistoryCounts[channelId] < limit) {
+      limitedHistory.push(item);
+      channelHistoryCounts[channelId]++;
+    }
+  }
+  const responseDb = {
+    ...db,
+    history: limitedHistory
+  };
+  res.json(responseDb);
 });
 
 // Çerez Test Etme Rotası
@@ -3059,6 +3115,10 @@ app.post('/api/settings', (req, res) => {
   db.settings = { ...db.settings, ...req.body };
   const newSpeedLimit = getEffectiveSpeedLimit(db.settings);
   const speedLimitChanged = newSpeedLimit !== oldSpeedLimit;
+
+  if (req.body.lang) {
+    console.log(`[TRAY_CMD] lang=${req.body.lang}`);
+  }
 
   writeDb(db);
   startIntervalTimer(); // Süre değiştiyse zamanlayıcıyı güncelle
@@ -3125,6 +3185,68 @@ app.post('/api/settings', (req, res) => {
   }
 
   res.json({ success: true, settings: db.settings });
+});
+
+// Kanalları yedek olarak dışarı aktar (Export)
+app.get('/api/channels/export', (req, res) => {
+  try {
+    const db = readDb();
+    const backupData = {
+      channels: db.channels || [],
+      backupDate: new Date().toISOString(),
+      branding: "HaYTooL YouTube Downloader"
+    };
+    res.setHeader('Content-disposition', 'attachment; filename=channels_backup.json');
+    res.setHeader('Content-type', 'application/json');
+    res.send(JSON.stringify(backupData, null, 2));
+  } catch (err) {
+    console.error('Yedek dışarı aktarılamadı:', err);
+    res.status(500).json({ error: 'Yedek dışarı aktarılamadı.' });
+  }
+});
+
+// Yedekten kanalları içeri aktar (Import)
+app.post('/api/channels/import', (req, res) => {
+  try {
+    const { overwrite, channels } = req.body;
+    if (!Array.isArray(channels)) {
+      return res.status(400).json({ error: 'Geçersiz yedek dosyası içeriği.' });
+    }
+
+    const db = readDb();
+    let addedCount = 0;
+    let updatedCount = 0;
+
+    if (overwrite === true || overwrite === 'true') {
+      db.channels = [];
+    }
+
+    channels.forEach(ch => {
+      if (!ch.id || !ch.name) return;
+      
+      const existingIdx = db.channels.findIndex(c => c.id === ch.id);
+      if (existingIdx !== -1) {
+        db.channels[existingIdx] = { ...db.channels[existingIdx], ...ch };
+        updatedCount++;
+      } else {
+        db.channels.push(ch);
+        addedCount++;
+      }
+    });
+
+    writeDb(db);
+    broadcast('db_update', db);
+    
+    // Disk sync tetikle
+    setTimeout(() => {
+      syncDbWithDisk();
+    }, 100);
+
+    res.json({ success: true, added: addedCount, updated: updatedCount });
+  } catch (err) {
+    console.error('Yedek içeri aktarılamadı:', err);
+    res.status(500).json({ error: 'Yedek içeri aktarılamadı.' });
+  }
 });
 
 // Alternatif Hız Sınırını Aç/Kapat
@@ -4085,6 +4207,11 @@ if (process.argv.length <= 2) {
   app.listen(PORT, async () => {
     cleanOldLogs(); // 7 günden eski logları temizle
 
+    const db = readDb();
+    
+    // C# Tray uygulamasının dilini senkronize etmesi için komut gönder
+    console.log(`[TRAY_CMD] lang=${db.settings.lang || 'tr'}`);
+
     console.log(`
     ====================================================
      _    _         __     __ _______  ___   ___   _      
@@ -4095,7 +4222,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v4.10.0
+               Versiyon: v4.11.0
                Yapımcı: HaYTo
     ====================================================
     `);

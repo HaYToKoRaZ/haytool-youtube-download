@@ -1,5 +1,5 @@
 /**
- * HaYTool Youtube Download - İstemci Mantığı (Frontend)
+ * HaYTooL YouTube Downloader - İstemci Mantığı (Frontend)
  * 
  * Yapımcı: HaYTo
  * İletişim: korazhayto@gmail.com
@@ -7,11 +7,11 @@
 
 let localDb = { channels: [], history: [], settings: {} };
 let eventSource = null;
+let currentLang = 'tr';
 
 // YouTube SVG İkon Şablonu (Lucide bağımlılığı olmadan her ortamda çalışması için yerel SVG kullanıyoruz)
 const youtubeSvgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" style="display:inline-block !important;vertical-align:middle !important;fill:#ff0000 !important;stroke:none !important;width:16px !important;height:16px !important;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" style="fill:#ff0000 !important;stroke:none !important;"/></svg>`;
 
-// Çoklu Dil Sözlüğü (İngilizce & Türkçe)
 const translations = {
   tr: {
     premium_automation: 'Premium Otomasyonu',
@@ -28,7 +28,6 @@ const translations = {
     channels_desc: 'Yeni yüklenen videolarını otomatik indirmek istediğiniz YouTube kanallarını buradan yönetin.',
     input_channel_placeholder: 'YouTube Kanal linki veya kullanıcı adı girin (Örn: @BarisOzcan veya youtube.com/@GezenAdam)',
     btn_follow_channel: 'Kanalı Takip Et',
-    // Türkçe Açıklama: Toplu güncelleme butonu dil etiketi eklendi.
     btn_update_all_logos: 'Tüm Logoları Güncelle',
     empty_channels_title: 'Henüz takip edilen kanal yok',
     empty_channels_desc: 'Yukarıdaki formdan YouTube kanal linki veya kullanıcı adı girerek kanal ekleyebilirsiniz.',
@@ -73,7 +72,6 @@ const translations = {
     label_theme: 'Görünüm Teması',
     label_auto_delete: 'Videoları Otomatik Sil (Gün)',
     label_rss_limit: 'RSS Denetleme Limiti (Video)',
-    // Türkçe Açıklama: Ayarlar sekmesindeki hız sınırı etiket ismi KB/s olarak güncellendi.
     label_settings_speed_limit: 'Maksimum İndirme Hızı (KB/s)',
     label_port: 'Uygulama Port Numarası',
     label_play_sounds: 'Sesli Bildirimler',
@@ -107,7 +105,6 @@ const translations = {
     tab_queue_desc: 'Aktif indirmeyi izleyin, sıradaki videoları sürükleyip bırakarak önceliklerini değiştirin.',
     btn_pause_queue: 'Kuyruğu Duraklat',
     btn_resume_queue: 'Kuyruğu Devam Ettir',
-    // Türkçe Açıklama: Kuyruk sekmesindeki hız sınırı etiket ismi güncellendi.
     label_queue_speed_limit: 'Hız Sınırı:',
     btn_speed_limit_set: 'Ayarla',
     active_progress: 'İlerleme',
@@ -150,14 +147,30 @@ const translations = {
     desc_speed_limit: 'Bant genişliğini sınırlamak için değer girin (Sınırsız için 0 yazın).',
     desc_alt_speed_limit: 'Alternatif hız profili aktifken kullanılacak limit (varsayılan 500).',
     cli_info_title: 'CLI ve Konsol Hız Komutları',
-    cli_info_desc: "Hız sınırlarını konsoldan veya terminal/CLI üzerinden kontrol edebilirsiniz (Windows'ta <code>HaYTool.exe &lt;komut&gt;</code> veya <code>haytool &lt;komut&gt;</code> kullanabilirsiniz):<br>• <b>Hız Sınırını Ayarlama:</b> <code>HaYTool.exe speed &lt;değer&gt;</code> (örn: <code>HaYTool.exe speed 2500</code>)<br>• <b>Hız Sınırını Açma/Kapatma:</b> <code>HaYTool.exe speed off</code> (kapatır) / <code>HaYTool.exe speed on</code> (son değere açar)<br>• <b>Alternatif Sınırı Belirleme:</b> <code>HaYTool.exe altspeed &lt;değer&gt;</code> (örn: <code>HaYTool.exe altspeed 500</code>)<br>• <b>Alternatif Sınırı Kesin Aç/Kapat (Turtle):</b> <code>HaYTool.exe turtleon / turtleac</code> (açar) / <code>HaYTool.exe turtleoff / turtlekapat</code> (kapatır)<br>• <b>Alternatif Sınır Profil Geçişi (Toggle):</b> <code>HaYTool.exe toggle</code> veya <code>HaYTool.exe altspeed toggle</code><br>• <b>Durum Sorgulama:</b> <code>HaYTool.exe status</code> (limit durumunu yazdırır)",
-    cli_info_note: "(Tray \"Konsol Çıktısını Göster\" penceresinde \'HaYTool.exe\' veya \'node\' yazmadan doğrudan komutu girin: \'speed 2500\', \'speed off\', \'turtleon\', \'turtleoff\', \'toggle\' vb.)",
+    cli_info_desc: "Hız sınırlarını konsoldan veya terminal/CLI üzerinden kontrol edebilirsiniz (Windows'ta <code>HaYTooL YT Downloader.exe &lt;komut&gt;</code> veya <code>haytool &lt;komut&gt;</code> kullanabilirsiniz):<br>• <b>Hız Sınırını Ayarlama:</b> <code>HaYTooL YT Downloader.exe speed &lt;değer&gt;</code> (örn: <code>HaYTooL YT Downloader.exe speed 2500</code>)<br>• <b>Hız Sınırını Açma/Kapatma:</b> <code>HaYTooL YT Downloader.exe speed off</code> (kapatır) / <code>HaYTooL YT Downloader.exe speed on</code> (son değere açar)<br>• <b>Alternatif Sınırı Belirleme:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;değer&gt;</code> (örn: <code>HaYTooL YT Downloader.exe altspeed 500</code>)<br>• <b>Alternatif Sınırı Kesin Aç/Kapat (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleac</code> (açar) / <code>HaYTooL YT Downloader.exe turtleoff / turtlekapat</code> (kapatır)<br>• <b>Alternatif Sınır Profil Geçişi (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code> veya <code>HaYTooL YT Downloader.exe altspeed toggle</code><br>• <b>Durum Sorgulama:</b> <code>HaYTooL YT Downloader.exe status</code> (limit durumunu yazdırır)",
+    cli_info_note: "(Tray \"Konsol Çıktısını Göster\" penceresinde 'HaYTooL YT Downloader.exe' veya 'node' yazmadan doğrudan komutu girin: 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' vb.)",
     desc_channel_check_interval: 'Sıradaki kanalı denetlemek için beklenecek süre.',
     desc_rss_limit: 'Kanal başına RSS akışındaki en yeni kaç video kontrol edilsin?',
     desc_auto_delete: 'Kaç gün sonra otomatik silinsin? (Kapatmak için 0 yazın)',
     opt_browser_none: 'Çerez Kullanma (Sadece Açık Videolar)',
     desc_browser: 'YouTube Premium hesabınızın açık olduğu tarayıcıyı seçin. Bu sayede Premium yüksek indirme hızı ve yüksek kalite kullanılabilir.',
-    settings_status_text: 'Değişiklikler anında otomatik kaydedilir.'
+    settings_status_text: 'Değişiklikler anında otomatik kaydedilir.',
+    connection_connecting: 'Bağlantı: Bağlanıyor...',
+    connection_active: 'Bağlantı: Aktif',
+    connection_lost: 'Bağlantı: Kesildi',
+    label_history_limit: 'Kanal Başına Geçmiş Videosu Sınırı',
+    desc_history_limit: 'Kütüphanede kanal başına listelenecek maksimum video limiti (Arayüz performansını artırır).',
+    opt_limit_10: '10 Video',
+    opt_limit_20: '20 Video (Önerilen)',
+    opt_limit_50: '50 Video',
+    opt_limit_100: '100 Video',
+    opt_limit_200: '200 Video',
+    label_data_management: 'Veri ve Yedek Yönetimi',
+    desc_data_management: 'Takip ettiğiniz kanalların listesini yedekleyebilir veya yedeğinizi geri yükleyebilirsiniz.',
+    btn_export_backup: 'Yedeği Dışarı Aktar',
+    btn_import_backup: 'Yedeği İçeri Aktar',
+    opt_import_append: 'Üzerine Ekle (Append)',
+    opt_import_overwrite: 'Tamamen Üzerine Yaz (Overwrite)'
   },
   en: {
     premium_automation: 'Premium Automation',
@@ -174,7 +187,6 @@ const translations = {
     channels_desc: 'Manage YouTube channels you want to monitor and download videos from automatically.',
     input_channel_placeholder: 'Enter YouTube channel link or username (e.g. @BarisOzcan or youtube.com/@GezenAdam)',
     btn_follow_channel: 'Follow Channel',
-    // Türkçe Açıklama: İngilizce toplu güncelleme butonu dil etiketi eklendi.
     btn_update_all_logos: 'Update All Logos',
     empty_channels_title: 'No monitored channels yet',
     empty_channels_desc: 'You can add channels by entering a YouTube channel link or username from the form above.',
@@ -219,7 +231,6 @@ const translations = {
     label_theme: 'UI Theme',
     label_auto_delete: 'Auto Delete Videos (Days)',
     label_rss_limit: 'RSS Check Limit (Videos)',
-    // Türkçe Açıklama: İngilizce ayarlar sekmesindeki hız sınırı etiketi KB/s yapıldı.
     label_settings_speed_limit: 'Maximum Download Speed (KB/s)',
     label_port: 'Application Port Number',
     label_play_sounds: 'Audio Notifications',
@@ -253,7 +264,6 @@ const translations = {
     tab_queue_desc: 'Monitor active downloads, drag and drop videos in the queue to change their priority.',
     btn_pause_queue: 'Pause Queue',
     btn_resume_queue: 'Resume Queue',
-    // Türkçe Açıklama: İngilizce kuyruk sekmesindeki hız sınırı etiketi güncellendi.
     label_queue_speed_limit: 'Speed Limit:',
     btn_speed_limit_set: 'Set Limit',
     active_progress: 'Progress',
@@ -296,14 +306,666 @@ const translations = {
     desc_speed_limit: 'Enter value to limit bandwidth (Write 0 for unlimited).',
     desc_alt_speed_limit: 'Limit to be used when alternative speed profile is active (default 500).',
     cli_info_title: 'CLI and Console Speed Commands',
-    cli_info_desc: "You can control speed limits from the console or terminal/CLI (you can use <code>HaYTool.exe &lt;command&gt;</code> or <code>haytool &lt;command&gt;</code> on Windows):<br>• <b>Set Speed Limit:</b> <code>HaYTool.exe speed &lt;value&gt;</code> (e.g. <code>HaYTool.exe speed 2500</code>)<br>• <b>Speed Limit On/Off:</b> <code>HaYTool.exe speed off</code> (disables) / <code>HaYTool.exe speed on</code> (restores to last value)<br>• <b>Set Alt Speed Limit:</b> <code>HaYTool.exe altspeed &lt;value&gt;</code> (e.g. <code>HaYTool.exe altspeed 500</code>)<br>• <b>Alt Speed Limit Forced On/Off (Turtle):</b> <code>HaYTool.exe turtleon / turtleac</code> (enables) / <code>HaYTool.exe turtleoff / turtlekapat</code> (disables)<br>• <b>Alt Speed Profile Toggle:</b> <code>HaYTool.exe toggle</code> or <code>HaYTool.exe altspeed toggle</code><br>• <b>Query Status:</b> <code>HaYTool.exe status</code> (prints limit status)",
-    cli_info_note: "(In the Tray 'Show Console Output' window, enter the command directly without writing 'HaYTool.exe' or 'node': 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' etc.)",
+    cli_info_desc: "You can control speed limits from the console or terminal/CLI (you can use <code>HaYTooL YT Downloader.exe &lt;command&gt;</code> or <code>haytool &lt;command&gt;</code> on Windows):<br>• <b>Set Speed Limit:</b> <code>HaYTooL YT Downloader.exe speed &lt;value&gt;</code> (e.g. <code>HaYTooL YT Downloader.exe speed 2500</code>)<br>• <b>Speed Limit On/Off:</b> <code>HaYTooL YT Downloader.exe speed off</code> (disables) / <code>HaYTooL YT Downloader.exe speed on</code> (restores to last value)<br>• <b>Set Alt Speed Limit:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;value&gt;</code> (e.g. <code>HaYTooL YT Downloader.exe altspeed 500</code>)<br>• <b>Alt Speed Limit Forced On/Off (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleac</code> (enables) / <code>HaYTooL YT Downloader.exe turtleoff / turtlekapat</code> (disables)<br>• <b>Alt Speed Profile Toggle:</b> <code>HaYTooL YT Downloader.exe toggle</code> or <code>HaYTooL YT Downloader.exe altspeed toggle</code><br>• <b>Query Status:</b> <code>HaYTooL YT Downloader.exe status</code> (prints limit status)",
+    cli_info_note: "(In the Tray 'Show Console Output' window, enter the command directly without writing 'HaYTooL YT Downloader.exe' or 'node': 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' etc.)",
     desc_channel_check_interval: 'Waiting time to check the next channel.',
     desc_rss_limit: 'How many of the latest videos in the RSS feed should be checked per channel?',
     desc_auto_delete: 'After how many days should it be deleted automatically? (Write 0 to disable)',
     opt_browser_none: 'Do Not Use Cookies (Public Videos Only)',
     desc_browser: 'Select the browser where your YouTube Premium account is logged in. This enables Premium high download speed and high quality.',
-    settings_status_text: 'Changes are automatically saved instantly.'
+    settings_status_text: 'Changes are automatically saved instantly.',
+    connection_connecting: 'Connection: Connecting...',
+    connection_active: 'Connection: Connected',
+    connection_lost: 'Connection: Lost',
+    label_history_limit: 'History Limit per Channel',
+    desc_history_limit: 'Maximum video limit to list in the library per channel (Improves UI performance).',
+    opt_limit_10: '10 Videos',
+    opt_limit_20: '20 Videos (Recommended)',
+    opt_limit_50: '50 Videos',
+    opt_limit_100: '100 Videos',
+    opt_limit_200: '200 Videos',
+    label_data_management: 'Data & Backup Management',
+    desc_data_management: 'You can backup your followed channels list or restore from a backup file.',
+    btn_export_backup: 'Export Backup',
+    btn_import_backup: 'Import Backup',
+    opt_import_append: 'Append to Existing (Append)',
+    opt_import_overwrite: 'Overwrite Completely (Overwrite)'
+  },
+  es: {
+    premium_automation: 'Automatización Premium',
+    tab_library: 'Biblioteca',
+    tab_downloaded: 'Descargas',
+    tab_channels: 'Canales',
+    tab_settings: 'Ajustes',
+    cookie_yes: 'Cookies: Sí',
+    cookie_no: 'Cookies: No',
+    cookie_status_active: 'Cookies Activas y Válidas',
+    cookie_status_locked: 'Cookies Bloqueadas o Inválidas',
+    cookie_status_none: 'Cookies Desactivadas',
+    channels_title: 'Canales',
+    channels_desc: 'Gestione los canales de YouTube que desea monitorear y descargar automáticamente.',
+    input_channel_placeholder: 'Ingrese enlace o usuario de canal (Ej: @BarisOzcan)',
+    btn_follow_channel: 'Seguir Canal',
+    btn_update_all_logos: 'Actualizar Logos',
+    empty_channels_title: 'Sin canales monitoreados',
+    empty_channels_desc: 'Agregue canales ingresando un enlace o usuario de YouTube arriba.',
+    select_quality_default: 'Calidad por Defecto',
+    select_quality_best: 'La Mejor',
+    select_quality_1080p: '1080p FHD',
+    select_quality_720p: '720p HD',
+    select_shorts_true: 'Descargar Shorts',
+    select_shorts_false: 'Ignorar Shorts',
+    library_title: 'Biblioteca y Historial',
+    library_desc: 'Monitoree la cola de descargas y el historial completo.',
+    btn_open_downloads: 'Abrir Carpeta de Descargas',
+    badge_active_download: 'Descarga Activa',
+    queue_empty_title: 'Cola Vacía',
+    queue_empty_desc: 'No hay descargas activas.',
+    active_download_progress: 'Progreso',
+    active_download_size: 'Tamaño',
+    active_download_eta: 'Restante',
+    active_download_cancel: 'Cancelar',
+    queue_title: 'Cola de Descargas',
+    queue_empty: 'Sin videos en la cola.',
+    library_history_title: 'Biblioteca y Historial',
+    filter_all_channels: 'Todos los Canales',
+    show_shorts: 'Mostrar Videos Shorts',
+    view_grid: 'Tarjetas',
+    view_list: 'Lista Simple',
+    no_videos_filter: 'Sin registros de video.',
+    downloaded_title: 'Descargas',
+    downloaded_desc: 'Videos descargados listos para reproducir sin conexión.',
+    settings_title: 'Ajustes del Sistema',
+    settings_desc: 'Configure automatización, calidad, cookies y preferencias.',
+    label_download_path: 'Ruta de Carpeta de Descargas',
+    btn_select_folder: 'Seleccionar Carpeta',
+    btn_test_folder: 'Probar Carpeta',
+    label_browser: 'Navegador de Cookies Premium',
+    label_quality: 'Calidad de Descarga por Defecto',
+    label_merge_type: 'Método de Descarga (FFmpeg)',
+    label_interval: 'Intervalo de Comprobación (Segundos)',
+    label_auto_download: 'Descarga Automática',
+    label_write_thumbnail: 'Imagen de Portada',
+    label_show_shorts: 'Videos Shorts',
+    label_theme: 'Tema de la Interfaz',
+    label_auto_delete: 'Eliminación Automática (Días)',
+    label_rss_limit: 'Límite de RSS (Videos)',
+    label_settings_speed_limit: 'Velocidad Máxima de Descarga (KB/s)',
+    label_port: 'Número de Puerto',
+    label_play_sounds: 'Notificaciones de Audio',
+    desc_play_sounds: 'Reproducir sonidos para eventos de descarga',
+    label_show_notifications: 'Notificaciones de Escritorio',
+    desc_show_notifications: 'Mostrar notificaciones cuando las descargas comiencen/terminen',
+    label_auto_open_browser: 'Abrir Navegador Automáticamente',
+    desc_auto_open_browser: 'Abrir localhost al iniciar la aplicación',
+    btn_search_channel: 'Buscar Canal',
+    btn_add_channel: 'Seguir Canal',
+    desc_auto_download: 'Descargar inmediatamente al detectar videos nuevos',
+    desc_write_thumbnail: 'Descargar miniaturas junto a los videos',
+    desc_show_shorts: 'Mostrar Shorts en el historial',
+    label_lang: 'Idioma de la App',
+    label_settings_player_type: 'Tipo de Reproductor Integrado',
+    desc_settings_player_type: 'Seleccione el estilo del reproductor integrado.',
+    opt_player_plyr: 'Reproductor Plyr',
+    opt_player_artplayer: 'Reproductor ArtPlayer',
+    opt_player_html5: 'Reproductor HTML5 Estándar',
+    cookie_warning_title: 'Advertencia Importante de Cookies:',
+    cookie_warning_desc: 'Cierre completamente el navegador seleccionado antes de descargar.',
+    btn_save_settings: 'Guardar Ajustes',
+    modal_delete_title: 'Eliminar Video del Historial',
+    modal_delete_desc: '¿Seguro que desea eliminar este video del historial?',
+    modal_delete_file_checkbox: 'Eliminar permanentemente el archivo del ordenador',
+    modal_delete_btn: 'Eliminar',
+    modal_cancel_btn: 'Cancelar',
+    modal_player_title: 'Reproductor de Video Integrado',
+    tab_queue: 'Cola',
+    tab_queue_title: 'Control de la Cola de Descargas',
+    tab_queue_desc: 'Monitoree descargas activas y organice la prioridad.',
+    btn_pause_queue: 'Pausar Cola',
+    btn_resume_queue: 'Reanudar Cola',
+    label_queue_speed_limit: 'Límite de Velocidad:',
+    btn_speed_limit_set: 'Establecer Límite',
+    active_progress: 'Progreso',
+    active_size: 'Tamaño',
+    active_eta: 'Restante',
+    queue_empty_title: 'Cola en Espera',
+    queue_empty_desc: 'No hay descargas activas.',
+    queue_list_title: 'Videos en Cola',
+    drag_drop_hint: 'Arrastre y suelte para reordenar la cola',
+    queue_list_empty: 'Sin videos en cola.',
+    settings_desc: 'Configure automatización, cookie browser, y carpeta de descargas.',
+    settings_tab_general: 'Ajustes Generales',
+    settings_tab_download: 'Descarga y Calidad',
+    settings_tab_automation: 'Automatización y RSS',
+    settings_tab_notifications: 'Cookies y Notificación',
+    settings_tab_feedback: 'Enviar Comentarios',
+    sort_btn_date_desc: 'Fecha ▼',
+    sort_btn_date_asc: 'Fecha ▲',
+    sort_btn_size_desc: 'Tamaño ▼',
+    sort_btn_size_asc: 'Tamaño ▲',
+    topbar_cookie_title: 'Cookies',
+    topbar_quality_title: 'Calidad',
+    topbar_disk_title_free: 'Libre',
+    topbar_disk_title_folder: 'Tamaño',
+    settings_version_title: 'Versión',
+    desc_download_path: 'Carpeta donde se guardarán los videos.',
+    desc_lang: 'Seleccione el idioma de la interfaz y de los títulos.',
+    opt_theme_dark: 'Tema Oscuro',
+    opt_theme_light: 'Tema Claro',
+    desc_theme: 'Cambie el tema de color de la interfaz aquí.',
+    desc_port: 'Puerto de la aplicación (Requiere reiniciar).',
+    opt_quality_best: 'Mejor Calidad (Automático)',
+    opt_quality_1080p: 'Máximo 1080p FHD',
+    opt_quality_720p: 'Máximo 720p HD',
+    desc_quality: 'Calidad por defecto a usar.',
+    opt_merge_single: 'Archivo Único (Max 720p, sin ffmpeg)',
+    opt_merge_merge: 'Fusión Automática (Alta resolución, requiere ffmpeg)',
+    opt_merge_separate: 'Descargar Audio y Video por Separado',
+    desc_merge_type: 'Se requiere FFmpeg para fusionar altas resoluciones.',
+    desc_speed_limit: 'Límite de velocidad (0 para ilimitado).',
+    desc_alt_speed_limit: 'Límite de velocidad alternativo.',
+    cli_info_title: 'Comandos de Consola y CLI',
+    cli_info_desc: "Puede controlar los límites de velocidad desde la consola o terminal/CLI (puede usar <code>HaYTooL YT Downloader.exe &lt;comando&gt;</code> o <code>haytool &lt;comando&gt;</code> en Windows):<br>• <b>Ajustar Límite:</b> <code>HaYTooL YT Downloader.exe speed &lt;valor&gt;</code><br>• <b>Límite On/Off:</b> <code>HaYTooL YT Downloader.exe speed off / on</code><br>• <b>Límite Alt:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;valor&gt;</code><br>• <b>Límite Alt Forzado (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleoff</code><br>• <b>Perfil Alt Toggle:</b> <code>HaYTooL YT Downloader.exe toggle</code><br>• <b>Consultar Estado:</b> <code>HaYTooL YT Downloader.exe status</code>",
+    cli_info_note: "(Ingrese comandos en la consola directamente: speed, toggle, etc.)",
+    desc_channel_check_interval: 'Tiempo para revisar el siguiente canal.',
+    desc_rss_limit: 'Número de videos RSS a revisar por canal.',
+    desc_auto_delete: 'Silenciar automáticamente tras días (0 para desactivar).',
+    opt_browser_none: 'No Usar Cookies',
+    desc_browser: 'Seleccione el navegador para acceder a Premium.',
+    settings_status_text: 'Los cambios se guardan automáticamente.',
+    connection_connecting: 'Conexión: Conectando...',
+    connection_active: 'Conexión: Conectada',
+    connection_lost: 'Conexión: Perdida',
+    label_history_limit: 'Límite por Canal',
+    desc_history_limit: 'Límite máximo de videos a listar por canal.',
+    opt_limit_10: '10 Videos',
+    opt_limit_20: '20 Videos (Recomendado)',
+    opt_limit_50: '50 Videos',
+    opt_limit_100: '100 Videos',
+    opt_limit_200: '200 Videos',
+    label_data_management: 'Gestión de Datos y Copias',
+    desc_data_management: 'Puede exportar su lista de canales o restaurarla desde un archivo.',
+    btn_export_backup: 'Exportar Copia',
+    btn_import_backup: 'Importar Copia',
+    opt_import_append: 'Añadir a lo Existente (Append)',
+    opt_import_overwrite: 'Sobrescribir Completamente (Overwrite)'
+  },
+  de: {
+    premium_automation: 'Premium Automatisierung',
+    tab_library: 'Bibliothek',
+    tab_downloaded: 'Downloads',
+    tab_channels: 'Kanäle',
+    tab_settings: 'Einstellungen',
+    cookie_yes: 'Cookies: Ja',
+    cookie_no: 'Cookies: Nein',
+    cookie_status_active: 'Cookies Aktiv und Gültig',
+    cookie_status_locked: 'Cookies Gesperrt oder Ungültig',
+    cookie_status_none: 'Cookies Deaktiviert',
+    channels_title: 'Kanäle',
+    channels_desc: 'Kanäle verwalten, die Sie automatisch überwachen und herunterladen möchten.',
+    input_channel_placeholder: 'Kanal-Link oder Benutzernamen eingeben (Z.B. @BarisOzcan)',
+    btn_follow_channel: 'Kanal Folgen',
+    btn_update_all_logos: 'Logos Aktualisieren',
+    empty_channels_title: 'Noch keine überwachten Kanäle',
+    empty_channels_desc: 'Fügen Sie Kanäle hinzu, indem Sie oben einen YouTube-Link eingeben.',
+    select_quality_default: 'Standardqualität',
+    select_quality_best: 'Beste Qualität',
+    select_quality_1080p: '1080p FHD',
+    select_quality_720p: '720p HD',
+    select_shorts_true: 'Shorts Herunterladen',
+    select_shorts_false: 'Shorts Ignorieren',
+    library_title: 'Bibliothek & Verlauf',
+    library_desc: 'Überwachen Sie die Warteschlange und den vollständigen Verlauf.',
+    btn_open_downloads: 'Download-Ordner Öffnen',
+    badge_active_download: 'Aktiver Download',
+    queue_empty_title: 'Warteschlange Leer',
+    queue_empty_desc: 'Keine aktiven Downloads.',
+    active_download_progress: 'Fortschritt',
+    active_download_size: 'Größe',
+    active_download_eta: 'Verbleibend',
+    active_download_cancel: 'Abbrechen',
+    queue_title: 'Warteschlange',
+    queue_empty: 'Keine Videos in der Warteschlange.',
+    library_history_title: 'Bibliothek & Verlauf',
+    filter_all_channels: 'Alle Kanäle',
+    show_shorts: 'Shorts Videos Anzeigen',
+    view_grid: 'Karten',
+    view_list: 'Einfache Liste',
+    no_videos_filter: 'Keine Videoeinträge.',
+    downloaded_title: 'Downloads',
+    downloaded_desc: 'Erfolgreich heruntergeladene Videos für die Offline-Wiedergabe.',
+    settings_title: 'Systemeinstellungen',
+    settings_desc: 'Konfigurieren Sie Automatisierung, Qualität, Cookies und Präferenzen.',
+    label_download_path: 'Download-Pfad',
+    btn_select_folder: 'Ordner Auswählen',
+    btn_test_folder: 'Ordner Testen',
+    label_browser: 'Premium-Cookie-Browser',
+    label_quality: 'Standard-Download-Qualität',
+    label_merge_type: 'Download-Methode (FFmpeg)',
+    label_interval: 'Überprüfungsintervall (Sekunden)',
+    label_auto_download: 'Automatischer Download',
+    label_write_thumbnail: 'Cover-Bild',
+    label_show_shorts: 'Shorts-Videos',
+    label_theme: 'UI-Theme',
+    label_auto_delete: 'Videos automatisch löschen (Tage)',
+    label_rss_limit: 'RSS-Limit (Videos)',
+    label_settings_speed_limit: 'Maximale Geschwindigkeit (KB/s)',
+    label_port: 'Portnummer',
+    label_play_sounds: 'Audio-Benachrichtigungen',
+    desc_play_sounds: 'Töne bei Download-Ereignissen abspielen',
+    label_show_notifications: 'Desktop-Benachrichtigungen',
+    desc_show_notifications: 'Desktop-Benachrichtigungen anzeigen, wenn Downloads starten/enden',
+    label_auto_open_browser: 'Browser automatisch öffnen',
+    desc_auto_open_browser: 'Localhost beim Start der Anwendung öffnen',
+    btn_search_channel: 'Kanal Suchen',
+    btn_add_channel: 'Kanal Folgen',
+    desc_auto_download: 'Sofort herunterladen, wenn neue Videos erkannt werden',
+    desc_write_thumbnail: 'Vorschaubilder mit herunterladen',
+    desc_show_shorts: 'Shorts im Verlauf anzeigen',
+    label_lang: 'App-Sprache',
+    label_settings_player_type: 'Integrierter Player-Typ',
+    desc_settings_player_type: 'Wählen Sie den Stil des integrierten Players.',
+    opt_player_plyr: 'Plyr-Player',
+    opt_player_artplayer: 'ArtPlayer-Player',
+    opt_player_html5: 'Standard HTML5-Player',
+    cookie_warning_title: 'Wichtiger Cookie-Warnhinweis:',
+    cookie_warning_desc: 'Schließen Sie den ausgewählten Browser vor dem Herunterladen vollständig.',
+    btn_save_settings: 'Einstellungen Speichern',
+    modal_delete_title: 'Video aus Verlauf entfernen',
+    modal_delete_desc: 'Möchten Sie dieses Video aus dem Verlauf löschen?',
+    modal_delete_file_checkbox: 'Datei dauerhaft vom Computer löschen',
+    modal_delete_btn: 'Löschen',
+    modal_cancel_btn: 'Abbrechen',
+    modal_player_title: 'Integrierter Videoplayer',
+    tab_queue: 'Warteschlange',
+    tab_queue_title: 'Steuerung der Warteschlange',
+    tab_queue_desc: 'Überwachen Sie aktive Downloads und organisieren Sie Prioritäten.',
+    btn_pause_queue: 'Warteschlange Pausieren',
+    btn_resume_queue: 'Warteschlange Fortsetzen',
+    label_queue_speed_limit: 'Geschwindigkeitsbegrenzung:',
+    btn_speed_limit_set: 'Begrenzung Festlegen',
+    active_progress: 'Fortschritt',
+    active_size: 'Größe',
+    active_eta: 'Verbleibend',
+    queue_empty_title: 'Warteschlange im Standby',
+    queue_empty_desc: 'Keine aktiven Downloads.',
+    queue_list_title: 'Videos in Warteschlange',
+    drag_drop_hint: 'Ziehen und Ablegen zum Neuordnen',
+    queue_list_empty: 'Keine Videos in der Warteschlange.',
+    settings_desc: 'Konfigurieren Sie die Optionen, den Cookie-Browser und den Download-Ordner.',
+    settings_tab_general: 'Allgemeine Einstellungen',
+    settings_tab_download: 'Download & Qualität',
+    settings_tab_automation: 'Automatisierung & RSS',
+    settings_tab_notifications: 'Cookies & Benachrichtigung',
+    settings_tab_feedback: 'Feedback Senden',
+    sort_btn_date_desc: 'Datum ▼',
+    sort_btn_date_asc: 'Datum ▲',
+    sort_btn_size_desc: 'Größe ▼',
+    sort_btn_size_asc: 'Größe ▲',
+    topbar_cookie_title: 'Cookies',
+    topbar_quality_title: 'Qualität',
+    topbar_disk_title_free: 'Frei',
+    topbar_disk_title_folder: 'Größe',
+    settings_version_title: 'Version',
+    desc_download_path: 'Ordner, in dem Videos gespeichert werden.',
+    desc_lang: 'Wählen Sie die Sprache für die Oberfläche und die Titel.',
+    opt_theme_dark: 'Dunkles Theme',
+    opt_theme_light: 'Helles Theme',
+    desc_theme: 'Ändern Sie das Farbschema der Benutzeroberfläche hier.',
+    desc_port: 'Anwendungsport (Erfordert Neustart).',
+    opt_quality_best: 'Beste Qualität (Automatisch)',
+    opt_quality_1080p: 'Maximal 1080p FHD',
+    opt_quality_720p: 'Maximal 720p HD',
+    desc_quality: 'Standardmäßig zu verwendende Qualität.',
+    opt_merge_single: 'Einzelne Datei (Max 720p, kein ffmpeg)',
+    opt_merge_merge: 'Zusammenführen (Hohe Auflösung, erfordert ffmpeg)',
+    opt_merge_separate: 'Audio und Video separat herunterladen',
+    desc_merge_type: 'FFmpeg ist für hohe Auflösungen erforderlich.',
+    desc_speed_limit: 'Geschwindigkeit begrenzen (0 für unbegrenzt).',
+    desc_alt_speed_limit: 'Alternative Geschwindigkeitsbegrenzung.',
+    cli_info_title: 'Konsolen- und CLI-Befehle',
+    cli_info_desc: "Sie können die Geschwindigkeitsbegrenzung über die Konsole oder das Terminal steuern (Sie können <code>HaYTooL YT Downloader.exe &lt;Befehl&gt;</code> oder <code>haytool &lt;Befehl&gt;</code> unter Windows verwenden):<br>• <b>Begrenzung Festlegen:</b> <code>HaYTooL YT Downloader.exe speed &lt;Wert&gt;</code><br>• <b>Begrenzung Ein/Aus:</b> <code>HaYTooL YT Downloader.exe speed off / on</code><br>• <b>Alternative Begrenzung:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;Wert&gt;</code><br>• <b>Alternative Begrenzung Erzwingen (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleoff</code><br>• <b>Alternative Begrenzung Umschalten (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code><br>• <b>Status Abfragen:</b> <code>HaYTooL YT Downloader.exe status</code>",
+    cli_info_note: "(Geben Sie Befehle direkt in das Konsolenfenster ein: speed, toggle usw.)",
+    desc_channel_check_interval: 'Wartezeit vor dem Überprüfen des nächsten Kanals.',
+    desc_rss_limit: 'Anzahl der RSS-Videos pro Kanal.',
+    desc_auto_delete: 'Nach wie vielen Tagen automatisch löschen? (0 zum Deaktivieren)',
+    opt_browser_none: 'Keine Cookies Verwenden',
+    desc_browser: 'Wählen Sie den Browser für den Premium-Zugriff aus.',
+    settings_status_text: 'Änderungen werden sofort automatisch gespeichert.',
+    connection_connecting: 'Verbindung: Verbinden...',
+    connection_active: 'Verbindung: Aktiv',
+    connection_lost: 'Verbindung: Getrennt',
+    label_history_limit: 'Limit pro Kanal',
+    desc_history_limit: 'Maximale Anzahl an Videos, die pro Kanal aufgelistet werden.',
+    opt_limit_10: '10 Videos',
+    opt_limit_20: '20 Videos (Empfohlen)',
+    opt_limit_50: '50 Videos',
+    opt_limit_100: '100 Videos',
+    opt_limit_200: '200 Videos',
+    label_data_management: 'Daten- & Backup-Verwaltung',
+    desc_data_management: 'Sie können Ihre Kanalliste sichern oder aus einer Backup-Datei wiederherstellen.',
+    btn_export_backup: 'Backup Exportieren',
+    btn_import_backup: 'Backup Importieren',
+    opt_import_append: 'An Vorhandenes Anfügen (Append)',
+    opt_import_overwrite: 'Vollständig Überschreiben (Overwrite)'
+  },
+  pt: {
+    premium_automation: 'Automatização Premium',
+    tab_library: 'Biblioteca',
+    tab_downloaded: 'Downloads',
+    tab_channels: 'Canais',
+    tab_settings: 'Ajustes',
+    cookie_yes: 'Cookies: Sim',
+    cookie_no: 'Cookies: Não',
+    cookie_status_active: 'Cookies Ativos e Válidos',
+    cookie_status_locked: 'Cookies Bloqueados ou Inválidos',
+    cookie_status_none: 'Cookies Desativados',
+    channels_title: 'Canais',
+    channels_desc: 'Gerencie os canais do YouTube que deseja monitorar e baixar automaticamente.',
+    input_channel_placeholder: 'Insira o link ou usuário do canal (Ex: @BarisOzcan)',
+    btn_follow_channel: 'Seguir Canal',
+    btn_update_all_logos: 'Atualizar Logos',
+    empty_channels_title: 'Nenhum canal monitorado ainda',
+    empty_channels_desc: 'Adicione canais inserindo um link ou usuário do YouTube acima.',
+    select_quality_default: 'Qualidade Padrão',
+    select_quality_best: 'A Melhor',
+    select_quality_1080p: '1080p FHD',
+    select_quality_720p: '720p HD',
+    select_shorts_true: 'Baixar Shorts',
+    select_shorts_false: 'Ignorar Shorts',
+    library_title: 'Biblioteca e Histórico',
+    library_desc: 'Monitore a fila de downloads e o histórico completo.',
+    btn_open_downloads: 'Abrir Pasta de Downloads',
+    badge_active_download: 'Download Ativo',
+    queue_empty_title: 'Fila Vazia',
+    queue_empty_desc: 'Sem downloads ativos.',
+    active_download_progress: 'Progresso',
+    active_download_size: 'Tamanho',
+    active_download_eta: 'Restante',
+    active_download_cancel: 'Cancelar',
+    queue_title: 'Fila de Downloads',
+    queue_empty: 'Sem vídeos na fila.',
+    library_history_title: 'Biblioteca e Histórico',
+    filter_all_channels: 'Todos os Canais',
+    show_shorts: 'Mostrar Vídeos Shorts',
+    view_grid: 'Cartões',
+    view_list: 'Lista Simples',
+    no_videos_filter: 'Sem registros de vídeo.',
+    downloaded_title: 'Downloads',
+    downloaded_desc: 'Vídeos baixados prontos para assistir offline.',
+    settings_title: 'Ajustes do Sistema',
+    settings_desc: 'Configure automatização, qualidade, cookies e preferências.',
+    label_download_path: 'Caminho da Pasta de Downloads',
+    btn_select_folder: 'Selecionar Pasta',
+    btn_test_folder: 'Testar Pasta',
+    label_browser: 'Navegador de Cookies Premium',
+    label_quality: 'Qualidade de Download Padrão',
+    label_merge_type: 'Método de Download (FFmpeg)',
+    label_interval: 'Intervalo de Verificação (Segundos)',
+    label_auto_download: 'Download Automático',
+    label_write_thumbnail: 'Imagem de Capa',
+    label_show_shorts: 'Vídeos Shorts',
+    label_theme: 'Tema da Interface',
+    label_auto_delete: 'Exclusão Automática (Dias)',
+    label_rss_limit: 'Limite de RSS (Vídeos)',
+    label_settings_speed_limit: 'Velocidade Máxima de Download (KB/s)',
+    label_port: 'Número da Porta',
+    label_play_sounds: 'Notificações de Áudio',
+    desc_play_sounds: 'Tocar sons para eventos de download',
+    label_show_notifications: 'Notificações de Área de Trabalho',
+    desc_show_notifications: 'Mostrar notificações quando os downloads começarem/terminarem',
+    label_auto_open_browser: 'Abrir Navegador Automaticamente',
+    desc_auto_open_browser: 'Abrir localhost ao iniciar a aplicação',
+    btn_search_channel: 'Buscar Canal',
+    btn_add_channel: 'Seguir Canal',
+    desc_auto_download: 'Baixar imediatamente ao detectar novos vídeos',
+    desc_write_thumbnail: 'Baixar miniaturas junto com os vídeos',
+    desc_show_shorts: 'Mostrar Shorts no histórico',
+    label_lang: 'Idioma da App',
+    label_settings_player_type: 'Tipo de Reprodutor Integrado',
+    desc_settings_player_type: 'Selecione o estilo do reprodutor integrado.',
+    opt_player_plyr: 'Reprodutor Plyr',
+    opt_player_artplayer: 'Reprodutor ArtPlayer',
+    opt_player_html5: 'Reprodutor HTML5 Padrão',
+    cookie_warning_title: 'Aviso Importante sobre Cookies:',
+    cookie_warning_desc: 'Feche completamente o navegador selecionado antes de baixar.',
+    btn_save_settings: 'Salvar Configurações',
+    modal_delete_title: 'Remover Vídeo do Histórico',
+    modal_delete_desc: 'Tem certeza que deseja remover este vídeo do histórico?',
+    modal_delete_file_checkbox: 'Excluir permanentemente o arquivo do computador',
+    modal_delete_btn: 'Excluir',
+    modal_cancel_btn: 'Cancelar',
+    modal_player_title: 'Reprodutor de Vídeo Integrado',
+    tab_queue: 'Fila',
+    tab_queue_title: 'Controle da Fila de Downloads',
+    tab_queue_desc: 'Monitore downloads ativos e organize a prioridade.',
+    btn_pause_queue: 'Pausar Fila',
+    btn_resume_queue: 'Retomar Fila',
+    label_queue_speed_limit: 'Limite de Velocidade:',
+    btn_speed_limit_set: 'Definir Limite',
+    active_progress: 'Progresso',
+    active_size: 'Tamanho',
+    active_eta: 'Restante',
+    queue_empty_title: 'Fila em Espera',
+    queue_empty_desc: 'Sem downloads ativos.',
+    queue_list_title: 'Vídeos na Fila',
+    drag_drop_hint: 'Arraste e solte para reordenar a fila',
+    queue_list_empty: 'Sem vídeos na fila.',
+    settings_desc: 'Configure opções de automação, navegador de cookies e pasta de downloads.',
+    settings_tab_general: 'Configurações Gerais',
+    settings_tab_download: 'Download & Qualidade',
+    settings_tab_automation: 'Automação & RSS',
+    settings_tab_notifications: 'Cookies & Notificação',
+    settings_tab_feedback: 'Enviar Comentários',
+    sort_btn_date_desc: 'Data ▼',
+    sort_btn_date_asc: 'Data ▲',
+    sort_btn_size_desc: 'Tamanho ▼',
+    sort_btn_size_asc: 'Tamanho ▲',
+    topbar_cookie_title: 'Cookies',
+    topbar_quality_title: 'Qualidade',
+    topbar_disk_title_free: 'Livre',
+    topbar_disk_title_folder: 'Tamanho',
+    settings_version_title: 'Versão',
+    desc_download_path: 'Pasta onde os vídeos serão salvos.',
+    desc_lang: 'Selecione o idioma da interface e dos títulos.',
+    opt_theme_dark: 'Tema Escuro',
+    opt_theme_light: 'Tema Claro',
+    desc_theme: 'Altere o tema de cor da interface aqui.',
+    desc_port: 'Porta da aplicação (Requer reiniciar).',
+    opt_quality_best: 'Melhor Qualidade (Automático)',
+    opt_quality_1080p: 'Máximo 1080p FHD',
+    opt_quality_720p: 'Máximo 720p HD',
+    desc_quality: 'Qualidade padrão a ser usada.',
+    opt_merge_single: 'Arquivo Único (Max 720p, sem ffmpeg)',
+    opt_merge_merge: 'Fusão Automática (Alta resolução, requer ffmpeg)',
+    opt_merge_separate: 'Baixar Áudio e Vídeo Separadamente',
+    desc_merge_type: 'O FFmpeg é necessário para fundir altas resoluções.',
+    desc_speed_limit: 'Limite de velocidade (0 para ilimitado).',
+    desc_alt_speed_limit: 'Limite de velocidade alternativo.',
+    cli_info_title: 'Comandos de Console e CLI',
+    cli_info_desc: "Pode controlar os limites de velocidade a partir da consola ou do terminal/CLI (pode utilizar o comando <code>HaYTooL YT Downloader.exe &lt;comando&gt;</code> ou <code>haytool &lt;comando&gt;</code> no Windows):<br>• <b>Definir Limite:</b> <code>HaYTooL YT Downloader.exe speed &lt;valor&gt;</code><br>• <b>Limite On/Off:</b> <code>HaYTooL YT Downloader.exe speed off / on</code><br>• <b>Limite Alt:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;valor&gt;</code><br>• <b>Limite Alt Forçado (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleoff</code><br>• <b>Alternar Perfil Alt (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code><br>• <b>Consultar Estado:</b> <code>HaYTooL YT Downloader.exe status</code>",
+    cli_info_note: "(Insira comandos diretamente no console: speed, toggle, etc.)",
+    desc_channel_check_interval: 'Tempo para verificar o próximo canal.',
+    desc_rss_limit: 'Número de vídeos RSS a verificar por canal.',
+    desc_auto_delete: 'Excluir automaticamente após dias (0 para desativar).',
+    opt_browser_none: 'Não Usar Cookies',
+    desc_browser: 'Selecione o navegador para acessar ao Premium.',
+    settings_status_text: 'As alterações são salvas automaticamente.',
+    connection_connecting: 'Conexão: Conectando...',
+    connection_active: 'Conexão: Ativa',
+    connection_lost: 'Conexão: Perdida',
+    label_history_limit: 'Limite por Canal',
+    desc_history_limit: 'Limite máximo de vídeos a listar por canal.',
+    opt_limit_10: '10 Vídeos',
+    opt_limit_20: '20 Vídeos (Recomendado)',
+    opt_limit_50: '50 Vídeos',
+    opt_limit_100: '100 Vídeos',
+    opt_limit_200: '200 Vídeos',
+    label_data_management: 'Gestão de Dados e Cópias',
+    desc_data_management: 'Pode exportar a sua lista de canais ou restaurá-la a partir de um ficheiro de cópia de segurança.',
+    btn_export_backup: 'Exportar Cópia',
+    btn_import_backup: 'Importar Cópia',
+    opt_import_append: 'Adicionar ao Existente (Append)',
+    opt_import_overwrite: 'Substituir Completamente (Overwrite)'
+  },
+  ar: {
+    premium_automation: 'التحكم التلقائي المميز',
+    tab_library: 'المكتبة',
+    tab_downloaded: 'التنزيلات',
+    tab_channels: 'القنوات',
+    tab_settings: 'الإعدادات',
+    cookie_yes: 'ملفات تعريف الارتباط: نعم',
+    cookie_no: 'ملفات تعريف الارتباط: لا',
+    cookie_status_active: 'ملفات تعريف الارتباط نشطة وصالحة',
+    cookie_status_locked: 'ملفات تعريف الارتباط مقفلة أو غير صالحة',
+    cookie_status_none: 'ملفات تعريف الارتباط غير مستخدمة',
+    channels_title: 'القنوات',
+    channels_desc: 'إدارة قنوات YouTube التي تريد مراقبتها وتنزيل مقاطع الفيديو منها تلقائيًا.',
+    input_channel_placeholder: 'أدخل رابط القناة أو اسم المستخدم (مثال: BarisOzcan@)',
+    btn_follow_channel: 'متابعة القناة',
+    btn_update_all_logos: 'تحديث جميع الشعارات',
+    empty_channels_title: 'لا توجد قنوات مراقبة بعد',
+    empty_channels_desc: 'يمكنك إضافة قنوات عن طريق إدخال رابط أو اسم مستخدم YouTube أعلاه.',
+    select_quality_default: 'الجودة الافتراضية',
+    select_quality_best: 'الأعلى',
+    select_quality_1080p: '1080p FHD',
+    select_quality_720p: '720p HD',
+    select_shorts_true: 'تنزيل مقاطع Shorts',
+    select_shorts_false: 'تجاهل مقاطع Shorts',
+    library_title: 'المكتبة والسجل',
+    library_desc: 'مراقبة قائمة انتظار التنزيل والتقدم النشط والسجل الكامل.',
+    btn_open_downloads: 'فتح مجلد التنزيلات',
+    badge_active_download: 'تنزيل نشط',
+    queue_empty_title: 'قائمة الانتظار فارغة',
+    queue_empty_desc: 'لا يوجد تنزيل نشط حالياً.',
+    active_download_progress: 'التقدم',
+    active_download_size: 'الحجم',
+    active_download_eta: 'المتبقي',
+    active_download_cancel: 'إلغاء',
+    queue_title: 'قائمة انتظار التنزيل',
+    queue_empty: 'لا توجد مقاطع فيديو في قائمة الانتظار.',
+    library_history_title: 'المكتبة والسجل',
+    filter_all_channels: 'جميع القنوات',
+    show_shorts: 'عرض مقاطع فيديو Shorts',
+    view_grid: 'بطاقات',
+    view_list: 'قائمة بسيطة',
+    no_videos_filter: 'لا توجد سجلات فيديو تطابق الفلتر.',
+    downloaded_title: 'التنزيلات',
+    downloaded_desc: 'مقاطع الفيديو التي تم تنزيلها بنجاح وجاهزة للتشغيل دون اتصال بالإنترنت.',
+    settings_title: 'إعدادات النظام',
+    settings_desc: 'تكوين خيارات التشغيل التلقائي وجودة التنزيل ومتصفح ملفات تعريف الارتباط وتفضيلات النظام.',
+    label_download_path: 'مسار مجلد التنزيلات',
+    btn_select_folder: 'اختر مجلد',
+    btn_test_folder: 'اختبار المجلد',
+    label_browser: 'متصفح ملفات تعريف الارتباط المميز',
+    label_quality: 'جودة التنزيل الافتراضية',
+    label_merge_type: 'طريقة التنزيل (FFmpeg / بنية الملف)',
+    label_interval: 'فترة فحص القناة (بالثواني)',
+    label_auto_download: 'تنزيل تلقائي',
+    label_write_thumbnail: 'صورة الغلاف',
+    label_show_shorts: 'مقاطع فيديو Shorts',
+    label_theme: 'مظهر واجهة المستخدم',
+    label_auto_delete: 'حذف مقاطع الفيديو تلقائيًا (أيام)',
+    label_rss_limit: 'حد فحص RSS (مقاطع فيديو)',
+    label_settings_speed_limit: 'السرعة القصوى للتنزيل (كيلوبايت/ثانية)',
+    label_port: 'رقم المنفذ',
+    label_play_sounds: 'التنبيهات الصوتية',
+    desc_play_sounds: 'تشغيل تنبيهات صوتية لأحداث تنزيل الفيديو',
+    label_show_notifications: 'تنبيهات سطح المكتب',
+    desc_show_notifications: 'عرض تنبيهات سطح المكتب عند بدء التنزيل وانتهائه',
+    label_auto_open_browser: 'فتح المتصفح تلقائياً',
+    desc_auto_open_browser: 'فتح localhost في المتصفح تلقائياً عند بدء التطبيق',
+    btn_search_channel: 'بحث عن قناة',
+    btn_add_channel: 'متابعة القناة',
+    desc_auto_download: 'بدء التنزيل فورًا عند اكتشاف مقاطع فيديو جديدة',
+    desc_write_thumbnail: 'تنزيل صور غلاف الفيديو (الصور المصغرة) معها',
+    desc_show_shorts: 'عرض مقاطع فيديو Shorts في قائمة مكتبة السجل',
+    label_lang: 'لغة التطبيق',
+    label_settings_player_type: 'نوع المشغل المدمج',
+    desc_settings_player_type: 'اختر نمط واجهة مشغل الفيديو المدمج.',
+    opt_player_plyr: 'مشغل Plyr',
+    opt_player_artplayer: 'مشغل ArtPlayer',
+    opt_player_html5: 'مشغل HTML5 القياسي',
+    cookie_warning_title: 'تحذير هام بشأن قفل ملفات تعريف الارتباط:',
+    cookie_warning_desc: 'يرجى إغلاق المتصفح المختار تمامًا قبل التنزيل لتجنب أخطاء قفل قاعدة البيانات.',
+    btn_save_settings: 'حفظ الإعدادات',
+    modal_delete_title: 'إزالة الفيديو من السجل',
+    modal_delete_desc: 'هل أنت متأكد من رغبتك في إزالة هذا الفيديو من السجل؟',
+    modal_delete_file_checkbox: 'حذف ملف الفيديو الذي تم تنزيله نهائياً من الكمبيوتر أيضاً',
+    modal_delete_btn: 'حذف',
+    modal_cancel_btn: 'إلغاء',
+    modal_player_title: 'مشغل الفيديو المدمج',
+    tab_queue: 'قائمة الانتظار',
+    tab_queue_title: 'التحكم في قائمة انتظار التنزيل',
+    tab_queue_desc: 'مراقبة التنزيلات النشطة وسحب وإفلات مقاطع الفيديو لتغيير أولويتها.',
+    btn_pause_queue: 'إيقاف مؤقت لقائمة الانتظار',
+    btn_resume_queue: 'استئناف قائمة الانتظار',
+    label_queue_speed_limit: 'حد السرعة:',
+    btn_speed_limit_set: 'تعيين الحد',
+    active_progress: 'التقدم',
+    active_size: 'الحجم',
+    active_eta: 'الوقت المتبقي',
+    queue_empty_title: 'قائمة الانتظار في وضع الاستعداد',
+    queue_empty_desc: 'لا يوجد تنزيل نشط.',
+    queue_list_title: 'فيديوهات قائمة الانتظار',
+    drag_drop_hint: 'السحب والإفلات لإعادة ترتيب قائمة الانتظار',
+    queue_list_empty: 'لا توجد مقاطع فيديو تنتظر في قائمة الانتظار.',
+    settings_desc: 'تكوين خيارات التشغيل التلقائي، ومتصفح ملفات تعريف الارتباط، ومجلد التنزيلات.',
+    settings_tab_general: 'الإعدادات العامة',
+    settings_tab_download: 'التنزيل والجودة',
+    settings_tab_automation: 'التشغيل التلقائي و RSS',
+    settings_tab_notifications: 'ملفات تعريف الارتباط والتنبيهات',
+    settings_tab_feedback: 'إرسال ملاحظات',
+    sort_btn_date_desc: 'التاريخ ▼',
+    sort_btn_date_asc: 'التاريخ ▲',
+    sort_btn_size_desc: 'الحجم ▼',
+    sort_btn_size_asc: 'الحجم ▲',
+    topbar_cookie_title: 'ملفات تعريف الارتباط',
+    topbar_quality_title: 'الجودة',
+    topbar_disk_title_free: 'خالي',
+    topbar_disk_title_folder: 'الحجم',
+    settings_version_title: 'الإصدار',
+    desc_download_path: 'مجلد حفظ مقاطع الفيديو على جهاز الكمبيوتر الخاص بك.',
+    desc_lang: 'اختر لغة واجهة المستخدم ولغة عناوين الفيديو.',
+    opt_theme_dark: 'مظهر داكن',
+    opt_theme_light: 'مظهر فاتح',
+    desc_theme: 'يمكنك تغيير مظهر لون واجهة المستخدم من هنا.',
+    desc_port: 'منفذ التطبيق (يتطلب إعادة التشغيل).',
+    opt_quality_best: 'أعلى جودة (تلقائي)',
+    opt_quality_1080p: 'الحد الأقصى 1080p FHD',
+    opt_quality_720p: 'الحد الأقصى 720p HD',
+    desc_quality: 'الجودة الافتراضية التي سيتم استخدامها.',
+    opt_merge_single: 'ملف جاهز واحد (720p كحد أقصى، لا يتطلب ffmpeg)',
+    opt_merge_merge: 'دمج تلقائي (دقة عالية، يتطلب ffmpeg)',
+    opt_merge_separate: 'تنزيل الصوت والفيديو بشكل منفصل',
+    desc_merge_type: 'يتطلب FFmpeg لدمج الدقة العالية في ملف واحد.',
+    desc_speed_limit: 'حد السرعة (0 لغير محدود).',
+    desc_alt_speed_limit: 'حد السرعة البديل.',
+    cli_info_title: 'أوامر وحدة التحكم و CLI',
+    cli_info_desc: "يمكنك التحكم في حدود السرعة من خلال وحدة التحكم أو موجه الأوامر (يمكنك استخدام <code>HaYTooL YT Downloader.exe &lt;الأمر&gt;</code> أو <code>haytool &lt;الأمر&gt;</code> على نظام Windows):<br>• <b>تعيين السرعة:</b> <code>HaYTooL YT Downloader.exe speed &lt;القيمة&gt;</code><br>• <b>تشغيل/إيقاف الحد:</b> <code>HaYTooL YT Downloader.exe speed off / on</code><br>• <b>الحد البديل:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;القيمة&gt;</code><br>• <b>تشغيل/إيقاف الحد البديل (السلحفاة):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleoff</code><br>• <b>تبديل ملف التعريف البديل (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code><br>• <b>الاستعلام عن الحالة:</b> <code>HaYTooL YT Downloader.exe status</code>",
+    cli_info_note: "(أدخل الأوامر مباشرة في نافذة وحدة التحكم: speed ، toggle ، إلخ.)",
+    desc_channel_check_interval: 'وقت الانتظار لفحص القناة التالية.',
+    desc_rss_limit: 'عدد مقاطع الفيديو RSS التي يتم فحصها لكل قناة.',
+    desc_auto_delete: 'حذف تلقائي بعد أيام (0 للتعطيل).',
+    opt_browser_none: 'عدم استخدام ملفات تعريف الارتباط',
+    desc_browser: 'اختر المتصفح للوصول إلى الحساب المميز.',
+    settings_status_text: 'يتم حفظ التغييرات تلقائيًا على الفور.',
+    connection_connecting: 'الاتصال: جاري الاتصال...',
+    connection_active: 'الاتصال: نشط',
+    connection_lost: 'الاتصال: مقطوع',
+    label_history_limit: 'الحد لكل قناة',
+    desc_history_limit: 'الحد الأقصى لمقاطع الفيديو التي يتم سردها لكل قناة.',
+    opt_limit_10: '10 مقاطع فيديو',
+    opt_limit_20: '20 مقاطع فيديو (موصى به)',
+    opt_limit_50: '50 مقاطع فيديو',
+    opt_limit_100: '100 مقاطع فيديو',
+    opt_limit_200: '200 مقاطع فيديو',
+    label_data_management: 'إدارة البيانات والنسخ الاحتياطي',
+    desc_data_management: 'يمكنك تصدير قائمة قنواتك أو استعادتها من ملف نسخة احتياطية.',
+    btn_export_backup: 'تصدير النسخة الاحتياطية',
+    btn_import_backup: 'استيراد النسخة الاحتياطية',
+    opt_import_append: 'إضافة إلى الموجود (Append)',
+    opt_import_overwrite: 'الكتابة فوق الكل (Overwrite)'
   }
 };
 
@@ -314,7 +976,8 @@ const translations = {
  * @param {string} lang Seçilen dil kodu ('tr' veya 'en')
  */
 function applyLanguage(lang) {
-  const t = translations[lang] || translations.tr;
+  currentLang = lang || 'tr';
+  const t = translations[currentLang] || translations.tr;
   
   const el = (id, key, prop = 'textContent') => {
     const element = document.getElementById(id);
@@ -331,7 +994,7 @@ function applyLanguage(lang) {
   };
 
   // HTML lang attribute
-  document.documentElement.lang = lang;
+  document.documentElement.lang = currentLang;
 
   // Header Navigasyon ve Başlıklar
   // elQuery('.brand-text span', 'premium_automation');
@@ -450,19 +1113,19 @@ function applyLanguage(lang) {
 
   if (sortBtnDateDesc) {
     sortBtnDateDesc.textContent = t.sort_btn_date_desc;
-    sortBtnDateDesc.title = lang === 'en' ? 'Date: Newest to Oldest' : 'Tarih: Yeniden Eskiye';
+    sortBtnDateDesc.title = currentLang === 'en' ? 'Date: Newest to Oldest' : 'Tarih: Yeniden Eskiye';
   }
   if (sortBtnDateAsc) {
     sortBtnDateAsc.textContent = t.sort_btn_date_asc;
-    sortBtnDateAsc.title = lang === 'en' ? 'Date: Oldest to Newest' : 'Tarih: Eskiden Yeniye';
+    sortBtnDateAsc.title = currentLang === 'en' ? 'Date: Oldest to Newest' : 'Tarih: Eskiden Yeniye';
   }
   if (sortBtnSizeDesc) {
     sortBtnSizeDesc.textContent = t.sort_btn_size_desc;
-    sortBtnSizeDesc.title = lang === 'en' ? 'Size: Largest to Smallest' : 'Boyut: Büyükten Küçüğe';
+    sortBtnSizeDesc.title = currentLang === 'en' ? 'Size: Largest to Smallest' : 'Boyut: Büyükten Küçüğe';
   }
   if (sortBtnSizeAsc) {
     sortBtnSizeAsc.textContent = t.sort_btn_size_asc;
-    sortBtnSizeAsc.title = lang === 'en' ? 'Size: Smallest to Largest' : 'Boyut: Küçükten Büyüğe';
+    sortBtnSizeAsc.title = currentLang === 'en' ? 'Size: Smallest to Largest' : 'Boyut: Küçükten Büyüğe';
   }
 
   // Ayarlar alt sekmeleri ve açıklamaları
@@ -499,6 +1162,34 @@ function applyLanguage(lang) {
   el('opt-browser-none', 'opt_browser_none');
   el('desc-browser', 'desc_browser');
   el('settings-status-text', 'settings_status_text');
+
+  // Geçmiş limit ve veri yönetimi çevirileri
+  el('label-history-limit', 'label_history_limit');
+  el('desc-history-limit', 'desc_history_limit');
+  el('opt-limit-10', 'opt_limit_10');
+  el('opt-limit-20', 'opt_limit_20');
+  el('opt-limit-50', 'opt_limit_50');
+  el('opt-limit-100', 'opt_limit_100');
+  el('opt-limit-200', 'opt_limit_200');
+  el('label-data-management', 'label_data_management');
+  el('desc-data-management', 'desc_data_management');
+  el('btn-export-text', 'btn_export_backup');
+  el('btn-import-text', 'btn_import_backup');
+  el('opt-import-append', 'opt_import_append');
+  el('opt-import-overwrite', 'opt_import_overwrite');
+
+  // Üst bar bağlantı durumu metni çevirisi
+  const statusIndicator = document.getElementById('status-indicator');
+  const statusText = document.getElementById('topbar-status-text');
+  if (statusText && statusIndicator) {
+    if (statusIndicator.classList.contains('online')) {
+      statusText.textContent = t.connection_active;
+    } else if (statusIndicator.classList.contains('offline')) {
+      statusText.textContent = t.connection_lost;
+    } else {
+      statusText.textContent = t.connection_connecting;
+    }
+  }
 
   // CLI açıklama HTML kutusu dinamik güncellemesi
   const cliInfoDesc = document.getElementById('cli-info-desc');
@@ -731,22 +1422,24 @@ function connectSSE() {
   eventSource.onopen = () => {
     if (statusIndicator) statusIndicator.className = 'status-dot online';
     if (connectionStatus) {
-      connectionStatus.textContent = 'Bağlandı';
+      connectionStatus.textContent = currentLang === 'en' ? 'Connected' : 'Bağlandı';
       connectionStatus.className = 'value text-muted';
     }
     const statusText = document.getElementById('topbar-status-text');
-    if (statusText) statusText.textContent = 'Bağlantı: Aktif';
+    const t = translations[currentLang] || translations.tr;
+    if (statusText) statusText.textContent = t.connection_active;
     updateDiskSpace();
   };
 
   eventSource.onerror = (err) => {
     if (statusIndicator) statusIndicator.className = 'status-dot offline';
     if (connectionStatus) {
-      connectionStatus.textContent = 'Bağlantı Kesildi';
+      connectionStatus.textContent = currentLang === 'en' ? 'Connection Lost' : 'Bağlantı Kesildi';
       connectionStatus.className = 'value text-muted';
     }
     const statusText = document.getElementById('topbar-status-text');
-    if (statusText) statusText.textContent = 'Bağlantı: Kesildi';
+    const t = translations[currentLang] || translations.tr;
+    if (statusText) statusText.textContent = t.connection_lost;
   };
 
   // Veritabanı Güncelleme Bildirimi
@@ -1408,6 +2101,9 @@ function updateUI(db) {
     const settingsPort = document.getElementById('settings-port');
     if (settingsPort && document.activeElement !== settingsPort) settingsPort.value = db.settings.port || 3000;
 
+    const settingsHistoryLimit = document.getElementById('settings-history-limit');
+    if (settingsHistoryLimit && document.activeElement !== settingsHistoryLimit) settingsHistoryLimit.value = db.settings.historyLimitPerChannel || 20;
+
     const settingsPlaySounds = document.getElementById('settings-playsounds');
     if (settingsPlaySounds && document.activeElement !== settingsPlaySounds) settingsPlaySounds.checked = db.settings.playSounds !== false;
 
@@ -1752,7 +2448,8 @@ async function performAutoSave() {
     playSounds: document.getElementById('settings-playsounds').checked,
     showNotifications: document.getElementById('settings-shownotifications').checked,
     autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
-    lang: document.getElementById('settings-lang').value
+    lang: document.getElementById('settings-lang').value,
+    historyLimitPerChannel: parseInt(document.getElementById('settings-history-limit').value, 10) || 20
   };
 
   const oldPort = localDb.settings.port || 3000;
@@ -3154,6 +3851,69 @@ function handleDragEnd(e) {
     item.style.opacity = '1';
   });
 }
+
+// Türkçe Açıklama: Takip edilen kanallar yedek listesini dışarı aktarmak için browser download tetikler.
+function exportChannels() {
+  window.location.href = '/api/channels/export';
+}
+
+// Türkçe Açıklama: Dosya seçici input penceresini tetikler.
+function triggerImportFile() {
+  const fileInput = document.getElementById('import-file-input');
+  if (fileInput) {
+    fileInput.click();
+  }
+}
+
+// Türkçe Açıklama: Seçilen yedek JSON dosyasını okuyup backend'e aktararak kanalları içe aktarır.
+async function importChannels(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const backupData = JSON.parse(e.target.result);
+      if (!backupData || !Array.isArray(backupData.channels)) {
+        showToast(localDb.settings.lang === 'en' ? 'Invalid backup file structure.' : 'Geçersiz yedek dosyası yapısı.', 'error');
+        return;
+      }
+
+      const importMode = document.getElementById('import-mode').value;
+      const overwrite = importMode === 'overwrite';
+
+      const res = await fetch('/api/channels/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          overwrite: overwrite,
+          channels: backupData.channels
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        const msg = localDb.settings.lang === 'en'
+          ? `Backup imported successfully! Added: ${data.added}, Updated: ${data.updated}`
+          : `Yedek başarıyla içeri aktarıldı! Eklenen: ${data.added}, Güncellenen: ${data.updated}`;
+        showToast(msg, 'success');
+      } else {
+        showToast(data.error || (localDb.settings.lang === 'en' ? 'Import failed.' : 'İçeri aktarma başarısız.'), 'error');
+      }
+    } catch (err) {
+      console.error('Yedek okuma hatası:', err);
+      showToast(localDb.settings.lang === 'en' ? 'Failed to read backup file.' : 'Yedek dosyası okunamadı.', 'error');
+    } finally {
+      event.target.value = '';
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Global scope'a bağla
+window.exportChannels = exportChannels;
+window.triggerImportFile = triggerImportFile;
+window.importChannels = importChannels;
 
 // Başlangıç
 connectSSE();

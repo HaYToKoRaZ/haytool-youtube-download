@@ -8,17 +8,32 @@ using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace HaYToolTray
+namespace HaYTooLTray
 {
     public class Program : ApplicationContext
     {
         private NotifyIcon trayIcon;
         private Process nodeProcess;
-        private string logFilePath = "logs/server_tray.log";
+
         private StringBuilder consoleBuffer = new StringBuilder();
         private Form logForm;
         private TextBox logTextBox;
         private object bufferLock = new object();
+
+        // Dil senkronizasyonu için sınıf düzeyinde menü öğeleri
+        private MenuItem openUiItem;
+        private MenuItem pasteDownloadItem;
+        private MenuItem shortcutsMenu;
+        private MenuItem libraryShortcut;
+        private MenuItem queueShortcut;
+        private MenuItem downloadedShortcut;
+        private MenuItem channelsShortcut;
+        private MenuItem settingsShortcut;
+        private MenuItem altSpeedItem;
+        private MenuItem bootItem;
+        private MenuItem restartItem;
+        private MenuItem showConsoleItem;
+        private MenuItem exitItem;
 
         [System.Runtime.InteropServices.DllImport("kernel32.dll")]
         private static extern bool AttachConsole(int dwProcessId);
@@ -87,10 +102,10 @@ namespace HaYToolTray
                     argString.Append(EscapeArgument(arg));
                 }
 
-                string backendPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "haytool-backend.exe");
+                string backendPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "HaYTool-Backend.exe");
                 if (!File.Exists(backendPath))
                 {
-                    Console.Error.WriteLine("Hata: Taşınabilir backend motoru bulunamadı: bin\\haytool-backend.exe");
+                    Console.Error.WriteLine("Hata: Taşınabilir backend motoru bulunamadı: bin\\HaYTool-Backend.exe");
                     return;
                 }
 
@@ -150,14 +165,14 @@ namespace HaYToolTray
 
             // Tray İkonunu Hazırla
             trayIcon = new NotifyIcon();
-            trayIcon.Text = "HaYTool Youtube Download";
+            trayIcon.Text = "HaYTooL YouTube Downloader";
             
-            // Logo.ico dosyasını yükle
-            if (File.Exists("logo.ico"))
+            // icon.ico dosyasını yükle
+            if (File.Exists("icon.ico"))
             {
                 try
                 {
-                    trayIcon.Icon = new Icon("logo.ico");
+                    trayIcon.Icon = new Icon("icon.ico");
                 }
                 catch
                 {
@@ -172,38 +187,53 @@ namespace HaYToolTray
             // Çift tıklama olayını bağla
             trayIcon.DoubleClick += OpenWebPage;
 
-            // Sağ tık menüsünü oluştur
-            ContextMenu contextMenu = new ContextMenu();
-            contextMenu.MenuItems.Add("Arayüzü Aç", OpenWebPage);
-            contextMenu.MenuItems.Add("Panodan İndir (Paste & Download)", PasteAndDownload);
+            // Sınıf düzeyindeki menü elemanlarını oluştur
+            openUiItem = new MenuItem("Arayüzü Aç", OpenWebPage);
+            pasteDownloadItem = new MenuItem("Panodan İndir (Paste & Download)", PasteAndDownload);
 
-            // Türkçe Açıklama: Sekmeler için doğrudan hızlı açılış bağlantıları (menü öğeleri)
-            MenuItem shortcutsMenu = new MenuItem("Sekmelere Git");
-            shortcutsMenu.MenuItems.Add("Kütüphane", (s, e) => OpenUrl("/home"));
-            shortcutsMenu.MenuItems.Add("İndirme Sırası", (s, e) => OpenUrl("/download"));
-            shortcutsMenu.MenuItems.Add("İndirilenler", (s, e) => OpenUrl("/downlist"));
-            shortcutsMenu.MenuItems.Add("Kanallar", (s, e) => OpenUrl("/channels"));
-            shortcutsMenu.MenuItems.Add("Ayarlar", (s, e) => OpenUrl("/settings"));
-            contextMenu.MenuItems.Add(shortcutsMenu);
+            shortcutsMenu = new MenuItem("Sekmelere Git");
+            libraryShortcut = new MenuItem("Kütüphane", (s, e) => OpenUrl("/home"));
+            queueShortcut = new MenuItem("İndirme Sırası", (s, e) => OpenUrl("/download"));
+            downloadedShortcut = new MenuItem("İndirilenler", (s, e) => OpenUrl("/downlist"));
+            channelsShortcut = new MenuItem("Kanallar", (s, e) => OpenUrl("/channels"));
+            settingsShortcut = new MenuItem("Ayarlar", (s, e) => OpenUrl("/settings"));
+            
+            shortcutsMenu.MenuItems.Add(libraryShortcut);
+            shortcutsMenu.MenuItems.Add(queueShortcut);
+            shortcutsMenu.MenuItems.Add(downloadedShortcut);
+            shortcutsMenu.MenuItems.Add(channelsShortcut);
+            shortcutsMenu.MenuItems.Add(settingsShortcut);
 
-            // Alternatif Hız Sınırı (Turtle) Toggle menü öğesi
-            MenuItem altSpeedItem = new MenuItem("Alternatif Hız Sınırı (Turtle)");
+            altSpeedItem = new MenuItem("Alternatif Hız Sınırı (Turtle)");
             altSpeedItem.Click += ToggleAlternativeSpeed;
-            contextMenu.MenuItems.Add(altSpeedItem);
 
-            MenuItem bootItem = new MenuItem("Sistem Başlangıcında Çalıştır");
+            bootItem = new MenuItem("Sistem Başlangıcında Çalıştır");
             bootItem.Click += (s, e) => {
                 bool current = GetStartOnBootSetting();
                 SetStartOnBoot(!current);
                 bootItem.Checked = !current;
             };
-            contextMenu.MenuItems.Add(bootItem);
 
+            restartItem = new MenuItem("Yeniden Başlat", RestartNode);
+            showConsoleItem = new MenuItem("Konsol Çıktısını Göster", ShowConsoleWindow);
+            exitItem = new MenuItem("Çıkış", ExitApp);
+
+            // Sağ tık menüsünü oluştur
+            ContextMenu contextMenu = new ContextMenu();
+            contextMenu.MenuItems.Add(openUiItem);
+            contextMenu.MenuItems.Add(pasteDownloadItem);
+            contextMenu.MenuItems.Add(shortcutsMenu);
+            contextMenu.MenuItems.Add(altSpeedItem);
+            contextMenu.MenuItems.Add(bootItem);
             contextMenu.MenuItems.Add("-"); // Ayırıcı çizgi
-            contextMenu.MenuItems.Add("Yeniden Başlat", RestartNode);
-            contextMenu.MenuItems.Add("Konsol Çıktısını Göster", ShowConsoleWindow);
+            contextMenu.MenuItems.Add(restartItem);
+            contextMenu.MenuItems.Add(showConsoleItem);
             contextMenu.MenuItems.Add("-"); // Ayırıcı çizgi
-            contextMenu.MenuItems.Add("Çıkış", ExitApp);
+            contextMenu.MenuItems.Add(exitItem);
+
+            // Başlangıç dil ayarını yükle
+            string initialLang = GetLanguageSetting();
+            ApplyLanguage(initialLang);
 
             // Menü her açıldığında ayarı okuyarak işareti güncelliyoruz
             contextMenu.Popup += (s, e) => {
@@ -346,9 +376,9 @@ namespace HaYToolTray
                     installForm.FormBorderStyle = FormBorderStyle.FixedDialog;
                     installForm.MaximizeBox = false;
                     installForm.MinimizeBox = false;
-                    if (File.Exists("logo.ico"))
+                    if (File.Exists("icon.ico"))
                     {
-                        try { installForm.Icon = new Icon("logo.ico"); } catch {}
+                        try { installForm.Icon = new Icon("icon.ico"); } catch {}
                     }
 
                     Label label = new Label();
@@ -422,10 +452,10 @@ namespace HaYToolTray
                     }
                 }
 
-                string backendPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "haytool-backend.exe");
+                string backendPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "HaYTool-Backend.exe");
                 if (!File.Exists(backendPath))
                 {
-                    MessageBox.Show("Taşınabilir backend motoru bulunamadı: bin\\haytool-backend.exe", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Taşınabilir backend motoru bulunamadı: bin\\HaYTool-Backend.exe", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     ExitApp(null, null);
                     return;
                 }
@@ -445,7 +475,18 @@ namespace HaYToolTray
                 nodeProcess.StartInfo = psi;
                 
                 nodeProcess.OutputDataReceived += (s, e) => {
-                    if (e.Data != null) AppendLog(e.Data);
+                    if (e.Data != null) 
+                    {
+                        if (e.Data.StartsWith("[TRAY_CMD] lang="))
+                        {
+                            string newLang = e.Data.Substring("[TRAY_CMD] lang=".Length).Trim();
+                            ApplyLanguage(newLang);
+                        }
+                        else
+                        {
+                            AppendLog(e.Data);
+                        }
+                    }
                 };
                 nodeProcess.ErrorDataReceived += (s, e) => {
                     if (e.Data != null) AppendLog("[HATA] " + e.Data);
@@ -481,18 +522,19 @@ namespace HaYToolTray
             }
         }
 
-        // Türkçe Açıklama: Gelen konsol çıktılarını yerel log dosyasına yazar ve bellek tamponuna ekler.
+        // Türkçe Açıklama: Gelen konsol çıktılarını bellek tamponuna ekler ve arayüze tarihsiz şekilde yansıtır.
         private void AppendLog(string text)
         {
-            string formattedText = string.Format("[{0}] {1}\r\n", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), text);
-            
-            // Dosyaya yaz
-            try
-            {
-                File.AppendAllText(logFilePath, formattedText);
-            }
-            catch {}
+            if (text == null) return;
 
+            // ANSI kodlarını temizle
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"\x1b\[[0-9;]*m", "");
+            
+            // Satır başındaki [HH:mm:ss] zaman damgasını temizle (Örn: [01:08:03] -> "")
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"^\[\d{2}:\d{2}:\d{2}\]\s*", "");
+
+            string formattedText = text + "\r\n";
+            
             // Buffer'a ve Form'a yaz
             lock (bufferLock)
             {
@@ -569,12 +611,12 @@ namespace HaYToolTray
             logForm.Size = new Size(950, 600);
             logForm.StartPosition = FormStartPosition.CenterScreen;
             
-            // Logo.ico dosyasını forma da ekle
-            if (File.Exists("logo.ico"))
+            // icon.ico dosyasını forma da ekle
+            if (File.Exists("icon.ico"))
             {
                 try
                 {
-                    logForm.Icon = new Icon("logo.ico");
+                    logForm.Icon = new Icon("icon.ico");
                 }
                 catch {}
             }
@@ -717,11 +759,11 @@ namespace HaYToolTray
                 RegistryKey rk = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
                 if (start)
                 {
-                    rk.SetValue("HaYTool", "\"" + Application.ExecutablePath + "\"");
+                    rk.SetValue("HaYTooL", "\"" + Application.ExecutablePath + "\"");
                 }
                 else
                 {
-                    rk.DeleteValue("HaYTool", false);
+                    rk.DeleteValue("HaYTooL", false);
                 }
             }
             catch (Exception ex)
@@ -736,12 +778,151 @@ namespace HaYToolTray
             try
             {
                 RegistryKey rk = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", false);
-                return rk.GetValue("HaYTool") != null;
+                return rk.GetValue("HaYTooL") != null;
             }
             catch
             {
                 return false;
             }
+        }
+
+        // Türkçe Açıklama: Arayüz dil ayarlarına göre C# Tray uygulamasındaki menü elemanlarını dinamik olarak yerelleştirir.
+        private void ApplyLanguage(string lang)
+        {
+            if (string.IsNullOrEmpty(lang)) lang = "tr";
+            lang = lang.ToLower();
+
+            if (lang == "en")
+            {
+                openUiItem.Text = "Open Interface";
+                pasteDownloadItem.Text = "Paste & Download";
+                shortcutsMenu.Text = "Go to Tabs";
+                libraryShortcut.Text = "Library";
+                queueShortcut.Text = "Download Queue";
+                downloadedShortcut.Text = "Downloads";
+                channelsShortcut.Text = "Channels";
+                settingsShortcut.Text = "Settings";
+                altSpeedItem.Text = "Alternative Speed Limit (Turtle)";
+                bootItem.Text = "Run on System Startup";
+                restartItem.Text = "Restart Server";
+                showConsoleItem.Text = "Show Console Output";
+                exitItem.Text = "Exit";
+                trayIcon.Text = "HaYTooL YouTube Downloader";
+            }
+            else if (lang == "es")
+            {
+                openUiItem.Text = "Abrir Interfaz";
+                pasteDownloadItem.Text = "Pegar y Descargar";
+                shortcutsMenu.Text = "Ir a Pestañas";
+                libraryShortcut.Text = "Biblioteca";
+                queueShortcut.Text = "Cola de Descargas";
+                downloadedShortcut.Text = "Descargas";
+                channelsShortcut.Text = "Canales";
+                settingsShortcut.Text = "Configuración";
+                altSpeedItem.Text = "Límite de Velocidad Alternativo (Turtle)";
+                bootItem.Text = "Ejecutar al Inicio del Sistema";
+                restartItem.Text = "Reiniciar Servidor";
+                showConsoleItem.Text = "Mostrar Salida de Consola";
+                exitItem.Text = "Salir";
+                trayIcon.Text = "HaYTooL YouTube Downloader";
+            }
+            else if (lang == "de")
+            {
+                openUiItem.Text = "Benutzeroberfläche öffnen";
+                pasteDownloadItem.Text = "Einfügen & Herunterladen";
+                shortcutsMenu.Text = "Gehe zu Tabs";
+                libraryShortcut.Text = "Bibliothek";
+                queueShortcut.Text = "Download-Warteschlange";
+                downloadedShortcut.Text = "Downloads";
+                channelsShortcut.Text = "Kanäle";
+                settingsShortcut.Text = "Einstellungen";
+                altSpeedItem.Text = "Alternative Geschwindigkeitsbegrenzung (Turtle)";
+                bootItem.Text = "Beim Systemstart ausführen";
+                restartItem.Text = "Server neu starten";
+                showConsoleItem.Text = "Konsolenausgabe anzeigen";
+                exitItem.Text = "Beenden";
+                trayIcon.Text = "HaYTooL YouTube Downloader";
+            }
+            else if (lang == "pt")
+            {
+                openUiItem.Text = "Abrir Interface";
+                pasteDownloadItem.Text = "Colar & Baixar";
+                shortcutsMenu.Text = "Ir para Abas";
+                libraryShortcut.Text = "Biblioteca";
+                queueShortcut.Text = "Fila de Downloads";
+                downloadedShortcut.Text = "Downloads";
+                channelsShortcut.Text = "Canais";
+                settingsShortcut.Text = "Configurações";
+                altSpeedItem.Text = "Limite de Velocidade Alternativo (Turtle)";
+                bootItem.Text = "Executar na Inicialização do Sistema";
+                restartItem.Text = "Reiniciar Servidor";
+                showConsoleItem.Text = "Mostrar Saída do Console";
+                exitItem.Text = "Sair";
+                trayIcon.Text = "HaYTooL YouTube Downloader";
+            }
+            else if (lang == "ar")
+            {
+                openUiItem.Text = "فتح الواجهة";
+                pasteDownloadItem.Text = "اللصق والتنزيل";
+                shortcutsMenu.Text = "الانتقال إلى التبويبات";
+                libraryShortcut.Text = "المكتبة";
+                queueShortcut.Text = "قائمة الانتظار";
+                downloadedShortcut.Text = "التنزيلات";
+                channelsShortcut.Text = "القنوات";
+                settingsShortcut.Text = "الإعدادات";
+                altSpeedItem.Text = "حد السرعة البديل (السلحفاة)";
+                bootItem.Text = "التشغيل عند بدء تشغيل النظام";
+                restartItem.Text = "إعادة تشغيل الخادم";
+                showConsoleItem.Text = "عرض مخرجات وحدة التحكم";
+                exitItem.Text = "خروج";
+                trayIcon.Text = "HaYTooL YouTube Downloader";
+            }
+            else // Varsayılan Türkçe (tr)
+            {
+                openUiItem.Text = "Arayüzü Aç";
+                pasteDownloadItem.Text = "Panodan İndir (Paste & Download)";
+                shortcutsMenu.Text = "Sekmelere Git";
+                libraryShortcut.Text = "Kütüphane";
+                queueShortcut.Text = "İndirme Sırası";
+                downloadedShortcut.Text = "İndirilenler";
+                channelsShortcut.Text = "Kanallar";
+                settingsShortcut.Text = "Ayarlar";
+                altSpeedItem.Text = "Alternatif Hız Sınırı (Turtle)";
+                bootItem.Text = "Sistem Başlangıcında Çalıştır";
+                restartItem.Text = "Yeniden Başlat";
+                showConsoleItem.Text = "Konsol Çıktısını Göster";
+                exitItem.Text = "Çıkış";
+                trayIcon.Text = "HaYTooL YouTube Downloader";
+            }
+        }
+
+        // Türkçe Açıklama: configwin.ini dosyasından güncel arayüz dil seçimini okur.
+        private string GetLanguageSetting()
+        {
+            string iniPath = "configwin.ini";
+            if (File.Exists(iniPath))
+            {
+                try
+                {
+                    string[] lines = File.ReadAllLines(iniPath);
+                    foreach (string line in lines)
+                    {
+                        string trimmed = line.Trim();
+                        int equalsIdx = trimmed.IndexOf('=');
+                        if (equalsIdx != -1)
+                        {
+                            string key = trimmed.Substring(0, equalsIdx).Trim();
+                            string val = trimmed.Substring(equalsIdx + 1).Trim();
+                            if (string.Equals(key, "lang", StringComparison.OrdinalIgnoreCase))
+                            {
+                                return val;
+                            }
+                        }
+                    }
+                }
+                catch {}
+            }
+            return "tr";
         }
     }
 }

@@ -1,8 +1,8 @@
-# HaYTool Youtube Download (v4.8.0)
+# HaYTooL YouTube Downloader (v4.11.0)
 
 [![Platform Support](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-v4.8.0-purple.svg)](#)
+[![Version](https://img.shields.io/badge/version-v4.11.0-purple.svg)](#)
 
 A premium, lightweight, and cross-platform automation software that automatically monitors YouTube channels via RSS feeds and downloads new videos in the background. Built entirely in vanilla JavaScript, CSS, and HTML5.
 
@@ -13,7 +13,7 @@ A premium, lightweight, and cross-platform automation software that automaticall
 * **Automated Channel Tracking:** Continuously monitors channels for new videos using RSS feeds and fallback `yt-dlp` mechanisms.
 * **Smart Queue Manager:** Downloads videos sequentially, prevents conflicts, and automatically resumes interrupted downloads on startup.
 * **Alternative Speed Limits (qBittorrent-Style Turtle Toggle):** Toggle between a normal speed limit profile and an alternative (turtle) speed profile. Extremely useful for saving bandwidth during active usage.
-* **System Tray Integration (`HaYTool.exe`):** Windows version starts the Node server silently in the background (no black CMD window) with a system tray icon. Right-clicking provides direct navigation to pages (/home, /download, /downlist, /channels, /settings), toggles the alternative speed limit, restarts the server, or exits.
+* **System Tray Integration (`HaYTooL YT Downloader.exe`):** Windows version starts the Node server silently in the background (no black CMD window) with a system tray icon. Right-clicking provides direct navigation to pages (/home, /download, /downlist, /channels, /settings), toggles the alternative speed limit, restarts the server, or exits.
 * **Interactive Terminal Console:** C# Tray Log/Terminal window includes an interactive input field at the bottom. You can pipe control commands directly to Node's standard input (`speed <val>`, `altspeed <val>`, `toggle`, `status`).
 * **Log Auto-Cleanup:** Automatically deletes log files older than 7 days from the `logs/` directory at startup to keep the project clean.
 * **Floating Non-Blocking Player:** Embedded Plyr modal has no screen-blocking backdrop, allowing you to browse/scroll other tabs while watching. Clicking a new video instantly plays it in the player.
@@ -31,7 +31,7 @@ A premium, lightweight, and cross-platform automation software that automaticall
    npm install
    ```
 2. **Start the Application:**
-   Double-click `HaYTool.exe` in the root folder. It starts the application silently in the system tray and automatically opens the web interface.
+   Double-click `HaYTooL YT Downloader.exe` in the root folder. It starts the application silently in the system tray and automatically opens the web interface.
    To run in standard terminal mode:
    ```bash
    npm start
@@ -57,7 +57,7 @@ Access the dashboard at [http://localhost:3000](http://localhost:3000) (default 
 
 ## 💻 CLI & Console Commands
 
-You can manage speed limits, start downloads, and view application status directly using `hayto`, `haytool`, or `HaYTool.exe` from the command line, or through the Interactive Terminal Console in the Windows tray app:
+You can manage speed limits, start downloads, and view application status directly using `hayto`, `haytool`, or `HaYTooL YT Downloader.exe` from the command line, or through the Interactive Terminal Console in the Windows tray app:
 
 ### CLI Commands:
 Run these commands from your terminal in the project directory (use `hayto` or `haytool` on Windows, or `node server.js` on Linux/macOS):
@@ -123,7 +123,7 @@ If you encounter any issues or want to send feedback, feel free to reach out:
 <br>
 <br>
 
-# TR - HaYTool Youtube Download (v4.8.0)
+# TR - HaYTooL YouTube Downloader (v4.11.0)
 
 YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni videoları arka planda otomatik olarak indiren şık, hafif ve kararlı bir otomasyon sistemidir. Tamamen vanilla JavaScript, CSS ve HTML5 standartlarıyla geliştirilmiştir.
 
@@ -134,7 +134,7 @@ YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni vid
 * **Otomatik Kanal İzleme:** RSS akışları veya yedek `yt-dlp` flat-playlist mekanizması ile kanalların yeni videolarını sürekli denetler.
 * **Akıllı İndirme Kuyruğu:** Videoları sırayla indirir, çakışmaları engeller ve sunucu başlangıcında yarım kalan indirmeleri otomatik olarak kaldığı yerden sürdürür.
 * **Alternatif Hız Profili (qBittorrent Tarzı Kaplumbağa):** Normal indirme hızı sınırı ile alternatif (kaplumbağa) indirme hız profili arasında geçiş yapabilirsiniz. Aktif internet kullanımı sırasında bant genişliğinden tasarruf etmek için idealdir.
-* **Sistem Tepsisi Entegrasyonu (`HaYTool.exe`):** Windows işletim sisteminde Node sunucusunu tamamen arka planda sessizce (siyah CMD penceresi olmadan) başlatır. Sağ tıklayarak sekmelere doğrudan gidebilir (/home, /download, /downlist, /channels, /settings), alternatif hız sınırını açıp kapatabilir, sistemi yeniden başlatabilir veya kapatabilirsiniz.
+* **Sistem Tepsisi Entegrasyonu (`HaYTooL YT Downloader.exe`):** Windows işletim sisteminde Node sunucusunu tamamen arka planda sessizce (siyah CMD penceresi olmadan) başlatır. Sağ tıklayarak sekmelere doğrudan gidebilir (/home, /download, /downlist, /channels, /settings), alternatif hız sınırını açıp kapatabilir, sistemi yeniden başlatabilir veya kapatabilirsiniz.
 * **İnteraktif Terminal Konsolu:** Sistem tepsisindeki "Konsol Çıktısını Göster" penceresine eklenen komut giriş paneli sayesinde, doğrudan Node.js standart girdisine (`process.stdin`) komut gönderebilirsiniz. Desteklenen komutlar: `speed <değer>`, `altspeed <değer>`, `toggle`, `status`.
 * **Otomatik Log Temizleme:** Sunucu her başlatıldığında `logs/` klasöründeki 7 günden eski log dosyalarını otomatik olarak temizler.
 * **Kompakt ve Gömülü Video Oynatıcı:** Arka planı kapatmayan yüzen (floating) video oynatıcı ile sayfada gezinirken veya diğer videolara göz atarken izlemeye devam edebilirsiniz.
@@ -152,7 +152,7 @@ YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni vid
    npm install
    ```
 2. **Uygulamayı Başlatın:**
-   Kök dizindeki `HaYTool.exe` dosyasına çift tıklayın. Sistem tepsisinde arka planda sessizce başlayacak ve web arayüzünü otomatik açacaktır.
+   Kök dizindeki `HaYTooL YT Downloader.exe` dosyasına çift tıklayın. Sistem tepsisinde arka planda sessizce başlayacak ve web arayüzünü otomatik açacaktır.
    Konsol modunda çalıştırmak için:
    ```bash
    npm start
@@ -178,7 +178,7 @@ Arayüze varsayılan olarak [http://localhost:3000](http://localhost:3000) adres
 
 ## 💻 CLI ve Konsol Komutları
 
-Uygulamanın hız limitlerini, indirmelerini ve durum bilgisini doğrudan terminalden `hayto`, `haytool` veya `HaYTool.exe` yardımıyla (CLI) veya Windows tepsi uygulamasının İnteraktif Konsol penceresinden yönetebilirsiniz:
+Uygulamanın hız limitlerini, indirmelerini ve durum bilgisini doğrudan terminalden `hayto`, `haytool` veya `HaYTooL YT Downloader.exe` yardımıyla (CLI) veya Windows tepsi uygulamasının İnteraktif Konsol penceresinden yönetebilirsiniz:
 
 ### CLI Komutları:
 Proje dizininde terminalden çalıştırabileceğiniz komutlar (Windows için `hayto` veya `haytool` kullanabilirsiniz, Linux/macOS için `node server.js` kullanabilirsiniz):
@@ -210,7 +210,7 @@ Proje dizininde terminalden çalıştırabileceğiniz komutlar (Windows için `h
   * `hayto altspeed off` (Alternatif hız profilini kesin kapatır)
 
 ### Konsol Komutları (Tray Log Ekranından):
-Tepsi simgesinden "Konsol Çıktısını Göster" dediğinizde açılan pencerenin altındaki metin kutusuna komut yazıp Enter'a basabilirsiniz (başında `HaYTool.exe` veya `node` olmadan doğrudan):
+Tepsi simgesinden "Konsol Çıktısını Göster" dediğinizde açılan pencerenin altındaki metin kutusuna komut yazıp Enter'a basabilirsiniz (başında `HaYTooL YT Downloader.exe` veya `node` olmadan doğrudan):
 * `status` - Durum bilgisini anlık loglar.
 * `speed 2500` - Normal hızı 2500 KB/s olarak ayarlar.
 * `speed on` / `speed off` - Hız limitini açar veya kapatır.

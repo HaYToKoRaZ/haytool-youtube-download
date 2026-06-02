@@ -1,5 +1,5 @@
 <!-- 
-  HaYTool Youtube Download - Arayüz Tasarımı
+  HaYTooL YouTube Downloader - Arayüz Tasarımı
   Yapımcı: HaYTo
   İletişim: korazhayto@gmail.com
 -->
@@ -8,7 +8,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HaYTool Youtube Download</title>
+  <title>HaYTooL YouTube Downloader</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%238a2be2%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4%22/><polyline points=%227 10 12 15 17 10%22/><line x1=%2212%22 y1=%2215%22 x2=%2212%22 y2=%223%22/></svg>">
   <!-- Google Fonts: Outfit & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,7 +32,7 @@
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
         <div class="brand-text">
-          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTool Youtube Download <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.10.0</a></span></h1>
+          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.11.0</a></span></h1>
         </div>
       </div>
 
@@ -336,7 +336,7 @@
             <h2>Ayarlar</h2>
             <p id="settings-desc">Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
           </div>
-          <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.10.0</a></strong></span>
+          <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.11.0</a></strong></span>
         </header>
 
         <div class="card card-settings" style="max-width: 1000px;">
@@ -390,8 +390,12 @@
                     <div class="form-group">
                       <label for="settings-lang" id="label-lang">Uygulama Dili / App Language</label>
                       <select id="settings-lang">
-                        <option value="tr">Türkçe (TR)</option>
-                        <option value="en">English (EN)</option>
+                        <option value="tr">🇹🇷 Türkçe (TR)</option>
+                        <option value="en">🇬🇧 English (EN)</option>
+                        <option value="es">🇪🇸 Español (ES)</option>
+                        <option value="de">🇩🇪 Deutsch (DE)</option>
+                        <option value="pt">🇵🇹 Português (PT)</option>
+                        <option value="ar">🇸🇦 العربية (AR)</option>
                       </select>
                       <small class="form-text" id="desc-lang">Arayüz dilini ve video başlıklarının indirileceği dili seçin.</small>
                     </div>
@@ -430,6 +434,38 @@
                         <option id="opt-player-html5" value="html5">Standart HTML5 Player (Hızlı & Sade)</option>
                       </select>
                       <small id="desc-settings-player-type" class="form-text">Gömülü video oynatıcı arayüz tipini seçin.</small>
+                    </div>
+                    <div class="form-group">
+                      <label id="label-history-limit" for="settings-history-limit">Kanal Başına Geçmiş Videosu Sınırı</label>
+                      <select id="settings-history-limit">
+                        <option value="10" id="opt-limit-10">10 Video</option>
+                        <option value="20" id="opt-limit-20" selected>20 Video (Önerilen)</option>
+                        <option value="50" id="opt-limit-50">50 Video</option>
+                        <option value="100" id="opt-limit-100">100 Video</option>
+                        <option value="200" id="opt-limit-200">200 Video</option>
+                      </select>
+                      <small id="desc-history-limit" class="form-text">Kütüphanede kanal başına listelenecek maksimum video limiti (Arayüz performansını artırır).</small>
+                    </div>
+                  </div>
+                  
+                  <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+                  <div class="form-group" style="margin-bottom: 5px;">
+                    <label id="label-data-management" style="font-weight: 700; font-size: 1rem; color: var(--text-main);">Veri ve Yedek Yönetimi</label>
+                    <small id="desc-data-management" class="form-text" style="margin-bottom: 15px;">Takip ettiğiniz kanalların listesini yedekleyebilir veya yedeğinizi geri yükleyebilirsiniz.</small>
+                    <div class="input-action-row" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; align-items: center;">
+                      <button type="button" onclick="exportChannels()" class="btn btn-secondary" id="btn-export-backup" style="background: rgba(138, 43, 226, 0.1); border-color: rgba(138, 43, 226, 0.3); color: var(--accent-primary); height: 36px; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="download" style="width:16px;height:16px;"></i>
+                        <span id="btn-export-text">Yedeği Dışarı Aktar</span>
+                      </button>
+                      <button type="button" onclick="triggerImportFile()" class="btn btn-secondary" id="btn-import-backup" style="background: rgba(40, 180, 99, 0.1); border-color: rgba(40, 180, 99, 0.3); color: #28b463; height: 36px; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="upload" style="width:16px;height:16px;"></i>
+                        <span id="btn-import-text">Yedeği İçeri Aktar</span>
+                      </button>
+                      <select id="import-mode" style="max-width: 250px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.85rem; height: 36px;">
+                        <option value="append" id="opt-import-append">Üzerine Ekle (Append)</option>
+                        <option value="overwrite" id="opt-import-overwrite">Tamamen Üzerine Yaz (Overwrite)</option>
+                      </select>
+                      <input type="file" id="import-file-input" onchange="importChannels(event)" accept=".json" style="display: none;">
                     </div>
                   </div>
                 </div>
@@ -476,14 +512,14 @@
                       <span id="cli-info-title">CLI ve Konsol Hız Komutları</span>
                     </div>
                     <p style="font-size:0.75rem; color:var(--text-muted); margin:0; line-height:1.45;" id="cli-info-desc">
-                      Hız sınırlarını konsoldan veya terminal/CLI üzerinden kontrol edebilirsiniz (Windows'ta <code>HaYTool.exe &lt;komut&gt;</code> veya <code>haytool &lt;komut&gt;</code> kullanabilirsiniz):<br>
-                      • <b>Hız Sınırını Ayarlama:</b> <code>HaYTool.exe speed &lt;değer&gt;</code> (örn: <code>HaYTool.exe speed 2500</code>)<br>
-                      • <b>Hız Sınırını Açma/Kapatma:</b> <code>HaYTool.exe speed off</code> (kapatır) / <code>HaYTool.exe speed on</code> (son değere açar)<br>
-                      • <b>Alternatif Sınırı Belirleme:</b> <code>HaYTool.exe altspeed &lt;değer&gt;</code> (örn: <code>HaYTool.exe altspeed 500</code>)<br>
-                      • <b>Alternatif Sınırı Kesin Aç/Kapat (Turtle):</b> <code>HaYTool.exe turtleon / turtleac</code> (açar) / <code>HaYTool.exe turtleoff / turtlekapat</code> (kapatır)<br>
-                      • <b>Alternatif Sınır Profil Geçişi (Toggle):</b> <code>HaYTool.exe toggle</code> veya <code>HaYTool.exe altspeed toggle</code><br>
-                      • <b>Durum Sorgulama:</b> <code>HaYTool.exe status</code> (limit durumunu yazdırır)<br>
-                      <small style="color: var(--accent-color); opacity: 0.8; font-weight: bold;" id="cli-info-note">(Tray "Konsol Çıktısını Göster" penceresinde 'HaYTool.exe' veya 'node' yazmadan doğrudan komutu girin: 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' vb.)</small>
+                      Hız sınırlarını konsoldan veya terminal/CLI üzerinden kontrol edebilirsiniz (Windows'ta <code>HaYTooL YT Downloader.exe &lt;komut&gt;</code> veya <code>haytool &lt;komut&gt;</code> kullanabilirsiniz):<br>
+                      • <b>Hız Sınırını Ayarlama:</b> <code>HaYTooL YT Downloader.exe speed &lt;değer&gt;</code> (örn: <code>HaYTooL YT Downloader.exe speed 2500</code>)<br>
+                      • <b>Hız Sınırını Açma/Kapatma:</b> <code>HaYTooL YT Downloader.exe speed off</code> (kapatır) / <code>HaYTooL YT Downloader.exe speed on</code> (son değere açar)<br>
+                      • <b>Alternatif Sınırı Belirleme:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;değer&gt;</code> (örn: <code>HaYTooL YT Downloader.exe altspeed 500</code>)<br>
+                      • <b>Alternatif Sınırı Kesin Aç/Kapat (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleac</code> (açar) / <code>HaYTooL YT Downloader.exe turtleoff / turtlekapat</code> (kapatır)<br>
+                      • <b>Alternatif Sınır Profil Geçişi (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code> veya <code>HaYTooL YT Downloader.exe altspeed toggle</code><br>
+                      • <b>Durum Sorgulama:</b> <code>HaYTooL YT Downloader.exe status</code> (limit durumunu yazdırır)<br>
+                      <small style="color: var(--accent-color); opacity: 0.8; font-weight: bold;" id="cli-info-note">(Tray "Konsol Çıktısını Göster" penceresinde 'HaYTooL YT Downloader.exe' veya 'node' yazmadan doğrudan komutu girin: 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' vb.)</small>
                     </p>
                   </div>
 
