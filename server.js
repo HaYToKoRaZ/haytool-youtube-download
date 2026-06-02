@@ -4229,7 +4229,6 @@ if (process.argv.length <= 2) {
     console.log(`Sunucu http://localhost:${PORT} portunda çalışıyor.`);
     
     // İndirme klasörünü kontrol et, yoksa oluştur
-    const db = readDb();
 
     // Arka planda veritabanı ile disk senkronizasyonunu (auto-healing, dosya boyutu kontrolü vb.) başlat
     setTimeout(() => {

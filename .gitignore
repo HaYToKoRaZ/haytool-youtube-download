@@ -16,11 +16,12 @@ logs/
 *.log
 
 # Otomatik İndirilen Ağır İkili Dosyalar (Açılışta otomatik indirilir)
-yt-dlp
-yt-dlp.exe
+yt-dlp/
 ffmpeg/
 ffmpeg.zip
 ffmpeg_temp/
+bin/
+*.exe
 
 # Geçici Dosyalar ve Geliştirici Dosyaları
 temp_task.txt
