@@ -1,5 +1,3 @@
-# Bağımlılık klasörleri (Dağıtımda kullanıcılar kendileri yükler)
-node_modules/
 
 # Kişisel Ayar Dosyaları (Kullanıcının özel yollarını ve portlarını içerir)
 config.ini
@@ -20,8 +18,6 @@ yt-dlp/
 ffmpeg/
 ffmpeg.zip
 ffmpeg_temp/
-bin/
-*.exe
 
 # Geçici Dosyalar ve Geliştirici Dosyaları
 temp_task.txt

@@ -232,7 +232,7 @@ const defaultDb = {
     isPaused: false, // İndirme kuyruğunun duraklatılma durumu
     showNotifications: true, // Windows masaüstü bildirimlerinin gösterilme durumu
     autoOpenBrowser: true, // Başlangıçta tarayıcıda localhost sayfasını otomatik açma durumu
-    historyLimitPerChannel: 20 // Kanal başına gösterilecek geçmiş video sınırı
+    historyLimitPerChannel: 30 // Kanal başına gösterilecek geçmiş video sınırı
   }
 };
 
@@ -1946,25 +1946,6 @@ let clients = [];
  */
 function broadcast(event, data) {
   let dataToSend = data;
-  if (event === 'db_update' && data && data.history) {
-    const limit = data.settings ? (data.settings.historyLimitPerChannel || 20) : 20;
-    const limitedHistory = [];
-    const channelHistoryCounts = {};
-    for (const item of data.history) {
-      const channelId = item.channelId || 'manual';
-      if (!channelHistoryCounts[channelId]) {
-        channelHistoryCounts[channelId] = 0;
-      }
-      if (channelHistoryCounts[channelId] < limit) {
-        limitedHistory.push(item);
-        channelHistoryCounts[channelId]++;
-      }
-    }
-    dataToSend = {
-      ...data,
-      history: limitedHistory
-    };
-  }
   clients.forEach(client => {
     client.write(`event: ${event}\ndata: ${JSON.stringify(dataToSend)}\n\n`);
   });
@@ -3064,25 +3045,7 @@ app.get('/api/events', (req, res) => {
 
 // Veritabanını getir
 app.get('/api/db', (req, res) => {
-  const db = readDb();
-  const limit = db.settings.historyLimitPerChannel || 20;
-  const limitedHistory = [];
-  const channelHistoryCounts = {};
-  for (const item of db.history) {
-    const channelId = item.channelId || 'manual';
-    if (!channelHistoryCounts[channelId]) {
-      channelHistoryCounts[channelId] = 0;
-    }
-    if (channelHistoryCounts[channelId] < limit) {
-      limitedHistory.push(item);
-      channelHistoryCounts[channelId]++;
-    }
-  }
-  const responseDb = {
-    ...db,
-    history: limitedHistory
-  };
-  res.json(responseDb);
+  res.json(readDb());
 });
 
 // Çerez Test Etme Rotası

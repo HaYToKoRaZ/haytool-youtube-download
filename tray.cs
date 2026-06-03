@@ -19,6 +19,7 @@ namespace HaYTooLTray
         private Form logForm;
         private TextBox logTextBox;
         private object bufferLock = new object();
+        private Form syncForm;
 
         // Dil senkronizasyonu için sınıf düzeyinde menü öğeleri
         private MenuItem openUiItem;
@@ -157,6 +158,10 @@ namespace HaYTooLTray
         // Türkçe Açıklama: Sistem Tepsisi (Tray) uygulamasını başlatır, simgeyi ve sağ tık menüsünü hazırlar.
         public Program()
         {
+            // Güvenli asenkron UI çağrıları için senkronizasyon formunu hazırla
+            syncForm = new Form();
+            IntPtr forcedHandle = syncForm.Handle; // Handle oluşturulmasını zorunlu kıl
+
             // Logs dizinini oluştur
             if (!Directory.Exists("logs"))
             {
@@ -480,7 +485,12 @@ namespace HaYTooLTray
                         if (e.Data.StartsWith("[TRAY_CMD] lang="))
                         {
                             string newLang = e.Data.Substring("[TRAY_CMD] lang=".Length).Trim();
-                            ApplyLanguage(newLang);
+                            if (syncForm != null && syncForm.IsHandleCreated)
+                            {
+                                syncForm.BeginInvoke(new Action(() => {
+                                    ApplyLanguage(newLang);
+                                }));
+                            }
                         }
                         else
                         {
@@ -741,6 +751,10 @@ namespace HaYTooLTray
             {
                 trayIcon.Visible = false;
                 trayIcon.Dispose();
+            }
+            if (syncForm != null)
+            {
+                syncForm.Dispose();
             }
         }
 

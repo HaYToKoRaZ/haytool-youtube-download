@@ -437,13 +437,7 @@
                     </div>
                     <div class="form-group">
                       <label id="label-history-limit" for="settings-history-limit">Kanal Başına Geçmiş Videosu Sınırı</label>
-                      <select id="settings-history-limit">
-                        <option value="10" id="opt-limit-10">10 Video</option>
-                        <option value="20" id="opt-limit-20" selected>20 Video (Önerilen)</option>
-                        <option value="50" id="opt-limit-50">50 Video</option>
-                        <option value="100" id="opt-limit-100">100 Video</option>
-                        <option value="200" id="opt-limit-200">200 Video</option>
-                      </select>
+                      <input type="number" id="settings-history-limit" min="1" max="10000" required style="width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff;">
                       <small id="desc-history-limit" class="form-text">Kütüphanede kanal başına listelenecek maksimum video limiti (Arayüz performansını artırır).</small>
                     </div>
                   </div>

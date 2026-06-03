@@ -2033,6 +2033,22 @@ function updateUI(db) {
       const dateB = new Date(b.publishedAt || b.downloadedAt || 0).getTime();
       return dateB - dateA;
     });
+
+    // Kanal başına geçmiş limiti sadece Kütüphane sayfasında uygula
+    const limit = db.settings.historyLimitPerChannel || 30;
+    const limitedHistory = [];
+    const channelCounts = {};
+    for (const item of filteredHistory) {
+      const channelId = item.channelId || 'manual';
+      if (!channelCounts[channelId]) {
+        channelCounts[channelId] = 0;
+      }
+      if (channelCounts[channelId] < limit) {
+        limitedHistory.push(item);
+        channelCounts[channelId]++;
+      }
+    }
+    filteredHistory = limitedHistory;
     
     renderVideoGrid(historyGrid, filteredHistory, historyViewMode);
   }
