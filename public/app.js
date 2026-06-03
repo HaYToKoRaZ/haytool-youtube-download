@@ -2118,7 +2118,7 @@ function updateUI(db) {
     if (settingsPort && document.activeElement !== settingsPort) settingsPort.value = db.settings.port || 3000;
 
     const settingsHistoryLimit = document.getElementById('settings-history-limit');
-    if (settingsHistoryLimit && document.activeElement !== settingsHistoryLimit) settingsHistoryLimit.value = db.settings.historyLimitPerChannel || 20;
+    if (settingsHistoryLimit && document.activeElement !== settingsHistoryLimit) settingsHistoryLimit.value = db.settings.historyLimitPerChannel || 30;
 
     const settingsPlaySounds = document.getElementById('settings-playsounds');
     if (settingsPlaySounds && document.activeElement !== settingsPlaySounds) settingsPlaySounds.checked = db.settings.playSounds !== false;
@@ -2465,7 +2465,7 @@ async function performAutoSave() {
     showNotifications: document.getElementById('settings-shownotifications').checked,
     autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
     lang: document.getElementById('settings-lang').value,
-    historyLimitPerChannel: parseInt(document.getElementById('settings-history-limit').value, 10) || 20
+    historyLimitPerChannel: parseInt(document.getElementById('settings-history-limit').value, 10) || 30
   };
 
   const oldPort = localDb.settings.port || 3000;
