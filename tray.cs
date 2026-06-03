@@ -34,6 +34,7 @@ namespace HaYTooLTray
         private MenuItem bootItem;
         private MenuItem restartItem;
         private MenuItem showConsoleItem;
+        private MenuItem openLogFolderItem;
         private MenuItem exitItem;
 
         [System.Runtime.InteropServices.DllImport("kernel32.dll")]
@@ -194,7 +195,7 @@ namespace HaYTooLTray
 
             // Sınıf düzeyindeki menü elemanlarını oluştur
             openUiItem = new MenuItem("Arayüzü Aç", OpenWebPage);
-            pasteDownloadItem = new MenuItem("Panodan İndir (Paste & Download)", PasteAndDownload);
+            pasteDownloadItem = new MenuItem("Panodan İndir", PasteAndDownload);
 
             shortcutsMenu = new MenuItem("Sekmelere Git");
             libraryShortcut = new MenuItem("Kütüphane", (s, e) => OpenUrl("/home"));
@@ -221,6 +222,7 @@ namespace HaYTooLTray
 
             restartItem = new MenuItem("Yeniden Başlat", RestartNode);
             showConsoleItem = new MenuItem("Konsol Çıktısını Göster", ShowConsoleWindow);
+            openLogFolderItem = new MenuItem("Log Klasörünü Aç", OpenLogFolder);
             exitItem = new MenuItem("Çıkış", ExitApp);
 
             // Sağ tık menüsünü oluştur
@@ -233,6 +235,7 @@ namespace HaYTooLTray
             contextMenu.MenuItems.Add("-"); // Ayırıcı çizgi
             contextMenu.MenuItems.Add(restartItem);
             contextMenu.MenuItems.Add(showConsoleItem);
+            contextMenu.MenuItems.Add(openLogFolderItem);
             contextMenu.MenuItems.Add("-"); // Ayırıcı çizgi
             contextMenu.MenuItems.Add(exitItem);
 
@@ -730,6 +733,23 @@ namespace HaYTooLTray
             logForm.Show();
         }
 
+        private void OpenLogFolder(object sender, EventArgs e)
+        {
+            try
+            {
+                string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                if (!Directory.Exists(logPath))
+                {
+                    Directory.CreateDirectory(logPath);
+                }
+                Process.Start("explorer.exe", "\"" + logPath + "\"");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Log klasörü açılamadı: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         // Türkçe Açıklama: Arka planda çalışan Node.js alt sürecini sonlandırır.
         private void KillNode()
         {
@@ -820,6 +840,7 @@ namespace HaYTooLTray
                 bootItem.Text = "Run on System Startup";
                 restartItem.Text = "Restart Server";
                 showConsoleItem.Text = "Show Console Output";
+                openLogFolderItem.Text = "Open Log Folder";
                 exitItem.Text = "Exit";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
@@ -837,6 +858,7 @@ namespace HaYTooLTray
                 bootItem.Text = "Ejecutar al Inicio del Sistema";
                 restartItem.Text = "Reiniciar Servidor";
                 showConsoleItem.Text = "Mostrar Salida de Consola";
+                openLogFolderItem.Text = "Abrir carpeta de logs";
                 exitItem.Text = "Salir";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
@@ -854,6 +876,7 @@ namespace HaYTooLTray
                 bootItem.Text = "Beim Systemstart ausführen";
                 restartItem.Text = "Server neu starten";
                 showConsoleItem.Text = "Konsolenausgabe anzeigen";
+                openLogFolderItem.Text = "Log-Ordner öffnen";
                 exitItem.Text = "Beenden";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
@@ -871,6 +894,7 @@ namespace HaYTooLTray
                 bootItem.Text = "Executar na Inicialização do Sistema";
                 restartItem.Text = "Reiniciar Servidor";
                 showConsoleItem.Text = "Mostrar Saída do Console";
+                openLogFolderItem.Text = "Abrir pasta de logs";
                 exitItem.Text = "Sair";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
@@ -888,6 +912,7 @@ namespace HaYTooLTray
                 bootItem.Text = "التشغيل عند بدء تشغيل النظام";
                 restartItem.Text = "إعادة تشغيل الخادم";
                 showConsoleItem.Text = "عرض مخرجات وحدة التحكم";
+                openLogFolderItem.Text = "فتح مجلد السجلات";
                 exitItem.Text = "خروج";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
@@ -905,13 +930,14 @@ namespace HaYTooLTray
                 bootItem.Text = "Запускать при старте системы";
                 restartItem.Text = "Перезапустить сервер";
                 showConsoleItem.Text = "Показать вывод консоли";
+                openLogFolderItem.Text = "Открыть папку с логами";
                 exitItem.Text = "Выход";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
             else // Varsayılan Türkçe (tr)
             {
                 openUiItem.Text = "Arayüzü Aç";
-                pasteDownloadItem.Text = "Panodan İndir (Paste & Download)";
+                pasteDownloadItem.Text = "Panodan İndir";
                 shortcutsMenu.Text = "Sekmelere Git";
                 libraryShortcut.Text = "Kütüphane";
                 queueShortcut.Text = "İndirme Sırası";
@@ -922,6 +948,7 @@ namespace HaYTooLTray
                 bootItem.Text = "Sistem Başlangıcında Çalıştır";
                 restartItem.Text = "Yeniden Başlat";
                 showConsoleItem.Text = "Konsol Çıktısını Göster";
+                openLogFolderItem.Text = "Log Klasörünü Aç";
                 exitItem.Text = "Çıkış";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }

@@ -2289,7 +2289,10 @@ function updateUI(db) {
     if (settingsAutoOpenBrowser && document.activeElement !== settingsAutoOpenBrowser) settingsAutoOpenBrowser.checked = db.settings.autoOpenBrowser !== false;
 
     const settingsLang = document.getElementById('settings-lang');
-    if (settingsLang && document.activeElement !== settingsLang) settingsLang.value = db.settings.lang || 'tr';
+    if (settingsLang && document.activeElement !== settingsLang) {
+      settingsLang.value = db.settings.lang || 'tr';
+      setCustomSelectValue(db.settings.lang || 'tr');
+    }
 
     const settingsPlayerType = document.getElementById('settings-player-type');
     if (settingsPlayerType && document.activeElement !== settingsPlayerType) settingsPlayerType.value = db.settings.playerType || 'plyr';
@@ -4085,6 +4088,68 @@ async function importChannels(event) {
   reader.readAsText(file);
 }
 
+// Custom Select Dropdown with Flags (Windows Compatibility)
+function initCustomSelect() {
+  const trigger = document.getElementById('lang-select-trigger');
+  const optionsContainer = document.getElementById('lang-custom-options');
+  const hiddenInput = document.getElementById('settings-lang');
+  const selectedFlag = document.getElementById('selected-lang-flag');
+  const selectedText = document.getElementById('selected-lang-text');
+
+  if (!trigger || !optionsContainer || !hiddenInput) return;
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    optionsContainer.classList.toggle('open');
+  });
+
+  document.addEventListener('click', () => {
+    optionsContainer.classList.remove('open');
+  });
+
+  const options = optionsContainer.querySelectorAll('.custom-option');
+  options.forEach(opt => {
+    opt.addEventListener('click', () => {
+      const val = opt.getAttribute('data-value');
+      hiddenInput.value = val;
+      
+      // Update trigger UI
+      selectedFlag.src = opt.querySelector('img').src;
+      selectedText.innerText = opt.querySelector('span').innerText;
+
+      // Update active option class
+      options.forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+
+      // Close options
+      optionsContainer.classList.remove('open');
+
+      // Trigger auto save
+      performAutoSave();
+    });
+  });
+}
+
+function setCustomSelectValue(val) {
+  const hiddenInput = document.getElementById('settings-lang');
+  const selectedFlag = document.getElementById('selected-lang-flag');
+  const selectedText = document.getElementById('selected-lang-text');
+  const optionsContainer = document.getElementById('lang-custom-options');
+  if (!hiddenInput || !selectedFlag || !selectedText || !optionsContainer) return;
+
+  hiddenInput.value = val;
+
+  const opt = optionsContainer.querySelector(`.custom-option[data-value="${val}"]`);
+  if (opt) {
+    selectedFlag.src = opt.querySelector('img').src;
+    selectedText.innerText = opt.querySelector('span').innerText;
+    
+    const options = optionsContainer.querySelectorAll('.custom-option');
+    options.forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+  }
+}
+
 // Global scope'a bağla
 window.exportChannels = exportChannels;
 window.triggerImportFile = triggerImportFile;
@@ -4092,6 +4157,7 @@ window.importChannels = importChannels;
 
 // Başlangıç
 connectSSE();
+initCustomSelect();
 updateDiskSpace();
 setInterval(updateDiskSpace, 60 * 60 * 1000); // Her 60 dakikada bir güncelle
 

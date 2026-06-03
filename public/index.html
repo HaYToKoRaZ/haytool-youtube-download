@@ -32,7 +32,7 @@
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
         <div class="brand-text">
-          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.11.0</a></span></h1>
+          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.11.1</a></span></h1>
         </div>
       </div>
 
@@ -336,7 +336,7 @@
             <h2>Ayarlar</h2>
             <p id="settings-desc">Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
           </div>
-          <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.11.0</a></strong></span>
+          <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.11.1</a></strong></span>
         </header>
 
         <div class="card card-settings" style="max-width: 1000px;">
@@ -388,16 +388,45 @@
                   
                   <div class="form-grid">
                     <div class="form-group">
-                      <label for="settings-lang" id="label-lang">Uygulama Dili / App Language</label>
-                      <select id="settings-lang">
-                        <option value="tr">🇹🇷 Türkçe (TR)</option>
-                        <option value="en">🇬🇧 English (EN)</option>
-                        <option value="es">🇪🇸 Español (ES)</option>
-                        <option value="de">🇩🇪 Deutsch (DE)</option>
-                        <option value="pt">🇵🇹 Português (PT)</option>
-                        <option value="ar">🇸🇦 العربية (AR)</option>
-                        <option value="ru">🇷🇺 Русский (RU)</option>
-                      </select>
+                      <label id="label-lang">Uygulama Dili / App Language</label>
+                      <div class="custom-select" id="lang-custom-select">
+                        <div class="custom-select-trigger" id="lang-select-trigger">
+                          <img src="flags/tr.png" class="flag-icon" id="selected-lang-flag">
+                          <span id="selected-lang-text">Türkçe (TR)</span>
+                          <i data-lucide="chevron-down" style="width:14px; height:14px; margin-left: auto;"></i>
+                        </div>
+                        <div class="custom-options" id="lang-custom-options">
+                          <div class="custom-option" data-value="tr">
+                            <img src="flags/tr.png" class="flag-icon">
+                            <span>Türkçe (TR)</span>
+                          </div>
+                          <div class="custom-option" data-value="en">
+                            <img src="flags/gb.png" class="flag-icon">
+                            <span>English (EN)</span>
+                          </div>
+                          <div class="custom-option" data-value="es">
+                            <img src="flags/es.png" class="flag-icon">
+                            <span>Español (ES)</span>
+                          </div>
+                          <div class="custom-option" data-value="de">
+                            <img src="flags/de.png" class="flag-icon">
+                            <span>Deutsch (DE)</span>
+                          </div>
+                          <div class="custom-option" data-value="pt">
+                            <img src="flags/pt.png" class="flag-icon">
+                            <span>Português (PT)</span>
+                          </div>
+                          <div class="custom-option" data-value="ar">
+                            <img src="flags/sa.png" class="flag-icon">
+                            <span>العربية (AR)</span>
+                          </div>
+                          <div class="custom-option" data-value="ru">
+                            <img src="flags/ru.png" class="flag-icon">
+                            <span>Русский (RU)</span>
+                          </div>
+                        </div>
+                      </div>
+                      <input type="hidden" id="settings-lang" value="tr">
                       <small class="form-text" id="desc-lang">Arayüz dilini ve video başlıklarının indirileceği dili seçin.</small>
                     </div>
                     <div class="form-group">

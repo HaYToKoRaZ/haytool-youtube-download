@@ -4,6 +4,14 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 
 ---
 
+## [4.11.1] - 2026-06-03
+
+### Düzeltilen Hatalar & İyileştirmeler
+- **C# Sağ Tık Menüsü Güncellemeleri:** Sağ tık menüsüne "Log Klasörünü Aç" ("Open Log Folder") seçeneği eklendi. Türkçe arayüzdeki "Panodan İndir (Paste & Download)" seçeneği "Panodan İndir" olarak sadeleştirildi. Tüm diller için sağ tık çevirileri entegre edildi.
+- **İngilizce Konsol Çıktıları:** Sunucu konsolundaki logların ve hata mesajlarının tamamı global standartlara uygun olacak şekilde İngilizce'ye çevrildi.
+- **Yerel Bayrak İkonları:** Dil seçenekleri menüsündeki bayrakların çevrimdışı (offline) modda da sorunsuz gözükmesi için flagcdn CDN yerine yerel olarak sunulan görsel dosyaları (`public/flags/`) entegre edildi.
+- **Hata Düzeltmeleri:** CLI yardım çıktısı yazdırılırken oluşan SyntaxError giderildi.
+
 ## [4.11.0] - 2026-06-03
 
 ### Yeni Özellikler & İyileştirmeler

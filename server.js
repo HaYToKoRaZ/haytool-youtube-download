@@ -98,40 +98,40 @@ console.log = function(...args) {
   const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
   
   let color = '\x1b[37m'; // White
-  let prefix = '[SİSTEM]';
+  let prefix = '[SYSTEM]';
   
   const upperMsg = msg.toUpperCase();
   
-  if (upperMsg.includes('[RSS]') || upperMsg.includes('RSS ALINAMADI') || upperMsg.includes('SI RADAKİ KANAL') || upperMsg.includes('FEED')) {
+  if (upperMsg.includes('[RSS]') || upperMsg.includes('RSS FAILED') || upperMsg.includes('NEXT CHANNEL') || upperMsg.includes('FEED')) {
     color = '\x1b[94m'; // Bright Blue
     prefix = '[RSS]';
-  } else if (upperMsg.includes('[KUYRUK]') || upperMsg.includes('KUYRUK DURAKLATILDI') || upperMsg.includes('KUYRUK DEVAM ETTİRİLDİ')) {
+  } else if (upperMsg.includes('[QUEUE]') || upperMsg.includes('QUEUE PAUSED') || upperMsg.includes('QUEUE RESUMED')) {
     color = '\x1b[34m'; // Standard Blue
-    prefix = '[KUYRUK]';
-  } else if (upperMsg.includes('İNDİRME BAŞLATILIYOR') || upperMsg.includes('KOMUT: YT-DLP')) {
+    prefix = '[QUEUE]';
+  } else if (upperMsg.includes('STARTING DOWNLOAD') || upperMsg.includes('COMMAND: YT-DLP')) {
     color = '\x1b[96m'; // Bright Cyan
-    prefix = '[İNDİRME]';
-  } else if (upperMsg.includes('[AYAR]') || upperMsg.includes('[SYNC]') || upperMsg.includes('[MIGRATION]') || upperMsg.includes('[READDB]') || upperMsg.includes('CONFIG.INI') || upperMsg.includes('VERİTABAN') || upperMsg.includes('AYARLAR') || upperMsg.includes('HIZ SINIRI DEĞİŞTİ') || upperMsg.includes('KLASÖR SİMGESİ') || upperMsg.includes('DOSYASI BAŞARIYLA OLUŞTURULDU')) {
+    prefix = '[DOWNLOAD]';
+  } else if (upperMsg.includes('[SETTINGS]') || upperMsg.includes('[SYNC]') || upperMsg.includes('[MIGRATION]') || upperMsg.includes('[READDB]') || upperMsg.includes('CONFIG') || upperMsg.includes('DATABASE') || upperMsg.includes('SETTINGS') || upperMsg.includes('SPEED LIMIT CHANGED') || upperMsg.includes('FOLDER ICON') || upperMsg.includes('SUCCESSFULLY CREATED')) {
     color = '\x1b[95m'; // Bright Magenta
-    prefix = '[AYARLAR]';
-  } else if (upperMsg.includes('İNDİRME TAMAMLANDI') || upperMsg.includes('TAMAMLANDI') || upperMsg.includes('BAŞARIYLA OLUŞTURULDU') || upperMsg.includes('BAŞARIYLA KURULDU') || upperMsg.includes('BAŞARIYLA GÜNCELLE') || upperMsg.includes('BAŞARIYLA TAŞINDI') || upperMsg.includes('BAŞARIYLA ÇÖZÜMLENDİ')) {
+    prefix = '[SETTINGS]';
+  } else if (upperMsg.includes('DOWNLOAD COMPLETED') || upperMsg.includes('COMPLETED') || upperMsg.includes('SUCCESSFULLY CREATED') || upperMsg.includes('SUCCESSFULLY INSTALLED') || upperMsg.includes('SUCCESSFULLY UPDATED') || upperMsg.includes('SUCCESSFULLY MOVED') || upperMsg.includes('SUCCESSFULLY RESOLVED')) {
     color = '\x1b[92m'; // Bright Green
-    prefix = '[BAŞARILI]';
-  } else if (upperMsg.includes('SUNUCU') || upperMsg.includes('LISTEN') || upperMsg.includes('PORT') || upperMsg.includes('API')) {
+    prefix = '[SUCCESS]';
+  } else if (upperMsg.includes('SERVER') || upperMsg.includes('LISTEN') || upperMsg.includes('PORT') || upperMsg.includes('API')) {
     color = '\x1b[36m'; // Standard Cyan
-    prefix = '[SUNUCU]';
-  } else if (upperMsg.includes('UYARI') || upperMsg.includes('WARNING') || upperMsg.includes('DURAKLATILDI') || upperMsg.includes('PAUSED') || upperMsg.includes('KİLİTLİ') || upperMsg.includes('ZATEN MEVCUT')) {
+    prefix = '[SERVER]';
+  } else if (upperMsg.includes('WARNING') || upperMsg.includes('PAUSED') || upperMsg.includes('LOCKED') || upperMsg.includes('ALREADY EXISTS')) {
     color = '\x1b[93m'; // Bright Yellow
-    prefix = '[UYARI]';
-  } else if (upperMsg.includes('HATA') || upperMsg.includes('FAIL') || upperMsg.includes('ERROR') || upperMsg.includes('BAŞARISIZ') || upperMsg.includes('İPTAL')) {
+    prefix = '[WARNING]';
+  } else if (upperMsg.includes('ERROR') || upperMsg.includes('FAIL') || upperMsg.includes('FAILED') || upperMsg.includes('CANCEL')) {
     color = '\x1b[91m'; // Bright Red
-    prefix = '[HATA]';
+    prefix = '[ERROR]';
   } else if (upperMsg.includes('[YT-DLP]')) {
     color = '\x1b[90m'; // Bright Black / Gray
     prefix = '[YT-DLP]';
-  } else if (upperMsg.includes('EKSİK BİLGİLER ÇÖZÜMLENİYOR') || upperMsg.includes('ÇÖZÜMLENECEK ADRES') || upperMsg.includes('VİDEO URL\'Sİ TESPİT EDİLDİ') || upperMsg.includes('FETCHVIDEODURATION') || upperMsg.includes('SHORT VIDEO DETECTED') || upperMsg.includes('UPCOMING VIDEO DETECTED') || upperMsg.includes('LIVE VIDEO DETECTED')) {
+  } else if (upperMsg.includes('RESOLVING MISSING INFO') || upperMsg.includes('ADDRESS TO RESOLVE') || upperMsg.includes('VIDEO URL DETECTED') || upperMsg.includes('FETCHVIDEODURATION') || upperMsg.includes('SHORT VIDEO DETECTED') || upperMsg.includes('UPCOMING VIDEO DETECTED') || upperMsg.includes('LIVE VIDEO DETECTED')) {
     color = '\x1b[35m'; // Standard Magenta / Purple
-    prefix = '[ANALİZ]';
+    prefix = '[ANALYSIS]';
   }
   
   // Eğer temizlenmiş mesaj zaten bu prefix'i içeriyorsa çift yazılmaması için temizliyoruz
@@ -155,8 +155,8 @@ console.error = function(...args) {
   const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
   const msg = args.map(formatArg).join(' ');
   
-  originalError(`\x1b[90m[${timeStr}]\x1b[0m \x1b[91m[HATA] ${msg}\x1b[0m`);
-  writeToLogFile(`[${timestamp}] [HATA] ${msg}`);
+  originalError(`\x1b[90m[${timeStr}]\x1b[0m \x1b[91m[ERROR] ${msg}\x1b[0m`);
+  writeToLogFile(`[${timestamp}] [ERROR] ${msg}`);
 };
 
 const app = express();
@@ -383,7 +383,7 @@ function convertPngToIco(pngPath, icoPath) {
     pngBuffer.copy(icoBuffer, 22);
     
     fs.writeFileSync(icoPath, icoBuffer);
-    console.log('icon.ico dosyası başarıyla oluşturuldu.');
+    console.log('icon.ico file created successfully.');
   } catch (err) {
     console.error('icon.ico oluşturulurken hata oluştu:', err.message);
   }
@@ -421,7 +421,7 @@ function downloadChannelAvatar(url, channelName) {
       res.pipe(fileStream);
       fileStream.on('finish', () => {
         fileStream.close();
-        console.log(`[AYAR] Kanal logosu indirildi: ${channelName} -> avatar.jpg`);
+        console.log(`[SETTING] Channel logo downloaded: ${channelName} -> avatar.jpg`);
         
         // Kanal klasörü için klasör ikonu ayarlama işlevini tetikle
         setFolderIcon(channelDir, destPath);
@@ -493,7 +493,7 @@ function setFolderIcon(folderPath, imagePath) {
     execSync(`attrib +h +s "${iniPath}"`);
     execSync(`attrib +h "${icoPath}"`);
     
-    console.log(`[AYAR] Klasör simgesi başarıyla güncellendi: ${folderPath}`);
+    console.log(`[SETTING] Folder icon successfully updated: ${folderPath}`);
   } catch (err) {
     console.error('Klasör simgesi ayarlanırken hata oluştu:', err.message);
   }
@@ -517,10 +517,10 @@ function syncWithIni(db) {
   // Eski tekil config.ini dosyasından yeni işletim sistemine özel yapılandırmaya göç
   const oldConfigIniPath = path.join(__dirname, 'config.ini');
   if (fs.existsSync(oldConfigIniPath) && !fs.existsSync(configIniPath)) {
-    console.log(`[Migration] Eski config.ini tespit edildi, ${configIniName} dosyasına taşınıyor...`);
+    console.log(`[Migration] Old config.ini detected, moving to ${configIniName}...`);
     try {
       fs.renameSync(oldConfigIniPath, configIniPath);
-      console.log(`[Migration] config.ini başarıyla ${configIniName} olarak yeniden adlandırıldı.`);
+      console.log(`[Migration] config.ini renamed to ${configIniName} successfully.`);
     } catch (e) {
       console.error('[Migration] Eski config.ini taşınırken hata oluştu:', e.message);
     }
@@ -531,13 +531,13 @@ function syncWithIni(db) {
   let migratedSettings = null;
   let migratedChannels = null;
   if (fs.existsSync(configIniTypoPath)) {
-    console.log('[Migration] Hatalı isimlendirilmiş config.inilş tespit edildi. Göç işlemi başlatılıyor...');
+    console.log('[Migration] Invalid named config.inilş detected. Migration starting...');
     try {
       const typoData = parseIni(configIniTypoPath);
       migratedSettings = getCaseInsensitiveKey(typoData, 'Settings');
       migratedChannels = getCaseInsensitiveKey(typoData, 'Channels');
       fs.unlinkSync(configIniTypoPath); // Göç sonrası sil
-      console.log('[Migration] config.inilş başarıyla taşındı ve silindi.');
+      console.log('[Migration] config.inilş successfully moved and deleted.');
     } catch (e) {
       console.error('[Migration] Hata:', e.message);
     }
@@ -545,7 +545,7 @@ function syncWithIni(db) {
 
   // 1. config.ini (Ayarlar) Eşitlemesi
   if (!fs.existsSync(configIniPath)) {
-    console.log(`[Sync] ${configIniName} bulunamadı. Mevcut ayarlarla oluşturuluyor.`);
+    console.log(`[Sync] ${configIniName} not found. Creating with current settings.`);
     saveSettingsToIni(db);
   } else {
     const iniData = parseIni(configIniPath);
@@ -725,7 +725,7 @@ function syncWithIni(db) {
 
   // Göç edilen verileri hemen diske ve yeni INI dosyalarına yaz
   if (migratedSettings || migratedChannels) {
-    console.log('[Migration] Göç edilen veriler veritabanına kaydediliyor...');
+    console.log('[Migration] Migrated data is being saved to the database...');
     writeDb(db);
   }
 }
@@ -880,7 +880,7 @@ function syncDbWithDisk() {
               item.filePath = foundPath;
               exists = true;
               dbUpdated = true;
-              console.log(`[Disk Sync] Video dosyası yeni konumda tespit edildi: ${item.title} -> ${foundPath}`);
+              console.log(`[Disk Sync] Video file detected in new location: ${item.title} -> ${foundPath}`);
             }
           }
           if (exists) {
@@ -908,7 +908,7 @@ function syncDbWithDisk() {
             if (!item.fileMissing) {
               item.fileMissing = true;
               dbUpdated = true;
-              console.log(`[Disk Sync] Video dosyası diskte bulunamadı: ${item.title}`);
+              console.log(`[Disk Sync] Video file not found on disk: ${item.title}`);
             }
           }
         } else if (item.status === 'ignored' || item.status === 'failed') {
@@ -918,7 +918,7 @@ function syncDbWithDisk() {
             item.filePath = foundPath;
             item.fileMissing = false;
             dbUpdated = true;
-            console.log(`[Disk Sync] Ignored/Failed video diskte bulundu, 'completed' olarak geri yüklendi: ${item.title} -> ${foundPath}`);
+            console.log(`[Disk Sync] Ignored/Failed video found on disk, restored as 'completed': ${item.title} -> ${foundPath}`);
             
             try {
               const stats = fs.statSync(foundPath);
@@ -978,12 +978,12 @@ if (process.argv.length > 2) {
   if (turtleOnCmds.includes(cliCmd)) {
     db.settings.useAlternativeSpeed = true;
     writeDb(db);
-    console.log(`Alternatif hiz siniri (Turtle) ETKINLESTIRILDI. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+    console.log(`Alternative speed limit (Turtle) ENABLED. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
     process.exit(0);
   } else if (turtleOffCmds.includes(cliCmd)) {
     db.settings.useAlternativeSpeed = false;
     writeDb(db);
-    console.log(`Alternatif hiz siniri (Turtle) DEVRE DISI BIRAKILDI. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+    console.log(`Alternative speed limit (Turtle) DISABLED. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
     process.exit(0);
   } else if (cliCmd === 'speed' || cliCmd === 'limit') {
     if (cliVal === 'off' || cliVal === 'kapat' || cliVal === '0') {
@@ -994,16 +994,16 @@ if (process.argv.length > 2) {
       db.settings.downloadSpeedLimit = 0;
       db.settings.useAlternativeSpeed = false;
       writeDb(db);
-      console.log('Hiz siniri kapatildi (Sinirsiz).');
+      console.log('Speed limit turned off (Unlimited).');
     } else if (cliVal === 'on' || cliVal === 'ac') {
       const targetLimit = db.settings.lastNonZeroSpeedLimit || 1000;
       db.settings.downloadSpeedLimit = targetLimit;
       writeDb(db);
-      console.log(`Hiz siniri acildi: ${targetLimit} KB/s.`);
+      console.log(`Speed limit turned on: ${targetLimit} KB/s.`);
     } else if (cliVal === 'toggle') {
       db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
       writeDb(db);
-      console.log(`Alternatif hiz siniri ${db.settings.useAlternativeSpeed ? 'aktif' : 'pasif'} edildi. Etkin limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+      console.log(`Alternative speed limit ${db.settings.useAlternativeSpeed ? 'activated' : 'deactivated'}. Effective limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
     } else {
       const val = parseInt(cliVal, 10);
       if (!isNaN(val) && val >= 0) {
@@ -1012,9 +1012,9 @@ if (process.argv.length > 2) {
           db.settings.lastNonZeroSpeedLimit = val;
         }
         writeDb(db);
-        console.log(`Hiz siniri ${val} KB/s olarak belirlendi.`);
+        console.log(`Speed limit set to ${val} KB/s.`);
       } else {
-        console.error('Hata: Gecersiz hiz degeri. Ornek: haytool speed 1500');
+        console.error('Error: Invalid speed value. Example: haytool speed 1500');
         process.exit(1);
       }
     }
@@ -1023,23 +1023,23 @@ if (process.argv.length > 2) {
     if (cliVal === 'on' || cliVal === 'ac' || cliVal === '1') {
       db.settings.useAlternativeSpeed = true;
       writeDb(db);
-      console.log(`Alternatif hiz siniri (Turtle) ETKINLESTIRILDI. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+      console.log(`Alternative speed limit (Turtle) ENABLED. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
     } else if (cliVal === 'off' || cliVal === 'kapat' || cliVal === '0') {
       db.settings.useAlternativeSpeed = false;
       writeDb(db);
-      console.log(`Alternatif hiz siniri (Turtle) DEVRE DISI BIRAKILDI. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+      console.log(`Alternative speed limit (Turtle) DISABLED. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
     } else if (cliVal === 'toggle') {
       db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
       writeDb(db);
-      console.log(`Alternatif hiz siniri (Turtle) ${db.settings.useAlternativeSpeed ? 'aktif' : 'pasif'} edildi. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+      console.log(`Alternative speed limit (Turtle) ${db.settings.useAlternativeSpeed ? 'activated' : 'deactivated'}. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
     } else {
       const val = parseInt(cliVal, 10);
       if (!isNaN(val) && val >= 0) {
         db.settings.alternativeSpeedLimit = val;
         writeDb(db);
-        console.log(`Alternatif hiz siniri ${val} KB/s olarak belirlendi.`);
+        console.log(`Alternative speed limit set to ${val} KB/s.`);
       } else {
-        console.error('Hata: Gecersiz deger. Ornek: haytool altspeed 500, haytool altspeed ac, haytool altspeed kapat, haytool turtle ac, haytool turtle kapat');
+        console.error('Error: Invalid value. Example: haytool altspeed 500, haytool altspeed on, haytool altspeed off, haytool turtle on, haytool turtle off');
         process.exit(1);
       }
     }
@@ -1047,33 +1047,33 @@ if (process.argv.length > 2) {
   } else if (cliCmd === 'toggle') {
     db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
     writeDb(db);
-    console.log(`Alternatif hiz siniri ${db.settings.useAlternativeSpeed ? 'aktif' : 'pasif'} edildi. Etkin limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
+    console.log(`Alternative speed limit ${db.settings.useAlternativeSpeed ? 'activated' : 'deactivated'}. Effective limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
     process.exit(0);
   } else if (cliCmd === 'status') {
     const effective = getEffectiveSpeedLimit(db.settings);
-    const altStatus = db.settings.useAlternativeSpeed ? 'Aktif' : 'Pasif';
-    console.log(`Durum:
-- Normal Hiz Siniri: ${db.settings.downloadSpeedLimit} KB/s
-- Alternatif Hiz Siniri: ${db.settings.alternativeSpeedLimit} KB/s
-- Alternatif Hiz (Turtle) Aktif mi: ${altStatus}
-- Etkin Hiz Siniri: ${effective} KB/s`);
+    const altStatus = db.settings.useAlternativeSpeed ? 'Active' : 'Inactive';
+    console.log(`Status:
+- Normal Speed Limit: ${db.settings.downloadSpeedLimit} KB/s
+- Alternative Speed Limit: ${db.settings.alternativeSpeedLimit} KB/s
+- Alternative Speed (Turtle) Active: ${altStatus}
+- Effective Speed Limit: ${effective} KB/s`);
     process.exit(0);
   } else if (cliCmd === 'pd') {
     if (!cliVal) {
-      console.error('Hata: Gecersiz link. Ornek: haytool pd https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      console.error('Error: Invalid link. Example: haytool pd https://www.youtube.com/watch?v=dQw4w9WgXcQ');
       process.exit(1);
     }
 
-    const targetUrl = cliArgs[1]; // Orijinal URL'yi al
+    const targetUrl = cliArgs[1]; // Get original URL
     const youtubeRegex = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([^?&"'>\s]{11})/;
     const match = targetUrl.match(youtubeRegex);
     if (!match) {
-      console.error('Hata: Gecersiz YouTube video linki.');
+      console.error('Error: Invalid YouTube video URL.');
       process.exit(1);
     }
     const videoId = match[1];
 
-    // Aktif sunucuya HTTP POST isteği göndermeyi dene
+    // Try posting to active server
     const postData = JSON.stringify({ url: targetUrl });
     const reqOptions = {
       hostname: 'localhost',
@@ -1093,10 +1093,10 @@ if (process.argv.length > 2) {
         try {
           const resJson = JSON.parse(data);
           if (resJson.success) {
-            console.log(`[Basarili] Video kuyruga başarıyla eklendi (Sunucu aktif). ID: ${videoId}`);
+            console.log(`[Success] Video added to queue successfully (Active Server). ID: ${videoId}`);
             process.exit(0);
           } else {
-            console.error(`Hata: ${resJson.error || 'İndirme tetiklenemedi.'}`);
+            console.error(`Error: ${resJson.error || 'Failed to trigger download.'}`);
             process.exit(1);
           }
         } catch (e) {
@@ -1106,7 +1106,7 @@ if (process.argv.length > 2) {
     });
 
     req.on('error', (e) => {
-      // Sunucu kapalıysa doğrudan veritabanına yaz
+      // Direct write to DB if server is closed
       fallbackWriteToDb(videoId, targetUrl);
     });
 
@@ -1119,38 +1119,51 @@ if (process.argv.length > 2) {
         const alreadyInQueue = localDbData.queue && localDbData.queue.some(item => item.id === vid);
         const alreadyInHistory = localDbData.history && localDbData.history.some(item => item.id === vid);
         if (alreadyInQueue || alreadyInHistory) {
-          console.log(`[Bilgi] Video zaten kuyrukta veya geçmişte mevcut. ID: ${vid}`);
+          console.log(`[Info] Video already in queue or history. ID: ${vid}`);
           process.exit(0);
         }
 
         if (!localDbData.queue) localDbData.queue = [];
         localDbData.queue.push({
           id: vid,
-          title: 'Bilinmeyen Video (CLI)',
+          title: 'Unknown Video (CLI)',
           channelId: 'manual',
-          channelName: 'Manuel İndirme (CLI)',
+          channelName: 'Manual Download (CLI)',
           url: url,
           publishedAt: ''
         });
+        localDbData.history.push({
+          id: vid,
+          title: 'Unknown Video (CLI)',
+          channelId: 'manual',
+          channelName: 'Manual Download (CLI)',
+          url: url,
+          status: 'waiting',
+          progress: 0,
+          speed: '0 KB/s',
+          size: '0 MB',
+          eta: '00:00:00',
+          downloadedAt: new Date().toISOString()
+        });
         writeDb(localDbData);
-        console.log(`[Basarili] Video veritabanına eklendi (Sunucu aktif degil, acildiginda indirilecek). ID: ${vid}`);
+        console.log(`[Success] Video added to database successfully (Server idle, will download on start). ID: ${vid}`);
         process.exit(0);
       } catch (err) {
-        console.error('Hata: Veritabanına yazılamadı:', err.message);
+        console.error('Error: Failed to write to database:', err.message);
         process.exit(1);
       }
     }
   } else {
-    console.log(`Kullanilabilir CLI komutlari (haytool veya HaYTooL YT Downloader.exe):
-  status                               (Durum raporu)
-  pd <video-linki>                     (Video indir - Paste & Download)
-  speed <deger/on/off/ac/kapat/toggle> (Normal hiz ayari)
-  limit <deger/on/off/ac/kapat/toggle> (Normal hiz ayari)
-  altspeed <deger/on/off/ac/kapat/toggle> (Alternatif hiz ayari)
-  turtle <deger/on/off/ac/kapat/toggle>   (Alternatif hiz ayari)
-  turtleon / turtleac / turtle-on      (Alternatif hızı KESİN AÇ)
-  turtleoff / turtlekapat / turtle-off (Alternatif hızı KESİN KAPAT)
-  toggle                               (Alternatif hizi ac/kapat)`);
+    console.log(`Available CLI commands (haytool or HaYTooL YT Downloader.exe):
+  status                               (Status report)
+  pd <video-link>                      (Download video - Paste & Download)
+  speed <val/on/off/toggle>            (Normal speed limit settings)
+  limit <val/on/off/toggle>            (Normal speed limit settings)
+  altspeed <val/on/off/toggle>         (Alternative speed settings)
+  turtle <val/on/off/toggle>           (Alternative speed settings)
+  turtleon                             (Force turtle mode active)
+  turtleoff                            (Force turtle mode inactive)
+  toggle                               (Toggle alternative speed)`);
     process.exit(0);
   }
 }
@@ -1181,7 +1194,7 @@ function ensureYtdlp() {
   return new Promise((resolve, reject) => {
     const filename = os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
     if (fs.existsSync(ytdlpPath)) {
-      console.log(`${filename} zaten mevcut.`);
+      console.log(`${filename} already exists.`);
       return resolve(ytdlpPath);
     }
     const err = new Error(`${filename} bulunamadı! Otomatik indirme iptal edildi. Lütfen yt-dlp/ klasörü altına ${filename} dosyasını ekleyin.`);
@@ -1573,7 +1586,7 @@ async function addVideoToQueueByUrl(urlText) {
   let channelId = '';
 
   try {
-    console.log(`[Manuel İndirme] Video detayları YouTube'dan çekiliyor: ${videoId}`);
+    console.log(`[Manual Download] Fetching video details from YouTube: ${videoId}`);
     const details = await fetchVideoDuration(videoId);
     if (details) {
       if (details.title) title = details.title;
@@ -1581,7 +1594,7 @@ async function addVideoToQueueByUrl(urlText) {
       if (details.channelId) channelId = details.channelId;
     }
   } catch (err) {
-    console.error(`[Manuel İndirme] Detaylar çekilirken hata oluştu:`, err.message);
+    console.error(`[Manual Download] Error fetching details:`, err.message);
   }
 
   downloadQueue.add({
@@ -1613,7 +1626,7 @@ async function resolveMissingDurations() {
     const needsDuration = !item.duration;
     const needsPublishDate = !item.publishedAt;
     if (needsDuration || needsPublishDate) {
-      console.log(`Eksik bilgiler çözümleniyor: ${item.title}`);
+      console.log(`Resolving missing info: ${item.title}`);
       try {
         const result = await fetchVideoDuration(item.id);
         let itemUpdated = false;
@@ -1698,7 +1711,7 @@ function autoDeleteOldVideos() {
           const ageMs = now - fileTime;
 
           if (ageMs > thresholdMs) {
-            console.log(`[Auto-Delete] Video süresi doldu, siliniyor: ${item.title}`);
+            console.log(`[Auto-Delete] Video expired, deleting: ${item.title}`);
             // Dosyayı sil
             fs.unlinkSync(item.filePath);
             
@@ -1758,7 +1771,7 @@ async function resolveChannelId(input) {
       const videoId = videoMatch[1];
       targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
       isVideoUrl = true;
-      console.log(`Video URL'si tespit edildi. Video ID: ${videoId}`);
+      console.log(`Video URL detected. Video ID: ${videoId}`);
     } else if (!decodedInput.startsWith('http')) {
       // Sadece handle girildiyse (örn. @BarisOzcan)
       if (decodedInput.startsWith('@')) {
@@ -1769,7 +1782,7 @@ async function resolveChannelId(input) {
     }
   }
 
-  console.log(`Çözümlenecek adres: ${targetUrl}`);
+  console.log(`URL to resolve: ${targetUrl}`);
   
   return new Promise((resolve, reject) => {
     const db = readDb();
@@ -1849,7 +1862,7 @@ async function resolveChannelId(input) {
           const handleVal = vanityMatch ? vanityMatch[1] : '';
 
           if (channelId && channelName) {
-            console.log(`Başarıyla çözümlendi: Kanal: ${channelName} (ID: ${channelId})`);
+            console.log(`Successfully resolved: Channel: ${channelName} (ID: ${channelId})`);
             resolve({ id: channelId, name: channelName, avatar: avatarUrl, handle: handleVal });
           } else {
             reject(new Error('Kanal ID veya kanal adı tespit edilemedi. Lütfen adresi kontrol edin.'));
@@ -1966,13 +1979,13 @@ class DownloadQueue {
 
   process() {
     if (this.isPaused) {
-      console.log('[Kuyruk] Kuyruk duraklatıldı. Bir sonraki indirme bekletiliyor.');
+      console.log('[Queue] Queue paused. Next download is kept waiting.');
       return;
     }
 
     // Türkçe Açıklama: Emniyet kontrolü - Aktif bir indirme süreci yoksa ancak sayaç sıfırlanmamışsa otomatik olarak düzelt.
     if (!this.activeProcess && this.activeDownloads > 0) {
-      console.log(`[Kuyruk Emniyeti] Aktif süreç bulunamadı fakat activeDownloads = ${this.activeDownloads}. Sayaç sıfırlanıyor.`);
+      console.log(`[Queue Safety] Active process not found but activeDownloads = ${this.activeDownloads}. Resetting counter.`);
       this.activeDownloads = 0;
       this.activeVideoId = null;
     }
@@ -2023,7 +2036,7 @@ class DownloadQueue {
       try {
         fs.mkdirSync(channelFolder, { recursive: true });
       } catch (err) {
-        console.error('Kanal klasörü oluşturulamadı:', err);
+        console.error('Failed to create channel folder:', err);
       }
     }
 
@@ -2106,7 +2119,7 @@ class DownloadQueue {
       args.push('--ffmpeg-location', path.dirname(getFfmpegPath()));
     }
 
-    console.log(`İndirme başlatılıyor: ${video.title}`);
+    console.log(`Download starting: ${video.title}`);
     console.log(`Komut: yt-dlp ${args.join(' ')}`);
 
     // Türkçe Açıklama: Windows'ta penceresiz, Unix'te süreç grubu halinde (detached) ve girdi (stdin) kilitlenmelerini önlemek için ignore stdio ile başlatırız.
@@ -2202,10 +2215,10 @@ class DownloadQueue {
 
       const isWarning = trimmed.toLowerCase().includes('warning:') || trimmed.toLowerCase().includes('uyari:');
       if (isWarning) {
-        console.log(`yt-dlp uyarı satırı: ${trimmed}`);
+        console.log(`yt-dlp warning line: ${trimmed}`);
         addTerminalLog(`[yt-dlp Uyarı] ${trimmed}`, 'warning');
       } else {
-        console.error(`yt-dlp hata satırı: ${trimmed}`);
+        console.error(`yt-dlp error line: ${trimmed}`);
         addTerminalLog(`[yt-dlp Hata] ${trimmed}`, 'error');
       }
     }
@@ -2301,7 +2314,7 @@ class DownloadQueue {
             }
           }
         } catch (err) {
-          console.error(`Boyut okuma hatası: ${resolvedTitle}`, err.message);
+          console.error(`Size read error: ${resolvedTitle}`, err.message);
         }
 
         updateHistoryItem(video.id, {
@@ -2313,7 +2326,7 @@ class DownloadQueue {
           eta: '',
           fileSize: calculatedSize
         });
-        console.log(`İndirme tamamlandı: ${resolvedTitle}`);
+        console.log(`Download completed: ${resolvedTitle}`);
         broadcast('status_log', { message: `İndirme tamamlandı: ${resolvedTitle}`, type: 'success' });
         addTerminalLog(`[Kuyruk] İndirme BAŞARILI: "${resolvedTitle}" -> Dosya Yol: ${actualPath}`, 'success');
         playSystemSound('success');
@@ -2338,7 +2351,7 @@ class DownloadQueue {
           eta: '',
           error: userFriendlyError || `Hata Kodu: ${code}`
         });
-        console.error(`İndirme başarısız: ${video.title} - Kod: ${code}`);
+        console.error(`Download failed: ${video.title} - Code: ${code}`);
         broadcast('status_log', { message: `İndirme başarısız: ${video.title}`, type: 'error' });
         addTerminalLog(`[Kuyruk] İndirme BAŞARISIZ: "${video.title}" - Hata: ${userFriendlyError || `Hata Kodu: ${code}`}`, 'error');
         playSystemSound('error');
@@ -2438,7 +2451,7 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
     try {
       feed = await parser.parseURL(feedUrl);
     } catch (rssErr) {
-      console.log(`[RSS] ${channel.name} için RSS alınamadı (${rssErr.message}). yt-dlp yedek mekanizması başlatılıyor...`);
+      console.log(`[RSS] Could not fetch RSS for ${channel.name} (${rssErr.message}). Starting yt-dlp fallback...`);
       addTerminalLog(`[RSS] ${channel.name} RSS hatası aldı (${rssErr.message}). yt-dlp ile denetleniyor...`, 'info');
       try {
         feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
@@ -2621,7 +2634,7 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
               }
 
               if (shouldDownload) {
-                console.log(`Yeni video algılandı! Kuyruğa ekleniyor: ${resolvedTitle}`);
+                console.log(`New video detected! Adding to queue: ${resolvedTitle}`);
                 broadcast('status_log', { message: `Yeni video yüklendi: ${resolvedChannelName} - ${resolvedTitle}`, type: 'info' });
                 addTerminalLog(`[RSS] Yeni video tespit edildi: "${resolvedTitle}" (${resolvedChannelName}) -> Kuyruğa ekleniyor.`, 'info');
                 
@@ -2674,7 +2687,7 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
       }
     }
   } catch (err) {
-    console.error(`${channel.name} kontrol edilirken hata oluştu:`, err);
+    console.error(`Error checking ${channel.name}:`, err);
   }
 }
 
@@ -2686,14 +2699,14 @@ let currentChannelIndex = 0;
  */
 async function checkNextChannelRss() {
   if (isRssChecking) {
-    console.log('[RSS] Bir önceki kanal RSS kontrolü henüz tamamlanmadı, yeni tarama atlandı.');
+    console.log('[RSS] Previous channel RSS check not finished, skipping scanning.');
     return;
   }
   isRssChecking = true;
   try {
     const db = readDb();
     if (db.channels.length === 0) {
-      console.log('İzlenen kanal bulunmuyor.');
+      console.log('No monitored channels found.');
       return;
     }
 
@@ -2708,7 +2721,7 @@ async function checkNextChannelRss() {
     }
 
     const channel = sortedChannels[currentChannelIndex];
-    console.log(`[RSS] Sıradaki kanal denetleniyor (${currentChannelIndex + 1}/${sortedChannels.length}): ${channel.name}`);
+    console.log(`[RSS] Checking next channel (${currentChannelIndex + 1}/${sortedChannels.length}): ${channel.name}`);
     addTerminalLog(`[RSS] Sıradaki kanal denetleniyor: "${channel.name}"`, 'info');
 
     await checkSingleChannelRss(channel, false);
@@ -2734,7 +2747,7 @@ function startIntervalTimer() {
   const db = readDb();
   const seconds = db.settings.channelCheckInterval || 60;
   const ms = seconds * 1000;
-  console.log(`RSS kanal kontrol döngüsü başlatıldı. Sıklık: 1 kanal / ${seconds} saniye.`);
+  console.log(`RSS channel control loop started. Frequency: 1 channel / ${seconds} seconds.`);
   
   checkIntervalTimer = setInterval(() => {
     checkNextChannelRss();
@@ -2754,7 +2767,7 @@ function localhostOnly(req, res, next) {
                   req.hostname === '127.0.0.1';
                   
   if (!isLocal) {
-    console.warn(`[Güvenlik] Yetkisiz harici istek engellendi! IP: ${ip}, Yol: ${req.originalUrl}`);
+    console.warn(`[Security] Unauthorized external request blocked! IP: ${ip}, Path: ${req.originalUrl}`);
     return res.status(403).json({ error: 'Güvenlik Nedeniyle Erişim Engellendi. Sadece localhost üzerinden erişim sağlanabilir.' });
   }
   next();
@@ -2779,7 +2792,7 @@ function testCookiesValidity(browser) {
       'ytsearch1:test cookie liveness'
     ];
     
-    console.log(`[Çerez Testi] yt-dlp çerez testi başlatılıyor: ${browserName}`);
+    console.log(`[Cookie Test] Starting yt-dlp cookie test: ${browserName}`);
     const proc = spawn(ytdlpPath, args);
     let errorOutput = '';
     
@@ -2828,7 +2841,7 @@ app.post('/api/queue/pause', localhostOnly, (req, res) => {
   db.settings.isPaused = true;
   writeDb(db);
   
-  console.log('[Kuyruk] Kullanıcı isteğiyle kuyruk duraklatıldı.');
+  console.log('[Queue] Queue paused by user request.');
   addTerminalLog('[Kuyruk] İndirme sırası duraklatıldı.', 'warning');
   
   // Aktif indirme varsa, durdurup kuyruğun başına ekleyelim
@@ -2837,7 +2850,7 @@ app.post('/api/queue/pause', localhostOnly, (req, res) => {
     const historyItem = db.history.find(h => h.id === videoId);
     
     if (historyItem) {
-      console.log(`[Kuyruk] Aktif indirme durdurulup sıraya geri ekleniyor: ${historyItem.title}`);
+      console.log(`[Queue] Active download stopped and added back to queue: ${historyItem.title}`);
       addTerminalLog(`[Kuyruk] Aktif indirme durdurulup sıraya geri ekleniyor: "${historyItem.title}"`, 'info');
       
       // Video bilgilerini kuyruğun en başına ekle (unshift)
@@ -2893,7 +2906,7 @@ app.post('/api/queue/resume', localhostOnly, (req, res) => {
   db.settings.isPaused = false;
   writeDb(db);
   
-  console.log('[Kuyruk] Kullanıcı isteğiyle kuyruk devam ettirildi.');
+  console.log('[Queue] Queue resumed by user request.');
   addTerminalLog('[Kuyruk] İndirme sırası devam ettirildi.', 'success');
   
   broadcast('db_update', readDb());
@@ -2913,7 +2926,7 @@ app.post('/api/queue/reorder', localhostOnly, (req, res) => {
     return res.status(400).json({ error: 'Geçersiz veri formatı. ID listesi gereklidir.' });
   }
   
-  console.log('[Kuyruk] Sürükle-bırak kuyruk yeniden sıralama isteği alındı.');
+  console.log('[Queue] Drag-and-drop queue reorder request received.');
   
   // 1. downloadQueue.queue dizisini yeni ID sıralamasına göre yeniden düzenle
   const reorderedQueue = [];
@@ -3025,7 +3038,7 @@ app.post('/api/settings', (req, res) => {
     const videoId = downloadQueue.activeVideoId;
     const historyItem = db.history.find(h => h.id === videoId);
     if (historyItem) {
-      console.log(`[Ayarlar] Hız sınırı değişti (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: ${historyItem.title}`);
+      console.log(`[Settings] Speed limit changed (${oldSpeedLimit} -> ${newSpeedLimit}). Restarting active download with new speed limit: ${historyItem.title}`);
       addTerminalLog(`[Ayarlar] Hız sınırı değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
       
       // Sıranın en başına ekle (unshift)
@@ -3072,7 +3085,7 @@ app.post('/api/settings', (req, res) => {
 
   // Eğer indirme yöntemi "merge" (Birleştir) seçildiyse ve ffmpeg yoksa arka planda indir
   if (db.settings.mergeType === 'merge' && !fs.existsSync(getFfmpegPath())) {
-    ensureFfmpeg().catch(e => console.error('FFmpeg otomatik indirme hatası:', e.message));
+    ensureFfmpeg().catch(e => console.error('FFmpeg automatic download error:', e.message));
   }
 
   res.json({ success: true, settings: db.settings });
@@ -3091,7 +3104,7 @@ app.get('/api/channels/export', (req, res) => {
     res.setHeader('Content-type', 'application/json');
     res.send(JSON.stringify(backupData, null, 2));
   } catch (err) {
-    console.error('Yedek dışarı aktarılamadı:', err);
+    console.error('Failed to export backup:', err);
     res.status(500).json({ error: 'Yedek dışarı aktarılamadı.' });
   }
 });
@@ -3135,7 +3148,7 @@ app.post('/api/channels/import', (req, res) => {
 
     res.json({ success: true, added: addedCount, updated: updatedCount });
   } catch (err) {
-    console.error('Yedek içeri aktarılamadı:', err);
+    console.error('Failed to import backup:', err);
     res.status(500).json({ error: 'Yedek içeri aktarılamadı.' });
   }
 });
@@ -3158,7 +3171,7 @@ app.post('/api/settings/toggle-alt-speed', (req, res) => {
     const videoId = downloadQueue.activeVideoId;
     const historyItem = db.history.find(h => h.id === videoId);
     if (historyItem) {
-      console.log(`[Ayarlar] Hız sınırı alternatif geçişi ile değişti (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: ${historyItem.title}`);
+      console.log(`[Settings] Speed limit changed via alternative toggle (${oldSpeedLimit} -> ${newSpeedLimit}). Restarting active download with new speed limit: ${historyItem.title}`);
       addTerminalLog(`[Ayarlar] Hız sınırı alternatif geçişi ile değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
       
       downloadQueue.queue.unshift({
@@ -3356,7 +3369,7 @@ app.post('/api/channels/:id/update-avatar', async (req, res) => {
       addTerminalLog(`[Kanal] Kanal logosu başarıyla güncellendi: "${channel.name}"`, 'success');
       return res.json({ success: true, avatar: info.avatar });
     } else {
-      throw new Error('Profil resmi bulunamadı.');
+      throw new Error('Profile picture not found.');
     }
   } catch (err) {
     addTerminalLog(`[Kanal] Kanal logosu güncellenemedi: "${channel.name}" - Hata: ${err.message}`, 'error');
@@ -3393,7 +3406,7 @@ app.post('/api/channels/update-all-avatars', localhostOnly, async (req, res) => 
   }
 
   addTerminalLog('[Kanal] Toplu kanal logosu güncellemesi başlatıldı...', 'info');
-  console.log('[Kanal] Toplu kanal logosu güncellemesi başlatıldı...');
+  console.log('[Channel] Bulk channel logo update started...');
   
   let updatedCount = 0;
   let failedCount = 0;
@@ -3404,7 +3417,7 @@ app.post('/api/channels/update-all-avatars', localhostOnly, async (req, res) => 
         ? channel.handle 
         : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
         
-      console.log(`[Kanal] Logo güncelleniyor: ${channel.name}`);
+      console.log(`[Channel] Updating logo: ${channel.name}`);
       const info = await resolveChannelId(channelUrl);
       if (info && info.avatar) {
         channel.avatar = info.avatar;
@@ -3416,7 +3429,7 @@ app.post('/api/channels/update-all-avatars', localhostOnly, async (req, res) => 
       // Bot engellemesini önlemek için 500ms bekletiyoruz
       await new Promise(r => setTimeout(r, 500));
     } catch (e) {
-      console.error(`[Kanal] Logo güncelleme hatası (${channel.name}):`, e.message);
+      console.error(`[Channel] Logo update error (${channel.name}):`, e.message);
       failedCount++;
     }
   }
@@ -3452,7 +3465,7 @@ app.post('/api/download-video', async (req, res) => {
   // Eğer kanal ismi veya başlık eksikse (örneğin PD butonu ile link yapıştırıldığında), YouTube'dan detayları çek
   if (!channelName || !title) {
     try {
-      console.log(`[Manuel İndirme] Video detayları YouTube'dan çekiliyor: ${targetVideoId}`);
+      console.log(`[Manual Download] Fetching video details from YouTube: ${targetVideoId}`);
       const details = await fetchVideoDuration(targetVideoId);
       if (details) {
         if (details.title) title = details.title;
@@ -3517,7 +3530,7 @@ app.post('/api/play-video', localhostOnly, (req, res) => {
   const item = db.history.find(h => h.id === videoId);
   
   if (!item) {
-    console.error(`[Play Video Hatası] Video kaydı geçmişte bulunamadı. ID: ${videoId}`);
+    console.error(`[Play Video Error] Video record not found in history. ID: ${videoId}`);
     return res.status(404).json({ error: 'Video kaydı bulunamadı.' });
   }
 
@@ -3527,12 +3540,12 @@ app.post('/api/play-video', localhostOnly, (req, res) => {
   }
 
   if (fileToPlay && fs.existsSync(fileToPlay)) {
-    console.log(`[Oynat] Dosya oynatılıyor: ${fileToPlay}`);
+    console.log(`[Play] Playing file: ${fileToPlay}`);
     open(fileToPlay);
     res.json({ success: true });
   } else {
     const errorMsg = `Video dosyası bulunamadı. Aranan Konum: ${fileToPlay || path.join(db.settings.downloadPath, `*[${videoId}]*`)}`;
-    console.error(`[Play Video Hatası] ${errorMsg}`);
+    console.error(`[Play Video Error] ${errorMsg}`);
     res.status(404).json({ error: errorMsg });
   }
 });
@@ -3554,7 +3567,7 @@ app.get('/api/video-stream', (req, res) => {
   }
 
   if (fileToPlay && fs.existsSync(fileToPlay)) {
-    console.log(`[Stream] Video akıtılıyor: ${fileToPlay}`);
+    console.log(`[Stream] Streaming file: ${fileToPlay}`);
     
     // Türkçe Açıklama: Gelişmiş seek/ilerletme desteği için Range isteklerini manuel olarak işleyip okuma akışı (read stream) ile sunar.
     const stat = fs.statSync(fileToPlay);
@@ -3603,7 +3616,7 @@ app.get('/api/video-stream', (req, res) => {
       });
     }
   } else {
-    console.error(`[Stream Hatası] Dosya bulunamadı. ID: ${videoId}`);
+    console.error(`[Stream Error] File not found. ID: ${videoId}`);
     res.status(404).send('Video dosyası bulunamadı.');
   }
 });
@@ -3616,7 +3629,7 @@ app.delete('/api/history/:id', (req, res) => {
   }
   const deleteFile = req.query.deleteFile === 'true';
   
-  console.log(`\n--- SİLME İŞLEMİ BAŞLATILDI ---`);
+  console.log(`\n--- DELETE PROCESS STARTED ---`);
   console.log(`Tarih/Saat: ${new Date().toLocaleString('tr-TR')}`);
   console.log(`Hedef Video ID: ${id}`);
   console.log(`Bilgisayardan dosya silinsin mi: ${deleteFile}`);
@@ -3626,9 +3639,9 @@ app.delete('/api/history/:id', (req, res) => {
 
   if (itemIndex !== -1) {
     const item = db.history[itemIndex];
-    console.log(`Video Adı: ${item.title}`);
+    console.log(`Video Title: ${item.title}`);
     console.log(`Kanal: ${item.channelName}`);
-    console.log(`Kayıtlı Yol: ${item.filePath}`);
+    console.log(`Saved Path: ${item.filePath}`);
     
     if (deleteFile) {
       try {
@@ -3638,7 +3651,7 @@ app.delete('/api/history/:id', (req, res) => {
           foldersToSearch.push(path.join(folder, item.channelName));
         }
 
-        console.log(`Silme işlemi için taranan klasörler:`, foldersToSearch);
+        console.log(`Folders scanned for deletion:`, foldersToSearch);
         
         let deletedAny = false;
         let failedToDelete = [];
@@ -3650,15 +3663,15 @@ app.delete('/api/history/:id', (req, res) => {
             for (const file of files) {
               if (file.includes(targetPattern)) {
                 const fullPath = path.join(fld, file);
-                console.log(`Eşleşen dosya bulundu: ${file} (${fld}). Silinmeye çalışılıyor...`);
+                console.log(`Matching file found: ${file} (${fld}). Attempting deletion...`);
                 if (fs.existsSync(fullPath)) {
                   try {
                     fs.unlinkSync(fullPath);
-                    console.log(`BAŞARI: Dosya silindi: ${file}`);
+                    console.log(`SUCCESS: File deleted: ${file}`);
                     deletedAny = true;
                   } catch (e) {
                     console.error(`HATA: Dosya silinemedi: ${file}`);
-                    console.error(`Hata Detayı: ${e.code} - ${e.message}`);
+                    console.error(`Error Detail: ${e.code} - ${e.message}`);
                     failedToDelete.push(`${file} (${e.message})`);
                   }
                 }
@@ -3669,17 +3682,17 @@ app.delete('/api/history/:id', (req, res) => {
 
         if (failedToDelete.length > 0) {
           const errorMsg = `Video dosyası silinemedi (Dosya kilitli veya açık olabilir): ${failedToDelete.join(', ')}`;
-          console.error(`[SİLME HATASI] ${errorMsg}`);
-          console.log(`--- SİLME İŞLEMİ BAŞARISIZ ---\n`);
+          console.error(`[DELETE ERROR] ${errorMsg}`);
+          console.log(`--- DELETE PROCESS FAILED ---\n`);
           return res.status(500).json({ error: errorMsg });
         }
         if (deletedAny) {
           broadcast('status_log', { message: `İlgili video dosyaları bilgisayarınızdan silindi: ${item.title}`, type: 'info' });
         } else {
-          console.log(`BİLGİ: Aranan klasörlerde '${targetPattern}' içeren herhangi bir dosya bulunamadı (Zaten silinmiş olabilir).`);
+          console.log(`INFO: No matching file containing '${targetPattern}' found in directories (might already be deleted).`);
         }
       } catch (err) {
-        console.error(`[SİLME HATASI] Genel hata: ${err.message}`);
+        console.error(`[DELETE ERROR] General error: ${err.message}`);
         console.log(`--- SİLME İŞLEMİ BAŞARISIZ ---\n`);
         return res.status(500).json({ error: `Dosya silme hatası: ${err.message}` });
       }
@@ -3702,16 +3715,16 @@ app.delete('/api/history/:id', (req, res) => {
       eta: '',
       duration: item.duration || ''
     });
-    console.log(`BİLGİ: Video '${item.title}' RSS'in tekrar indirmemesi için 'ignored' olarak işaretlendi.`);
+    console.log(`INFO: Video '${item.title}' marked as 'ignored' so RSS does not redownload.`);
 
     writeDb(db);
     broadcast('db_update', db);
     broadcast('status_log', { message: `Video geçmişten temizlendi: ${item.title}`, type: 'success' });
-    console.log(`BAŞARI: Video geçmiş kaydı veritabanından silindi.`);
-    console.log(`--- SİLME İŞLEMİ TAMAMLANDI ---\n`);
+    console.log(`SUCCESS: Video history record deleted from database.`);
+    console.log(`--- DELETE PROCESS COMPLETED ---\n`);
     res.json({ success: true });
   } else {
-    console.error(`HATA: ID '${id}' olan video kaydı veritabanında bulunamadı.`);
+    console.error(`ERROR: Video record with ID '${id}' not found in database.`);
     console.log(`--- SİLME İŞLEMİ BAŞARISIZ ---\n`);
     res.status(404).json({ error: 'Video kaydı bulunamadı.' });
   }
@@ -3727,7 +3740,7 @@ app.get('/api/channels/search', async (req, res) => {
     const results = await searchChannelsOnYoutube(q);
     res.json(results);
   } catch (err) {
-    console.error('[Kanal Arama Hatası]:', err.message);
+    console.error('[Channel Search Error]:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -3761,7 +3774,7 @@ app.get('/api/disk-space', (req, res) => {
       driveLetter
     });
   } catch (e) {
-    console.error('[Disk Alan Hatası]:', e.message);
+    console.error('[Disk Space Error]:', e.message);
     res.json({ success: false, error: e.message });
   }
 });
@@ -3838,7 +3851,7 @@ app.post('/api/cancel-download', localhostOnly, (req, res) => {
   // 2. Durum: Sıradaki (Kuyruktaki) İndirme İptal Ediliyor
   const queueIndex = downloadQueue.queue.findIndex(item => item.id === videoId);
   if (queueIndex !== -1) {
-    console.log(`Sıradaki indirme kuyruktan kaldırılıyor: ${videoId}`);
+    console.log(`Removing next download from queue: ${videoId}`);
     downloadQueue.queue.splice(queueIndex, 1);
 
     // Veritabanını güncelle
@@ -3938,15 +3951,15 @@ app.post('/api/open-folder', localhostOnly, (req, res) => {
  */
 function updateYtdlp() {
   return new Promise((resolve) => {
-    console.log('yt-dlp.exe güncellemesi denetleniyor...');
+    console.log('Checking for yt-dlp.exe updates...');
     addTerminalLog('[Sistem] yt-dlp.exe motor güncellemesi denetleniyor...', 'info');
     exec(`"${ytdlpPath}" -U`, (err, stdout, stderr) => {
       if (err) {
-        console.error('yt-dlp güncelleme hatası:', err.message);
+        console.error('yt-dlp update error:', err.message);
         addTerminalLog(`[Sistem] yt-dlp güncelleme başarısız: ${err.message}`, 'warning');
       } else {
         const output = stdout.trim();
-        console.log('yt-dlp güncelleme çıktısı:', output);
+        console.log('yt-dlp update output:', output);
         if (output.includes('is up to date')) {
           addTerminalLog('[Sistem] yt-dlp motoru güncel.', 'success');
         } else {
@@ -4063,7 +4076,7 @@ async function resolveMissingChannelAvatars() {
   let updated = false;
   for (const channel of db.channels) {
     if (!channel.avatar) {
-      console.log(`Eksik kanal logosu çözümleniyor: ${channel.name}`);
+      console.log(`Resolving missing channel logo: ${channel.name}`);
       try {
         const channelUrl = channel.handle && channel.handle.startsWith('http') 
           ? channel.handle 
@@ -4073,12 +4086,12 @@ async function resolveMissingChannelAvatars() {
         if (info && info.avatar) {
           channel.avatar = info.avatar;
           updated = true;
-          console.log(`Kanal logosu çözümlendi: ${channel.name} -> ${info.avatar}`);
+          console.log(`Channel logo resolved: ${channel.name} -> ${info.avatar}`);
           // İstekler arası 1 saniye bekleme
           await new Promise(r => setTimeout(r, 1000));
         }
       } catch (e) {
-        console.error(`Kanal logosu alınamadı: ${channel.name}`, e.message);
+        console.error(`Could not fetch channel logo: ${channel.name}`, e.message);
       }
     }
   }
@@ -4113,11 +4126,11 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v4.11.0
+               Versiyon: v4.11.1
                Yapımcı: HaYTo
     ====================================================
     `);
-    console.log(`Sunucu http://localhost:${PORT} portunda çalışıyor.`);
+    console.log(`Server is running on port http://localhost:${PORT}`);
     
     // İndirme klasörünü kontrol et, yoksa oluştur
 
@@ -4133,7 +4146,7 @@ if (process.argv.length <= 2) {
     const originalCount = db.channels.length;
     db.channels = db.channels.filter(c => c.name !== c.id);
     if (db.channels.length !== originalCount) {
-      console.log(`[AYARLAR] İsmi ve ID'si aynı olan ${originalCount - db.channels.length} bozuk kanal veritabanından temizlendi.`);
+      console.log(`[SETTINGS] Cleaned ${originalCount - db.channels.length} corrupted channels with identical Name and ID from database.`);
       writeDb(db);
     }
 
@@ -4151,7 +4164,7 @@ if (process.argv.length <= 2) {
       await ensureYtdlp();
       // updateYtdlp(); // Otomatik güncelleme iptal edildi
     } catch (e) {
-      console.error('yt-dlp kontrolü başarısız:', e.message);
+      console.error('yt-dlp check failed:', e.message);
     }
 
     // Başlangıçta ffmpeg kontrolünü yap (eğer merge seçildiyse ve ffmpeg yoksa)
@@ -4201,7 +4214,7 @@ if (process.argv.length <= 2) {
         }
       });
       if (queuedCount > 0) {
-        console.log(`[Sistem] Sunucu başlangıcında ${queuedCount} adet yarım kalan/bekleyen indirme kuyruğa yeniden eklendi.`);
+        console.log(`[System] Re-queued ${queuedCount} unfinished/pending downloads on server startup.`);
         addTerminalLog(`[Sistem] Sunucu başlangıcında ${queuedCount} adet yarım kalan/bekleyen indirme kuyruğa yeniden eklendi.`, 'info');
       }
     }, 4000);
@@ -4212,10 +4225,10 @@ if (process.argv.length <= 2) {
       try {
         await open(`http://localhost:${PORT}`);
       } catch (e) {
-        console.log('Tarayıcı otomatik açılamadı, lütfen http://localhost:3000 adresine manuel gidin.');
+        console.log('Could not open browser automatically, please navigate to http://localhost:3000 manually.');
       }
     } else {
-      console.log('Otomatik tarayıcı açılışı devre dışı bırakıldı. Lütfen http://localhost:3000 adresine el ile gidin.');
+      console.log('Automatic browser startup disabled. Please open http://localhost:3000 manually.');
     }
   });
 }
@@ -4243,10 +4256,10 @@ function cleanOldLogs() {
       }
     }
     if (deletedCount > 0) {
-      console.log(`[Log Temizleme] 7 günden eski ${deletedCount} adet log dosyası silindi.`);
+      console.log(`[Log Cleanup] Deleted ${deletedCount} log files older than 7 days.`);
     }
   } catch (err) {
-    console.error('[Log Temizleme] Log dosyaları temizlenirken hata oluştu:', err.message);
+    console.error('[Log Cleanup] Error occurred while cleaning log files:', err.message);
   }
 }
 
