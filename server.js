@@ -85,10 +85,17 @@ function formatArg(arg) {
 
 // Türkçe Açıklama: CMD konsol çıktısı renklendirme, kategori zenginleştirme ve [HH:mm:ss] formatında gri zaman damgası ekleme logic'i.
 console.log = function(...args) {
+  const msg = args.map(formatArg).join(' ');
+  
+  // C# Tray uygulamasının gönderdiği komut sinyallerini olduğu gibi ham olarak çıkar (renklendirme/zaman damgası ekleme)
+  if (msg.startsWith('[TRAY_CMD]')) {
+    originalLog(msg);
+    return;
+  }
+
   const timestamp = new Date().toLocaleString('tr-TR');
   const now = new Date();
   const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  const msg = args.map(formatArg).join(' ');
   
   let color = '\x1b[37m'; // White
   let prefix = '[SİSTEM]';
@@ -1173,64 +1180,14 @@ function updateHistoryItem(videoId, updates) {
 function ensureYtdlp() {
   return new Promise((resolve, reject) => {
     const filename = os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
-    const ytdlpDir = path.dirname(ytdlpPath);
-    if (!fs.existsSync(ytdlpDir)) {
-      try {
-        fs.mkdirSync(ytdlpDir, { recursive: true });
-      } catch (err) {
-        console.error('yt-dlp klasörü oluşturulurken hata:', err.message);
-      }
-    }
-
     if (fs.existsSync(ytdlpPath)) {
       console.log(`${filename} zaten mevcut.`);
       return resolve(ytdlpPath);
     }
-
-    console.log(`${filename} bulunamadı. Resmi kaynaktan indiriliyor...`);
-    broadcast('status_log', { message: `${filename} bulunamadı, indiriliyor... Lütfen bekleyin.`, type: 'info' });
-
-    const downloadUrl = os.platform() === 'win32'
-      ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
-      : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
-    
-    function download(url) {
-      https.get(url, (res) => {
-        if (res.statusCode === 301 || res.statusCode === 302) {
-          // Yönlendirmeyi takip et
-          download(res.headers.location);
-          return;
-        }
-
-        if (res.statusCode !== 200) {
-          const err = new Error(`İndirme başarısız: HTTP ${res.statusCode}`);
-          broadcast('status_log', { message: `yt-dlp indirme hatası: ${err.message}`, type: 'error' });
-          reject(err);
-          return;
-        }
-
-        const fileStream = fs.createWriteStream(ytdlpPath);
-        res.pipe(fileStream);
-
-        fileStream.on('finish', () => {
-          fileStream.close();
-          console.log('yt-dlp.exe başarıyla indirildi.');
-          broadcast('status_log', { message: 'yt-dlp.exe başarıyla kuruldu!', type: 'success' });
-          resolve(ytdlpPath);
-        });
-
-        fileStream.on('error', (err) => {
-          fs.unlink(ytdlpPath, () => {});
-          broadcast('status_log', { message: `yt-dlp dosyaya yazma hatası: ${err.message}`, type: 'error' });
-          reject(err);
-        });
-      }).on('error', (err) => {
-        broadcast('status_log', { message: `Bağlantı hatası: ${err.message}`, type: 'error' });
-        reject(err);
-      });
-    }
-
-    download(downloadUrl);
+    const err = new Error(`${filename} bulunamadı! Otomatik indirme iptal edildi. Lütfen yt-dlp/ klasörü altına ${filename} dosyasını ekleyin.`);
+    console.error(err.message);
+    broadcast('status_log', { message: err.message, type: 'error' });
+    reject(err);
   });
 }
 
@@ -1310,39 +1267,10 @@ function ensureFfmpeg() {
   const ffmpegPath = getFfmpegPath();
   if (fs.existsSync(ffmpegPath)) return Promise.resolve(ffmpegPath);
   
-  if (isFfmpegDownloading) return Promise.reject(new Error('FFmpeg zaten indiriliyor.'));
-  isFfmpegDownloading = true;
-  
-  console.log('FFmpeg bulunamadı. İnternetten indiriliyor...');
-  broadcast('status_log', { message: 'Yüksek kaliteli indirmeler için FFmpeg (Ses/Video Birleştirici) arka planda indiriliyor... Lütfen bekleyin.', type: 'info' });
-  
-  return new Promise((resolve, reject) => {
-    const psCommand = [
-      `$ErrorActionPreference = 'Stop'`,
-      `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`,
-      `Remove-Item -Path 'ffmpeg.zip' -ErrorAction SilentlyContinue`,
-      `Remove-Item -Recurse -Force 'ffmpeg_temp' -ErrorAction SilentlyContinue`,
-      `Invoke-WebRequest -Uri 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip' -OutFile 'ffmpeg.zip'`,
-      `Expand-Archive -Path 'ffmpeg.zip' -DestinationPath 'ffmpeg_temp'`,
-      `New-Item -ItemType Directory -Force -Path 'ffmpeg' | Out-Null`,
-      `Get-ChildItem -Path 'ffmpeg_temp' -Recurse -Filter 'ffmpeg.exe' | Copy-Item -Destination 'ffmpeg'`,
-      `Get-ChildItem -Path 'ffmpeg_temp' -Recurse -Filter 'ffprobe.exe' | Copy-Item -Destination 'ffmpeg'`,
-      `Remove-Item -Recurse -Force 'ffmpeg_temp', 'ffmpeg.zip'`
-    ].join('; ');
-    
-    exec(`powershell -Command "${psCommand}"`, (error, stdout, stderr) => {
-      isFfmpegDownloading = false;
-      if (error) {
-        console.error('FFmpeg indirme hatası:', error, stderr);
-        broadcast('status_log', { message: `FFmpeg kurulumu başarısız: ${error.message}`, type: 'error' });
-        reject(error);
-      } else {
-        console.log('FFmpeg başarıyla kuruldu.');
-        broadcast('status_log', { message: 'FFmpeg başarıyla kuruldu! Artık tek parça yüksek çözünürlüklü (1080p, 4K vb.) videolar indirebilirsiniz.', type: 'success' });
-        resolve(getFfmpegPath());
-      }
-    });
-  });
+  const err = new Error('FFmpeg bulunamadı! Otomatik indirme iptal edildi. Lütfen ffmpeg/ klasörü altına ffmpeg.exe ve ffprobe.exe dosyalarını ekleyin.');
+  console.error(err.message);
+  broadcast('status_log', { message: err.message, type: 'error' });
+  return Promise.reject(err);
 }
 
 // Türkçe Açıklama: ISO 8601 biçimindeki zaman/süre metnini (PT1H20M15S gibi) okunabilir saat-dakika-saniye (1:20:15) formatına dönüştürür.
@@ -4218,12 +4146,12 @@ if (process.argv.length <= 2) {
       } catch (err) {}
     }
 
-    // Başlangıçta yt-dlp kontrolünü ve güncellemesini yap
+    // Başlangıçta yt-dlp kontrolünü yap
     try {
       await ensureYtdlp();
-      updateYtdlp(); // Güncellemeyi arka planda başlat
+      // updateYtdlp(); // Otomatik güncelleme iptal edildi
     } catch (e) {
-      console.error('yt-dlp kurulumu başlatılamadı:', e.message);
+      console.error('yt-dlp kontrolü başarısız:', e.message);
     }
 
     // Başlangıçta ffmpeg kontrolünü yap (eğer merge seçildiyse ve ffmpeg yoksa)

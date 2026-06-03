@@ -119,6 +119,7 @@ namespace HaYTooLTray
                 psi.StandardOutputEncoding = Encoding.UTF8;
                 psi.StandardErrorEncoding = Encoding.UTF8;
                 psi.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                psi.EnvironmentVariables["NODE_PATH"] = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "node_modules");
 
                 using (Process proc = new Process())
                 {
@@ -371,8 +372,9 @@ namespace HaYTooLTray
                 }
 
                 // Bağımlılık kontrolü (node_modules klasörü yoksa indir)
-                string nodeModulesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "node_modules");
-                if (!Directory.Exists(nodeModulesPath))
+                string nodeModulesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "node_modules");
+                string backupNodeModulesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "node_modules");
+                if (!Directory.Exists(nodeModulesPath) && !Directory.Exists(backupNodeModulesPath))
                 {
                     Form installForm = new Form();
                     installForm.Text = "HaYTool - İlk Kurulum";
@@ -475,6 +477,7 @@ namespace HaYTooLTray
                 psi.StandardOutputEncoding = Encoding.UTF8;
                 psi.StandardErrorEncoding = Encoding.UTF8;
                 psi.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                psi.EnvironmentVariables["NODE_PATH"] = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "node_modules");
 
                 nodeProcess = new Process();
                 nodeProcess.StartInfo = psi;
@@ -889,6 +892,23 @@ namespace HaYTooLTray
                 restartItem.Text = "إعادة تشغيل الخادم";
                 showConsoleItem.Text = "عرض مخرجات وحدة التحكم";
                 exitItem.Text = "خروج";
+                trayIcon.Text = "HaYTooL YouTube Downloader";
+            }
+            else if (lang == "ru")
+            {
+                openUiItem.Text = "Открыть интерфейс";
+                pasteDownloadItem.Text = "Вставить и скачать";
+                shortcutsMenu.Text = "Перейти к вкладкам";
+                libraryShortcut.Text = "Библиотека";
+                queueShortcut.Text = "Очередь загрузки";
+                downloadedShortcut.Text = "Загрузки";
+                channelsShortcut.Text = "Каналы";
+                settingsShortcut.Text = "Настройки";
+                altSpeedItem.Text = "Альтернативный лимит скорости (Черепаха)";
+                bootItem.Text = "Запускать при старте системы";
+                restartItem.Text = "Перезапустить сервер";
+                showConsoleItem.Text = "Показать вывод консоли";
+                exitItem.Text = "Выход";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
             else // Varsayılan Türkçe (tr)
