@@ -119,7 +119,6 @@ namespace HaYTooLTray
                 psi.StandardOutputEncoding = Encoding.UTF8;
                 psi.StandardErrorEncoding = Encoding.UTF8;
                 psi.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                psi.EnvironmentVariables["NODE_PATH"] = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "node_modules");
 
                 using (Process proc = new Process())
                 {
@@ -372,9 +371,8 @@ namespace HaYTooLTray
                 }
 
                 // Bağımlılık kontrolü (node_modules klasörü yoksa indir)
-                string nodeModulesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "node_modules");
-                string backupNodeModulesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "node_modules");
-                if (!Directory.Exists(nodeModulesPath) && !Directory.Exists(backupNodeModulesPath))
+                string nodeModulesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "node_modules");
+                if (!Directory.Exists(nodeModulesPath))
                 {
                     Form installForm = new Form();
                     installForm.Text = "HaYTool - İlk Kurulum";
@@ -477,7 +475,6 @@ namespace HaYTooLTray
                 psi.StandardOutputEncoding = Encoding.UTF8;
                 psi.StandardErrorEncoding = Encoding.UTF8;
                 psi.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                psi.EnvironmentVariables["NODE_PATH"] = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "node_modules");
 
                 nodeProcess = new Process();
                 nodeProcess.StartInfo = psi;

@@ -74,5 +74,4 @@ echo -e "  \e[34m----------------------------------------------------\e[0m"
 echo ""
 
 # Uygulamayı başlat
-export NODE_PATH="bin/node_modules"
 npm start
