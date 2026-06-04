@@ -30,7 +30,7 @@ A premium, lightweight, and cross-platform automation software that automaticall
 
 ## 🚀 Key Features
 
-* **Zero-Dependency Startup:** No need to run `npm install` or download external binaries. The repository comes fully pre-packaged with all required libraries (`node_modules/`), `yt-dlp` (`yt-dlp/`), and `ffmpeg` (`ffmpeg/`) binaries for immediate out-of-the-box use.
+* **Zero-Dependency Startup:** No need to run `npm install` or download external binaries. The repository comes fully pre-packaged with all required libraries (`node_modules/`) and `yt-dlp` (`yt-dlp/`). If `ffmpeg` is missing in `ffmpeg/`, the software automatically falls back to single-stream download mode (which does not require FFmpeg), and works fully out of the box. To enable high-quality separate video & audio stream merging (1080p+), simply drop `ffmpeg.exe` and `ffprobe.exe` into the `ffmpeg/` folder.
 * **Automated Channel Tracking:** Continuously monitors channels for new videos using RSS feeds and fallback `yt-dlp` mechanisms.
 * **Smart Queue Manager:** Downloads videos sequentially, prevents conflicts, and automatically resumes interrupted downloads on startup.
 * **Alternative Speed Limits (qBittorrent-Style Turtle Toggle):** Toggle between a normal speed limit profile and an alternative (turtle) speed profile. Extremely useful for saving bandwidth during active usage.
@@ -143,7 +143,7 @@ YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni vid
 
 ## 🚀 Öne Çıkan Özellikler
 
-* **Sıfır Bağımlılık (Zero-Dependency):** `npm install` çalıştırmanıza veya harici binary dosyaları indirmenize gerek yoktur. Depo, tüm gerekli kütüphaneler (`node_modules/`), `yt-dlp` (`yt-dlp/`) ve `ffmpeg` (`ffmpeg/`) binary dosyaları ile önceden paketlenmiş olarak gelir; hemen çalıştırabilirsiniz.
+* **Sıfır Bağımlılık (Zero-Dependency):** `npm install` çalıştırmanıza veya harici binary dosyaları indirmenize gerek yoktur. Depo, tüm gerekli kütüphaneler (`node_modules/`) ve `yt-dlp` (`yt-dlp/`) ile önceden paketlenmiş olarak gelir; hemen çalıştırabilirsiniz. Eğer `ffmpeg` klasöründe `ffmpeg.exe` bulunamazsa, yazılım otomatik olarak birleştirmesiz tekil dosya indirme moduna (FFmpeg gerektirmez) geçer ve sıfır hata ile çalışmaya devam eder. En yüksek kalitede (1080p+) ses/video birleştirmeyi etkinleştirmek için `ffmpeg/` klasörüne `ffmpeg.exe` ve `ffprobe.exe` dosyalarını eklemeniz yeterlidir.
 * **Otomatik Kanal İzleme:** RSS akışları veya yedek `yt-dlp` flat-playlist mekanizması ile kanalların yeni videolarını sürekli denetler.
 * **Akıllı İndirme Kuyruğu:** Videoları sırayla indirir, çakışmaları engeller ve sunucu başlangıcında yarım kalan indirmeleri otomatik olarak kaldığı yerden sürdürür.
 * **Alternatif Hız Profili (qBittorrent Tarzı Kaplumbağa):** Normal indirme hızı sınırı ile alternatif (kaplumbağa) indirme hız profili arasında geçiş yapabilirsiniz. Aktif internet kullanımı sırasında bant genişliğinden tasarruf etmek için idealdir.
