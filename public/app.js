@@ -1646,6 +1646,16 @@ function connectSSE() {
       console.error('Sekme geçiş hatası:', err);
     }
   });
+
+  // FFmpeg İndirme İlerleme Bildirimi
+  eventSource.addEventListener('ffmpeg_download', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      updateFfmpegInstallUI(data);
+    } catch (err) {
+      console.error('FFmpeg progress parse error:', err);
+    }
+  });
 }
 
 /**
@@ -4331,9 +4341,162 @@ window.exportChannels = exportChannels;
 window.triggerImportFile = triggerImportFile;
 window.importChannels = importChannels;
 
+// FFmpeg Installer Logic
+async function checkFfmpegStatus() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  try {
+    const res = await fetch('/api/ffmpeg/status');
+    const data = await res.json();
+    
+    const banner = document.getElementById('ffmpeg-info-banner');
+    const statusIndicator = document.getElementById('settings-ffmpeg-status');
+    const settingsBtn = document.getElementById('settings-ffmpeg-btn');
+    
+    if (data.installed) {
+      if (banner) banner.classList.add('hidden');
+      if (statusIndicator) {
+        statusIndicator.innerText = isEn ? 'Installed' : 'Kurulu';
+        statusIndicator.className = 'ffmpeg-status-indicator installed';
+      }
+      if (settingsBtn) {
+        settingsBtn.innerText = isEn ? 'Reinstall' : 'Yeniden Kur';
+      }
+    } else {
+      if (banner && localStorage.getItem('ffmpeg_banner_dismissed') !== 'true') {
+        banner.classList.remove('hidden');
+      }
+      if (statusIndicator) {
+        statusIndicator.innerText = isEn ? 'Not Installed' : 'Kurulu Değil';
+        statusIndicator.className = 'ffmpeg-status-indicator not-installed';
+      }
+      if (settingsBtn) {
+        settingsBtn.innerText = isEn ? 'Install' : 'Kur';
+      }
+      
+      // If currently downloading/extracting on reload, show modal
+      if (data.status === 'downloading' || data.status === 'extracting') {
+        openFfmpegModal();
+        updateFfmpegInstallUI(data);
+      }
+    }
+  } catch (err) {
+    console.error('Error checking FFmpeg status:', err);
+  }
+}
+
+function openFfmpegModal() {
+  const modal = document.getElementById('ffmpeg-installer-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    // Hide close actions until finished or failed
+    const closeActionBtn = document.getElementById('ffmpeg-modal-close-action-btn');
+    if (closeActionBtn) closeActionBtn.classList.add('hidden');
+  }
+}
+
+function closeFfmpegModal() {
+  const modal = document.getElementById('ffmpeg-installer-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function updateFfmpegInstallUI(data) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const progressBar = document.getElementById('ffmpeg-progress-bar');
+  const statusText = document.getElementById('ffmpeg-status-text');
+  const closeActionBtn = document.getElementById('ffmpeg-modal-close-action-btn');
+  
+  if (progressBar) {
+    progressBar.style.width = `${data.progress}%`;
+    progressBar.style.background = ''; // reset color
+  }
+  
+  if (statusText) {
+    if (data.status === 'downloading') {
+      statusText.innerText = isEn ? `Downloading: %${data.progress}` : `İndiriliyor: %${data.progress}`;
+      statusText.style.color = 'var(--primary)';
+    } else if (data.status === 'extracting') {
+      statusText.innerText = isEn ? 'Extracting archive...' : 'Arşivden Çıkarılıyor...';
+      statusText.style.color = 'var(--secondary)';
+    } else if (data.status === 'completed') {
+      statusText.innerText = isEn ? 'Installation Completed Successfully!' : 'Kurulum Başarıyla Tamamlandı!';
+      statusText.style.color = 'var(--success-color)';
+      if (closeActionBtn) closeActionBtn.classList.remove('hidden');
+      checkFfmpegStatus();
+    } else if (data.status === 'failed') {
+      statusText.innerText = isEn ? `Installation Failed: ${data.error}` : `Kurulum Başarısız: ${data.error}`;
+      statusText.style.color = 'var(--danger-color)';
+      if (progressBar) progressBar.style.background = 'var(--danger-color)';
+      if (closeActionBtn) closeActionBtn.classList.remove('hidden');
+    }
+  }
+}
+
+async function startFfmpegDownload() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  openFfmpegModal();
+  
+  const progressBar = document.getElementById('ffmpeg-progress-bar');
+  const statusText = document.getElementById('ffmpeg-status-text');
+  if (progressBar) progressBar.style.width = '0%';
+  if (statusText) statusText.innerText = isEn ? 'Starting installation...' : 'Kurulum başlatılıyor...';
+  
+  try {
+    const res = await fetch('/api/ffmpeg/download', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      if (data.state) {
+        updateFfmpegInstallUI(data.state);
+      }
+    } else {
+      if (statusText) {
+        statusText.innerText = data.message || (isEn ? 'Failed to start download' : 'İndirme başlatılamadı');
+        statusText.style.color = 'var(--danger-color)';
+      }
+    }
+  } catch (err) {
+    console.error('Error starting FFmpeg download:', err);
+    if (statusText) {
+      statusText.innerText = isEn ? 'Connection error' : 'Bağlantı hatası';
+      statusText.style.color = 'var(--danger-color)';
+    }
+  }
+}
+
+// Event Listeners for FFmpeg UI
+const bannerInstallBtn = document.getElementById('ffmpeg-banner-install-btn');
+const bannerCloseBtn = document.getElementById('ffmpeg-banner-close-btn');
+const settingsFfmpegBtn = document.getElementById('settings-ffmpeg-btn');
+const closeFfmpegModalBtn = document.getElementById('close-ffmpeg-modal-btn');
+const ffmpegModalCloseActionBtn = document.getElementById('ffmpeg-modal-close-action-btn');
+const banner = document.getElementById('ffmpeg-info-banner');
+
+if (bannerInstallBtn) {
+  bannerInstallBtn.addEventListener('click', startFfmpegDownload);
+}
+
+if (bannerCloseBtn) {
+  bannerCloseBtn.addEventListener('click', () => {
+    if (banner) banner.classList.add('hidden');
+    localStorage.setItem('ffmpeg_banner_dismissed', 'true');
+  });
+}
+
+if (settingsFfmpegBtn) {
+  settingsFfmpegBtn.addEventListener('click', startFfmpegDownload);
+}
+
+if (closeFfmpegModalBtn) {
+  closeFfmpegModalBtn.addEventListener('click', closeFfmpegModal);
+}
+
+if (ffmpegModalCloseActionBtn) {
+  ffmpegModalCloseActionBtn.addEventListener('click', closeFfmpegModal);
+}
+
 // Başlangıç
 connectSSE();
 initCustomSelect();
+checkFfmpegStatus();
 updateDiskSpace();
 setInterval(updateDiskSpace, 60 * 60 * 1000); // Her 60 dakikada bir güncelle
 

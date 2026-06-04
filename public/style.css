@@ -2198,4 +2198,113 @@ body.light-theme .nav-item.pd-btn {
   vertical-align: middle;
 }
 
+/* FFmpeg Subtle Informational Banner */
+.ffmpeg-info-banner {
+  background: rgba(138, 43, 226, 0.08);
+  border: 1px solid rgba(138, 43, 226, 0.2);
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.ffmpeg-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--text-main);
+  flex-wrap: wrap;
+}
+
+.ffmpeg-banner-content .banner-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.ffmpeg-banner-content .btn-banner-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  border-radius: 4px;
+  transition: all var(--transition-speed) ease;
+}
+
+.ffmpeg-banner-content .btn-banner-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ffmpeg-banner-content .btn-xs {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* FFmpeg Installer Modal Extra Styling */
+.ffmpeg-installer-progress-container {
+  margin: 20px 0;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  height: 14px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--border-color);
+}
+
+.ffmpeg-installer-progress-bar {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  height: 100%;
+  width: 0%;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
+.ffmpeg-installer-status-text {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 10px;
+}
+
+.ffmpeg-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
+}
+
+.ffmpeg-status-indicator.installed {
+  background: rgba(0, 230, 118, 0.12);
+  color: var(--success);
+}
+
+.ffmpeg-status-indicator.not-installed {
+  background: rgba(255, 0, 85, 0.12);
+  color: var(--accent-red);
+}
+
+.settings-ffmpeg-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
 

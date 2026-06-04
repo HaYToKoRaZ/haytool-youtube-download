@@ -92,6 +92,16 @@
       <!-- Bildirim Log Çubuğu (Anlık Bilgilendirme) -->
       <div id="toast-container"></div>
 
+      <!-- FFmpeg Bilgilendirme Banner'ı -->
+      <div id="ffmpeg-info-banner" class="ffmpeg-info-banner hidden">
+        <div class="ffmpeg-banner-content">
+          <i data-lucide="info" class="banner-icon"></i>
+          <span id="ffmpeg-banner-text">1080p/4K videoları birleştirmek için FFmpeg bulunamadı.</span>
+          <button id="ffmpeg-banner-install-btn" class="btn btn-xs btn-primary" style="background: linear-gradient(135deg, var(--primary), var(--secondary)); border: none; font-weight: 500;">Otomatik Kur</button>
+          <button id="ffmpeg-banner-close-btn" class="btn-banner-close"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
+        </div>
+      </div>
+
       <section id="tab-channels" class="tab-content">
         <header class="content-header">
           <div>
@@ -518,7 +528,12 @@
                         <option value="merge" id="opt-merge-merge">Otomatik Birleştir (En İyi Kalite 1080p+ - Sistemi İyi Olanlar İçin, ffmpeg gerektirir)</option>
                         <option value="separate" id="opt-merge-separate">Ses ve Videoyu Ayrı İndir (ffmpeg gerektirmez)</option>
                       </select>
-                      <small class="form-text" id="desc-merge-type">Yüksek çözünürlükleri tek dosya yapmak için FFmpeg gereklidir.</small>
+                      <small class="form-text" id="desc-merge-type">Yüksek çözünürlükleri (1080p, 2K, 4K) tek dosya olarak kaydetmek için FFmpeg gereklidir. FFmpeg yoksa indirmeler otomatik olarak en fazla 720p olarak tek dosya indirilir.</small>
+                      <div class="settings-ffmpeg-row">
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">Sistem FFmpeg Durumu:</span>
+                        <span id="settings-ffmpeg-status" class="ffmpeg-status-indicator not-installed">Kontrol ediliyor...</span>
+                        <button type="button" class="btn btn-secondary btn-xs" id="settings-ffmpeg-btn" style="margin-left: 8px;">Kur</button>
+                      </div>
                     </div>
                   </div>
 
@@ -713,6 +728,26 @@
       </div>
       <div class="modal-body player-modal-body">
         <video id="embedded-video-player" controls autoplay style="width: 100%; height: 100%; display: block; outline: none;"></video>
+      </div>
+    </div>
+  </div>
+
+  <!-- FFmpeg Kurulum Modalı -->
+  <div id="ffmpeg-installer-modal" class="modal hidden">
+    <div class="modal-content card" style="max-width: 420px; border-radius: 16px; padding: 24px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);">
+      <div class="modal-header" style="margin-bottom: 12px; padding-bottom: 12px;">
+        <h3 id="ffmpeg-modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 700;">FFmpeg Kurulum Otomasyonu</h3>
+        <button class="modal-close-btn" id="close-ffmpeg-modal-btn" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p id="ffmpeg-modal-description" style="margin-bottom: 16px; font-size: 0.85rem; line-height: 1.5; color: var(--text-muted);">Yüksek çözünürlüklü indirmeler için gerekli FFmpeg kütüphaneleri (ffmpeg.exe ve ffprobe.exe) ffbinaries sunucularından indiriliyor ve kuruluyor. Lütfen bekleyin.</p>
+        <div class="ffmpeg-installer-progress-container">
+          <div class="ffmpeg-installer-progress-bar" id="ffmpeg-progress-bar" style="width: 0%;"></div>
+        </div>
+        <div class="ffmpeg-installer-status-text" id="ffmpeg-status-text" style="font-weight: 600; color: var(--primary);">Bağlanılıyor...</div>
+      </div>
+      <div class="modal-actions" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+        <button class="btn btn-secondary hidden" id="ffmpeg-modal-close-action-btn" style="padding: 8px 16px; font-size: 0.85rem; border-radius: 8px;">Kapat</button>
       </div>
     </div>
   </div>

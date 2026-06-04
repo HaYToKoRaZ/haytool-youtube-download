@@ -14,6 +14,7 @@ import { spawn, exec, execSync, execFileSync } from 'child_process';
 import https from 'https';
 import http from 'http';
 import os from 'os';
+import { Readable } from 'stream';
 import Parser from 'rss-parser';
 import open from 'open';
 import { fileURLToPath } from 'url';
@@ -241,7 +242,7 @@ const defaultDb = {
     showNotifications: true,
     autoOpenBrowser: true,
     historyLimitPerChannel: 30,
-    mergeType: 'merge',
+    mergeType: 'single',
     writeThumbnail: false,
     playSounds: true,
     shortsDurationLimit: 180
@@ -3472,6 +3473,190 @@ app.post('/api/settings', (req, res) => {
   }
 
   res.json({ success: true, settings: db.settings });
+});
+
+// FFmpeg İndirme Durumu ve API Rotaları
+let ffmpegDownloadState = { status: 'idle', progress: 0, error: null };
+
+async function downloadFfmpegAsync() {
+  if (ffmpegDownloadState.status === 'downloading' || ffmpegDownloadState.status === 'extracting') {
+    return;
+  }
+  
+  ffmpegDownloadState = { status: 'downloading', progress: 0, error: null };
+  broadcast('ffmpeg_download', ffmpegDownloadState);
+  
+  const ffmpegDir = path.resolve('./ffmpeg');
+  if (!fs.existsSync(ffmpegDir)) {
+    fs.mkdirSync(ffmpegDir, { recursive: true });
+  }
+  
+  const platform = os.platform();
+  let platformKey = '';
+  if (platform === 'win32') platformKey = 'windows-64';
+  else if (platform === 'linux') platformKey = 'linux-64';
+  else if (platform === 'darwin') platformKey = 'osx-64';
+  else {
+    ffmpegDownloadState = { status: 'failed', progress: 0, error: 'Unsupported operating system: ' + platform };
+    broadcast('ffmpeg_download', ffmpegDownloadState);
+    return;
+  }
+  
+  // Varsayılan FFmpeg indirme bağlantıları (ffbinaries v6.1)
+  let urls = {
+    'windows-64': {
+      ffmpeg: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffmpeg-6.1-win-64.zip',
+      ffprobe: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffprobe-6.1-win-64.zip'
+    },
+    'linux-64': {
+      ffmpeg: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffmpeg-6.1-linux-64.zip',
+      ffprobe: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffprobe-6.1-linux-64.zip'
+    },
+    'osx-64': {
+      ffmpeg: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffmpeg-6.1-macos-64.zip',
+      ffprobe: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffprobe-6.1-macos-64.zip'
+    }
+  }[platformKey];
+  
+  try {
+    // API üzerinden dinamik en son sürümü çekmeyi dene (5 sn zaman aşımı)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const apiRes = await fetch('https://ffbinaries.com/api/v1/version/latest', { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (apiRes.ok) {
+      const apiData = await apiRes.json();
+      if (apiData && apiData.bin && apiData.bin[platformKey]) {
+        urls = apiData.bin[platformKey];
+      }
+    }
+  } catch (apiErr) {
+    console.warn('[FFmpeg] ffbinaries API dynamic URLs could not be fetched, using fallbacks:', apiErr.message);
+  }
+  
+  const ffmpegZip = path.join(ffmpegDir, 'ffmpeg_temp.zip');
+  const ffprobeZip = path.join(ffmpegDir, 'ffprobe_temp.zip');
+  
+  const downloadHelper = async (url, dest, startPercent, endPercent) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    const totalBytes = parseInt(res.headers.get('content-length'), 10) || 0;
+    
+    const fileStream = fs.createWriteStream(dest);
+    const nodeStream = Readable.fromWeb(res.body);
+    let downloadedBytes = 0;
+    
+    nodeStream.on('data', (chunk) => {
+      downloadedBytes += chunk.length;
+      if (totalBytes > 0) {
+        const fileProgress = downloadedBytes / totalBytes;
+        const totalProgress = startPercent + fileProgress * (endPercent - startPercent);
+        ffmpegDownloadState.progress = Math.round(totalProgress);
+        broadcast('ffmpeg_download', ffmpegDownloadState);
+      }
+    });
+    
+    nodeStream.pipe(fileStream);
+    
+    await new Promise((resolve, reject) => {
+      fileStream.on('finish', resolve);
+      fileStream.on('error', reject);
+      nodeStream.on('error', reject);
+    });
+  };
+  
+  try {
+    // 1. FFmpeg İndiriliyor
+    console.log(`[FFmpeg] Downloading FFmpeg from ${urls.ffmpeg}...`);
+    await downloadHelper(urls.ffmpeg, ffmpegZip, 0, 45);
+    
+    // 2. FFprobe İndiriliyor
+    console.log(`[FFmpeg] Downloading FFprobe from ${urls.ffprobe}...`);
+    await downloadHelper(urls.ffprobe, ffprobeZip, 45, 90);
+    
+    // 3. Arşivden Çıkarma İşlemi
+    ffmpegDownloadState.status = 'extracting';
+    ffmpegDownloadState.progress = 90;
+    broadcast('ffmpeg_download', ffmpegDownloadState);
+    
+    console.log('[FFmpeg] Extracting zip files...');
+    if (platform === 'win32') {
+      await new Promise((resolve, reject) => {
+        exec(`powershell -Command "Expand-Archive -Path '${ffmpegZip}' -DestinationPath '${ffmpegDir}' -Force; Expand-Archive -Path '${ffprobeZip}' -DestinationPath '${ffmpegDir}' -Force"`, (err, stdout, stderr) => {
+          if (err) return reject(new Error('Powershell Expand-Archive failed: ' + stderr || err.message));
+          resolve();
+        });
+      });
+    } else {
+      await new Promise((resolve, reject) => {
+        exec(`unzip -o "${ffmpegZip}" -d "${ffmpegDir}" && unzip -o "${ffprobeZip}" -d "${ffmpegDir}"`, (err, stdout, stderr) => {
+          if (err) return reject(new Error('Unzip command failed: ' + stderr || err.message));
+          resolve();
+        });
+      });
+      // Unix çalıştırma izinleri
+      try {
+        fs.chmodSync(path.join(ffmpegDir, 'ffmpeg'), 0o755);
+        fs.chmodSync(path.join(ffmpegDir, 'ffprobe'), 0o755);
+      } catch (chmodErr) {
+        console.warn('[FFmpeg] Failed to set execute permissions on binaries:', chmodErr.message);
+      }
+    }
+    
+    // Geçici dosyaları sil
+    try {
+      if (fs.existsSync(ffmpegZip)) fs.unlinkSync(ffmpegZip);
+      if (fs.existsSync(ffprobeZip)) fs.unlinkSync(ffprobeZip);
+    } catch (e) {}
+    
+    // FFmpeg önbelleğini sıfırla ve yeniden doğrula
+    isFfmpegWorkingCached = null;
+    const testResult = testFfmpegSync();
+    
+    if (testResult) {
+      ffmpegDownloadState.status = 'completed';
+      ffmpegDownloadState.progress = 100;
+      ffmpegDownloadState.error = null;
+      console.log('[FFmpeg] Installation completed successfully.');
+      broadcast('ffmpeg_download', ffmpegDownloadState);
+      broadcast('status_log', { message: 'FFmpeg automatically installed and activated.', type: 'success' });
+    } else {
+      throw new Error('FFmpeg check test failed after extraction.');
+    }
+  } catch (err) {
+    console.error('[FFmpeg] Installation process failed:', err);
+    try {
+      if (fs.existsSync(ffmpegZip)) fs.unlinkSync(ffmpegZip);
+      if (fs.existsSync(ffprobeZip)) fs.unlinkSync(ffprobeZip);
+    } catch (e) {}
+    
+    ffmpegDownloadState.status = 'failed';
+    ffmpegDownloadState.error = err.message || 'Extraction failed';
+    broadcast('ffmpeg_download', ffmpegDownloadState);
+  }
+}
+
+// FFmpeg kurulum durumu sorgulama
+app.get('/api/ffmpeg/status', (req, res) => {
+  const isFfmpegWorking = testFfmpegSync();
+  res.json({
+    installed: isFfmpegWorking,
+    status: ffmpegDownloadState.status,
+    progress: ffmpegDownloadState.progress,
+    error: ffmpegDownloadState.error
+  });
+});
+
+// FFmpeg indirmeyi tetikleme
+app.post('/api/ffmpeg/download', (req, res) => {
+  if (ffmpegDownloadState.status === 'downloading' || ffmpegDownloadState.status === 'extracting') {
+    return res.json({ success: true, message: 'İndirme işlemi zaten arka planda devam ediyor.', state: ffmpegDownloadState });
+  }
+  
+  // Asenkron olarak başlat
+  downloadFfmpegAsync().catch(err => console.error('[FFmpeg Download Route] Error:', err));
+  
+  res.json({ success: true, message: 'İndirme işlemi başlatıldı.', state: ffmpegDownloadState });
 });
 
 // Kanalları yedek olarak dışarı aktar (Export)
