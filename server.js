@@ -343,15 +343,46 @@ function getCaseInsensitiveKey(obj, targetKey) {
  * @param {string} filePath Yazılacak INI dosyasının yolu
  * @param {object} data Yazılacak veri nesnesi (Bölümler ve anahtar-değerler)
  */
+const settingComments = {
+  downloadPath: '# İndirme Klasörü / Download Directory\n# Varsayılan: download (Uygulama klasörü içindeki download dizini)\n# Default: download (Download directory inside the application folder)',
+  browser: '# Çerez Çekilecek Tarayıcı / Browser to Import Cookies From\n# Seçenekler: none, chrome, firefox, edge, msedge vb.\n# Options: none, chrome, firefox, edge, msedge, etc.',
+  quality: '# Video İndirme Kalitesi / Video Download Quality\n# Seçenekler: best, 1080p, 720p, 480p, 360p vb.\n# Options: best, 1080p, 720p, 480p, 360p, etc.',
+  channelCheckInterval: '# Kanal Kontrol Sıklığı (Saniye) / Channel Check Interval (Seconds)\n# Kanalların ne sıklıkla taranacağını belirler.\n# Determines how frequently channels are scanned.',
+  autoDownload: '# Yeni Videoları Otomatik İndir / Auto-download New Videos\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  mergeType: '# Ses ve Video Birleştirme Biçimi / Video Merge Type\n# Seçenekler: merge (FFmpeg ile birleştir), video (Sadece video), audio (Sadece ses)\n# Options: merge (Merge with FFmpeg), video (Video only), audio (Audio only)',
+  writeThumbnail: '# Önizleme Resmini İndir / Download Video Thumbnail\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  showShorts: '# Kütüphanede Shorts Göster / Show Shorts in Library\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  rssLimit: '# RSS Denetleme Limiti / RSS Scan Limit\n# Kanal başına taranacak maksimum video sayısı.\n# Maximum number of videos to scan per channel.',
+  autoDeleteDays: '# Otomatik Dosya Silme Gün Sınırı / Auto-delete Video Files After Days\n# 0 = Silme devre dışı.\n# 0 = Deletion disabled.',
+  theme: '# Arayüz Teması / UI Theme\n# Seçenekler: dark, light\n# Options: dark, light',
+  downloadSpeedLimit: '# İndirme Hız Sınırı (KB/s) / Download Speed Limit (KB/s)\n# 0 = Sınırsız.\n# 0 = Unlimited.',
+  useAlternativeSpeed: '# Alternatif Hız Sınırını (Turtle) Kullan / Use Alternative Speed Limit (Turtle)\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  alternativeSpeedLimit: '# Alternatif Hız Sınırı Değeri (KB/s) / Alternative Speed Limit Value (KB/s)\n# Varsayılan: 501 KB/s\n# Default: 501 KB/s',
+  port: '# Uygulama Bağlantı Noktası (Port) / Application Port\n# Varsayılan: 4141\n# Default: 4141',
+  playerPreference: '# Video Oynatıcı Tercihi / Video Player Preference\n# Seçenekler: system (Sistem varsayılanı), embedded (Gömülü oynatıcı)\n# Options: system (System default), embedded (Embedded player)',
+  playerType: '# Gömülü Oynatıcı Türü / Embedded Player Type\n# Seçenekler: plyr, artplayer, html5\n# Options: plyr, artplayer, html5',
+  playSounds: '# Sistem Sesleri / Play System Sounds\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  lang: '# Uygulama Dili / Application Language\n# Seçenekler: tr, en, es, de, pt, ru, ar\n# Options: tr, en, es, de, pt, ru, ar',
+  isPaused: '# Otomatik Kontrol Duraklatıldı mı / Is Automatic Checking Paused\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  showNotifications: '# Windows Bildirimlerini Göster / Show Windows Notifications\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  autoOpenBrowser: '# Başlangıçta Tarayıcıyı Aç / Auto Open Browser on Startup\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)'
+};
+
 function writeIni(filePath, data) {
-  let content = '; HaYTooL YouTube Downloader Yapilandirma Dosyasi\n';
-  content += '; Bu dosya arayuzdeki Ayarlar veya Kanallar degistikce otomatik guncellenir.\n\n';
+  let content = '; HaYTooL YouTube Downloader Yapilandirma Dosyasi / Configuration File\n';
+  content += '; Bu dosya arayuzdeki Ayarlar veya Kanallar degistikce otomatik guncellenir.\n';
+  content += '; This file is updated automatically when Settings or Channels change.\n\n';
+  
+  const isSettingsFile = filePath.includes('configwin.ini') || filePath.includes('configunix.ini');
+  
   for (const section in data) {
     content += `[${section}]\n`;
     for (const key in data[section]) {
-      content += `${key} = ${data[section][key]}\n`;
+      if (isSettingsFile && settingComments[key]) {
+        content += settingComments[key] + '\n';
+      }
+      content += `${key} = ${data[section][key]}\n\n`;
     }
-    content += '\n';
   }
   fs.writeFileSync(filePath, content, 'utf-8');
 }
@@ -395,6 +426,99 @@ function convertPngToIco(pngPath, icoPath) {
 }
 
 /**
+ * Verilen URL'yi doğrudan çekmeyi dener. Hata veya HTTP >= 400 durumunda,
+ * tanımlı proxy listesini sırayla kullanarak içeriği çekmeye çalışır.
+ * 
+ * @param {string} targetUrl Çekilmek istenen orijinal URL
+ * @returns {Promise<string>} Yanıt içeriği
+ */
+function fetchWithProxyWaterfall(targetUrl) {
+  const proxies = [
+    url => url,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+  ];
+
+  return new Promise((resolve, reject) => {
+    let index = 0;
+
+    function tryNext() {
+      if (index >= proxies.length) {
+        return reject(new Error(`Orijinal ve proxy sunucuları üzerinden ${targetUrl} adresi çekilemedi.`));
+      }
+
+      const activeUrl = proxies[index](targetUrl);
+      const isDirect = index === 0;
+
+      console.log(`[Waterfall] Istek gonderiliyor (Index: ${index}, Direct: ${isDirect}): ${activeUrl}`);
+      
+      let urlObj;
+      try {
+        urlObj = new URL(activeUrl);
+      } catch (e) {
+        console.log(`[Waterfall] Gecersiz URL formati (Index: ${index}): ${activeUrl}`);
+        index++;
+        tryNext();
+        return;
+      }
+
+      function performRequest(requestUrl, redirectCount = 0) {
+        if (redirectCount > 5) {
+          console.log(`[Waterfall] Cok fazla yonlendirme (Index: ${index})`);
+          index++;
+          tryNext();
+          return;
+        }
+
+        const reqOptions = {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          }
+        };
+
+        const currentUrlObj = new URL(requestUrl);
+        const currentGetter = currentUrlObj.protocol === 'https:' ? https : http;
+
+        currentGetter.get(currentUrlObj, reqOptions, (res) => {
+          if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
+            let location = res.headers.location;
+            if (location) {
+              if (!location.startsWith('http')) {
+                location = currentUrlObj.origin + location;
+              }
+              performRequest(location, redirectCount + 1);
+              return;
+            }
+          }
+
+          if (res.statusCode !== 200) {
+            console.log(`[Waterfall] Hata kodu (Index: ${index}): HTTP ${res.statusCode}`);
+            index++;
+            tryNext();
+            return;
+          }
+
+          let data = '';
+          res.on('data', chunk => { data += chunk; });
+          res.on('end', () => {
+            resolve(data);
+          });
+        }).on('error', (err) => {
+          console.log(`[Waterfall] Istek hatasi (Index: ${index}): ${err.message}`);
+          index++;
+          tryNext();
+        });
+      }
+
+      performRequest(activeUrl);
+    }
+
+    tryNext();
+  });
+}
+
+/**
  * Belirtilen URL'deki kanal logosunu yerel diskteki kanal klasörüne kaydeder.
  * 
  * @param {string} url Profil resmi uzak URL'si
@@ -418,28 +542,66 @@ function downloadChannelAvatar(url, channelName) {
       }
     }
 
-    https.get(url, (res) => {
-      if (res.statusCode !== 200) {
+    const proxies = [
+      u => u,
+      u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+      u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+    ];
+
+    let index = 0;
+
+    function tryDownload() {
+      if (index >= proxies.length) {
+        console.log(`[Kanal] Kanal logosu hicbir yontemle indirilemedi: ${channelName}`);
         return resolve('');
       }
-      const fileStream = fs.createWriteStream(destPath);
-      res.pipe(fileStream);
-      fileStream.on('finish', () => {
-        fileStream.close();
-        console.log(`[AYAR] Kanal logosu indirildi: ${channelName} -> avatar.jpg`);
-        
-        // Kanal klasörü için klasör ikonu ayarlama işlevini tetikle
-        setFolderIcon(channelDir, destPath);
-        
-        resolve(destPath);
+
+      const activeUrl = proxies[index](url);
+
+      let urlObj;
+      try {
+        urlObj = new URL(activeUrl);
+      } catch (e) {
+        index++;
+        tryDownload();
+        return;
+      }
+
+      const getter = urlObj.protocol === 'https:' ? https : http;
+
+      getter.get(urlObj, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      }, (res) => {
+        if (res.statusCode !== 200) {
+          index++;
+          tryDownload();
+          return;
+        }
+
+        const fileStream = fs.createWriteStream(destPath);
+        res.pipe(fileStream);
+        fileStream.on('finish', () => {
+          fileStream.close();
+          console.log(`[AYAR] Kanal logosu indirildi: ${channelName} -> avatar.jpg (Yontem Index: ${index})`);
+          setFolderIcon(channelDir, destPath);
+          resolve(destPath);
+        });
+        fileStream.on('error', (err) => {
+          fileStream.close();
+          fs.unlink(destPath, () => {});
+          index++;
+          tryDownload();
+        });
+      }).on('error', () => {
+        index++;
+        tryDownload();
       });
-      fileStream.on('error', (err) => {
-        fs.unlink(destPath, () => {});
-        resolve('');
-      });
-    }).on('error', () => {
-      resolve('');
-    });
+    }
+
+    tryDownload();
   });
 }
 
@@ -989,90 +1151,22 @@ function writeDb(data) {
 }
 
 // CLI (Command Line Interface) Desteği
-// Türkçe Açıklama: Uygulama terminalden komut parametreleri ile çalıştırıldığında (örn: haytool status veya HaYTooL YT Downloader.exe status) komutları işler ve uygulamayı kapatır.
 if (process.argv.length > 2) {
   const cliArgs = process.argv.slice(2);
   const cliCmd = cliArgs[0].toLowerCase();
-  const cliVal = cliArgs[1] ? cliArgs[1].toLowerCase() : '';
+  const cliVal = cliArgs[1] ? cliArgs[1].trim() : '';
 
   const db = readDb();
 
-  const turtleOnCmds = ['turtleon', 'turtle-on', 'turtleac', 'turtle-ac', 'turtle_on', 'turtle_ac', 'altspeedon', 'altspeed-on', 'altspeedac', 'altspeed-ac'];
-  const turtleOffCmds = ['turtleoff', 'turtle-off', 'turtlekapat', 'turtle-kapat', 'turtle_off', 'turtle_kapat', 'altspeedoff', 'altspeed-off', 'altspeedkapat', 'altspeed-kapat'];
-
-  if (turtleOnCmds.includes(cliCmd)) {
+  if (cliCmd === 'ton') {
     db.settings.useAlternativeSpeed = true;
     writeDb(db);
     console.log(`Alternative speed limit (Turtle) ENABLED. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
     process.exit(0);
-  } else if (turtleOffCmds.includes(cliCmd)) {
+  } else if (cliCmd === 'toff') {
     db.settings.useAlternativeSpeed = false;
     writeDb(db);
     console.log(`Alternative speed limit (Turtle) DISABLED. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
-    process.exit(0);
-  } else if (cliCmd === 'speed' || cliCmd === 'limit') {
-    if (cliVal === 'off' || cliVal === 'kapat' || cliVal === '0') {
-      const oldLimit = getEffectiveSpeedLimit(db.settings);
-      if (db.settings.downloadSpeedLimit > 0) {
-        db.settings.lastNonZeroSpeedLimit = db.settings.downloadSpeedLimit;
-      }
-      db.settings.downloadSpeedLimit = 0;
-      db.settings.useAlternativeSpeed = false;
-      writeDb(db);
-      console.log('Speed limit turned off (Unlimited).');
-    } else if (cliVal === 'on' || cliVal === 'ac') {
-      const targetLimit = db.settings.lastNonZeroSpeedLimit || 1000;
-      db.settings.downloadSpeedLimit = targetLimit;
-      writeDb(db);
-      console.log(`Speed limit turned on: ${targetLimit} KB/s.`);
-    } else if (cliVal === 'toggle') {
-      db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
-      writeDb(db);
-      console.log(`Alternative speed limit ${db.settings.useAlternativeSpeed ? 'activated' : 'deactivated'}. Effective limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
-    } else {
-      const val = parseInt(cliVal, 10);
-      if (!isNaN(val) && val >= 0) {
-        db.settings.downloadSpeedLimit = val;
-        if (val > 0) {
-          db.settings.lastNonZeroSpeedLimit = val;
-        }
-        writeDb(db);
-        console.log(`Speed limit set to ${val} KB/s.`);
-      } else {
-        console.error('Error: Invalid speed value. Example: haytool speed 1500');
-        process.exit(1);
-      }
-    }
-    process.exit(0);
-  } else if (cliCmd === 'altspeed' || cliCmd === 'turtle') {
-    if (cliVal === 'on' || cliVal === 'ac' || cliVal === '1') {
-      db.settings.useAlternativeSpeed = true;
-      writeDb(db);
-      console.log(`Alternative speed limit (Turtle) ENABLED. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
-    } else if (cliVal === 'off' || cliVal === 'kapat' || cliVal === '0') {
-      db.settings.useAlternativeSpeed = false;
-      writeDb(db);
-      console.log(`Alternative speed limit (Turtle) DISABLED. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
-    } else if (cliVal === 'toggle') {
-      db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
-      writeDb(db);
-      console.log(`Alternative speed limit (Turtle) ${db.settings.useAlternativeSpeed ? 'activated' : 'deactivated'}. Limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
-    } else {
-      const val = parseInt(cliVal, 10);
-      if (!isNaN(val) && val >= 0) {
-        db.settings.alternativeSpeedLimit = val;
-        writeDb(db);
-        console.log(`Alternative speed limit set to ${val} KB/s.`);
-      } else {
-        console.error('Error: Invalid value. Example: haytool altspeed 500, haytool altspeed on, haytool altspeed off, haytool turtle on, haytool turtle off');
-        process.exit(1);
-      }
-    }
-    process.exit(0);
-  } else if (cliCmd === 'toggle') {
-    db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
-    writeDb(db);
-    console.log(`Alternative speed limit ${db.settings.useAlternativeSpeed ? 'activated' : 'deactivated'}. Effective limit: ${getEffectiveSpeedLimit(db.settings)} KB/s`);
     process.exit(0);
   } else if (cliCmd === 'status') {
     const effective = getEffectiveSpeedLimit(db.settings);
@@ -1131,7 +1225,6 @@ if (process.argv.length > 2) {
     });
 
     req.on('error', (e) => {
-      // Direct write to DB if server is closed
       fallbackWriteToDb(videoId, targetUrl);
     });
 
@@ -1180,28 +1273,19 @@ if (process.argv.length > 2) {
     }
   } else {
     console.log(`
-[HaYTooL CLI Yardım]
-  Kullanım: haytool <komut> [değer]
+[HaYTooL CLI Help]
+  Usage: haytool <command> [value]
 
-  Hız Limiti Komutları:
-  speed <KB/s>                         (Hız limitini ayarla, 0 = sınırsız)
-  speed on / speed ac                  (Hız limitini aç)
-  speed off / speed kapat              (Hız limitini kapat)
+  Commands:
+  ton                                  (Alternative speed limit (Turtle) ENABLED)
+  toff                                 (Alternative speed limit (Turtle) DISABLED)
+  status                               (Show current speed limits and status)
+  pd <youtube-url>                     (Add video to download queue)
 
-  Kaplumbağa (Alternatif Hız) Modu:
-  turtleon / turtleac / turtle-on      (Alternatif hızı KESİN AÇ)
-  turtleoff / turtlekapat / turtle-off (Alternatif hızı KESİN KAPAT)
-  altspeed on/off/toggle/<KB/s>        (Alternatif hız yönetimi)
-  turtle on/off/toggle                 (Kaplumbağa modu yönetimi)
-  toggle                               (Alternatif hızı aç/kapat)
-
-  Diğer Komutlar:
-  status                               (Mevcut hız limitlerini göster)
-  pd <youtube-url>                     (Videoyu indirme kuyruğuna ekle)
-
-  Örnekler:
-  haytool speed 1500
-  haytool turtleon
+  Examples:
+  haytool ton
+  haytool toff
+  haytool status
   haytool pd https://www.youtube.com/watch?v=dQw4w9WgXcQ
     `);
     process.exit(0);
@@ -1824,6 +1908,13 @@ function autoDeleteOldVideos() {
  * @param {string} input YouTube kanal/kullanıcı/video bağlantısı veya kullanıcı adı
  * @returns {Promise<object>} Çözümlenen kanal bilgileri (id, name, avatar, handle)
  */
+// Türkçe Açıklama: YouTube bağlantısı, kullanıcı adı veya video linkini çözümleyerek kanal ID'si, isim, avatar ve handle değerlerini bulur.
+/**
+ * Girilen YouTube kanal linki, kullanıcı adı veya video linkini çözümleyerek kanal ID'si, kanal ismini, logosunu ve handle adını bulur.
+ * 
+ * @param {string} input YouTube kanal/kullanıcı/video bağlantısı veya kullanıcı adı
+ * @returns {Promise<object>} Çözümlenen kanal bilgileri (id, name, avatar, handle)
+ */
 async function resolveChannelId(input) {
   // Türkçe Açıklama: Girdiyi URL decode ederek Nevşin Mengü gibi Türkçe ve özel karakter içeren kanalların düzgün çözümlenmesini sağlıyoruz.
   const decodedInput = decodeURIComponent(input.trim());
@@ -1855,204 +1946,154 @@ async function resolveChannelId(input) {
 
   console.log(`Çözümlenecek adres: ${targetUrl}`);
   
-  return new Promise((resolve, reject) => {
-    const db = readDb();
-    const langHeader = db.settings.lang === 'en' ? 'en-US,en;q=0.9' : 'tr-TR,tr;q=0.9';
+  let fallbackChannelId = null;
+  const directIdMatch = targetUrl.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/);
+  if (directIdMatch) {
+    fallbackChannelId = directIdMatch[1];
+  } else if (/^UC[a-zA-Z0-9_-]{22}$/.test(decodedInput)) {
+    fallbackChannelId = decodedInput;
+  }
 
-    // Extract potential channel ID from targetUrl / input to use as fallback if blocked
-    let fallbackChannelId = null;
-    const directIdMatch = targetUrl.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/);
-    if (directIdMatch) {
-      fallbackChannelId = directIdMatch[1];
-    } else if (/^UC[a-zA-Z0-9_-]{22}$/.test(decodedInput)) {
-      fallbackChannelId = decodedInput;
-    }
+  async function tryRssFallback(channelId) {
+    try {
+      console.log(`[RSS Fallback] ${channelId} için RSS XML çekilmeye çalışılıyor...`);
+      const xml = await fetchWithProxyWaterfall(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`);
+      
+      // Extract title/name from feed
+      const titleMatch = xml.match(/<title>([^<]+)<\/title>/);
+      let channelName = titleMatch ? titleMatch[1].replace(' - YouTube', '').trim() : `Kanal ${channelId}`;
+      const authorMatch = xml.match(/<author>\s*<name>([^<]+)<\/name>/);
+      if (authorMatch) {
+        channelName = authorMatch[1].trim();
+      }
 
-    async function tryRssFallback(channelId) {
+      // Try to fetch avatar using yt-dlp with cookies if configured
+      let avatarUrl = '';
       try {
-        console.log(`[RSS Fallback] ${channelId} için RSS XML çekilmeye çalışılıyor...`);
-        const xml = await new Promise((resXml, rejXml) => {
-          https.get(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept-Language': langHeader
-            }
-          }, (res) => {
-            if (res.statusCode !== 200) {
-              return rejXml(new Error(`HTTP ${res.statusCode}`));
-            }
-            let data = '';
-            res.on('data', chunk => { data += chunk; });
-            res.on('end', () => resXml(data));
-          }).on('error', rejXml);
-        });
-
-        // Extract title/name from feed
-        const titleMatch = xml.match(/<title>([^<]+)<\/title>/);
-        let channelName = titleMatch ? titleMatch[1].replace(' - YouTube', '').trim() : `Kanal ${channelId}`;
-        const authorMatch = xml.match(/<author>\s*<name>([^<]+)<\/name>/);
-        if (authorMatch) {
-          channelName = authorMatch[1].trim();
+        const db = readDb();
+        const args = [];
+        args.push('--js-runtimes', `node:${process.execPath}`);
+        if (db.settings.browser && db.settings.browser !== 'none') {
+          const browserName = db.settings.browser === 'msedge' ? 'edge' : db.settings.browser;
+          args.push('--cookies-from-browser', browserName);
         }
-
-        // Try to fetch avatar using yt-dlp with cookies if configured
-        let avatarUrl = '';
-        try {
-          const db = readDb();
-          const args = [];
-          args.push('--js-runtimes', `node:${process.execPath}`);
-          if (db.settings.browser && db.settings.browser !== 'none') {
-            const browserName = db.settings.browser === 'msedge' ? 'edge' : db.settings.browser;
-            args.push('--cookies-from-browser', browserName);
-          }
-          args.push('--dump-json', '--playlist-items', '0', `https://www.youtube.com/channel/${channelId}`);
-          
-          const spawnOptions = process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {};
-          
-          const ytdlpOutput = await new Promise((resDl, rejDl) => {
-            const proc = spawn(ytdlpPath, args, spawnOptions);
-            let out = '';
-            let err = '';
-            proc.stdout.on('data', (d) => { out += d.toString(); });
-            proc.stderr.on('data', (d) => { err += d.toString(); });
-            proc.on('close', (code) => {
-              if (code !== 0) return rejDl(new Error(`Exit code ${code}. Stderr: ${err}`));
-              resDl(out);
-            });
+        args.push('--dump-json', '--playlist-items', '0', `https://www.youtube.com/channel/${channelId}`);
+        
+        const spawnOptions = process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {};
+        
+        const ytdlpOutput = await new Promise((resDl, rejDl) => {
+          const proc = spawn(ytdlpPath, args, spawnOptions);
+          let out = '';
+          let err = '';
+          proc.stdout.on('data', (d) => { out += d.toString(); });
+          proc.stderr.on('data', (d) => { err += d.toString(); });
+          proc.on('close', (code) => {
+            if (code !== 0) return rejDl(new Error(`Exit code ${code}. Stderr: ${err}`));
+            resDl(out);
           });
+        });
 
-          const parsedData = JSON.parse(ytdlpOutput);
-          if (parsedData.thumbnails && parsedData.thumbnails.length > 0) {
-            const sortedThumbs = [...parsedData.thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
-            avatarUrl = sortedThumbs[0].url || '';
-          }
-        } catch (avatarErr) {
-          console.log(`[RSS Fallback] yt-dlp ile logo çekilemedi: ${avatarErr.message}`);
+        const parsedData = JSON.parse(ytdlpOutput);
+        if (parsedData.thumbnails && parsedData.thumbnails.length > 0) {
+          const sortedThumbs = [...parsedData.thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
+          avatarUrl = sortedThumbs[0].url || '';
         }
-
-        resolve({
-          id: channelId,
-          name: channelName,
-          avatar: avatarUrl
-        });
-      } catch (err) {
-        console.log(`[RSS Fallback] RSS XML de başarısız oldu: ${err.message}. Varsayılan isimle ekleniyor.`);
-        resolve({
-          id: channelId,
-          name: `Kanal ${channelId}`,
-          avatar: ''
-        });
+      } catch (avatarErr) {
+        console.log(`[RSS Fallback] yt-dlp ile logo çekilemedi: ${avatarErr.message}`);
       }
+
+      return {
+        id: channelId,
+        name: channelName,
+        avatar: avatarUrl
+      };
+    } catch (err) {
+      console.log(`[RSS Fallback] RSS XML de başarısız oldu: ${err.message}. Varsayılan isimle ekleniyor.`);
+      return {
+        id: channelId,
+        name: `Kanal ${channelId}`,
+        avatar: ''
+      };
+    }
+  }
+
+  try {
+    const html = await fetchWithProxyWaterfall(targetUrl);
+    let channelId = null;
+    let channelName = null;
+
+    if (isVideoUrl) {
+      channelId = html.match(/"externalChannelId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
+                  html.match(/"channelId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
+                  html.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/)?.[1];
+      
+      channelName = html.match(/<link itemprop="name" content="([^"]+)"/)?.[1] ||
+                    html.match(/"author"\s*:\s*"([^"]+)"/)?.[1];
+    } else {
+      channelId = html.match(/<meta itemprop="channelId" content="(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
+                  html.match(/<link rel="canonical" href="[^"]*youtube\.com\/channel\/(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
+                  html.match(/youtube\.com\/feeds\/videos\.xml\?channel_id=(UC[a-zA-Z0-9_-]{22})/)?.[1] ||
+                  html.match(/"browseId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
+                  html.match(/"channelId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
+                  html.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/)?.[1];
+      
+      const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
+      const titleMatch = html.match(/<title>([^<]+)<\/title>/);
+      channelName = ogTitleMatch?.[1] || titleMatch?.[1];
     }
 
-    function fetchUrl(currentUrl, redirectCount = 0) {
-      if (redirectCount > 5) {
-        if (fallbackChannelId) return tryRssFallback(fallbackChannelId);
-        return reject(new Error('Çok fazla yönlendirme algılandı.'));
-      }
+    if (channelName) {
+      channelName = channelName.replace(' - YouTube', '').trim();
+    }
 
-      let urlObj;
+    // Stable avatar resolving (prioritizing og:image / image_src)
+    let avatarUrl = '';
+    const ogImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+    const linkImageMatch = html.match(/<link rel="image_src" href="([^"]+)"/);
+    if (ogImageMatch) {
+      avatarUrl = ogImageMatch[1];
+    } else if (linkImageMatch) {
+      avatarUrl = linkImageMatch[1];
+    } else {
+      const avatarMatch = html.match(/"avatarViewModel"\s*:\s*\{\s*"image"\s*:\s*\{\s*"sources"\s*:\s*\[\s*\{\s*"url"\s*:\s*"([^"]+)"/);
+      avatarUrl = avatarMatch ? avatarMatch[1] : '';
+    }
+
+    const vanityMatch = html.match(/"vanityChannelUrl"\s*:\s*"https?:\/\/www\.youtube\.com\/(@[^"]+)"/);
+    const handleVal = vanityMatch ? vanityMatch[1] : '';
+
+    if (channelId) {
+      console.log(`[Scraper] Kanal ID bulundu: ${channelId}. Gerçek kanal adını doğrulamak için RSS beslemesi sorgulanıyor...`);
       try {
-        urlObj = new URL(currentUrl);
-      } catch (e) {
-        if (fallbackChannelId) return tryRssFallback(fallbackChannelId);
-        return reject(new Error('Geçersiz URL formatı.'));
+        const rssInfo = await tryRssFallback(channelId);
+        console.log(`[Scraper] RSS ile doğrulanan Kanal: ${rssInfo.name} (ID: ${channelId})`);
+        return {
+          id: channelId,
+          name: rssInfo.name || channelName || `Kanal ${channelId}`,
+          avatar: avatarUrl || rssInfo.avatar || '',
+          handle: handleVal || ''
+        };
+      } catch (err) {
+        console.log(`[Scraper] RSS sorgusu başarısız oldu, kazınan verilerle devam ediliyor: ${err.message}`);
+        return {
+          id: channelId,
+          name: channelName || `Kanal ${channelId}`,
+          avatar: avatarUrl || '',
+          handle: handleVal || ''
+        };
       }
-
-      https.get(urlObj, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept-Language': langHeader
-        }
-      }, (res) => {
-        if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
-          let location = res.headers.location;
-          if (!location.startsWith('http')) {
-            location = urlObj.origin + location;
-          }
-          fetchUrl(location, redirectCount + 1);
-          return;
-        }
-
-        if (res.statusCode !== 200) {
-          if (fallbackChannelId) {
-            return tryRssFallback(fallbackChannelId);
-          }
-          return reject(new Error(`YouTube sunucu hatası: HTTP ${res.statusCode}`));
-        }
-
-        let html = '';
-        res.on('data', chunk => { html += chunk; });
-        res.on('end', () => {
-          let channelId = null;
-          let channelName = null;
-
-          if (isVideoUrl) {
-            channelId = html.match(/"externalChannelId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
-                        html.match(/"channelId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
-                        html.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/)?.[1];
-            
-            channelName = html.match(/<link itemprop="name" content="([^"]+)"/)?.[1] ||
-                          html.match(/"author"\s*:\s*"([^"]+)"/)?.[1];
-          } else {
-            channelId = html.match(/<meta itemprop="channelId" content="(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
-                        html.match(/<link rel="canonical" href="[^"]*youtube\.com\/channel\/(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
-                        html.match(/youtube\.com\/feeds\/videos\.xml\?channel_id=(UC[a-zA-Z0-9_-]{22})/)?.[1] ||
-                        html.match(/"browseId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
-                        html.match(/"channelId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
-                        html.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/)?.[1];
-            
-            const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]+)"/);
-            const titleMatch = html.match(/<title>([^<]+)<\/title>/);
-            channelName = ogTitleMatch?.[1] || titleMatch?.[1];
-          }
-
-          if (channelName) {
-            channelName = channelName.replace(' - YouTube', '').trim();
-          }
-
-          const avatarMatch = html.match(/"avatarViewModel"\s*:\s*\{\s*"image"\s*:\s*\{\s*"sources"\s*:\s*\[\s*\{\s*"url"\s*:\s*"([^"]+)"/);
-          const avatarUrl = avatarMatch ? avatarMatch[1] : '';
-
-          const vanityMatch = html.match(/"vanityChannelUrl"\s*:\s*"https?:\/\/www\.youtube\.com\/(@[^"]+)"/);
-          const handleVal = vanityMatch ? vanityMatch[1] : '';
-
-          if (channelId) {
-            console.log(`[Scraper] Kanal ID bulundu: ${channelId}. Gerçek kanal adını doğrulamak için RSS beslemesi sorgulanıyor...`);
-            tryRssFallback(channelId).then(rssInfo => {
-              console.log(`[Scraper] RSS ile doğrulanan Kanal: ${rssInfo.name} (ID: ${channelId})`);
-              resolve({
-                id: channelId,
-                name: rssInfo.name || channelName || `Kanal ${channelId}`,
-                avatar: avatarUrl || '',
-                handle: handleVal || ''
-              });
-            }).catch(err => {
-              console.log(`[Scraper] RSS sorgusu başarısız oldu, kazınan verilerle devam ediliyor: ${err.message}`);
-              resolve({
-                id: channelId,
-                name: channelName || `Kanal ${channelId}`,
-                avatar: avatarUrl || '',
-                handle: handleVal || ''
-              });
-            });
-          } else {
-            if (fallbackChannelId) {
-              return tryRssFallback(fallbackChannelId);
-            }
-            reject(new Error('Kanal ID veya kanal adı tespit edilemedi. Lütfen adresi kontrol edin.'));
-          }
-        });
-      }).on('error', (err) => {
-        if (fallbackChannelId) {
-          return tryRssFallback(fallbackChannelId);
-        }
-        reject(err);
-      });
+    } else {
+      if (fallbackChannelId) {
+        return await tryRssFallback(fallbackChannelId);
+      }
+      throw new Error('Kanal ID veya kanal adı tespit edilemedi. Lütfen adresi kontrol edin.');
     }
-
-    fetchUrl(targetUrl);
-  });
+  } catch (err) {
+    if (fallbackChannelId) {
+      return await tryRssFallback(fallbackChannelId);
+    }
+    throw err;
+  }
 }
 
 // SSE Bağlantıları
@@ -2590,7 +2631,8 @@ function fetchChannelVideosYtdlp(channelId, limit) {
     const dateMap = new Map();
     try {
       const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-      const xmlFeed = await parser.parseURL(feedUrl);
+      const xmlData = await fetchWithProxyWaterfall(feedUrl);
+      const xmlFeed = await parser.parseString(xmlData);
       if (xmlFeed && xmlFeed.items) {
         for (const item of xmlFeed.items) {
           const videoId = item.link?.match(/v=([^&]+)/)?.[1] || item.id?.replace('yt:video:', '');
@@ -2719,7 +2761,8 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
       addTerminalLog(`[RSS] ${channel.name} yt-dlp hatası aldı (${ytdlpErr.message}). Standart RSS XML ile denetleniyor...`, 'info');
       try {
         const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.id}`;
-        feed = await parser.parseURL(feedUrl);
+        const xmlData = await fetchWithProxyWaterfall(feedUrl);
+        feed = await parser.parseString(xmlData);
       } catch (rssErr) {
         console.error(`[RSS] [HATA] ${channel.name} RSS XML ile de denetlenemedi:`, rssErr.message);
       }
@@ -2745,13 +2788,13 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
         const isAlreadyProcessed = !!existingHistory;
 
         if (isAlreadyProcessed) {
-          // Video zaten kayıtlı, ama durumu 'upcoming' ise kontrol et
-          if (existingHistory.status === 'upcoming' || existingHistory.duration === 'upcoming') {
+          // Video zaten kayıtlı, ama durumu 'upcoming' veya 'live' ise kontrol et
+          if (existingHistory.status === 'upcoming' || existingHistory.duration === 'upcoming' || existingHistory.status === 'live' || existingHistory.duration === 'live') {
             try {
               const result = await fetchVideoDuration(videoId);
-              if (result && result.duration && result.duration !== 'upcoming') {
-                console.log(`[RSS] Upcoming video is now published: ${item.title}`);
-                addTerminalLog(`[RSS] Yaklaşan/Prömiyer video artık yayında: "${item.title}" (${channel.name})`, 'info');
+              if (result && result.duration && result.duration !== 'upcoming' && result.duration !== 'live') {
+                console.log(`[RSS] Upcoming/live video is now published/completed: ${item.title}`);
+                addTerminalLog(`[RSS] Yaklaşan/Canlı yayın artık normal video halinde yayında: "${item.title}" (${channel.name})`, 'info');
                 
                 existingHistory.duration = result.duration;
                 if (result.publishedAt) {
@@ -2790,7 +2833,7 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
                 }
               }
             } catch (e) {
-              console.error(`Error checking upcoming video status for ${videoId}:`, e.message);
+              console.error(`Error checking upcoming/live video status for ${videoId}:`, e.message);
             }
           }
         } else {
@@ -2891,6 +2934,24 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
                 fileSize: '',
                 filePath: '',
                 duration: 'upcoming'
+              });
+              writeDb(db);
+            } else if (duration === 'live') {
+              console.log(`[RSS] Active live stream detected (download postponed): ${resolvedTitle}`);
+              addTerminalLog(`[RSS] Aktif canlı yayın algılandı (yayın bitene kadar indirme ertelendi): "${resolvedTitle}" (${resolvedChannelName})`, 'info');
+              
+              db.history.push({
+                id: videoId,
+                title: resolvedTitle,
+                channelId: channel.id,
+                channelName: resolvedChannelName,
+                downloadedAt: new Date().toISOString(),
+                publishedAt: actualPublishDate,
+                status: 'live',
+                progress: 0,
+                fileSize: '',
+                filePath: '',
+                duration: 'live'
               });
               writeDb(db);
             } else if (db.settings.autoDownload) {
@@ -3535,23 +3596,30 @@ app.post('/api/channels', async (req, res) => {
       avatar: channelInfo.avatar || '',
       shortsDurationLimit: 180
     };
-    // Race Condition Düzeltmesi: Kanal veritabanına eklenmeden önce (arka plan işlemi araya girmemesi için) geçmiş videolarını 'ignored' olarak işaretliyoruz.
+    // Türkçe Açıklama: Önce kanalı listeye ekliyoruz ve veri tabanını kaydediyoruz ki RSS taraması sırasında veri tabanı çakışması veya üzerine yazma (overwrite) hatası oluşmasın.
+    db.channels.push(newChannel);
+    writeDb(db);
+
+    // Türkçe Açıklama: Kanal eklendikten sonra profil resmi yerel klasöre indirilir.
+    if (channelInfo.avatar) {
+      try {
+        await downloadChannelAvatar(channelInfo.avatar, channelInfo.name);
+      } catch (avatarErr) {
+        console.error(`[Kanal] Avatar indirme hatası:`, avatarErr.message);
+      }
+    }
+
+    // Türkçe Açıklama: Kanal veri tabanına eklendikten sonra ilk RSS taramasını yapıp videolarını geçmişe 'ignored' olarak kaydediyoruz.
     try {
       await checkSingleChannelRss(newChannel, true);
     } catch (rssErr) {
-      console.error(`[Kanal] İlk RSS taraması başarısız oldu, ancak kanal eklenmeye devam ediliyor:`, rssErr.message);
-      addTerminalLog(`[Kanal] "${newChannel.name}" için ilk taramada hata oluştu: ${rssErr.message}. Kanal yine de eklendi.`, 'warning');
+      console.error(`[Kanal] İlk RSS taraması başarısız oldu:`, rssErr.message);
+      addTerminalLog(`[Kanal] "${newChannel.name}" için ilk taramada hata oluştu: ${rssErr.message}.`, 'warning');
     }
 
-    db.channels.push(newChannel);
-    writeDb(db);
-    
-    // Türkçe Açıklama: Kanal eklendikten sonra profil resmi yerel klasöre indirilir.
-    if (channelInfo.avatar) {
-      await downloadChannelAvatar(channelInfo.avatar, channelInfo.name);
-    }
-
-    broadcast('db_update', db);
+    // Türkçe Açıklama: RSS taraması sonrasında güncellenen veritabanını (geçmiş videoları içeren halini) diskten okuyup arayüze yayınlıyoruz.
+    const finalDb = readDb();
+    broadcast('db_update', finalDb);
     broadcast('status_log', { message: `${channelInfo.name} kanalı başarıyla eklendi.`, type: 'success' });
     addTerminalLog(`[Kanal] Kanal takip listesine eklendi: "${channelInfo.name}" (ID: ${channelInfo.id})`, 'success');
 
@@ -3809,9 +3877,6 @@ app.post('/api/download-video', async (req, res) => {
   });
 
   resolveMissingDurations();
-
-  // İstemcileri kuyruk sekmesine yönlendir
-  broadcast('switch_tab', 'queue');
 
   res.json({ success: true, message: 'İndirme kuyruğuna eklendi.', videoId: targetVideoId });
 });
@@ -4601,7 +4666,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v4.13.2
+               Versiyon: v4.13.3
                Yapımcı: HaYTo
     ====================================================
     `);
@@ -4785,217 +4850,65 @@ process.stdin.on('data', (data) => {
   if (command === 'help' || command === '?') {
     console.log('[Console] Available commands:\n' +
                 '  - status (Shows application speed and queue status)\n' +
-                '  - turtleon / turtleoff (Activates/deactivates alternative speed limit)\n' +
-                '  - toggle (Toggles alternative speed limit status)\n' +
-                '  - speed <value> (Sets speed limit in KB/s, e.g. speed 1000)\n' +
-                '  - speed on/off (Enables/disables normal speed limit)\n' +
-                '  - altspeed <value> (Sets alternative speed limit, e.g. altspeed 500)\n' +
-                '  - pd <link> (Adds video to queue by URL and switches tab)\n' +
+                '  - ton (Activates alternative speed limit (Turtle))\n' +
+                '  - toff (Deactivates alternative speed limit (Turtle))\n' +
+                '  - pd <link> (Adds video to queue by URL)\n' +
                 '  - clear (Clears the terminal screen)');
     return;
   }
 
   const db = readDb();
 
-  const turtleOnCmds = ['turtleon', 'turtle-on', 'turtleac', 'turtle-ac', 'turtle_on', 'turtle_ac', 'altspeedon', 'altspeed-on', 'altspeedac', 'altspeed-ac'];
-  const turtleOffCmds = ['turtleoff', 'turtle-off', 'turtlekapat', 'turtle-kapat', 'turtle_off', 'turtle_kapat', 'altspeedoff', 'altspeed-off', 'altspeedkapat', 'altspeed-kapat'];
-
-  if (turtleOnCmds.includes(command)) {
+  if (command === 'ton') {
     const oldLimit = getEffectiveSpeedLimit(db.settings);
     db.settings.useAlternativeSpeed = true;
     const newLimit = getEffectiveSpeedLimit(db.settings);
     const speedLimitChanged = oldLimit !== newLimit;
     writeDb(db);
     broadcast('db_update', db);
-    addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) etkinleştirildi.`, 'info');
-    console.log(`[Konsol] Alternatif hiz siniri (Turtle) etkinlestirildi. Limit: ${newLimit} KB/s`);
+    addTerminalLog(`[Console] Alternative speed limit (Turtle) ENABLED.`, 'info');
+    console.log(`[Console] Alternative speed limit (Turtle) ENABLED. Limit: ${newLimit} KB/s`);
     if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
       restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
     }
-  } else if (turtleOffCmds.includes(command)) {
+  } else if (command === 'toff') {
     const oldLimit = getEffectiveSpeedLimit(db.settings);
     db.settings.useAlternativeSpeed = false;
     const newLimit = getEffectiveSpeedLimit(db.settings);
     const speedLimitChanged = oldLimit !== newLimit;
     writeDb(db);
     broadcast('db_update', db);
-    addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) devre dışı bırakıldı.`, 'info');
-    console.log(`[Konsol] Alternatif hiz siniri (Turtle) devre disi birakildi. Limit: ${newLimit} KB/s`);
-    if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-      restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
-    }
-  } else if (command === 'speed' || command === 'limit') {
-    const arg = args[0] ? args[0].toLowerCase() : '';
-    if (arg === 'off' || arg === 'kapat' || arg === '0') {
-      const oldLimit = getEffectiveSpeedLimit(db.settings);
-      if (db.settings.downloadSpeedLimit > 0) {
-        db.settings.lastNonZeroSpeedLimit = db.settings.downloadSpeedLimit;
-      }
-      db.settings.downloadSpeedLimit = 0;
-      db.settings.useAlternativeSpeed = false;
-      const newLimit = getEffectiveSpeedLimit(db.settings);
-      const speedLimitChanged = oldLimit !== newLimit;
-      writeDb(db);
-      broadcast('db_update', db);
-      addTerminalLog(`[Konsol] Hız sınırı kapatıldı (Sınırsız).`, 'info');
-      console.log(`[Konsol] Hiz siniri kapatildi (Sinirsiz).`);
-      
-      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
-      }
-    } else if (arg === 'on' || arg === 'ac') {
-      const oldLimit = getEffectiveSpeedLimit(db.settings);
-      const targetLimit = db.settings.lastNonZeroSpeedLimit || 1000;
-      db.settings.downloadSpeedLimit = targetLimit;
-      const newLimit = getEffectiveSpeedLimit(db.settings);
-      const speedLimitChanged = oldLimit !== newLimit;
-      writeDb(db);
-      broadcast('db_update', db);
-      addTerminalLog(`[Konsol] Hız sınırı açıldı: ${targetLimit} KB/s.`, 'success');
-      console.log(`[Konsol] Hiz siniri acildi: ${targetLimit} KB/s.`);
-      
-      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
-      }
-    } else if (arg === 'toggle') {
-      const oldLimit = getEffectiveSpeedLimit(db.settings);
-      db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
-      const newLimit = getEffectiveSpeedLimit(db.settings);
-      const speedLimitChanged = oldLimit !== newLimit;
-      writeDb(db);
-      broadcast('db_update', db);
-      const statusStr = db.settings.useAlternativeSpeed ? 'aktif' : 'pasif';
-      addTerminalLog(`[Konsol] Alternatif hız sınırı ${statusStr} edildi.`, 'info');
-      console.log(`[Konsol] Alternatif hiz siniri ${statusStr} edildi. Etkin limit: ${newLimit} KB/s`);
-      
-      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
-      }
-    } else {
-      const val = parseInt(arg, 10);
-      if (!isNaN(val) && val >= 0) {
-        const oldLimit = getEffectiveSpeedLimit(db.settings);
-        db.settings.downloadSpeedLimit = val;
-        if (val > 0) {
-          db.settings.lastNonZeroSpeedLimit = val;
-        }
-        const newLimit = getEffectiveSpeedLimit(db.settings);
-        const speedLimitChanged = oldLimit !== newLimit;
-        writeDb(db);
-        broadcast('db_update', db);
-        addTerminalLog(`[Konsol] Hız sınırı ${val} KB/s olarak belirlendi.`, 'success');
-        console.log(`[Konsol] Hiz siniri ${val} KB/s olarak belirlendi.`);
-        
-        if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-          restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
-        }
-      } else {
-        console.log('[Konsol] Gecersiz komut veya hiz degeri. Kullanilabilir komutlar:\n' +
-                    '  - speed <deger> (Hiz siniri belirler)\n' +
-                    '  - speed on/off (Hiz sinirini acar/kapatir)\n' +
-                    '  - speed ac/kapat (Hiz sinirini acar/kapatir)\n' +
-                    '  - speed toggle (Alternatif hizi acar/kapatir)\n' +
-                    '  - limit ... (speed ile ayni sekilde calisir)');
-      }
-    }
-  } else if (command === 'altspeed' || command === 'turtle') {
-    const arg = args[0] ? args[0].toLowerCase() : '';
-    if (arg === 'on' || arg === 'ac' || arg === '1') {
-      const oldLimit = getEffectiveSpeedLimit(db.settings);
-      db.settings.useAlternativeSpeed = true;
-      const newLimit = getEffectiveSpeedLimit(db.settings);
-      const speedLimitChanged = oldLimit !== newLimit;
-      writeDb(db);
-      broadcast('db_update', db);
-      addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) etkinleştirildi.`, 'info');
-      console.log(`[Konsol] Alternatif hiz siniri (Turtle) etkinlestirildi. Limit: ${newLimit} KB/s`);
-      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
-      }
-    } else if (arg === 'off' || arg === 'kapat' || arg === '0') {
-      const oldLimit = getEffectiveSpeedLimit(db.settings);
-      db.settings.useAlternativeSpeed = false;
-      const newLimit = getEffectiveSpeedLimit(db.settings);
-      const speedLimitChanged = oldLimit !== newLimit;
-      writeDb(db);
-      broadcast('db_update', db);
-      addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) devre dışı bırakıldı.`, 'info');
-      console.log(`[Konsol] Alternatif hiz siniri (Turtle) devre disi birakildi. Limit: ${newLimit} KB/s`);
-      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
-      }
-    } else if (arg === 'toggle') {
-      const oldLimit = getEffectiveSpeedLimit(db.settings);
-      db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
-      const newLimit = getEffectiveSpeedLimit(db.settings);
-      const speedLimitChanged = oldLimit !== newLimit;
-      writeDb(db);
-      broadcast('db_update', db);
-      const statusStr = db.settings.useAlternativeSpeed ? 'aktif' : 'pasif';
-      addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) ${statusStr} edildi.`, 'info');
-      console.log(`[Konsol] Alternatif hiz siniri (Turtle) ${statusStr} edildi. Limit: ${newLimit} KB/s`);
-      if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-        restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
-      }
-    } else {
-      const val = parseInt(arg, 10);
-      if (!isNaN(val) && val >= 0) {
-        const oldLimit = getEffectiveSpeedLimit(db.settings);
-        db.settings.alternativeSpeedLimit = val;
-        const newLimit = getEffectiveSpeedLimit(db.settings);
-        const speedLimitChanged = oldLimit !== newLimit;
-        writeDb(db);
-        broadcast('db_update', db);
-        addTerminalLog(`[Konsol] Alternatif hız sınırı ${val} KB/s olarak belirlendi.`, 'success');
-        console.log(`[Konsol] Alternatif hiz siniri ${val} KB/s olarak belirlendi.`);
-        if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-          restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
-        }
-      } else {
-        console.log('[Konsol] Gecersiz komut veya deger. Ornek: altspeed 500, altspeed ac, altspeed kapat, turtle ac, turtle kapat');
-      }
-    }
-  } else if (command === 'toggle') {
-    const oldLimit = getEffectiveSpeedLimit(db.settings);
-    db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
-    const newLimit = getEffectiveSpeedLimit(db.settings);
-    const speedLimitChanged = oldLimit !== newLimit;
-    writeDb(db);
-    broadcast('db_update', db);
-    const statusStr = db.settings.useAlternativeSpeed ? 'aktif' : 'pasif';
-    addTerminalLog(`[Konsol] Alternatif hız sınırı (Turtle) ${statusStr} edildi.`, 'info');
-    console.log(`[Konsol] Alternatif hiz siniri (Turtle) ${statusStr} edildi. Limit: ${newLimit} KB/s`);
-    
+    addTerminalLog(`[Console] Alternative speed limit (Turtle) DISABLED.`, 'info');
+    console.log(`[Console] Alternative speed limit (Turtle) DISABLED. Limit: ${newLimit} KB/s`);
     if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
       restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
     }
   } else if (command === 'status') {
     const effective = getEffectiveSpeedLimit(db.settings);
-    const altStatus = db.settings.useAlternativeSpeed ? 'Aktif' : 'Pasif';
-    console.log(`[Konsol] Durum:
-      - Normal Hiz Siniri: ${db.settings.downloadSpeedLimit} KB/s
-      - Alternatif Hiz Siniri: ${db.settings.alternativeSpeedLimit} KB/s
-      - Alternatif Hiz (Turtle) Aktif mi: ${altStatus}
-      - Etkin Hiz Siniri: ${effective} KB/s
-      - Aktif Indirme Var mi: ${downloadQueue.activeVideoId ? 'Evet' : 'Hayir'}`);
+    const altStatus = db.settings.useAlternativeSpeed ? 'Active' : 'Inactive';
+    console.log(`[Console] Status:
+      - Normal Speed Limit: ${db.settings.downloadSpeedLimit} KB/s
+      - Alternative Speed Limit: ${db.settings.alternativeSpeedLimit} KB/s
+      - Alternative Speed (Turtle) Active: ${altStatus}
+      - Effective Speed Limit: ${effective} KB/s
+      - Active Download: ${downloadQueue.activeVideoId ? 'Yes' : 'No'}`);
   } else if (command === 'pd') {
     const link = args[0];
     if (!link) {
-      console.log('[Konsol] Error: Bir YouTube video linki belirtmelisiniz. Ornek: pd https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      console.log('[Console] Error: You must specify a YouTube video link. Example: pd https://www.youtube.com/watch?v=dQw4w9WgXcQ');
       return;
     }
     addVideoToQueueByUrl(link)
       .then(vid => {
-        addTerminalLog(`[Konsol] Video queue başarıyla eklendi. ID: ${vid}`, 'success');
-        console.log(`[Konsol] Video kuyruga basariyla eklendi. ID: ${vid}`);
-        broadcast('switch_tab', 'queue');
+        addTerminalLog(`[Console] Video added to queue successfully. ID: ${vid}`, 'success');
+        console.log(`[Console] Video added to queue successfully. ID: ${vid}`);
       })
       .catch(err => {
-        addTerminalLog(`[Konsol] Error: ${err.message}`, 'error');
-        console.log(`[Konsol] Error: ${err.message}`);
+        addTerminalLog(`[Console] Error: ${err.message}`, 'error');
+        console.log(`[Console] Error: ${err.message}`);
       });
   } else {
-    console.log('[Konsol] Bilinmeyen komut. Kullanilabilir komutlar: speed/limit <deger/on/off/ac/kapat/toggle>, altspeed/turtle <deger/on/off/ac/kapat/toggle>, pd <video-linki>, turtleon, turtleoff, turtleac, turtlekapat, toggle, status');
+    console.log('[Console] Unknown command. Available commands: ton, toff, pd <video-link>, status, clear, help');
   }
 });
 

@@ -4,6 +4,14 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 
 ---
 
+## [4.13.3] - 2026-06-05
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **Canlı Yayın Erteleme / Live Stream Postponing:** Aktif canlı yayınların yayın devam ederken indirilmeye çalışılması engellendi. Durumları kütüphanede `live` olarak işaretlenir ve periyodik RSS kontrollerinde yayın bittiği (normal video süresi aldığı) algılandığında otomatik olarak kuyruğa alınır. / Prevented downloading active live streams while they are still running. Their status is marked as `live` in the library, and once the stream ends (acquiring a normal duration) during periodic RSS checks, they are automatically queued for download.
+- **configwin.ini İki Dilli Açıklamaları / Bilingual Comments in configwin.ini:** Yapılandırma dosyasındaki her ayarın üzerine ne işe yaradığını ve seçeneklerini açıklayan Türkçe ve İngilizce yorum satırları (#) eklendi. / Added bilingual (TR/EN) comment lines (#) explaining the function and valid options of each setting in the configuration file.
+- **CLI ve Konsol Komut Sadeleştirmesi / CLI and Stdin Command Simplification:** Terminal ve Tray konsol komutları sadeleştirilerek tekilleştirildi ve çıktıları tamamen İngilizce yapıldı. Komutlar: `ton` (alternatif hız etkin), `toff` (alternatif hız pasif), `status` (sistem durumu), `pd <link>` (panodan/linkten indir) ve `clear` (konsolu temizle). / Simplified terminal and tray console commands, eliminating redundant aliases, and fully localized logs/outputs to English. Supported commands: `ton`, `toff`, `status`, `pd <link>`, and `clear`.
+- **Tray.cs ComboBox Güncellemesi / Tray.cs ComboBox Sync:** C# Tray uygulamasındaki konsol komut listesi yeni sadeleştirilmiş CLI komutları ile senkronize edildi. / Aligned the predefined commands list dropdown inside the C# Tray console window with the new simplified CLI layout.
+
 ## [4.13.2] - 2026-06-04
 
 ### Yeni Özellikler & İyileştirmeler / New Features & Improvements

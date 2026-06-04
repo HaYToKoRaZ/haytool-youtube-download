@@ -645,13 +645,10 @@ namespace HaYTooLTray
             commandComboBox.Items.AddRange(new string[] {
                 "help",
                 "status",
-                "turtleon",
-                "turtleoff",
-                "toggle",
-                "clear",
-                "speed 1000",
-                "altspeed 500",
-                "pd"
+                "ton",
+                "toff",
+                "pd",
+                "clear"
             });
 
             Button sendButton = new Button();

@@ -1,8 +1,28 @@
-# HaYTooL YouTube Downloader (v4.11.0)
+<p align="center">
+  <img src="public/logo.png" alt="HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
+</p>
 
-[![Platform Support](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](#)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-v4.11.0-purple.svg)](#)
+# <p align="center">📥 HaYTooL YouTube Downloader (v4.13.3)</p>
+
+<p align="center">
+  <b>Gelişmiş, Taşınabilir ve Sıfır Kurulumlu YouTube Otomasyon & İndirme Sistemi</b><br/>
+  <i>Advanced, Portable, and Zero-Dependency YouTube Automation & Downloader System</i>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=for-the-badge&logo=windows" alt="Platform Support" />
+  <img src="https://img.shields.io/badge/Version-v4.13.3-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Vanilla_JS-ES6+-yellow?style=flat-square&logo=javascript" alt="JavaScript" />
+  <img src="https://img.shields.io/badge/Node.js-Gömülü_/_Portable-green?style=flat-square&logo=node.js" alt="Node.js" />
+  <img src="https://img.shields.io/badge/yt--dlp-Pre--packaged-red?style=flat-square&logo=youtube" alt="yt-dlp" />
+  <img src="https://img.shields.io/badge/FFmpeg-Included-orange?style=flat-square" alt="FFmpeg" />
+</p>
+
+---
 
 A premium, lightweight, and cross-platform automation software that automatically monitors YouTube channels via RSS feeds and downloads new videos in the background. Built entirely in vanilla JavaScript, CSS, and HTML5.
 
@@ -15,7 +35,7 @@ A premium, lightweight, and cross-platform automation software that automaticall
 * **Smart Queue Manager:** Downloads videos sequentially, prevents conflicts, and automatically resumes interrupted downloads on startup.
 * **Alternative Speed Limits (qBittorrent-Style Turtle Toggle):** Toggle between a normal speed limit profile and an alternative (turtle) speed profile. Extremely useful for saving bandwidth during active usage.
 * **System Tray Integration (`HaYTooL YT Downloader.exe`):** Windows version starts the Node server silently in the background (no black CMD window) with a system tray icon. Right-clicking provides direct navigation to pages (/home, /download, /downlist, /channels, /settings), toggles the alternative speed limit, restarts the server, or exits.
-* **Interactive Terminal Console:** C# Tray Log/Terminal window includes an interactive input field at the bottom. You can pipe control commands directly to Node's standard input (`speed <val>`, `altspeed <val>`, `toggle`, `status`).
+* **Interactive Terminal Console:** C# Tray Log/Terminal window includes an interactive input field at the bottom. You can pipe control commands directly to Node's standard input (`ton`, `toff`, `status`, `pd <link>`).
 * **Log Auto-Cleanup:** Automatically deletes log files older than 7 days from the `logs/` directory at startup to keep the project clean.
 * **Floating Non-Blocking Player:** Embedded Plyr modal has no screen-blocking backdrop, allowing you to browse/scroll other tabs while watching. Clicking a new video instantly plays it in the player.
 * **100% Offline Access:** Lucide, Plyr JS, and Plyr CSS libraries are served locally, ensuring the UI works fully without an active internet connection.
@@ -29,10 +49,6 @@ Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-pac
 
 ### Windows:
 Double-click `HaYTooL YT Downloader.exe` in the root folder. It starts the application silently in the system tray and automatically opens the web interface.
-To run in standard terminal mode:
-```bash
-npm start
-```
 
 ### Linux / macOS (Unix):
 1. **Make Launcher Executable:**
@@ -44,7 +60,7 @@ npm start
    ./baslat.sh
    ```
 
-Access the dashboard at [http://localhost:3000](http://localhost:3000) (default port can be changed in Settings).
+Access the dashboard at [http://localhost:4141](http://localhost:4141) (default port can be changed in Settings).
 
 ---
 
@@ -71,41 +87,31 @@ When the embedded video player modal is open, you can use standard YouTube keybo
 
 ## 💻 CLI & Console Commands
 
-You can manage speed limits, start downloads, and view application status directly using `HaYTooL YT Downloader.exe` from the command line, or through the Interactive Terminal Console in the Windows tray app:
+You can manage speed profiles, start downloads, and view application status directly using the backend executable from the command line, or through the Interactive Terminal Console in the Windows tray app:
 
 ### CLI Command Examples:
-Run these commands from your terminal in the project directory (Windows uses `HaYTooL YT Downloader.exe`, Unix uses `node server.js`):
-
+Run these commands from your terminal in the project directory:
 * **Check Status:**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js status`
+  * Windows: `"HaYTooL YT Downloader.exe" status`
   * Unix: `node server.js status`
-  * *Output shows normal limit, alternative limit, turtle mode status, and active limit.*
 * **Download Video (Paste & Download):**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js pd https://www.youtube.com/watch?v=dQw4w9WgXcQ`
-  * *Instantly queues and starts downloading the specified video.*
-* **Set Normal Speed Limit:**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js speed 2500` (Sets speed limit to 2500 KB/s)
-  * Unix: `node server.js speed 1500` (Sets speed limit to 1500 KB/s)
-* **Disable/Enable Normal Limit:**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js speed off` (Removes limits, makes it unlimited)
-  * Windows: `.\bin\HaYTool-Backend.exe server.js speed on` (Restores last active limit)
-* **Set Alternative Speed Limit Value:**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js altspeed 500` (Sets alternative limit to 500 KB/s)
-* **Turtle Mode Direct Safe Controls (Definite State Change):**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js turtleon` (Forces turtle mode active)
-  * Windows: `.\bin\HaYTool-Backend.exe server.js turtleoff` (Forces turtle mode inactive)
-* **Alternative Speed Profile Status Toggle/Change:**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js toggle` (Toggles alternative speed mode status)
+  * Windows: `"HaYTooL YT Downloader.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+  * Unix: `node server.js pd https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+* **Enable Alternative Speed (Turtle Mode):**
+  * Windows: `"HaYTooL YT Downloader.exe" ton`
+  * Unix: `node server.js ton`
+* **Disable Alternative Speed (Turtle Mode):**
+  * Windows: `"HaYTooL YT Downloader.exe" toff`
+  * Unix: `node server.js toff`
 
 ### Console Commands (from the Tray App window):
-Type these commands in the textbox at the bottom of the "Konsol Çıktısını Göster" window and press Enter (no prefix needed):
-* `status` - Shows current status.
-* `speed 2500` - Sets normal limit to 2500 KB/s.
-* `speed on` / `speed off` - Enables or disables limit.
-* `turtleon` / `turtleoff` - Definitely enables or disables turtle mode.
-* `altspeed 500` - Sets alternative limit to 500 KB/s.
-* `altspeed on` / `altspeed off` - Forces alternative speed profile.
-* `toggle` - Toggles alternative speed profile.
+Type these commands in the textbox at the bottom of the "Show Console Output" window and press Enter (no prefix needed):
+* `status` - Shows current speed limits and queue status in English.
+* `ton` - Enables alternative speed limit (Turtle Mode).
+* `toff` - Disables alternative speed limit (Turtle Mode).
+* `pd <youtube-url>` - Queues the specified video for download.
+* `clear` - Clears the terminal screen.
+* `help` - Shows available commands list.
 
 ---
 
@@ -129,7 +135,7 @@ The software dynamically isolates configuration parameters based on the host OS,
 ---
 ---
 
-# TR - HaYTooL YouTube Downloader (v4.11.0)
+# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v4.13.3)</p>
 
 YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni videoları arka planda otomatik olarak indiren şık, hafif ve kararlı bir otomasyon sistemidir. Tamamen vanilla JavaScript, CSS ve HTML5 standartlarıyla geliştirilmiştir.
 
@@ -142,7 +148,7 @@ YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni vid
 * **Akıllı İndirme Kuyruğu:** Videoları sırayla indirir, çakışmaları engeller ve sunucu başlangıcında yarım kalan indirmeleri otomatik olarak kaldığı yerden sürdürür.
 * **Alternatif Hız Profili (qBittorrent Tarzı Kaplumbağa):** Normal indirme hızı sınırı ile alternatif (kaplumbağa) indirme hız profili arasında geçiş yapabilirsiniz. Aktif internet kullanımı sırasında bant genişliğinden tasarruf etmek için idealdir.
 * **Sistem Tepsisi Entegrasyonu (`HaYTooL YT Downloader.exe`):** Windows işletim sisteminde Node sunucusunu tamamen arka planda sessizce (siyah CMD penceresi olmadan) başlatır. Sağ tıklayarak sekmelere doğrudan gidebilir (/home, /download, /downlist, /channels, /settings), alternatif hız sınırını açıp kapatabilir, sistemi yeniden başlatabilir veya kapatabilirsiniz.
-* **İnteraktif Terminal Konsolu:** Sistem tepsisindeki "Konsol Çıktısını Göster" penceresine eklenen komut giriş paneli sayesinde, doğrudan Node.js standart girdisine (`process.stdin`) komut gönderebilirsiniz. Desteklenen komutlar: `speed <değer>`, `altspeed <değer>`, `toggle`, `status`.
+* **İnteraktif Terminal Konsolu:** Sistem tepsisindeki "Konsol Çıktısını Göster" penceresine eklenen komut giriş paneli sayesinde, doğrudan Node.js standart girdisine (`process.stdin`) komut gönderebilirsiniz. Desteklenen komutlar: `ton`, `toff`, `status`, `pd <link>`.
 * **Otomatik Log Temizleme:** Sunucu her başlatıldığında `logs/` klasöründeki 7 günden eski log dosyalarını otomatik olarak temizler.
 * **Kompakt ve Gömülü Video Oynatıcı:** Arka planı kapatmayan yüzen (floating) video oynatıcı ile sayfada gezinirken veya diğer videolara göz atarken izlemeye devam edebilirsiniz.
 * **%100 Çevrimdışı Kullanım:** Lucide, Plyr JS ve CSS dosyaları yerel olarak sunulur; internet bağlantısı olmadığında dahi arayüz ve oynatıcı sorunsuz çalışır.
@@ -156,10 +162,6 @@ Tüm bağımlılıklar (`node_modules/`, `yt-dlp`, `ffmpeg`) halihazırda depo i
 
 ### Windows:
 Kök dizindeki `HaYTooL YT Downloader.exe` dosyasına çift tıklayın. Sistem tepsisinde arka planda sessizce başlayacak ve web arayüzünü otomatik açacaktır.
-Konsol modunda çalıştırmak için:
-```bash
-npm start
-```
 
 ### Linux / macOS (Unix):
 1. **Çalıştırma İzni Verin:**
@@ -171,7 +173,7 @@ npm start
    ./baslat.sh
    ```
 
-Arayüze varsayılan olarak [http://localhost:3000](http://localhost:3000) adresinden erişebilirsiniz.
+Arayüze varsayılan olarak [http://localhost:4141](http://localhost:4141) adresinden erişebilirsiniz (varsayılan port Ayarlar'dan değiştirilebilir).
 
 ---
 
@@ -198,41 +200,31 @@ Gömülü video oynatıcı açıkken, oynatımı kontrol etmek için standart Yo
 
 ## 💻 CLI ve Konsol Komutları
 
-Uygulamanın hız limitlerini, indirmelerini ve durum bilgisini doğrudan terminalden `HaYTooL YT Downloader.exe` yardımıyla (CLI) veya Windows tepsi uygulamasının İnteraktif Konsol penceresinden yönetebilirsiniz:
+Uygulamanın hız limitlerini, indirmelerini ve durum bilgisini doğrudan terminalden veya Windows tepsi uygulamasının İnteraktif Konsol penceresinden yönetebilirsiniz:
 
 ### CLI Komut Örnekleri:
-Proje dizininde terminalden çalıştırabileceğiniz komutlar (Windows için `bin\HaYTool-Backend.exe server.js` kullanabilirsiniz, Linux/macOS için `node server.js` kullanabilirsiniz):
-
+Proje dizininde terminalden çalıştırabileceğiniz komutlar (Windows için "HaYTooL YT Downloader.exe" kullanabilirsiniz, Linux/macOS için node server.js kullanabilirsiniz):
 * **Durum Bilgisi Sorgulama:**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js status`
+  * Windows: `"HaYTooL YT Downloader.exe" status`
   * Unix: `node server.js status`
-  * *Çıktıda normal limit, alternatif limit, kaplumbağa modu durumu ve etkin hız sınırı gösterilir.*
 * **Video İndirme (Paste & Download):**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js pd https://www.youtube.com/watch?v=dQw4w9WgXcQ`
-  * *Belirtilen videoyu hemen kuyruğa ekler ve indirmeyi başlatır.*
-* **Normal Hız Sınırı Belirleme:**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js speed 2500` (Hız limitini 2500 KB/s yapar)
-  * Unix: `node server.js speed 1500` (Hız limitini 1500 KB/s yapar)
-* **Normal Hız Sınırını Açma/Kapatma:**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js speed off` (Limit kapatılır - sınırsız indirme)
-  * Windows: `.\bin\HaYTool-Backend.exe server.js speed on` (Limit son aktif değerine açılır)
-* **Alternatif Hız Değeri Belirleme:**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js altspeed 500` (Alternatif hızı 500 KB/s yapar)
-* **Kaplumbağa Modu Kesin Durum Komutları (Güvenli):**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js turtleon` (Kaplumbağa modunu kesin etkinleştirir)
-  * Windows: `.\bin\HaYTool-Backend.exe server.js turtleoff` (Kaplumbağa modunu kesin kapatır)
-* **Alternatif Hız Profil Durumu Toggle / Değiştirme:**
-  * Windows: `.\bin\HaYTool-Backend.exe server.js toggle` (Mevcut kaplumbağa modunu tersine çevirir)
+  * Windows: `"HaYTooL YT Downloader.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+  * Unix: `node server.js pd https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+* **Alternatif Hızı Etkinleştir (Turtle Mode):**
+  * Windows: `"HaYTooL YT Downloader.exe" ton`
+  * Unix: `node server.js ton`
+* **Alternatif Hızı Devre Dışı Bırak (Turtle Mode):**
+  * Windows: `"HaYTooL YT Downloader.exe" toff`
+  * Unix: `node server.js toff`
 
 ### Konsol Komutları (Tray Log Ekranından):
 Tepsi simgesinden "Konsol Çıktısını Göster" dediğinizde açılan pencerenin altındaki metin kutusuna komut yazıp Enter'a basabilirsiniz (başında `HaYTooL YT Downloader.exe` veya `node` olmadan doğrudan):
-* `status` - Durum bilgisini anlık loglar.
-* `speed 2500` - Normal hızı 2500 KB/s olarak ayarlar.
-* `speed on` / `speed off` - Hız limitini açar veya kapatır.
-* `turtleon` / `turtleoff` - Kaplumbağa modunu kesin olarak açar veya kapatır.
-* `altspeed 500` - Alternatif hız sınırını 500 KB/s olarak ayarlar.
-* `altspeed on` / `altspeed off` - Alternatif hız modunu kesin olarak açar veya kapatır.
-* `toggle` - Alternatif hız sınır profilini tersine çevirir (toggle).
+* `status` - Durum bilgisini anlık İngilizce olarak loglar.
+* `ton` - Alternatif hız sınırını (Turtle Mode) etkinleştirir.
+* `toff` - Alternatif hız sınırını (Turtle Mode) devre dışı bırakır.
+* `pd <youtube-url>` - Belirtilen videoyu hemen kuyruğa ekler.
+* `clear` - Konsol ekranını temizler.
+* `help` - Kullanılabilir komut listesini gösterir.
 
 ---
 
