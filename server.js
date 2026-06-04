@@ -1790,7 +1790,7 @@ async function resolveMissingDurations() {
             item.duration = result.duration;
             itemUpdated = true;
           }
-          if (result.publishedAt && needsPublishDate) {
+          if (result.publishedAt) {
             item.publishedAt = result.publishedAt;
             itemUpdated = true;
           }
@@ -2734,11 +2734,59 @@ function fetchChannelVideosYtdlp(channelId, limit) {
   });
 }
 
+// Türkçe Açıklama: Yeni keşfedilen bir video için başlangıç geçmiş (history) kaydını oluşturur. 
+// Eğer video dosyası diskte zaten varsa durumunu 'completed' yapar ve boyutunu/yolunu ekler.
 /**
- * Takip edilen tüm kanalların RSS akışlarını veya yt-dlp yedek planını kullanarak yeni video denetlemesini gerçekleştirir.
+ * Yeni bir video kaydı için geçmiş nesnesi oluşturur. Diskte dosya varsa 'completed' olarak işaretler.
  * 
- * @param {boolean} isFirstStart Sunucunun veya kanalın ilk kez eklenip eklenmediği bilgisi (İlk eklemede eski videolar indirilmez)
+ * @param {string} videoId Video ID'si
+ * @param {string} title Video başlığı
+ * @param {string} channelId Kanal ID'si
+ * @param {string} channelName Kanal adı
+ * @param {string} publishedAt Yayınlanma tarihi
+ * @param {string} duration Video süresi
+ * @param {object} settings Sunucu ayarları nesnesi
+ * @returns {object} Oluşturulan geçmiş kaydı nesnesi
  */
+function createHistoryItem(videoId, title, channelId, channelName, publishedAt, duration, settings) {
+  const downloadPath = settings.downloadPath || defaultDownloadDir;
+  const foundPath = findVideoFileInDownloadDir(videoId, downloadPath);
+  
+  let status = 'ignored';
+  let filePath = '';
+  let fileSize = '';
+  let progress = 0;
+  
+  if (foundPath) {
+    status = 'completed';
+    filePath = foundPath;
+    progress = 100;
+    try {
+      const stats = fs.statSync(foundPath);
+      const sizeInBytes = stats.size;
+      if (sizeInBytes >= 1024 * 1024 * 1024) {
+        fileSize = Math.round(sizeInBytes / (1024 * 1024 * 1024)) + ' GB';
+      } else {
+        fileSize = Math.round(sizeInBytes / (1024 * 1024)) + ' MB';
+      }
+    } catch (err) {}
+  }
+  
+  return {
+    id: videoId,
+    title: title,
+    channelId: channelId,
+    channelName: channelName,
+    downloadedAt: new Date().toISOString(),
+    publishedAt: publishedAt || new Date().toISOString(),
+    status: status,
+    progress: progress,
+    fileSize: fileSize,
+    filePath: filePath,
+    duration: duration || ''
+  };
+}
+
 /**
  * Belirtilen kanalın RSS akışını kontrol eder ve yeni videolar varsa kuyruğa ekler.
  * 
@@ -2850,19 +2898,16 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
 
           if (isFirstStart || isHistoricalVideo) {
             // Sunucu ilk başladığında, kanal yeni eklendiğinde veya eski videolarda (feed'de doğrudan eski gözükenler)
-            // otomatik indirme yapmayıp geçmişe 'ignored' olarak kaydediyoruz.
-            db.history.push({
-              id: videoId,
-              title: item.title,
-              channelId: channel.id,
-              channelName: channel.name,
-              downloadedAt: new Date().toISOString(),
-              publishedAt: publishDateStr || new Date().toISOString(),
-              status: 'ignored',
-              progress: 0,
-              fileSize: '',
-              filePath: ''
-            });
+            // otomatik indirme yapmayıp geçmişe 'ignored' (veya diskte varsa 'completed') olarak kaydediyoruz.
+            db.history.push(createHistoryItem(
+              videoId,
+              item.title,
+              channel.id,
+              channel.name,
+              publishDateStr,
+              '',
+              db.settings
+            ));
             writeDb(db);
           } else {
             // Detayları çözerek hem süre hem de gerçek yüklenme tarihini netleştirelim
@@ -2903,20 +2948,16 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
             }
 
             if (isHistoricalVideoReal) {
-              // Gerçek tarihi kanal eklenme tarihinden eski, indirmeyip geçmişe 'ignored' olarak kaydediyoruz.
-              db.history.push({
-                id: videoId,
-                title: resolvedTitle,
-                channelId: channel.id,
-                channelName: resolvedChannelName,
-                downloadedAt: new Date().toISOString(),
-                publishedAt: actualPublishDate,
-                status: 'ignored',
-                progress: 0,
-                fileSize: '',
-                filePath: '',
-                duration: duration
-              });
+              // Gerçek tarihi kanal eklenme tarihinden eski, indirmeyip geçmişe 'ignored' (veya diskte varsa 'completed') olarak kaydediyoruz.
+              db.history.push(createHistoryItem(
+                videoId,
+                resolvedTitle,
+                channel.id,
+                channel.name,
+                actualPublishDate,
+                duration,
+                db.settings
+              ));
               writeDb(db);
             } else if (duration === 'upcoming') {
               console.log(`[RSS] Upcoming/premiere video detected: ${resolvedTitle}`);
@@ -2967,52 +3008,60 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
               }
 
               if (shouldDownload) {
-                console.log(`Yeni video algılandı! queue ekleniyor: ${resolvedTitle}`);
-                broadcast('status_log', { message: `Yeni video yüklendi: ${resolvedChannelName} - ${resolvedTitle}`, type: 'info' });
-                addTerminalLog(`[RSS] Yeni video tespit edildi: "${resolvedTitle}" (${resolvedChannelName}) -> queue ekleniyor.`, 'info');
-                
-                downloadQueue.add({
-                  id: videoId,
-                  title: resolvedTitle,
-                  channelId: channel.id,
-                  channelName: resolvedChannelName,
-                  url: item.link,
-                  publishedAt: actualPublishDate
-                });
+                // Türkçe Açıklama: Yeni video algılandı ama diskte zaten mevcutsa indirmeyip durumu 'completed' yapıyoruz.
+                const foundPath = findVideoFileInDownloadDir(videoId, db.settings.downloadPath || defaultDownloadDir);
+                if (foundPath) {
+                  console.log(`Yeni video algılandı ama diskte zaten mevcut. Kuyruğa eklenmiyor: ${resolvedTitle}`);
+                  db.history.push(createHistoryItem(
+                    videoId,
+                    resolvedTitle,
+                    channel.id,
+                    channel.name,
+                    actualPublishDate,
+                    duration,
+                    db.settings
+                  ));
+                  writeDb(db);
+                } else {
+                  console.log(`Yeni video algılandı! queue ekleniyor: ${resolvedTitle}`);
+                  broadcast('status_log', { message: `Yeni video yüklendi: ${resolvedChannelName} - ${resolvedTitle}`, type: 'info' });
+                  addTerminalLog(`[RSS] Yeni video tespit edildi: "${resolvedTitle}" (${resolvedChannelName}) -> queue ekleniyor.`, 'info');
+                  
+                  downloadQueue.add({
+                    id: videoId,
+                    title: resolvedTitle,
+                    channelId: channel.id,
+                    channelName: resolvedChannelName,
+                    url: item.link,
+                    publishedAt: actualPublishDate
+                  });
 
-                if (duration) {
-                  updateHistoryItem(videoId, { duration });
+                  if (duration) {
+                    updateHistoryItem(videoId, { duration });
+                  }
                 }
               } else {
-                db.history.push({
-                  id: videoId,
-                  title: resolvedTitle,
-                  channelId: channel.id,
-                  channelName: resolvedChannelName,
-                  downloadedAt: new Date().toISOString(),
-                  publishedAt: actualPublishDate,
-                  status: 'ignored',
-                  progress: 0,
-                  fileSize: '',
-                  filePath: '',
-                  duration: duration
-                });
+                db.history.push(createHistoryItem(
+                  videoId,
+                  resolvedTitle,
+                  channel.id,
+                  channel.name,
+                  actualPublishDate,
+                  duration,
+                  db.settings
+                ));
                 writeDb(db);
               }
             } else {
-              db.history.push({
-                id: videoId,
-                title: resolvedTitle,
-                channelId: channel.id,
-                channelName: resolvedChannelName,
-                downloadedAt: new Date().toISOString(),
-                publishedAt: actualPublishDate,
-                status: 'ignored',
-                progress: 0,
-                fileSize: '',
-                filePath: '',
-                duration: duration
-              });
+              db.history.push(createHistoryItem(
+                videoId,
+                resolvedTitle,
+                channel.id,
+                channel.name,
+                actualPublishDate,
+                duration,
+                db.settings
+              ));
               writeDb(db);
             }
           }
@@ -4163,6 +4212,7 @@ app.delete('/api/history/:id', (req, res) => {
       channelId: item.channelId,
       channelName: item.channelName,
       downloadedAt: new Date().toISOString(),
+      publishedAt: item.publishedAt || '',
       status: 'ignored',
       progress: 0,
       fileSize: '',
