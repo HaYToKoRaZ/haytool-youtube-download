@@ -9,7 +9,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HaYTooL YouTube Downloader</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%238a2be2%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4%22/><polyline points=%227 10 12 15 17 10%22/><line x1=%2212%22 y1=%2215%22 x2=%2212%22 y2=%223%22/></svg>">
+  <link rel="icon" type="image/png" href="/logo.png">
   <!-- Google Fonts: Outfit & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,7 +32,7 @@
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
         <div class="brand-text">
-          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.11.1</a></span></h1>
+          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.13.2</a></span></h1>
         </div>
       </div>
 
@@ -176,6 +176,12 @@
             <label for="history-show-shorts" class="toggle-label"></label>
             <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-show-shorts').click()">Shorts Videolarını Göster</span>
           </div>
+          <div class="filter-group" style="margin-left: auto;">
+            <button class="btn btn-secondary" onclick="updateMetadata('library')" title="Videoların Süre ve Boyut Bilgilerini Güncelle" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8rem;">
+              <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
+              <span id="btn-update-metadata-lib">Metadata Güncelle</span>
+            </button>
+          </div>
           <div class="view-toggle-container">
             <button id="view-grid-btn" class="view-btn active" title="Kart Görünümü">
               <i data-lucide="layout-grid"></i>
@@ -201,6 +207,10 @@
             <p id="tab-queue-desc">Aktif indirmeyi izleyin, sıradaki videoları sürükleyip bırakarak önceliklerini değiştirin.</p>
           </div>
           <div class="queue-header-actions" style="display:flex; gap:10px; align-items:center;">
+            <button id="queue-cancel-all-btn" class="btn btn-danger" onclick="cancelAllDownloads()" style="background: rgba(220, 53, 69, 0.1); color: var(--danger-color); border: 1px solid rgba(220, 53, 69, 0.2); display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="x-octagon"></i>
+              <span id="queue-cancel-all-text">Tümünü İptal Et</span>
+            </button>
             <button id="queue-pause-btn" class="btn btn-secondary" onclick="toggleQueuePause()">
               <i data-lucide="pause"></i>
               <span id="queue-pause-text">Kuyruğu Duraklat</span>
@@ -271,7 +281,12 @@
                 <i data-lucide="list-ordered" style="width: 18px; height: 18px; color: var(--warning);"></i>
                 <span id="queue-list-title">Sıradaki Videolar</span> (<span id="stat-waiting-count">0</span>)
               </h3>
-              <small id="drag-drop-hint" style="color:var(--text-muted); font-size:0.75rem; font-style:italic;">Sürükleyip bırakarak sırayı değiştirin</small>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <small id="drag-drop-hint" style="color:var(--text-muted); font-size:0.75rem; font-style:italic;">Sürükleyip bırakarak sırayı değiştirin</small>
+                <button class="btn btn-secondary" onclick="cancelAllQueued()" title="Kuyruktaki Tüm Videoları İptal Et" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(255,0,85,0.08); border-color: rgba(255,0,85,0.2); color: var(--accent-red);">
+                  <i data-lucide="x-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> <span id="btn-cancel-all-queue">Tümünü İptal Et</span>
+                </button>
+              </div>
             </div>
             <div class="queue-list" id="queue-list" style="flex:1; overflow-y:auto; max-height: 400px; display:flex; flex-direction:column; gap:8px; padding-right:5px;">
               <div class="text-center text-muted" id="queue-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Kuyrukta bekleyen video yok.</div>
@@ -299,6 +314,12 @@
             <select id="downloaded-channel-filter">
               <option value="all">Tüm Kanallar</option>
             </select>
+          </div>
+          <div class="filter-group" style="margin-left: auto;">
+            <button class="btn btn-secondary" onclick="updateMetadata('downloaded')" title="Videoların Süre ve Boyut Bilgilerini Güncelle" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8rem;">
+              <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
+              <span id="btn-update-metadata-dl">Metadata Güncelle</span>
+            </button>
           </div>
           <div class="filter-group sort-button-group" style="margin-left: 15px; display: flex; gap: 6px;" id="downloaded-sort-group">
             <i data-lucide="arrow-up-down" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);margin-right:6px;align-self:center;"></i>
@@ -336,40 +357,23 @@
             <h2>Ayarlar</h2>
             <p id="settings-desc">Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
           </div>
-          <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.11.1</a></strong></span>
+           <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.13.2</a></strong></span>
         </header>
 
-        <div class="card card-settings" style="max-width: 1000px;">
+        <div class="card card-settings">
           <form id="settings-form">
             <div class="settings-layout">
-              <!-- Sol Alt Menü Sekmeleri -->
-              <div class="settings-sidebar">
-                <button type="button" class="settings-tab-btn active" data-subtab="general">
-                  <i data-lucide="settings"></i>
-                  <span>Genel Ayarlar</span>
-                </button>
-                <button type="button" class="settings-tab-btn" data-subtab="download">
-                  <i data-lucide="download-cloud"></i>
-                  <span>İndirme ve Kalite</span>
-                </button>
-                <button type="button" class="settings-tab-btn" data-subtab="automation">
-                  <i data-lucide="cpu"></i>
-                  <span>Otomasyon & RSS</span>
-                </button>
-                <button type="button" class="settings-tab-btn" data-subtab="notifications">
-                  <i data-lucide="bell"></i>
-                  <span>Çerez & Bildirim</span>
-                </button>
-                <a href="mailto:korazhayto@gmail.com?subject=HaYTool%20Youtube%20Download%20Geri%20Bildirimi" class="feedback-btn">
-                  <i data-lucide="mail"></i>
-                  <span>Geri Bildirim Gönder</span>
-                </a>
-              </div>
-
-              <!-- Sağ Alt Menü İçerikleri -->
-              <div class="settings-main">
+              <!-- Ayarlar İçerikleri -->
+              <div class="settings-main" style="width: 100%;">
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+                  <a href="mailto:korazhayto@gmail.com?subject=HaYTool%20Youtube%20Download%20Geri%20Bildirimi" class="feedback-btn" style="margin: 0;">
+                    <i data-lucide="mail"></i>
+                    <span>Geri Bildirim Gönder</span>
+                  </a>
+                </div>
                 <!-- Alt Sekme 1: Genel -->
                 <div class="settings-subtab-content active" id="subtab-general">
+                  <h3 style="margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i data-lucide="settings"></i> Genel Ayarlar</h3>
                   <div class="form-group">
                     <label for="settings-download-path" id="label-download-path">İndirme Klasörü Konumu</label>
                     <div class="input-action-row">
@@ -391,38 +395,38 @@
                       <label id="label-lang">Uygulama Dili / App Language</label>
                       <div class="custom-select" id="lang-custom-select">
                         <div class="custom-select-trigger" id="lang-select-trigger">
-                          <img src="flags/tr.png" class="flag-icon" id="selected-lang-flag">
+                          <img src="https://flagcdn.com/16x12/tr.png" class="flag-icon" id="selected-lang-flag">
                           <span id="selected-lang-text">Türkçe (TR)</span>
                           <i data-lucide="chevron-down" style="width:14px; height:14px; margin-left: auto;"></i>
                         </div>
                         <div class="custom-options" id="lang-custom-options">
-                          <div class="custom-option" data-value="tr">
-                            <img src="flags/tr.png" class="flag-icon">
-                            <span>Türkçe (TR)</span>
+                          <div class="custom-option" data-value="ar">
+                            <img src="https://flagcdn.com/16x12/sa.png" class="flag-icon">
+                            <span>العربية (AR)</span>
+                          </div>
+                          <div class="custom-option" data-value="de">
+                            <img src="https://flagcdn.com/16x12/de.png" class="flag-icon">
+                            <span>Deutsch (DE)</span>
                           </div>
                           <div class="custom-option" data-value="en">
-                            <img src="flags/gb.png" class="flag-icon">
+                            <img src="https://flagcdn.com/16x12/gb.png" class="flag-icon">
                             <span>English (EN)</span>
                           </div>
                           <div class="custom-option" data-value="es">
-                            <img src="flags/es.png" class="flag-icon">
+                            <img src="https://flagcdn.com/16x12/es.png" class="flag-icon">
                             <span>Español (ES)</span>
                           </div>
-                          <div class="custom-option" data-value="de">
-                            <img src="flags/de.png" class="flag-icon">
-                            <span>Deutsch (DE)</span>
-                          </div>
                           <div class="custom-option" data-value="pt">
-                            <img src="flags/pt.png" class="flag-icon">
+                            <img src="https://flagcdn.com/16x12/pt.png" class="flag-icon">
                             <span>Português (PT)</span>
                           </div>
-                          <div class="custom-option" data-value="ar">
-                            <img src="flags/sa.png" class="flag-icon">
-                            <span>العربية (AR)</span>
-                          </div>
                           <div class="custom-option" data-value="ru">
-                            <img src="flags/ru.png" class="flag-icon">
+                            <img src="https://flagcdn.com/16x12/ru.png" class="flag-icon">
                             <span>Русский (RU)</span>
+                          </div>
+                          <div class="custom-option" data-value="tr">
+                            <img src="https://flagcdn.com/16x12/tr.png" class="flag-icon">
+                            <span>Türkçe (TR)</span>
                           </div>
                         </div>
                       </div>
@@ -496,6 +500,7 @@
 
                 <!-- Alt Sekme 2: İndirme ve Kalite -->
                 <div class="settings-subtab-content" id="subtab-download">
+                  <h3 style="margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i data-lucide="download-cloud"></i> İndirme ve Kalite</h3>
                   <div class="form-grid">
                     <div class="form-group">
                       <label for="settings-quality" id="label-quality">Varsayılan İndirme Kalitesi</label>
@@ -509,8 +514,8 @@
                     <div class="form-group">
                       <label for="settings-mergetype" id="label-merge-type">İndirme Yöntemi (FFmpeg / Dosya Yapısı)</label>
                       <select id="settings-mergetype">
-                        <option value="single" id="opt-merge-single" selected>Tek Hazır Dosya (En Fazla 720p, ffmpeg gerektirmez)</option>
-                        <option value="merge" id="opt-merge-merge">Otomatik Birleştir (Yüksek Çözünürlük, ffmpeg gerektirir)</option>
+                        <option value="single" id="opt-merge-single" selected>Tek Hazır Dosya (En Fazla 720p - Sistemi Düşük Olanlar İçin, ffmpeg gerektirmez)</option>
+                        <option value="merge" id="opt-merge-merge">Otomatik Birleştir (En İyi Kalite 1080p+ - Sistemi İyi Olanlar İçin, ffmpeg gerektirir)</option>
                         <option value="separate" id="opt-merge-separate">Ses ve Videoyu Ayrı İndir (ffmpeg gerektirmez)</option>
                       </select>
                       <small class="form-text" id="desc-merge-type">Yüksek çözünürlükleri tek dosya yapmak için FFmpeg gereklidir.</small>
@@ -561,6 +566,7 @@
 
                 <!-- Alt Sekme 3: Otomasyon & RSS -->
                 <div class="settings-subtab-content" id="subtab-automation">
+                  <h3 style="margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i data-lucide="cpu"></i> Otomasyon & RSS</h3>
                   <div class="form-grid">
                     <div class="form-group">
                       <label for="settings-autodownload" id="label-auto-download">Otomatik İndirme</label>
@@ -590,23 +596,26 @@
                     </div>
                   </div>
 
-                  <div class="form-group">
-                    <label for="settings-showshorts" id="label-show-shorts">Shorts Videoları</label>
-                    <div class="toggle-container">
-                      <input type="checkbox" id="settings-showshorts" class="toggle-input">
-                      <label for="settings-showshorts" class="toggle-label"></label>
-                      <span id="desc-show-shorts">Geçmiş video listesinde Shorts videolarını göster</span>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-showshorts" id="label-show-shorts">Shorts Videoları</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-showshorts" class="toggle-input">
+                        <label for="settings-showshorts" class="toggle-label"></label>
+                        <span id="desc-show-shorts">Geçmiş video listesinde Shorts videolarını göster</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <!-- Alt Sekme 4: Çerez & Bildirim -->
                 <div class="settings-subtab-content" id="subtab-notifications">
+                  <h3 style="margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i data-lucide="bell"></i> Çerez & Bildirim</h3>
                   <div class="form-group">
                     <label for="settings-browser" id="label-browser">Premium Çerez Tarayıcısı</label>
                     <select id="settings-browser">
-                      <option value="none" id="opt-browser-none">Çerez Kullanma (Sadece Açık Videolar)</option>
-                      <option value="chrome" selected>Google Chrome</option>
+                      <option value="none" id="opt-browser-none" selected>Çerez Kullanma (Sadece Açık Videolar)</option>
+                      <option value="chrome">Google Chrome</option>
                       <option value="edge">Microsoft Edge</option>
                       <option value="firefox">Mozilla Firefox</option>
                       <option value="brave">Brave</option>

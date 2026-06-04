@@ -1464,6 +1464,7 @@ const settingsBrowser = document.getElementById('settings-browser');
 const settingsQuality = document.getElementById('settings-quality');
 const settingsChannelCheckInterval = document.getElementById('settings-channelcheckinterval');
 const settingsAutoDownload = document.getElementById('settings-autodownload');
+const settingsShortsDurationLimit = document.getElementById('settings-shortsdurationlimit');
 
 // Diğer Butonlar
 const syncNowBtn = document.getElementById('sync-now-btn');
@@ -1619,8 +1620,15 @@ function connectSSE() {
     const log = JSON.parse(e.data);
     showToast(log.message, log.type);
 
-    // Masaüstü Bildirimi (Sadece indirme tamamlanma başarısında)
-    if (log.type === 'success' && 'Notification' in window && Notification.permission === 'granted') {
+    // Masaüstü Bildirimi (Sadece indirme tamamlanma başarısında ve ayarlarda izin verilmişse)
+    if (localDb.settings.showNotifications !== false &&
+        log.type === 'success' && 
+        'Notification' in window && 
+        Notification.permission === 'granted' &&
+        !log.message.includes('silindi') &&
+        !log.message.includes('temizlendi') &&
+        !log.message.includes('deleted') &&
+        !log.message.includes('cleared')) {
       const isEn = localDb.settings.lang === 'en';
       new Notification(isEn ? 'HaYTool Download Completed' : 'HaYTool İndirme Tamamlandı', {
         body: log.message,
@@ -1759,7 +1767,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
   }
 
   videosList.forEach(item => {
-    const isShort = isShortVideo(item.duration, item.title);
+    const isShort = isShortVideo(item.duration, item.title, item.channelId);
     const card = document.createElement('div');
     card.className = 'video-card' + (isShort ? ' is-short' : '');
     
@@ -1770,13 +1778,8 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
     const isCompleted = item.status === 'completed';
     const canPlayEmbedded = isCompleted && !isMissing;
 
-    const clickAction = canPlayEmbedded 
-      ? `playVideoEmbedded('${item.id}')` 
-      : `openYouTube('${item.id}')`;
-      
-    const clickTitle = canPlayEmbedded
-      ? (isEn ? 'Play video' : 'Videoyu Gömülü Oynatıcıda Aç')
-      : (isEn ? 'Open on YouTube' : 'YouTube\'da Aç');
+    const clickAction = `playVideoEmbedded('${item.id}')`;
+    const clickTitle = isEn ? 'Play video' : 'Videoyu Gömülü Oynatıcıda Aç';
 
     if (item.status === 'completed') {
       if (isMissing) {
@@ -1837,7 +1840,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
         </button>
       `;
     } else if (item.status === 'ignored') {
-      statusHtml = `<span class="status-pill ignored"><i data-lucide="skip-forward" style="width:12px;height:12px;margin-right:4px;"></i> ${isEn ? 'Ignored' : 'Göz Ardı Edildi'}</span>`;
+      statusHtml = `<span class="status-dot-warning" style="background-color: var(--accent-red); box-shadow: 0 0 8px rgba(255, 0, 85, 0.8);" title="${isEn ? 'Ignored' : 'Göz Ardı Edildi'}"></span>`;
       actionsHtml = `
         <button class="btn-icon" onclick="downloadVideoManual('${item.id}')" title="${isEn ? 'Download Now' : 'Videoyu Şimdi İndir'}">
           <i data-lucide="download"></i>
@@ -2094,6 +2097,18 @@ function updateUI(db) {
               <option value="false" ${channel.downloadShorts === false ? 'selected' : ''}>Shorts İndirme</option>
             </select>
           </div>
+          <div class="channel-list-shorts-limit">
+            <select onchange="changeChannelShortsLimit('${channel.id}', this.value)" class="channel-shorts-limit-select" title="Shorts Süre Sınırı">
+              <option value="30" ${channel.shortsDurationLimit == 30 ? 'selected' : ''}>Shorts &lt; 30sn</option>
+              <option value="60" ${channel.shortsDurationLimit == 60 ? 'selected' : ''}>Shorts &lt; 60sn (1 dk)</option>
+              <option value="120" ${channel.shortsDurationLimit == 120 ? 'selected' : ''}>Shorts &lt; 120sn (2 dk)</option>
+              <option value="180" ${(!channel.shortsDurationLimit || channel.shortsDurationLimit == 180) ? 'selected' : ''}>Shorts &lt; 180sn (3 dk)</option>
+              <option value="240" ${channel.shortsDurationLimit == 240 ? 'selected' : ''}>Shorts &lt; 240sn (4 dk)</option>
+              <option value="300" ${channel.shortsDurationLimit == 300 ? 'selected' : ''}>Shorts &lt; 300sn (5 dk)</option>
+              <option value="600" ${channel.shortsDurationLimit == 600 ? 'selected' : ''}>Shorts &lt; 600sn (10 dk)</option>
+              <option value="900" ${channel.shortsDurationLimit == 900 ? 'selected' : ''}>Shorts &lt; 900sn (15 dk)</option>
+            </select>
+          </div>
           <div class="channel-list-meta">
             <span class="channel-list-date">
               <i data-lucide="calendar" style="width:11px;height:11px;vertical-align:middle;margin-right:3px;"></i>
@@ -2101,6 +2116,9 @@ function updateUI(db) {
             </span>
           </div>
           <div class="channel-list-actions">
+            <button class="btn-icon channel-rss-update-btn" onclick="syncSingleChannelRss('${channel.id}')" title="Kanalı Şimdi Denetle / RSS Güncelle">
+              <i data-lucide="refresh-cw" style="color:#a855f7;"></i>
+            </button>
             <button class="btn-icon channel-logo-update-btn" onclick="updateChannelAvatar('${channel.id}')" title="Logoyu Güncelle">
               <i data-lucide="image" style="color:#38bdf8;"></i>
             </button>
@@ -2183,7 +2201,7 @@ function updateUI(db) {
     
     const showShorts = db.settings.showShorts !== false;
     if (!showShorts) {
-      filteredHistory = filteredHistory.filter(item => !isShortVideo(item.duration, item.title));
+      filteredHistory = filteredHistory.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
     }
     
     // Yüklenme tarihine göre sırala (Yeni olan en üstte)
@@ -2222,7 +2240,7 @@ function updateUI(db) {
     
     const showShorts = db.settings.showShorts !== false;
     if (!showShorts) {
-      filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title));
+      filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
     }
     
     // Seçilen kritere göre sırala (Tarih veya Boyut)
@@ -2249,6 +2267,7 @@ function updateUI(db) {
     if (settingsQuality && document.activeElement !== settingsQuality) settingsQuality.value = db.settings.quality || 'best';
     if (settingsChannelCheckInterval && document.activeElement !== settingsChannelCheckInterval) settingsChannelCheckInterval.value = db.settings.channelCheckInterval || 60;
     if (settingsAutoDownload && document.activeElement !== settingsAutoDownload) settingsAutoDownload.checked = !!db.settings.autoDownload;
+    if (settingsShortsDurationLimit && document.activeElement !== settingsShortsDurationLimit) settingsShortsDurationLimit.value = db.settings.shortsDurationLimit || 180;
 
     const settingsMergeType = document.getElementById('settings-mergetype');
     const settingsWriteThumbnail = document.getElementById('settings-writethumbnail');
@@ -2274,7 +2293,7 @@ function updateUI(db) {
     if (settingsAltSpeedLimit && document.activeElement !== settingsAltSpeedLimit) settingsAltSpeedLimit.value = db.settings.alternativeSpeedLimit || 500;
 
     const settingsPort = document.getElementById('settings-port');
-    if (settingsPort && document.activeElement !== settingsPort) settingsPort.value = db.settings.port || 3000;
+    if (settingsPort && document.activeElement !== settingsPort) settingsPort.value = db.settings.port || 4141;
 
     const settingsHistoryLimit = document.getElementById('settings-history-limit');
     if (settingsHistoryLimit && document.activeElement !== settingsHistoryLimit) settingsHistoryLimit.value = db.settings.historyLimitPerChannel || 30;
@@ -2390,22 +2409,34 @@ function escapeHtml(str) {
  * @param {string} title Video başlığı
  * @returns {boolean} Video Shorts ise true
  */
-function isShortVideo(durationStr, title) {
+function isShortVideo(durationStr, title, channelId) {
   if (title && (title.toLowerCase().includes('#shorts') || title.toLowerCase().includes('shorts'))) {
     return true;
   }
   if (!durationStr) return false;
+  
+  let limit = 180;
+  if (channelId && localDb && localDb.channels) {
+    const chan = localDb.channels.find(c => c.id === channelId);
+    if (chan && chan.shortsDurationLimit !== undefined) {
+      limit = chan.shortsDurationLimit;
+    }
+  } else if (localDb && localDb.settings && localDb.settings.shortsDurationLimit !== undefined) {
+    limit = localDb.settings.shortsDurationLimit;
+  }
+
   const parts = durationStr.split(':').map(Number);
+  let totalSeconds = 0;
   
   if (parts.length === 1) {
-    return parts[0] <= 180;
+    totalSeconds = parts[0];
   } else if (parts.length === 2) {
-    const minutes = parts[0];
-    const seconds = parts[1];
-    const totalSeconds = (minutes * 60) + seconds;
-    return totalSeconds <= 180;
+    totalSeconds = (parts[0] * 60) + parts[1];
+  } else if (parts.length === 3) {
+    totalSeconds = (parts[0] * 3600) + (parts[1] * 60) + parts[2];
   }
-  return false;
+  
+  return totalSeconds <= limit;
 }
 
 // Türkçe Açıklama: Belirtilen kanal ID'sini backend API'sine ileterek kanalı izleme listesinden çıkarır ve geçmiş verilerini siler.
@@ -2601,11 +2632,33 @@ async function triggerAutoSave(immediate = false) {
   }
 }
 
+async function updateMetadata(type) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  showToast(isEn ? 'Metadata update started...' : 'Metadata güncellemesi başlatıldı...', 'info');
+  try {
+    const res = await fetch('/api/library/update-metadata', { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? `Metadata updated! Evaluated ${data.count} items.` : `Metadata güncellendi! ${data.count} öğe denetlendi.`, 'success');
+      loadDb(); // refresh the UI
+    } else {
+      showToast(data.message || (isEn ? 'Update failed' : 'Güncelleme başarısız'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Error occurred' : 'Hata oluştu', 'error');
+    console.error(err);
+  }
+}
+
 async function performAutoSave() {
   if (!settingsForm) return;
   
   const settingsPortInput = document.getElementById('settings-port');
-  const port = settingsPortInput ? parseInt(settingsPortInput.value, 10) : 3000;
+  const port = settingsPortInput ? parseInt(settingsPortInput.value, 10) : 4141;
   
   const settings = {
     downloadPath: settingsDownloadPath.value.trim(),
@@ -2627,10 +2680,11 @@ async function performAutoSave() {
     showNotifications: document.getElementById('settings-shownotifications').checked,
     autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
     lang: document.getElementById('settings-lang').value,
-    historyLimitPerChannel: parseInt(document.getElementById('settings-history-limit').value, 10) || 30
+    historyLimitPerChannel: parseInt(document.getElementById('settings-history-limit').value, 10) || 30,
+    shortsDurationLimit: settingsShortsDurationLimit ? (parseInt(settingsShortsDurationLimit.value, 10) || 180) : (localDb.settings.shortsDurationLimit || 180)
   };
 
-  const oldPort = localDb.settings.port || 3000;
+  const oldPort = localDb.settings.port || 4141;
   const statusSpan = document.getElementById('settings-status');
   if (statusSpan) {
     const isEn = localDb.settings && localDb.settings.lang === 'en';
@@ -2686,18 +2740,19 @@ if (settingsForm) {
 if (syncNowBtn) {
   syncNowBtn.addEventListener('click', async () => {
     syncNowBtn.disabled = true;
-    showToast('Tüm kanallar manuel taranıyor...', 'info');
+    const isEn = localDb.settings && localDb.settings.lang === 'en';
+    showToast(isEn ? 'Scanning all channels in the background...' : 'Tüm kanallar arka planda taranıyor...', 'info');
     
     try {
       const res = await fetch('/api/sync', { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        showToast('Kanallar başarıyla denetlendi.', 'success');
+        showToast(isEn ? 'Channel scan started in the background.' : 'Kanal denetimi arka planda başlatıldı.', 'success');
       } else {
-        showToast(data.error || 'Hata oluştu.', 'error');
+        showToast(data.error || (isEn ? 'Error occurred.' : 'Hata oluştu.'), 'error');
       }
     } catch (err) {
-      showToast('Bağlantı hatası.', 'error');
+      showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
     } finally {
       syncNowBtn.disabled = false;
     }
@@ -2792,6 +2847,41 @@ window.changeChannelShorts = async function(id, downloadShorts) {
     }
   } catch (err) {
     showToast('Sunucu bağlantı hatası.', 'error');
+  }
+};
+
+window.changeChannelShortsLimit = async function(id, limit) {
+  try {
+    const res = await fetch(`/api/channels/${id}/shorts-limit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: parseInt(limit, 10) })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const isEn = localDb.settings && localDb.settings.lang === 'en';
+      showToast(isEn ? 'Channel Shorts duration limit successfully updated.' : 'Kanal Shorts süre sınırı başarıyla güncellendi.', 'success');
+    } else {
+      showToast(data.error || 'Hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu bağlantı hatası.', 'error');
+  }
+};
+
+window.syncSingleChannelRss = async function(id) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  showToast(isEn ? 'Checking channel RSS feed...' : 'Kanal RSS yayını taranıyor...', 'info');
+  try {
+    const res = await fetch(`/api/channels/${id}/sync`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Channel RSS checked successfully.' : 'Kanal RSS denetimi başarıyla tamamlandı.', 'success');
+    } else {
+      showToast(data.error || (isEn ? 'Error occurred.' : 'Hata oluştu.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
   }
 };
 
@@ -3053,17 +3143,38 @@ window.playVideoEmbedded = function(videoId) {
   const modal = document.getElementById('player-modal');
   const titleEl = document.getElementById('player-modal-title');
   if (modal) {
-    const video = localDb.history.find(h => h.id === videoId);
-    if (titleEl && video) {
-      titleEl.textContent = video.title;
-    } else if (titleEl) {
-      titleEl.textContent = 'Gömülü Video Oynatıcı';
+    let video = localDb.history.find(h => h.id === videoId);
+    let videoTitle = video ? video.title : '';
+    let videoChannelId = video ? video.channelId : '';
+    let videoDuration = video ? video.duration : '';
+    
+    // DOM Fallback
+    if (!videoTitle) {
+      const cardTitleEl = document.querySelector(`.video-card-title[title*="${videoId}"], .video-card-title[onclick*="${videoId}"]`);
+      if (cardTitleEl) {
+        videoTitle = cardTitleEl.textContent.trim();
+      }
+    }
+    if (!videoChannelId) {
+      const cardEl = document.querySelector(`.video-thumbnail-wrapper[onclick*="${videoId}"]`)?.closest('.video-card');
+      if (cardEl) {
+        const channelNameEl = cardEl.querySelector('.video-card-channel');
+        if (channelNameEl) {
+          const nameText = channelNameEl.textContent.trim();
+          const chan = localDb.channels?.find(c => c.name === nameText);
+          if (chan) videoChannelId = chan.id;
+        }
+      }
+    }
+
+    if (titleEl) {
+      titleEl.textContent = videoTitle || 'Gömülü Video Oynatıcı';
     }
     
     // Kanal logosunu güncelle
     const logoEl = document.getElementById('player-modal-logo');
-    if (logoEl && video && video.channelId) {
-      logoEl.src = `/api/channels/${video.channelId}/avatar`;
+    if (logoEl && videoChannelId) {
+      logoEl.src = `/api/channels/${videoChannelId}/avatar`;
       logoEl.style.display = 'block';
       logoEl.onerror = function() {
         this.src = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22><rect width=%2224%22 height=%2224%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2210%22>?</text></svg>';
@@ -3085,7 +3196,7 @@ window.playVideoEmbedded = function(videoId) {
     lucide.createIcons();
 
     // Kısa video (Shorts) kontrolü ve dikey arayüz sınıfı eklenmesi
-    const isShort = video ? isShortVideo(video.duration, video.title) : false;
+    const isShort = isShortVideo(videoDuration, videoTitle, videoChannelId);
     if (isShort) {
       modal.classList.add('is-short-player');
     } else {
@@ -3098,7 +3209,7 @@ window.playVideoEmbedded = function(videoId) {
     seekedForCurrentVideo = false;
     currentPlayingVideoId = videoId;
 
-    // Önceki oynatıcıyı yok et ve temiz video elementi oluştur
+    // Önceki oynatıcıyı yok et
     if (videoPlayerInstance) {
       try {
         if (typeof videoPlayerInstance.destroy === 'function') {
@@ -3112,185 +3223,198 @@ window.playVideoEmbedded = function(videoId) {
 
     const modalBody = modal.querySelector('.player-modal-body');
     const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
+    
+    const isCompleted = video && video.status === 'completed';
+    const isMissing = video && video.fileMissing === true;
+    const playRemote = !isCompleted || isMissing;
 
-    if (modalBody) {
-      if (playerType === 'artplayer') {
-        modalBody.innerHTML = '<div id="embedded-artplayer" style="width: 100%; height: 100%; display: block; outline: none;"></div>';
-      } else {
-        modalBody.innerHTML = '<video id="embedded-video-player" controls autoplay style="width: 100%; height: 100%; display: block; outline: none;"></video>';
+    if (playRemote) {
+      // YouTube Embed Oynatıcı (Uzak Kaynak)
+      if (modalBody) {
+        modalBody.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" style="width: 100%; height: 100%; border: none; display: block;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
       }
-    }
-
-    if (playerType === 'artplayer' && typeof Artplayer !== 'undefined') {
-      videoPlayerInstance = new Artplayer({
-        container: '#embedded-artplayer',
-        url: streamUrl,
-        autoplay: true,
-        autoSize: false,
-        autoMini: false,
-        playbackRate: true,
-        aspectRatio: true,
-        setting: true,
-        hotkey: true,
-        pip: true,
-        fullscreen: true,
-        mutex: true,
-        theme: '#ff0055',
-      });
-
-      // Volume wheel control on ArtPlayer
-      const artContainer = document.getElementById('embedded-artplayer');
-      if (artContainer) {
-        artContainer.addEventListener('wheel', (e) => {
-          e.preventDefault();
-          let currentVolume = videoPlayerInstance.volume;
-          if (e.deltaY < 0) {
-            videoPlayerInstance.volume = Math.min(1, currentVolume + 0.01);
-          } else {
-            videoPlayerInstance.volume = Math.max(0, currentVolume - 0.01);
-          }
-        }, { passive: false });
-      }
-
-      // Restore playback watch position and track time using raw video element
-      videoPlayerInstance.on('ready', () => {
-        const rawVideo = videoPlayerInstance.video;
-        if (rawVideo) {
-          rawVideo.addEventListener('timeupdate', () => {
-            if (!currentPlayingVideoId) return;
-            const currentTime = rawVideo.currentTime;
-            const duration = rawVideo.duration || 0;
-            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              resumeData[currentPlayingVideoId] = currentTime;
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            } else if (duration > 0 && (duration - currentTime) <= 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              delete resumeData[currentPlayingVideoId];
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            }
-          });
-
-          if (!seekedForCurrentVideo && currentPlayingVideoId) {
-            const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-            const savedTime = resumeData[currentPlayingVideoId];
-            if (savedTime && savedTime > 0) {
-              rawVideo.currentTime = savedTime;
-            }
-            seekedForCurrentVideo = true;
-          }
-        }
-      });
-
+      videoPlayerInstance = null;
     } else {
-      const player = document.getElementById('embedded-video-player');
-      if (player) {
-        if (playerType === 'plyr' && typeof Plyr !== 'undefined') {
-          player.src = streamUrl;
-          videoPlayerInstance = new Plyr('#embedded-video-player', {
-            iconUrl: '/plyr.svg',
-            controls: [
-              'play-large', 'restart', 'rewind', 'play', 'fast-forward',
-              'progress', 'current-time', 'duration', 'mute', 'volume',
-              'settings', 'pip', 'fullscreen'
-            ],
-            settings: ['speed', 'loop'],
-            speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] }
-          });
-
-          // Volume wheel control
-          const plyrContainer = modal.querySelector('.plyr');
-          if (plyrContainer) {
-            plyrContainer.addEventListener('wheel', (e) => {
-              e.preventDefault();
-              let currentVolume = videoPlayerInstance.volume;
-              if (e.deltaY < 0) {
-                videoPlayerInstance.volume = Math.min(1, currentVolume + 0.01);
-              } else {
-                videoPlayerInstance.volume = Math.max(0, currentVolume - 0.01);
-              }
-            }, { passive: false });
-          }
-
-          // İzleme süresini tarayıcı belleğine kaydet
-          videoPlayerInstance.on('timeupdate', () => {
-            if (!currentPlayingVideoId) return;
-            const currentTime = videoPlayerInstance.currentTime;
-            const duration = videoPlayerInstance.duration || 0;
-            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              resumeData[currentPlayingVideoId] = currentTime;
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            } else if (duration > 0 && (duration - currentTime) <= 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              delete resumeData[currentPlayingVideoId];
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            }
-          });
-
-          // Kaldığı yerden oynatmaya devam et
-          videoPlayerInstance.on('canplay', () => {
-            if (!seekedForCurrentVideo && currentPlayingVideoId) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              const savedTime = resumeData[currentPlayingVideoId];
-              if (savedTime && savedTime > 0) {
-                videoPlayerInstance.currentTime = savedTime;
-              }
-              seekedForCurrentVideo = true;
-            }
-          });
-
-          videoPlayerInstance.play().catch(err => {
-            console.warn('Otomatik oynatma engellendi:', err);
-          });
+      // Yerel Video Oynatma
+      if (modalBody) {
+        if (playerType === 'artplayer') {
+          modalBody.innerHTML = '<div id="embedded-artplayer" style="width: 100%; height: 100%; display: block; outline: none;"></div>';
         } else {
-          // Standart HTML5 Video Player
-          player.src = streamUrl;
-          player.controls = true;
+          modalBody.innerHTML = '<video id="embedded-video-player" controls autoplay style="width: 100%; height: 100%; display: block; outline: none;"></video>';
+        }
+      }
 
-          // Volume wheel control
-          player.addEventListener('wheel', (e) => {
+      if (playerType === 'artplayer' && typeof Artplayer !== 'undefined') {
+        videoPlayerInstance = new Artplayer({
+          container: '#embedded-artplayer',
+          url: streamUrl,
+          autoplay: true,
+          autoSize: false,
+          autoMini: false,
+          playbackRate: true,
+          aspectRatio: true,
+          setting: true,
+          hotkey: true,
+          pip: true,
+          fullscreen: true,
+          mutex: true,
+          theme: '#ff0055',
+        });
+
+        // Volume wheel control on ArtPlayer
+        const artContainer = document.getElementById('embedded-artplayer');
+        if (artContainer) {
+          artContainer.addEventListener('wheel', (e) => {
             e.preventDefault();
-            let currentVolume = player.volume;
+            let currentVolume = videoPlayerInstance.volume;
             if (e.deltaY < 0) {
-              player.volume = Math.min(1, currentVolume + 0.01);
+              videoPlayerInstance.volume = Math.min(1, currentVolume + 0.01);
             } else {
-              player.volume = Math.max(0, currentVolume - 0.01);
+              videoPlayerInstance.volume = Math.max(0, currentVolume - 0.01);
             }
           }, { passive: false });
+        }
 
-          // İzleme süresini tarayıcı belleğine kaydet
-          player.addEventListener('timeupdate', () => {
-            if (!currentPlayingVideoId) return;
-            const currentTime = player.currentTime;
-            const duration = player.duration || 0;
-            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              resumeData[currentPlayingVideoId] = currentTime;
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            } else if (duration > 0 && (duration - currentTime) <= 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              delete resumeData[currentPlayingVideoId];
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            }
-          });
+        // Restore playback watch position and track time
+        videoPlayerInstance.on('ready', () => {
+          const rawVideo = videoPlayerInstance.video;
+          if (rawVideo) {
+            rawVideo.addEventListener('timeupdate', () => {
+              if (!currentPlayingVideoId) return;
+              const currentTime = rawVideo.currentTime;
+              const duration = rawVideo.duration || 0;
+              if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
+                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+                resumeData[currentPlayingVideoId] = currentTime;
+                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+              } else if (duration > 0 && (duration - currentTime) <= 5) {
+                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+                delete resumeData[currentPlayingVideoId];
+                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+              }
+            });
 
-          // Kaldığı yerden oynatmaya devam et
-          player.addEventListener('canplay', () => {
             if (!seekedForCurrentVideo && currentPlayingVideoId) {
               const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
               const savedTime = resumeData[currentPlayingVideoId];
               if (savedTime && savedTime > 0) {
-                player.currentTime = savedTime;
+                rawVideo.currentTime = savedTime;
               }
               seekedForCurrentVideo = true;
             }
-          });
+          }
+        });
 
-          player.load();
-          player.play().catch(err => {
-            console.warn('Otomatik oynatma engellendi:', err);
-          });
+      } else {
+        const player = document.getElementById('embedded-video-player');
+        if (player) {
+          if (playerType === 'plyr' && typeof Plyr !== 'undefined') {
+            player.src = streamUrl;
+            videoPlayerInstance = new Plyr('#embedded-video-player', {
+              iconUrl: '/plyr.svg',
+              controls: [
+                'play-large', 'restart', 'rewind', 'play', 'fast-forward',
+                'progress', 'current-time', 'duration', 'mute', 'volume',
+                'settings', 'pip', 'fullscreen'
+              ],
+              settings: ['speed', 'loop'],
+              speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] }
+            });
+
+            // Volume wheel control
+            const plyrContainer = modal.querySelector('.plyr');
+            if (plyrContainer) {
+              plyrContainer.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                let currentVolume = videoPlayerInstance.volume;
+                if (e.deltaY < 0) {
+                  videoPlayerInstance.volume = Math.min(1, currentVolume + 0.01);
+                } else {
+                  videoPlayerInstance.volume = Math.max(0, currentVolume - 0.01);
+                }
+              }, { passive: false });
+            }
+
+            // İzleme süresini kaydet
+            videoPlayerInstance.on('timeupdate', () => {
+              if (!currentPlayingVideoId) return;
+              const currentTime = videoPlayerInstance.currentTime;
+              const duration = videoPlayerInstance.duration || 0;
+              if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
+                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+                resumeData[currentPlayingVideoId] = currentTime;
+                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+              } else if (duration > 0 && (duration - currentTime) <= 5) {
+                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+                delete resumeData[currentPlayingVideoId];
+                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+              }
+            });
+
+            // Kaldığı yerden oynatmaya devam et
+            videoPlayerInstance.on('canplay', () => {
+              if (!seekedForCurrentVideo && currentPlayingVideoId) {
+                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+                const savedTime = resumeData[currentPlayingVideoId];
+                if (savedTime && savedTime > 0) {
+                  videoPlayerInstance.currentTime = savedTime;
+                }
+                seekedForCurrentVideo = true;
+              }
+            });
+
+            videoPlayerInstance.play().catch(err => {
+              console.warn('Otomatik oynatma engellendi:', err);
+            });
+          } else {
+            // Standart HTML5 Video Player
+            player.src = streamUrl;
+            player.controls = true;
+
+            // Volume wheel control
+            player.addEventListener('wheel', (e) => {
+              e.preventDefault();
+              let currentVolume = player.volume;
+              if (e.deltaY < 0) {
+                player.volume = Math.min(1, currentVolume + 0.01);
+              } else {
+                player.volume = Math.max(0, currentVolume - 0.01);
+              }
+            }, { passive: false });
+
+            // İzleme süresini kaydet
+            player.addEventListener('timeupdate', () => {
+              if (!currentPlayingVideoId) return;
+              const currentTime = player.currentTime;
+              const duration = player.duration || 0;
+              if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
+                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+                resumeData[currentPlayingVideoId] = currentTime;
+                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+              } else if (duration > 0 && (duration - currentTime) <= 5) {
+                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+                delete resumeData[currentPlayingVideoId];
+                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+              }
+            });
+
+            // Kaldığı yerden devam et
+            player.addEventListener('canplay', () => {
+              if (!seekedForCurrentVideo && currentPlayingVideoId) {
+                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+                const savedTime = resumeData[currentPlayingVideoId];
+                if (savedTime && savedTime > 0) {
+                  player.currentTime = savedTime;
+                }
+                seekedForCurrentVideo = true;
+              }
+            });
+
+            player.load();
+            player.play().catch(err => {
+              console.warn('Otomatik oynatma engellendi:', err);
+            });
+          }
         }
       }
     }
@@ -3561,6 +3685,28 @@ window.cancelDownload = async function(videoId) {
 };
 
 /**
+ * Tüm aktif ve kuyruktaki indirmeleri iptal eder.
+ */
+window.cancelAllDownloads = async function() {
+  if (!confirm('Tüm aktif ve kuyruktaki indirmeleri iptal etmek istediğinize emin misiniz?')) return;
+  
+  try {
+    showToast('Tüm indirmeler iptal ediliyor...', 'info');
+    const res = await fetch('/api/cancel-all-downloads', {
+      method: 'POST'
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Tüm indirmeler iptal edildi.', 'success');
+    } else {
+      showToast(data.error || 'İptal işlemi başarısız oldu.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+};
+
+/**
  * İndirme kuyruğunda (sırasında) bekleyen bir videoyu sıradan çıkarır.
  * 
  * @param {string} videoId Sıradan çıkarılacak video ID'si
@@ -3583,6 +3729,24 @@ window.cancelQueuedVideo = async function(videoId) {
     }
   } catch (err) {
     showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+};
+
+window.cancelAllQueued = async function() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (!confirm(isEn ? 'Are you sure you want to cancel all queued videos?' : 'Kuyruktaki tüm videoları iptal etmek istediğinizden emin misiniz?')) return;
+  
+  try {
+    showToast(isEn ? 'Cancelling all queued videos...' : 'Tüm kuyruk iptal ediliyor...', 'info');
+    const res = await fetch('/api/cancel-all-queued', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      // Server broadcasts update
+    } else {
+      showToast(data.error || (isEn ? 'Cancel failed.' : 'İptal işlemi başarısız oldu.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Communication error.' : 'Sunucu ile iletişim hatası.', 'error');
   }
 };
 
@@ -4098,6 +4262,18 @@ function initCustomSelect() {
 
   if (!trigger || !optionsContainer || !hiddenInput) return;
 
+  // Dil seçeneklerini visual olarak alfabetik sıraya göre sırala
+  const options = Array.from(optionsContainer.querySelectorAll('.custom-option'));
+  options.sort((a, b) => {
+    const textA = a.querySelector('span').innerText.trim();
+    const textB = b.querySelector('span').innerText.trim();
+    return textA.localeCompare(textB, 'tr', { sensitivity: 'base' });
+  });
+
+  // Seçenekleri temizleyip sıralı şekilde yeniden ekle
+  optionsContainer.innerHTML = '';
+  options.forEach(opt => optionsContainer.appendChild(opt));
+
   trigger.addEventListener('click', (e) => {
     e.stopPropagation();
     optionsContainer.classList.toggle('open');
@@ -4107,8 +4283,8 @@ function initCustomSelect() {
     optionsContainer.classList.remove('open');
   });
 
-  const options = optionsContainer.querySelectorAll('.custom-option');
-  options.forEach(opt => {
+  const allOptions = optionsContainer.querySelectorAll('.custom-option');
+  allOptions.forEach(opt => {
     opt.addEventListener('click', () => {
       const val = opt.getAttribute('data-value');
       hiddenInput.value = val;

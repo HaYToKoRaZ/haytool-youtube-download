@@ -10,7 +10,7 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import { spawn, exec, execSync } from 'child_process';
+import { spawn, exec, execSync, execFileSync } from 'child_process';
 import https from 'https';
 import http from 'http';
 import os from 'os';
@@ -178,10 +178,10 @@ const configIniName = os.platform() === 'win32' ? 'configwin.ini' : 'configunix.
 const configIniPath = path.join(__dirname, configIniName);
 const channelsIniPath = path.join(__dirname, 'channels.ini');
 const ytdlpPath = path.join(__dirname, 'yt-dlp', os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
-const defaultDownloadDir = path.join(os.homedir(), 'Downloads', 'YouTubeAutoDownloads');
+const defaultDownloadDir = path.join(__dirname, 'download');
 
 // Determing port from config.ini early
-let PORT = 3000;
+let PORT = 4141;
 try {
   if (fs.existsSync(configIniPath)) {
     const iniContent = fs.readFileSync(configIniPath, 'utf-8');
@@ -203,7 +203,7 @@ try {
           const key = trimmed.slice(0, equalsIdx).trim().toLowerCase();
           const val = trimmed.slice(equalsIdx + 1).trim();
           if (key === 'port') {
-            PORT = parseInt(val, 10) || 3000;
+            PORT = parseInt(val, 10) || 4141;
             break;
           }
         }
@@ -219,27 +219,32 @@ const defaultDb = {
   channels: [],
   history: [],
   settings: {
-    downloadPath: defaultDownloadDir,
-    browser: 'chrome', // chrome, edge, firefox, brave, opera, none
-    quality: 'best',   // best, 1080p, 720p
-    channelCheckInterval: 60, // kanallar arası denetim sıklığı (saniye, varsayılan 60)
+    downloadPath: defaultDownloadDir, // Güvenlik amaçlı F: yerine proje içi dizin varsayılanı kullanılıyor
+    browser: 'none',
+    quality: 'best',
+    channelCheckInterval: 5,
     autoDownload: true,
-    showShorts: false, // varsayılan olarak Shorts videolarını kütüphanede gösterme
-    rssLimit: 5,       // varsayılan 5
-    autoDeleteDays: 0, // varsayılan 0
+    showShorts: false,
+    rssLimit: 15,
+    autoDeleteDays: 0,
     theme: 'dark',
-    shortsMigrationDone: false,
+    shortsMigrationDone: true,
+    cookieDefaultMigrationDone: true,
     downloadSpeedLimit: 0,
     useAlternativeSpeed: false,
-    alternativeSpeedLimit: 500,
-    port: 3000,
+    alternativeSpeedLimit: 501,
+    port: 4141,
     playerPreference: 'system',
-    playerType: 'plyr', // gömülü oynatıcı türü: plyr, artplayer, html5
+    playerType: 'plyr',
     lang: 'tr',
-    isPaused: false, // İndirme kuyruğunun duraklatılma durumu
-    showNotifications: true, // Windows masaüstü bildirimlerinin gösterilme durumu
-    autoOpenBrowser: true, // Başlangıçta tarayıcıda localhost sayfasını otomatik açma durumu
-    historyLimitPerChannel: 30 // Kanal başına gösterilecek geçmiş video sınırı
+    isPaused: false,
+    showNotifications: true,
+    autoOpenBrowser: true,
+    historyLimitPerChannel: 30,
+    mergeType: 'merge',
+    writeThumbnail: false,
+    playSounds: true,
+    shortsDurationLimit: 180
   }
 };
 
@@ -383,9 +388,9 @@ function convertPngToIco(pngPath, icoPath) {
     pngBuffer.copy(icoBuffer, 22);
     
     fs.writeFileSync(icoPath, icoBuffer);
-    console.log('icon.ico file created successfully.');
+    console.log('icon.ico dosyası başarıyla oluşturuldu.');
   } catch (err) {
-    console.error('icon.ico oluşturulurken hata oluştu:', err.message);
+    console.error('icon.ico oluşturulurken Error occurred:', err.message);
   }
 }
 
@@ -408,7 +413,7 @@ function downloadChannelAvatar(url, channelName) {
       try {
         fs.mkdirSync(channelDir, { recursive: true });
       } catch (err) {
-        console.error('Kanal klasörü oluşturulamadı:', err.message);
+        console.error('Kanal klasörü could not be createdı:', err.message);
         return resolve('');
       }
     }
@@ -421,7 +426,7 @@ function downloadChannelAvatar(url, channelName) {
       res.pipe(fileStream);
       fileStream.on('finish', () => {
         fileStream.close();
-        console.log(`[SETTING] Channel logo downloaded: ${channelName} -> avatar.jpg`);
+        console.log(`[AYAR] Kanal logosu indirildi: ${channelName} -> avatar.jpg`);
         
         // Kanal klasörü için klasör ikonu ayarlama işlevini tetikle
         setFolderIcon(channelDir, destPath);
@@ -493,9 +498,9 @@ function setFolderIcon(folderPath, imagePath) {
     execSync(`attrib +h +s "${iniPath}"`);
     execSync(`attrib +h "${icoPath}"`);
     
-    console.log(`[SETTING] Folder icon successfully updated: ${folderPath}`);
+    console.log(`[AYAR] Klasör simgesi successfully updated: ${folderPath}`);
   } catch (err) {
-    console.error('Klasör simgesi ayarlanırken hata oluştu:', err.message);
+    console.error('Klasör simgesi ayarlanırken Error occurred:', err.message);
   }
 }
 
@@ -517,12 +522,12 @@ function syncWithIni(db) {
   // Eski tekil config.ini dosyasından yeni işletim sistemine özel yapılandırmaya göç
   const oldConfigIniPath = path.join(__dirname, 'config.ini');
   if (fs.existsSync(oldConfigIniPath) && !fs.existsSync(configIniPath)) {
-    console.log(`[Migration] Old config.ini detected, moving to ${configIniName}...`);
+    console.log(`[Migration] Eski config.ini tespit edildi, ${configIniName} dosyasına taşınıyor...`);
     try {
       fs.renameSync(oldConfigIniPath, configIniPath);
-      console.log(`[Migration] config.ini renamed to ${configIniName} successfully.`);
+      console.log(`[Migration] config.ini başarıyla ${configIniName} olarak yeniden adlandırıldı.`);
     } catch (e) {
-      console.error('[Migration] Eski config.ini taşınırken hata oluştu:', e.message);
+      console.error('[Migration] Eski config.ini taşınırken Error occurred:', e.message);
     }
   }
 
@@ -531,21 +536,21 @@ function syncWithIni(db) {
   let migratedSettings = null;
   let migratedChannels = null;
   if (fs.existsSync(configIniTypoPath)) {
-    console.log('[Migration] Invalid named config.inilş detected. Migration starting...');
+    console.log('[Migration] Errorlı isimlendirilmiş config.inilş tespit edildi. Göç işlemi başlatılıyor...');
     try {
       const typoData = parseIni(configIniTypoPath);
       migratedSettings = getCaseInsensitiveKey(typoData, 'Settings');
       migratedChannels = getCaseInsensitiveKey(typoData, 'Channels');
       fs.unlinkSync(configIniTypoPath); // Göç sonrası sil
-      console.log('[Migration] config.inilş successfully moved and deleted.');
+      console.log('[Migration] config.inilş başarıyla taşındı ve deleted.');
     } catch (e) {
-      console.error('[Migration] Hata:', e.message);
+      console.error('[Migration] Error:', e.message);
     }
   }
 
   // 1. config.ini (Ayarlar) Eşitlemesi
   if (!fs.existsSync(configIniPath)) {
-    console.log(`[Sync] ${configIniName} not found. Creating with current settings.`);
+    console.log(`[Sync] ${configIniName} not foundı. Mevcut ayarlarla oluşturuluyor.`);
     saveSettingsToIni(db);
   } else {
     const iniData = parseIni(configIniPath);
@@ -613,7 +618,7 @@ function syncWithIni(db) {
 
       const port = getCaseInsensitiveKey(settingsSection, 'port');
       if (port !== undefined) {
-        db.settings.port = parseInt(port, 10) || 3000;
+        db.settings.port = parseInt(port, 10) || 4141;
       }
 
       const playerPreference = getCaseInsensitiveKey(settingsSection, 'playerPreference');
@@ -678,8 +683,17 @@ function syncWithIni(db) {
       let handleOrUrl = '';
       let name = id;
       let avatar = '';
+      let shortsDurationLimit = 180;
 
-      if (parts.length >= 6) {
+      if (parts.length >= 7) {
+        shortsDurationLimit = parseInt(parts[parts.length - 1], 10) || 180;
+        avatar = parts[parts.length - 2];
+        downloadShorts = parts[parts.length - 3] === 'true';
+        quality = parts[parts.length - 4];
+        addedAt = parts[parts.length - 5];
+        handleOrUrl = parts[parts.length - 6];
+        name = parts.slice(0, parts.length - 6).join(' | ');
+      } else if (parts.length === 6) {
         avatar = parts[parts.length - 1];
         downloadShorts = parts[parts.length - 2] === 'true';
         quality = parts[parts.length - 3];
@@ -713,8 +727,9 @@ function syncWithIni(db) {
       const existingChannel = db.channels.find(c => c.id === id);
       const dbAvatar = existingChannel ? (existingChannel.avatar || '') : '';
       const finalAvatar = avatar || dbAvatar;
+      const finalShortsLimit = existingChannel ? (existingChannel.shortsDurationLimit || shortsDurationLimit) : shortsDurationLimit;
       
-      updatedChannels.push({ id, name, handle: handleOrUrl, addedAt, quality, downloadShorts, avatar: finalAvatar });
+      updatedChannels.push({ id, name, handle: handleOrUrl, addedAt, quality, downloadShorts, avatar: finalAvatar, shortsDurationLimit: finalShortsLimit });
     }
     db.channels = updatedChannels;
   } else {
@@ -725,7 +740,7 @@ function syncWithIni(db) {
 
   // Göç edilen verileri hemen diske ve yeni INI dosyalarına yaz
   if (migratedSettings || migratedChannels) {
-    console.log('[Migration] Migrated data is being saved to the database...');
+    console.log('[Migration] Göç edilen veriler veritabanına kaydediliyor...');
     writeDb(db);
   }
 }
@@ -741,18 +756,18 @@ function saveSettingsToIni(db) {
   iniData.Settings.downloadPath = db.settings.downloadPath;
   iniData.Settings.browser = db.settings.browser;
   iniData.Settings.quality = db.settings.quality;
-  iniData.Settings.channelCheckInterval = (db.settings.channelCheckInterval || 60).toString();
+  iniData.Settings.channelCheckInterval = (db.settings.channelCheckInterval !== undefined ? db.settings.channelCheckInterval : 5).toString();
   iniData.Settings.autoDownload = db.settings.autoDownload.toString();
-  iniData.Settings.mergeType = (db.settings.mergeType || 'single').toString();
+  iniData.Settings.mergeType = (db.settings.mergeType || 'merge').toString();
   iniData.Settings.writeThumbnail = (db.settings.writeThumbnail !== false).toString();
   iniData.Settings.showShorts = (db.settings.showShorts !== false).toString();
-  iniData.Settings.rssLimit = (db.settings.rssLimit || 5).toString();
+  iniData.Settings.rssLimit = (db.settings.rssLimit !== undefined ? db.settings.rssLimit : 15).toString();
   iniData.Settings.autoDeleteDays = (db.settings.autoDeleteDays || 0).toString();
   iniData.Settings.theme = (db.settings.theme || 'dark').toString();
   iniData.Settings.downloadSpeedLimit = (db.settings.downloadSpeedLimit || 0).toString();
   iniData.Settings.useAlternativeSpeed = (db.settings.useAlternativeSpeed === true).toString();
-  iniData.Settings.alternativeSpeedLimit = (db.settings.alternativeSpeedLimit || 500).toString();
-  iniData.Settings.port = (db.settings.port || 3000).toString();
+  iniData.Settings.alternativeSpeedLimit = (db.settings.alternativeSpeedLimit !== undefined ? db.settings.alternativeSpeedLimit : 501).toString();
+  iniData.Settings.port = (db.settings.port || 4141).toString();
   iniData.Settings.playerPreference = (db.settings.playerPreference || 'system').toString();
   iniData.Settings.playerType = (db.settings.playerType || 'plyr').toString();
   iniData.Settings.playSounds = (db.settings.playSounds !== false).toString();
@@ -787,7 +802,7 @@ function saveChannelsToIni(db) {
     } else if (!channelUrl) {
       channelUrl = `https://www.youtube.com/channel/${channel.id}`;
     }
-    iniData.Channels[channel.id] = `${channel.name} | ${channelUrl} | ${channel.addedAt} | ${channel.quality || 'default'} | ${channel.downloadShorts !== false} | ${channel.avatar || ''}`;
+    iniData.Channels[channel.id] = `${channel.name} | ${channelUrl} | ${channel.addedAt} | ${channel.quality || 'default'} | ${channel.downloadShorts !== false} | ${channel.avatar || ''} | ${channel.shortsDurationLimit || 180}`;
   }
   writeIni(channelsIniPath, iniData);
 }
@@ -842,6 +857,16 @@ function readDb() {
       db.settings.shortsMigrationDone = true;
       writeDb(db);
     }
+
+    // Çerez varsayılanı migrasyonu (Chrome varsayılanını 'none' (çerez kullanma) olarak günceller)
+    if (!db.settings.cookieDefaultMigrationDone) {
+      if (db.settings.browser === 'chrome') {
+        db.settings.browser = 'none';
+      }
+      db.settings.cookieDefaultMigrationDone = true;
+      writeDb(db);
+      saveSettingsToIni(db);
+    }
     
     return db;
   } catch (err) {
@@ -880,7 +905,7 @@ function syncDbWithDisk() {
               item.filePath = foundPath;
               exists = true;
               dbUpdated = true;
-              console.log(`[Disk Sync] Video file detected in new location: ${item.title} -> ${foundPath}`);
+              console.log(`[Disk Sync] Video dosyası yeni konumda tespit edildi: ${item.title} -> ${foundPath}`);
             }
           }
           if (exists) {
@@ -902,13 +927,13 @@ function syncDbWithDisk() {
                 dbUpdated = true;
               }
             } catch (err) {
-              console.error(`Boyut okuma hatası: ${item.title}`, err.message);
+              console.error(`Size read errorı: ${item.title}`, err.message);
             }
           } else {
             if (!item.fileMissing) {
               item.fileMissing = true;
               dbUpdated = true;
-              console.log(`[Disk Sync] Video file not found on disk: ${item.title}`);
+              console.log(`[Disk Sync] Video dosyası diskte not foundı: ${item.title}`);
             }
           }
         } else if (item.status === 'ignored' || item.status === 'failed') {
@@ -918,7 +943,7 @@ function syncDbWithDisk() {
             item.filePath = foundPath;
             item.fileMissing = false;
             dbUpdated = true;
-            console.log(`[Disk Sync] Ignored/Failed video found on disk, restored as 'completed': ${item.title} -> ${foundPath}`);
+            console.log(`[Disk Sync] Ignored/Failed video diskte bulundu, 'completed' olarak geri yüklendi: ${item.title} -> ${foundPath}`);
             
             try {
               const stats = fs.statSync(foundPath);
@@ -931,7 +956,7 @@ function syncDbWithDisk() {
               }
               item.fileSize = calculatedSize;
             } catch (err) {
-              console.error(`Boyut okuma hatası: ${item.title}`, err.message);
+              console.error(`Size read errorı: ${item.title}`, err.message);
             }
           }
         }
@@ -1154,16 +1179,31 @@ if (process.argv.length > 2) {
       }
     }
   } else {
-    console.log(`Available CLI commands (haytool or HaYTooL YT Downloader.exe):
-  status                               (Status report)
-  pd <video-link>                      (Download video - Paste & Download)
-  speed <val/on/off/toggle>            (Normal speed limit settings)
-  limit <val/on/off/toggle>            (Normal speed limit settings)
-  altspeed <val/on/off/toggle>         (Alternative speed settings)
-  turtle <val/on/off/toggle>           (Alternative speed settings)
-  turtleon                             (Force turtle mode active)
-  turtleoff                            (Force turtle mode inactive)
-  toggle                               (Toggle alternative speed)`);
+    console.log(`
+[HaYTooL CLI Yardım]
+  Kullanım: haytool <komut> [değer]
+
+  Hız Limiti Komutları:
+  speed <KB/s>                         (Hız limitini ayarla, 0 = sınırsız)
+  speed on / speed ac                  (Hız limitini aç)
+  speed off / speed kapat              (Hız limitini kapat)
+
+  Kaplumbağa (Alternatif Hız) Modu:
+  turtleon / turtleac / turtle-on      (Alternatif hızı KESİN AÇ)
+  turtleoff / turtlekapat / turtle-off (Alternatif hızı KESİN KAPAT)
+  altspeed on/off/toggle/<KB/s>        (Alternatif hız yönetimi)
+  turtle on/off/toggle                 (Kaplumbağa modu yönetimi)
+  toggle                               (Alternatif hızı aç/kapat)
+
+  Diğer Komutlar:
+  status                               (Mevcut hız limitlerini göster)
+  pd <youtube-url>                     (Videoyu indirme kuyruğuna ekle)
+
+  Örnekler:
+  haytool speed 1500
+  haytool turtleon
+  haytool pd https://www.youtube.com/watch?v=dQw4w9WgXcQ
+    `);
     process.exit(0);
   }
 }
@@ -1194,7 +1234,7 @@ function ensureYtdlp() {
   return new Promise((resolve, reject) => {
     const filename = os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
     if (fs.existsSync(ytdlpPath)) {
-      console.log(`${filename} already exists.`);
+      console.log(`${filename} zaten mevcut.`);
       return resolve(ytdlpPath);
     }
     const err = new Error(`${filename} bulunamadı! Otomatik indirme iptal edildi. Lütfen yt-dlp/ klasörü altına ${filename} dosyasını ekleyin.`);
@@ -1240,14 +1280,24 @@ function showWindowsNotification(title, message) {
   if (db.settings && db.settings.showNotifications === false) return;
   if (os.platform() !== 'win32') return;
 
-  // Türkçe Açıklama: Bildirim başlığı ve mesajındaki tek tırnakları PowerShell tek tırnaklı dize formatına uygun şekilde çift tek tırnakla kaçırıyoruz.
-  const escapedTitle = title.replace(/'/g, "''");
-  const escapedMessage = message.replace(/'/g, "''");
+  // Türkçe Açıklama: Bildirim başlığı ve mesajındaki kıvrık tırnakları düz tırnakla değiştiriyoruz. Sonrasında tek tırnakları PowerShell tek tırnaklı dize formatına uygun şekilde çift tek tırnakla kaçırıyoruz.
+  const cleanTitle = title.replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+  const cleanMessage = message.replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+
+  const escapedTitle = cleanTitle.replace(/'/g, "''");
+  const escapedMessage = cleanMessage.replace(/'/g, "''");
+
+  const iconPath = path.resolve(__dirname, 'icon.ico').replace(/\\/g, '\\\\');
 
   const psScript = `
     [void] [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms');
+    [void] [System.Reflection.Assembly]::LoadWithPartialName('System.Drawing');
     $notification = New-Object System.Windows.Forms.NotifyIcon;
-    $notification.Icon = [System.Drawing.SystemIcons]::Information;
+    if (Test-Path '${iconPath}') {
+      $notification.Icon = New-Object System.Drawing.Icon('${iconPath}');
+    } else {
+      $notification.Icon = [System.Drawing.SystemIcons]::Information;
+    }
     $notification.BalloonTipTitle = '${escapedTitle}';
     $notification.BalloonTipText = '${escapedMessage}';
     $notification.Visible = $true;
@@ -1272,6 +1322,25 @@ function getFfmpegPath() {
   const pathInSubfolder = path.resolve(`./ffmpeg/ffmpeg${ext}`);
   if (fs.existsSync(pathInSubfolder)) return pathInSubfolder;
   return path.resolve(`./ffmpeg${ext}`);
+}
+
+let isFfmpegWorkingCached = null;
+function testFfmpegSync() {
+  if (isFfmpegWorkingCached !== null) return isFfmpegWorkingCached;
+  const ffmpegPath = getFfmpegPath();
+  if (!fs.existsSync(ffmpegPath)) {
+    isFfmpegWorkingCached = false;
+    return false;
+  }
+  try {
+    execFileSync(ffmpegPath, ['-version'], { stdio: 'ignore', timeout: 2000 });
+    isFfmpegWorkingCached = true;
+    return true;
+  } catch (err) {
+    console.error("FFmpeg test error details:", err.message || err);
+    isFfmpegWorkingCached = false;
+    return false;
+  }
 }
 
 // FFmpeg (Ses/Video Birleştirici) Otomatik İndirici
@@ -1314,19 +1383,21 @@ function parseIsoDuration(iso) {
  * @param {string} durationStr Biçimlendirilmiş süre metni (Örn: 2:30)
  * @returns {boolean} Video Short ise true
  */
-function isShortDuration(durationStr) {
+function isShortDuration(durationStr, limit = 180) {
   if (!durationStr) return false;
+  
   const parts = durationStr.split(':').map(Number);
+  let totalSeconds = 0;
   
   if (parts.length === 1) {
-    return parts[0] <= 180;
+    totalSeconds = parts[0];
   } else if (parts.length === 2) {
-    const minutes = parts[0];
-    const seconds = parts[1];
-    const totalSeconds = (minutes * 60) + seconds;
-    return totalSeconds <= 180;
+    totalSeconds = (parts[0] * 60) + parts[1];
+  } else if (parts.length === 3) {
+    totalSeconds = (parts[0] * 3600) + (parts[1] * 60) + parts[2];
   }
-  return false;
+  
+  return totalSeconds <= limit;
 }
 
 // Türkçe Açıklama: YouTube watch sayfasını HTTP üzerinden çekip regex kullanarak video süresi, başlığı, yayınlanma tarihi ve yükleyen kanal bilgilerini ayıklar.
@@ -1586,7 +1657,7 @@ async function addVideoToQueueByUrl(urlText) {
   let channelId = '';
 
   try {
-    console.log(`[Manual Download] Fetching video details from YouTube: ${videoId}`);
+    console.log(`[Manual Download] Fetching video details from from YouTube: ${videoId}`);
     const details = await fetchVideoDuration(videoId);
     if (details) {
       if (details.title) title = details.title;
@@ -1594,7 +1665,7 @@ async function addVideoToQueueByUrl(urlText) {
       if (details.channelId) channelId = details.channelId;
     }
   } catch (err) {
-    console.error(`[Manual Download] Error fetching details:`, err.message);
+    console.error(`[Manual Download] details while fetching Error occurred:`, err.message);
   }
 
   downloadQueue.add({
@@ -1626,7 +1697,7 @@ async function resolveMissingDurations() {
     const needsDuration = !item.duration;
     const needsPublishDate = !item.publishedAt;
     if (needsDuration || needsPublishDate) {
-      console.log(`Resolving missing info: ${item.title}`);
+      console.log(`Eksik bilgiler çözümleniyor: ${item.title}`);
       try {
         const result = await fetchVideoDuration(item.id);
         let itemUpdated = false;
@@ -1711,7 +1782,7 @@ function autoDeleteOldVideos() {
           const ageMs = now - fileTime;
 
           if (ageMs > thresholdMs) {
-            console.log(`[Auto-Delete] Video expired, deleting: ${item.title}`);
+            console.log(`[Auto-Delete] Video süresi doldu, siliniyor: ${item.title}`);
             // Dosyayı sil
             fs.unlinkSync(item.filePath);
             
@@ -1726,7 +1797,7 @@ function autoDeleteOldVideos() {
             item.filePath = '';
             item.fileSize = '';
             updated = true;
-            addTerminalLog(`[Oto-Silme] ${autoDeleteDays} günden eski olan "${item.title}" videosu diskten otomatik olarak silindi.`, 'info');
+            addTerminalLog(`[Oto-Silme] ${autoDeleteDays} older than 7 days olan "${item.title}" videosu diskten otomatik olarak deleted.`, 'info');
           }
         } catch (err) {
           console.error(`[Auto-Delete] Dosya silme hatası (${item.title}):`, err.message);
@@ -1771,7 +1842,7 @@ async function resolveChannelId(input) {
       const videoId = videoMatch[1];
       targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
       isVideoUrl = true;
-      console.log(`Video URL detected. Video ID: ${videoId}`);
+      console.log(`Video URL'si tespit edildi. Video ID: ${videoId}`);
     } else if (!decodedInput.startsWith('http')) {
       // Sadece handle girildiyse (örn. @BarisOzcan)
       if (decodedInput.startsWith('@')) {
@@ -1782,22 +1853,109 @@ async function resolveChannelId(input) {
     }
   }
 
-  console.log(`URL to resolve: ${targetUrl}`);
+  console.log(`Çözümlenecek adres: ${targetUrl}`);
   
   return new Promise((resolve, reject) => {
     const db = readDb();
     const langHeader = db.settings.lang === 'en' ? 'en-US,en;q=0.9' : 'tr-TR,tr;q=0.9';
 
+    // Extract potential channel ID from targetUrl / input to use as fallback if blocked
+    let fallbackChannelId = null;
+    const directIdMatch = targetUrl.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/);
+    if (directIdMatch) {
+      fallbackChannelId = directIdMatch[1];
+    } else if (/^UC[a-zA-Z0-9_-]{22}$/.test(decodedInput)) {
+      fallbackChannelId = decodedInput;
+    }
+
+    async function tryRssFallback(channelId) {
+      try {
+        console.log(`[RSS Fallback] ${channelId} için RSS XML çekilmeye çalışılıyor...`);
+        const xml = await new Promise((resXml, rejXml) => {
+          https.get(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept-Language': langHeader
+            }
+          }, (res) => {
+            if (res.statusCode !== 200) {
+              return rejXml(new Error(`HTTP ${res.statusCode}`));
+            }
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => resXml(data));
+          }).on('error', rejXml);
+        });
+
+        // Extract title/name from feed
+        const titleMatch = xml.match(/<title>([^<]+)<\/title>/);
+        let channelName = titleMatch ? titleMatch[1].replace(' - YouTube', '').trim() : `Kanal ${channelId}`;
+        const authorMatch = xml.match(/<author>\s*<name>([^<]+)<\/name>/);
+        if (authorMatch) {
+          channelName = authorMatch[1].trim();
+        }
+
+        // Try to fetch avatar using yt-dlp with cookies if configured
+        let avatarUrl = '';
+        try {
+          const db = readDb();
+          const args = [];
+          args.push('--js-runtimes', `node:${process.execPath}`);
+          if (db.settings.browser && db.settings.browser !== 'none') {
+            const browserName = db.settings.browser === 'msedge' ? 'edge' : db.settings.browser;
+            args.push('--cookies-from-browser', browserName);
+          }
+          args.push('--dump-json', '--playlist-items', '0', `https://www.youtube.com/channel/${channelId}`);
+          
+          const spawnOptions = process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {};
+          
+          const ytdlpOutput = await new Promise((resDl, rejDl) => {
+            const proc = spawn(ytdlpPath, args, spawnOptions);
+            let out = '';
+            let err = '';
+            proc.stdout.on('data', (d) => { out += d.toString(); });
+            proc.stderr.on('data', (d) => { err += d.toString(); });
+            proc.on('close', (code) => {
+              if (code !== 0) return rejDl(new Error(`Exit code ${code}. Stderr: ${err}`));
+              resDl(out);
+            });
+          });
+
+          const parsedData = JSON.parse(ytdlpOutput);
+          if (parsedData.thumbnails && parsedData.thumbnails.length > 0) {
+            const sortedThumbs = [...parsedData.thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
+            avatarUrl = sortedThumbs[0].url || '';
+          }
+        } catch (avatarErr) {
+          console.log(`[RSS Fallback] yt-dlp ile logo çekilemedi: ${avatarErr.message}`);
+        }
+
+        resolve({
+          id: channelId,
+          name: channelName,
+          avatar: avatarUrl
+        });
+      } catch (err) {
+        console.log(`[RSS Fallback] RSS XML de başarısız oldu: ${err.message}. Varsayılan isimle ekleniyor.`);
+        resolve({
+          id: channelId,
+          name: `Kanal ${channelId}`,
+          avatar: ''
+        });
+      }
+    }
+
     function fetchUrl(currentUrl, redirectCount = 0) {
       if (redirectCount > 5) {
+        if (fallbackChannelId) return tryRssFallback(fallbackChannelId);
         return reject(new Error('Çok fazla yönlendirme algılandı.'));
       }
 
-      // Türkçe Açıklama: currentUrl içindeki Türkçe karakterler için new URL ile otomatik IDN ve pathname kodlamasını sağlıyoruz.
       let urlObj;
       try {
         urlObj = new URL(currentUrl);
       } catch (e) {
+        if (fallbackChannelId) return tryRssFallback(fallbackChannelId);
         return reject(new Error('Geçersiz URL formatı.'));
       }
 
@@ -1807,7 +1965,6 @@ async function resolveChannelId(input) {
           'Accept-Language': langHeader
         }
       }, (res) => {
-        // Yönlendirmeleri (301, 302, 307, 308) takip et
         if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
           let location = res.headers.location;
           if (!location.startsWith('http')) {
@@ -1818,6 +1975,9 @@ async function resolveChannelId(input) {
         }
 
         if (res.statusCode !== 200) {
+          if (fallbackChannelId) {
+            return tryRssFallback(fallbackChannelId);
+          }
           return reject(new Error(`YouTube sunucu hatası: HTTP ${res.statusCode}`));
         }
 
@@ -1828,7 +1988,6 @@ async function resolveChannelId(input) {
           let channelName = null;
 
           if (isVideoUrl) {
-            // Video sayfasından yükleyici kanal bilgilerini çıkar
             channelId = html.match(/"externalChannelId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
                         html.match(/"channelId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
                         html.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/)?.[1];
@@ -1836,7 +1995,6 @@ async function resolveChannelId(input) {
             channelName = html.match(/<link itemprop="name" content="([^"]+)"/)?.[1] ||
                           html.match(/"author"\s*:\s*"([^"]+)"/)?.[1];
           } else {
-            // Türkçe Açıklama: Kanal ID tespit ederken ilk önce sayfanın ana kanal ID meta etiketlerine öncelik veriyoruz, böylece sayfada önerilen başka kanalların ID'lerinin eşleşmesini engelliyoruz.
             channelId = html.match(/<meta itemprop="channelId" content="(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
                         html.match(/<link rel="canonical" href="[^"]*youtube\.com\/channel\/(UC[a-zA-Z0-9_-]{22})"/)?.[1] ||
                         html.match(/youtube\.com\/feeds\/videos\.xml\?channel_id=(UC[a-zA-Z0-9_-]{22})/)?.[1] ||
@@ -1853,22 +2011,42 @@ async function resolveChannelId(input) {
             channelName = channelName.replace(' - YouTube', '').trim();
           }
 
-          // Kanal profil resmini html içindeki avatarViewModel nesnesinden çöz
           const avatarMatch = html.match(/"avatarViewModel"\s*:\s*\{\s*"image"\s*:\s*\{\s*"sources"\s*:\s*\[\s*\{\s*"url"\s*:\s*"([^"]+)"/);
           const avatarUrl = avatarMatch ? avatarMatch[1] : '';
 
-          // Türkçe Açıklama: Kanalın handle adını vanityChannelUrl üzerinden çözümlüyoruz.
           const vanityMatch = html.match(/"vanityChannelUrl"\s*:\s*"https?:\/\/www\.youtube\.com\/(@[^"]+)"/);
           const handleVal = vanityMatch ? vanityMatch[1] : '';
 
-          if (channelId && channelName) {
-            console.log(`Successfully resolved: Channel: ${channelName} (ID: ${channelId})`);
-            resolve({ id: channelId, name: channelName, avatar: avatarUrl, handle: handleVal });
+          if (channelId) {
+            console.log(`[Scraper] Kanal ID bulundu: ${channelId}. Gerçek kanal adını doğrulamak için RSS beslemesi sorgulanıyor...`);
+            tryRssFallback(channelId).then(rssInfo => {
+              console.log(`[Scraper] RSS ile doğrulanan Kanal: ${rssInfo.name} (ID: ${channelId})`);
+              resolve({
+                id: channelId,
+                name: rssInfo.name || channelName || `Kanal ${channelId}`,
+                avatar: avatarUrl || '',
+                handle: handleVal || ''
+              });
+            }).catch(err => {
+              console.log(`[Scraper] RSS sorgusu başarısız oldu, kazınan verilerle devam ediliyor: ${err.message}`);
+              resolve({
+                id: channelId,
+                name: channelName || `Kanal ${channelId}`,
+                avatar: avatarUrl || '',
+                handle: handleVal || ''
+              });
+            });
           } else {
+            if (fallbackChannelId) {
+              return tryRssFallback(fallbackChannelId);
+            }
             reject(new Error('Kanal ID veya kanal adı tespit edilemedi. Lütfen adresi kontrol edin.'));
           }
         });
       }).on('error', (err) => {
+        if (fallbackChannelId) {
+          return tryRssFallback(fallbackChannelId);
+        }
         reject(err);
       });
     }
@@ -1938,7 +2116,7 @@ class DownloadQueue {
       try {
         fs.mkdirSync(db.settings.downloadPath, { recursive: true });
       } catch (err) {
-        console.error('İndirme klasörü oluşturulamadı:', err);
+        console.error('İndirme klasörü could not be createdı:', err);
       }
     }
 
@@ -1979,13 +2157,13 @@ class DownloadQueue {
 
   process() {
     if (this.isPaused) {
-      console.log('[Queue] Queue paused. Next download is kept waiting.');
+      console.log('[Kuyruk] Queue pausedı. Bir sonraki indirme pending.');
       return;
     }
 
     // Türkçe Açıklama: Emniyet kontrolü - Aktif bir indirme süreci yoksa ancak sayaç sıfırlanmamışsa otomatik olarak düzelt.
     if (!this.activeProcess && this.activeDownloads > 0) {
-      console.log(`[Queue Safety] Active process not found but activeDownloads = ${this.activeDownloads}. Resetting counter.`);
+      console.log(`[Kuyruk Safety] No active process foundı fakat activeDownloads counter resetıyor.`);
       this.activeDownloads = 0;
       this.activeVideoId = null;
     }
@@ -2024,7 +2202,7 @@ class DownloadQueue {
     updateHistoryItem(video.id, { status: 'downloading', progress: 0 });
     broadcast('db_update', readDb());
     playSystemSound('start');
-    addTerminalLog(`[Kuyruk] "${video.title}" videosu için indirme işlemi başlatıldı.`, 'info');
+    addTerminalLog(`[Kuyruk] "${video.title}" videosu for download process startedı.`, 'info');
     showWindowsNotification(
       settings.lang === 'en' ? 'Download Started' : 'İndirme Başlatıldı',
       settings.lang === 'en' ? `"${video.title}" download process has started.` : `"${video.title}" videosunun indirme işlemi başladı.`
@@ -2036,7 +2214,7 @@ class DownloadQueue {
       try {
         fs.mkdirSync(channelFolder, { recursive: true });
       } catch (err) {
-        console.error('Failed to create channel folder:', err);
+        console.error('Kanal klasörü could not be createdı:', err);
       }
     }
 
@@ -2076,8 +2254,17 @@ class DownloadQueue {
       ? channelConfig.quality 
       : settings.quality;
 
+    const hasWorkingFfmpeg = testFfmpegSync();
+    let actualMergeType = settings.mergeType || 'single';
+
+    if (actualMergeType === 'merge' && !hasWorkingFfmpeg) {
+      actualMergeType = 'single';
+      console.log(`[Warning] FFmpeg is not found or not working. Falling back to 'single' download mode.\n`);
+      addTerminalLog(`[Warning] FFmpeg not found or not working. Falling back to single file download (best pre-merged quality).`, 'warning');
+    }
+
     // Çözünürlük ve Birleştirme Ayarı
-    if (settings.mergeType === 'single') {
+    if (actualMergeType === 'single') {
       // Tek dosya (ffmpeg gerekmez)
       if (videoQuality === '1080p') {
         args.push('-f', 'best[height<=1080]/best');
@@ -2086,7 +2273,7 @@ class DownloadQueue {
       } else {
         args.push('-f', 'best');
       }
-    } else if (settings.mergeType === 'separate') {
+    } else if (actualMergeType === 'separate') {
       // Ayrı ses ve video dosyası (ffmpeg gerekmez)
       if (videoQuality === '1080p') {
         args.push('-f', 'bestvideo[height<=1080],bestaudio');
@@ -2104,22 +2291,23 @@ class DownloadQueue {
       } else {
         args.push('-f', 'bestvideo+bestaudio/best');
       }
+      args.push('--merge-output-format', 'mp4');
     }
 
     // Kapak Resmi İndirme Ayarı
     if (settings.writeThumbnail) {
       args.push('--write-thumbnail');
-      if (fs.existsSync(getFfmpegPath())) {
+      if (hasWorkingFfmpeg) {
         args.push('--convert-thumbnails', 'jpg');
       }
     }
 
     // Eğer yerel dizinde veya subfolder'da ffmpeg.exe varsa yt-dlp'ye bunun konumunu bildir
-    if (fs.existsSync(getFfmpegPath())) {
+    if (hasWorkingFfmpeg) {
       args.push('--ffmpeg-location', path.dirname(getFfmpegPath()));
     }
 
-    console.log(`Download starting: ${video.title}`);
+    console.log(`İndirme başlatılıyor: ${video.title}`);
     console.log(`Komut: yt-dlp ${args.join(' ')}`);
 
     // Türkçe Açıklama: Windows'ta penceresiz, Unix'te süreç grubu halinde (detached) ve girdi (stdin) kilitlenmelerini önlemek için ignore stdio ile başlatırız.
@@ -2208,18 +2396,25 @@ class DownloadQueue {
         lowerTrimmed.includes('http connection')
       );
 
-      if (isFfmpegProgress || isFfmpegOpening || isFfmpegInfo || isFfmpegConnection) {
-        // Türkçe Açıklama: FFmpeg'in ilerleme, açılış ve bağlantı durumu logları CMD konsolunda gürültü yapmaması için es geçiliyor.
+      // Türkçe Açıklama: Canlı yayın indirmelerinde ffmpeg'in bastığı zararsız skip (ad cuepoint atlama) uyarılarını log kirliliği yaratmaması için filtreliyoruz.
+      const isFfmpegSkip = /^\[[a-z0-9#_/.-]+ @ 0x?[0-9a-f]+\]/i.test(trimmed) && (
+        lowerTrimmed.includes('skip') ||
+        lowerTrimmed.includes('daterange') ||
+        lowerTrimmed.includes('#ext-x-')
+      );
+
+      if (isFfmpegProgress || isFfmpegOpening || isFfmpegInfo || isFfmpegConnection || isFfmpegSkip) {
+        // Türkçe Açıklama: FFmpeg'in ilerleme, açılış, bağlantı durumu ve skip logları CMD konsolunda gürültü yapmaması için es geçiliyor.
         return;
       }
 
       const isWarning = trimmed.toLowerCase().includes('warning:') || trimmed.toLowerCase().includes('uyari:');
       if (isWarning) {
-        console.log(`yt-dlp warning line: ${trimmed}`);
+        console.log(`yt-dlp uyarı satırı: ${trimmed}`);
         addTerminalLog(`[yt-dlp Uyarı] ${trimmed}`, 'warning');
       } else {
-        console.error(`yt-dlp error line: ${trimmed}`);
-        addTerminalLog(`[yt-dlp Hata] ${trimmed}`, 'error');
+        console.error(`yt-dlp error lineı: ${trimmed}`);
+        addTerminalLog(`[yt-dlp Error] ${trimmed}`, 'error');
       }
     }
 
@@ -2258,7 +2453,7 @@ class DownloadQueue {
 
       if (isCancelled) {
         broadcast('status_log', { message: `İndirme iptal edildi: ${video.title}`, type: 'info' });
-        addTerminalLog(`[Kuyruk] İndirme kullanıcı tarafından iptal edildi: "${video.title}"`, 'warning');
+        addTerminalLog(`[Kuyruk] İndirme kullanıcı tarafından cancelled: "${video.title}"`, 'warning');
         broadcast('db_update', readDb());
         this.process();
         return;
@@ -2314,7 +2509,7 @@ class DownloadQueue {
             }
           }
         } catch (err) {
-          console.error(`Size read error: ${resolvedTitle}`, err.message);
+          console.error(`Size read errorı: ${resolvedTitle}`, err.message);
         }
 
         updateHistoryItem(video.id, {
@@ -2326,9 +2521,9 @@ class DownloadQueue {
           eta: '',
           fileSize: calculatedSize
         });
-        console.log(`Download completed: ${resolvedTitle}`);
+        console.log(`İndirme completedı: ${resolvedTitle}`);
         broadcast('status_log', { message: `İndirme tamamlandı: ${resolvedTitle}`, type: 'success' });
-        addTerminalLog(`[Kuyruk] İndirme BAŞARILI: "${resolvedTitle}" -> Dosya Yol: ${actualPath}`, 'success');
+        addTerminalLog(`[Kuyruk] İndirme SUCCESSFUL: "${resolvedTitle}" -> Dosya Yol: ${actualPath}`, 'success');
         playSystemSound('success');
         showWindowsNotification(
           settings.lang === 'en' ? 'Download Completed' : 'İndirme Tamamlandı',
@@ -2351,9 +2546,9 @@ class DownloadQueue {
           eta: '',
           error: userFriendlyError || `Hata Kodu: ${code}`
         });
-        console.error(`Download failed: ${video.title} - Code: ${code}`);
+        console.error(`İndirme Failed: ${video.title} - Kod: ${code}`);
         broadcast('status_log', { message: `İndirme başarısız: ${video.title}`, type: 'error' });
-        addTerminalLog(`[Kuyruk] İndirme BAŞARISIZ: "${video.title}" - Hata: ${userFriendlyError || `Hata Kodu: ${code}`}`, 'error');
+        addTerminalLog(`[Kuyruk] İndirme FAILED: "${video.title}" - Error: ${userFriendlyError || `Error Code: ${code}`}`, 'error');
         playSystemSound('error');
         showWindowsNotification(
           settings.lang === 'en' ? 'Download Failed' : 'İndirme Başarısız',
@@ -2387,14 +2582,58 @@ let isRssChecking = false;
  * @returns {Promise<object>} Video listesini içeren nesne
  */
 function fetchChannelVideosYtdlp(channelId, limit) {
-  return new Promise((resolve, reject) => {
-    const nodePathEscaped = process.execPath.replace(/\\/g, '/');
-    const cmd = `"${ytdlpPath}" --js-runtimes "node:${nodePathEscaped}" --flat-playlist --playlist-end ${limit} --dump-json "https://www.youtube.com/channel/${channelId}"`;
-    exec(cmd, (err, stdout, stderr) => {
-      if (err) {
-        return reject(err);
+  return new Promise(async (resolve, reject) => {
+    const db = readDb();
+    const settings = db.settings || {};
+    
+    // Türkçe Açıklama: yt-dlp flat-playlist modunda video tarihlerini döndürmediği için öncelikle XML RSS akışından tarihleri alıyoruz.
+    const dateMap = new Map();
+    try {
+      const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+      const xmlFeed = await parser.parseURL(feedUrl);
+      if (xmlFeed && xmlFeed.items) {
+        for (const item of xmlFeed.items) {
+          const videoId = item.link?.match(/v=([^&]+)/)?.[1] || item.id?.replace('yt:video:', '');
+          const isoDate = item.isoDate || item.pubDate;
+          if (videoId && isoDate) {
+            dateMap.set(videoId, isoDate);
+          }
+        }
       }
-      
+    } catch (rssErr) {
+      console.log(`[RSS] [XML Tarih Eşleme] ${channelId} için XML RSS tarihleri okunamadı:`, rssErr.message);
+    }
+
+    const args = [];
+    
+    args.push('--js-runtimes', `node:${process.execPath}`);
+    
+    if (settings.browser && settings.browser !== 'none') {
+      const browserName = settings.browser === 'msedge' ? 'edge' : settings.browser;
+      args.push('--cookies-from-browser', browserName);
+    }
+    
+    args.push('--ignore-errors', '--flat-playlist', '--playlist-end', limit.toString(), '--dump-json');
+    args.push(
+      `https://www.youtube.com/channel/${channelId}/videos`,
+      `https://www.youtube.com/channel/${channelId}/streams`
+    );
+    
+    const spawnOptions = process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {};
+    const proc = spawn(ytdlpPath, args, spawnOptions);
+    
+    let stdout = '';
+    let stderr = '';
+    
+    proc.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    proc.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    proc.on('close', (code) => {
       const items = [];
       const lines = stdout.split('\n');
       for (const line of lines) {
@@ -2402,16 +2641,31 @@ function fetchChannelVideosYtdlp(channelId, limit) {
         try {
           const video = JSON.parse(line.trim());
           if (video && video.id) {
-            // Yükleme tarihi için yt-dlp flat-playlist çıktısındaki timestamp veya upload_date alanlarını ayrıştır
             let isoDate = '';
-            if (video.timestamp) {
-              isoDate = new Date(video.timestamp * 1000).toISOString();
-            } else if (video.upload_date) {
-              const yr = video.upload_date.slice(0, 4);
-              const mo = video.upload_date.slice(4, 6);
-              const dy = video.upload_date.slice(6, 8);
-              isoDate = new Date(`${yr}-${mo}-${dy}T00:00:00.000Z`).toISOString();
+            
+            // 1. XML RSS feed'den eşleşen tarihi bul
+            if (dateMap.has(video.id)) {
+              isoDate = dateMap.get(video.id);
             }
+            // 2. Geçmiş veritabanından eşleşen tarihi bul
+            if (!isoDate && db.history) {
+              const histMatch = db.history.find(h => h.id === video.id);
+              if (histMatch && histMatch.publishedAt) {
+                isoDate = histMatch.publishedAt;
+              }
+            }
+            // 3. Klasik yt-dlp alanlarından dene (boş olmaları muhtemel)
+            if (!isoDate) {
+              if (video.timestamp) {
+                isoDate = new Date(video.timestamp * 1000).toISOString();
+              } else if (video.upload_date) {
+                const yr = video.upload_date.slice(0, 4);
+                const mo = video.upload_date.slice(4, 6);
+                const dy = video.upload_date.slice(6, 8);
+                isoDate = new Date(`${yr}-${mo}-${dy}T00:00:00.000Z`).toISOString();
+              }
+            }
+            
             items.push({
               title: video.title || 'Video',
               link: `https://www.youtube.com/watch?v=${video.id}`,
@@ -2423,6 +2677,15 @@ function fetchChannelVideosYtdlp(channelId, limit) {
           // Satır ayrıştırma hatası yoksayılabilir
         }
       }
+
+      // Türkçe Açıklama: Hata kodu alınmış olsa bile eğer en az bir video başarıyla ayrıştırılabildiyse 
+      // işlemi başarısız saymıyor, elde edilen videoları döndürüyoruz. Hiç video bulunamadıysa hata fırlatıyoruz.
+      if (code !== 0 && items.length === 0) {
+        return reject(new Error(`yt-dlp exited with code ${code}. Stderr: ${stderr}`));
+      }
+      
+      // Tarihe göre yeniden eskiye sıralama (en yeni en üstte)
+      items.sort((a, b) => new Date(b.isoDate || 0).getTime() - new Date(a.isoDate || 0).getTime());
       
       resolve({ items });
     });
@@ -2445,23 +2708,30 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
   try {
     const db = readDb();
     const rssLimit = db.settings.rssLimit || 5;
-    const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.id}`;
     let feed = null;
 
+    console.log(`[RSS] ${channel.name} denetleniyor (yt-dlp)...`);
+    addTerminalLog(`[RSS] ${channel.name} yt-dlp ile denetleniyor...`, 'info');
     try {
-      feed = await parser.parseURL(feedUrl);
-    } catch (rssErr) {
-      console.log(`[RSS] Could not fetch RSS for ${channel.name} (${rssErr.message}). Starting yt-dlp fallback...`);
-      addTerminalLog(`[RSS] ${channel.name} RSS hatası aldı (${rssErr.message}). yt-dlp ile denetleniyor...`, 'info');
+      feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
+    } catch (ytdlpErr) {
+      console.log(`[RSS] ${channel.name} için yt-dlp taraması başarısız oldu (${ytdlpErr.message}). Standart RSS XML yedek mekanizması başlatılıyor...`);
+      addTerminalLog(`[RSS] ${channel.name} yt-dlp hatası aldı (${ytdlpErr.message}). Standart RSS XML ile denetleniyor...`, 'info');
       try {
-        feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
-      } catch (ytdlpErr) {
-        console.error(`[RSS] [HATA] ${channel.name} yt-dlp ile de denetlenemedi:`, ytdlpErr.message);
+        const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.id}`;
+        feed = await parser.parseURL(feedUrl);
+      } catch (rssErr) {
+        console.error(`[RSS] [HATA] ${channel.name} RSS XML ile de denetlenemedi:`, rssErr.message);
       }
     }
 
     if (feed && feed.items) {
-      console.log(`Kanal denetleniyor: ${channel.name} (${feed.items.length} video)`);
+      // Tarihlerine göre yeniden eskiye sıralama (en yeni en üstte)
+      feed.items.sort((a, b) => {
+        const dateA = new Date(a.isoDate || a.pubDate || 0).getTime();
+        const dateB = new Date(b.isoDate || b.pubDate || 0).getTime();
+        return dateB - dateA;
+      });
       
       const itemsToCheck = feed.items.slice(0, rssLimit);
       const reversedItems = [...itemsToCheck].reverse();
@@ -2491,9 +2761,10 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
                 if (db.settings.autoDownload) {
                   const channelConfig = db.channels.find(c => c.id === channel.id);
                   const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
+                  const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
                   
                   let shouldDownload = true;
-                  if (!downloadShorts && isShortDuration(result.duration)) {
+                  if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
                     shouldDownload = false;
                     existingHistory.status = 'ignored';
                     console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
@@ -2625,18 +2896,19 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
             } else if (db.settings.autoDownload) {
               const channelConfig = db.channels.find(c => c.id === channel.id);
               const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
+              const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
 
               let shouldDownload = true;
-              if (!downloadShorts && isShortDuration(duration)) {
+              if (!downloadShorts && isShortDuration(duration, shortsLimit)) {
                 shouldDownload = false;
                 console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${resolvedTitle}`);
                 addTerminalLog(`[RSS] Shorts videosu algılandı ve kanal ayarı gereği indirilmeyip göz ardı edildi: "${resolvedTitle}" (${resolvedChannelName})`, 'info');
               }
 
               if (shouldDownload) {
-                console.log(`New video detected! Adding to queue: ${resolvedTitle}`);
+                console.log(`Yeni video algılandı! queue ekleniyor: ${resolvedTitle}`);
                 broadcast('status_log', { message: `Yeni video yüklendi: ${resolvedChannelName} - ${resolvedTitle}`, type: 'info' });
-                addTerminalLog(`[RSS] Yeni video tespit edildi: "${resolvedTitle}" (${resolvedChannelName}) -> Kuyruğa ekleniyor.`, 'info');
+                addTerminalLog(`[RSS] Yeni video tespit edildi: "${resolvedTitle}" (${resolvedChannelName}) -> queue ekleniyor.`, 'info');
                 
                 downloadQueue.add({
                   id: videoId,
@@ -2687,7 +2959,7 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
       }
     }
   } catch (err) {
-    console.error(`Error checking ${channel.name}:`, err);
+    console.error(`${channel.name} error occurred while checkingştu:`, err);
   }
 }
 
@@ -2699,14 +2971,14 @@ let currentChannelIndex = 0;
  */
 async function checkNextChannelRss() {
   if (isRssChecking) {
-    console.log('[RSS] Previous channel RSS check not finished, skipping scanning.');
+    console.log('[RSS] Bir önceki kanal RSS kontrolü henüz tamamlanmadı, yeni tarama atlandı.');
     return;
   }
   isRssChecking = true;
   try {
     const db = readDb();
     if (db.channels.length === 0) {
-      console.log('No monitored channels found.');
+      console.log('İzlenen kanal bulunmuyor.');
       return;
     }
 
@@ -2721,8 +2993,9 @@ async function checkNextChannelRss() {
     }
 
     const channel = sortedChannels[currentChannelIndex];
-    console.log(`[RSS] Checking next channel (${currentChannelIndex + 1}/${sortedChannels.length}): ${channel.name}`);
-    addTerminalLog(`[RSS] Sıradaki kanal denetleniyor: "${channel.name}"`, 'info');
+    const checkMsg = `[RSS] Checking channel ${currentChannelIndex + 1} out of ${sortedChannels.length}: "${channel.name}"`;
+    console.log(checkMsg);
+    addTerminalLog(checkMsg, 'info');
 
     await checkSingleChannelRss(channel, false);
 
@@ -2747,7 +3020,7 @@ function startIntervalTimer() {
   const db = readDb();
   const seconds = db.settings.channelCheckInterval || 60;
   const ms = seconds * 1000;
-  console.log(`RSS channel control loop started. Frequency: 1 channel / ${seconds} seconds.`);
+  console.log(`RSS kanal kontrol döngüsü startedı. Sıklık: 1 kanal / ${seconds} saniye.`);
   
   checkIntervalTimer = setInterval(() => {
     checkNextChannelRss();
@@ -2767,7 +3040,7 @@ function localhostOnly(req, res, next) {
                   req.hostname === '127.0.0.1';
                   
   if (!isLocal) {
-    console.warn(`[Security] Unauthorized external request blocked! IP: ${ip}, Path: ${req.originalUrl}`);
+    console.warn(`[Güvenlik] Yetkisiz harici istek engellendi! IP: ${ip}, Yol: ${req.originalUrl}`);
     return res.status(403).json({ error: 'Güvenlik Nedeniyle Erişim Engellendi. Sadece localhost üzerinden erişim sağlanabilir.' });
   }
   next();
@@ -2792,7 +3065,7 @@ function testCookiesValidity(browser) {
       'ytsearch1:test cookie liveness'
     ];
     
-    console.log(`[Cookie Test] Starting yt-dlp cookie test: ${browserName}`);
+    console.log(`[Çerez Testi] yt-dlp çerez testi başlatılıyor: ${browserName}`);
     const proc = spawn(ytdlpPath, args);
     let errorOutput = '';
     
@@ -2841,8 +3114,8 @@ app.post('/api/queue/pause', localhostOnly, (req, res) => {
   db.settings.isPaused = true;
   writeDb(db);
   
-  console.log('[Queue] Queue paused by user request.');
-  addTerminalLog('[Kuyruk] İndirme sırası duraklatıldı.', 'warning');
+  console.log('[Kuyruk] by user request Queue pausedı.');
+  addTerminalLog('[Kuyruk] İndirme sırası pausedı.', 'warning');
   
   // Aktif indirme varsa, durdurup kuyruğun başına ekleyelim
   if (downloadQueue.activeProcess && downloadQueue.activeVideoId) {
@@ -2850,8 +3123,8 @@ app.post('/api/queue/pause', localhostOnly, (req, res) => {
     const historyItem = db.history.find(h => h.id === videoId);
     
     if (historyItem) {
-      console.log(`[Queue] Active download stopped and added back to queue: ${historyItem.title}`);
-      addTerminalLog(`[Kuyruk] Aktif indirme durdurulup sıraya geri ekleniyor: "${historyItem.title}"`, 'info');
+      console.log(`[Kuyruk] Aktif indirme stopped and returned to queue: ${historyItem.title}`);
+      addTerminalLog(`[Kuyruk] Aktif indirme stopped and returned to queue: "${historyItem.title}"`, 'info');
       
       // Video bilgilerini kuyruğun en başına ekle (unshift)
       downloadQueue.queue.unshift({
@@ -2906,8 +3179,8 @@ app.post('/api/queue/resume', localhostOnly, (req, res) => {
   db.settings.isPaused = false;
   writeDb(db);
   
-  console.log('[Queue] Queue resumed by user request.');
-  addTerminalLog('[Kuyruk] İndirme sırası devam ettirildi.', 'success');
+  console.log('[Kuyruk] by user request kuyruk resumed.');
+  addTerminalLog('[Kuyruk] İndirme sırası resumed.', 'success');
   
   broadcast('db_update', readDb());
   downloadQueue.process(); // Sıradaki indirmeyi tetikle
@@ -2926,7 +3199,7 @@ app.post('/api/queue/reorder', localhostOnly, (req, res) => {
     return res.status(400).json({ error: 'Geçersiz veri formatı. ID listesi gereklidir.' });
   }
   
-  console.log('[Queue] Drag-and-drop queue reorder request received.');
+  console.log('[Kuyruk] Drag-and-drop kuyruk reorder request receivedği alındı.');
   
   // 1. downloadQueue.queue dizisini yeni ID sıralamasına göre yeniden düzenle
   const reorderedQueue = [];
@@ -2962,7 +3235,7 @@ app.post('/api/queue/reorder', localhostOnly, (req, res) => {
   db.history = [...otherItems, ...waitingItems];
   writeDb(db);
   
-  addTerminalLog('[Kuyruk] İndirme sırası yeniden düzenlendi.', 'info');
+  addTerminalLog('[Kuyruk] İndirme sırası reordered.', 'info');
   broadcast('db_update', db);
   res.json({ success: true });
 });
@@ -3038,8 +3311,8 @@ app.post('/api/settings', (req, res) => {
     const videoId = downloadQueue.activeVideoId;
     const historyItem = db.history.find(h => h.id === videoId);
     if (historyItem) {
-      console.log(`[Settings] Speed limit changed (${oldSpeedLimit} -> ${newSpeedLimit}). Restarting active download with new speed limit: ${historyItem.title}`);
-      addTerminalLog(`[Ayarlar] Hız sınırı değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
+      console.log(`[Ayarlar] Hız sınırı changed (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme with the new speed limitı ile is restartingılıyor: ${historyItem.title}`);
+      addTerminalLog(`[Ayarlar] Hız sınırı changed. Aktif indirme with the new speed limitı ile is restartingılıyor: "${historyItem.title}"`, 'info');
       
       // Sıranın en başına ekle (unshift)
       downloadQueue.queue.unshift({
@@ -3085,7 +3358,7 @@ app.post('/api/settings', (req, res) => {
 
   // Eğer indirme yöntemi "merge" (Birleştir) seçildiyse ve ffmpeg yoksa arka planda indir
   if (db.settings.mergeType === 'merge' && !fs.existsSync(getFfmpegPath())) {
-    ensureFfmpeg().catch(e => console.error('FFmpeg automatic download error:', e.message));
+    ensureFfmpeg().catch(e => console.error('FFmpeg auto download errorı:', e.message));
   }
 
   res.json({ success: true, settings: db.settings });
@@ -3104,7 +3377,7 @@ app.get('/api/channels/export', (req, res) => {
     res.setHeader('Content-type', 'application/json');
     res.send(JSON.stringify(backupData, null, 2));
   } catch (err) {
-    console.error('Failed to export backup:', err);
+    console.error('Yedek dışarı aktarılamadı:', err);
     res.status(500).json({ error: 'Yedek dışarı aktarılamadı.' });
   }
 });
@@ -3148,7 +3421,7 @@ app.post('/api/channels/import', (req, res) => {
 
     res.json({ success: true, added: addedCount, updated: updatedCount });
   } catch (err) {
-    console.error('Failed to import backup:', err);
+    console.error('Yedek içeri aktarılamadı:', err);
     res.status(500).json({ error: 'Yedek içeri aktarılamadı.' });
   }
 });
@@ -3171,8 +3444,8 @@ app.post('/api/settings/toggle-alt-speed', (req, res) => {
     const videoId = downloadQueue.activeVideoId;
     const historyItem = db.history.find(h => h.id === videoId);
     if (historyItem) {
-      console.log(`[Settings] Speed limit changed via alternative toggle (${oldSpeedLimit} -> ${newSpeedLimit}). Restarting active download with new speed limit: ${historyItem.title}`);
-      addTerminalLog(`[Ayarlar] Hız sınırı alternatif geçişi ile değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
+      console.log(`[Ayarlar] Hız sınırı alternatif geçişi ile changed (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme with the new speed limitı ile is restartingılıyor: ${historyItem.title}`);
+      addTerminalLog(`[Ayarlar] Hız sınırı alternatif geçişi ile changed. Aktif indirme with the new speed limitı ile is restartingılıyor: "${historyItem.title}"`, 'info');
       
       downloadQueue.queue.unshift({
         id: videoId,
@@ -3259,10 +3532,18 @@ app.post('/api/channels', async (req, res) => {
       addedAt: new Date().toISOString(),
       quality: 'default',
       downloadShorts: downloadShorts === true || downloadShorts === 'true',
-      avatar: channelInfo.avatar || ''
+      avatar: channelInfo.avatar || '',
+      shortsDurationLimit: 180
     };
-    db.channels.push(newChannel);
+    // Race Condition Düzeltmesi: Kanal veritabanına eklenmeden önce (arka plan işlemi araya girmemesi için) geçmiş videolarını 'ignored' olarak işaretliyoruz.
+    try {
+      await checkSingleChannelRss(newChannel, true);
+    } catch (rssErr) {
+      console.error(`[Kanal] İlk RSS taraması başarısız oldu, ancak kanal eklenmeye devam ediliyor:`, rssErr.message);
+      addTerminalLog(`[Kanal] "${newChannel.name}" için ilk taramada hata oluştu: ${rssErr.message}. Kanal yine de eklendi.`, 'warning');
+    }
 
+    db.channels.push(newChannel);
     writeDb(db);
     
     // Türkçe Açıklama: Kanal eklendikten sonra profil resmi yerel klasöre indirilir.
@@ -3273,13 +3554,10 @@ app.post('/api/channels', async (req, res) => {
     broadcast('db_update', db);
     broadcast('status_log', { message: `${channelInfo.name} kanalı başarıyla eklendi.`, type: 'success' });
     addTerminalLog(`[Kanal] Kanal takip listesine eklendi: "${channelInfo.name}" (ID: ${channelInfo.id})`, 'success');
-    
-    // Kanalın geçmiş videolarını "ignored" olarak işaretle ki hepsi birden inmesin
-    await checkSingleChannelRss(newChannel, true);
 
     res.json({ success: true, channel: channelInfo });
   } catch (err) {
-    addTerminalLog(`[Kanal] Kanal ekleme hatası (Giriş: "${input}") - Hata: ${err.message}`, 'error');
+    addTerminalLog(`[Kanal] Kanal ekleme hatası (Giriş: "${input}") - Error: ${err.message}`, 'error');
     res.status(500).json({ error: err.message || 'Kanal eklenemedi.' });
   }
 });
@@ -3302,8 +3580,31 @@ app.delete('/api/channels/:id', (req, res) => {
   writeDb(db);
   broadcast('db_update', db);
   broadcast('status_log', { message: `${channel.name} kanalı takipten çıkarıldı.`, type: 'info' });
-  addTerminalLog(`[Kanal] Kanal takipten çıkarıldı: "${channel.name}" (ID: ${id})`, 'warning');
+  addTerminalLog(`[Kanal] Kanal removed from watchlistı: "${channel.name}" (ID: ${id})`, 'warning');
   res.json({ success: true });
+});
+
+// Tek bir kanalı manuel tara
+app.post('/api/channels/:id/sync', async (req, res) => {
+  const { id } = req.params;
+  if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
+    return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
+  }
+  try {
+    const db = readDb();
+    const channel = db.channels.find(c => c.id === id);
+    if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
+    
+    addTerminalLog(`[RSS] Tekil manuel tetikleme: "${channel.name}" denetleniyor...`, 'info');
+    await checkSingleChannelRss(channel, false);
+    resolveMissingDurations();
+    
+    addTerminalLog(`[RSS] Tekil manuel tetikleme: "${channel.name}" denetimi tamamlandı.`, 'success');
+    broadcast('status_log', { message: `"${channel.name}" kanalı başarıyla denetlendi.`, type: 'success' });
+    res.json({ success: true, message: 'Kanal başarıyla denetlendi.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Kanala özel kalite ayarla
@@ -3340,6 +3641,27 @@ app.post('/api/channels/:id/shorts', (req, res) => {
   res.json({ success: true });
 });
 
+// Kanala özel Shorts limit süresini değiştir
+app.post('/api/channels/:id/shorts-limit', (req, res) => {
+  const { id } = req.params;
+  if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
+    return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
+  }
+  const { limit } = req.body; // number
+  const limitNum = parseInt(limit, 10);
+  if (isNaN(limitNum) || limitNum < 0) {
+    return res.status(400).json({ error: 'Geçersiz süre limiti.' });
+  }
+  const db = readDb();
+  const channel = db.channels.find(c => c.id === id);
+  if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
+
+  channel.shortsDurationLimit = limitNum;
+  writeDb(db);
+  broadcast('db_update', db);
+  res.json({ success: true });
+});
+
 // Kanal logosunu YouTube'dan yeniden çözümle ve güncelle
 app.post('/api/channels/:id/update-avatar', async (req, res) => {
   const { id } = req.params;
@@ -3355,7 +3677,7 @@ app.post('/api/channels/:id/update-avatar', async (req, res) => {
       ? channel.handle 
       : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
       
-    addTerminalLog(`[Kanal] Kanal logosu güncelleniyor: "${channel.name}"`, 'info');
+    addTerminalLog(`[Kanal] Kanal logo is being updated: "${channel.name}"`, 'info');
     const info = await resolveChannelId(channelUrl);
     if (info && info.avatar) {
       channel.avatar = info.avatar;
@@ -3366,13 +3688,13 @@ app.post('/api/channels/:id/update-avatar', async (req, res) => {
       writeDb(db);
       broadcast('db_update', db);
       broadcast('status_log', { message: `${channel.name} kanal logosu güncellendi.`, type: 'success' });
-      addTerminalLog(`[Kanal] Kanal logosu başarıyla güncellendi: "${channel.name}"`, 'success');
+      addTerminalLog(`[Kanal] Kanal logosu successfully updated: "${channel.name}"`, 'success');
       return res.json({ success: true, avatar: info.avatar });
     } else {
-      throw new Error('Profile picture not found.');
+      throw new Error('Profil resmi bulunamadı.');
     }
   } catch (err) {
-    addTerminalLog(`[Kanal] Kanal logosu güncellenemedi: "${channel.name}" - Hata: ${err.message}`, 'error');
+    addTerminalLog(`[Kanal] Kanal logosu failed to update: "${channel.name}" - Error: ${err.message}`, 'error');
     res.status(500).json({ error: err.message || 'Logo güncellenemedi.' });
   }
 });
@@ -3405,8 +3727,8 @@ app.post('/api/channels/update-all-avatars', localhostOnly, async (req, res) => 
     return res.json({ success: true, message: 'İzlenen kanal bulunmuyor.' });
   }
 
-  addTerminalLog('[Kanal] Toplu kanal logosu güncellemesi başlatıldı...', 'info');
-  console.log('[Channel] Bulk channel logo update started...');
+  addTerminalLog('[Kanal] Batch channel logosu update startedı...', 'info');
+  console.log('[Kanal] Batch channel logosu update startedı...');
   
   let updatedCount = 0;
   let failedCount = 0;
@@ -3417,7 +3739,7 @@ app.post('/api/channels/update-all-avatars', localhostOnly, async (req, res) => 
         ? channel.handle 
         : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
         
-      console.log(`[Channel] Updating logo: ${channel.name}`);
+      console.log(`[Kanal] Logo is being updated: ${channel.name}`);
       const info = await resolveChannelId(channelUrl);
       if (info && info.avatar) {
         channel.avatar = info.avatar;
@@ -3429,7 +3751,7 @@ app.post('/api/channels/update-all-avatars', localhostOnly, async (req, res) => 
       // Bot engellemesini önlemek için 500ms bekletiyoruz
       await new Promise(r => setTimeout(r, 500));
     } catch (e) {
-      console.error(`[Channel] Logo update error (${channel.name}):`, e.message);
+      console.error(`[Kanal] Logo update errorı (${channel.name}):`, e.message);
       failedCount++;
     }
   }
@@ -3437,7 +3759,7 @@ app.post('/api/channels/update-all-avatars', localhostOnly, async (req, res) => 
   writeDb(db);
   broadcast('db_update', db);
   broadcast('status_log', { message: `Toplu logo güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`, type: 'success' });
-  addTerminalLog(`[Kanal] Toplu logo güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`, 'success');
+  addTerminalLog(`[Kanal] Batch logo güncelleme completedı. Successı: ${updatedCount}, Failed: ${failedCount}`, 'success');
 
   res.json({ success: true, updatedCount, failedCount });
 });
@@ -3465,7 +3787,7 @@ app.post('/api/download-video', async (req, res) => {
   // Eğer kanal ismi veya başlık eksikse (örneğin PD butonu ile link yapıştırıldığında), YouTube'dan detayları çek
   if (!channelName || !title) {
     try {
-      console.log(`[Manual Download] Fetching video details from YouTube: ${targetVideoId}`);
+      console.log(`[Manual Download] Fetching video details from from YouTube: ${targetVideoId}`);
       const details = await fetchVideoDuration(targetVideoId);
       if (details) {
         if (details.title) title = details.title;
@@ -3473,7 +3795,7 @@ app.post('/api/download-video', async (req, res) => {
         if (details.channelId) channelId = details.channelId;
       }
     } catch (err) {
-      console.error(`[Manuel İndirme] Detaylar çekilirken hata oluştu:`, err.message);
+      console.error(`[Manual Download] details while fetching Error occurred:`, err.message);
     }
   }
 
@@ -3494,8 +3816,71 @@ app.post('/api/download-video', async (req, res) => {
   res.json({ success: true, message: 'İndirme kuyruğuna eklendi.', videoId: targetVideoId });
 });
 
-// Şimdi Kontrol Et (Manuel RSS tetikleme) - Tüm kanalları sırayla 1 saniye aralıklarla denetler
-app.post('/api/sync', async (req, res) => {
+// Update Library Metadata (File size for completed, trigger missing duration resolution)
+app.post('/api/library/update-metadata', localhostOnly, (req, res) => {
+  try {
+    const db = readDb();
+    const type = req.body.type;
+    let updated = false;
+    let count = 0;
+
+    if (type === 'downloaded') {
+      db.history.forEach(item => {
+        if (item.status === 'completed') {
+          if (item.duration === '-') item.duration = '';
+          if (item.publishedAt === '-') item.publishedAt = '';
+          item.resolveAttempts = 0;
+          updated = true;
+
+          if (item.filePath && fs.existsSync(item.filePath)) {
+            count++;
+            try {
+              const stats = fs.statSync(item.filePath);
+              const sizeMB = (stats.size / (1024 * 1024)).toFixed(2) + ' MB';
+              if (item.fileSize !== sizeMB) {
+                item.fileSize = sizeMB;
+                updated = true;
+              }
+            } catch (err) {}
+          }
+        }
+      });
+      if (updated) {
+        writeDb(db);
+        broadcast('db_update', db);
+      }
+      resolveMissingDurations('completed');
+    } else {
+      db.history.forEach(item => {
+        if (item.status !== 'completed') {
+          if (item.duration === '-') item.duration = '';
+          if (item.publishedAt === '-') item.publishedAt = '';
+          item.resolveAttempts = 0;
+          updated = true;
+          count++;
+        }
+      });
+      if (updated) {
+        writeDb(db);
+        broadcast('db_update', db);
+      }
+      resolveMissingDurations('not_completed');
+    }
+
+    res.json({ success: true, count, message: 'Metadata update triggered successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Şimdi Kontrol Et (Manuel RSS tetikleme) - Tüm kanalları sırayla arka planda denetler
+/**
+ * Tüm kanalların RSS taranmasını tetikler ve arka planda çalıştırarak hemen yanıt döner.
+ * 
+ * @param {object} req Express istek nesnesi
+ * @param {object} res Express yanıt nesnesi
+ */
+app.post('/api/sync', (req, res) => {
   try {
     const db = readDb();
     if (db.channels.length === 0) {
@@ -3504,17 +3889,23 @@ app.post('/api/sync', async (req, res) => {
     
     addTerminalLog('[RSS] Manuel tetikleme: Tüm kanallar sırayla denetleniyor...', 'info');
     
-    for (const channel of db.channels) {
-      await checkSingleChannelRss(channel, false);
-      await new Promise(r => setTimeout(r, 1000));
-    }
+    // Arka planda kanalları sırayla denetle
+    (async () => {
+      try {
+        for (const channel of db.channels) {
+          await checkSingleChannelRss(channel, false);
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        
+        resolveMissingDurations();
+        addTerminalLog('[RSS] Manuel tetikleme: Tüm kanalların denetimi tamamlandı.', 'success');
+        broadcast('status_log', { message: 'Tüm kanalların denetimi tamamlandı.', type: 'success' });
+      } catch (err) {
+        addTerminalLog(`[RSS] [HATA] Manuel tetikleme sırasında hata oluştu: ${err.message}`, 'error');
+      }
+    })();
     
-
-
-    // Süreleri arka planda çözmeye başla
-    resolveMissingDurations();
-    
-    res.json({ success: true, message: 'Tüm kanallar başarıyla denetlendi.' });
+    res.json({ success: true, message: 'Kanal denetimi arka planda başlatıldı.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -3530,7 +3921,7 @@ app.post('/api/play-video', localhostOnly, (req, res) => {
   const item = db.history.find(h => h.id === videoId);
   
   if (!item) {
-    console.error(`[Play Video Error] Video record not found in history. ID: ${videoId}`);
+    console.error(`[Play Video Errorsı] Video kaydı geçmişte not foundı. ID: ${videoId}`);
     return res.status(404).json({ error: 'Video kaydı bulunamadı.' });
   }
 
@@ -3540,12 +3931,12 @@ app.post('/api/play-video', localhostOnly, (req, res) => {
   }
 
   if (fileToPlay && fs.existsSync(fileToPlay)) {
-    console.log(`[Play] Playing file: ${fileToPlay}`);
+    console.log(`[Oynat] Dosya oynatılıyor: ${fileToPlay}`);
     open(fileToPlay);
     res.json({ success: true });
   } else {
     const errorMsg = `Video dosyası bulunamadı. Aranan Konum: ${fileToPlay || path.join(db.settings.downloadPath, `*[${videoId}]*`)}`;
-    console.error(`[Play Video Error] ${errorMsg}`);
+    console.error(`[Play Video Errorsı] ${errorMsg}`);
     res.status(404).json({ error: errorMsg });
   }
 });
@@ -3567,7 +3958,7 @@ app.get('/api/video-stream', (req, res) => {
   }
 
   if (fileToPlay && fs.existsSync(fileToPlay)) {
-    console.log(`[Stream] Streaming file: ${fileToPlay}`);
+    console.log(`[Stream] Video akıtılıyor: ${fileToPlay}`);
     
     // Türkçe Açıklama: Gelişmiş seek/ilerletme desteği için Range isteklerini manuel olarak işleyip okuma akışı (read stream) ile sunar.
     const stat = fs.statSync(fileToPlay);
@@ -3616,7 +4007,7 @@ app.get('/api/video-stream', (req, res) => {
       });
     }
   } else {
-    console.error(`[Stream Error] File not found. ID: ${videoId}`);
+    console.error(`[Stream Errorsı] File not foundı. ID: ${videoId}`);
     res.status(404).send('Video dosyası bulunamadı.');
   }
 });
@@ -3631,7 +4022,7 @@ app.delete('/api/history/:id', (req, res) => {
   
   console.log(`\n--- DELETE PROCESS STARTED ---`);
   console.log(`Tarih/Saat: ${new Date().toLocaleString('tr-TR')}`);
-  console.log(`Hedef Video ID: ${id}`);
+  console.log(`Target Video ID: ${id}`);
   console.log(`Bilgisayardan dosya silinsin mi: ${deleteFile}`);
 
   const db = readDb();
@@ -3639,9 +4030,9 @@ app.delete('/api/history/:id', (req, res) => {
 
   if (itemIndex !== -1) {
     const item = db.history[itemIndex];
-    console.log(`Video Title: ${item.title}`);
+    console.log(`Video Adı: ${item.title}`);
     console.log(`Kanal: ${item.channelName}`);
-    console.log(`Saved Path: ${item.filePath}`);
+    console.log(`Kayıtlı Yol: ${item.filePath}`);
     
     if (deleteFile) {
       try {
@@ -3651,7 +4042,7 @@ app.delete('/api/history/:id', (req, res) => {
           foldersToSearch.push(path.join(folder, item.channelName));
         }
 
-        console.log(`Folders scanned for deletion:`, foldersToSearch);
+        console.log(`Silme işlemi için tSearching foldersörler:`, foldersToSearch);
         
         let deletedAny = false;
         let failedToDelete = [];
@@ -3663,15 +4054,15 @@ app.delete('/api/history/:id', (req, res) => {
             for (const file of files) {
               if (file.includes(targetPattern)) {
                 const fullPath = path.join(fld, file);
-                console.log(`Matching file found: ${file} (${fld}). Attempting deletion...`);
+                console.log(`Eşleşen dosya bulundu: ${file} (${fld}). Silinmeye çalışılıyor...`);
                 if (fs.existsSync(fullPath)) {
                   try {
                     fs.unlinkSync(fullPath);
-                    console.log(`SUCCESS: File deleted: ${file}`);
+                    console.log(`BAŞARI: Dosya deleted: ${file}`);
                     deletedAny = true;
                   } catch (e) {
                     console.error(`HATA: Dosya silinemedi: ${file}`);
-                    console.error(`Error Detail: ${e.code} - ${e.message}`);
+                    console.error(`Error Detailı: ${e.code} - ${e.message}`);
                     failedToDelete.push(`${file} (${e.message})`);
                   }
                 }
@@ -3683,17 +4074,17 @@ app.delete('/api/history/:id', (req, res) => {
         if (failedToDelete.length > 0) {
           const errorMsg = `Video dosyası silinemedi (Dosya kilitli veya açık olabilir): ${failedToDelete.join(', ')}`;
           console.error(`[DELETE ERROR] ${errorMsg}`);
-          console.log(`--- DELETE PROCESS FAILED ---\n`);
+          console.log(`--- SİLME İŞLEMİ FAILED ---\n`);
           return res.status(500).json({ error: errorMsg });
         }
         if (deletedAny) {
           broadcast('status_log', { message: `İlgili video dosyaları bilgisayarınızdan silindi: ${item.title}`, type: 'info' });
         } else {
-          console.log(`INFO: No matching file containing '${targetPattern}' found in directories (might already be deleted).`);
+          console.log(`BİLGİ: Searching foldersörlerde '${targetPattern}' içeren herhangi bir File not foundı (already deletedş olabilir).`);
         }
       } catch (err) {
-        console.error(`[DELETE ERROR] General error: ${err.message}`);
-        console.log(`--- SİLME İŞLEMİ BAŞARISIZ ---\n`);
+        console.error(`[DELETE ERROR] Genel hata: ${err.message}`);
+        console.log(`--- SİLME İŞLEMİ FAILED ---\n`);
         return res.status(500).json({ error: `Dosya silme hatası: ${err.message}` });
       }
     }
@@ -3715,17 +4106,17 @@ app.delete('/api/history/:id', (req, res) => {
       eta: '',
       duration: item.duration || ''
     });
-    console.log(`INFO: Video '${item.title}' marked as 'ignored' so RSS does not redownload.`);
+    console.log(`BİLGİ: Video '${item.title}' RSS'in tekrar indirmemesi için 'ignored' olarak işaretlendi.`);
 
     writeDb(db);
     broadcast('db_update', db);
     broadcast('status_log', { message: `Video geçmişten temizlendi: ${item.title}`, type: 'success' });
-    console.log(`SUCCESS: Video history record deleted from database.`);
-    console.log(`--- DELETE PROCESS COMPLETED ---\n`);
+    console.log(`BAŞARI: Video history record from databaseından deleted.`);
+    console.log(`--- SİLME İŞLEMİ completedI ---\n`);
     res.json({ success: true });
   } else {
-    console.error(`ERROR: Video record with ID '${id}' not found in database.`);
-    console.log(`--- SİLME İŞLEMİ BAŞARISIZ ---\n`);
+    console.error(`HATA: ID '${id}' video record in databaseında not foundı.`);
+    console.log(`--- SİLME İŞLEMİ FAILED ---\n`);
     res.status(404).json({ error: 'Video kaydı bulunamadı.' });
   }
 });
@@ -3740,7 +4131,7 @@ app.get('/api/channels/search', async (req, res) => {
     const results = await searchChannelsOnYoutube(q);
     res.json(results);
   } catch (err) {
-    console.error('[Channel Search Error]:', err.message);
+    console.error('[Channel Search Errorsı]:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -3774,7 +4165,7 @@ app.get('/api/disk-space', (req, res) => {
       driveLetter
     });
   } catch (e) {
-    console.error('[Disk Space Error]:', e.message);
+    console.error('[Disk Space Errorsı]:', e.message);
     res.json({ success: false, error: e.message });
   }
 });
@@ -3786,6 +4177,32 @@ app.post('/api/open-youtube', (req, res) => {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
   open(url);
   res.json({ success: true, url });
+});
+
+app.post('/api/cancel-all-queued', localhostOnly, (req, res) => {
+  const db = readDb();
+  let cancelledCount = 0;
+  
+  db.history.forEach(item => {
+    if (item.status === 'waiting') {
+      item.status = 'ignored';
+      item.error = 'Kullanıcı tarafından iptal edildi.';
+      
+      const qIndex = downloadQueue.queue.indexOf(item.id);
+      if (qIndex !== -1) {
+        downloadQueue.queue.splice(qIndex, 1);
+      }
+      cancelledCount++;
+    }
+  });
+
+  if (cancelledCount > 0) {
+    writeDb(db);
+    addTerminalLog(`[Kuyruk] by user request kuyruktaki ${cancelledCount} video cancelled.`, 'warning');
+    broadcast('db_update', db);
+  }
+
+  res.json({ success: true, count: cancelledCount });
 });
 
 // Aktif İndirmeyi veya Sıradaki İndirmeyi İptal Et (Aktif veya kuyruktaki indirmeyi durdurur ve temizler)
@@ -3851,7 +4268,7 @@ app.post('/api/cancel-download', localhostOnly, (req, res) => {
   // 2. Durum: Sıradaki (Kuyruktaki) İndirme İptal Ediliyor
   const queueIndex = downloadQueue.queue.findIndex(item => item.id === videoId);
   if (queueIndex !== -1) {
-    console.log(`Removing next download from queue: ${videoId}`);
+    console.log(`Sıradaki indirme kuyruktan kaldırılıyor: ${videoId}`);
     downloadQueue.queue.splice(queueIndex, 1);
 
     // Veritabanını güncelle
@@ -3900,20 +4317,78 @@ app.post('/api/cancel-download', localhostOnly, (req, res) => {
   res.status(400).json({ error: 'İptal edilebilecek aktif veya bekleyen bir indirme bulunamadı.' });
 });
 
+// Tüm Kuyruğu ve Aktif İndirmeyi İptal Et
+app.post('/api/cancel-all-downloads', localhostOnly, (req, res) => {
+  // 1. Kuyruktaki her şeyi temizle
+  const videosInQueue = downloadQueue.queue.map(item => item.id);
+  downloadQueue.queue = [];
+  videosInQueue.forEach(vid => {
+    updateHistoryItem(vid, { status: 'ignored', progress: 0, speed: '', eta: '', error: 'Kullanıcı tarafından iptal edildi (Tümü).' });
+  });
+
+  // 2. Aktif olanı öldür
+  if (downloadQueue.activeProcess) {
+    const activeId = downloadQueue.activeVideoId;
+    updateHistoryItem(activeId, { status: 'ignored', progress: 0, speed: '', eta: '', error: 'Kullanıcı tarafından iptal edildi (Tümü).' });
+    
+    const proc = downloadQueue.activeProcess;
+    const pid = proc.pid;
+    
+    downloadQueue.activeProcess = null;
+    downloadQueue.activeVideoId = null;
+    if (downloadQueue.activeDownloads > 0) {
+      downloadQueue.activeDownloads--;
+    }
+
+    if (pid) {
+      if (process.platform === 'win32') {
+        exec(`taskkill /F /T /PID ${pid}`, () => { try { proc.kill('SIGKILL'); } catch(e){} });
+      } else {
+        try { process.kill(-pid, 'SIGKILL'); } catch(e) { try { proc.kill('SIGKILL'); } catch(e){} }
+      }
+    }
+  }
+
+  // 3. Veritabanında waiting veya downloading kalmış zombileri temizle
+  const db = readDb();
+  let updated = false;
+  db.history.forEach(h => {
+    if (h.status === 'waiting' || h.status === 'downloading') {
+      h.status = 'ignored';
+      h.error = 'Kullanıcı tarafından iptal edildi (Tümü).';
+      h.progress = 0;
+      h.speed = '';
+      h.eta = '';
+      updated = true;
+    }
+  });
+  if (updated) {
+    writeDb(db);
+  }
+
+  broadcast('status_log', { message: 'Tüm indirmeler iptal edildi.', type: 'info' });
+  broadcast('db_update', readDb());
+  res.json({ success: true });
+});
+
 // Klasör Seçim Diyaloğu (Windows Native)
 app.post('/api/select-folder', localhostOnly, (req, res) => {
-  const psCommand = `powershell -NoProfile -Command "(New-Object -ComObject Shell.Application).BrowseForFolder(0, 'Lütfen İndirme Klasörünü Seçin', 0, 17).Self.Path"`;
+  const db = readDb();
+  const currentPath = db.settings.downloadPath || '';
+  const escapedPath = currentPath.replace(/'/g, "''");
+  
+  const psCommand = `powershell -NoProfile -STA -Command "Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Please select a download folder'; $dialog.SelectedPath = '${escapedPath}'; $dialog.ShowNewFolderButton = $true; $form = New-Object System.Windows.Forms.Form; $form.TopMost = $true; $form.Opacity = 0; $form.Show(); $form.Activate(); $result = $dialog.ShowDialog($form); $form.Close(); if ($result -eq 'OK') { Write-Output $dialog.SelectedPath } else { Write-Output 'CANCEL' }"`;
   
   exec(psCommand, (err, stdout, stderr) => {
     if (err) {
-      console.error('Folder selection error:', err.message);
+      console.error('Folder selection error:', err.message || stderr);
       return res.status(500).json({ error: 'Klasör seçim penceresi açılamadı.' });
     }
     const selectedPath = stdout.trim();
-    if (selectedPath) {
+    if (selectedPath && selectedPath !== 'CANCEL') {
       res.json({ success: true, path: selectedPath });
     } else {
-      res.json({ success: false, message: 'Klasör seçilmedi.' });
+      res.json({ success: false, message: 'Klasör seçimi iptal edildi.' });
     }
   });
 });
@@ -3951,15 +4426,15 @@ app.post('/api/open-folder', localhostOnly, (req, res) => {
  */
 function updateYtdlp() {
   return new Promise((resolve) => {
-    console.log('Checking for yt-dlp.exe updates...');
-    addTerminalLog('[Sistem] yt-dlp.exe motor güncellemesi denetleniyor...', 'info');
+    console.log('yt-dlp.exe update denetleniyor...');
+    addTerminalLog('[Sistem] yt-dlp.exe motor update denetleniyor...', 'info');
     exec(`"${ytdlpPath}" -U`, (err, stdout, stderr) => {
       if (err) {
-        console.error('yt-dlp update error:', err.message);
-        addTerminalLog(`[Sistem] yt-dlp güncelleme başarısız: ${err.message}`, 'warning');
+        console.error('yt-dlp update errorı:', err.message);
+        addTerminalLog(`[Sistem] yt-dlp güncelleme Failed: ${err.message}`, 'warning');
       } else {
         const output = stdout.trim();
-        console.log('yt-dlp update output:', output);
+        console.log('yt-dlp güncelleme çıktısı:', output);
         if (output.includes('is up to date')) {
           addTerminalLog('[Sistem] yt-dlp motoru güncel.', 'success');
         } else {
@@ -4076,7 +4551,7 @@ async function resolveMissingChannelAvatars() {
   let updated = false;
   for (const channel of db.channels) {
     if (!channel.avatar) {
-      console.log(`Resolving missing channel logo: ${channel.name}`);
+      console.log(`Eksik kanal logosu çözümleniyor: ${channel.name}`);
       try {
         const channelUrl = channel.handle && channel.handle.startsWith('http') 
           ? channel.handle 
@@ -4086,12 +4561,12 @@ async function resolveMissingChannelAvatars() {
         if (info && info.avatar) {
           channel.avatar = info.avatar;
           updated = true;
-          console.log(`Channel logo resolved: ${channel.name} -> ${info.avatar}`);
+          console.log(`Kanal logosu çresolved: ${channel.name} -> ${info.avatar}`);
           // İstekler arası 1 saniye bekleme
           await new Promise(r => setTimeout(r, 1000));
         }
       } catch (e) {
-        console.error(`Could not fetch channel logo: ${channel.name}`, e.message);
+        console.error(`Kanal logosu alınamadı: ${channel.name}`, e.message);
       }
     }
   }
@@ -4108,7 +4583,7 @@ app.get(['/home', '/download', '/downlist', '/channels', '/settings'], (req, res
 
 // Sunucu Başlatıldığında (Sadece CLI modu dışında)
 if (process.argv.length <= 2) {
-  app.listen(PORT, async () => {
+  const server = app.listen(PORT, async () => {
     cleanOldLogs(); // 7 günden eski logları temizle
 
     const db = readDb();
@@ -4126,11 +4601,11 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v4.11.1
+               Versiyon: v4.13.2
                Yapımcı: HaYTo
     ====================================================
     `);
-    console.log(`Server is running on port http://localhost:${PORT}`);
+    console.log(`Sunucu http://localhost:${PORT} portunda çalışıyor.`);
     
     // İndirme klasörünü kontrol et, yoksa oluştur
 
@@ -4146,12 +4621,12 @@ if (process.argv.length <= 2) {
     const originalCount = db.channels.length;
     db.channels = db.channels.filter(c => c.name !== c.id);
     if (db.channels.length !== originalCount) {
-      console.log(`[SETTINGS] Cleaned ${originalCount - db.channels.length} corrupted channels with identical Name and ID from database.`);
+      console.log(`[AYARLAR] İsmi and ID'si aynı olan ${originalCount - db.channels.length} corrupt channels from database cleaned.`);
       writeDb(db);
     }
 
-    addTerminalLog(`[Sistem] Sunucu başarıyla başlatıldı. Adres: http://localhost:${PORT}`, 'success');
-    addTerminalLog(`[Sistem] Otomatik indirme klasörü: "${db.settings.downloadPath}"`, 'info');
+    addTerminalLog(`[Sistem] Sunucu başarıyla startedı. Adres: http://localhost:${PORT}`, 'success');
+    addTerminalLog(`[Sistem] Auto download folderörü: "${db.settings.downloadPath}"`, 'info');
     
     if (!fs.existsSync(db.settings.downloadPath)) {
       try {
@@ -4164,12 +4639,12 @@ if (process.argv.length <= 2) {
       await ensureYtdlp();
       // updateYtdlp(); // Otomatik güncelleme iptal edildi
     } catch (e) {
-      console.error('yt-dlp check failed:', e.message);
+      console.error('yt-dlp kontrolü Failed:', e.message);
     }
 
     // Başlangıçta ffmpeg kontrolünü yap (eğer merge seçildiyse ve ffmpeg yoksa)
     if (db.settings.mergeType === 'merge' && !fs.existsSync(getFfmpegPath())) {
-      ensureFfmpeg().catch(e => console.error('FFmpeg otomatik indirme hatası:', e.message));
+      ensureFfmpeg().catch(e => console.error('FFmpeg auto download errorı:', e.message));
     }
 
     // Zamanlayıcıyı başlat
@@ -4214,8 +4689,8 @@ if (process.argv.length <= 2) {
         }
       });
       if (queuedCount > 0) {
-        console.log(`[System] Re-queued ${queuedCount} unfinished/pending downloads on server startup.`);
-        addTerminalLog(`[Sistem] Sunucu başlangıcında ${queuedCount} adet yarım kalan/bekleyen indirme kuyruğa yeniden eklendi.`, 'info');
+        console.log(`[Sistem] Sunucu başlangıcında ${queuedCount} adet yarım kalan/bekleyen indirme queue yeniden eklendi.`);
+        addTerminalLog(`[Sistem] Sunucu başlangıcında ${queuedCount} adet yarım kalan/bekleyen indirme queue yeniden eklendi.`, 'info');
       }
     }, 4000);
 
@@ -4225,10 +4700,44 @@ if (process.argv.length <= 2) {
       try {
         await open(`http://localhost:${PORT}`);
       } catch (e) {
-        console.log('Could not open browser automatically, please navigate to http://localhost:3000 manually.');
+        console.log(`Tarayıcı otomatik açılamadı, lütfen http://localhost:${PORT} adresine manuel gidin.`);
       }
     } else {
-      console.log('Automatic browser startup disabled. Please open http://localhost:3000 manually.');
+      console.log(`Otomatik tarayıcı açılışı devre dışı bırakıldı. Lütfen http://localhost:${PORT} adresine el ile gidin.`);
+    }
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      let dbLang = 'tr';
+      try {
+        const db = readDb();
+        dbLang = db.settings.lang || 'tr';
+      } catch (e) {}
+
+      if (dbLang === 'en') {
+        console.error(`\n[ERROR] Port ${PORT} is already in use by another application or process!`);
+        console.error(`Please close other background server processes or change the 'port' setting in configwin.ini.\n`);
+      } else if (dbLang === 'es') {
+        console.error(`\n[ERROR] ¡El puerto ${PORT} ya está siendo utilizado por otra aplicación o proceso!`);
+        console.error(`Cierre otros procesos del servidor en segundo plano o cambie el puerto en configwin.ini.\n`);
+      } else if (dbLang === 'de') {
+        console.error(`\n[FEHLER] Port ${PORT} wird bereits von einer anderen Anwendung oder einem anderen Prozess verwendet!`);
+        console.error(`Bitte schließen Sie andere Hintergrundserver-Prozesse oder ändern Sie den Port in configwin.ini.\n`);
+      } else if (dbLang === 'pt') {
+        console.error(`\n[ERRO] A porta ${PORT} já está em uso por outro aplicativo ou processo!`);
+        console.error(`Feche outros processos do servidor em segundo plano ou altere a porta no configwin.ini.\n`);
+      } else if (dbLang === 'ar') {
+        console.error(`\n[خطأ] المنفذ ${PORT} مستخدم بالفعل بواسطة تطبيق أو عملية أخرى!`);
+        console.error(`يرجى إغلاق عمليات الخادم الخلفية الأخرى أو تغيير المنفذ في configwin.ini.\n`);
+      } else { // default to 'tr'
+        console.error(`\n[HATA] Port ${PORT} başka bir uygulama veya süreç tarafından kullanılıyor!`);
+        console.error(`Lütfen arka plandaki diğer sunucu süreçlerini kapatın veya configwin.ini dosyasından 'port' ayarını değiştirin.\n`);
+      }
+      process.exit(1);
+    } else {
+      console.error('Sunucu başlatılırken hata oluştu:', err.message);
+      process.exit(1);
     }
   });
 }
@@ -4256,10 +4765,10 @@ function cleanOldLogs() {
       }
     }
     if (deletedCount > 0) {
-      console.log(`[Log Cleanup] Deleted ${deletedCount} log files older than 7 days.`);
+      console.log(`[Log Cleanup] 7 older than 7 days ${deletedCount} adet log dosyası deleted.`);
     }
   } catch (err) {
-    console.error('[Log Cleanup] Error occurred while cleaning log files:', err.message);
+    console.error('[Log Cleanup] Log dosyaları temizlenirken Error occurred:', err.message);
   }
 }
 
@@ -4272,6 +4781,19 @@ process.stdin.on('data', (data) => {
   const parts = line.split(' ');
   const command = parts[0].toLowerCase();
   const args = parts.slice(1);
+
+  if (command === 'help' || command === '?') {
+    console.log('[Console] Available commands:\n' +
+                '  - status (Shows application speed and queue status)\n' +
+                '  - turtleon / turtleoff (Activates/deactivates alternative speed limit)\n' +
+                '  - toggle (Toggles alternative speed limit status)\n' +
+                '  - speed <value> (Sets speed limit in KB/s, e.g. speed 1000)\n' +
+                '  - speed on/off (Enables/disables normal speed limit)\n' +
+                '  - altspeed <value> (Sets alternative speed limit, e.g. altspeed 500)\n' +
+                '  - pd <link> (Adds video to queue by URL and switches tab)\n' +
+                '  - clear (Clears the terminal screen)');
+    return;
+  }
 
   const db = readDb();
 
@@ -4459,18 +4981,18 @@ process.stdin.on('data', (data) => {
   } else if (command === 'pd') {
     const link = args[0];
     if (!link) {
-      console.log('[Konsol] Hata: Bir YouTube video linki belirtmelisiniz. Ornek: pd https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      console.log('[Konsol] Error: Bir YouTube video linki belirtmelisiniz. Ornek: pd https://www.youtube.com/watch?v=dQw4w9WgXcQ');
       return;
     }
     addVideoToQueueByUrl(link)
       .then(vid => {
-        addTerminalLog(`[Konsol] Video kuyruğa başarıyla eklendi. ID: ${vid}`, 'success');
+        addTerminalLog(`[Konsol] Video queue başarıyla eklendi. ID: ${vid}`, 'success');
         console.log(`[Konsol] Video kuyruga basariyla eklendi. ID: ${vid}`);
         broadcast('switch_tab', 'queue');
       })
       .catch(err => {
-        addTerminalLog(`[Konsol] Hata: ${err.message}`, 'error');
-        console.log(`[Konsol] Hata: ${err.message}`);
+        addTerminalLog(`[Konsol] Error: ${err.message}`, 'error');
+        console.log(`[Konsol] Error: ${err.message}`);
       });
   } else {
     console.log('[Konsol] Bilinmeyen komut. Kullanilabilir komutlar: speed/limit <deger/on/off/ac/kapat/toggle>, altspeed/turtle <deger/on/off/ac/kapat/toggle>, pd <video-linki>, turtleon, turtleoff, turtleac, turtlekapat, toggle, status');
@@ -4482,8 +5004,8 @@ function restartActiveDownloadWithNewLimit(db, oldSpeedLimit, newSpeedLimit) {
   const videoId = downloadQueue.activeVideoId;
   const historyItem = db.history.find(h => h.id === videoId);
   if (historyItem) {
-    console.log(`[Ayarlar] Hız sınırı değişti (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: ${historyItem.title}`);
-    addTerminalLog(`[Ayarlar] Hız sınırı değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
+    console.log(`[Ayarlar] Hız sınırı changed (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme with the new speed limitı ile is restartingılıyor: ${historyItem.title}`);
+    addTerminalLog(`[Ayarlar] Hız sınırı changed. Aktif indirme with the new speed limitı ile is restartingılıyor: "${historyItem.title}"`, 'info');
     
     downloadQueue.queue.unshift({
       id: videoId,

@@ -34,7 +34,6 @@ namespace HaYTooLTray
         private MenuItem bootItem;
         private MenuItem restartItem;
         private MenuItem showConsoleItem;
-        private MenuItem openLogFolderItem;
         private MenuItem exitItem;
 
         [System.Runtime.InteropServices.DllImport("kernel32.dll")]
@@ -195,7 +194,7 @@ namespace HaYTooLTray
 
             // Sınıf düzeyindeki menü elemanlarını oluştur
             openUiItem = new MenuItem("Arayüzü Aç", OpenWebPage);
-            pasteDownloadItem = new MenuItem("Panodan İndir", PasteAndDownload);
+            pasteDownloadItem = new MenuItem("Panodan İndir (Paste & Download)", PasteAndDownload);
 
             shortcutsMenu = new MenuItem("Sekmelere Git");
             libraryShortcut = new MenuItem("Kütüphane", (s, e) => OpenUrl("/home"));
@@ -222,20 +221,16 @@ namespace HaYTooLTray
 
             restartItem = new MenuItem("Yeniden Başlat", RestartNode);
             showConsoleItem = new MenuItem("Konsol Çıktısını Göster", ShowConsoleWindow);
-            openLogFolderItem = new MenuItem("Log Klasörünü Aç", OpenLogFolder);
             exitItem = new MenuItem("Çıkış", ExitApp);
 
             // Sağ tık menüsünü oluştur
             ContextMenu contextMenu = new ContextMenu();
-            contextMenu.MenuItems.Add(openUiItem);
             contextMenu.MenuItems.Add(pasteDownloadItem);
-            contextMenu.MenuItems.Add(shortcutsMenu);
             contextMenu.MenuItems.Add(altSpeedItem);
             contextMenu.MenuItems.Add(bootItem);
             contextMenu.MenuItems.Add("-"); // Ayırıcı çizgi
             contextMenu.MenuItems.Add(restartItem);
             contextMenu.MenuItems.Add(showConsoleItem);
-            contextMenu.MenuItems.Add(openLogFolderItem);
             contextMenu.MenuItems.Add("-"); // Ayırıcı çizgi
             contextMenu.MenuItems.Add(exitItem);
 
@@ -262,7 +257,7 @@ namespace HaYTooLTray
         // Türkçe Açıklama: configwin.ini dosyasından port değerini dinamik olarak okuyarak localhost adresini döner.
         private string GetAppUrl(string relativePath = "")
         {
-            int port = 3000;
+            int port = 4141;
             string iniPath = "configwin.ini";
             if (File.Exists(iniPath))
             {
@@ -373,91 +368,57 @@ namespace HaYTooLTray
                     return;
                 }
 
-                // Bağımlılık kontrolü (node_modules klasörü yoksa indir)
+                // Port kontrolü (EADDRINUSE önleme)
+                int port = 4141;
+                string iniPath = "configwin.ini";
+                if (File.Exists(iniPath))
+                {
+                    try
+                    {
+                        string[] lines = File.ReadAllLines(iniPath);
+                        foreach (string line in lines)
+                        {
+                            string trimmed = line.Trim();
+                            int equalsIdx = trimmed.IndexOf('=');
+                            if (equalsIdx != -1)
+                            {
+                                string key = trimmed.Substring(0, equalsIdx).Trim();
+                                string val = trimmed.Substring(equalsIdx + 1).Trim();
+                                if (string.Equals(key, "port", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    int parsedPort;
+                                    if (int.TryParse(val, out parsedPort))
+                                    {
+                                        port = parsedPort;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch {}
+                }
+
+                try
+                {
+                    System.Net.Sockets.TcpListener listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Any, port);
+                    listener.Start();
+                    listener.Stop();
+                }
+                catch (Exception)
+                {
+                    ShowPortInUseWarning(port);
+                    ExitApp(null, null);
+                    return;
+                }
+
+                // Bağımlılık kontrolü (Kaldırıldı - Artık proje git'ten node_modules ile iniyor)
                 string nodeModulesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "node_modules");
                 if (!Directory.Exists(nodeModulesPath))
                 {
-                    Form installForm = new Form();
-                    installForm.Text = "HaYTool - İlk Kurulum";
-                    installForm.Size = new Size(500, 180);
-                    installForm.StartPosition = FormStartPosition.CenterScreen;
-                    installForm.FormBorderStyle = FormBorderStyle.FixedDialog;
-                    installForm.MaximizeBox = false;
-                    installForm.MinimizeBox = false;
-                    if (File.Exists("icon.ico"))
-                    {
-                        try { installForm.Icon = new Icon("icon.ico"); } catch {}
-                    }
-
-                    Label label = new Label();
-                    label.Text = "Uygulama ilk kez çalıştırılıyor. Bağımlılıklar indiriliyor (npm install)...\nLütfen bekleyin, bu işlem internet hızınıza bağlı olarak birkaç dakika sürebilir.";
-                    label.Size = new Size(460, 60);
-                    label.Location = new Point(20, 25);
-                    label.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
-                    installForm.Controls.Add(label);
-
-                    ProgressBar progressBar = new ProgressBar();
-                    progressBar.Style = ProgressBarStyle.Marquee;
-                    progressBar.Size = new Size(440, 23);
-                    progressBar.Location = new Point(20, 90);
-                    installForm.Controls.Add(progressBar);
-
-                    // npm install işlemini ayrı bir thread'de çalıştıralım
-                    bool success = false;
-                    string installError = "";
-
-                    Thread thread = new Thread(() => {
-                        try
-                        {
-                            ProcessStartInfo npmPsi = new ProcessStartInfo("cmd.exe", "/c npm install");
-                            npmPsi.CreateNoWindow = true;
-                            npmPsi.UseShellExecute = false;
-                            npmPsi.RedirectStandardError = false;
-                            npmPsi.RedirectStandardOutput = false;
-                            npmPsi.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
-
-                            using (Process npmProc = Process.Start(npmPsi))
-                            {
-                                npmProc.WaitForExit();
-                                if (npmProc.ExitCode == 0)
-                                {
-                                    success = true;
-                                }
-                                else
-                                {
-                                    installError = "npm çıkış kodu: " + npmProc.ExitCode;
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            installError = ex.Message;
-                        }
-
-                        // Formu kapat
-                        try
-                        {
-                            if (installForm.IsHandleCreated)
-                            {
-                                installForm.BeginInvoke(new Action(() => installForm.Close()));
-                            }
-                            else
-                            {
-                                installForm.Load += (s, e) => installForm.Close();
-                            }
-                        }
-                        catch {}
-                    });
-
-                    installForm.Load += (s, e) => thread.Start();
-                    installForm.ShowDialog();
-
-                    if (!success)
-                    {
-                        MessageBox.Show("Bağımlılıklar yüklenemedi. Lütfen internet bağlantınızı kontrol edin veya manuel olarak 'npm install' komutunu çalıştırın.\nHata: " + installError, "Kurulum Hatası", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        ExitApp(null, null);
-                        return;
-                    }
+                    MessageBox.Show("Node modülleri bulunamadı. Lütfen eksik dosya indirmediğinizden emin olun.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    ExitApp(null, null);
+                    return;
                 }
 
                 string backendPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "HaYTool-Backend.exe");
@@ -668,19 +629,30 @@ namespace HaYTooLTray
             commandPanel.Padding = new Padding(10);
 
             Label cmdLabel = new Label();
-            cmdLabel.Text = "Konsol Komutu:";
+            cmdLabel.Text = "Komut:";
             cmdLabel.ForeColor = Color.White;
             cmdLabel.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
             cmdLabel.AutoSize = true;
             cmdLabel.Location = new Point(10, 17);
 
-            TextBox commandTextBox = new TextBox();
-            commandTextBox.Font = new Font("Consolas", 11f);
-            commandTextBox.BackColor = Color.FromArgb(35, 34, 55);
-            commandTextBox.ForeColor = Color.White;
-            commandTextBox.Location = new Point(125, 14);
-            commandTextBox.Size = new Size(680, 26);
-            commandTextBox.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
+            ComboBox commandComboBox = new ComboBox();
+            commandComboBox.Font = new Font("Consolas", 11f);
+            commandComboBox.BackColor = Color.FromArgb(35, 34, 55);
+            commandComboBox.ForeColor = Color.White;
+            commandComboBox.Location = new Point(70, 14);
+            commandComboBox.Size = new Size(660, 26);
+            commandComboBox.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
+            commandComboBox.Items.AddRange(new string[] {
+                "help",
+                "status",
+                "turtleon",
+                "turtleoff",
+                "toggle",
+                "clear",
+                "speed 1000",
+                "altspeed 500",
+                "pd"
+            });
 
             Button sendButton = new Button();
             sendButton.Text = "Gönder";
@@ -689,65 +661,84 @@ namespace HaYTooLTray
             sendButton.ForeColor = Color.White;
             sendButton.FlatStyle = FlatStyle.Flat;
             sendButton.FlatAppearance.BorderSize = 0;
-            sendButton.Location = new Point(815, 13);
-            sendButton.Size = new Size(100, 28);
+            sendButton.Location = new Point(745, 13);
+            sendButton.Size = new Size(80, 28);
             sendButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+
+            Button openLogButton = new Button();
+            openLogButton.Text = "Aç";
+            openLogButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+            openLogButton.BackColor = Color.FromArgb(41, 128, 185);
+            openLogButton.ForeColor = Color.White;
+            openLogButton.FlatStyle = FlatStyle.Flat;
+            openLogButton.FlatAppearance.BorderSize = 0;
+            openLogButton.Location = new Point(835, 13);
+            openLogButton.Size = new Size(80, 28);
+            openLogButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+
+            openLogButton.Click += (s, ev) => {
+                string logsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                if (Directory.Exists(logsDir)) {
+                    Process.Start("explorer.exe", logsDir);
+                } else {
+                    MessageBox.Show("Log klasörü bulunamadı.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            };
 
             // Yeniden boyutlandırma olayı
             commandPanel.Resize += (s, ev) => {
-                commandTextBox.Width = commandPanel.Width - 250;
-                sendButton.Left = commandPanel.Width - 115;
+                commandComboBox.Width = commandPanel.Width - 250;
+                sendButton.Left = commandPanel.Width - 170;
+                openLogButton.Left = commandPanel.Width - 85;
             };
 
             // Enter tuşu ile gönderim
-            commandTextBox.KeyDown += (s, ev) => {
+            commandComboBox.KeyDown += (s, ev) => {
                 if (ev.KeyCode == Keys.Enter)
                 {
                     ev.SuppressKeyPress = true; // Bip sesini kapat
-                    string cmd = commandTextBox.Text.Trim();
+                    string cmd = commandComboBox.Text.Trim();
                     if (!string.IsNullOrEmpty(cmd))
                     {
-                        SendCommandToNode(cmd);
-                        commandTextBox.Clear();
+                        if (cmd.ToLower() == "clear") {
+                            lock (bufferLock) {
+                                consoleBuffer.Length = 0;
+                            }
+                            logTextBox.Clear();
+                        } else {
+                            SendCommandToNode(cmd);
+                        }
+                        commandComboBox.Text = "";
                     }
                 }
             };
 
             sendButton.Click += (s, ev) => {
-                string cmd = commandTextBox.Text.Trim();
+                string cmd = commandComboBox.Text.Trim();
                 if (!string.IsNullOrEmpty(cmd))
                 {
-                    SendCommandToNode(cmd);
-                    commandTextBox.Clear();
-                    commandTextBox.Focus();
+                    if (cmd.ToLower() == "clear") {
+                        lock (bufferLock) {
+                            consoleBuffer.Length = 0;
+                        }
+                        logTextBox.Clear();
+                    } else {
+                        SendCommandToNode(cmd);
+                    }
+                    commandComboBox.Text = "";
+                    commandComboBox.Focus();
                 }
             };
 
             commandPanel.Controls.Add(cmdLabel);
-            commandPanel.Controls.Add(commandTextBox);
+            commandPanel.Controls.Add(commandComboBox);
             commandPanel.Controls.Add(sendButton);
+            commandPanel.Controls.Add(openLogButton);
 
             mainLayout.Controls.Add(commandPanel, 0, 1);
 
             logForm.Controls.Add(mainLayout);
             logForm.Show();
-        }
-
-        private void OpenLogFolder(object sender, EventArgs e)
-        {
-            try
-            {
-                string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-                if (!Directory.Exists(logPath))
-                {
-                    Directory.CreateDirectory(logPath);
-                }
-                Process.Start("explorer.exe", "\"" + logPath + "\"");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Log klasörü açılamadı: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
 
         // Türkçe Açıklama: Arka planda çalışan Node.js alt sürecini sonlandırır.
@@ -840,7 +831,6 @@ namespace HaYTooLTray
                 bootItem.Text = "Run on System Startup";
                 restartItem.Text = "Restart Server";
                 showConsoleItem.Text = "Show Console Output";
-                openLogFolderItem.Text = "Open Log Folder";
                 exitItem.Text = "Exit";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
@@ -858,7 +848,6 @@ namespace HaYTooLTray
                 bootItem.Text = "Ejecutar al Inicio del Sistema";
                 restartItem.Text = "Reiniciar Servidor";
                 showConsoleItem.Text = "Mostrar Salida de Consola";
-                openLogFolderItem.Text = "Abrir carpeta de logs";
                 exitItem.Text = "Salir";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
@@ -876,7 +865,6 @@ namespace HaYTooLTray
                 bootItem.Text = "Beim Systemstart ausführen";
                 restartItem.Text = "Server neu starten";
                 showConsoleItem.Text = "Konsolenausgabe anzeigen";
-                openLogFolderItem.Text = "Log-Ordner öffnen";
                 exitItem.Text = "Beenden";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
@@ -894,7 +882,6 @@ namespace HaYTooLTray
                 bootItem.Text = "Executar na Inicialização do Sistema";
                 restartItem.Text = "Reiniciar Servidor";
                 showConsoleItem.Text = "Mostrar Saída do Console";
-                openLogFolderItem.Text = "Abrir pasta de logs";
                 exitItem.Text = "Sair";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
@@ -912,7 +899,6 @@ namespace HaYTooLTray
                 bootItem.Text = "التشغيل عند بدء تشغيل النظام";
                 restartItem.Text = "إعادة تشغيل الخادم";
                 showConsoleItem.Text = "عرض مخرجات وحدة التحكم";
-                openLogFolderItem.Text = "فتح مجلد السجلات";
                 exitItem.Text = "خروج";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
@@ -930,7 +916,6 @@ namespace HaYTooLTray
                 bootItem.Text = "Запускать при старте системы";
                 restartItem.Text = "Перезапустить сервер";
                 showConsoleItem.Text = "Показать вывод консоли";
-                openLogFolderItem.Text = "Открыть папку с логами";
                 exitItem.Text = "Выход";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
@@ -948,10 +933,54 @@ namespace HaYTooLTray
                 bootItem.Text = "Sistem Başlangıcında Çalıştır";
                 restartItem.Text = "Yeniden Başlat";
                 showConsoleItem.Text = "Konsol Çıktısını Göster";
-                openLogFolderItem.Text = "Log Klasörünü Aç";
                 exitItem.Text = "Çıkış";
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
+        }
+
+        private bool portWarningShown = false;
+        // Türkçe Açıklama: Port doluluğunda (EADDRINUSE) seçili dile göre MessageBox uyarısı gösterir.
+        private void ShowPortInUseWarning(int port)
+        {
+            if (portWarningShown) return;
+            portWarningShown = true;
+
+            string lang = GetLanguageSetting();
+            string title = "Hata";
+            string msg = "Port " + port + " başka bir uygulama veya süreç tarafından kullanılıyor!\nLütfen arka plandaki diğer sunucu süreçlerini kapatın veya configwin.ini dosyasından 'port' ayarını değiştirin.";
+
+            if (lang == "en")
+            {
+                title = "Error";
+                msg = "Port " + port + " is already in use by another application or process!\nPlease close other background server processes or change the 'port' setting in configwin.ini.";
+            }
+            else if (lang == "es")
+            {
+                title = "Error";
+                msg = "¡El puerto " + port + " ya está siendo utilizado por otra aplicación o proceso!\nCierre otros procesos del servidor en segundo plano o cambie el puerto en configwin.ini.";
+            }
+            else if (lang == "de")
+            {
+                title = "Fehler";
+                msg = "Port " + port + " wird bereits von einer anderen Anwendung oder einem anderen Prozess verwendet!\nBitte schließen Sie andere Hintergrundserver-Prozesse oder ändern Sie den Port in configwin.ini.";
+            }
+            else if (lang == "pt")
+            {
+                title = "Erro";
+                msg = "A porta " + port + " já está em uso por outro aplicativo ou processo!\nFeche outros processos do servidor em segundo plano ou altere a porta no configwin.ini.";
+            }
+            else if (lang == "ar")
+            {
+                title = "خطأ";
+                msg = "المنفذ " + port + " مستخدم بالفعل بواسطة تطبيق أو عملية أخرى!\nيرجى إغلاق عمليات الخادم الخلفية الأخرى أو تغيير المنفذ في configwin.ini.";
+            }
+            else if (lang == "ru")
+            {
+                title = "Ошибка";
+                msg = "Порт " + port + " уже используется другим приложением или процессом!\nПожалуйста, закройте другие фоновые процессы сервера или измените настройку 'port' в configwin.ini.";
+            }
+
+            MessageBox.Show(msg, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         // Türkçe Açıklama: configwin.ini dosyasından güncel arayüz dil seçimini okur.
