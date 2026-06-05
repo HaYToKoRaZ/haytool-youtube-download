@@ -1322,8 +1322,8 @@ function applyLanguage(lang) {
   elQuery('#confirm-delete-btn', 'modal_delete_btn');
   elQuery('#cancel-delete-btn', 'modal_cancel_btn');
   
-  if (window.currentPlayingVideoId) {
-    const activeVideo = window.localDb?.history?.find(h => h.id === window.currentPlayingVideoId);
+  if (currentPlayingVideoId) {
+    const activeVideo = localDb?.history?.find(h => h.id === currentPlayingVideoId);
     if (activeVideo && activeVideo.title) {
       const titleEl = document.getElementById('player-modal-title');
       if (titleEl) titleEl.textContent = activeVideo.title;
