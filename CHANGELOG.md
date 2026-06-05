@@ -4,6 +4,13 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 
 ---
 
+## [4.17.0] - 2026-06-05
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **SponsorBlock Oynatıcı Entegrasyonu / SponsorBlock Player Integration:** Ayarlar sekmesine yeni eklenen "SponsorBlock (Oynatıcı)" seçeneği sayesinde, yerel video dosyalarına dokunulmadan gömülü oynatıcıda (Plyr, ArtPlayer, HTML5) izleme esnasında sponsorlu ve reklam kısımları otomatik atlatılır. / Integrated SponsorBlock natively into the web player modal. A toggle button in the Settings menu lets you automatically skip sponsored segments and self-promotions in real-time for Plyr, ArtPlayer, and HTML5 players, without modifying the underlying downloaded files.
+- **ArtPlayer Sponsor İşaretçileri / ArtPlayer Highlight Marks:** ArtPlayer seçili olduğunda atlatılacak sponsorlu kısımlar video ilerleme çubuğu (timeline) üzerinde görsel olarak işaretlenir. / When using ArtPlayer, skip segments are visually marked on the progress timeline.
+- **Oynatıcı Sponsor Durum Çubuğu / Player Sponsor Status Bar:** Oynatıcı modalının başlığı altında, videodaki aktif sponsor segmentlerini ve atlanacak alanların sayısını gösteren küçük bir durum çubuğu eklendi. / Added a subtle status bar under the player title to display detected sponsor segments and skipping states.
+
 ## [4.16.0] - 2026-06-05
 
 ### Yeni Özellikler & İyileştirmeler / New Features & Improvements

@@ -261,7 +261,8 @@ const defaultDb = {
     mergeType: 'single',
     writeThumbnail: false,
     playSounds: true,
-    shortsDurationLimit: 180
+    shortsDurationLimit: 180,
+    sponsorBlockEnabled: false
   }
 };
 
@@ -832,6 +833,11 @@ function syncWithIni(db) {
       if (autoOpenBrowser !== undefined) {
         db.settings.autoOpenBrowser = autoOpenBrowser !== 'false';
       }
+
+      const sponsorBlockEnabled = getCaseInsensitiveKey(settingsSection, 'sponsorBlockEnabled');
+      if (sponsorBlockEnabled !== undefined) {
+        db.settings.sponsorBlockEnabled = sponsorBlockEnabled === 'true';
+      }
     }
   }
 
@@ -954,6 +960,7 @@ function saveSettingsToIni(db) {
   iniData.Settings.isPaused = (db.settings.isPaused === true).toString();
   iniData.Settings.showNotifications = (db.settings.showNotifications !== false).toString();
   iniData.Settings.autoOpenBrowser = (db.settings.autoOpenBrowser !== false).toString();
+  iniData.Settings.sponsorBlockEnabled = (db.settings.sponsorBlockEnabled === true).toString();
 
   writeIni(configIniPath, iniData);
 }
@@ -3522,6 +3529,9 @@ app.post('/api/settings', (req, res) => {
   }
   if (req.body.useAlternativeSpeed !== undefined) {
     req.body.useAlternativeSpeed = req.body.useAlternativeSpeed === true || req.body.useAlternativeSpeed === 'true';
+  }
+  if (req.body.sponsorBlockEnabled !== undefined) {
+    req.body.sponsorBlockEnabled = req.body.sponsorBlockEnabled === true || req.body.sponsorBlockEnabled === 'true';
   }
 
   db.settings = { ...db.settings, ...req.body };

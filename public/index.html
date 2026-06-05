@@ -501,6 +501,17 @@
                     </div>
                   </div>
                   
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-sponsorblock" id="label-sponsorblock">SponsorBlock (Oynatıcı)</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-sponsorblock" class="toggle-input">
+                        <label for="settings-sponsorblock" class="toggle-label"></label>
+                        <span id="desc-sponsorblock">Sponsorlu alanları otomatik atla</span>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
                   <div class="form-group" style="margin-bottom: 5px;">
                     <label id="label-data-management" style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">Veri ve Yedek Yönetimi</label>
@@ -731,9 +742,12 @@
   <div id="player-modal" class="modal hidden">
     <div class="modal-content card player-modal-content">
       <div class="modal-header" style="padding: 12px 16px; margin-bottom: 0; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 15px;">
-        <div style="display: flex; align-items: center; gap: 10px; max-width: 85%; overflow: hidden;">
-          <img id="player-modal-logo" src="" alt="" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); display: none;">
-          <h3 id="player-modal-title" style="margin: 0; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; font-size: 1.15rem; font-weight: 700;">Gömülü Video Oynatıcı</h3>
+        <div style="display: flex; flex-direction: column; max-width: 85%; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img id="player-modal-logo" src="" alt="" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); display: none;">
+            <h3 id="player-modal-title" style="margin: 0; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; font-size: 1.15rem; font-weight: 700;">Gömülü Video Oynatıcı</h3>
+          </div>
+          <span id="player-sponsorblock-status" style="font-size: 0.72rem; color: #ff0055; margin-left: 34px; margin-top: 2px; font-weight: 600; display: none;"></span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
           <button class="modal-close-btn" id="minimize-player-modal-btn" onclick="togglePlayerMinimize()" title="Küçült" style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;">

@@ -91,6 +91,8 @@ const translations = {
     opt_player_plyr: 'Plyr Player (Modern & Özelleştirilmiş)',
     opt_player_artplayer: 'ArtPlayer (Gelişmiş & Şık Oynatıcı)',
     opt_player_html5: 'Standart HTML5 Player (Hızlı & Sade)',
+    label_sponsorblock: 'SponsorBlock (Oynatıcı)',
+    desc_sponsorblock: 'Video oynatılırken sponsorlu veya tanıtım alanlarını otomatik atla.',
     cookie_warning_title: 'Önemli Çerez Kilidi Uyarısı:',
     cookie_warning_desc: 'İndirme işlemleri başlamadan önce seçtiğiniz tarayıcıyı (Chrome, Edge vb.) tamamen kapattığınızdan emin olun. Aksi takdirde tarayıcı çerez dosyasını (SQLite) kilitleyeceğinden indirmeler hata verecektir.',
     btn_save_settings: 'Ayarları Kaydet',
@@ -258,6 +260,8 @@ const translations = {
     opt_player_plyr: 'Plyr Player (Modern & Customized)',
     opt_player_artplayer: 'ArtPlayer (Advanced & Sleek Player)',
     opt_player_html5: 'Standard HTML5 Player (Fast & Simple)',
+    label_sponsorblock: 'SponsorBlock (Player)',
+    desc_sponsorblock: 'Automatically skip sponsored segments or self-promotions during playback.',
     cookie_warning_title: 'Important Cookie Lock Warning:',
     cookie_warning_desc: 'Please make sure to completely CLOSE your selected browser (Chrome, Edge, etc.) before downloading. Otherwise, the browser locks the cookie database (SQLite) and causes download errors.',
     btn_save_settings: 'Save Settings',
@@ -425,6 +429,8 @@ const translations = {
     opt_player_plyr: 'Reproductor Plyr',
     opt_player_artplayer: 'Reproductor ArtPlayer',
     opt_player_html5: 'Reproductor HTML5 Estándar',
+    label_sponsorblock: 'SponsorBlock (Reproductor)',
+    desc_sponsorblock: 'Omitir automáticamente los segmentos patrocinados durante la reproducción.',
     cookie_warning_title: 'Advertencia Importante de Cookies:',
     cookie_warning_desc: 'Cierre completamente el navegador seleccionado antes de descargar.',
     btn_save_settings: 'Guardar Ajustes',
@@ -592,6 +598,8 @@ const translations = {
     opt_player_plyr: 'Plyr-Player',
     opt_player_artplayer: 'ArtPlayer-Player',
     opt_player_html5: 'Standard HTML5-Player',
+    label_sponsorblock: 'SponsorBlock (Player)',
+    desc_sponsorblock: 'Sponsorierte Segmente oder Eigenwerbung während der Wiedergabe automatisch überspringen.',
     cookie_warning_title: 'Wichtiger Cookie-Warnhinweis:',
     cookie_warning_desc: 'Schließen Sie den ausgewählten Browser vor dem Herunterladen vollständig.',
     btn_save_settings: 'Einstellungen Speichern',
@@ -759,6 +767,8 @@ const translations = {
     opt_player_plyr: 'Reprodutor Plyr',
     opt_player_artplayer: 'Reprodutor ArtPlayer',
     opt_player_html5: 'Reprodutor HTML5 Padrão',
+    label_sponsorblock: 'SponsorBlock (Reprodutor)',
+    desc_sponsorblock: 'Pular automaticamente segmentos patrocinados ou de auto-promoção durante a reprodução.',
     cookie_warning_title: 'Aviso Importante sobre Cookies:',
     cookie_warning_desc: 'Feche completamente o navegador selecionado antes de baixar.',
     btn_save_settings: 'Salvar Configurações',
@@ -926,6 +936,8 @@ const translations = {
     opt_player_plyr: 'مشغل Plyr',
     opt_player_artplayer: 'مشغل ArtPlayer',
     opt_player_html5: 'مشغل HTML5 القياسي',
+    label_sponsorblock: 'SponsorBlock (المشغل)',
+    desc_sponsorblock: 'تخطي المقاطع الإعلانية أو الترويجية تلقائيًا أثناء التشغيل.',
     cookie_warning_title: 'تحذير هام بشأن قفل ملفات تعريف الارتباط:',
     cookie_warning_desc: 'يرجى إغلاق المتصفح المختار تمامًا قبل التنزيل لتجنب أخطاء قفل قاعدة البيانات.',
     btn_save_settings: 'حفظ الإعدادات',
@@ -1093,6 +1105,8 @@ const translations = {
     opt_player_plyr: 'Плеер Plyr (Модернизированный)',
     opt_player_artplayer: 'ArtPlayer (Продвинутый и стильный)',
     opt_player_html5: 'Стандартный HTML5 плеер (Быстрый)',
+    label_sponsorblock: 'SponsorBlock (Плеер)',
+    desc_sponsorblock: 'Автоматически пропускать спонсорские сегменты и самопиар во время воспроизведения.',
     cookie_warning_title: 'Важное предупреждение о блокировке куки:',
     cookie_warning_desc: 'Пожалуйста, убедитесь, что полностью ЗАКРЫЛИ выбранный браузер (Chrome, Edge и др.) перед загрузкой. В противном случае браузер блокирует базу данных куки (SQLite), что приводит к ошибкам загрузки.',
     btn_save_settings: 'Сохранить настройки',
@@ -1312,6 +1326,9 @@ function applyLanguage(lang) {
   el('opt-player-html5', 'opt_player_html5');
   el('cookie-warning-title', 'cookie_warning_title');
   el('cookie-warning-desc', 'cookie_warning_desc');
+
+  el('label-sponsorblock', 'label_sponsorblock');
+  elQuery('label[for="settings-sponsorblock"] + span', 'desc_sponsorblock');
 
   elQuery('.form-actions button span', 'btn_save_settings');
 
@@ -2440,6 +2457,9 @@ function updateUI(db) {
     const settingsPlayerType = document.getElementById('settings-player-type');
     if (settingsPlayerType && document.activeElement !== settingsPlayerType) settingsPlayerType.value = db.settings.playerType || 'plyr';
 
+    const settingsSponsorBlock = document.getElementById('settings-sponsorblock');
+    if (settingsSponsorBlock && document.activeElement !== settingsSponsorBlock) settingsSponsorBlock.checked = db.settings.sponsorBlockEnabled === true;
+
     // Kuyruk duraklatma butonu görünümü ve ikonu
     const pauseBtn = document.getElementById('queue-pause-btn');
     if (pauseBtn) {
@@ -2800,6 +2820,7 @@ async function performAutoSave() {
     alternativeSpeedLimit: parseInt(document.getElementById('settings-altspeedlimit').value, 10) || 500,
      port: port,
     playerType: document.getElementById('settings-player-type').value,
+    sponsorBlockEnabled: document.getElementById('settings-sponsorblock').checked,
     playSounds: document.getElementById('settings-playsounds').checked,
     showNotifications: document.getElementById('settings-shownotifications').checked,
     autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
@@ -3256,6 +3277,92 @@ window.togglePlayerMinimize = function() {
   lucide.createIcons();
 };
 
+let currentVideoSponsorSegments = [];
+let lastSkippedSegmentStart = -1;
+
+async function fetchSponsorSegments(videoId) {
+  currentVideoSponsorSegments = [];
+  lastSkippedSegmentStart = -1;
+  
+  if (!localDb.settings || localDb.settings.sponsorBlockEnabled !== true) {
+    return;
+  }
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 1500);
+
+  try {
+    const categories = '["sponsor","selfpromo","interaction","intro","outro","preview"]';
+    const url = `https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${encodeURIComponent(categories)}`;
+    
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        currentVideoSponsorSegments = data.map(item => ({
+          start: item.segment[0],
+          end: item.segment[1],
+          category: item.category
+        }));
+        console.log(`[SponsorBlock] Found ${currentVideoSponsorSegments.length} segments:`, currentVideoSponsorSegments);
+      }
+    }
+  } catch (err) {
+    clearTimeout(timeoutId);
+    console.warn('[SponsorBlock] Failed to fetch segments or request timed out:', err);
+  }
+}
+
+function updateSponsorBlockStatusUI() {
+  const statusEl = document.getElementById('player-sponsorblock-status');
+  if (!statusEl) return;
+  
+  if (localDb.settings && localDb.settings.sponsorBlockEnabled === true && currentVideoSponsorSegments && currentVideoSponsorSegments.length > 0) {
+    const isEn = localDb.settings.lang === 'en';
+    statusEl.innerHTML = `<i data-lucide="shield-alert" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>${
+      isEn 
+        ? `SponsorBlock active: ${currentVideoSponsorSegments.length} segment(s) will be skipped.` 
+        : `SponsorBlock aktif: ${currentVideoSponsorSegments.length} sponsorlu alan otomatik atlanacak.`
+    }`;
+    statusEl.style.display = 'block';
+    lucide.createIcons();
+  } else {
+    statusEl.style.display = 'none';
+  }
+}
+
+function checkAndSkipSponsor(currentTime, videoElementOrPlayer) {
+  if (!currentVideoSponsorSegments || currentVideoSponsorSegments.length === 0) return;
+  if (!localDb.settings || localDb.settings.sponsorBlockEnabled !== true) return;
+
+  let insideAnySegment = false;
+  for (const seg of currentVideoSponsorSegments) {
+    if (currentTime >= seg.start && currentTime < (seg.end - 0.1)) {
+      insideAnySegment = true;
+      if (lastSkippedSegmentStart !== seg.start) {
+        lastSkippedSegmentStart = seg.start;
+        console.log(`[SponsorBlock] Skipping segment from ${seg.start} to ${seg.end}`);
+        showToast(
+          currentLang === 'en' 
+            ? `Skipped sponsor section (${Math.round(seg.start)}s - ${Math.round(seg.end)}s)` 
+            : `Sponsor alanı otomatik atlandı (${Math.round(seg.start)}. sn - ${Math.round(seg.end)}. sn)`, 
+          'info'
+        );
+        videoElementOrPlayer.currentTime = seg.end;
+      } else {
+        videoElementOrPlayer.currentTime = seg.end;
+      }
+      break;
+    }
+  }
+  
+  if (!insideAnySegment) {
+    lastSkippedSegmentStart = -1;
+  }
+}
+
 // Türkçe Açıklama: İndirilen videoyu arayüz içerisindeki gömülü video oynatıcı (Plyr) modalında açarak yürütür.
 /**
  * Videoyu gömülü tarayıcı oynatıcısında (Plyr) açar.
@@ -3263,7 +3370,7 @@ window.togglePlayerMinimize = function() {
  * 
  * @param {string} videoId Oynatılacak video ID'si
  */
-window.playVideoEmbedded = function(videoId) {
+window.playVideoEmbedded = async function(videoId) {
   const modal = document.getElementById('player-modal');
   const titleEl = document.getElementById('player-modal-title');
   if (modal) {
@@ -3271,6 +3378,10 @@ window.playVideoEmbedded = function(videoId) {
     let videoTitle = video ? video.title : '';
     let videoChannelId = video ? video.channelId : '';
     let videoDuration = video ? video.duration : '';
+    
+    // Fetch SponsorBlock segments
+    await fetchSponsorSegments(videoId);
+    updateSponsorBlockStatusUI();
     
     // DOM Fallback
     if (!videoTitle) {
@@ -3369,6 +3480,14 @@ window.playVideoEmbedded = function(videoId) {
       }
 
       if (playerType === 'artplayer' && typeof Artplayer !== 'undefined') {
+        let artHighlight = [];
+        if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
+          artHighlight = currentVideoSponsorSegments.map(seg => ({
+            time: seg.start,
+            text: localDb.settings.lang === 'en' ? `Sponsor Block (${seg.category})` : `Sponsor Alanı (${seg.category})`
+          }));
+        }
+
         videoPlayerInstance = new Artplayer({
           container: '#embedded-artplayer',
           url: streamUrl,
@@ -3383,6 +3502,7 @@ window.playVideoEmbedded = function(videoId) {
           fullscreen: true,
           mutex: true,
           theme: '#ff0055',
+          highlight: artHighlight,
         });
 
         // Volume wheel control on ArtPlayer
@@ -3406,6 +3526,11 @@ window.playVideoEmbedded = function(videoId) {
             rawVideo.addEventListener('timeupdate', () => {
               if (!currentPlayingVideoId) return;
               const currentTime = rawVideo.currentTime;
+
+              if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
+                checkAndSkipSponsor(currentTime, rawVideo);
+              }
+
               const duration = rawVideo.duration || 0;
               if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
                 const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
@@ -3463,6 +3588,11 @@ window.playVideoEmbedded = function(videoId) {
             videoPlayerInstance.on('timeupdate', () => {
               if (!currentPlayingVideoId) return;
               const currentTime = videoPlayerInstance.currentTime;
+
+              if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
+                checkAndSkipSponsor(currentTime, videoPlayerInstance);
+              }
+
               const duration = videoPlayerInstance.duration || 0;
               if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
                 const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
@@ -3510,6 +3640,11 @@ window.playVideoEmbedded = function(videoId) {
             player.addEventListener('timeupdate', () => {
               if (!currentPlayingVideoId) return;
               const currentTime = player.currentTime;
+
+              if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
+                checkAndSkipSponsor(currentTime, player);
+              }
+
               const duration = player.duration || 0;
               if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
                 const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
