@@ -1927,7 +1927,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
       `;
     }
 
-    if (item.status !== 'downloading') {
+    if (item.status === 'completed') {
       actionsHtml += `
         <button class="btn-icon video-action-delete" onclick="showDeleteModal('${item.id}')" title="${isEn ? 'Delete from History/Disk' : 'Geçmişten/Diskten Sil'}">
           <i data-lucide="trash-2"></i>
