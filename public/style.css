@@ -2307,4 +2307,157 @@ body.light-theme .nav-item.pd-btn {
   flex-wrap: wrap;
 }
 
+/* ==========================================
+   Plyr Player Customizations (Mor/Purple)
+   ========================================== */
+:root {
+  --plyr-color-main: var(--primary);
+}
+
+/* ==========================================
+   Kompakt Ayarlar Tasarımı / Compact Settings
+   ========================================== */
+.card-settings {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.settings-layout-compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+  transition: all var(--transition-speed) ease;
+}
+
+.settings-section-title {
+  margin-bottom: 12px;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.settings-card .form-group {
+  margin-bottom: 12px;
+}
+
+.settings-card .form-group label {
+  font-size: 0.82rem;
+  margin-bottom: 4px;
+}
+
+.settings-card select,
+.settings-card input[type="text"],
+.settings-card input[type="number"],
+.settings-card .custom-select-trigger {
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  border-radius: 8px;
+  height: 38px;
+}
+
+.settings-card .custom-select-trigger i {
+  width: 14px;
+  height: 14px;
+}
+
+.settings-card .form-text {
+  font-size: 0.72rem;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+.settings-card .form-grid {
+  gap: 12px;
+}
+
+.settings-card .toggle-container {
+  margin-top: 4px;
+  gap: 10px;
+}
+
+.settings-card .toggle-container span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.settings-card .toggle-label {
+  width: 40px;
+  height: 20px;
+  border-radius: 10px;
+}
+
+.settings-card .toggle-label::after {
+  width: 14px;
+  height: 14px;
+  top: 2px;
+  left: 2px;
+}
+
+.settings-card .toggle-input:checked + .toggle-label::after {
+  transform: translateX(20px);
+}
+
+.settings-card .cookie-warning-box {
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 0.76rem;
+  gap: 8px;
+}
+
+.settings-card .cookie-warning-box i {
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+}
+
+.settings-card .cli-info-box {
+  margin: 10px 0;
+  padding: 8px 12px;
+}
+
+.settings-card .cli-info-box p {
+  font-size: 0.72rem !important;
+  line-height: 1.35;
+}
+
+.settings-card hr {
+  margin: 12px 0 !important;
+}
+
+.settings-layout-compact .feedback-btn {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 1024px) {
+  .settings-layout-compact {
+    grid-template-columns: 1fr;
+  }
+}
+
+
 

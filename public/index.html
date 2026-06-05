@@ -372,18 +372,20 @@
 
         <div class="card card-settings">
           <form id="settings-form">
-            <div class="settings-layout">
-              <!-- Ayarlar İçerikleri -->
-              <div class="settings-main" style="width: 100%;">
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
-                  <a href="mailto:korazhayto@gmail.com?subject=HaYTool%20Youtube%20Download%20Geri%20Bildirimi" class="feedback-btn" style="margin: 0;">
-                    <i data-lucide="mail"></i>
-                    <span>Geri Bildirim Gönder</span>
-                  </a>
-                </div>
-                <!-- Alt Sekme 1: Genel -->
-                <div class="settings-subtab-content active" id="subtab-general">
-                  <h3 style="margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i data-lucide="settings"></i> Genel Ayarlar</h3>
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+              <a href="mailto:korazhayto@gmail.com?subject=HaYTool%20Youtube%20Download%20Geri%20Bildirimi" class="feedback-btn" style="margin: 0;">
+                <i data-lucide="mail"></i>
+                <span>Geri Bildirim Gönder</span>
+              </a>
+            </div>
+            
+            <div class="settings-layout-compact">
+              <!-- Sütun 1 -->
+              <div class="settings-column">
+                
+                <!-- Genel Ayarlar Kartı -->
+                <div class="settings-card" id="subtab-general">
+                  <h3 class="settings-section-title"><i data-lucide="settings"></i> Genel Ayarlar</h3>
                   <div class="form-group">
                     <label for="settings-download-path" id="label-download-path">İndirme Klasörü Konumu</label>
                     <div class="input-action-row">
@@ -464,7 +466,7 @@
                       <div class="toggle-container" style="margin-top: 12px;">
                         <input type="checkbox" id="settings-autoopenbrowser" class="toggle-input" checked>
                         <label for="settings-autoopenbrowser" class="toggle-label"></label>
-                        <span id="desc-auto-open-browser">Uygulama başladığında tarayıcıda localhost sayfasını otomatik aç</span>
+                        <span id="desc-auto-open-browser">Tarayıcıda localhost sayfasını otomatik aç</span>
                       </div>
                     </div>
                   </div>
@@ -480,37 +482,86 @@
                       <small id="desc-settings-player-type" class="form-text">Gömülü video oynatıcı arayüz tipini seçin.</small>
                     </div>
                     <div class="form-group">
-                      <label id="label-history-limit" for="settings-history-limit">Kanal Başına Geçmiş Videosu Sınırı</label>
-                      <input type="number" id="settings-history-limit" min="1" max="10000" required style="width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff;">
-                      <small id="desc-history-limit" class="form-text">Kütüphanede kanal başına listelenecek maksimum video limiti (Arayüz performansını artırır).</small>
+                      <label id="label-history-limit" for="settings-history-limit">Geçmiş Videosu Sınırı</label>
+                      <input type="number" id="settings-history-limit" min="1" max="10000" required style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
+                      <small id="desc-history-limit" class="form-text">Kütüphanede kanal başına listelenecek maksimum video limiti.</small>
                     </div>
                   </div>
                   
                   <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
                   <div class="form-group" style="margin-bottom: 5px;">
-                    <label id="label-data-management" style="font-weight: 700; font-size: 1rem; color: var(--text-main);">Veri ve Yedek Yönetimi</label>
-                    <small id="desc-data-management" class="form-text" style="margin-bottom: 15px;">Takip ettiğiniz kanalların listesini yedekleyebilir veya yedeğinizi geri yükleyebilirsiniz.</small>
-                    <div class="input-action-row" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; align-items: center;">
-                      <button type="button" onclick="exportChannels()" class="btn btn-secondary" id="btn-export-backup" style="background: rgba(138, 43, 226, 0.1); border-color: rgba(138, 43, 226, 0.3); color: var(--accent-primary); height: 36px; display: flex; align-items: center; gap: 6px;">
-                        <i data-lucide="download" style="width:16px;height:16px;"></i>
+                    <label id="label-data-management" style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">Veri ve Yedek Yönetimi</label>
+                    <small id="desc-data-management" class="form-text" style="margin-bottom: 10px;">Takip ettiğiniz kanalların listesini yedekleyebilir veya yedeğinizi geri yükleyebilirsiniz.</small>
+                    <div class="input-action-row" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center;">
+                      <button type="button" onclick="exportChannels()" class="btn btn-secondary" id="btn-export-backup" style="background: rgba(138, 43, 226, 0.1); border-color: rgba(138, 43, 226, 0.3); color: var(--accent-primary); height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 10px;">
+                        <i data-lucide="download" style="width:14px;height:14px;"></i>
                         <span id="btn-export-text">Yedeği Dışarı Aktar</span>
                       </button>
-                      <button type="button" onclick="triggerImportFile()" class="btn btn-secondary" id="btn-import-backup" style="background: rgba(40, 180, 99, 0.1); border-color: rgba(40, 180, 99, 0.3); color: #28b463; height: 36px; display: flex; align-items: center; gap: 6px;">
-                        <i data-lucide="upload" style="width:16px;height:16px;"></i>
+                      <button type="button" onclick="triggerImportFile()" class="btn btn-secondary" id="btn-import-backup" style="background: rgba(40, 180, 99, 0.1); border-color: rgba(40, 180, 99, 0.3); color: #28b463; height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 10px;">
+                        <i data-lucide="upload" style="width:14px;height:14px;"></i>
                         <span id="btn-import-text">Yedeği İçeri Aktar</span>
                       </button>
-                      <select id="import-mode" style="max-width: 250px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.85rem; height: 36px;">
-                        <option value="append" id="opt-import-append">Üzerine Ekle (Append)</option>
-                        <option value="overwrite" id="opt-import-overwrite">Tamamen Üzerine Yaz (Overwrite)</option>
+                      <select id="import-mode" style="max-width: 180px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 32px;">
+                        <option value="append" id="opt-import-append">Üzerine Ekle</option>
+                        <option value="overwrite" id="opt-import-overwrite">Tamamen Üzerine Yaz</option>
                       </select>
                       <input type="file" id="import-file-input" onchange="importChannels(event)" accept=".json" style="display: none;">
                     </div>
                   </div>
                 </div>
 
-                <!-- Alt Sekme 2: İndirme ve Kalite -->
-                <div class="settings-subtab-content" id="subtab-download">
-                  <h3 style="margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i data-lucide="download-cloud"></i> İndirme ve Kalite</h3>
+                <!-- Otomasyon & RSS Kartı -->
+                <div class="settings-card" id="subtab-automation">
+                  <h3 class="settings-section-title"><i data-lucide="cpu"></i> Otomasyon & RSS</h3>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-autodownload" id="label-auto-download">Otomatik İndirme</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-autodownload" class="toggle-input">
+                        <label for="settings-autodownload" class="toggle-label"></label>
+                        <span id="desc-auto-download">Yeni videoları otomatik indir</span>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-channelcheckinterval" id="label-interval">Kanal Kontrol Sıklığı (Saniye)</label>
+                      <input type="number" id="settings-channelcheckinterval" min="5" max="3600" required>
+                      <small class="form-text" id="desc-channel-check-interval">Kanalları denetleme sıklığı süresi.</small>
+                    </div>
+                  </div>
+
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-rsslimit" id="label-rss-limit">RSS Denetleme Limiti (Video)</label>
+                      <input type="number" id="settings-rsslimit" min="1" max="15" required>
+                      <small class="form-text" id="desc-rss-limit">RSS akışındaki en yeni kaç video kontrol edilsin?</small>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-autodelete" id="label-auto-delete">Videoları Otomatik Sil (Gün)</label>
+                      <input type="number" id="settings-autodelete" min="0" max="365" required>
+                      <small class="form-text" id="desc-auto-delete">Kaç gün sonra silinsin? (Kapatmak için 0 yazın)</small>
+                    </div>
+                  </div>
+
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-showshorts" id="label-show-shorts">Shorts Videoları</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-showshorts" class="toggle-input">
+                        <label for="settings-showshorts" class="toggle-label"></label>
+                        <span id="desc-show-shorts">Geçmiş video listesinde Shorts göster</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+              
+              <!-- Sütun 2 -->
+              <div class="settings-column">
+                
+                <!-- İndirme ve Kalite Kartı -->
+                <div class="settings-card" id="subtab-download">
+                  <h3 class="settings-section-title"><i data-lucide="download-cloud"></i> İndirme ve Kalite</h3>
                   <div class="form-grid">
                     <div class="form-group">
                       <label for="settings-quality" id="label-quality">Varsayılan İndirme Kalitesi</label>
@@ -519,16 +570,16 @@
                         <option value="1080p" id="opt-quality-1080p">Maksimum 1080p Full HD</option>
                         <option value="720p" id="opt-quality-720p">Maksimum 720p HD</option>
                       </select>
-                      <small class="form-text" id="desc-quality">Kanala özel ayar yapılmadığında bu varsayılan kalite kullanılacaktır.</small>
+                      <small class="form-text" id="desc-quality">Varsayılan genel indirme kalitesi seçimi.</small>
                     </div>
                     <div class="form-group">
                       <label for="settings-mergetype" id="label-merge-type">İndirme Yöntemi (FFmpeg / Dosya Yapısı)</label>
                       <select id="settings-mergetype">
-                        <option value="single" id="opt-merge-single" selected>Tek Hazır Dosya (En Fazla 720p - Sistemi Düşük Olanlar İçin, ffmpeg gerektirmez)</option>
-                        <option value="merge" id="opt-merge-merge">Otomatik Birleştir (En İyi Kalite 1080p+ - Sistemi İyi Olanlar İçin, ffmpeg gerektirir)</option>
+                        <option value="single" id="opt-merge-single" selected>Tek Hazır Dosya (En Fazla 720p - ffmpeg gerektirmez)</option>
+                        <option value="merge" id="opt-merge-merge">Otomatik Birleştir (En İyi Kalite 1080p+ - ffmpeg gerektirir)</option>
                         <option value="separate" id="opt-merge-separate">Ses ve Videoyu Ayrı İndir (ffmpeg gerektirmez)</option>
                       </select>
-                      <small class="form-text" id="desc-merge-type">Yüksek çözünürlükleri (1080p, 2K, 4K) tek dosya olarak kaydetmek için FFmpeg gereklidir. FFmpeg yoksa indirmeler otomatik olarak en fazla 720p olarak tek dosya indirilir.</small>
+                      <small class="form-text" id="desc-merge-type">Çözünürlük birleşimi için FFmpeg gereklidir. FFmpeg yoksa en fazla 720p indirilir.</small>
                       <div class="settings-ffmpeg-row">
                         <span style="font-size: 0.8rem; color: var(--text-muted);">Sistem FFmpeg Durumu:</span>
                         <span id="settings-ffmpeg-status" class="ffmpeg-status-indicator not-installed">Kontrol ediliyor...</span>
@@ -541,29 +592,26 @@
                     <div class="form-group">
                       <label for="settings-speedlimit" id="label-settings-speed-limit">Maksimum İndirme Hızı (KB/s)</label>
                       <input type="number" id="settings-speedlimit" min="0" max="100000" required>
-                      <small class="form-text" id="desc-speed-limit">Bant genişliğini sınırlamak için değer girin (Sınırsız için 0 yazın).</small>
+                      <small class="form-text" id="desc-speed-limit">İndirme hızı sınırı (Sınırsız için 0 yazın).</small>
                     </div>
                     <div class="form-group">
                       <label for="settings-altspeedlimit" id="label-settings-alt-speed-limit">Alternatif İndirme Hızı (KB/s) <i data-lucide="turtle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-left:4px;"></i></label>
                       <input type="number" id="settings-altspeedlimit" min="0" max="100000" required>
-                      <small class="form-text" id="desc-alt-speed-limit">Alternatif hız profili aktifken kullanılacak limit (varsayılan 500).</small>
+                      <small class="form-text" id="desc-alt-speed-limit">Alternatif hız profili aktifken kullanılacak limit.</small>
                     </div>
                   </div>
 
-                  <div class="cli-info-box" style="margin: 15px 0; padding: 12px; background: rgba(56, 189, 248, 0.08); border: 1px dashed rgba(56, 189, 248, 0.3); border-radius: 8px;">
-                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px; color: var(--accent-color); font-weight:bold; font-size:0.85rem;">
-                      <i data-lucide="terminal" style="width:16px; height:16px;"></i>
-                      <span id="cli-info-title">CLI ve Konsol Hız Komutları</span>
+                  <div class="cli-info-box" style="margin: 10px 0; padding: 10px; background: rgba(56, 189, 248, 0.06); border: 1px dashed rgba(56, 189, 248, 0.25); border-radius: 8px;">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; color: var(--accent-color); font-weight:bold; font-size:0.8rem;">
+                      <i data-lucide="terminal" style="width:14px; height:14px;"></i>
+                      <span id="cli-info-title">Konsol Hız Komutları</span>
                     </div>
-                    <p style="font-size:0.75rem; color:var(--text-muted); margin:0; line-height:1.45;" id="cli-info-desc">
-                      Hız sınırlarını konsoldan veya terminal/CLI üzerinden kontrol edebilirsiniz (Windows'ta <code>HaYTooL YT Downloader.exe &lt;komut&gt;</code> veya <code>haytool &lt;komut&gt;</code> kullanabilirsiniz):<br>
-                      • <b>Hız Sınırını Ayarlama:</b> <code>HaYTooL YT Downloader.exe speed &lt;değer&gt;</code> (örn: <code>HaYTooL YT Downloader.exe speed 2500</code>)<br>
-                      • <b>Hız Sınırını Açma/Kapatma:</b> <code>HaYTooL YT Downloader.exe speed off</code> (kapatır) / <code>HaYTooL YT Downloader.exe speed on</code> (son değere açar)<br>
-                      • <b>Alternatif Sınırı Belirleme:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;değer&gt;</code> (örn: <code>HaYTooL YT Downloader.exe altspeed 500</code>)<br>
-                      • <b>Alternatif Sınırı Kesin Aç/Kapat (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleac</code> (açar) / <code>HaYTooL YT Downloader.exe turtleoff / turtlekapat</code> (kapatır)<br>
-                      • <b>Alternatif Sınır Profil Geçişi (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code> veya <code>HaYTooL YT Downloader.exe altspeed toggle</code><br>
-                      • <b>Durum Sorgulama:</b> <code>HaYTooL YT Downloader.exe status</code> (limit durumunu yazdırır)<br>
-                      <small style="color: var(--accent-color); opacity: 0.8; font-weight: bold;" id="cli-info-note">(Tray "Konsol Çıktısını Göster" penceresinde 'HaYTooL YT Downloader.exe' veya 'node' yazmadan doğrudan komutu girin: 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' vb.)</small>
+                    <p style="font-size:0.7rem; color:var(--text-muted); margin:0; line-height:1.4;" id="cli-info-desc">
+                      Hız limitini konsoldan veya terminal/CLI üzerinden kontrol edebilirsiniz:<br>
+                      • <b>Hız Ayarı:</b> <code>speed &lt;değer&gt;</code> (kapatmak için <code>speed off</code>)<br>
+                      • <b>Turtle Mod (Alt Hız):</b> <code>turtleon</code> / <code>turtleoff</code><br>
+                      • <b>Hız Değiştir (Toggle):</b> <code>toggle</code> veya <code>altspeed toggle</code><br>
+                      • <b>Durum Sorgulama:</b> <code>status</code>
                     </p>
                   </div>
 
@@ -573,59 +621,15 @@
                       <div class="toggle-container" style="margin-top: 12px;">
                         <input type="checkbox" id="settings-writethumbnail" class="toggle-input">
                         <label for="settings-writethumbnail" class="toggle-label"></label>
-                        <span id="desc-write-thumbnail">Videoların kapak resimlerini (thumbnail) yanına indir</span>
+                        <span id="desc-write-thumbnail">Video kapak resmini yanına indir</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Alt Sekme 3: Otomasyon & RSS -->
-                <div class="settings-subtab-content" id="subtab-automation">
-                  <h3 style="margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i data-lucide="cpu"></i> Otomasyon & RSS</h3>
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-autodownload" id="label-auto-download">Otomatik İndirme</label>
-                      <div class="toggle-container" style="margin-top: 12px;">
-                        <input type="checkbox" id="settings-autodownload" class="toggle-input">
-                        <label for="settings-autodownload" class="toggle-label"></label>
-                        <span id="desc-auto-download">Yeni videolar algılandığında hemen indirmeyi başlat</span>
-                      </div>
-                    </div>
-                    <div class="form-group">
-                      <label for="settings-channelcheckinterval" id="label-interval">Kanal Kontrol Sıklığı (Saniye)</label>
-                      <input type="number" id="settings-channelcheckinterval" min="5" max="3600" required>
-                      <small class="form-text" id="desc-channel-check-interval">Sıradaki kanalı denetlemek için beklenecek süre.</small>
-                    </div>
-                  </div>
-
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-rsslimit" id="label-rss-limit">RSS Denetleme Limiti (Video)</label>
-                      <input type="number" id="settings-rsslimit" min="1" max="15" required>
-                      <small class="form-text" id="desc-rss-limit">Kanal başına RSS akışındaki en yeni kaç video kontrol edilsin?</small>
-                    </div>
-                    <div class="form-group">
-                      <label for="settings-autodelete" id="label-auto-delete">Videoları Otomatik Sil (Gün)</label>
-                      <input type="number" id="settings-autodelete" min="0" max="365" required>
-                      <small class="form-text" id="desc-auto-delete">Kaç gün sonra otomatik silinsin? (Kapatmak için 0 yazın)</small>
-                    </div>
-                  </div>
-
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-showshorts" id="label-show-shorts">Shorts Videoları</label>
-                      <div class="toggle-container" style="margin-top: 12px;">
-                        <input type="checkbox" id="settings-showshorts" class="toggle-input">
-                        <label for="settings-showshorts" class="toggle-label"></label>
-                        <span id="desc-show-shorts">Geçmiş video listesinde Shorts videolarını göster</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Alt Sekme 4: Çerez & Bildirim -->
-                <div class="settings-subtab-content" id="subtab-notifications">
-                  <h3 style="margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i data-lucide="bell"></i> Çerez & Bildirim</h3>
+                <!-- Çerez & Bildirim Kartı -->
+                <div class="settings-card" id="subtab-notifications">
+                  <h3 class="settings-section-title"><i data-lucide="bell"></i> Çerez & Bildirim</h3>
                   <div class="form-group">
                     <label for="settings-browser" id="label-browser">Premium Çerez Tarayıcısı</label>
                     <select id="settings-browser">
@@ -636,12 +640,12 @@
                       <option value="brave">Brave</option>
                       <option value="opera">Opera</option>
                     </select>
-                    <small class="form-text" id="desc-browser">YouTube Premium hesabınızın açık olduğu tarayıcıyı seçin. Bu sayede Premium yüksek indirme hızı ve yüksek kalite kullanılabilir.</small>
+                    <small class="form-text" id="desc-browser">Premium hızı ve yüksek kalite için YouTube Premium hesabının açık olduğu tarayıcıyı seçin.</small>
                     <div class="cookie-warning-box">
                       <i data-lucide="alert-triangle"></i>
                       <div>
-                        <strong id="cookie-warning-title">Önemli Çerez Kilidi Uyarısı:</strong>
-                        <span id="cookie-warning-desc">İndirme işlemleri başlamadan önce seçtiğiniz tarayıcıyı (Chrome, Edge vb.) tamamen kapattığınızdan emin olun. Aksi takdirde tarayıcı çerez dosyasını (SQLite) kilitleyeceğinden indirmeler hata verecektir.</span>
+                        <strong id="cookie-warning-title">Çerez Kilidi Uyarısı:</strong>
+                        <span id="cookie-warning-desc">İndirme başlamadan önce seçilen tarayıcıyı tamamen kapattığınızdan emin olun. Aksi takdirde SQLite çerez dosyası kilitli kalacağı için indirme hata verecektir.</span>
                       </div>
                     </div>
                   </div>
@@ -652,7 +656,7 @@
                       <div class="toggle-container" style="margin-top: 12px;">
                         <input type="checkbox" id="settings-playsounds" class="toggle-input" checked>
                         <label for="settings-playsounds" class="toggle-label"></label>
-                        <span id="desc-play-sounds">Video indirme durumlarında (başlama, başarı, hata) sesli uyarı çal</span>
+                        <span id="desc-play-sounds">İndirme durumlarında sesli uyarı çal</span>
                       </div>
                     </div>
                     <div class="form-group">
@@ -660,24 +664,25 @@
                       <div class="toggle-container" style="margin-top: 12px;">
                         <input type="checkbox" id="settings-shownotifications" class="toggle-input" checked>
                         <label for="settings-shownotifications" class="toggle-label"></label>
-                        <span id="desc-show-notifications">İndirme başlama ve bitişlerinde Windows bildirimleri göster</span>
+                        <span id="desc-show-notifications">Masaüstü Windows bildirimleri göster</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Tüm sekmeler için ortak kaydetme alanı -->
-                <div class="form-actions" style="justify-content: flex-end; align-items: center; gap: 10px;">
-                  <span id="settings-status" style="font-size: 0.9rem; color: var(--accent-color); display: flex; align-items: center; gap: 5px; opacity: 0.8;">
-                    <i data-lucide="check-circle" style="width:16px; height:16px;"></i>
-                    <span id="settings-status-text">Değişiklikler anında otomatik kaydedilir.</span>
-                  </span>
-                  <button type="submit" class="btn btn-primary btn-lg" style="display: none;">
-                    <i data-lucide="save"></i>
-                    <span>Ayarları Kaydet</span>
-                  </button>
-                </div>
               </div>
+            </div>
+
+            <!-- Tüm sekmeler için ortak kaydetme alanı -->
+            <div class="form-actions" style="justify-content: flex-end; align-items: center; gap: 10px; margin-top: 15px;">
+              <span id="settings-status" style="font-size: 0.85rem; color: var(--accent-color); display: flex; align-items: center; gap: 5px; opacity: 0.8;">
+                <i data-lucide="check-circle" style="width:14px; height:14px;"></i>
+                <span id="settings-status-text">Değişiklikler anında otomatik kaydedilir.</span>
+              </span>
+              <button type="submit" class="btn btn-primary btn-lg" style="display: none;">
+                <i data-lucide="save"></i>
+                <span>Ayarları Kaydet</span>
+              </button>
             </div>
           </form>
         </div>

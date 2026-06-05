@@ -1058,11 +1058,13 @@ function syncDbWithDisk() {
 
     let dbUpdated = false;
     if (db.history && db.history.length > 0) {
+      const initialLength = db.history.length;
+      const newHistory = [];
+      
       for (const item of db.history) {
         if (item.status === 'completed') {
           let exists = item.filePath && fs.existsSync(item.filePath);
           if (!exists) {
-            // Klasörde video ID'sini içeren dosyayı dinamik bulmayı dene
             const foundPath = findVideoFileInDownloadDir(item.id, db.settings.downloadPath || defaultDownloadDir);
             if (foundPath) {
               item.filePath = foundPath;
@@ -1092,11 +1094,20 @@ function syncDbWithDisk() {
             } catch (err) {
               console.error(`Size read errorı: ${item.title}`, err.message);
             }
+            newHistory.push(item);
           } else {
-            if (!item.fileMissing) {
-              item.fileMissing = true;
+            // File does NOT exist on disk!
+            const isTracked = db.channels && db.channels.some(c => c.id === item.channelId);
+            if (isTracked) {
+              if (!item.fileMissing) {
+                item.fileMissing = true;
+                dbUpdated = true;
+                console.log(`[Disk Sync] Video dosyası diskte not foundı: ${item.title}`);
+              }
+              newHistory.push(item);
+            } else {
               dbUpdated = true;
-              console.log(`[Disk Sync] Video dosyası diskte not foundı: ${item.title}`);
+              console.log(`[Disk Sync] Untracked video file missing from disk, removing from history: ${item.title}`);
             }
           }
         } else if (item.status === 'ignored' || item.status === 'failed') {
@@ -1122,7 +1133,15 @@ function syncDbWithDisk() {
               console.error(`Size read errorı: ${item.title}`, err.message);
             }
           }
+          newHistory.push(item);
+        } else {
+          newHistory.push(item);
         }
+      }
+      
+      if (newHistory.length !== initialLength) {
+        db.history = newHistory;
+        dbUpdated = true;
       }
     }
 
@@ -3579,59 +3598,81 @@ async function downloadFfmpegAsync() {
     ffmpegDownloadState.progress = 90;
     broadcast('ffmpeg_download', ffmpegDownloadState);
     
+    // ZIP Dosya boyutlarını kontrol et (Bozuk indirmeleri yakala)
+    const checkZipSize = (filePath) => {
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`Downloaded file not found: ${filePath}`);
+      }
+      const stats = fs.statSync(filePath);
+      if (stats.size < 1024 * 1024) {
+        throw new Error(`Downloaded file is corrupt or too small (${stats.size} bytes): ${filePath}`);
+      }
+    };
+    checkZipSize(ffmpegZip);
+    checkZipSize(ffprobeZip);
+    
     console.log('[FFmpeg] Extracting zip files...');
     
     const extractHelper = (zipPath, destDir) => {
       return new Promise((resolve, reject) => {
-        // Tar ile çıkartmayı dene (Hızlı, güvenli, özel karakter sorunu yaşamaz)
-        const tar = spawn('tar', ['-xf', zipPath, '-C', destDir]);
+        let completed = false;
+        let fallbackTriggered = false;
         
-        tar.on('close', (code) => {
-          if (code === 0) {
-            resolve();
-          } else {
-            // Tar başarısız olursa sisteme göre yedek mekanizmayı çalıştır
-            if (platform === 'win32') {
-              const ps = spawn('powershell', [
-                '-NoProfile',
-                '-NonInteractive',
-                '-Command',
-                `Expand-Archive -LiteralPath "${zipPath}" -DestinationPath "${destDir}" -Force`
-              ]);
-              ps.on('close', (psCode) => {
-                if (psCode === 0) resolve();
-                else reject(new Error(`Powershell extraction failed with code ${psCode}`));
-              });
-            } else {
-              const uz = spawn('unzip', ['-o', zipPath, '-d', destDir]);
-              uz.on('close', (uzCode) => {
-                if (uzCode === 0) resolve();
-                else reject(new Error(`Unzip failed with code ${uzCode}`));
-              });
-            }
-          }
-        });
-        
-        tar.on('error', (err) => {
-          // Tar komutu sistemde bulunamazsa doğrudan yedek mekanizmaya geç
+        const triggerFallback = (reasonErr) => {
+          if (fallbackTriggered || completed) return;
+          fallbackTriggered = true;
+          console.log(`[FFmpeg] Tar extraction not available or failed for ${path.basename(zipPath)}. Running fallback. Reason: ${reasonErr.message}`);
+          
           if (platform === 'win32') {
             const ps = spawn('powershell', [
               '-NoProfile',
               '-NonInteractive',
               '-Command',
-              `Expand-Archive -LiteralPath "${zipPath}" -DestinationPath "${destDir}" -Force`
+              `$ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath "${zipPath}" -DestinationPath "${destDir}" -Force`
             ]);
             ps.on('close', (psCode) => {
+              if (completed) return;
+              completed = true;
               if (psCode === 0) resolve();
-              else reject(new Error(`Powershell fallback failed: ${err.message}`));
+              else reject(new Error(`Powershell fallback extraction failed with code ${psCode}`));
+            });
+            ps.on('error', (psErr) => {
+              if (completed) return;
+              completed = true;
+              reject(new Error(`Powershell execution failed: ${psErr.message}`));
             });
           } else {
             const uz = spawn('unzip', ['-o', zipPath, '-d', destDir]);
             uz.on('close', (uzCode) => {
+              if (completed) return;
+              completed = true;
               if (uzCode === 0) resolve();
-              else reject(new Error(`Unzip fallback failed: ${err.message}`));
+              else reject(new Error(`Unzip fallback failed with code ${uzCode}`));
+            });
+            uz.on('error', (uzErr) => {
+              if (completed) return;
+              completed = true;
+              reject(new Error(`Unzip execution failed: ${uzErr.message}`));
             });
           }
+        };
+        
+        // Tar ile çıkartmayı dene
+        const tar = spawn('tar', ['-xf', zipPath, '-C', destDir]);
+        
+        tar.on('close', (code) => {
+          if (completed || fallbackTriggered) return;
+          if (code === 0) {
+            completed = true;
+            resolve();
+          } else {
+            triggerFallback(new Error(`tar exited with code ${code}`));
+          }
+        });
+        
+        tar.on('error', (err) => {
+          if (completed || fallbackTriggered) return;
+          triggerFallback(err);
         });
       });
     };
@@ -5120,6 +5161,17 @@ function cleanOldLogs() {
 
 // Türkçe Açıklama: Standart giriş (stdin) üzerinden gelen komutları dinler ve işler.
 process.stdin.setEncoding('utf8');
+
+// Standart giriş kapandığında veya bittiğinde backend sürecini sonlandır (Tray kapatıldığında çalışır)
+process.stdin.on('close', () => {
+  console.log('[SYSTEM] Standart giriş kapandı (stdin close). Backend sonlandırılıyor...');
+  process.exit(0);
+});
+process.stdin.on('end', () => {
+  console.log('[SYSTEM] Standart giriş sona erdi (stdin end). Backend sonlandırılıyor...');
+  process.exit(0);
+});
+
 process.stdin.on('data', (data) => {
   const line = data.toString().trim();
   if (!line) return;
