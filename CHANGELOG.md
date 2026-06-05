@@ -4,6 +4,13 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 
 ---
 
+## [4.16.0] - 2026-06-05
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **Veritabanı RAM Önbelleklemesi / Database RAM Caching:** `db.json`, `configwin.ini` ve `channels.ini` dosyalarının son değişiklik tarihleri (`mtimeMs`) denetlenerek, disk üzerinde değişiklik olmadığında verinin doğrudan RAM önbelleğinden dönülmesi sağlandı. Disk I/O ve JSON ayrıştırma işlem yükü büyük oranda azaltıldı. / Implemented an in-memory cache for the database. The server now checks the modification time of the database and INI files, bypassing disk reads and parsing if they haven't changed.
+- **Log Dosyası Rotasyonu / Log Rotation:** Aktif log dosyası boyutu `10MB` limitini aştığında, dosya otomatik olarak `.log.bak` şeklinde yedeklenip yeni bir temiz log dosyasına geçilerek disk doluluğu kontrol altına alındı. / Added automatic log file rotation. When the current log file size exceeds 10MB, it is backed up to `.log.bak` and a fresh log file is created.
+- **Yerel Ağ Güvenlik Sınırlandırması / Localhost Network Binding:** Express sunucusunun ağ dinleme arabirimi `127.0.0.1` (localhost) olarak sınırlandırıldı. Dış ağlardan gelebilecek yetkisiz indirme paneli erişimleri engellendi. / Bound the Express server listener exclusively to `127.0.0.1` (localhost) to prevent unauthorized remote access to the downloader dashboard from the local network.
+
 ## [4.15.0] - 2026-06-05
 
 ### Yeni Özellikler & İyileştirmeler / New Features & Improvements

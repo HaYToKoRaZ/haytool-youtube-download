@@ -54,6 +54,22 @@ const logFilePath = path.join(logsDir, logFileName);
 function writeToLogFile(line) {
   try {
     const cleanLine = line.replace(/\x1b\[[0-9;]*m/g, '');
+
+    // Log dosyası boyut denetimi (Max 10MB)
+    if (fs.existsSync(logFilePath)) {
+      try {
+        const stats = fs.statSync(logFilePath);
+        if (stats.size > 10 * 1024 * 1024) {
+          const backupPath = logFilePath + '.bak';
+          if (fs.existsSync(backupPath)) {
+            try { fs.unlinkSync(backupPath); } catch (e) {}
+          }
+          fs.renameSync(logFilePath, backupPath);
+          originalLog(`[Log Rotation] Log file size exceeded 10MB. Backed up to: ${backupPath}`);
+        }
+      } catch (e) {}
+    }
+
     fs.appendFileSync(logFilePath, cleanLine + '\n', 'utf-8');
   } catch (err) {
     originalError('Log dosyasına yazılırken hata oluştu:', err);
@@ -970,6 +986,11 @@ function saveChannelsToIni(db) {
   writeIni(channelsIniPath, iniData);
 }
 
+let cachedDb = null;
+let lastDbJsonMtime = 0;
+let lastConfigIniMtime = 0;
+let lastChannelsIniMtime = 0;
+
 /**
  * Veritabanını (db.json) dosyadan okur, eksik alanları varsayılanlarla doldurur,
  * INI dosyalarıyla eşitler ve diskte silinmiş dosyaları kontrol eder.
@@ -978,6 +999,29 @@ function saveChannelsToIni(db) {
  */
 function readDb() {
   try {
+    let dbJsonMtime = 0;
+    if (fs.existsSync(dbPath)) {
+      dbJsonMtime = fs.statSync(dbPath).mtimeMs;
+    }
+    
+    let configIniMtime = 0;
+    if (fs.existsSync(configIniPath)) {
+      configIniMtime = fs.statSync(configIniPath).mtimeMs;
+    }
+    
+    let channelsIniMtime = 0;
+    if (fs.existsSync(channelsIniPath)) {
+      channelsIniMtime = fs.statSync(channelsIniPath).mtimeMs;
+    }
+
+    // Disk üzerindeki dosyalar değişmediyse, doğrudan RAM önbelleğindeki veriyi dön
+    if (cachedDb && 
+        dbJsonMtime === lastDbJsonMtime && 
+        configIniMtime === lastConfigIniMtime && 
+        channelsIniMtime === lastChannelsIniMtime) {
+      return cachedDb;
+    }
+
     let db = defaultDb;
     if (fs.existsSync(dbPath)) {
       const data = fs.readFileSync(dbPath, 'utf8');
@@ -1005,6 +1049,7 @@ function readDb() {
       }
     } else {
       fs.writeFileSync(dbPath, JSON.stringify(defaultDb, null, 2), 'utf8');
+      dbJsonMtime = fs.statSync(dbPath).mtimeMs;
     }
     
     // config.ini ve channels.ini dosyasından eşitleme yap
@@ -1029,6 +1074,16 @@ function readDb() {
       db.settings.cookieDefaultMigrationDone = true;
       writeDb(db);
       saveSettingsToIni(db);
+    }
+
+    // RAM Önbelleği güncelle
+    cachedDb = db;
+    lastDbJsonMtime = dbJsonMtime;
+    if (fs.existsSync(configIniPath)) {
+      lastConfigIniMtime = fs.statSync(configIniPath).mtimeMs;
+    }
+    if (fs.existsSync(channelsIniPath)) {
+      lastChannelsIniMtime = fs.statSync(channelsIniPath).mtimeMs;
     }
     
     return db;
@@ -1203,6 +1258,18 @@ function writeDb(data) {
     fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
     saveSettingsToIni(data); // configwin.ini / configunix.ini dosyasına yaz
     saveChannelsToIni(data); // channels.ini dosyasına yaz
+
+    // RAM Önbelleği ve mtime zamanlarını güncelle
+    cachedDb = data;
+    if (fs.existsSync(dbPath)) {
+      lastDbJsonMtime = fs.statSync(dbPath).mtimeMs;
+    }
+    if (fs.existsSync(configIniPath)) {
+      lastConfigIniMtime = fs.statSync(configIniPath).mtimeMs;
+    }
+    if (fs.existsSync(channelsIniPath)) {
+      lastChannelsIniMtime = fs.statSync(channelsIniPath).mtimeMs;
+    }
   } catch (err) {
     console.error('Veritabanı yazma hatası:', err);
   }
@@ -5008,7 +5075,7 @@ app.get(['/home', '/download', '/downlist', '/channels', '/settings'], (req, res
 
 // Sunucu Başlatıldığında (Sadece CLI modu dışında)
 if (process.argv.length <= 2) {
-  const server = app.listen(PORT, async () => {
+  const server = app.listen(PORT, '127.0.0.1', async () => {
     cleanOldLogs(); // 7 günden eski logları temizle
 
     const db = readDb();
