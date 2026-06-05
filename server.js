@@ -1039,6 +1039,41 @@ function readDb() {
 }
 
 /**
+ * Belirtilen klasörü tarayarak video dosyalarının ID'lerine göre bir eşleme (Map) döndürür.
+ * Bu sayede her video için ayrı ayrı diski aramak yerine tek seferde tüm dosyaları indekslemiş oluruz.
+ */
+function buildVideoFilesMap(downloadPath) {
+  const map = new Map();
+  try {
+    if (!fs.existsSync(downloadPath)) return map;
+    
+    function scanDir(dir) {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name.startsWith('.')) continue; // Gizli klasörleri atla
+          scanDir(fullPath);
+        } else {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl'].includes(ext)) {
+            const bracketMatch = entry.name.match(/\[([a-zA-Z0-9_-]{11})\]/);
+            if (bracketMatch) {
+              const videoId = bracketMatch[1];
+              map.set(videoId, fullPath);
+            }
+          }
+        }
+      }
+    }
+    scanDir(downloadPath);
+  } catch (e) {
+    console.error(`[Disk Sync] Klasör taranırken hata oluştu: ${downloadPath}`, e.message);
+  }
+  return map;
+}
+
+/**
  * Disk üzerindeki dosyaları veritabanıyla senkronize eder (dosya varlığı, boyutu ve otomatik onarım).
  * Bu işlem yoğun disk I/O ve klasör tarama gerektirdiğinden arka plan görevine dönüştürülmüştür.
  */
@@ -1061,11 +1096,14 @@ function syncDbWithDisk() {
       const initialLength = db.history.length;
       const newHistory = [];
       
+      const downloadPath = db.settings.downloadPath || defaultDownloadDir;
+      const filesMap = buildVideoFilesMap(downloadPath);
+
       for (const item of db.history) {
         if (item.status === 'completed') {
           let exists = item.filePath && fs.existsSync(item.filePath);
           if (!exists) {
-            const foundPath = findVideoFileInDownloadDir(item.id, db.settings.downloadPath || defaultDownloadDir);
+            const foundPath = filesMap.get(item.id) || null;
             if (foundPath) {
               item.filePath = foundPath;
               exists = true;
@@ -1111,7 +1149,7 @@ function syncDbWithDisk() {
             }
           }
         } else if (item.status === 'ignored' || item.status === 'failed') {
-          const foundPath = findVideoFileInDownloadDir(item.id, db.settings.downloadPath || defaultDownloadDir);
+          const foundPath = filesMap.get(item.id) || null;
           if (foundPath) {
             item.status = 'completed';
             item.filePath = foundPath;
