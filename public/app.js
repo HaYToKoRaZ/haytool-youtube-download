@@ -1321,7 +1321,18 @@ function applyLanguage(lang) {
   elQuery('#delete-file-checkbox + label + span', 'modal_delete_file_checkbox');
   elQuery('#confirm-delete-btn', 'modal_delete_btn');
   elQuery('#cancel-delete-btn', 'modal_cancel_btn');
-  elQuery('#player-modal-title', 'modal_player_title');
+  
+  if (window.currentPlayingVideoId) {
+    const activeVideo = window.localDb?.history?.find(h => h.id === window.currentPlayingVideoId);
+    if (activeVideo && activeVideo.title) {
+      const titleEl = document.getElementById('player-modal-title');
+      if (titleEl) titleEl.textContent = activeVideo.title;
+    } else {
+      elQuery('#player-modal-title', 'modal_player_title');
+    }
+  } else {
+    elQuery('#player-modal-title', 'modal_player_title');
+  }
 
   // Üst bar badges çevirileri
   el('topbar-cookie-title', 'topbar_cookie_title');

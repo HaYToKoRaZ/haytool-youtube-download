@@ -1427,6 +1427,11 @@ body.light-theme .sort-btn.active {
   box-shadow: 0 4px 12px var(--primary-glow);
 }
 
+.history-toolbar .history-quick-filters {
+  margin-bottom: 0;
+  padding: 0;
+}
+
 /* History Grid & Cards */
 .history-grid {
   display: grid;

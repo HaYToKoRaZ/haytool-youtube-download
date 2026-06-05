@@ -7,12 +7,13 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 ## [4.15.0] - 2026-06-05
 
 ### Yeni Özellikler & İyileştirmeler / New Features & Improvements
-- **Kütüphane Hızlı Tarih Filtreleri / Library Quick Date Filters:** Kütüphane sekmesinde tarih bazlı hızlı süzme sağlayan "Bugün", "Dün", "Son 2/3/4/5 Gün" butonları eklendi. Filtreler tüm dil paketlerinde (TR, EN, ES, DE, PT, AR, RU) dinamik çalışmaktadır. / Added quick-filter buttons to the Library tab to dynamically filter videos by Today, Yesterday, or the Last 2/3/4/5 Days.
+- **Kütüphane Hızlı Tarih Filtreleri / Library Quick Date Filters:** Kütüphane sekmesinde kanal filtreleri ve Shorts gösterimiyle aynı satırda yer alan hızlı süzme butonları ("Bugün", "Dün", "Son 2/3/4/5 Gün") eklendi. Filtreler tüm dil paketlerinde dinamik çalışmaktadır. / Added quick-filter buttons to the Library tab, aligned on the same row as the channel selector and shorts toggle, to dynamically filter videos by Today, Yesterday, or the Last 2/3/4/5 Days.
 - **Seçici Dosya Boyutu Gösterimi / Selective File Size Display:** İndirilmemiş videoların altında gösterilen "Boyut: -- MB" etiketi gizlenerek liste temizliği sağlandı. İndirilmiş (tamamlanmış) videolarda boyut gösterimi aynen devam etmektedir. / Hidden the "Size: -- MB" label under undownloaded videos to declutter the list, while keeping it active for completed downloads.
 - **Dinamik Kanal Logoları / Dynamic Channel Avatars:** Kütüphane ve İndirilenler sekmelerinde kanal isminin solundaki tv simgesi, dairesel ve renkli kanal profil avatar resmiyle değiştirildi. Logo bulunamadığında otomatik olarak tv simgesine geri dönen akıllı fallback mekanizması eklendi. / Replaced the tv icon next to channel names in video cards with circular, dynamic channel avatars served locally, falling back automatically to the TV icon if loading fails.
 
 ### Düzeltilen Hatalar / Fixed Bugs
 - **İndirilmemiş Videolarda Silme Butonunun Gizlenmesi / Hiding Trash Icon on Undownloaded Videos:** Kütüphane sekmesinde indirilmemiş (tamamlanmamış) videoların üzerinde yer alan gereksiz çöp kutusu (silme) butonu gizlendi. Silme butonu artık yalnızca indirilmiş/tamamlanmış videolar için gösterilmektedir. / Hidden the unnecessary trash can (delete) icon for undownloaded videos in the Library tab. The delete button is now only shown for completed downloads.
+- **Gömülü Oynatıcı Başlığının Korunması / Preserving Embedded Player Title:** Video oynatılırken filtreler arasında gezildiğinde veya dil güncellendiğinde, oynatıcı modalının başlığındaki video adının sıfırlanarak "Gömülü Video Oynatıcı" yazması engellendi. / Fixed a bug where switching library filters or updating language while a video is playing would reset the embedded player modal's title from the active video name back to generic "Embedded Video Player".
 
 
 ## [4.14.0] - 2026-06-05

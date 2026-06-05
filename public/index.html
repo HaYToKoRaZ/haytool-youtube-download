@@ -186,6 +186,19 @@
             <label for="history-show-shorts" class="toggle-label"></label>
             <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-show-shorts').click()">Shorts Videolarını Göster</span>
           </div>
+
+          <!-- Hızlı Tarih Filtreleri -->
+          <div class="filter-group history-quick-filters" id="history-date-filters" style="display: flex; gap: 8px; align-items: center; margin-left: 15px;">
+            <span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 4px;" id="lbl-quick-filter">Hızlı Filtre:</span>
+            <button class="btn-filter active" data-days="all" id="btn-filter-all">Tümü</button>
+            <button class="btn-filter" data-days="0" id="btn-filter-today">Bugün</button>
+            <button class="btn-filter" data-days="1" id="btn-filter-yesterday">Dün</button>
+            <button class="btn-filter" data-days="2" id="btn-filter-2days">Son 2 Gün</button>
+            <button class="btn-filter" data-days="3" id="btn-filter-3days">Son 3 Gün</button>
+            <button class="btn-filter" data-days="4" id="btn-filter-4days">Son 4 Gün</button>
+            <button class="btn-filter" data-days="5" id="btn-filter-5days">Son 5 Gün</button>
+          </div>
+
           <div class="filter-group" style="margin-left: auto;">
             <button class="btn btn-secondary" onclick="updateMetadata('library')" title="Videoların Süre ve Boyut Bilgilerini Güncelle" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8rem;">
               <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
@@ -202,18 +215,6 @@
               <span>Sade Liste</span>
             </button>
           </div>
-        </div>
-
-        <!-- Hızlı Tarih Filtreleri -->
-        <div class="history-quick-filters" id="history-date-filters">
-          <span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 4px;" id="lbl-quick-filter">Hızlı Filtre:</span>
-          <button class="btn-filter active" data-days="all" id="btn-filter-all">Tümü</button>
-          <button class="btn-filter" data-days="0" id="btn-filter-today">Bugün</button>
-          <button class="btn-filter" data-days="1" id="btn-filter-yesterday">Dün</button>
-          <button class="btn-filter" data-days="2" id="btn-filter-2days">Son 2 Gün</button>
-          <button class="btn-filter" data-days="3" id="btn-filter-3days">Son 3 Gün</button>
-          <button class="btn-filter" data-days="4" id="btn-filter-4days">Son 4 Gün</button>
-          <button class="btn-filter" data-days="5" id="btn-filter-5days">Son 5 Gün</button>
         </div>
 
         <div class="history-grid" id="history-grid">
