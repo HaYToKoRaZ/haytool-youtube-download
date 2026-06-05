@@ -3580,20 +3580,66 @@ async function downloadFfmpegAsync() {
     broadcast('ffmpeg_download', ffmpegDownloadState);
     
     console.log('[FFmpeg] Extracting zip files...');
-    if (platform === 'win32') {
-      await new Promise((resolve, reject) => {
-        exec(`powershell -Command "Expand-Archive -Path '${ffmpegZip}' -DestinationPath '${ffmpegDir}' -Force; Expand-Archive -Path '${ffprobeZip}' -DestinationPath '${ffmpegDir}' -Force"`, (err, stdout, stderr) => {
-          if (err) return reject(new Error('Powershell Expand-Archive failed: ' + stderr || err.message));
-          resolve();
+    
+    const extractHelper = (zipPath, destDir) => {
+      return new Promise((resolve, reject) => {
+        // Tar ile çıkartmayı dene (Hızlı, güvenli, özel karakter sorunu yaşamaz)
+        const tar = spawn('tar', ['-xf', zipPath, '-C', destDir]);
+        
+        tar.on('close', (code) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            // Tar başarısız olursa sisteme göre yedek mekanizmayı çalıştır
+            if (platform === 'win32') {
+              const ps = spawn('powershell', [
+                '-NoProfile',
+                '-NonInteractive',
+                '-Command',
+                `Expand-Archive -LiteralPath "${zipPath}" -DestinationPath "${destDir}" -Force`
+              ]);
+              ps.on('close', (psCode) => {
+                if (psCode === 0) resolve();
+                else reject(new Error(`Powershell extraction failed with code ${psCode}`));
+              });
+            } else {
+              const uz = spawn('unzip', ['-o', zipPath, '-d', destDir]);
+              uz.on('close', (uzCode) => {
+                if (uzCode === 0) resolve();
+                else reject(new Error(`Unzip failed with code ${uzCode}`));
+              });
+            }
+          }
+        });
+        
+        tar.on('error', (err) => {
+          // Tar komutu sistemde bulunamazsa doğrudan yedek mekanizmaya geç
+          if (platform === 'win32') {
+            const ps = spawn('powershell', [
+              '-NoProfile',
+              '-NonInteractive',
+              '-Command',
+              `Expand-Archive -LiteralPath "${zipPath}" -DestinationPath "${destDir}" -Force`
+            ]);
+            ps.on('close', (psCode) => {
+              if (psCode === 0) resolve();
+              else reject(new Error(`Powershell fallback failed: ${err.message}`));
+            });
+          } else {
+            const uz = spawn('unzip', ['-o', zipPath, '-d', destDir]);
+            uz.on('close', (uzCode) => {
+              if (uzCode === 0) resolve();
+              else reject(new Error(`Unzip fallback failed: ${err.message}`));
+            });
+          }
         });
       });
-    } else {
-      await new Promise((resolve, reject) => {
-        exec(`unzip -o "${ffmpegZip}" -d "${ffmpegDir}" && unzip -o "${ffprobeZip}" -d "${ffmpegDir}"`, (err, stdout, stderr) => {
-          if (err) return reject(new Error('Unzip command failed: ' + stderr || err.message));
-          resolve();
-        });
-      });
+    };
+    
+    await extractHelper(ffmpegZip, ffmpegDir);
+    await extractHelper(ffprobeZip, ffmpegDir);
+    
+    if (platform !== 'win32') {
       // Unix çalıştırma izinleri
       try {
         fs.chmodSync(path.join(ffmpegDir, 'ffmpeg'), 0o755);
