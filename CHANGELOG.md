@@ -4,6 +4,17 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 
 ---
 
+## [4.14.0] - 2026-06-05
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **Kompakt Ayarlar Tasarımı / Compact Settings Layout:** Ayarlar sayfası dikey ve yatay boşlukları, form kontrollerinin paddingleri daraltılarak 2 sütunlu şık ve kompakt bir grid düzenine kavuşturuldu. / Redesigned the settings page into a clean, compact 2-column grid layout, reducing padding, margins, and form control sizes to fit nicely on a single screen page.
+- **Kütüphane Filtrelemesi & Feed Temizliği / Library Filtering & Feed Cleanup:** Kütüphane geçmişinde ("Library" tab) sadece takip edilen kanalların videolarının gösterilmesi sağlandı. PD veya tekil link yapıştırma yoluyla indirilen takip dışı kanal videoları ise sadece "İndirilenler" (Downloaded) sekmesinde görünecek, böylece kütüphane geçmişinin şişmesi önlenecektir. / Filtered the Library feed to only display videos belonging to followed channels. Videos downloaded from untracked channels (via PD or direct links) are now displayed exclusively in the "Downloaded" tab to prevent Library feed bloat.
+- **Plyr Player Mor Tema Rengi / Purple Plyr Theme Color:** Gömülü video oynatıcı (Plyr) kontrollerindeki ses seviyesi ve video ilerleme durum çubuğu rengi, uygulamanın ana mor rengine (`var(--primary)`) uyarlandı. / Overrode the default blue color of the Plyr player progress and volume bars to match the app's primary purple theme color.
+
+### Düzeltilen Hatalar / Fixed Bugs
+- **FFmpeg Otomatik Kurulum Kararlılığı / FFmpeg Auto Extraction Stability:** FFmpeg arşivden çıkarma sürecinde `tar` komutunun hata ve kapatma olaylarının çakışarak Powershell fallback sürecini çift tetiklemesi giderildi. Powershell hata kısıtlamaları güçlendirildi ve indirilen ZIP dosyaları için asgari boyut denetimi eklendi. / Fixed multiple subprocess triggers and promise race conditions caused by overlapping `tar` error and close events during extraction. Enhanced PowerShell error-action boundary checks and implemented zip file size verification.
+- **Backend Exe Otomatik Kapatılması / Backend Process Auto-Termination:** Standart girdi (`stdin`) üzerinde `close` ve `end` olayları dinlenerek ana Tray uygulaması kapatıldığında `HaYTool-Backend.exe` sürecinin arkada yetim (orphaned) kalarak açık kalması önlendi. / Added stdin close and end listeners to automatically shut down the `HaYTool-Backend.exe` subprocess when the parent Tray wrapper application is closed.
+
 ## [4.13.3] - 2026-06-05
 
 ### Yeni Özellikler & İyileştirmeler / New Features & Improvements
