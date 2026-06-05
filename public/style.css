@@ -1391,6 +1391,42 @@ body.light-theme .sort-btn.active {
   height: 14px;
 }
 
+/* Quick Date Filters */
+.history-quick-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.btn-filter {
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: 20px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  font-family: var(--font-body);
+}
+
+.btn-filter:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.btn-filter.active {
+  background: linear-gradient(135deg, var(--primary), #b35dfc);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
 /* History Grid & Cards */
 .history-grid {
   display: grid;
@@ -1487,6 +1523,16 @@ body.light-theme .sort-btn.active {
 .video-card-channel {
   font-weight: 500;
   color: var(--text-main);
+}
+
+.video-card-channel-avatar {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 4px;
+  object-fit: cover;
+  display: inline-block;
 }
 
 .video-card-bottom {

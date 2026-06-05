@@ -4,6 +4,13 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 
 ---
 
+## [4.15.0] - 2026-06-05
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **Kütüphane Hızlı Tarih Filtreleri / Library Quick Date Filters:** Kütüphane sekmesinde tarih bazlı hızlı süzme sağlayan "Bugün", "Dün", "Son 2/3/4/5 Gün" butonları eklendi. Filtreler tüm dil paketlerinde (TR, EN, ES, DE, PT, AR, RU) dinamik çalışmaktadır. / Added quick-filter buttons to the Library tab to dynamically filter videos by Today, Yesterday, or the Last 2/3/4/5 Days.
+- **Seçici Dosya Boyutu Gösterimi / Selective File Size Display:** İndirilmemiş videoların altında gösterilen "Boyut: -- MB" etiketi gizlenerek liste temizliği sağlandı. İndirilmiş (tamamlanmış) videolarda boyut gösterimi aynen devam etmektedir. / Hidden the "Size: -- MB" label under undownloaded videos to declutter the list, while keeping it active for completed downloads.
+- **Dinamik Kanal Logoları / Dynamic Channel Avatars:** Kütüphane ve İndirilenler sekmelerinde kanal isminin solundaki tv simgesi, dairesel ve renkli kanal profil avatar resmiyle değiştirildi. Logo bulunamadığında otomatik olarak tv simgesine geri dönen akıllı fallback mekanizması eklendi. / Replaced the tv icon next to channel names in video cards with circular, dynamic channel avatars served locally, falling back automatically to the TV icon if loading fails.
+
 ## [4.14.0] - 2026-06-05
 
 ### Yeni Özellikler & İyileştirmeler / New Features & Improvements

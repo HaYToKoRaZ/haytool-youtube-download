@@ -170,7 +170,15 @@ const translations = {
     btn_export_backup: 'Yedeği Dışarı Aktar',
     btn_import_backup: 'Yedeği İçeri Aktar',
     opt_import_append: 'Üzerine Ekle (Append)',
-    opt_import_overwrite: 'Tamamen Üzerine Yaz (Overwrite)'
+    opt_import_overwrite: 'Tamamen Üzerine Yaz (Overwrite)',
+    lbl_quick_filter: 'Hızlı Filtre:',
+    filter_all: 'Tümü',
+    filter_today: 'Bugün',
+    filter_yesterday: 'Dün',
+    filter_last_2_days: 'Son 2 Gün',
+    filter_last_3_days: 'Son 3 Gün',
+    filter_last_4_days: 'Son 4 Gün',
+    filter_last_5_days: 'Son 5 Gün'
   },
   en: {
     premium_automation: 'Premium Automation',
@@ -329,7 +337,15 @@ const translations = {
     btn_export_backup: 'Export Backup',
     btn_import_backup: 'Import Backup',
     opt_import_append: 'Append to Existing (Append)',
-    opt_import_overwrite: 'Overwrite Completely (Overwrite)'
+    opt_import_overwrite: 'Overwrite Completely (Overwrite)',
+    lbl_quick_filter: 'Quick Filter:',
+    filter_all: 'All',
+    filter_today: 'Today',
+    filter_yesterday: 'Yesterday',
+    filter_last_2_days: 'Last 2 Days',
+    filter_last_3_days: 'Last 3 Days',
+    filter_last_4_days: 'Last 4 Days',
+    filter_last_5_days: 'Last 5 Days'
   },
   es: {
     premium_automation: 'Automatización Premium',
@@ -488,7 +504,15 @@ const translations = {
     btn_export_backup: 'Exportar Copia',
     btn_import_backup: 'Importar Copia',
     opt_import_append: 'Añadir a lo Existente (Append)',
-    opt_import_overwrite: 'Sobrescribir Completamente (Overwrite)'
+    opt_import_overwrite: 'Sobrescribir Completamente (Overwrite)',
+    lbl_quick_filter: 'Filtro Rápido:',
+    filter_all: 'Todos',
+    filter_today: 'Hoy',
+    filter_yesterday: 'Ayer',
+    filter_last_2_days: 'Últimos 2 Días',
+    filter_last_3_days: 'Últimos 3 Días',
+    filter_last_4_days: 'Últimos 4 Días',
+    filter_last_5_days: 'Últimos 5 Días'
   },
   de: {
     premium_automation: 'Premium Automatisierung',
@@ -647,7 +671,15 @@ const translations = {
     btn_export_backup: 'Backup Exportieren',
     btn_import_backup: 'Backup Importieren',
     opt_import_append: 'An Vorhandenes Anfügen (Append)',
-    opt_import_overwrite: 'Vollständig Überschreiben (Overwrite)'
+    opt_import_overwrite: 'Vollständig Überschreiben (Overwrite)',
+    lbl_quick_filter: 'Schnellfilter:',
+    filter_all: 'Alle',
+    filter_today: 'Heute',
+    filter_yesterday: 'Gestern',
+    filter_last_2_days: 'Letzte 2 Tage',
+    filter_last_3_days: 'Letzte 3 Tage',
+    filter_last_4_days: 'Letzte 4 Tage',
+    filter_last_5_days: 'Letzte 5 Tage'
   },
   pt: {
     premium_automation: 'Automatização Premium',
@@ -806,7 +838,15 @@ const translations = {
     btn_export_backup: 'Exportar Cópia',
     btn_import_backup: 'Importar Cópia',
     opt_import_append: 'Adicionar ao Existente (Append)',
-    opt_import_overwrite: 'Substituir Completamente (Overwrite)'
+    opt_import_overwrite: 'Substituir Completamente (Overwrite)',
+    lbl_quick_filter: 'Filtro Rápido:',
+    filter_all: 'Todos',
+    filter_today: 'Hoje',
+    filter_yesterday: 'Ontem',
+    filter_last_2_days: 'Últimos 2 Dias',
+    filter_last_3_days: 'Últimos 3 Dias',
+    filter_last_4_days: 'Últimos 4 Dias',
+    filter_last_5_days: 'Últimos 5 Dias'
   },
   ar: {
     premium_automation: 'التحكم التلقائي المميز',
@@ -965,7 +1005,15 @@ const translations = {
     btn_export_backup: 'تصدير النسخة الاحتياطية',
     btn_import_backup: 'استيراد النسخة الاحتياطية',
     opt_import_append: 'إضافة إلى الموجود (Append)',
-    opt_import_overwrite: 'الكتابة فوق الكل (Overwrite)'
+    opt_import_overwrite: 'الكتابة فوق الكل (Overwrite)',
+    lbl_quick_filter: 'تصفية سريعة:',
+    filter_all: 'الكل',
+    filter_today: 'اليوم',
+    filter_yesterday: 'أمس',
+    filter_last_2_days: 'آخر يومين',
+    filter_last_3_days: 'آخر 3 أيام',
+    filter_last_4_days: 'آخر 4 أيام',
+    filter_last_5_days: 'آخر 5 أيام'
   },
   ru: {
     premium_automation: 'Премиум Автоматизация',
@@ -1124,7 +1172,15 @@ const translations = {
     btn_export_backup: 'Экспорт бэкапа',
     btn_import_backup: 'Импорт бэкапа',
     opt_import_append: 'Добавить к существующим (Append)',
-    opt_import_overwrite: 'Перезаписать полностью (Overwrite)'
+    opt_import_overwrite: 'Перезаписать полностью (Overwrite)',
+    lbl_quick_filter: 'Быстрый фильтр:',
+    filter_all: 'Все',
+    filter_today: 'Сегодня',
+    filter_yesterday: 'Вчера',
+    filter_last_2_days: 'За последние 2 дня',
+    filter_last_3_days: 'За последние 3 дня',
+    filter_last_4_days: 'За последние 4 дня',
+    filter_last_5_days: 'За последние 5 дней'
   }
 };
 
@@ -1196,6 +1252,15 @@ function applyLanguage(lang) {
   elQuery('#open-folder-btn span', 'btn_open_downloads');
   elQuery('#tab-history > .card-title-bar h3', 'library_history_title');
   elQuery('label[for="history-show-shorts"] + span', 'show_shorts');
+
+  el('lbl-quick-filter', 'lbl_quick_filter');
+  el('btn-filter-all', 'filter_all');
+  el('btn-filter-today', 'filter_today');
+  el('btn-filter-yesterday', 'filter_yesterday');
+  el('btn-filter-2days', 'filter_last_2_days');
+  el('btn-filter-3days', 'filter_last_3_days');
+  el('btn-filter-4days', 'filter_last_4_days');
+  el('btn-filter-5days', 'filter_last_5_days');
   elQuery('#view-grid-btn span', 'view_grid');
   elQuery('#view-list-btn span', 'view_list');
 
@@ -1439,6 +1504,7 @@ const viewListBtn = document.getElementById('view-list-btn');
 
 let historyViewMode = 'grid'; // grid veya list
 let historyFilterChannel = 'all'; // all veya kanalId
+let historyFilterDays = 'all'; // all, 0, 1, 2, 3, 4, 5
 let downloadedViewMode = 'grid'; // grid veya list
 let downloadedFilterChannel = 'all'; // all veya kanalId
 
@@ -1894,9 +1960,15 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
           ${shortsTagHtml}
         </div>
         <div class="video-card-metadata">
-          <span class="video-card-channel"><i data-lucide="tv" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> ${escapeHtml(item.channelName)}</span>
+          <span class="video-card-channel">
+            ${item.channelId 
+              ? `<img src="/api/channels/${item.channelId}/avatar" class="video-card-channel-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />` 
+              : ''}
+            <i data-lucide="tv" style="width:12px;height:12px;${item.channelId ? 'display:none;' : 'display:inline-block;'}vertical-align:middle;margin-right:4px;"></i>
+            ${escapeHtml(item.channelName)}
+          </span>
           <span>${isEn ? 'Date' : 'Tarih'}: ${formatDate(item.publishedAt || item.downloadedAt)}</span>
-          <span>${isEn ? 'Size' : 'Boyut'}: ${item.fileSize || '-- MB'}</span>
+          ${item.status === 'completed' ? `<span>${isEn ? 'Size' : 'Boyut'}: ${item.fileSize || '-- MB'}</span>` : ''}
         </div>
         <div class="video-card-bottom">
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -2210,6 +2282,34 @@ function updateUI(db) {
     
     if (historyFilterChannel !== 'all') {
       filteredHistory = filteredHistory.filter(item => item.channelId === historyFilterChannel);
+    }
+    
+    if (historyFilterDays !== 'all') {
+      filteredHistory = filteredHistory.filter(item => {
+        const dateStr = item.publishedAt || item.downloadedAt;
+        if (!dateStr || dateStr === '-') return false;
+        try {
+          const pubDate = new Date(dateStr);
+          const now = new Date();
+          
+          const pubZero = new Date(pubDate.getFullYear(), pubDate.getMonth(), pubDate.getDate());
+          const nowZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          
+          const diffMs = nowZero - pubZero;
+          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          
+          if (historyFilterDays === '0') {
+            return diffDays <= 0;
+          } else if (historyFilterDays === '1') {
+            return diffDays === 1;
+          } else {
+            const maxDays = parseInt(historyFilterDays, 10);
+            return diffDays <= maxDays;
+          }
+        } catch (e) {
+          return false;
+        }
+      });
     }
     
     const showShorts = db.settings.showShorts !== false;
@@ -3586,6 +3686,16 @@ if (historyChannelFilter) {
     updateUI(localDb);
   });
 }
+
+// Hızlı Tarih Filtreleme Buton Dinleyicileri
+document.querySelectorAll('.btn-filter').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    historyFilterDays = btn.getAttribute('data-days');
+    updateUI(localDb);
+  });
+});
 
 if (downloadedViewGridBtn) {
   downloadedViewGridBtn.addEventListener('click', () => {
