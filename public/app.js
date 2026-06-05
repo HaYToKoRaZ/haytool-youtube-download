@@ -2204,7 +2204,10 @@ function updateUI(db) {
 
   // Geçmişi filtrele ve çiz
   if (historyGrid && db.history && db.settings) {
-    let filteredHistory = [...db.history];
+    // Sadece takip edilen kanalları Kütüphane listesinde göster (PD/elle eklenen takip dışı kanallar elenir)
+    const trackedChannelIds = new Set((db.channels || []).map(c => c.id));
+    let filteredHistory = db.history.filter(item => item.channelId && trackedChannelIds.has(item.channelId));
+    
     if (historyFilterChannel !== 'all') {
       filteredHistory = filteredHistory.filter(item => item.channelId === historyFilterChannel);
     }
