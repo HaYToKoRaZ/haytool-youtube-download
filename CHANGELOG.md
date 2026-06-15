@@ -4,6 +4,15 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 
 ---
 
+## [4.18.0] - 2026-06-15
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **Windows Job Objects Entegrasyonu / Windows Job Objects Integration:** C# tepsi uygulaması (`tray.cs`) ve backend sürecine Windows Job Objects eklendi. Bu sayede tray kapatıldığında, çöktüğünde veya sonlandırıldığında, arka plandaki tüm backend ve alt süreçler (yt-dlp, ffmpeg) Windows tarafından yetim kalmadan otomatik temizlenir. / Integrated Windows Job Objects into the tray wrapper (`tray.cs`) to ensure the Node backend and all child processes (yt-dlp, ffmpeg) are automatically terminated by Windows if the parent tray application exits, crashes, or is killed.
+- **YouTube Tarzı Bölünmüş Yerleşik Oynatıcı / YouTube-Style Split Inline Player:** İndirilenler sekmesinde video oynatılırken floating modal yerine, YouTube benzeri dikey iki sütunlu bir yerleşik oynatıcı düzeni devreye girer. Sol üstte aktif oynatıcı, sağında/altında indirilmiş diğer videoların çalma listesi sidebarı listelenir. / Implemented a YouTube-style split two-column layout for the Downloaded Videos tab. Clicking a downloaded video plays it in an inline player on the left, with other downloaded videos listed in a sidebar playlist on the right.
+- **Dinamik Çalma Listesi & Filtre Entegrasyonları / Dynamic Playlist & Sidebar Filters:** Oynatma listesi sidebar'ının üst kısmına Tarih ve Boyut bazlı sıralama, Kanal Filtreleme ve Shorts videolarını göster/gizle seçenekleri eklendi. Bu filtreler ana listedeki filtrelerle çift yönlü senkronize çalışmaktadır. / Added Sorting (date/size), Channel Filter, and Shorts visibility toggle controls directly on top of the playlist sidebar. These filters sync bi-directionally with the main downloaded list filter parameters.
+- **Klasör Aç Butonu ve Yerleşim İyileştirmeleri / Folder Button & Sizing Adjustments:** İndirilenler sekmesi üstündeki başlık ve açıklama metinleri kaldırılarak oynatıcının en üste sığması sağlandı. "İndirilenler Klasörünü Aç" butonu ise üst bar (topbar) içerisine ufak bir klasör simgesi olarak taşındı. Oynatıcının en-boy oranı 16:9 olarak sabitlenerek geniş ekranlardaki sağ-sol siyah barlar tamamen giderildi. / Removed downloaded tab headers to align player to the very top. Relocated the "Open Downloads Folder" button to the topbar as a clean icon-only button. Fixed player aspect ratio to strictly preserve 16:9 layout, preventing pillarbox/letterbox black bars on wider monitors.
+- **Yerleşik Oynatıcı Klavye Kısayolları / Keyboard Shortcuts for Inline Player:** Gömülü oynatıcı klavye kısayollarının (Space ile durdur/oynat, yön tuşlarıyla sarma vb.) yerleşik oynatıcıda da çalışması sağlandı. / Enabled global player keyboard shortcuts (Space for play/pause, Arrow keys for seek, F for fullscreen, etc.) for the inline player layout.
+
 ## [4.17.0] - 2026-06-05
 
 ### Yeni Özellikler & İyileştirmeler / New Features & Improvements

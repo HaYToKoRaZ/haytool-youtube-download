@@ -1624,6 +1624,9 @@ const pathTabMap = {
  */
 function switchTab(targetTab, triggerPushState = true) {
   window.switchTab = switchTab;
+  if (targetTab !== 'downloaded') {
+    if (window.closeInlinePlayer) window.closeInlinePlayer();
+  }
   navItems.forEach(n => {
     if (n.getAttribute('data-tab') === targetTab) {
       n.classList.add('active');
@@ -2279,6 +2282,31 @@ function updateUI(db) {
     downloadedFilterChannel = downloadedChannelFilter.value; // Senkronize et
   }
 
+  // Yerleşik oynatma listesi sidebar filtrelerini doldur ve senkronize et
+  const inlinePlaylistChannel = document.getElementById('inline-playlist-channel');
+  if (inlinePlaylistChannel && db.channels) {
+    const currentPlaylistFilterVal = downloadedFilterChannel || 'all';
+    inlinePlaylistChannel.innerHTML = '<option value="all">Tüm Kanallar</option>';
+    const sortedFilterChannels = [...db.channels].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+    sortedFilterChannels.forEach(channel => {
+      const opt = document.createElement('option');
+      opt.value = channel.id;
+      opt.textContent = channel.name;
+      inlinePlaylistChannel.appendChild(opt);
+    });
+    inlinePlaylistChannel.value = currentPlaylistFilterVal;
+  }
+
+  const inlinePlaylistSort = document.getElementById('inline-playlist-sort');
+  if (inlinePlaylistSort) {
+    inlinePlaylistSort.value = downloadedSortVal || 'date-desc';
+  }
+
+  const inlinePlaylistShowShorts = document.getElementById('inline-playlist-show-shorts');
+  if (inlinePlaylistShowShorts) {
+    inlinePlaylistShowShorts.checked = db.settings?.showShorts !== false;
+  }
+
   // Görünüm butonlarının aktiflik durumunu güncelle
   if (viewGridBtn) viewGridBtn.classList.toggle('active', historyViewMode === 'grid');
   if (viewListBtn) viewListBtn.classList.toggle('active', historyViewMode === 'list');
@@ -2399,6 +2427,11 @@ function updateUI(db) {
     });
     
     renderVideoGrid(downloadedGrid, filteredDownloaded, downloadedViewMode);
+
+    const inlineContainer = document.getElementById('downloaded-inline-player-container');
+    if (inlineContainer && !inlineContainer.classList.contains('hidden') && currentPlayingVideoId) {
+      renderDownloadedPlaylist(currentPlayingVideoId);
+    }
   }
 
   // 7. Ayarlar Değerleri (Sadece alan odaklanılmamışsa doldur)
@@ -3055,7 +3088,11 @@ let seekedForCurrentVideo = false;
  */
 document.addEventListener('keydown', (e) => {
   const modal = document.getElementById('player-modal');
-  if (modal && !modal.classList.contains('hidden')) {
+  const inlineContainer = document.getElementById('downloaded-inline-player-container');
+  const isModalOpen = modal && !modal.classList.contains('hidden');
+  const isInlineOpen = inlineContainer && !inlineContainer.classList.contains('hidden');
+
+  if (isModalOpen || isInlineOpen) {
     // Input veya textarea üzerinde yazı yazılıyorsa kısayolları çalıştırma
     const activeEl = document.activeElement;
     const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
@@ -3347,7 +3384,12 @@ function drawSponsorSegmentsOnTimeline(duration, playerType) {
   if (playerType === 'artplayer') {
     container = document.querySelector('#embedded-artplayer .art-progress');
   } else if (playerType === 'plyr') {
-    container = document.querySelector('#player-modal .plyr__progress');
+    const inlineContainer = document.getElementById('downloaded-inline-player-container');
+    if (inlineContainer && !inlineContainer.classList.contains('hidden')) {
+      container = inlineContainer.querySelector('.plyr__progress');
+    } else {
+      container = document.querySelector('#player-modal .plyr__progress');
+    }
   }
 
   if (!container) return;
@@ -3457,8 +3499,16 @@ async function fetchSponsorSegments(videoId) {
 }
 
 function updateSponsorBlockStatusUI() {
-  const statusEl = document.getElementById('player-sponsorblock-status');
+  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
+  const statusEl = activeTab === 'downloaded' 
+    ? document.getElementById('inline-player-sponsorblock-status')
+    : document.getElementById('player-sponsorblock-status');
   if (!statusEl) return;
+  
+  const otherStatusEl = activeTab === 'downloaded'
+    ? document.getElementById('player-sponsorblock-status')
+    : document.getElementById('inline-player-sponsorblock-status');
+  if (otherStatusEl) otherStatusEl.style.display = 'none';
   
   if (localDb.settings && localDb.settings.sponsorBlockEnabled === true && currentVideoSponsorSegments && currentVideoSponsorSegments.length > 0) {
     const isEn = localDb.settings.lang === 'en';
@@ -3512,355 +3562,552 @@ function checkAndSkipSponsor(currentTime, videoElementOrPlayer) {
  * @param {string} videoId Oynatılacak video ID'si
  */
 window.playVideoEmbedded = async function(videoId) {
-  const modal = document.getElementById('player-modal');
-  const titleEl = document.getElementById('player-modal-title');
-  if (modal) {
-    let video = localDb.history.find(h => h.id === videoId);
-    let videoTitle = video ? video.title : '';
-    let videoChannelId = video ? video.channelId : '';
-    let videoDuration = video ? video.duration : '';
-    
-    // Fetch SponsorBlock segments
-    await fetchSponsorSegments(videoId);
-    updateSponsorBlockStatusUI();
-    
-    // DOM Fallback
-    if (!videoTitle) {
-      const cardTitleEl = document.querySelector(`.video-card-title[title*="${videoId}"], .video-card-title[onclick*="${videoId}"]`);
-      if (cardTitleEl) {
-        videoTitle = cardTitleEl.textContent.trim();
+  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
+  const isInline = (activeTab === 'downloaded');
+
+  let video = localDb.history.find(h => h.id === videoId);
+  let videoTitle = video ? video.title : '';
+  let videoChannelId = video ? video.channelId : '';
+  let videoChannelName = video ? video.channelName : '';
+  let videoDuration = video ? video.duration : '';
+  let fileSizeStr = video ? video.fileSize : '';
+  let publishDateStr = video ? (video.publishedAt || video.downloadedAt || '') : '';
+
+  // Fetch SponsorBlock segments
+  await fetchSponsorSegments(videoId);
+  updateSponsorBlockStatusUI();
+
+  // DOM Fallback
+  if (!videoTitle) {
+    const cardTitleEl = document.querySelector(`.video-card-title[title*="${videoId}"], .video-card-title[onclick*="${videoId}"]`);
+    if (cardTitleEl) {
+      videoTitle = cardTitleEl.textContent.trim();
+    }
+  }
+  if (!videoChannelId) {
+    const cardEl = document.querySelector(`.video-thumbnail-wrapper[onclick*="${videoId}"]`)?.closest('.video-card');
+    if (cardEl) {
+      const channelNameEl = cardEl.querySelector('.video-card-channel');
+      if (channelNameEl) {
+        const nameText = channelNameEl.textContent.trim();
+        const chan = localDb.channels?.find(c => c.name === nameText);
+        if (chan) videoChannelId = chan.id;
       }
     }
-    if (!videoChannelId) {
-      const cardEl = document.querySelector(`.video-thumbnail-wrapper[onclick*="${videoId}"]`)?.closest('.video-card');
-      if (cardEl) {
-        const channelNameEl = cardEl.querySelector('.video-card-channel');
-        if (channelNameEl) {
-          const nameText = channelNameEl.textContent.trim();
-          const chan = localDb.channels?.find(c => c.name === nameText);
-          if (chan) videoChannelId = chan.id;
+  }
+
+  // Önceki oynatıcıyı yok et
+  if (videoPlayerInstance) {
+    try {
+      if (typeof videoPlayerInstance.destroy === 'function') {
+        videoPlayerInstance.destroy();
+      }
+    } catch (e) {
+      console.error("Error destroying video player instance:", e);
+    }
+    videoPlayerInstance = null;
+  }
+
+  let playerContainer = null;
+
+  if (isInline) {
+    // 1. Modal oynatıcıyı kapat/gizle
+    const modal = document.getElementById('player-modal');
+    if (modal) modal.classList.add('hidden');
+
+    // 2. Inline player UI göster/gizle
+    const inlineContainer = document.getElementById('downloaded-inline-player-container');
+    const listContainer = document.getElementById('downloaded-list-container');
+    if (inlineContainer) inlineContainer.classList.remove('hidden');
+    if (listContainer) listContainer.classList.add('hidden');
+
+    playerContainer = document.getElementById('inline-player-body');
+
+    // 3. Bilgileri yerleştir
+    const titleEl = document.getElementById('inline-player-title');
+    if (titleEl) titleEl.textContent = videoTitle || 'Yerleşik Oynatıcı';
+
+    const channelNameEl = document.getElementById('inline-player-channel-name');
+    if (channelNameEl) channelNameEl.textContent = videoChannelName || '';
+
+    const avatarEl = document.getElementById('inline-player-channel-avatar');
+    if (avatarEl) {
+      if (videoChannelId) {
+        avatarEl.src = `/api/channels/${videoChannelId}/avatar`;
+        avatarEl.style.display = 'block';
+      } else {
+        avatarEl.style.display = 'none';
+      }
+    }
+
+    const publishDateEl = document.getElementById('inline-player-publish-date');
+    if (publishDateEl) {
+      const isEn = localDb.settings?.lang === 'en';
+      publishDateEl.textContent = (isEn ? 'Date: ' : 'Tarih: ') + (formatDate(publishDateStr) || '--');
+    }
+
+    const fileSizeEl = document.getElementById('inline-player-file-size');
+    if (fileSizeEl) {
+      const isEn = localDb.settings?.lang === 'en';
+      fileSizeEl.textContent = (isEn ? 'Size: ' : 'Boyut: ') + (fileSizeStr || '--');
+    }
+
+    // 4. Eylemleri bağla
+    const btnYoutube = document.getElementById('inline-btn-youtube');
+    if (btnYoutube) btnYoutube.onclick = () => openYouTube(videoId);
+
+    const btnSystem = document.getElementById('inline-btn-system');
+    if (btnSystem) {
+      const isCompleted = video && video.status === 'completed';
+      const isMissing = video && video.fileMissing === true;
+      if (isCompleted && !isMissing) {
+        btnSystem.disabled = false;
+        btnSystem.style.opacity = '1';
+        btnSystem.style.cursor = 'pointer';
+        btnSystem.onclick = () => playVideoSystem(videoId);
+      } else {
+        btnSystem.disabled = true;
+        btnSystem.style.opacity = '0.4';
+        btnSystem.style.cursor = 'not-allowed';
+      }
+    }
+
+    const btnFolder = document.getElementById('inline-btn-folder');
+    if (btnFolder) {
+      const isCompleted = video && video.status === 'completed';
+      const isMissing = video && video.fileMissing === true;
+      if (isCompleted && !isMissing) {
+        btnFolder.disabled = false;
+        btnFolder.style.opacity = '1';
+        btnFolder.style.cursor = 'pointer';
+        btnFolder.onclick = () => openFolder(decodeURIComponent(encodeURIComponent(videoChannelName)));
+      } else {
+        btnFolder.disabled = true;
+        btnFolder.style.opacity = '0.4';
+        btnFolder.style.cursor = 'not-allowed';
+      }
+    }
+
+    const btnDelete = document.getElementById('inline-btn-delete');
+    if (btnDelete) {
+      const isCompleted = video && video.status === 'completed';
+      if (isCompleted) {
+        btnDelete.style.display = 'inline-flex';
+        btnDelete.onclick = () => showDeleteModal(videoId);
+      } else {
+        btnDelete.style.display = 'none';
+      }
+    }
+
+    const btnClose = document.getElementById('inline-btn-close');
+    if (btnClose) btnClose.onclick = () => closeInlinePlayer();
+
+    // 5. Çalma listesini oluştur
+    renderDownloadedPlaylist(videoId);
+
+  } else {
+    // Floating Modal player
+    const inlineContainer = document.getElementById('downloaded-inline-player-container');
+    const listContainer = document.getElementById('downloaded-list-container');
+    if (inlineContainer) inlineContainer.classList.add('hidden');
+    if (listContainer) listContainer.classList.remove('hidden');
+
+    const modal = document.getElementById('player-modal');
+    const titleEl = document.getElementById('player-modal-title');
+    if (modal) {
+      if (titleEl) {
+        titleEl.textContent = videoTitle || 'Gömülü Video Oynatıcı';
+      }
+      
+      const logoEl = document.getElementById('player-modal-logo');
+      if (logoEl && videoChannelId) {
+        logoEl.src = `/api/channels/${videoChannelId}/avatar`;
+        logoEl.style.display = 'block';
+        logoEl.onerror = function() {
+          this.src = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22><rect width=%2224%22 height=%2224%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2210%22>?</text></svg>';
+        };
+      } else if (logoEl) {
+        logoEl.style.display = 'none';
+      }
+
+      modal.classList.remove('minimized');
+      const minBtn = document.getElementById('minimize-player-modal-btn');
+      if (minBtn) {
+        const icon = minBtn.querySelector('i') || minBtn.querySelector('[data-lucide]');
+        if (icon) {
+          icon.setAttribute('data-lucide', 'minus');
         }
+        minBtn.title = localDb.settings && localDb.settings.lang === 'en' ? 'Minimize' : 'Küçült';
+      }
+      lucide.createIcons();
+
+      const isShort = isShortVideo(videoDuration, videoTitle, videoChannelId);
+      if (isShort) {
+        modal.classList.add('is-short-player');
+      } else {
+        modal.classList.remove('is-short-player');
+      }
+      
+      modal.classList.remove('hidden');
+      playerContainer = modal.querySelector('.player-modal-body');
+    }
+  }
+
+  seekedForCurrentVideo = false;
+  currentPlayingVideoId = videoId;
+
+  const streamUrl = `/api/video-stream?videoId=${videoId}`;
+  const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
+  
+  const isCompleted = video && video.status === 'completed';
+  const isMissing = video && video.fileMissing === true;
+  const playRemote = !isCompleted || isMissing;
+
+  if (playRemote) {
+    if (playerContainer) {
+      playerContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" style="width: 100%; height: 100%; border: none; display: block;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+    }
+    videoPlayerInstance = null;
+  } else {
+    if (playerContainer) {
+      if (playerType === 'artplayer') {
+        playerContainer.innerHTML = '<div id="embedded-artplayer" style="width: 100%; height: 100%; display: block; outline: none;"></div>';
+      } else {
+        playerContainer.innerHTML = '<video id="embedded-video-player" controls autoplay style="width: 100%; height: 100%; display: block; outline: none;"></video>';
       }
     }
 
-    if (titleEl) {
-      titleEl.textContent = videoTitle || 'Gömülü Video Oynatıcı';
-    }
-    
-    // Kanal logosunu güncelle
-    const logoEl = document.getElementById('player-modal-logo');
-    if (logoEl && videoChannelId) {
-      logoEl.src = `/api/channels/${videoChannelId}/avatar`;
-      logoEl.style.display = 'block';
-      logoEl.onerror = function() {
-        this.src = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22><rect width=%2224%22 height=%2224%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2210%22>?</text></svg>';
-      };
-    } else if (logoEl) {
-      logoEl.style.display = 'none';
-    }
-
-    // Küçültme (minimize) durumunu sıfırla
-    modal.classList.remove('minimized');
-    const minBtn = document.getElementById('minimize-player-modal-btn');
-    if (minBtn) {
-      const icon = minBtn.querySelector('i') || minBtn.querySelector('[data-lucide]');
-      if (icon) {
-        icon.setAttribute('data-lucide', 'minus');
+    if (playerType === 'artplayer' && typeof Artplayer !== 'undefined') {
+      let artHighlight = [];
+      if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
+        artHighlight = currentVideoSponsorSegments.map(seg => ({
+          time: seg.start,
+          text: localDb.settings.lang === 'en' ? `Sponsor Block (${seg.category})` : `Sponsor Alanı (${seg.category})`
+        }));
       }
-      minBtn.title = localDb.settings && localDb.settings.lang === 'en' ? 'Minimize' : 'Küçült';
-    }
-    lucide.createIcons();
 
-    // Kısa video (Shorts) kontrolü ve dikey arayüz sınıfı eklenmesi
-    const isShort = isShortVideo(videoDuration, videoTitle, videoChannelId);
-    if (isShort) {
-      modal.classList.add('is-short-player');
-    } else {
-      modal.classList.remove('is-short-player');
-    }
-    
-    const streamUrl = `/api/video-stream?videoId=${videoId}`;
-    modal.classList.remove('hidden');
+      videoPlayerInstance = new Artplayer({
+        container: '#embedded-artplayer',
+        url: streamUrl,
+        autoplay: true,
+        autoSize: false,
+        autoMini: false,
+        playbackRate: true,
+        aspectRatio: true,
+        setting: true,
+        hotkey: true,
+        pip: true,
+        fullscreen: true,
+        mutex: true,
+        theme: '#ff0055',
+        highlight: artHighlight,
+      });
 
-    seekedForCurrentVideo = false;
-    currentPlayingVideoId = videoId;
-
-    // Önceki oynatıcıyı yok et
-    if (videoPlayerInstance) {
-      try {
-        if (typeof videoPlayerInstance.destroy === 'function') {
-          videoPlayerInstance.destroy();
+      if (playerResizeObserver) {
+        playerResizeObserver.disconnect();
+      }
+      playerResizeObserver = new ResizeObserver(() => {
+        if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
+          videoPlayerInstance.resize();
         }
-      } catch (e) {
-        console.error("Error destroying video player instance:", e);
-      }
-      videoPlayerInstance = null;
-    }
+      });
+      playerResizeObserver.observe(playerContainer);
 
-    const modalBody = modal.querySelector('.player-modal-body');
-    const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
-    
-    const isCompleted = video && video.status === 'completed';
-    const isMissing = video && video.fileMissing === true;
-    const playRemote = !isCompleted || isMissing;
-
-    if (playRemote) {
-      // YouTube Embed Oynatıcı (Uzak Kaynak)
-      if (modalBody) {
-        modalBody.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" style="width: 100%; height: 100%; border: none; display: block;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-      }
-      videoPlayerInstance = null;
-    } else {
-      // Yerel Video Oynatma
-      if (modalBody) {
-        if (playerType === 'artplayer') {
-          modalBody.innerHTML = '<div id="embedded-artplayer" style="width: 100%; height: 100%; display: block; outline: none;"></div>';
-        } else {
-          modalBody.innerHTML = '<video id="embedded-video-player" controls autoplay style="width: 100%; height: 100%; display: block; outline: none;"></video>';
-        }
-      }
-
-      if (playerType === 'artplayer' && typeof Artplayer !== 'undefined') {
-        let artHighlight = [];
-        if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
-          artHighlight = currentVideoSponsorSegments.map(seg => ({
-            time: seg.start,
-            text: localDb.settings.lang === 'en' ? `Sponsor Block (${seg.category})` : `Sponsor Alanı (${seg.category})`
-          }));
-        }
-
-        videoPlayerInstance = new Artplayer({
-          container: '#embedded-artplayer',
-          url: streamUrl,
-          autoplay: true,
-          autoSize: false,
-          autoMini: false,
-          playbackRate: true,
-          aspectRatio: true,
-          setting: true,
-          hotkey: true,
-          pip: true,
-          fullscreen: true,
-          mutex: true,
-          theme: '#ff0055',
-          highlight: artHighlight,
-        });
-
-        if (playerResizeObserver) {
-          playerResizeObserver.disconnect();
-        }
-        playerResizeObserver = new ResizeObserver(() => {
-          if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
-            videoPlayerInstance.resize();
+      // Volume wheel control
+      const artContainer = document.getElementById('embedded-artplayer');
+      if (artContainer) {
+        artContainer.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          let currentVolume = videoPlayerInstance.volume;
+          if (e.deltaY < 0) {
+            videoPlayerInstance.volume = Math.min(1, currentVolume + 0.01);
+          } else {
+            videoPlayerInstance.volume = Math.max(0, currentVolume - 0.01);
           }
-        });
-        playerResizeObserver.observe(modalBody);
+        }, { passive: false });
+      }
 
-        // Volume wheel control on ArtPlayer
-        const artContainer = document.getElementById('embedded-artplayer');
-        if (artContainer) {
-          artContainer.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            let currentVolume = videoPlayerInstance.volume;
-            if (e.deltaY < 0) {
-              videoPlayerInstance.volume = Math.min(1, currentVolume + 0.01);
-            } else {
-              videoPlayerInstance.volume = Math.max(0, currentVolume - 0.01);
+      videoPlayerInstance.on('ready', () => {
+        const rawVideo = videoPlayerInstance.video;
+        if (rawVideo) {
+          if (!isInline) adjustPlayerOrientation(rawVideo);
+          if (rawVideo.duration) {
+            drawSponsorSegmentsOnTimeline(rawVideo.duration, 'artplayer');
+          }
+          rawVideo.addEventListener('loadedmetadata', () => {
+            if (!isInline) adjustPlayerOrientation(rawVideo);
+            drawSponsorSegmentsOnTimeline(rawVideo.duration, 'artplayer');
+          });
+
+          rawVideo.addEventListener('timeupdate', () => {
+            if (!currentPlayingVideoId) return;
+            const currentTime = rawVideo.currentTime;
+
+            if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
+              checkAndSkipSponsor(currentTime, rawVideo);
             }
-          }, { passive: false });
+
+            const duration = rawVideo.duration || 0;
+            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
+              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+              resumeData[currentPlayingVideoId] = currentTime;
+              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+            } else if (duration > 0 && (duration - currentTime) <= 5) {
+              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+              delete resumeData[currentPlayingVideoId];
+              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+            }
+          });
+
+          if (!seekedForCurrentVideo && currentPlayingVideoId) {
+            const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+            const savedTime = resumeData[currentPlayingVideoId];
+            if (savedTime && savedTime > 0) {
+              rawVideo.currentTime = savedTime;
+            }
+            seekedForCurrentVideo = true;
+          }
         }
+      });
 
-        // Restore playback watch position and track time
-        videoPlayerInstance.on('ready', () => {
-          const rawVideo = videoPlayerInstance.video;
-          if (rawVideo) {
-            adjustPlayerOrientation(rawVideo);
-            // Draw SponsorBlock timeline highlights
-            if (rawVideo.duration) {
-              drawSponsorSegmentsOnTimeline(rawVideo.duration, 'artplayer');
+    } else {
+      const player = document.getElementById('embedded-video-player');
+      if (player) {
+        if (playerType === 'plyr' && typeof Plyr !== 'undefined') {
+          player.src = streamUrl;
+          videoPlayerInstance = new Plyr('#embedded-video-player', {
+            iconUrl: '/plyr.svg',
+            controls: [
+              'play-large', 'restart', 'rewind', 'play', 'fast-forward',
+              'progress', 'current-time', 'duration', 'mute', 'volume',
+              'settings', 'pip', 'fullscreen'
+            ],
+            settings: ['speed', 'loop'],
+            speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] }
+          });
+
+          videoPlayerInstance.on('ready', () => {
+            if (!isInline) adjustPlayerOrientation(videoPlayerInstance.media);
+            if (videoPlayerInstance.duration) {
+              drawSponsorSegmentsOnTimeline(videoPlayerInstance.duration, 'plyr');
             }
-            rawVideo.addEventListener('loadedmetadata', () => {
-              adjustPlayerOrientation(rawVideo);
-              drawSponsorSegmentsOnTimeline(rawVideo.duration, 'artplayer');
-            });
+          });
+          videoPlayerInstance.on('loadedmetadata', () => {
+            if (!isInline) adjustPlayerOrientation(videoPlayerInstance.media);
+            if (videoPlayerInstance.duration) {
+              drawSponsorSegmentsOnTimeline(videoPlayerInstance.duration, 'plyr');
+            }
+          });
 
-            rawVideo.addEventListener('timeupdate', () => {
-              if (!currentPlayingVideoId) return;
-              const currentTime = rawVideo.currentTime;
-
-              if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
-                checkAndSkipSponsor(currentTime, rawVideo);
+          // Volume wheel control
+          const containerSelector = isInline ? '#downloaded-inline-player-container' : '#player-modal';
+          const outerContainer = document.querySelector(containerSelector);
+          const plyrContainer = outerContainer?.querySelector('.plyr');
+          if (plyrContainer) {
+            plyrContainer.addEventListener('wheel', (e) => {
+              e.preventDefault();
+              let currentVolume = videoPlayerInstance.volume;
+              if (e.deltaY < 0) {
+                videoPlayerInstance.volume = Math.min(1, currentVolume + 0.01);
+              } else {
+                videoPlayerInstance.volume = Math.max(0, currentVolume - 0.01);
               }
+            }, { passive: false });
+          }
 
-              const duration = rawVideo.duration || 0;
-              if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-                resumeData[currentPlayingVideoId] = currentTime;
-                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-              } else if (duration > 0 && (duration - currentTime) <= 5) {
-                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-                delete resumeData[currentPlayingVideoId];
-                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-              }
-            });
+          videoPlayerInstance.on('timeupdate', () => {
+            if (!currentPlayingVideoId) return;
+            const currentTime = videoPlayerInstance.currentTime;
 
+            if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
+              checkAndSkipSponsor(currentTime, videoPlayerInstance);
+            }
+
+            const duration = videoPlayerInstance.duration || 0;
+            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
+              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+              resumeData[currentPlayingVideoId] = currentTime;
+              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+            } else if (duration > 0 && (duration - currentTime) <= 5) {
+              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+              delete resumeData[currentPlayingVideoId];
+              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+            }
+          });
+
+          videoPlayerInstance.on('canplay', () => {
             if (!seekedForCurrentVideo && currentPlayingVideoId) {
               const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
               const savedTime = resumeData[currentPlayingVideoId];
               if (savedTime && savedTime > 0) {
-                rawVideo.currentTime = savedTime;
+                videoPlayerInstance.currentTime = savedTime;
               }
               seekedForCurrentVideo = true;
             }
+          });
+
+          videoPlayerInstance.play().catch(err => {
+            console.warn('Otomatik oynatma engellendi:', err);
+          });
+        } else {
+          // HTML5 standard
+          player.src = streamUrl;
+          player.controls = true;
+
+          player.addEventListener('loadedmetadata', () => {
+            if (!isInline) adjustPlayerOrientation(player);
+          });
+          if (player.duration) {
+            if (!isInline) adjustPlayerOrientation(player);
           }
-        });
 
-      } else {
-        const player = document.getElementById('embedded-video-player');
-        if (player) {
-          if (playerType === 'plyr' && typeof Plyr !== 'undefined') {
-            player.src = streamUrl;
-            videoPlayerInstance = new Plyr('#embedded-video-player', {
-              iconUrl: '/plyr.svg',
-              controls: [
-                'play-large', 'restart', 'rewind', 'play', 'fast-forward',
-                'progress', 'current-time', 'duration', 'mute', 'volume',
-                'settings', 'pip', 'fullscreen'
-              ],
-              settings: ['speed', 'loop'],
-              speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] }
-            });
+          player.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            let currentVolume = player.volume;
+            if (e.deltaY < 0) {
+              player.volume = Math.min(1, currentVolume + 0.01);
+            } else {
+              player.volume = Math.max(0, currentVolume - 0.01);
+            }
+          }, { passive: false });
 
-            // Draw SponsorBlock timeline highlights
-            videoPlayerInstance.on('ready', () => {
-              adjustPlayerOrientation(videoPlayerInstance.media);
-              if (videoPlayerInstance.duration) {
-                drawSponsorSegmentsOnTimeline(videoPlayerInstance.duration, 'plyr');
-              }
-            });
-            videoPlayerInstance.on('loadedmetadata', () => {
-              adjustPlayerOrientation(videoPlayerInstance.media);
-              if (videoPlayerInstance.duration) {
-                drawSponsorSegmentsOnTimeline(videoPlayerInstance.duration, 'plyr');
-              }
-            });
+          player.addEventListener('timeupdate', () => {
+            if (!currentPlayingVideoId) return;
+            const currentTime = player.currentTime;
 
-            // Volume wheel control
-            const plyrContainer = modal.querySelector('.plyr');
-            if (plyrContainer) {
-              plyrContainer.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                let currentVolume = videoPlayerInstance.volume;
-                if (e.deltaY < 0) {
-                  videoPlayerInstance.volume = Math.min(1, currentVolume + 0.01);
-                } else {
-                  videoPlayerInstance.volume = Math.max(0, currentVolume - 0.01);
-                }
-              }, { passive: false });
+            if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
+              checkAndSkipSponsor(currentTime, player);
             }
 
-            // İzleme süresini kaydet
-            videoPlayerInstance.on('timeupdate', () => {
-              if (!currentPlayingVideoId) return;
-              const currentTime = videoPlayerInstance.currentTime;
-
-              if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
-                checkAndSkipSponsor(currentTime, videoPlayerInstance);
-              }
-
-              const duration = videoPlayerInstance.duration || 0;
-              if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-                resumeData[currentPlayingVideoId] = currentTime;
-                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-              } else if (duration > 0 && (duration - currentTime) <= 5) {
-                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-                delete resumeData[currentPlayingVideoId];
-                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-              }
-            });
-
-            // Kaldığı yerden oynatmaya devam et
-            videoPlayerInstance.on('canplay', () => {
-              if (!seekedForCurrentVideo && currentPlayingVideoId) {
-                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-                const savedTime = resumeData[currentPlayingVideoId];
-                if (savedTime && savedTime > 0) {
-                  videoPlayerInstance.currentTime = savedTime;
-                }
-                seekedForCurrentVideo = true;
-              }
-            });
-
-            videoPlayerInstance.play().catch(err => {
-              console.warn('Otomatik oynatma engellendi:', err);
-            });
-          } else {
-            // Standart HTML5 Video Player
-            player.src = streamUrl;
-            player.controls = true;
-
-            player.addEventListener('loadedmetadata', () => {
-              adjustPlayerOrientation(player);
-            });
-            if (player.duration) {
-              adjustPlayerOrientation(player);
+            const duration = player.duration || 0;
+            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
+              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+              resumeData[currentPlayingVideoId] = currentTime;
+              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+            } else if (duration > 0 && (duration - currentTime) <= 5) {
+              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+              delete resumeData[currentPlayingVideoId];
+              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
             }
+          });
 
-            // Volume wheel control
-            player.addEventListener('wheel', (e) => {
-              e.preventDefault();
-              let currentVolume = player.volume;
-              if (e.deltaY < 0) {
-                player.volume = Math.min(1, currentVolume + 0.01);
-              } else {
-                player.volume = Math.max(0, currentVolume - 0.01);
+          player.addEventListener('canplay', () => {
+            if (!seekedForCurrentVideo && currentPlayingVideoId) {
+              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+              const savedTime = resumeData[currentPlayingVideoId];
+              if (savedTime && savedTime > 0) {
+                player.currentTime = savedTime;
               }
-            }, { passive: false });
+              seekedForCurrentVideo = true;
+            }
+          });
 
-            // İzleme süresini kaydet
-            player.addEventListener('timeupdate', () => {
-              if (!currentPlayingVideoId) return;
-              const currentTime = player.currentTime;
-
-              if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
-                checkAndSkipSponsor(currentTime, player);
-              }
-
-              const duration = player.duration || 0;
-              if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-                resumeData[currentPlayingVideoId] = currentTime;
-                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-              } else if (duration > 0 && (duration - currentTime) <= 5) {
-                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-                delete resumeData[currentPlayingVideoId];
-                localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-              }
-            });
-
-            // Kaldığı yerden devam et
-            player.addEventListener('canplay', () => {
-              if (!seekedForCurrentVideo && currentPlayingVideoId) {
-                const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-                const savedTime = resumeData[currentPlayingVideoId];
-                if (savedTime && savedTime > 0) {
-                  player.currentTime = savedTime;
-                }
-                seekedForCurrentVideo = true;
-              }
-            });
-
-            player.load();
-            player.play().catch(err => {
-              console.warn('Otomatik oynatma engellendi:', err);
-            });
-          }
+          player.load();
+          player.play().catch(err => {
+            console.warn('Otomatik oynatma engellendi:', err);
+          });
         }
       }
     }
   }
 };
+
+// Türkçe Açıklama: İndirilenler sekmesindeki yerleşik video oynatıcıyı kapatır, çalmakta olan videoyu durdurup kaynağını temizler.
+/**
+ * Yerleşik video oynatıcıyı kapatır ve çalmakta olan videoyu durdurur.
+ * 
+ * @returns {void}
+ */
+window.closeInlinePlayer = function() {
+  const inlineContainer = document.getElementById('downloaded-inline-player-container');
+  const listContainer = document.getElementById('downloaded-list-container');
+  if (inlineContainer) inlineContainer.classList.add('hidden');
+  if (listContainer) listContainer.classList.remove('hidden');
+
+  if (videoPlayerInstance) {
+    try {
+      if (typeof videoPlayerInstance.destroy === 'function') {
+        videoPlayerInstance.destroy();
+      }
+    } catch (e) {
+      console.error("Error destroying video player instance on close:", e);
+    }
+    videoPlayerInstance = null;
+  }
+  
+  const inlineBody = document.getElementById('inline-player-body');
+  if (inlineBody) {
+    inlineBody.innerHTML = '';
+  }
+
+  currentPlayingVideoId = null;
+  seekedForCurrentVideo = false;
+};
+
+// Türkçe Açıklama: Yerleşik oynatıcının sağ tarafındaki dikey oynatma listesinde indirilmiş diğer videoları kartlar halinde listeler.
+/**
+ * Yerleşik oynatıcı için çalma listesi sidebar içeriğini render eder.
+ * 
+ * @param {string} currentVideoId Aktif oynatılan video ID'si
+ * @returns {void}
+ */
+function renderDownloadedPlaylist(currentVideoId) {
+  const playlistGrid = document.getElementById('downloaded-playlist-grid');
+  if (!playlistGrid) return;
+  playlistGrid.innerHTML = '';
+
+  let filteredDownloaded = localDb.history.filter(item => item.status === 'completed');
+  if (downloadedFilterChannel !== 'all') {
+    filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
+  }
+  const showShorts = localDb.settings?.showShorts !== false;
+  if (!showShorts) {
+    filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
+  }
+  const sortVal = downloadedSortVal || 'date-desc';
+  filteredDownloaded.sort((a, b) => {
+    if (sortVal.startsWith('size-')) {
+      const sizeA = parseSizeToBytes(a.fileSize);
+      const sizeB = parseSizeToBytes(b.fileSize);
+      return sortVal === 'size-desc' ? sizeB - sizeA : sizeA - sizeB;
+    } else {
+      const dateA = new Date(a.publishedAt || a.downloadedAt || 0).getTime();
+      const dateB = new Date(b.publishedAt || b.downloadedAt || 0).getTime();
+      return sortVal === 'date-asc' ? dateA - dateB : dateB - dateA;
+    }
+  });
+
+  if (filteredDownloaded.length === 0) {
+    playlistGrid.innerHTML = `<p class="text-muted" style="font-size:0.8rem; padding: 10px;">${currentLang === 'en' ? 'No other videos found' : 'Başka video bulunamadı'}</p>`;
+    return;
+  }
+
+  filteredDownloaded.forEach(item => {
+    const isCurrent = item.id === currentVideoId;
+    const itemEl = document.createElement('div');
+    itemEl.className = `playlist-item${isCurrent ? ' active' : ''}`;
+    
+    itemEl.onclick = () => {
+      if (!isCurrent) {
+        playVideoEmbedded(item.id);
+      }
+    };
+
+    const durationHtml = item.duration ? `<span class="playlist-item-duration">${item.duration}</span>` : '';
+
+    itemEl.innerHTML = `
+      <div class="playlist-item-thumbnail-wrapper">
+        <img class="playlist-item-thumbnail" src="https://img.youtube.com/vi/${item.id}/mqdefault.jpg" alt="${escapeHtml(item.title)}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%2256%22><rect width=%22100%22 height=%2256%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%228%22>No Image</text></svg>'">
+        ${durationHtml}
+      </div>
+      <div class="playlist-item-details">
+        <h5 class="playlist-item-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h5>
+        <div class="playlist-item-channel">${escapeHtml(item.channelName || '')}</div>
+      </div>
+    `;
+    playlistGrid.appendChild(itemEl);
+  });
+}
 
 // Türkçe Açıklama: İndirilen video dosyasını işletim sisteminin (Windows) varsayılan medya oynatıcısında (VLC, Windows Media Player vb.) açar.
 /**
@@ -3996,6 +4243,10 @@ if (confirmDeleteBtn) {
       });
       const data = await res.json();
       if (data.success) {
+        if (id === currentPlayingVideoId) {
+          if (window.closePlayerModal) window.closePlayerModal();
+          if (window.closeInlinePlayer) window.closeInlinePlayer();
+        }
         // Başarı bildirimi sunucudan (SSE status_log) gelecek
         setTimeout(updateDiskSpace, 1500); // Dosya silinmesinin tamamlanması için kısa bir süre bekle
       } else {
@@ -4106,6 +4357,72 @@ document.addEventListener('DOMContentLoaded', () => {
   if (downloadedShowShorts) {
     downloadedShowShorts.addEventListener('change', async () => {
       const showShorts = downloadedShowShorts.checked;
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...localDb.settings, showShorts })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(showShorts ? 'Shorts videoları gösteriliyor.' : 'Shorts videoları gizlendi.', 'success');
+        }
+      } catch (err) {
+        showToast('Ayarlar kaydedilemedi.', 'error');
+      }
+    });
+  }
+
+  // Playlist Sidebar Sıralama Seçimi Dinleyicisi
+  const inlinePlaylistSort = document.getElementById('inline-playlist-sort');
+  if (inlinePlaylistSort) {
+    inlinePlaylistSort.addEventListener('change', () => {
+      downloadedSortVal = inlinePlaylistSort.value;
+      
+      // Normal listedeki sıralama butonlarının aktifliğini güncelle
+      const group = document.getElementById('downloaded-sort-group');
+      if (group) {
+        group.querySelectorAll('.sort-btn').forEach(b => {
+          if (b.getAttribute('data-sort') === downloadedSortVal) {
+            b.classList.add('active');
+          } else {
+            b.classList.remove('active');
+          }
+        });
+      }
+      
+      updateUI(localDb);
+    });
+  }
+
+  // Playlist Sidebar Kanal Seçimi Dinleyicisi
+  const inlinePlaylistChannel = document.getElementById('inline-playlist-channel');
+  if (inlinePlaylistChannel) {
+    inlinePlaylistChannel.addEventListener('change', () => {
+      downloadedFilterChannel = inlinePlaylistChannel.value;
+      
+      // Normal listedeki kanal filtresini güncelle
+      const normalFilter = document.getElementById('downloaded-channel-filter');
+      if (normalFilter) {
+        normalFilter.value = downloadedFilterChannel;
+      }
+      
+      updateUI(localDb);
+    });
+  }
+
+  // Playlist Sidebar Shorts Göster/Gizle Dinleyicisi
+  const inlinePlaylistShowShorts = document.getElementById('inline-playlist-show-shorts');
+  if (inlinePlaylistShowShorts) {
+    inlinePlaylistShowShorts.addEventListener('change', async () => {
+      const showShorts = inlinePlaylistShowShorts.checked;
+      
+      // Normal listedeki checkbox'ı güncelle
+      const normalCheckbox = document.getElementById('downloaded-show-shorts');
+      if (normalCheckbox) {
+        normalCheckbox.checked = showShorts;
+      }
+      
       try {
         const res = await fetch('/api/settings', {
           method: 'POST',

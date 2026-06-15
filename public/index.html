@@ -32,7 +32,7 @@
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
         <div class="brand-text">
-          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.14.0</a></span></h1>
+          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.18.0</a></span></h1>
         </div>
       </div>
 
@@ -81,6 +81,9 @@
           <i data-lucide="hard-drive"></i>
           <span id="topbar-disk-label"><span id="topbar-disk-title-free">Boş</span>: <span id="disk-status-free">--</span> | <span id="topbar-disk-title-folder">Alan</span>: <span id="disk-status-folder">--</span></span>
         </div>
+        <button id="open-downloads-folder-btn" onclick="openFolder()" class="btn btn-secondary btn-icon-only" title="İndirilenler Klasörünü Aç" style="margin-right: 6px;">
+          <i data-lucide="folder-open"></i>
+        </button>
         <button id="sync-now-btn" class="btn btn-secondary btn-icon-only" title="Kanalları Şimdi Denetle">
           <i data-lucide="refresh-cw"></i>
         </button>
@@ -318,58 +321,119 @@
         </div>
       </section>
 
-      <!-- Tab: İndirilen Videolar -->
       <section id="tab-downloaded" class="tab-content">
-        <header class="content-header">
-          <div>
-            <h2>İndirilen Videolar</h2>
-            <p>Bilgisayarınıza başarıyla indirilmiş olan tüm videoların listesi.</p>
+        <!-- Yerleşik Video Oynatıcı (YouTube tarzı split layout) -->
+        <div id="downloaded-inline-player-container" class="downloaded-inline-player-container hidden">
+          <div class="inline-player-main">
+            <div class="inline-player-wrapper">
+              <div id="inline-player-body" class="inline-player-body">
+                <!-- Video / Player Instance yerleşimi -->
+              </div>
+            </div>
+            <div class="inline-player-info card">
+              <h3 id="inline-player-title" class="inline-player-title">Video Başlığı</h3>
+              <div class="inline-player-meta-row">
+                <div class="inline-player-channel">
+                  <img id="inline-player-channel-avatar" class="inline-channel-avatar" src="" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />
+                  <i data-lucide="tv" style="display:none; width:16px; height:16px; margin-right:6px;"></i>
+                  <span id="inline-player-channel-name">Kanal Adı</span>
+                </div>
+                <div class="inline-player-stats">
+                  <span id="inline-player-publish-date">Tarih: --</span>
+                  <span id="inline-player-file-size">Boyut: --</span>
+                </div>
+              </div>
+              <div class="inline-player-sponsorblock-status" id="inline-player-sponsorblock-status" style="display: none;"></div>
+              <div class="inline-player-actions">
+                <button class="btn btn-secondary btn-sm" id="inline-btn-youtube" title="YouTube'da Aç" aria-label="YouTube'da Aç">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" style="fill:currentColor; margin-right:4px; display:inline-block; vertical-align:middle;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                  <span>YouTube'da Aç</span>
+                </button>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-system" title="Sistem Oynatıcısında Aç" aria-label="Sistem Oynatıcısında Aç">
+                  <i data-lucide="tv"></i>
+                  <span>Sistem Oynatıcısında Aç</span>
+                </button>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-folder" title="Klasör Aç" aria-label="Klasör Aç">
+                  <i data-lucide="folder-open"></i>
+                  <span>Klasör Aç</span>
+                </button>
+                <button class="btn btn-danger btn-sm" id="inline-btn-delete" style="margin-left: auto;" title="Sil" aria-label="Sil">
+                  <i data-lucide="trash-2"></i>
+                  <span>Sil</span>
+                </button>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-close" title="Kapat" aria-label="Kapat">
+                  <i data-lucide="x"></i>
+                  <span>Kapat</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <button onclick="openFolder()" class="btn btn-primary">
-            <i data-lucide="folder-open"></i>
-            <span>İndirilenler Klasörünü Aç</span>
-          </button>
-        </header>
-
-        <div class="history-toolbar">
-          <div class="filter-group">
-            <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
-            <select id="downloaded-channel-filter">
-              <option value="all">Tüm Kanallar</option>
-            </select>
-          </div>
-          <div class="filter-group" style="margin-left: auto;">
-            <button class="btn btn-secondary" onclick="updateMetadata('downloaded')" title="Videoların Süre ve Boyut Bilgilerini Güncelle" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8rem;">
-              <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
-              <span id="btn-update-metadata-dl">Metadata Güncelle</span>
-            </button>
-          </div>
-          <div class="filter-group sort-button-group" style="margin-left: 15px; display: flex; gap: 6px;" id="downloaded-sort-group">
-            <i data-lucide="arrow-up-down" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);margin-right:6px;align-self:center;"></i>
-            <button type="button" class="sort-btn active" data-sort="date-desc" id="sort-btn-date-desc" title="Tarih: Yeniden Eskiye">Tarih ▼</button>
-            <button type="button" class="sort-btn" data-sort="date-asc" id="sort-btn-date-asc" title="Tarih: Eskiden Yeniye">Tarih ▲</button>
-            <button type="button" class="sort-btn" data-sort="size-desc" id="sort-btn-size-desc" title="Boyut: Büyükten Küçüğe">Boyut ▼</button>
-            <button type="button" class="sort-btn" data-sort="size-asc" id="sort-btn-size-asc" title="Boyut: Küçükten Büyüğe">Boyut ▲</button>
-          </div>
-          <div class="filter-group" style="display: flex; align-items: center; gap: 8px; margin-left: 15px;">
-            <input type="checkbox" id="downloaded-show-shorts" class="toggle-input">
-            <label for="downloaded-show-shorts" class="toggle-label"></label>
-            <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('downloaded-show-shorts').click()">Shorts Videolarını Göster</span>
-          </div>
-          <div class="view-toggle-container">
-            <button id="downloaded-view-grid-btn" class="view-btn active" title="Kart Görünümü">
-              <i data-lucide="layout-grid"></i>
-              <span>Kartlar</span>
-            </button>
-            <button id="downloaded-view-list-btn" class="view-btn" title="Sade Liste Görünümü">
-              <i data-lucide="list"></i>
-              <span>Sade Liste</span>
-            </button>
+          <div class="inline-player-sidebar card">
+            <div class="sidebar-header">
+              <h4 id="inline-sidebar-title">İndirilen Diğer Videolar</h4>
+              <div class="playlist-filters">
+                <select id="inline-playlist-sort" title="Sıralama Ölçütü">
+                  <option value="date-desc">Tarih ▼</option>
+                  <option value="date-asc">Tarih ▲</option>
+                  <option value="size-desc">Boyut ▼</option>
+                  <option value="size-asc">Boyut ▲</option>
+                </select>
+                <select id="inline-playlist-channel" title="Kanal Filtresi">
+                  <option value="all">Tüm Kanallar</option>
+                </select>
+              </div>
+              <div class="inline-playlist-show-shorts-container">
+                <input type="checkbox" id="inline-playlist-show-shorts">
+                <span onclick="document.getElementById('inline-playlist-show-shorts').click()">Shorts Göster</span>
+              </div>
+            </div>
+            <div id="downloaded-playlist-grid" class="downloaded-playlist-grid">
+              <!-- Diğer indirilen videolar buraya render edilecek -->
+            </div>
           </div>
         </div>
 
-        <div class="history-grid" id="downloaded-grid">
-          <!-- İndirilmiş video kartları JS ile buraya yüklenecek -->
+        <div id="downloaded-list-container">
+          <div class="history-toolbar">
+            <div class="filter-group">
+              <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
+              <select id="downloaded-channel-filter">
+                <option value="all">Tüm Kanallar</option>
+              </select>
+            </div>
+            <div class="filter-group" style="margin-left: auto;">
+              <button class="btn btn-secondary" onclick="updateMetadata('downloaded')" title="Videoların Süre ve Boyut Bilgilerini Güncelle" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8rem;">
+                <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
+                <span id="btn-update-metadata-dl">Metadata Güncelle</span>
+              </button>
+            </div>
+            <div class="filter-group sort-button-group" style="margin-left: 15px; display: flex; gap: 6px;" id="downloaded-sort-group">
+              <i data-lucide="arrow-up-down" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);margin-right:6px;align-self:center;"></i>
+              <button type="button" class="sort-btn active" data-sort="date-desc" id="sort-btn-date-desc" title="Tarih: Yeniden Eskiye">Tarih ▼</button>
+              <button type="button" class="sort-btn" data-sort="date-asc" id="sort-btn-date-asc" title="Tarih: Eskiden Yeniye">Tarih ▲</button>
+              <button type="button" class="sort-btn" data-sort="size-desc" id="sort-btn-size-desc" title="Boyut: Büyükten Küçüğe">Boyut ▼</button>
+              <button type="button" class="sort-btn" data-sort="size-asc" id="sort-btn-size-asc" title="Boyut: Küçükten Büyüğe">Boyut ▲</button>
+            </div>
+            <div class="filter-group" style="display: flex; align-items: center; gap: 8px; margin-left: 15px;">
+              <input type="checkbox" id="downloaded-show-shorts" class="toggle-input">
+              <label for="downloaded-show-shorts" class="toggle-label"></label>
+              <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('downloaded-show-shorts').click()">Shorts Videolarını Göster</span>
+            </div>
+            <div class="view-toggle-container">
+              <button id="downloaded-view-grid-btn" class="view-btn active" title="Kart Görünümü">
+                <i data-lucide="layout-grid"></i>
+                <span>Kartlar</span>
+              </button>
+              <button id="downloaded-view-list-btn" class="view-btn" title="Sade Liste Görünümü">
+                <i data-lucide="list"></i>
+                <span>Sade Liste</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="history-grid" id="downloaded-grid">
+            <!-- İndirilmiş video kartları JS ile buraya yüklenecek -->
+          </div>
         </div>
       </section>
 
@@ -380,7 +444,7 @@
             <h2>Ayarlar</h2>
             <p id="settings-desc">Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
           </div>
-            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.14.0</a></strong></span>
+            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.18.0</a></strong></span>
         </header>
 
         <div class="card card-settings">

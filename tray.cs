@@ -53,6 +53,62 @@ namespace HaYTooLTray
         private const byte VK_RETURN = 0x0D;
         private const uint KEYEVENTF_KEYUP = 0x0002;
 
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern IntPtr CreateJobObject(IntPtr lpJobAttributes, string lpName);
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern bool SetInformationJobObject(IntPtr hJob, int infoType, IntPtr lpJobObjectInfo, uint cbJobObjectInfoLength);
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern bool AssignProcessToJobObject(IntPtr hJob, IntPtr hProcess);
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern bool CloseHandle(IntPtr hObject);
+
+        private enum JobObjectInfoType
+        {
+            ExtendedLimitInformation = 9
+        }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct JOBOBJECT_BASIC_LIMIT_INFORMATION
+        {
+            public Int64 PerProcessUserTimeLimit;
+            public Int64 PerJobUserTimeLimit;
+            public UInt32 LimitFlags;
+            public UIntPtr MinimumWorkingSetSize;
+            public UIntPtr MaximumWorkingSetSize;
+            public UInt32 ActiveProcessLimit;
+            public UIntPtr Affinity;
+            public UInt32 PriorityClass;
+            public UInt32 SchedulingClass;
+        }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct IO_COUNTERS
+        {
+            public UInt64 ReadOperationCount;
+            public UInt64 WriteOperationCount;
+            public UInt64 OtherOperationCount;
+            public UInt64 ReadTransferCount;
+            public UInt64 WriteTransferCount;
+            public UInt64 OtherTransferCount;
+        }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+        {
+            public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+            public IO_COUNTERS IoCounters;
+            public UIntPtr ProcessMemoryLimit;
+            public UIntPtr JobMemoryLimit;
+            public UIntPtr PeakProcessMemoryUsed;
+            public UIntPtr PeakJobMemoryUsed;
+        }
+
+        private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
+        private IntPtr jobHandle = IntPtr.Zero;
+
         [STAThread]
         public static void Main(string[] args)
         {
@@ -158,6 +214,39 @@ namespace HaYTooLTray
         // Türkçe Açıklama: Sistem Tepsisi (Tray) uygulamasını başlatır, simgeyi ve sağ tık menüsünü hazırlar.
         public Program()
         {
+            // Job Object oluştur
+            try
+            {
+                jobHandle = CreateJobObject(IntPtr.Zero, null);
+                if (jobHandle != IntPtr.Zero)
+                {
+                    JOBOBJECT_BASIC_LIMIT_INFORMATION basicLimits = new JOBOBJECT_BASIC_LIMIT_INFORMATION();
+                    basicLimits.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+                    JOBOBJECT_EXTENDED_LIMIT_INFORMATION extendedLimits = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+                    extendedLimits.BasicLimitInformation = basicLimits;
+
+                    int size = System.Runtime.InteropServices.Marshal.SizeOf(extendedLimits);
+                    IntPtr extendedLimitsPtr = System.Runtime.InteropServices.Marshal.AllocHGlobal(size);
+                    try
+                    {
+                        System.Runtime.InteropServices.Marshal.StructureToPtr(extendedLimits, extendedLimitsPtr, false);
+                        if (!SetInformationJobObject(jobHandle, (int)JobObjectInfoType.ExtendedLimitInformation, extendedLimitsPtr, (uint)size))
+                        {
+                            AppendLog("[TRAY ERROR] Job Object limitleri ayarlanamadı.");
+                        }
+                    }
+                    finally
+                    {
+                        System.Runtime.InteropServices.Marshal.FreeHGlobal(extendedLimitsPtr);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLog("[TRAY ERROR] Job Object oluşturulurken hata: " + ex.Message);
+            }
+
             // Güvenli asenkron UI çağrıları için senkronizasyon formunu hazırla
             syncForm = new Form();
             IntPtr forcedHandle = syncForm.Handle; // Handle oluşturulmasını zorunlu kıl
@@ -467,6 +556,20 @@ namespace HaYTooLTray
                 };
 
                 nodeProcess.Start();
+
+                // Job Object'e süreci dahil et
+                if (jobHandle != IntPtr.Zero && nodeProcess != null && !nodeProcess.HasExited)
+                {
+                    try
+                    {
+                        AssignProcessToJobObject(jobHandle, nodeProcess.Handle);
+                    }
+                    catch (Exception ex)
+                    {
+                        AppendLog("[TRAY ERROR] Süreç Job Object'e atanamadı: " + ex.Message);
+                    }
+                }
+
                 nodeProcess.BeginOutputReadLine();
                 nodeProcess.BeginErrorReadLine();
                 
@@ -755,6 +858,11 @@ namespace HaYTooLTray
         private void CleanUp()
         {
             KillNode();
+            if (jobHandle != IntPtr.Zero)
+            {
+                CloseHandle(jobHandle);
+                jobHandle = IntPtr.Zero;
+            }
             if (trayIcon != null)
             {
                 trayIcon.Visible = false;

@@ -2547,5 +2547,312 @@ body.light-theme .nav-item.pd-btn {
   cursor: nwse-resize;
 }
 
+/* ==========================================
+   Yerleşik Oynatıcı Split Layout (YouTube Tarzı)
+   ========================================== */
+.downloaded-inline-player-container {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: 5px;
+  width: 100%;
+}
+
+.inline-player-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.inline-player-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.inline-player-body {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.inline-player-body iframe,
+.inline-player-body video,
+.inline-player-body #embedded-artplayer,
+.inline-player-body #embedded-artplayer video {
+  width: 100% !important;
+  height: 100% !important;
+  border: none;
+  display: block;
+}
+
+.inline-player-info {
+  margin-top: 15px;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.inline-player-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  color: var(--text-main);
+  font-family: 'Outfit', sans-serif;
+  line-height: 1.4;
+}
+
+.inline-player-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.inline-player-channel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inline-channel-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+}
+
+.inline-player-stats {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 15px;
+}
+
+.inline-player-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.inline-player-actions .btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inline-player-sidebar {
+  width: 400px;
+  flex-shrink: 0;
+  padding: 15px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(62vh + 170px);
+  overflow: hidden;
+}
+
+.inline-player-sidebar .sidebar-header {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.playlist-filters {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.playlist-filters select {
+  font-size: 0.75rem;
+  padding: 6px 10px;
+  background-color: var(--bg-sidebar) !important;
+  color: var(--text-main) !important;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+  flex: 1;
+  min-width: 0;
+}
+
+.playlist-filters select option {
+  background-color: var(--bg-sidebar) !important;
+  color: var(--text-main) !important;
+}
+
+.playlist-filters select:hover {
+  border-color: var(--primary);
+}
+
+.inline-playlist-show-shorts-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.inline-playlist-show-shorts-container input[type="checkbox"] {
+  cursor: pointer;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
+.inline-playlist-show-shorts-container span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.inline-player-sidebar h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-main);
+  font-family: 'Outfit', sans-serif;
+}
+
+.downloaded-playlist-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 4px;
+}
+
+/* Playlist scrollbar */
+.downloaded-playlist-grid::-webkit-scrollbar {
+  width: 4px;
+}
+.downloaded-playlist-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+.downloaded-playlist-grid::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+/* Playlist Items */
+.playlist-item {
+  display: flex;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 0;
+}
+
+.playlist-item:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-color);
+}
+
+.playlist-item.active {
+  background: rgba(138, 43, 226, 0.08);
+  border-color: var(--accent-primary);
+}
+
+.playlist-item-thumbnail-wrapper {
+  position: relative;
+  width: 100px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.playlist-item-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.playlist-item-duration {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.playlist-item-details {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  flex: 1;
+}
+
+.playlist-item-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.25;
+}
+
+.playlist-item-channel {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.inline-player-sponsorblock-status {
+  padding: 6px 12px;
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  border-radius: 6px;
+  color: #4ade80;
+  font-size: 0.75rem;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 1024px) {
+  .downloaded-inline-player-container {
+    flex-direction: column;
+  }
+  .inline-player-sidebar {
+    width: 100%;
+    max-height: 400px;
+  }
+}
+
 
 
