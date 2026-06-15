@@ -2118,6 +2118,9 @@ body.light-theme .nav-item.pd-btn {
 
 #player-modal .player-modal-content {
   pointer-events: auto !important;
+  position: fixed !important;
+  bottom: 20px;
+  right: 20px;
   width: 600px !important;
   max-width: 90vw !important;
   margin: 0 !important;
@@ -2128,6 +2131,11 @@ body.light-theme .nav-item.pd-btn {
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   padding: 0 !important;
   overflow: hidden !important;
+}
+
+#player-modal .modal-header {
+  cursor: move;
+  user-select: none;
 }
 
 #player-modal.is-short-player .player-modal-content {
@@ -2508,6 +2516,35 @@ body.light-theme .nav-item.pd-btn {
   .settings-layout-compact {
     grid-template-columns: 1fr;
   }
+}
+
+/* Resize Handles for Embedded Player Modal */
+.resize-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background-color: transparent;
+  z-index: 9999;
+}
+.resize-handle.top-left {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+.resize-handle.top-right {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+.resize-handle.bottom-left {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+.resize-handle.bottom-right {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
 }
 
 

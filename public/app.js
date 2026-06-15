@@ -90,7 +90,7 @@ const translations = {
     desc_settings_player_type: 'Gömülü video oynatıcı arayüz tipini seçin.',
     opt_player_plyr: 'Plyr Player (Modern & Özelleştirilmiş)',
     opt_player_artplayer: 'ArtPlayer (Gelişmiş & Şık Oynatıcı)',
-    opt_player_html5: 'Standart HTML5 Player (Hızlı & Sade)',
+    opt_player_html5: 'Standart HTML5 Player (Hızlı & Sade - SponsorBlock Görsel Şeritleri Desteklemez)',
     label_sponsorblock: 'SponsorBlock (Oynatıcı)',
     desc_sponsorblock: 'Video oynatılırken sponsorlu veya tanıtım alanlarını otomatik atla.',
     cookie_warning_title: 'Önemli Çerez Kilidi Uyarısı:',
@@ -259,7 +259,7 @@ const translations = {
     desc_settings_player_type: 'Select the embedded video player interface style.',
     opt_player_plyr: 'Plyr Player (Modern & Customized)',
     opt_player_artplayer: 'ArtPlayer (Advanced & Sleek Player)',
-    opt_player_html5: 'Standard HTML5 Player (Fast & Simple)',
+    opt_player_html5: 'Standard HTML5 Player (Fast & Simple - SponsorBlock Visual Timelines Not Supported)',
     label_sponsorblock: 'SponsorBlock (Player)',
     desc_sponsorblock: 'Automatically skip sponsored segments or self-promotions during playback.',
     cookie_warning_title: 'Important Cookie Lock Warning:',
@@ -428,7 +428,7 @@ const translations = {
     desc_settings_player_type: 'Seleccione el estilo del reproductor integrado.',
     opt_player_plyr: 'Reproductor Plyr',
     opt_player_artplayer: 'Reproductor ArtPlayer',
-    opt_player_html5: 'Reproductor HTML5 Estándar',
+    opt_player_html5: 'Reproductor HTML5 Estándar (Rápido y simple - No admite líneas de tiempo de SponsorBlock)',
     label_sponsorblock: 'SponsorBlock (Reproductor)',
     desc_sponsorblock: 'Omitir automáticamente los segmentos patrocinados durante la reproducción.',
     cookie_warning_title: 'Advertencia Importante de Cookies:',
@@ -597,7 +597,7 @@ const translations = {
     desc_settings_player_type: 'Wählen Sie den Stil des integrierten Players.',
     opt_player_plyr: 'Plyr-Player',
     opt_player_artplayer: 'ArtPlayer-Player',
-    opt_player_html5: 'Standard HTML5-Player',
+    opt_player_html5: 'Standard HTML5-Player (Schnell & Einfach - SponsorBlock Visuelle Zeitleisten nicht unterstützt)',
     label_sponsorblock: 'SponsorBlock (Player)',
     desc_sponsorblock: 'Sponsorierte Segmente oder Eigenwerbung während der Wiedergabe automatisch überspringen.',
     cookie_warning_title: 'Wichtiger Cookie-Warnhinweis:',
@@ -766,7 +766,7 @@ const translations = {
     desc_settings_player_type: 'Selecione o estilo do reprodutor integrado.',
     opt_player_plyr: 'Reprodutor Plyr',
     opt_player_artplayer: 'Reprodutor ArtPlayer',
-    opt_player_html5: 'Reprodutor HTML5 Padrão',
+    opt_player_html5: 'Reprodutor HTML5 Padrão (Rápido e simples - Não suporta linhas de tempo visuais do SponsorBlock)',
     label_sponsorblock: 'SponsorBlock (Reprodutor)',
     desc_sponsorblock: 'Pular automaticamente segmentos patrocinados ou de auto-promoção durante a reprodução.',
     cookie_warning_title: 'Aviso Importante sobre Cookies:',
@@ -935,7 +935,7 @@ const translations = {
     desc_settings_player_type: 'اختر نمط واجهة مشغل الفيديو المدمج.',
     opt_player_plyr: 'مشغل Plyr',
     opt_player_artplayer: 'مشغل ArtPlayer',
-    opt_player_html5: 'مشغل HTML5 القياسي',
+    opt_player_html5: 'مشغل HTML5 القياسي (سريع وبسيط - لا يدعم الأشرطة المرئية لـ SponsorBlock)',
     label_sponsorblock: 'SponsorBlock (المشغل)',
     desc_sponsorblock: 'تخطي المقاطع الإعلانية أو الترويجية تلقائيًا أثناء التشغيل.',
     cookie_warning_title: 'تحذير هام بشأن قفل ملفات تعريف الارتباط:',
@@ -1104,7 +1104,7 @@ const translations = {
     desc_settings_player_type: 'Выберите стиль интерфейса встроенного видеоплеера.',
     opt_player_plyr: 'Плеер Plyr (Модернизированный)',
     opt_player_artplayer: 'ArtPlayer (Продвинутый и стильный)',
-    opt_player_html5: 'Стандартный HTML5 плеер (Быстрый)',
+    opt_player_html5: 'Стандартный HTML5 плеер (Быстрый и простой - визуальные полосы SponsorBlock не поддерживаются)',
     label_sponsorblock: 'SponsorBlock (Плеер)',
     desc_sponsorblock: 'Автоматически пропускать спонсорские сегменты и самопиар во время воспроизведения.',
     cookie_warning_title: 'Важное предупреждение о блокировке куки:',
@@ -2554,8 +2554,11 @@ function escapeHtml(str) {
  * @returns {boolean} Video Shorts ise true
  */
 function isShortVideo(durationStr, title, channelId) {
-  if (title && (title.toLowerCase().includes('#shorts') || title.toLowerCase().includes('shorts'))) {
-    return true;
+  if (title) {
+    const lowerTitle = title.toLowerCase();
+    if (lowerTitle.includes('#shorts') || lowerTitle.includes('#short')) {
+      return true;
+    }
   }
   if (!durationStr) return false;
   
@@ -2580,7 +2583,19 @@ function isShortVideo(durationStr, title, channelId) {
     totalSeconds = (parts[0] * 3600) + (parts[1] * 60) + parts[2];
   }
   
-  return totalSeconds <= limit;
+  // To avoid false positives (e.g. standard landscape videos that are under 60 seconds,
+  // or videos with "short" adjective in their title like "React short tutorial"),
+  // we ONLY classify as Short if:
+  // 1. The title contains hashtag "#shorts" or "#short" (checked above).
+  // 2. OR the title contains the isolated word "shorts" (plural) and the duration is within the limit.
+  // Note: For downloaded local videos, the aspect ratio is dynamically checked and corrected on load.
+  if (title && totalSeconds <= limit) {
+    const lowerTitle = title.toLowerCase();
+    if (/\bshorts\b/.test(lowerTitle)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Türkçe Açıklama: Belirtilen kanal ID'sini backend API'sine ileterek kanalı izleme listesinden çıkarır ve geçmiş verilerini siler.
@@ -3279,6 +3294,132 @@ window.togglePlayerMinimize = function() {
 
 let currentVideoSponsorSegments = [];
 let lastSkippedSegmentStart = -1;
+let playerResizeObserver = null;
+
+function makeElementDraggable(modalContent, dragHeader) {
+  let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+  dragHeader.onmousedown = dragMouseDown;
+
+  function dragMouseDown(e) {
+    e = e || window.event;
+    if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input') || e.target.closest('select')) {
+      return;
+    }
+    e.preventDefault();
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    document.onmouseup = closeDragElement;
+    document.onmousemove = elementDrag;
+  }
+
+  function elementDrag(e) {
+    e = e || window.event;
+    e.preventDefault();
+    pos1 = pos3 - e.clientX;
+    pos2 = pos4 - e.clientY;
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    
+    const newTop = modalContent.offsetTop - pos2;
+    const newLeft = modalContent.offsetLeft - pos1;
+
+    const maxLeft = window.innerWidth - modalContent.offsetWidth - 10;
+    const maxTop = window.innerHeight - modalContent.offsetHeight - 10;
+
+    modalContent.style.bottom = 'auto';
+    modalContent.style.right = 'auto';
+    modalContent.style.left = `${Math.max(10, Math.min(newLeft, maxLeft))}px`;
+    modalContent.style.top = `${Math.max(10, Math.min(newTop, maxTop))}px`;
+  }
+
+  function closeDragElement() {
+    document.onmouseup = null;
+    document.onmousemove = null;
+  }
+}
+
+function drawSponsorSegmentsOnTimeline(duration, playerType) {
+  if (!duration || !currentVideoSponsorSegments || currentVideoSponsorSegments.length === 0) return;
+  if (!localDb.settings || localDb.settings.sponsorBlockEnabled !== true) return;
+
+  let container = null;
+  if (playerType === 'artplayer') {
+    container = document.querySelector('#embedded-artplayer .art-progress');
+  } else if (playerType === 'plyr') {
+    container = document.querySelector('#player-modal .plyr__progress');
+  }
+
+  if (!container) return;
+
+  let wrapper = container.querySelector('.player-sponsor-markers-wrapper');
+  if (wrapper) {
+    wrapper.remove();
+  }
+
+  wrapper = document.createElement('div');
+  wrapper.className = 'player-sponsor-markers-wrapper';
+  wrapper.style.position = 'absolute';
+  wrapper.style.left = '0';
+  wrapper.style.right = '0';
+  wrapper.style.top = '0';
+  wrapper.style.bottom = '0';
+  wrapper.style.pointerEvents = 'none';
+  wrapper.style.zIndex = '5';
+
+  if (playerType === 'artplayer') {
+    wrapper.style.height = '100%';
+  } else if (playerType === 'plyr') {
+    wrapper.style.height = '6px';
+    wrapper.style.top = '50%';
+    wrapper.style.transform = 'translateY(-50%)';
+    wrapper.style.borderRadius = '3px';
+    wrapper.style.overflow = 'hidden';
+  }
+
+  const categoryColors = {
+    sponsor: 'rgba(74, 222, 128, 0.65)',      // Green
+    selfpromo: 'rgba(250, 204, 21, 0.65)',     // Yellow
+    interaction: 'rgba(56, 189, 248, 0.65)',   // Blue
+    intro: 'rgba(45, 212, 191, 0.65)',         // Teal
+    outro: 'rgba(192, 132, 252, 0.65)',        // Purple
+    preview: 'rgba(244, 63, 94, 0.65)',        // Pink/Red
+    music_offtopic: 'rgba(244, 63, 94, 0.65)'
+  };
+
+  currentVideoSponsorSegments.forEach(seg => {
+    const leftPercent = (seg.start / duration) * 100;
+    const widthPercent = ((seg.end - seg.start) / duration) * 100;
+    const color = categoryColors[seg.category] || 'rgba(255, 255, 255, 0.5)';
+
+    const marker = document.createElement('div');
+    marker.style.position = 'absolute';
+    marker.style.left = `${leftPercent}%`;
+    marker.style.width = `${widthPercent}%`;
+    marker.style.height = '100%';
+    marker.style.backgroundColor = color;
+    marker.style.pointerEvents = 'none';
+    marker.style.borderRadius = playerType === 'plyr' ? '0' : '2px';
+
+    wrapper.appendChild(marker);
+  });
+
+  container.appendChild(wrapper);
+}
+
+function adjustPlayerOrientation(videoElement) {
+  const modal = document.getElementById('player-modal');
+  if (!modal || !videoElement) return;
+  
+  if (videoElement.videoWidth && videoElement.videoHeight) {
+    const isVertical = videoElement.videoHeight > videoElement.videoWidth;
+    if (isVertical) {
+      modal.classList.add('is-short-player');
+    } else {
+      modal.classList.remove('is-short-player');
+    }
+  }
+}
 
 async function fetchSponsorSegments(videoId) {
   currentVideoSponsorSegments = [];
@@ -3505,6 +3646,16 @@ window.playVideoEmbedded = async function(videoId) {
           highlight: artHighlight,
         });
 
+        if (playerResizeObserver) {
+          playerResizeObserver.disconnect();
+        }
+        playerResizeObserver = new ResizeObserver(() => {
+          if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
+            videoPlayerInstance.resize();
+          }
+        });
+        playerResizeObserver.observe(modalBody);
+
         // Volume wheel control on ArtPlayer
         const artContainer = document.getElementById('embedded-artplayer');
         if (artContainer) {
@@ -3523,6 +3674,16 @@ window.playVideoEmbedded = async function(videoId) {
         videoPlayerInstance.on('ready', () => {
           const rawVideo = videoPlayerInstance.video;
           if (rawVideo) {
+            adjustPlayerOrientation(rawVideo);
+            // Draw SponsorBlock timeline highlights
+            if (rawVideo.duration) {
+              drawSponsorSegmentsOnTimeline(rawVideo.duration, 'artplayer');
+            }
+            rawVideo.addEventListener('loadedmetadata', () => {
+              adjustPlayerOrientation(rawVideo);
+              drawSponsorSegmentsOnTimeline(rawVideo.duration, 'artplayer');
+            });
+
             rawVideo.addEventListener('timeupdate', () => {
               if (!currentPlayingVideoId) return;
               const currentTime = rawVideo.currentTime;
@@ -3568,6 +3729,20 @@ window.playVideoEmbedded = async function(videoId) {
               ],
               settings: ['speed', 'loop'],
               speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] }
+            });
+
+            // Draw SponsorBlock timeline highlights
+            videoPlayerInstance.on('ready', () => {
+              adjustPlayerOrientation(videoPlayerInstance.media);
+              if (videoPlayerInstance.duration) {
+                drawSponsorSegmentsOnTimeline(videoPlayerInstance.duration, 'plyr');
+              }
+            });
+            videoPlayerInstance.on('loadedmetadata', () => {
+              adjustPlayerOrientation(videoPlayerInstance.media);
+              if (videoPlayerInstance.duration) {
+                drawSponsorSegmentsOnTimeline(videoPlayerInstance.duration, 'plyr');
+              }
             });
 
             // Volume wheel control
@@ -3624,6 +3799,13 @@ window.playVideoEmbedded = async function(videoId) {
             // Standart HTML5 Video Player
             player.src = streamUrl;
             player.controls = true;
+
+            player.addEventListener('loadedmetadata', () => {
+              adjustPlayerOrientation(player);
+            });
+            if (player.duration) {
+              adjustPlayerOrientation(player);
+            }
 
             // Volume wheel control
             player.addEventListener('wheel', (e) => {
@@ -3713,6 +3895,21 @@ window.closePlayerModal = function() {
     modal.classList.add('hidden');
     modal.classList.remove('is-short-player');
     modal.classList.remove('minimized');
+    
+    // Reset drag position to default bottom-right
+    const modalContent = modal.querySelector('.player-modal-content');
+    if (modalContent) {
+      modalContent.style.left = '';
+      modalContent.style.top = '';
+      modalContent.style.bottom = '';
+      modalContent.style.right = '';
+    }
+  }
+
+  // Disconnect ResizeObserver
+  if (playerResizeObserver) {
+    playerResizeObserver.disconnect();
+    playerResizeObserver = null;
   }
   if (videoPlayerInstance) {
     try {
@@ -4764,5 +4961,12 @@ const currentPath = window.location.pathname;
 const initialTab = pathTabMap[currentPath] || 'history';
 history.replaceState({ tab: initialTab }, '', currentPath === '/' ? '/home' : currentPath);
 switchTab(initialTab, false);
+
+// Oynatıcıyı sürüklenebilir yap
+const modalContent = document.querySelector('#player-modal .player-modal-content');
+const modalHeader = document.querySelector('#player-modal .modal-header');
+if (modalContent && modalHeader) {
+  makeElementDraggable(modalContent, modalHeader);
+}
 
 lucide.createIcons();

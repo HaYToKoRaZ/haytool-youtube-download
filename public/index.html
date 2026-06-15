@@ -490,7 +490,7 @@
                       <select id="settings-player-type">
                         <option id="opt-player-plyr" value="plyr">Plyr Player (Modern & Özelleştirilmiş)</option>
                         <option id="opt-player-artplayer" value="artplayer">ArtPlayer (Gelişmiş & Şık Oynatıcı)</option>
-                        <option id="opt-player-html5" value="html5">Standart HTML5 Player (Hızlı & Sade)</option>
+                        <option id="opt-player-html5" value="html5">Standart HTML5 Player (Hızlı & Sade - SponsorBlock Görsel Şeritleri Desteklemez)</option>
                       </select>
                       <small id="desc-settings-player-type" class="form-text">Gömülü video oynatıcı arayüz tipini seçin.</small>
                     </div>
@@ -741,6 +741,11 @@
   <!-- Gömülü Oynatıcı Modalı -->
   <div id="player-modal" class="modal hidden">
     <div class="modal-content card player-modal-content">
+      <!-- Sürükleme / Yeniden Boyutlandırma Köşeleri -->
+      <div class="resize-handle top-left"></div>
+      <div class="resize-handle top-right"></div>
+      <div class="resize-handle bottom-left"></div>
+      <div class="resize-handle bottom-right"></div>
       <div class="modal-header" style="padding: 12px 16px; margin-bottom: 0; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 15px;">
         <div style="display: flex; flex-direction: column; max-width: 85%; overflow: hidden;">
           <div style="display: flex; align-items: center; gap: 10px;">
