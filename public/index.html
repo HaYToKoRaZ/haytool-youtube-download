@@ -32,7 +32,7 @@
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
         <div class="brand-text">
-          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.20.0</a></span></h1>
+          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.22.0</a></span></h1>
         </div>
       </div>
 
@@ -357,23 +357,78 @@
               </div>
               <div class="inline-player-sponsorblock-status" id="inline-player-sponsorblock-status" style="display: none;"></div>
               <div class="inline-player-actions">
-                <button class="btn btn-secondary btn-sm" id="inline-btn-youtube" title="YouTube'da Aç" aria-label="YouTube'da Aç">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" style="fill:currentColor; margin-right:4px; display:inline-block; vertical-align:middle;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                  <span>YouTube'da Aç</span>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-youtube" title="YouTube'da Aç" aria-label="YouTube'da Aç" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" style="fill:#ff0000; display:inline-block; vertical-align:middle;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
                 </button>
-                <button class="btn btn-secondary btn-sm" id="inline-btn-system" title="Sistem Oynatıcısında Aç" aria-label="Sistem Oynatıcısında Aç">
-                  <i data-lucide="tv"></i>
-                  <span>Sistem Oynatıcısında Aç</span>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-system" title="Sistem Oynatıcısında Aç" aria-label="Sistem Oynatıcısında Aç" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                  <i data-lucide="tv" style="width: 16px; height: 16px;"></i>
                 </button>
-                <button class="btn btn-secondary btn-sm" id="inline-btn-folder" title="Klasör Aç" aria-label="Klasör Aç">
-                  <i data-lucide="folder-open"></i>
-                  <span>Klasör Aç</span>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-folder" title="Klasör Aç" aria-label="Klasör Aç" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                  <i data-lucide="folder-open" style="width: 16px; height: 16px;"></i>
                 </button>
-                <button class="btn btn-secondary btn-sm" id="inline-btn-comments" title="Yorumları Göster" aria-label="Yorumları Göster" onclick="toggleCommentsPanel()">
-                  <i data-lucide="message-square"></i>
-                  <span>Yorumları Göster</span>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-comments" title="Yorumları Göster" aria-label="Yorumları Göster" onclick="toggleCommentsPanel()" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                  <i data-lucide="message-square" style="width: 16px; height: 16px;"></i>
                 </button>
-                <button class="btn btn-danger btn-sm" id="inline-btn-delete" style="margin-left: auto;" title="Sil" aria-label="Sil">
+                <!-- Türkçe'ye Çevir Butonu (Sadece İngilizce altyazı varsa belirecek) -->
+                <button class="btn btn-secondary btn-sm" id="inline-btn-translate-sub" title="Türkçe'ye Çevir" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #10b981; font-weight: 600; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                  <i data-lucide="languages" style="width:16px; height:16px;"></i>
+                </button>
+
+                <!-- Altyazı Rengi Seçici -->
+                <select id="inline-subtitle-color" class="btn btn-secondary btn-sm" style="margin-left: auto; padding: 2px 8px; font-size: 0.8rem; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; border-radius: 6px; outline: none; height: 32px;" title="Altyazı Rengi">
+                  <option value="#ffffff">Beyaz</option>
+                  <option value="#ffff00">Sarı</option>
+                  <option value="#00ff00">Yeşil</option>
+                  <option value="#00ffff">Turkuaz</option>
+                  <option value="#ff00ff">Pembe</option>
+                  <option value="#ff0000">Kırmızı</option>
+                  <option value="#0000ff">Mavi</option>
+                  <option value="#ffa500">Turuncu</option>
+                  <option value="#800080">Mor</option>
+                  <option value="#000000">Siyah</option>
+                  <option value="#808080">Gri</option>
+                  <option value="#ffffe0">Açık Sarı</option>
+                </select>
+
+                <!-- Arka Plan Saydamlığı Seçici -->
+                <select id="inline-subtitle-opacity" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.8rem; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; border-radius: 6px; outline: none; height: 32px;" title="Altyazı Saydamlığı">
+                  <option value="0.0">Saydam (%0)</option>
+                  <option value="0.1">Saydamlık (%10)</option>
+                  <option value="0.2">Saydamlık (%20)</option>
+                  <option value="0.3">Saydamlık (%30)</option>
+                  <option value="0.4">Saydamlık (%40)</option>
+                  <option value="0.5">Saydamlık (%50)</option>
+                  <option value="0.6">Saydamlık (%60)</option>
+                  <option value="0.7">Saydamlık (%70)</option>
+                  <option value="0.8">Saydamlık (%80)</option>
+                  <option value="0.9">Saydamlık (%90)</option>
+                  <option value="0.95">Saydamlık (%95)</option>
+                  <option value="1.0">Mat (%100)</option>
+                </select>
+
+                <select id="inline-subtitle-size" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.8rem; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; border-radius: 6px; outline: none; height: 32px;" title="Altyazı Boyutu">
+                  <option value="26px">26px</option>
+                  <option value="28px">28px</option>
+                  <option value="30px">30px</option>
+                  <option value="32px">32px</option>
+                  <option value="34px">34px</option>
+                  <option value="36px">36px</option>
+                  <option value="38px">38px</option>
+                  <option value="40px">40px</option>
+                  <option value="42px">42px</option>
+                  <option value="44px">44px</option>
+                  <option value="46px">46px</option>
+                  <option value="48px">48px</option>
+                  <option value="50px">50px</option>
+                </select>
+
+                <!-- Tekrar İndir Butonu -->
+                <button class="btn btn-secondary btn-sm" id="inline-btn-redownload" title="Videoyu Sil ve Tekrar İndir" style="background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.2); color: orange; font-weight: 600; height: 32px; display: inline-flex; align-items: center; gap: 4px;">
+                  <i data-lucide="refresh-cw" style="width:14px; height:14px;"></i>
+                  <span>Tekrar İndir</span>
+                </button>
+
+                <button class="btn btn-danger btn-sm" id="inline-btn-delete" title="Sil" aria-label="Sil">
                   <i data-lucide="trash-2"></i>
                   <span>Sil</span>
                 </button>
@@ -420,22 +475,24 @@
             </div>
           </div>
           <div class="inline-player-sidebar card">
-            <div class="sidebar-header">
-              <h4 id="inline-sidebar-title">İndirilen Diğer Videolar</h4>
-              <div class="playlist-filters">
-                <select id="inline-playlist-sort" title="Sıralama Ölçütü">
-                  <option value="date-desc">Tarih ▼</option>
-                  <option value="date-asc">Tarih ▲</option>
-                  <option value="size-desc">Boyut ▼</option>
-                  <option value="size-asc">Boyut ▲</option>
-                </select>
-                <select id="inline-playlist-channel" title="Kanal Filtresi">
-                  <option value="all">Tüm Kanallar</option>
-                </select>
-              </div>
-              <div class="inline-playlist-show-shorts-container">
-                <input type="checkbox" id="inline-playlist-show-shorts">
-                <span onclick="document.getElementById('inline-playlist-show-shorts').click()">Shorts Göster</span>
+            <div class="sidebar-header" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+              <h4 id="inline-sidebar-title" style="margin:0; font-size:1rem; font-weight:700;">İndirilenler</h4>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <!-- Hızlı Sıralama Butonları -->
+                <button type="button" class="sort-btn" id="inline-btn-sort-date" style="padding: 4px 8px; font-size: 0.72rem; display: flex; align-items: center; gap: 4px; height: 26px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" title="Tarihe Göre Sırala">
+                  <i data-lucide="calendar" style="width:12px; height:12px;"></i>
+                  <span id="inline-btn-sort-date-text">Tarih ▼</span>
+                </button>
+                <button type="button" class="sort-btn" id="inline-btn-sort-size" style="padding: 4px 8px; font-size: 0.72rem; display: flex; align-items: center; gap: 4px; height: 26px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" title="Boyuta Göre Sırala">
+                  <i data-lucide="hard-drive" style="width:12px; height:12px;"></i>
+                  <span id="inline-btn-sort-size-text">Boyut ▼</span>
+                </button>
+                
+                <!-- Shorts Göster Seçeneği -->
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 0.72rem; color: var(--text-main); cursor: pointer; user-select: none; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 6px; height: 26px; margin: 0;">
+                  <input type="checkbox" id="inline-playlist-show-shorts" style="cursor: pointer; margin: 0; width: 12px; height: 12px;">
+                  <span id="inline-label-shorts-text">Shorts</span>
+                </label>
               </div>
             </div>
             <div id="downloaded-playlist-grid" class="downloaded-playlist-grid">
@@ -495,7 +552,7 @@
             <h2>Ayarlar</h2>
             <p id="settings-desc">Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
           </div>
-            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.20.0</a></strong></span>
+            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.22.0</a></strong></span>
         </header>
 
         <div class="card card-settings">

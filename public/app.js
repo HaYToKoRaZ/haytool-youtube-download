@@ -188,7 +188,37 @@ const translations = {
     opt_sub_green: 'Yeşil',
     opt_sub_cyan: 'Turkuaz',
     opt_sub_magenta: 'Pembe',
-    opt_sub_red: 'Kırmızı'
+    opt_sub_red: 'Kırmızı',
+    opt_sub_blue: 'Mavi',
+    opt_sub_orange: 'Turuncu',
+    opt_sub_purple: 'Mor',
+    opt_sub_black: 'Siyah',
+    opt_sub_gray: 'Gri',
+    opt_sub_lightyellow: 'Açık Sarı',
+    inline_btn_youtube: 'YouTube\'da Aç',
+    inline_btn_system: 'Sistem Oynatıcısında Aç',
+    inline_btn_folder: 'Klasör Aç',
+    inline_btn_comments: 'Yorumları Göster',
+    inline_btn_translate_sub: 'Türkçe\'ye Çevir',
+    opt_sub_opacity_0: 'Saydam (%0)',
+    opt_sub_opacity_10: 'Saydamlık (%10)',
+    opt_sub_opacity_20: 'Saydamlık (%20)',
+    opt_sub_opacity_30: 'Saydamlık (%30)',
+    opt_sub_opacity_40: 'Saydamlık (%40)',
+    opt_sub_opacity_50: 'Saydamlık (%50)',
+    opt_sub_opacity_60: 'Saydamlık (%60)',
+    opt_sub_opacity_70: 'Saydamlık (%70)',
+    opt_sub_opacity_80: 'Saydamlık (%80)',
+    opt_sub_opacity_90: 'Saydamlık (%90)',
+    opt_sub_opacity_95: 'Saydamlık (%95)',
+    opt_sub_opacity_100: 'Mat (%100)',
+    overlay_translating_title: 'Altyazı Çeviriliyor...',
+    overlay_translating_desc: 'Lütfen bekleyin, API üzerinden satır satır çeviri yapılıyor...',
+    modal_translate_title: 'Altyazı Çevirisi',
+    modal_translate_no_subs: 'Bu video için indirilmiş altyazı bulunamadı. Çeviri yapabilmek için en az bir altyazı dosyası indirilmiş olmalıdır.',
+    modal_translate_source: 'Çevrilecek Altyazı (Kaynak)',
+    modal_translate_target: 'Hedef Dil',
+    btn_translate_action: 'Çevir'
   },
   en: {
     premium_automation: 'Premium Automation',
@@ -365,7 +395,37 @@ const translations = {
     opt_sub_green: 'Green',
     opt_sub_cyan: 'Cyan',
     opt_sub_magenta: 'Pink',
-    opt_sub_red: 'Red'
+    opt_sub_red: 'Red',
+    opt_sub_blue: 'Blue',
+    opt_sub_orange: 'Orange',
+    opt_sub_purple: 'Purple',
+    opt_sub_black: 'Black',
+    opt_sub_gray: 'Gray',
+    opt_sub_lightyellow: 'Light Yellow',
+    inline_btn_youtube: 'Open on YouTube',
+    inline_btn_system: 'Open in System Player',
+    inline_btn_folder: 'Open Folder',
+    inline_btn_comments: 'Show Comments',
+    inline_btn_translate_sub: 'Translate to Turkish',
+    opt_sub_opacity_0: 'Transparent (%0)',
+    opt_sub_opacity_10: 'Opacity (%10)',
+    opt_sub_opacity_20: 'Opacity (%20)',
+    opt_sub_opacity_30: 'Opacity (%30)',
+    opt_sub_opacity_40: 'Opacity (%40)',
+    opt_sub_opacity_50: 'Opacity (%50)',
+    opt_sub_opacity_60: 'Opacity (%60)',
+    opt_sub_opacity_70: 'Opacity (%70)',
+    opt_sub_opacity_80: 'Opacity (%80)',
+    opt_sub_opacity_90: 'Opacity (%90)',
+    opt_sub_opacity_95: 'Opacity (%95)',
+    opt_sub_opacity_100: 'Solid (%100)',
+    overlay_translating_title: 'Translating Subtitles...',
+    overlay_translating_desc: 'Please wait, translating track line-by-line using API...',
+    modal_translate_title: 'Subtitle Translation',
+    modal_translate_no_subs: 'No downloaded subtitles found for this video. You need at least one downloaded subtitle track to translate.',
+    modal_translate_source: 'Source Subtitle',
+    modal_translate_target: 'Target Language',
+    btn_translate_action: 'Translate'
   },
   es: {
     premium_automation: 'Automatización Premium',
@@ -542,7 +602,37 @@ const translations = {
     opt_sub_green: 'Verde',
     opt_sub_cyan: 'Cian',
     opt_sub_magenta: 'Rosa',
-    opt_sub_red: 'Rojo'
+    opt_sub_red: 'Rojo',
+    opt_sub_blue: 'Azul',
+    opt_sub_orange: 'Naranja',
+    opt_sub_purple: 'Morado',
+    opt_sub_black: 'Negro',
+    opt_sub_gray: 'Gris',
+    opt_sub_lightyellow: 'Amarillo Claro',
+    inline_btn_youtube: 'Abrir en YouTube',
+    inline_btn_system: 'Abrir en Reproductor del Sistema',
+    inline_btn_folder: 'Abrir Carpeta',
+    inline_btn_comments: 'Mostrar Comentarios',
+    inline_btn_translate_sub: 'Traducir al Turco',
+    opt_sub_opacity_0: 'Transparente (%0)',
+    opt_sub_opacity_10: 'Opacidad (%10)',
+    opt_sub_opacity_20: 'Opacidad (%20)',
+    opt_sub_opacity_30: 'Opacidad (%30)',
+    opt_sub_opacity_40: 'Opacidad (%40)',
+    opt_sub_opacity_50: 'Opacidad (%50)',
+    opt_sub_opacity_60: 'Opacidad (%60)',
+    opt_sub_opacity_70: 'Opacidad (%70)',
+    opt_sub_opacity_80: 'Opacidad (%80)',
+    opt_sub_opacity_90: 'Opacidad (%90)',
+    opt_sub_opacity_95: 'Opacidad (%95)',
+    opt_sub_opacity_100: 'Sólido (%100)',
+    overlay_translating_title: 'Traduciendo subtítulos...',
+    overlay_translating_desc: 'Por favor espere, traduciendo la pista línea por línea usando la API...',
+    modal_translate_title: 'Traducción de Subtítulos',
+    modal_translate_no_subs: 'No se encontraron subtítulos descargados para este video. Necesita al menos una pista de subtítulos descargada para traducir.',
+    modal_translate_source: 'Subtítulo de Origen',
+    modal_translate_target: 'Idioma de Destino',
+    btn_translate_action: 'Traducir'
   },
   de: {
     premium_automation: 'Premium Automatisierung',
@@ -719,7 +809,37 @@ const translations = {
     opt_sub_green: 'Grün',
     opt_sub_cyan: 'Cyan',
     opt_sub_magenta: 'Rosa',
-    opt_sub_red: 'Rot'
+    opt_sub_red: 'Rot',
+    opt_sub_blue: 'Blau',
+    opt_sub_orange: 'Orange',
+    opt_sub_purple: 'Lila',
+    opt_sub_black: 'Schwarz',
+    opt_sub_gray: 'Grau',
+    opt_sub_lightyellow: 'Hellgelb',
+    inline_btn_youtube: 'Auf YouTube öffnen',
+    inline_btn_system: 'Im Systemplayer öffnen',
+    inline_btn_folder: 'Ordner öffnen',
+    inline_btn_comments: 'Kommentare anzeigen',
+    inline_btn_translate_sub: 'Ins Türkische übersetzen',
+    opt_sub_opacity_0: 'Transparent (%0)',
+    opt_sub_opacity_10: 'Deckkraft (%10)',
+    opt_sub_opacity_20: 'Deckkraft (%20)',
+    opt_sub_opacity_30: 'Deckkraft (%30)',
+    opt_sub_opacity_40: 'Deckkraft (%40)',
+    opt_sub_opacity_50: 'Deckkraft (%50)',
+    opt_sub_opacity_60: 'Deckkraft (%60)',
+    opt_sub_opacity_70: 'Deckkraft (%70)',
+    opt_sub_opacity_80: 'Deckkraft (%80)',
+    opt_sub_opacity_90: 'Deckkraft (%90)',
+    opt_sub_opacity_95: 'Deckkraft (%95)',
+    opt_sub_opacity_100: 'Undurchsichtig (%100)',
+    overlay_translating_title: 'Untertitel übersetzen...',
+    overlay_translating_desc: 'Bitte warten, der Track wird Zeile für Zeile über die API übersetzt...',
+    modal_translate_title: 'Untertitel Übersetzung',
+    modal_translate_no_subs: 'Keine heruntergeladenen Untertitel für dieses Video gefunden. Sie benötigen mindestens eine heruntergeladene Untertitelspur zum Übersetzen.',
+    modal_translate_source: 'Quelluntertitel',
+    modal_translate_target: 'Zielsprache',
+    btn_translate_action: 'Übersetzen'
   },
   pt: {
     premium_automation: 'Automatização Premium',
@@ -896,7 +1016,37 @@ const translations = {
     opt_sub_green: 'Verde',
     opt_sub_cyan: 'Ciano',
     opt_sub_magenta: 'Rosa',
-    opt_sub_red: 'Vermelho'
+    opt_sub_red: 'Vermelho',
+    opt_sub_blue: 'Azul',
+    opt_sub_orange: 'Laranja',
+    opt_sub_purple: 'Roxo',
+    opt_sub_black: 'Preto',
+    opt_sub_gray: 'Cinza',
+    opt_sub_lightyellow: 'Amarelo Claro',
+    inline_btn_youtube: 'Abrir no YouTube',
+    inline_btn_system: 'Abrir no Reprodutor do Sistema',
+    inline_btn_folder: 'Abrir Pasta',
+    inline_btn_comments: 'Mostrar Comentários',
+    inline_btn_translate_sub: 'Traduzir para o Turco',
+    opt_sub_opacity_0: 'Transparente (%0)',
+    opt_sub_opacity_10: 'Opacidade (%10)',
+    opt_sub_opacity_20: 'Opacidade (%20)',
+    opt_sub_opacity_30: 'Opacidade (%30)',
+    opt_sub_opacity_40: 'Opacidade (%40)',
+    opt_sub_opacity_50: 'Opacidade (%50)',
+    opt_sub_opacity_60: 'Opacidade (%60)',
+    opt_sub_opacity_70: 'Opacidade (%70)',
+    opt_sub_opacity_80: 'Opacidade (%80)',
+    opt_sub_opacity_90: 'Opacidade (%90)',
+    opt_sub_opacity_95: 'Opacidade (%95)',
+    opt_sub_opacity_100: 'Sólido (%100)',
+    overlay_translating_title: 'Traduzindo legendas...',
+    overlay_translating_desc: 'Aguarde, traduzindo a faixa linha por linha usando a API...',
+    modal_translate_title: 'Tradução de Legendas',
+    modal_translate_no_subs: 'Nenhuma legenda baixada encontrada para este vídeo. Você precisa de pelo menos uma faixa de legenda baixada para traduzir.',
+    modal_translate_source: 'Legenda de Origem',
+    modal_translate_target: 'Idioma de Destino',
+    btn_translate_action: 'Traduzir'
   },
   ar: {
     premium_automation: 'التحكم التلقائي المميز',
@@ -1073,7 +1223,37 @@ const translations = {
     opt_sub_green: 'أخضر',
     opt_sub_cyan: 'سماوي',
     opt_sub_magenta: 'وردي',
-    opt_sub_red: 'أحمر'
+    opt_sub_red: 'أحمر',
+    opt_sub_blue: 'أزرق',
+    opt_sub_orange: 'برتقالي',
+    opt_sub_purple: 'أرجواني',
+    opt_sub_black: 'أسود',
+    opt_sub_gray: 'رمادي',
+    opt_sub_lightyellow: 'أصفر فاتح',
+    inline_btn_youtube: 'فتح في YouTube',
+    inline_btn_system: 'فتح في مشغل النظام',
+    inline_btn_folder: 'فتح المجلد',
+    inline_btn_comments: 'عرض التعليقات',
+    inline_btn_translate_sub: 'ترجمة إلى التركية',
+    opt_sub_opacity_0: 'شفاف (%0)',
+    opt_sub_opacity_10: 'شفافية (%10)',
+    opt_sub_opacity_20: 'شفافية (%20)',
+    opt_sub_opacity_30: 'شفافية (%30)',
+    opt_sub_opacity_40: 'شفافية (%40)',
+    opt_sub_opacity_50: 'شفافية (%50)',
+    opt_sub_opacity_60: 'شفافية (%60)',
+    opt_sub_opacity_70: 'شفافية (%70)',
+    opt_sub_opacity_80: 'شفافية (%80)',
+    opt_sub_opacity_90: 'شفافية (%90)',
+    opt_sub_opacity_95: 'شفافية (%95)',
+    opt_sub_opacity_100: 'معتم (%100)',
+    overlay_translating_title: 'ترجمة الترجمة المصاحبة...',
+    overlay_translating_desc: 'يرجى الانتظار، جاري ترجمة المسار سطرًا بسطر باستخدام واجهة برمجة التطبيقات...',
+    modal_translate_title: 'ترجمة الترجمة المصاحبة',
+    modal_translate_no_subs: 'لم يتم العثور على ترجمات مصاحبة تم تنزيلها لهذا الفيديو. تحتاج إلى مسار ترجمة مصاحبة واحد على الأقل تم تنزيله لترجمته.',
+    modal_translate_source: 'الترجمة المصاحبة المصدر',
+    modal_translate_target: 'اللغة الهدف',
+    btn_translate_action: 'ترجمة'
   },
   ru: {
     premium_automation: 'Премиум Автоматизация',
@@ -1250,7 +1430,37 @@ const translations = {
     opt_sub_green: 'Зеленый',
     opt_sub_cyan: 'Голубой',
     opt_sub_magenta: 'Розовый',
-    opt_sub_red: 'Красный'
+    opt_sub_red: 'Красный',
+    opt_sub_blue: 'Синий',
+    opt_sub_orange: 'Оранжевый',
+    opt_sub_purple: 'Фиолетовый',
+    opt_sub_black: 'Черный',
+    opt_sub_gray: 'Серый',
+    opt_sub_lightyellow: 'Светло-желтый',
+    inline_btn_youtube: 'Открыть на YouTube',
+    inline_btn_system: 'Открыть в системном плеере',
+    inline_btn_folder: 'Открыть папку',
+    inline_btn_comments: 'Показать комментарии',
+    inline_btn_translate_sub: 'Перевести на турецкий',
+    opt_sub_opacity_0: 'Прозрачный (%0)',
+    opt_sub_opacity_10: 'Прозрачность (%10)',
+    opt_sub_opacity_20: 'Прозрачность (%20)',
+    opt_sub_opacity_30: 'Прозрачность (%30)',
+    opt_sub_opacity_40: 'Прозрачность (%40)',
+    opt_sub_opacity_50: 'Прозрачность (%50)',
+    opt_sub_opacity_60: 'Прозрачность (%60)',
+    opt_sub_opacity_70: 'Прозрачность (%70)',
+    opt_sub_opacity_80: 'Прозрачность (%80)',
+    opt_sub_opacity_90: 'Прозрачность (%90)',
+    opt_sub_opacity_95: 'Прозрачность (%95)',
+    opt_sub_opacity_100: 'Непрозрачный (%100)',
+    overlay_translating_title: 'Перевод субтитров...',
+    overlay_translating_desc: 'Пожалуйста, подождите, идет перевод дорожки строка за строкой через API...',
+    modal_translate_title: 'Перевод субтитров',
+    modal_translate_no_subs: 'Для этого видео не найдено скачанных субтитров. Для перевода вам нужна как минимум одна скачанная дорожка субтитров.',
+    modal_translate_source: 'Исходные субтитры',
+    modal_translate_target: 'Целевой язык',
+    btn_translate_action: 'Перевести'
   }
 };
 
@@ -1394,6 +1604,74 @@ function applyLanguage(lang) {
   el('opt-sub-cyan', 'opt_sub_cyan');
   el('opt-sub-magenta', 'opt_sub_magenta');
   el('opt-sub-red', 'opt_sub_red');
+
+  // Gömülü oynatıcı eylemleri title'ları
+  const inlineBtnYoutube = document.getElementById('inline-btn-youtube');
+  if (inlineBtnYoutube) {
+    inlineBtnYoutube.title = t.inline_btn_youtube;
+    inlineBtnYoutube.setAttribute('aria-label', t.inline_btn_youtube);
+  }
+  const inlineBtnSystem = document.getElementById('inline-btn-system');
+  if (inlineBtnSystem) {
+    inlineBtnSystem.title = t.inline_btn_system;
+    inlineBtnSystem.setAttribute('aria-label', t.inline_btn_system);
+  }
+  const inlineBtnFolder = document.getElementById('inline-btn-folder');
+  if (inlineBtnFolder) {
+    inlineBtnFolder.title = t.inline_btn_folder;
+    inlineBtnFolder.setAttribute('aria-label', t.inline_btn_folder);
+  }
+  const inlineBtnComments = document.getElementById('inline-btn-comments');
+  if (inlineBtnComments) {
+    inlineBtnComments.title = t.inline_btn_comments;
+    inlineBtnComments.setAttribute('aria-label', t.inline_btn_comments);
+  }
+  const inlineBtnTranslate = document.getElementById('inline-btn-translate-sub');
+  if (inlineBtnTranslate) {
+    inlineBtnTranslate.title = t.inline_btn_translate_sub;
+  }
+
+  // Altyazı Rengi Option Çevirileri
+  const inlineSubColor = document.getElementById('inline-subtitle-color');
+  if (inlineSubColor && inlineSubColor.options.length >= 12) {
+    inlineSubColor.title = t.inline_sub_color_title;
+    inlineSubColor.options[0].text = t.opt_sub_white;
+    inlineSubColor.options[1].text = t.opt_sub_yellow;
+    inlineSubColor.options[2].text = t.opt_sub_green;
+    inlineSubColor.options[3].text = t.opt_sub_cyan;
+    inlineSubColor.options[4].text = t.opt_sub_magenta;
+    inlineSubColor.options[5].text = t.opt_sub_red;
+    inlineSubColor.options[6].text = t.opt_sub_blue;
+    inlineSubColor.options[7].text = t.opt_sub_orange;
+    inlineSubColor.options[8].text = t.opt_sub_purple;
+    inlineSubColor.options[9].text = t.opt_sub_black;
+    inlineSubColor.options[10].text = t.opt_sub_gray;
+    inlineSubColor.options[11].text = t.opt_sub_lightyellow;
+  }
+
+  // Altyazı Saydamlığı Option Çevirileri
+  const inlineSubOpacity = document.getElementById('inline-subtitle-opacity');
+  if (inlineSubOpacity && inlineSubOpacity.options.length >= 12) {
+    inlineSubOpacity.title = t.inline_sub_opacity_title;
+    inlineSubOpacity.options[0].text = t.opt_sub_opacity_0;
+    inlineSubOpacity.options[1].text = t.opt_sub_opacity_10;
+    inlineSubOpacity.options[2].text = t.opt_sub_opacity_20;
+    inlineSubOpacity.options[3].text = t.opt_sub_opacity_30;
+    inlineSubOpacity.options[4].text = t.opt_sub_opacity_40;
+    inlineSubOpacity.options[5].text = t.opt_sub_opacity_50;
+    inlineSubOpacity.options[6].text = t.opt_sub_opacity_60;
+    inlineSubOpacity.options[7].text = t.opt_sub_opacity_70;
+    inlineSubOpacity.options[8].text = t.opt_sub_opacity_80;
+    inlineSubOpacity.options[9].text = t.opt_sub_opacity_90;
+    inlineSubOpacity.options[10].text = t.opt_sub_opacity_95;
+    inlineSubOpacity.options[11].text = t.opt_sub_opacity_100;
+  }
+
+  // Altyazı Boyutu Option Çevirileri
+  const inlineSubSize = document.getElementById('inline-subtitle-size');
+  if (inlineSubSize) {
+    inlineSubSize.title = t.inline_sub_size_title;
+  }
 
   elQuery('.form-actions button span', 'btn_save_settings');
 
@@ -2221,6 +2499,12 @@ function updateUI(db) {
   if (db.settings && db.settings.subtitleColor) {
     document.documentElement.style.setProperty('--subtitle-color', db.settings.subtitleColor);
   }
+  if (db.settings && db.settings.subtitleOpacity !== undefined) {
+    document.documentElement.style.setProperty('--subtitle-bg-opacity', db.settings.subtitleOpacity);
+  }
+  if (db.settings && db.settings.subtitleSize !== undefined) {
+    document.documentElement.style.setProperty('--subtitle-font-size', db.settings.subtitleSize);
+  }
 
   // 1. Sistem Durum Detayları
   const isEn = db.settings && db.settings.lang === 'en';
@@ -2476,23 +2760,20 @@ function updateUI(db) {
   }
 
   // Yerleşik oynatma listesi sidebar filtrelerini doldur ve senkronize et
-  const inlinePlaylistChannel = document.getElementById('inline-playlist-channel');
-  if (inlinePlaylistChannel && db.channels) {
-    const currentPlaylistFilterVal = downloadedFilterChannel || 'all';
-    inlinePlaylistChannel.innerHTML = '<option value="all">Tüm Kanallar</option>';
-    const sortedFilterChannels = [...db.channels].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
-    sortedFilterChannels.forEach(channel => {
-      const opt = document.createElement('option');
-      opt.value = channel.id;
-      opt.textContent = channel.name;
-      inlinePlaylistChannel.appendChild(opt);
-    });
-    inlinePlaylistChannel.value = currentPlaylistFilterVal;
+  if (typeof updateSidebarSortButtons === 'function') {
+    updateSidebarSortButtons();
   }
 
-  const inlinePlaylistSort = document.getElementById('inline-playlist-sort');
-  if (inlinePlaylistSort) {
-    inlinePlaylistSort.value = downloadedSortVal || 'date-desc';
+  // Normal sayfadaki sıralama butonlarının aktifliğini güncelle
+  const downloadedSortGroup = document.getElementById('downloaded-sort-group');
+  if (downloadedSortGroup) {
+    downloadedSortGroup.querySelectorAll('.sort-btn').forEach(b => {
+      if (b.getAttribute('data-sort') === downloadedSortVal) {
+        b.classList.add('active');
+      } else {
+        b.classList.remove('active');
+      }
+    });
   }
 
   const inlinePlaylistShowShorts = document.getElementById('inline-playlist-show-shorts');
@@ -3067,6 +3348,8 @@ async function performAutoSave() {
      port: port,
     playerType: document.getElementById('settings-player-type').value,
     subtitleColor: document.getElementById('settings-subtitle-color').value,
+    subtitleOpacity: localDb.settings.subtitleOpacity || '0.7',
+    subtitleSize: localDb.settings.subtitleSize || '26px',
     sponsorBlockEnabled: document.getElementById('settings-sponsorblock').checked,
     playSounds: document.getElementById('settings-playsounds').checked,
     showNotifications: document.getElementById('settings-shownotifications').checked,
@@ -3932,7 +4215,7 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
     const isEn = localDb.settings?.lang === 'en';
     if (commentsBtn) {
       commentsBtn.classList.add('active');
-      commentsBtn.querySelector('span').textContent = isEn ? 'Hide Comments' : 'Yorumları Gizle';
+      commentsBtn.title = isEn ? 'Hide Comments' : 'Yorumları Gizle';
     }
     loadComments(videoId);
 
@@ -3996,8 +4279,327 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
       }
     }
 
+    const btnTranslate = document.getElementById('inline-btn-translate-sub');
+    if (btnTranslate) {
+      const isCompleted = video && video.status === 'completed';
+
+      if (isCompleted) {
+        btnTranslate.style.display = 'inline-flex';
+        btnTranslate.onclick = async () => {
+          try {
+            const lang = localDb.settings?.lang || currentLang || 'tr';
+            const t = translations[lang] || translations.tr;
+
+            // Defensive helper function for language names
+            const getLangName = (code) => {
+              if (!code) return 'Bilinmeyen Dil / Unknown';
+              const map = {
+                tr: 'Türkçe (TR)',
+                en: 'English (EN)',
+                es: 'Español (ES)',
+                de: 'Deutsch (DE)',
+                pt: 'Português (PT)',
+                ar: 'العربية (AR)',
+                ru: 'Русский (RU)',
+                fr: 'Français (FR)',
+                it: 'Italiano (IT)',
+                ja: '日本語 (JA)',
+                zh: '中文 (ZH)'
+              };
+              const codeLower = String(code).toLowerCase();
+              return map[codeLower] || String(code).toUpperCase();
+            };
+
+            // Create Modal element
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = 'translate-sub-modal';
+            modal.style.zIndex = '15000';
+            
+            let modalHtml = `
+              <div class="modal-content" style="border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <div class="modal-header">
+                  <h3>${t.modal_translate_title || 'Altyazı Çevirisi'}</h3>
+                  <button class="modal-close-btn" id="close-translate-modal-btn">
+                    <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                  </button>
+                </div>
+                <div class="modal-body">
+            `;
+
+            if (!availableSubtitles || availableSubtitles.length === 0) {
+              modalHtml += `
+                <div style="text-align: center; padding: 12px; color: var(--accent-red); font-size: 0.9rem;">
+                  <i data-lucide="alert-triangle" style="width: 32px; height: 32px; margin-bottom: 8px; stroke: var(--accent-red); display: inline-block;"></i>
+                  <div>${t.modal_translate_no_subs || 'Bu video için indirilmiş altyazı bulunamadı. Çeviri yapabilmek için en az bir altyazı dosyası indirilmiş olmalıdır.'}</div>
+                </div>
+              `;
+            } else {
+              modalHtml += `
+                <div class="form-group" style="margin-bottom: 16px;">
+                  <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px;">
+                    ${t.modal_translate_source || 'Çevrilecek Altyazı (Kaynak)'}
+                  </label>
+                  <select id="translate-source-lang" class="custom-select-trigger" style="width: 100%; height: 40px; background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 0 12px; outline: none; font-size: 0.9rem;">
+                    ${availableSubtitles.map(s => {
+                      const sLang = s && s.lang ? s.lang : '';
+                      const sExt = s && s.ext ? String(s.ext).toUpperCase() : 'SRT';
+                      return `<option value="${sLang}">${getLangName(sLang)} (${sExt})</option>`;
+                    }).join('')}
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 24px;">
+                  <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px;">
+                    ${t.modal_translate_target || 'Hedef Dil'}
+                  </label>
+                  <select id="translate-target-lang" class="custom-select-trigger" style="width: 100%; height: 40px; background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 0 12px; outline: none; font-size: 0.9rem;">
+                    <option value="tr" ${lang === 'tr' ? 'selected' : ''}>Türkçe (TR)</option>
+                    <option value="en" ${lang === 'en' ? 'selected' : ''}>English (EN)</option>
+                    <option value="es" ${lang === 'es' ? 'selected' : ''}>Español (ES)</option>
+                    <option value="de" ${lang === 'de' ? 'selected' : ''}>Deutsch (DE)</option>
+                    <option value="pt" ${lang === 'pt' ? 'selected' : ''}>Português (PT)</option>
+                    <option value="ar" ${lang === 'ar' ? 'selected' : ''}>العربية (AR)</option>
+                    <option value="ru" ${lang === 'ru' ? 'selected' : ''}>Русский (RU)</option>
+                    <option value="fr">Français (FR)</option>
+                    <option value="it">Italiano (IT)</option>
+                    <option value="ja">日本語 (JA)</option>
+                    <option value="zh">中文 (ZH)</option>
+                  </select>
+                </div>
+              `;
+            }
+
+            modalHtml += `
+                </div>
+                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                  <button class="btn btn-secondary" id="translate-modal-cancel" style="padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-main);">
+                    ${t.modal_cancel_btn || 'İptal'}
+                  </button>
+                  ${availableSubtitles && availableSubtitles.length > 0 ? `
+                    <button class="btn btn-primary" id="translate-modal-submit" style="padding: 8px 20px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-weight: 600; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: white; border: none;">
+                      ${t.btn_translate_action || 'Çevir'}
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+
+            modal.innerHTML = modalHtml;
+            document.body.appendChild(modal);
+
+            try {
+              lucide.createIcons();
+            } catch (e) {
+              console.warn("Lucide icons rendering failed inside modal:", e);
+            }
+
+            const closeModal = () => {
+              if (modal && modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+              }
+            };
+
+            const closeBtn = document.getElementById('close-translate-modal-btn');
+            if (closeBtn) closeBtn.onclick = closeModal;
+
+            const cancelBtn = document.getElementById('translate-modal-cancel');
+            if (cancelBtn) cancelBtn.onclick = closeModal;
+
+            const submitBtn = document.getElementById('translate-modal-submit');
+            if (submitBtn) {
+              submitBtn.onclick = async () => {
+                try {
+                  const fromLang = document.getElementById('translate-source-lang').value;
+                  const toLang = document.getElementById('translate-target-lang').value;
+
+                  if (fromLang === toLang) {
+                    showToast(lang === 'en' ? 'Source and target languages cannot be the same.' : 'Kaynak ve hedef dil aynı olamaz.', 'error');
+                    return;
+                  }
+
+                  closeModal();
+
+                  btnTranslate.disabled = true;
+                  btnTranslate.style.opacity = '0.5';
+                  const icon = btnTranslate.querySelector('i');
+                  if (icon) icon.style.animation = 'spin 1s linear infinite';
+
+                  // Show Toast for translation start
+                  showToast(lang === 'en' ? 'Translating subtitles...' : 'Altyazılar çevriliyor...', 'info');
+
+                  // Create and append visual loading overlay
+                  const overlay = document.createElement('div');
+                  overlay.className = 'subtitle-translation-overlay';
+                  overlay.innerHTML = `
+                    <div class="subtitle-translation-spinner"></div>
+                    <div style="font-weight: 600; font-size: 1.15rem; margin-bottom: 6px; font-family: 'Outfit', sans-serif;">
+                      ${t.overlay_translating_title || 'Altyazı Çeviriliyor...'}
+                    </div>
+                    <div style="font-size: 0.85rem; opacity: 0.8; color: #a1a1aa; max-width: 80%; text-align: center; line-height: 1.4;">
+                      ${t.overlay_translating_desc || 'Lütfen bekleyin, altyazı çevirisi yapılıyor...'}
+                    </div>
+                  `;
+                  const targetContainer = playerContainer || document.getElementById('inline-player-body');
+                  if (targetContainer) {
+                    targetContainer.appendChild(overlay);
+                  }
+
+                  try {
+                    const res = await fetch(`/api/video/${videoId}/translate-subtitle`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ fromLang, toLang })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      showToast(lang === 'en' ? 'Subtitles successfully translated!' : 'Altyazılar başarıyla çevrildi!', 'success');
+                      playVideoEmbedded(videoId, videoPlayerInstance ? videoPlayerInstance.currentTime : null);
+                    } else {
+                      showToast(data.error || 'Translation failed.', 'error');
+                    }
+                  } catch (err) {
+                    console.error('Subtitle translation error:', err);
+                    showToast('Translation error occurred.', 'error');
+                  } finally {
+                    btnTranslate.disabled = false;
+                    btnTranslate.style.opacity = '1';
+                    if (icon) icon.style.animation = '';
+                    if (overlay && overlay.parentNode) {
+                      overlay.parentNode.removeChild(overlay);
+                    }
+                  }
+                } catch (submitErr) {
+                  console.error("Submit translation click error:", submitErr);
+                  showToast("Hata: " + submitErr.message, "error");
+                }
+              };
+            }
+          } catch (clickErr) {
+            console.error("Translate click error:", clickErr);
+            showToast(localDb.settings?.lang === 'en' ? 'An error occurred while opening the translation tool.' : 'Çeviri aracı açılırken bir hata oluştu.', 'error');
+          }
+        };
+      } else {
+        btnTranslate.style.display = 'none';
+      }
+    }
+
     const btnClose = document.getElementById('inline-btn-close');
     if (btnClose) btnClose.onclick = () => closeInlinePlayer();
+
+    // Subtitle Color & Opacity & Redownload bindings
+    const inlineSubColor = document.getElementById('inline-subtitle-color');
+    if (inlineSubColor) {
+      inlineSubColor.value = (localDb.settings && localDb.settings.subtitleColor) || '#ffffff';
+      inlineSubColor.onchange = async (e) => {
+        const val = e.target.value;
+        localDb.settings.subtitleColor = val;
+        document.documentElement.style.setProperty('--subtitle-color', val);
+        const globalDropdown = document.getElementById('settings-subtitle-color');
+        if (globalDropdown) globalDropdown.value = val;
+        
+        if (videoPlayerInstance && typeof videoPlayerInstance.subtitle?.style === 'function') {
+          videoPlayerInstance.subtitle.style({ color: val });
+        }
+        
+        try {
+          await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localDb.settings)
+          });
+        } catch (err) {
+          console.error('subtitleColor save error:', err);
+        }
+      };
+    }
+
+    const inlineSubOpacity = document.getElementById('inline-subtitle-opacity');
+    if (inlineSubOpacity) {
+      inlineSubOpacity.value = (localDb.settings && localDb.settings.subtitleOpacity) || '0.7';
+      inlineSubOpacity.onchange = async (e) => {
+        const val = e.target.value;
+        localDb.settings.subtitleOpacity = val;
+        document.documentElement.style.setProperty('--subtitle-bg-opacity', val);
+        
+        if (videoPlayerInstance && typeof videoPlayerInstance.subtitle?.style === 'function') {
+          videoPlayerInstance.subtitle.style({
+            backgroundColor: `rgba(0, 0, 0, ${val})`
+          });
+        }
+        
+        try {
+          await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localDb.settings)
+          });
+        } catch (err) {
+          console.error('subtitleOpacity save error:', err);
+        }
+      };
+    }
+
+    const inlineSubSize = document.getElementById('inline-subtitle-size');
+    if (inlineSubSize) {
+      inlineSubSize.value = (localDb.settings && localDb.settings.subtitleSize) || '26px';
+      inlineSubSize.onchange = async (e) => {
+        const val = e.target.value;
+        localDb.settings.subtitleSize = val;
+        document.documentElement.style.setProperty('--subtitle-font-size', val);
+        
+        if (videoPlayerInstance && typeof videoPlayerInstance.subtitle?.style === 'function') {
+          videoPlayerInstance.subtitle.style({
+            fontSize: val
+          });
+        }
+        
+        try {
+          await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localDb.settings)
+          });
+        } catch (err) {
+          console.error('subtitleSize save error:', err);
+        }
+      };
+    }
+
+    const btnRedownload = document.getElementById('inline-btn-redownload');
+    if (btnRedownload) {
+      const isCompleted = video && video.status === 'completed';
+      if (isCompleted) {
+        btnRedownload.style.display = 'inline-flex';
+        btnRedownload.onclick = async () => {
+          if (!confirm(localDb.settings?.lang === 'en' 
+            ? 'Are you sure you want to delete this video and download it again from scratch?' 
+            : 'Bu videoyu silip baştan indirmek istediğinizden emin misiniz?')) {
+            return;
+          }
+          
+          try {
+            showToast(localDb.settings?.lang === 'en' ? 'Redownload triggered...' : 'Tekrar indirme başlatıldı...', 'info');
+            const res = await fetch(`/api/history/${videoId}/redownload`, {
+              method: 'POST'
+            });
+            const data = await res.json();
+            if (data.success) {
+              showToast(localDb.settings?.lang === 'en' ? 'Video queued for download.' : 'Video tekrar indirilmek üzere kuyruğa eklendi.', 'success');
+              if (typeof closeInlinePlayer === 'function') {
+                closeInlinePlayer();
+              }
+            } else {
+              showToast(data.error || 'Hata oluştu.', 'error');
+            }
+          } catch (err) {
+            showToast('Sunucu ile iletişim hatası.', 'error');
+          }
+        };
+      } else {
+        btnRedownload.style.display = 'none';
+      }
+    }
 
     // 5. Çalma listesini oluştur
     renderDownloadedPlaylist(videoId);
@@ -4142,7 +4744,13 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
         { value: '#00ff00', nameEn: 'Green', nameTr: 'Yeşil' },
         { value: '#00ffff', nameEn: 'Cyan', nameTr: 'Turkuaz' },
         { value: '#ff00ff', nameEn: 'Pink', nameTr: 'Pembe' },
-        { value: '#ff0000', nameEn: 'Red', nameTr: 'Kırmızı' }
+        { value: '#ff0000', nameEn: 'Red', nameTr: 'Kırmızı' },
+        { value: '#0000ff', nameEn: 'Blue', nameTr: 'Mavi' },
+        { value: '#ffa500', nameEn: 'Orange', nameTr: 'Turuncu' },
+        { value: '#800080', nameEn: 'Purple', nameTr: 'Mor' },
+        { value: '#000000', nameEn: 'Black', nameTr: 'Siyah' },
+        { value: '#808080', nameEn: 'Gray', nameTr: 'Gri' },
+        { value: '#ffffe0', nameEn: 'Light Yellow', nameTr: 'Açık Sarı' }
       ];
       
       const currentColor = (localDb.settings && localDb.settings.subtitleColor) || '#ffffff';
@@ -4192,7 +4800,7 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
         playbackRate: true,
         aspectRatio: true,
         setting: true,
-        hotkey: true,
+        hotkey: false,
         pip: true,
         fullscreen: true,
         mutex: true,
@@ -4203,6 +4811,8 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           type: 'vtt',
           style: {
             color: (localDb.settings && localDb.settings.subtitleColor) || '#ffffff',
+            backgroundColor: `rgba(0, 0, 0, ${(localDb.settings && localDb.settings.subtitleOpacity) || '0.7'})`,
+            fontSize: (localDb.settings && localDb.settings.subtitleSize) || '26px',
             textShadow: '0 0 4px #000000',
           },
         } : undefined,
@@ -4491,6 +5101,41 @@ window.closeInlinePlayer = function() {
   seekedForCurrentVideo = false;
 };
 
+/**
+ * Yerleşik oynatıcı çalma listesi sidebar sıralama butonlarının aktiflik ve yön durumlarını günceller.
+ */
+function updateSidebarSortButtons() {
+  const btnDate = document.getElementById('inline-btn-sort-date');
+  const btnSize = document.getElementById('inline-btn-sort-size');
+  const txtDate = document.getElementById('inline-btn-sort-date-text');
+  const txtSize = document.getElementById('inline-btn-sort-size-text');
+
+  if (!btnDate || !btnSize) return;
+
+  const isEn = localDb.settings?.lang === 'en';
+
+  btnDate.classList.remove('active');
+  btnSize.classList.remove('active');
+
+  if (downloadedSortVal.startsWith('date-')) {
+    btnDate.classList.add('active');
+    if (downloadedSortVal === 'date-asc') {
+      if (txtDate) txtDate.textContent = isEn ? 'Date ▲' : 'Tarih ▲';
+    } else {
+      if (txtDate) txtDate.textContent = isEn ? 'Date ▼' : 'Tarih ▼';
+    }
+    if (txtSize) txtSize.textContent = isEn ? 'Size ▼' : 'Boyut ▼';
+  } else if (downloadedSortVal.startsWith('size-')) {
+    btnSize.classList.add('active');
+    if (downloadedSortVal === 'size-asc') {
+      if (txtSize) txtSize.textContent = isEn ? 'Size ▲' : 'Boyut ▲';
+    } else {
+      if (txtSize) txtSize.textContent = isEn ? 'Size ▼' : 'Boyut ▼';
+    }
+    if (txtDate) txtDate.textContent = isEn ? 'Date ▼' : 'Tarih ▼';
+  }
+}
+
 // Türkçe Açıklama: Yerleşik oynatıcının sağ tarafındaki dikey oynatma listesinde indirilmiş diğer videoları kartlar halinde listeler.
 /**
  * Yerleşik oynatıcı için çalma listesi sidebar içeriğini render eder.
@@ -4502,6 +5147,22 @@ function renderDownloadedPlaylist(currentVideoId) {
   const playlistGrid = document.getElementById('downloaded-playlist-grid');
   if (!playlistGrid) return;
   playlistGrid.innerHTML = '';
+
+  const titleEl = document.getElementById('inline-sidebar-title');
+  if (titleEl) {
+    titleEl.textContent = currentLang === 'en' ? 'Downloads' : 'İndirilenler';
+  }
+
+  // Update sorting buttons state
+  if (typeof updateSidebarSortButtons === 'function') {
+    updateSidebarSortButtons();
+  }
+
+  // Update Shorts label text if exists
+  const labelShortsText = document.getElementById('inline-label-shorts-text');
+  if (labelShortsText) {
+    labelShortsText.textContent = currentLang === 'en' ? 'Shorts' : 'Shorts';
+  }
 
   let filteredDownloaded = localDb.history.filter(item => item.status === 'completed');
   if (downloadedFilterChannel !== 'all') {
@@ -4549,7 +5210,9 @@ function renderDownloadedPlaylist(currentVideoId) {
       </div>
       <div class="playlist-item-details">
         <h5 class="playlist-item-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h5>
-        <div class="playlist-item-channel">${escapeHtml(item.channelName || '')}</div>
+        <div class="playlist-item-channel" style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(item.channelName || '')} • ${item.fileSize || '-- MB'} • ${formatDate(item.publishedAt || item.downloadedAt)}">
+          ${escapeHtml(item.channelName || '')} • ${item.fileSize || '-- MB'} • ${formatDate(item.publishedAt || item.downloadedAt)}
+        </div>
       </div>
     `;
     playlistGrid.appendChild(itemEl);
@@ -4807,6 +5470,20 @@ document.addEventListener('DOMContentLoaded', () => {
   if (downloadedShowShorts) {
     downloadedShowShorts.addEventListener('change', async () => {
       const showShorts = downloadedShowShorts.checked;
+      
+      if (!localDb.settings) localDb.settings = {};
+      localDb.settings.showShorts = showShorts;
+      
+      const inlineCheckbox = document.getElementById('inline-playlist-show-shorts');
+      if (inlineCheckbox) {
+        inlineCheckbox.checked = showShorts;
+      }
+      
+      updateUI(localDb);
+      if (currentPlayingVideoId) {
+        renderDownloadedPlaylist(currentPlayingVideoId);
+      }
+      
       try {
         const res = await fetch('/api/settings', {
           method: 'POST',
@@ -4823,41 +5500,36 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Playlist Sidebar Sıralama Seçimi Dinleyicisi
-  const inlinePlaylistSort = document.getElementById('inline-playlist-sort');
-  if (inlinePlaylistSort) {
-    inlinePlaylistSort.addEventListener('change', () => {
-      downloadedSortVal = inlinePlaylistSort.value;
-      
-      // Normal listedeki sıralama butonlarının aktifliğini güncelle
-      const group = document.getElementById('downloaded-sort-group');
-      if (group) {
-        group.querySelectorAll('.sort-btn').forEach(b => {
-          if (b.getAttribute('data-sort') === downloadedSortVal) {
-            b.classList.add('active');
-          } else {
-            b.classList.remove('active');
-          }
-        });
+  // Playlist Sidebar Sıralama Butonları Dinleyicileri
+  const btnSortDate = document.getElementById('inline-btn-sort-date');
+  if (btnSortDate) {
+    btnSortDate.addEventListener('click', () => {
+      if (downloadedSortVal === 'date-desc') {
+        downloadedSortVal = 'date-asc';
+      } else {
+        downloadedSortVal = 'date-desc';
       }
-      
+      // UI güncelle
       updateUI(localDb);
+      if (currentPlayingVideoId) {
+        renderDownloadedPlaylist(currentPlayingVideoId);
+      }
     });
   }
 
-  // Playlist Sidebar Kanal Seçimi Dinleyicisi
-  const inlinePlaylistChannel = document.getElementById('inline-playlist-channel');
-  if (inlinePlaylistChannel) {
-    inlinePlaylistChannel.addEventListener('change', () => {
-      downloadedFilterChannel = inlinePlaylistChannel.value;
-      
-      // Normal listedeki kanal filtresini güncelle
-      const normalFilter = document.getElementById('downloaded-channel-filter');
-      if (normalFilter) {
-        normalFilter.value = downloadedFilterChannel;
+  const btnSortSize = document.getElementById('inline-btn-sort-size');
+  if (btnSortSize) {
+    btnSortSize.addEventListener('click', () => {
+      if (downloadedSortVal === 'size-desc') {
+        downloadedSortVal = 'size-asc';
+      } else {
+        downloadedSortVal = 'size-desc';
       }
-      
+      // UI güncelle
       updateUI(localDb);
+      if (currentPlayingVideoId) {
+        renderDownloadedPlaylist(currentPlayingVideoId);
+      }
     });
   }
 
@@ -4867,10 +5539,19 @@ document.addEventListener('DOMContentLoaded', () => {
     inlinePlaylistShowShorts.addEventListener('change', async () => {
       const showShorts = inlinePlaylistShowShorts.checked;
       
-      // Normal listedeki checkbox'ı güncelle
+      // Local state'i ve normal checkbox'ı güncelle
+      if (!localDb.settings) localDb.settings = {};
+      localDb.settings.showShorts = showShorts;
+      
       const normalCheckbox = document.getElementById('downloaded-show-shorts');
       if (normalCheckbox) {
         normalCheckbox.checked = showShorts;
+      }
+      
+      // UI'yı yerel olarak güncelle
+      updateUI(localDb);
+      if (currentPlayingVideoId) {
+        renderDownloadedPlaylist(currentPlayingVideoId);
       }
       
       try {
@@ -5749,14 +6430,14 @@ window.toggleCommentsPanel = async function() {
     container.classList.remove('hidden');
     if (btn) {
       btn.classList.add('active');
-      btn.querySelector('span').textContent = isEn ? 'Hide Comments' : 'Yorumları Gizle';
+      btn.title = isEn ? 'Hide Comments' : 'Yorumları Gizle';
     }
     await loadComments(currentPlayingVideoId);
   } else {
     container.classList.add('hidden');
     if (btn) {
       btn.classList.remove('active');
-      btn.querySelector('span').textContent = isEn ? 'Show Comments' : 'Yorumları Göster';
+      btn.title = isEn ? 'Show Comments' : 'Yorumları Göster';
     }
   }
 };

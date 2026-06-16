@@ -254,6 +254,8 @@ const defaultDb = {
     playerPreference: 'system',
     playerType: 'plyr',
     subtitleColor: '#ffffff',
+    subtitleOpacity: '0.7',
+    subtitleSize: '26px',
     lang: 'tr',
     isPaused: false,
     showNotifications: true,
@@ -817,6 +819,16 @@ function syncWithIni(db) {
         db.settings.subtitleColor = subtitleColor;
       }
 
+      const subtitleOpacity = getCaseInsensitiveKey(settingsSection, 'subtitleOpacity');
+      if (subtitleOpacity !== undefined) {
+        db.settings.subtitleOpacity = subtitleOpacity;
+      }
+
+      const subtitleSize = getCaseInsensitiveKey(settingsSection, 'subtitleSize');
+      if (subtitleSize !== undefined) {
+        db.settings.subtitleSize = subtitleSize;
+      }
+
       const playSounds = getCaseInsensitiveKey(settingsSection, 'playSounds');
       if (playSounds !== undefined) {
         db.settings.playSounds = playSounds !== 'false';
@@ -962,6 +974,8 @@ function saveSettingsToIni(db) {
   iniData.Settings.playerPreference = (db.settings.playerPreference || 'system').toString();
   iniData.Settings.playerType = (db.settings.playerType || 'plyr').toString();
   iniData.Settings.subtitleColor = (db.settings.subtitleColor || '#ffffff').toString();
+  iniData.Settings.subtitleOpacity = (db.settings.subtitleOpacity || '0.7').toString();
+  iniData.Settings.subtitleSize = (db.settings.subtitleSize || '26px').toString();
   iniData.Settings.playSounds = (db.settings.playSounds !== false).toString();
   iniData.Settings.lang = (db.settings.lang || 'tr').toString();
   iniData.Settings.isPaused = (db.settings.isPaused === true).toString();
@@ -4760,6 +4774,88 @@ app.delete('/api/history/:id', (req, res) => {
   }
 });
 
+// Videoyu sil ve tekrar kuyruğa ekle (Tekrar İndir)
+app.post('/api/history/:id/redownload', localhostOnly, async (req, res) => {
+  const { id } = req.params;
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
+    return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
+  }
+
+  const db = readDb();
+  const item = db.history.find(h => h.id === id);
+  if (!item) {
+    return res.status(404).json({ error: 'Video geçmişte bulunamadı.' });
+  }
+
+  // Önce diskteki dosyaları temizleyelim (Aynı silme mantığı)
+  try {
+    const targetPattern = `[${id}]`;
+    // 1. Yol tabanlı akıllı silme
+    if (item.filePath) {
+      const ext = path.extname(item.filePath);
+      const baseName = path.basename(item.filePath, ext);
+      const dirName = path.dirname(item.filePath);
+      if (fs.existsSync(dirName)) {
+        const files = fs.readdirSync(dirName);
+        for (const file of files) {
+          if (file === path.basename(item.filePath) || file.startsWith(baseName + '.')) {
+            const fullPath = path.join(dirName, file);
+            if (fs.existsSync(fullPath)) {
+              try {
+                fs.unlinkSync(fullPath);
+              } catch (e) {
+                console.error(`Tekrar İndir silme hatası: ${file}`, e.message);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 2. ID tabanlı yedek arama ve silme
+    const folder = db.settings.downloadPath;
+    const foldersToSearch = [folder];
+    if (item.channelName) {
+      foldersToSearch.push(path.join(folder, item.channelName));
+    }
+    for (const fld of foldersToSearch) {
+      if (fs.existsSync(fld)) {
+        const files = fs.readdirSync(fld);
+        for (const file of files) {
+          if (file.includes(targetPattern)) {
+            const fullPath = path.join(fld, file);
+            if (fs.existsSync(fullPath)) {
+              try {
+                fs.unlinkSync(fullPath);
+              } catch (e) {
+                if (e.code !== 'ENOENT') {
+                  console.error(`Tekrar İndir yedek silme hatası: ${file}`, e.message);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`Tekrar İndirme öncesi temizleme hatası:`, err.message);
+  }
+
+  // Şimdi videoyu tekrar kuyruğa ekleyelim
+  await downloadQueue.add({
+    id: item.id,
+    title: item.title,
+    channelId: item.channelId,
+    channelName: item.channelName,
+    url: `https://www.youtube.com/watch?v=${item.id}`,
+    publishedAt: item.publishedAt || ''
+  });
+
+  resolveMissingDurations();
+
+  res.json({ success: true, message: 'Video silindi ve tekrar indirilmek üzere kuyruğa eklendi.' });
+});
+
 // Türkçe Açıklama: YouTube üzerinden kanal arama API ucu.
 app.get('/api/channels/search', async (req, res) => {
   const { q } = req.query;
@@ -5008,6 +5104,131 @@ app.get('/api/video/:videoId/subtitles', (req, res) => {
   }
 
   res.json({ success: true, subtitles });
+});
+
+// Google Translate ile metin çeviren yardımcı fonksiyon
+async function translateText(text, fromLang = 'en', toLang = 'tr') {
+  if (!text || !text.trim()) return '';
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${fromLang}&tl=${toLang}&dt=t&q=${encodeURIComponent(text)}`;
+  try {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json && json[0]) {
+      return json[0].map(item => item[0]).join('');
+    }
+  } catch (err) {
+    console.error('[Translate API Error]:', err.message);
+  }
+  return text;
+}
+
+// SRT veya WebVTT altyazı içeriğini satır satır çeviren fonksiyon
+async function translateSrtOrVttContent(content, isVtt = false, fromLang = 'en', toLang = 'tr') {
+  const lines = content.split(/\r?\n/);
+  const resultLines = [];
+  const translateQueue = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Zaman kodları, boş satırlar, indisler veya WebVTT başlık/meta satırlarını direkt kopyalıyoruz
+    if (
+      line === '' ||
+      /^\d+$/.test(line) ||
+      line.includes('-->') ||
+      line.startsWith('WEBVTT') ||
+      line.startsWith('NOTE') ||
+      line.startsWith('STYLE') ||
+      line.startsWith('REGION')
+    ) {
+      resultLines.push({ type: 'copy', content: lines[i] });
+    } else {
+      resultLines.push({ type: 'translate', content: lines[i], index: translateQueue.length });
+      translateQueue.push(lines[i]);
+    }
+  }
+
+  // Concurrency limit uygulayarak asenkron çeviri (Batch boyutu: 15)
+  const batchSize = 15;
+  const translatedTexts = new Array(translateQueue.length);
+
+  for (let i = 0; i < translateQueue.length; i += batchSize) {
+    const batch = translateQueue.slice(i, i + batchSize);
+    const promises = batch.map(async (text, batchIndex) => {
+      const globalIndex = i + batchIndex;
+      const translated = await translateText(text, fromLang, toLang);
+      translatedTexts[globalIndex] = translated;
+    });
+    await Promise.all(promises);
+    // Rate limit yememek için kısa bir gecikme ekliyoruz
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+
+  const outputLines = resultLines.map(line => {
+    if (line.type === 'copy') {
+      return line.content;
+    } else {
+      return translatedTexts[line.index] || line.content;
+    }
+  });
+
+  return outputLines.join('\n');
+}
+
+// Altyazıyı manuel olarak seçilen dilden hedef dile çeviren endpoint
+app.post('/api/video/:videoId/translate-subtitle', async (req, res) => {
+  const { videoId } = req.params;
+  const { fromLang, toLang } = req.body;
+  const db = readDb();
+  const video = db.history.find(h => h.id === videoId);
+
+  if (!video || !video.filePath) {
+    return res.status(404).json({ success: false, error: 'Video veya dosya konumu bulunamadı.' });
+  }
+
+  if (!fromLang || !toLang) {
+    return res.status(400).json({ success: false, error: 'Kaynak dil (fromLang) ve hedef dil (toLang) belirtilmelidir.' });
+  }
+
+  try {
+    const filePath = video.filePath;
+    const ext = path.extname(filePath);
+    const basePath = filePath.slice(0, -ext.length);
+
+    const sourceSrtPath = basePath + `.${fromLang}.srt`;
+    const sourceVttPath = basePath + `.${fromLang}.vtt`;
+    const targetSrtPath = basePath + `.${toLang}.srt`;
+    const targetVttPath = basePath + `.${toLang}.vtt`;
+
+    let sourcePath = null;
+    let targetPath = null;
+    let isVtt = false;
+
+    if (fs.existsSync(sourceVttPath)) {
+      sourcePath = sourceVttPath;
+      targetPath = targetVttPath;
+      isVtt = true;
+    } else if (fs.existsSync(sourceSrtPath)) {
+      sourcePath = sourceSrtPath;
+      targetPath = targetSrtPath;
+      isVtt = false;
+    }
+
+    if (!sourcePath) {
+      return res.status(400).json({ success: false, error: `Çevrilecek (${fromLang}) altyazı dosyası bulunamadı.` });
+    }
+
+    console.log(`[Subtitle Translation] Translating ${sourcePath} (${fromLang}) to ${targetPath} (${toLang})...`);
+    const content = fs.readFileSync(sourcePath, 'utf8');
+    const translatedContent = await translateSrtOrVttContent(content, isVtt, fromLang, toLang);
+    fs.writeFileSync(targetPath, translatedContent, 'utf8');
+    console.log(`[Subtitle Translation] Successfully saved translated subtitle to ${targetPath}`);
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[Subtitle Translation Error]:', err);
+    return res.status(500).json({ success: false, error: 'Altyazı çevrilirken sunucuda bir hata oluştu: ' + err.message });
+  }
 });
 
 // SRT dosyasını okuyup WebVTT formatında tarayıcıya sunar
@@ -5487,7 +5708,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v4.20.0
+               Versiyon: v4.22.0
                Yapımcı: HaYTo
     ====================================================
     `);

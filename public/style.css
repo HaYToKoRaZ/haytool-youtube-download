@@ -2857,19 +2857,141 @@ body.light-theme .nav-item.pd-btn {
 /* Player Subtitle Customizer Rules */
 ::cue {
   color: var(--subtitle-color, #ffffff) !important;
-  background: rgba(0, 0, 0, 0.7) !important;
+  background: rgba(0, 0, 0, var(--subtitle-bg-opacity, 0.7)) !important;
+  font-size: var(--subtitle-font-size, 16px) !important;
   text-shadow: 0 0 4px #000000 !important;
 }
 
 .plyr__captions .plyr__caption {
   color: var(--subtitle-color, #ffffff) !important;
-  background: rgba(0, 0, 0, 0.7) !important;
+  background: rgba(0, 0, 0, var(--subtitle-bg-opacity, 0.7)) !important;
+  font-size: var(--subtitle-font-size, 16px) !important;
   text-shadow: 0 0 4px #000000 !important;
 }
 
 .art-subtitle {
   color: var(--subtitle-color, #ffffff) !important;
+  background: rgba(0, 0, 0, var(--subtitle-bg-opacity, 0.7)) !important;
+  font-size: var(--subtitle-font-size, 16px) !important;
+  padding: 4px 10px !important;
+  border-radius: 4px !important;
   text-shadow: 0 0 4px #000000 !important;
+  display: inline-block !important;
+}
+
+/* Comment Section Styles */
+.comment-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 8px;
+  transition: background 0.2s ease;
+}
+
+.comment-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.comment-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1.5px solid var(--accent-primary);
+  background-color: var(--bg-sidebar);
+}
+
+.comment-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.comment-author {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.comment-time {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.comment-text {
+  font-size: 0.8rem;
+  color: var(--text-main);
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.comment-likes-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.comment-likes-row svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Dönen İkon ve Spinner Animasyonları */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spin-animation {
+  display: inline-block;
+  animation: spin 1.5s linear infinite;
+}
+
+/* Altyazı Çeviri Yükleme Katmanı */
+.subtitle-translation-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(22, 20, 42, 0.85);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.subtitle-translation-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #10b981;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
 }
 
 
