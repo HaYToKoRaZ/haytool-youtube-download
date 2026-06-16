@@ -253,6 +253,7 @@ const defaultDb = {
     port: 4141,
     playerPreference: 'system',
     playerType: 'plyr',
+    subtitleColor: '#ffffff',
     lang: 'tr',
     isPaused: false,
     showNotifications: true,
@@ -811,6 +812,11 @@ function syncWithIni(db) {
         db.settings.playerType = playerType; // 'plyr', 'artplayer', 'html5'
       }
 
+      const subtitleColor = getCaseInsensitiveKey(settingsSection, 'subtitleColor');
+      if (subtitleColor !== undefined) {
+        db.settings.subtitleColor = subtitleColor;
+      }
+
       const playSounds = getCaseInsensitiveKey(settingsSection, 'playSounds');
       if (playSounds !== undefined) {
         db.settings.playSounds = playSounds !== 'false';
@@ -955,6 +961,7 @@ function saveSettingsToIni(db) {
   iniData.Settings.port = (db.settings.port || 4141).toString();
   iniData.Settings.playerPreference = (db.settings.playerPreference || 'system').toString();
   iniData.Settings.playerType = (db.settings.playerType || 'plyr').toString();
+  iniData.Settings.subtitleColor = (db.settings.subtitleColor || '#ffffff').toString();
   iniData.Settings.playSounds = (db.settings.playSounds !== false).toString();
   iniData.Settings.lang = (db.settings.lang || 'tr').toString();
   iniData.Settings.isPaused = (db.settings.isPaused === true).toString();
@@ -991,6 +998,19 @@ function saveChannelsToIni(db) {
     iniData.Channels[channel.id] = `${channel.name} | ${channelUrl} | ${channel.addedAt} | ${channel.quality || 'default'} | ${channel.downloadShorts !== false} | ${channel.avatar || ''} | ${channel.shortsDurationLimit || 180}`;
   }
   writeIni(channelsIniPath, iniData);
+}
+
+// Eşzamanlılık kontrolü (Database Mutex Lock)
+let dbLockPromise = Promise.resolve();
+async function acquireDbLock() {
+  let release;
+  const nextLock = new Promise(resolve => {
+    release = resolve;
+  });
+  const currentLock = dbLockPromise;
+  dbLockPromise = nextLock;
+  await currentLock;
+  return release;
 }
 
 let cachedDb = null;
@@ -1118,7 +1138,7 @@ function buildVideoFilesMap(downloadPath) {
           scanDir(fullPath);
         } else {
           const ext = path.extname(entry.name).toLowerCase();
-          if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl'].includes(ext)) {
+          if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt'].includes(ext)) {
             const bracketMatch = entry.name.match(/\[([a-zA-Z0-9_-]{11})\]/);
             if (bracketMatch) {
               const videoId = bracketMatch[1];
@@ -1836,8 +1856,8 @@ function findVideoFileInDownloadDir(videoId, downloadPath) {
         } else {
           if (entry.name.includes(targetPattern)) {
             const ext = path.extname(entry.name).toLowerCase();
-            // Skip thumbnails and metadata
-            if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl'].includes(ext)) {
+            // Skip thumbnails, subtitles and metadata
+            if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt'].includes(ext)) {
               return fullPath;
             }
           }
@@ -2279,52 +2299,57 @@ class DownloadQueue {
     this.isPaused = false; // Kuyruğun duraklatılma durumu
   }
 
-  add(video) {
+  async add(video) {
     if (this.queue.some(item => item.id === video.id)) return;
 
-    const db = readDb();
-    
-    // Klasör oluşturulmasını sağla
-    if (!fs.existsSync(db.settings.downloadPath)) {
-      try {
-        fs.mkdirSync(db.settings.downloadPath, { recursive: true });
-      } catch (err) {
-        console.error('İndirme klasörü could not be createdı:', err);
+    const release = await acquireDbLock();
+    try {
+      const db = readDb();
+      
+      // Klasör oluşturulmasını sağla
+      if (!fs.existsSync(db.settings.downloadPath)) {
+        try {
+          fs.mkdirSync(db.settings.downloadPath, { recursive: true });
+        } catch (err) {
+          console.error('İndirme klasörü could not be createdı:', err);
+        }
       }
-    }
 
-    let historyItem = db.history.find(h => h.id === video.id);
-    if (!historyItem) {
-      historyItem = {
-        id: video.id,
-        title: video.title,
-        channelId: video.channelId,
-        channelName: video.channelName,
-        downloadedAt: new Date().toISOString(),
-        publishedAt: video.publishedAt || new Date().toISOString(),
-        status: 'waiting',
-        progress: 0,
-        speed: '',
-        eta: '',
-        fileSize: '',
-        filePath: ''
-      };
-      db.history.push(historyItem);
-      writeDb(db);
-    } else {
-      historyItem.status = 'waiting';
-      historyItem.progress = 0;
-      historyItem.speed = '';
-      historyItem.eta = '';
-      historyItem.downloadedAt = new Date().toISOString();
-      if (video.publishedAt) {
-        historyItem.publishedAt = video.publishedAt;
+      let historyItem = db.history.find(h => h.id === video.id);
+      if (!historyItem) {
+        historyItem = {
+          id: video.id,
+          title: video.title,
+          channelId: video.channelId,
+          channelName: video.channelName,
+          downloadedAt: new Date().toISOString(),
+          publishedAt: video.publishedAt || new Date().toISOString(),
+          status: 'waiting',
+          progress: 0,
+          speed: '',
+          eta: '',
+          fileSize: '',
+          filePath: ''
+        };
+        db.history.push(historyItem);
+        writeDb(db);
+      } else {
+        historyItem.status = 'waiting';
+        historyItem.progress = 0;
+        historyItem.speed = '';
+        historyItem.eta = '';
+        historyItem.downloadedAt = new Date().toISOString();
+        if (video.publishedAt) {
+          historyItem.publishedAt = video.publishedAt;
+        }
+        writeDb(db);
       }
-      writeDb(db);
-    }
 
-    this.queue.push(video);
-    broadcast('db_update', readDb());
+      this.queue.push(video);
+      broadcast('db_update', readDb());
+    } finally {
+      release();
+    }
     this.process();
   }
 
@@ -2399,9 +2424,14 @@ class DownloadQueue {
       video.url,
       '--no-playlist',
       '--no-mtime',
+      '--ignore-errors',
       '--js-runtimes', `node:${process.execPath}`,
       '-o', outputTemplate,
-      '--newline' // Progress bar'ın anlık okunması için yeni satır çıkışı
+      '--newline', // Progress bar'ın anlık okunması için yeni satır çıkışı
+      '--write-subs',
+      '--write-auto-subs',
+      '--sub-langs', 'tr,en',
+      '--sub-format', 'srt'
     ];
 
     // Dil seçeneğine göre YouTube altyazı/başlık dil argümanını ekle
@@ -2642,7 +2672,7 @@ class DownloadQueue {
           const match = files.find(f => {
             if (!f.includes(`[${video.id}]`)) return false;
             const ext = path.extname(f).toLowerCase();
-            return !['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl'].includes(ext);
+            return !['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt'].includes(ext);
           });
           if (match) {
             actualPath = path.join(channelFolder, match);
@@ -2669,39 +2699,63 @@ class DownloadQueue {
           actualPath = path.join(settings.downloadPath, video.channelName, `${video.channelName} - ${video.title} [${video.id}].mp4`);
         }
 
-        // Türkçe Açıklama: Disk üzerindeki gerçek dosya boyutunu okur ve formatlar.
-        let calculatedSize = '';
+        // Dosyanın diskte gerçekten var olduğunu doğrula
+        let fileExists = false;
         try {
-          if (fs.existsSync(actualPath)) {
-            const stats = fs.statSync(actualPath);
-            const sizeInBytes = stats.size;
-            if (sizeInBytes >= 1024 * 1024 * 1024) {
-              calculatedSize = Math.round(sizeInBytes / (1024 * 1024 * 1024)) + ' GB';
-            } else {
-              calculatedSize = Math.round(sizeInBytes / (1024 * 1024)) + ' MB';
-            }
-          }
-        } catch (err) {
-          console.error(`Size read errorı: ${resolvedTitle}`, err.message);
-        }
+          fileExists = fs.existsSync(actualPath);
+        } catch (e) {}
 
-        updateHistoryItem(video.id, {
-          status: 'completed',
-          progress: 100,
-          filePath: actualPath,
-          title: resolvedTitle,
-          speed: '',
-          eta: '',
-          fileSize: calculatedSize
-        });
-        console.log(`İndirme completedı: ${resolvedTitle}`);
-        broadcast('status_log', { message: `İndirme tamamlandı: ${resolvedTitle}`, type: 'success' });
-        addTerminalLog(`[Kuyruk] İndirme SUCCESSFUL: "${resolvedTitle}" -> Dosya Yol: ${actualPath}`, 'success');
-        playSystemSound('success');
-        showWindowsNotification(
-          settings.lang === 'en' ? 'Download Completed' : 'İndirme Tamamlandı',
-          settings.lang === 'en' ? `"${resolvedTitle}" downloaded successfully.` : `"${resolvedTitle}" videosu başarıyla indirildi.`
-        );
+        if (!fileExists) {
+          updateHistoryItem(video.id, {
+            status: 'failed',
+            progress: 0,
+            speed: '',
+            eta: '',
+            error: settings.lang === 'en' ? 'Video file not found.' : 'Video dosyası bulunamadı.'
+          });
+          console.error(`İndirme Başarısız (Dosya bulunamadı): ${video.title}`);
+          broadcast('status_log', { message: `İndirme başarısız (Dosya bulunamadı): ${video.title}`, type: 'error' });
+          addTerminalLog(`[Kuyruk] İndirme FAILED: "${video.title}" - Hata: Video dosyası bulunamadı.`, 'error');
+          playSystemSound('error');
+          showWindowsNotification(
+            settings.lang === 'en' ? 'Download Failed' : 'İndirme Başarısız',
+            settings.lang === 'en' ? `"${video.title}" download failed (video file not found).` : `"${video.title}" videosunun indirilmesi başarısız oldu (video dosyası bulunamadı).`
+          );
+        } else {
+          // Türkçe Açıklama: Disk üzerindeki gerçek dosya boyutunu okur ve formatlar.
+          let calculatedSize = '';
+          try {
+            if (fs.existsSync(actualPath)) {
+              const stats = fs.statSync(actualPath);
+              const sizeInBytes = stats.size;
+              if (sizeInBytes >= 1024 * 1024 * 1024) {
+                calculatedSize = Math.round(sizeInBytes / (1024 * 1024 * 1024)) + ' GB';
+              } else {
+                calculatedSize = Math.round(sizeInBytes / (1024 * 1024)) + ' MB';
+              }
+            }
+          } catch (err) {
+            console.error(`Size read errorı: ${resolvedTitle}`, err.message);
+          }
+
+          updateHistoryItem(video.id, {
+            status: 'completed',
+            progress: 100,
+            filePath: actualPath,
+            title: resolvedTitle,
+            speed: '',
+            eta: '',
+            fileSize: calculatedSize
+          });
+          console.log(`İndirme completedı: ${resolvedTitle}`);
+          broadcast('status_log', { message: `İndirme tamamlandı: ${resolvedTitle}`, type: 'success' });
+          addTerminalLog(`[Kuyruk] İndirme SUCCESSFUL: "${resolvedTitle}" -> Dosya Yol: ${actualPath}`, 'success');
+          playSystemSound('success');
+          showWindowsNotification(
+            settings.lang === 'en' ? 'Download Completed' : 'İndirme Tamamlandı',
+            settings.lang === 'en' ? `"${resolvedTitle}" downloaded successfully.` : `"${resolvedTitle}" videosu başarıyla indirildi.`
+          );
+        }
       } else {
         // İndirme başarısız
         // Eğer çerez erişim hatası varsa loga özel not ekle
@@ -2963,6 +3017,7 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
         // Video ID'sini linkten çıkar
         const videoId = item.link.match(/v=([^&]+)/)?.[1] || item.id.replace('yt:video:', '');
         
+        let db = readDb();
         // Geçmişte bu video kayıtlı mı kontrol et
         const existingHistory = db.history.find(h => h.id === videoId);
         const isAlreadyProcessed = !!existingHistory;
@@ -2976,40 +3031,56 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
                 console.log(`[RSS] Upcoming/live video is now published/completed: ${item.title}`);
                 addTerminalLog(`[RSS] Yaklaşan/Canlı yayın artık normal video halinde yayında: "${item.title}" (${channel.name})`, 'info');
                 
-                existingHistory.duration = result.duration;
-                if (result.publishedAt) {
-                  existingHistory.publishedAt = result.publishedAt;
-                }
-                
-                if (db.settings.autoDownload) {
-                  const channelConfig = db.channels.find(c => c.id === channel.id);
-                  const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
-                  const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
-                  
-                  let shouldDownload = true;
-                  if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
-                    shouldDownload = false;
-                    existingHistory.status = 'ignored';
-                    console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
+                let lockReleased = false;
+                const release = await acquireDbLock();
+                try {
+                  const freshDb = readDb();
+                  const freshHistory = freshDb.history.find(h => h.id === videoId);
+                  if (freshHistory && (freshHistory.status === 'upcoming' || freshHistory.duration === 'upcoming' || freshHistory.status === 'live' || freshHistory.duration === 'live')) {
+                    freshHistory.duration = result.duration;
+                    if (result.publishedAt) {
+                      freshHistory.publishedAt = result.publishedAt;
+                    }
+                    
+                    if (freshDb.settings.autoDownload) {
+                      const channelConfig = freshDb.channels.find(c => c.id === channel.id);
+                      const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
+                      const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
+                      
+                      let shouldDownload = true;
+                      if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
+                        shouldDownload = false;
+                        freshHistory.status = 'ignored';
+                        console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
+                      }
+                      
+                      if (shouldDownload) {
+                        freshHistory.status = 'waiting';
+                        writeDb(freshDb);
+                        
+                        lockReleased = true;
+                        release();
+                        
+                        await downloadQueue.add({
+                          id: videoId,
+                          title: item.title,
+                          channelId: channel.id,
+                          channelName: channel.name,
+                          url: item.link,
+                          publishedAt: freshHistory.publishedAt
+                        });
+                      } else {
+                        writeDb(freshDb);
+                      }
+                    } else {
+                      freshHistory.status = 'ignored';
+                      writeDb(freshDb);
+                    }
                   }
-                  
-                  if (shouldDownload) {
-                    existingHistory.status = 'waiting';
-                    writeDb(db);
-                    downloadQueue.add({
-                      id: videoId,
-                      title: item.title,
-                      channelId: channel.id,
-                      channelName: channel.name,
-                      url: item.link,
-                      publishedAt: existingHistory.publishedAt
-                    });
-                  } else {
-                    writeDb(db);
+                } finally {
+                  if (!lockReleased) {
+                    release();
                   }
-                } else {
-                  existingHistory.status = 'ignored';
-                  writeDb(db);
                 }
               }
             } catch (e) {
@@ -3031,16 +3102,24 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
           if (isFirstStart || isHistoricalVideo) {
             // Sunucu ilk başladığında, kanal yeni eklendiğinde veya eski videolarda (feed'de doğrudan eski gözükenler)
             // otomatik indirme yapmayıp geçmişe 'ignored' (veya diskte varsa 'completed') olarak kaydediyoruz.
-            db.history.push(createHistoryItem(
-              videoId,
-              item.title,
-              channel.id,
-              channel.name,
-              publishDateStr,
-              '',
-              db.settings
-            ));
-            writeDb(db);
+            const release = await acquireDbLock();
+            try {
+              const freshDb = readDb();
+              if (!freshDb.history.some(h => h.id === videoId)) {
+                freshDb.history.push(createHistoryItem(
+                  videoId,
+                  item.title,
+                  channel.id,
+                  channel.name,
+                  publishDateStr,
+                  '',
+                  freshDb.settings
+                ));
+                writeDb(freshDb);
+              }
+            } finally {
+              release();
+            }
           } else {
             // Detayları çözerek hem süre hem de gerçek yüklenme tarihini netleştirelim
             let duration = '';
@@ -3079,122 +3158,138 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
               isHistoricalVideoReal = true;
             }
 
-            if (isHistoricalVideoReal) {
-              // Gerçek tarihi kanal eklenme tarihinden eski, indirmeyip geçmişe 'ignored' (veya diskte varsa 'completed') olarak kaydediyoruz.
-              db.history.push(createHistoryItem(
-                videoId,
-                resolvedTitle,
-                channel.id,
-                channel.name,
-                actualPublishDate,
-                duration,
-                db.settings
-              ));
-              writeDb(db);
-            } else if (duration === 'upcoming') {
-              console.log(`[RSS] Upcoming/premiere video detected: ${resolvedTitle}`);
-              addTerminalLog(`[RSS] Yaklaşan/Prömiyer video tespit edildi (İndirme ertelendi): "${resolvedTitle}" (${resolvedChannelName})`, 'info');
-              
-              db.history.push({
-                id: videoId,
-                title: resolvedTitle,
-                channelId: channel.id,
-                channelName: resolvedChannelName,
-                downloadedAt: new Date().toISOString(),
-                publishedAt: actualPublishDate,
-                status: 'upcoming',
-                progress: 0,
-                fileSize: '',
-                filePath: '',
-                duration: 'upcoming'
-              });
-              writeDb(db);
-            } else if (duration === 'live') {
-              console.log(`[RSS] Active live stream detected (download postponed): ${resolvedTitle}`);
-              addTerminalLog(`[RSS] Aktif canlı yayın algılandı (yayın bitene kadar indirme ertelendi): "${resolvedTitle}" (${resolvedChannelName})`, 'info');
-              
-              db.history.push({
-                id: videoId,
-                title: resolvedTitle,
-                channelId: channel.id,
-                channelName: resolvedChannelName,
-                downloadedAt: new Date().toISOString(),
-                publishedAt: actualPublishDate,
-                status: 'live',
-                progress: 0,
-                fileSize: '',
-                filePath: '',
-                duration: 'live'
-              });
-              writeDb(db);
-            } else if (db.settings.autoDownload) {
-              const channelConfig = db.channels.find(c => c.id === channel.id);
-              const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
-              const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
-
-              let shouldDownload = true;
-              if (!downloadShorts && isShortDuration(duration, shortsLimit)) {
-                shouldDownload = false;
-                console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${resolvedTitle}`);
-                addTerminalLog(`[RSS] Shorts videosu algılandı ve kanal ayarı gereği indirilmeyip göz ardı edildi: "${resolvedTitle}" (${resolvedChannelName})`, 'info');
-              }
-
-              if (shouldDownload) {
-                // Türkçe Açıklama: Yeni video algılandı ama diskte zaten mevcutsa indirmeyip durumu 'completed' yapıyoruz.
-                const foundPath = findVideoFileInDownloadDir(videoId, db.settings.downloadPath || defaultDownloadDir);
-                if (foundPath) {
-                  console.log(`Yeni video algılandı ama diskte zaten mevcut. Kuyruğa eklenmiyor: ${resolvedTitle}`);
-                  db.history.push(createHistoryItem(
+            let lockReleased = false;
+            const release = await acquireDbLock();
+            try {
+              const freshDb = readDb();
+              // Double check to make sure it wasn't added by another task while we were awaiting fetchVideoDuration
+              if (!freshDb.history.some(h => h.id === videoId)) {
+                if (isHistoricalVideoReal) {
+                  // Gerçek tarihi kanal eklenme tarihinden eski, indirmeyip geçmişe 'ignored' (veya diskte varsa 'completed') olarak kaydediyoruz.
+                  freshDb.history.push(createHistoryItem(
                     videoId,
                     resolvedTitle,
                     channel.id,
                     channel.name,
                     actualPublishDate,
                     duration,
-                    db.settings
+                    freshDb.settings
                   ));
-                  writeDb(db);
-                } else {
-                  console.log(`Yeni video algılandı! queue ekleniyor: ${resolvedTitle}`);
-                  broadcast('status_log', { message: `Yeni video yüklendi: ${resolvedChannelName} - ${resolvedTitle}`, type: 'info' });
-                  addTerminalLog(`[RSS] Yeni video tespit edildi: "${resolvedTitle}" (${resolvedChannelName}) -> queue ekleniyor.`, 'info');
+                  writeDb(freshDb);
+                } else if (duration === 'upcoming') {
+                  console.log(`[RSS] Upcoming/premiere video detected: ${resolvedTitle}`);
+                  addTerminalLog(`[RSS] Yaklaşan/Prömiyer video tespit edildi (İndirme ertelendi): "${resolvedTitle}" (${resolvedChannelName})`, 'info');
                   
-                  downloadQueue.add({
+                  freshDb.history.push({
                     id: videoId,
                     title: resolvedTitle,
                     channelId: channel.id,
                     channelName: resolvedChannelName,
-                    url: item.link,
-                    publishedAt: actualPublishDate
+                    downloadedAt: new Date().toISOString(),
+                    publishedAt: actualPublishDate,
+                    status: 'upcoming',
+                    progress: 0,
+                    fileSize: '',
+                    filePath: '',
+                    duration: 'upcoming'
                   });
+                  writeDb(freshDb);
+                } else if (duration === 'live') {
+                  console.log(`[RSS] Active live stream detected (download postponed): ${resolvedTitle}`);
+                  addTerminalLog(`[RSS] Aktif canlı yayın algılandı (yayın bitene kadar indirme ertelendi): "${resolvedTitle}" (${resolvedChannelName})`, 'info');
+                  
+                  freshDb.history.push({
+                    id: videoId,
+                    title: resolvedTitle,
+                    channelId: channel.id,
+                    channelName: resolvedChannelName,
+                    downloadedAt: new Date().toISOString(),
+                    publishedAt: actualPublishDate,
+                    status: 'live',
+                    progress: 0,
+                    fileSize: '',
+                    filePath: '',
+                    duration: 'live'
+                  });
+                  writeDb(freshDb);
+                } else if (freshDb.settings.autoDownload) {
+                  const channelConfig = freshDb.channels.find(c => c.id === channel.id);
+                  const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
+                  const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
 
-                  if (duration) {
-                    updateHistoryItem(videoId, { duration });
+                  let shouldDownload = true;
+                  if (!downloadShorts && isShortDuration(duration, shortsLimit)) {
+                    shouldDownload = false;
+                    console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${resolvedTitle}`);
+                    addTerminalLog(`[RSS] Shorts videosu algılandı ve kanal ayarı gereği indirilmeyip göz ardı edildi: "${resolvedTitle}" (${resolvedChannelName})`, 'info');
                   }
+
+                  if (shouldDownload) {
+                    // Yeni video algılandı ama diskte zaten mevcutsa indirmeyip durumu 'completed' yapıyoruz.
+                    const foundPath = findVideoFileInDownloadDir(videoId, freshDb.settings.downloadPath || defaultDownloadDir);
+                    if (foundPath) {
+                      console.log(`Yeni video algılandı ama diskte zaten mevcut. Kuyruğa eklenmiyor: ${resolvedTitle}`);
+                      freshDb.history.push(createHistoryItem(
+                        videoId,
+                        resolvedTitle,
+                        channel.id,
+                        channel.name,
+                        actualPublishDate,
+                        duration,
+                        freshDb.settings
+                      ));
+                      writeDb(freshDb);
+                    } else {
+                      console.log(`Yeni video algılandı! queue ekleniyor: ${resolvedTitle}`);
+                      broadcast('status_log', { message: `Yeni video yüklendi: ${resolvedChannelName} - ${resolvedTitle}`, type: 'info' });
+                      addTerminalLog(`[RSS] Yeni video tespit edildi: "${resolvedTitle}" (${resolvedChannelName}) -> queue ekleniyor.`, 'info');
+                      
+                      // Release lock before calling async downloadQueue.add to avoid deadlock
+                      lockReleased = true;
+                      release();
+
+                      await downloadQueue.add({
+                        id: videoId,
+                        title: resolvedTitle,
+                        channelId: channel.id,
+                        channelName: resolvedChannelName,
+                        url: item.link,
+                        publishedAt: actualPublishDate
+                      });
+
+                      if (duration) {
+                        updateHistoryItem(videoId, { duration });
+                      }
+                    }
+                  } else {
+                    freshDb.history.push(createHistoryItem(
+                      videoId,
+                      resolvedTitle,
+                      channel.id,
+                      channel.name,
+                      actualPublishDate,
+                      duration,
+                      freshDb.settings
+                    ));
+                    writeDb(freshDb);
+                  }
+                } else {
+                  freshDb.history.push(createHistoryItem(
+                    videoId,
+                    resolvedTitle,
+                    channel.id,
+                    channel.name,
+                    actualPublishDate,
+                    duration,
+                    freshDb.settings
+                  ));
+                  writeDb(freshDb);
                 }
-              } else {
-                db.history.push(createHistoryItem(
-                  videoId,
-                  resolvedTitle,
-                  channel.id,
-                  channel.name,
-                  actualPublishDate,
-                  duration,
-                  db.settings
-                ));
-                writeDb(db);
               }
-            } else {
-              db.history.push(createHistoryItem(
-                videoId,
-                resolvedTitle,
-                channel.id,
-                channel.name,
-                actualPublishDate,
-                duration,
-                db.settings
-              ));
-              writeDb(db);
+            } finally {
+              if (!lockReleased) {
+                release();
+              }
             }
           }
         }
@@ -3991,7 +4086,6 @@ app.post('/api/channels', async (req, res) => {
 
   try {
     let channelInfo;
-    const db = readDb();
 
     // Türkçe Açıklama: Eğer kanal adı, handle ve avatar frontend'den gelmişse ve girdi bir kanal ID'si ise, YouTube sayfasına fazladan istek atmadan doğrudan bu verilerle devam ediyoruz.
     if (name && handle && /^UC[a-zA-Z0-9_-]{22}$/.test(input)) {
@@ -4005,36 +4099,43 @@ app.post('/api/channels', async (req, res) => {
       channelInfo = await resolveChannelId(input);
     }
 
-    // Zaten ekli mi kontrol et
-    if (db.channels.some(c => c.id === channelInfo.id)) {
-      return res.status(400).json({ error: 'Bu kanal zaten takip listesinde.' });
-    }
-
-    // Türkçe Açıklama: Girdiden veya çözümlenen verilerden handle ifadesini ayıklıyoruz.
-    let extractedHandle = channelInfo.handle || '';
-    if (!extractedHandle) {
-      const decodedInput = decodeURIComponent(input);
-      const handleMatch = decodedInput.match(/@([^/?\s]+)/);
-      if (handleMatch) {
-        extractedHandle = `@${handleMatch[1]}`;
-      } else {
-        extractedHandle = decodedInput.startsWith('@') ? decodedInput : `@${channelInfo.name.replace(/\s+/g, '')}`;
+    const release = await acquireDbLock();
+    let newChannel;
+    try {
+      const db = readDb();
+      // Zaten ekli mi kontrol et
+      if (db.channels.some(c => c.id === channelInfo.id)) {
+        return res.status(400).json({ error: 'Bu kanal zaten takip listesinde.' });
       }
-    }
 
-    const newChannel = {
-      id: channelInfo.id,
-      name: channelInfo.name,
-      handle: extractedHandle,
-      addedAt: new Date().toISOString(),
-      quality: 'default',
-      downloadShorts: downloadShorts === true || downloadShorts === 'true',
-      avatar: channelInfo.avatar || '',
-      shortsDurationLimit: 180
-    };
-    // Türkçe Açıklama: Önce kanalı listeye ekliyoruz ve veri tabanını kaydediyoruz ki RSS taraması sırasında veri tabanı çakışması veya üzerine yazma (overwrite) hatası oluşmasın.
-    db.channels.push(newChannel);
-    writeDb(db);
+      // Türkçe Açıklama: Girdiden veya çözümlenen verilerden handle ifadesini ayıklıyoruz.
+      let extractedHandle = channelInfo.handle || '';
+      if (!extractedHandle) {
+        const decodedInput = decodeURIComponent(input);
+        const handleMatch = decodedInput.match(/@([^/?\s]+)/);
+        if (handleMatch) {
+          extractedHandle = `@${handleMatch[1]}`;
+        } else {
+          extractedHandle = decodedInput.startsWith('@') ? decodedInput : `@${channelInfo.name.replace(/\s+/g, '')}`;
+        }
+      }
+
+      newChannel = {
+        id: channelInfo.id,
+        name: channelInfo.name,
+        handle: extractedHandle,
+        addedAt: new Date().toISOString(),
+        quality: 'default',
+        downloadShorts: downloadShorts === true || downloadShorts === 'true',
+        avatar: channelInfo.avatar || '',
+        shortsDurationLimit: 180
+      };
+      // Türkçe Açıklama: Önce kanalı listeye ekliyoruz ve veri tabanını kaydediyoruz ki RSS taraması sırasında veri tabanı çakışması veya üzerine yazma (overwrite) hatası oluşmasın.
+      db.channels.push(newChannel);
+      writeDb(db);
+    } finally {
+      release();
+    }
 
     // Türkçe Açıklama: Kanal eklendikten sonra profil resmi yerel klasöre indirilir.
     if (channelInfo.avatar) {
@@ -4534,20 +4635,53 @@ app.delete('/api/history/:id', (req, res) => {
     console.log(`Video Adı: ${item.title}`);
     console.log(`Kanal: ${item.channelName}`);
     console.log(`Kayıtlı Yol: ${item.filePath}`);
-    
     if (deleteFile) {
       try {
+        let deletedAny = false;
+        let failedToDelete = [];
+        const targetPattern = `[${id}]`;
+
+        // 1. Yol tabanlı akıllı silme (BaseName.*)
+        if (item.filePath) {
+          try {
+            const ext = path.extname(item.filePath);
+            const baseName = path.basename(item.filePath, ext);
+            const dirName = path.dirname(item.filePath);
+            
+            console.log(`Yol tabanlı akıllı silme bașlatıldı. Klasör: ${dirName}, Dosya öneki: ${baseName}`);
+            
+            if (fs.existsSync(dirName)) {
+              const files = fs.readdirSync(dirName);
+              for (const file of files) {
+                if (file === path.basename(item.filePath) || file.startsWith(baseName + '.')) {
+                  const fullPath = path.join(dirName, file);
+                  console.log(`Akıllı eșleșen dosya bulundu ve siliniyor: ${file}`);
+                  try {
+                    if (fs.existsSync(fullPath)) {
+                      fs.unlinkSync(fullPath);
+                      console.log(`BAȘARI: Dosya silindi: ${file}`);
+                      deletedAny = true;
+                    }
+                  } catch (e) {
+                    console.error(`HATA: Dosya silinemedi: ${file}`, e.message);
+                    failedToDelete.push(`${file} (${e.message})`);
+                  }
+                }
+              }
+            }
+          } catch (pathErr) {
+            console.error('[Akıllı Silme Hata]:', pathErr.message);
+          }
+        }
+
+        // 2. ID tabanlı yedek arama ve silme (Klasörlerde [ID] içerenler)
         const folder = db.settings.downloadPath;
         const foldersToSearch = [folder];
         if (item.channelName) {
           foldersToSearch.push(path.join(folder, item.channelName));
         }
 
-        console.log(`Silme işlemi için tSearching foldersörler:`, foldersToSearch);
-        
-        let deletedAny = false;
-        let failedToDelete = [];
-        const targetPattern = `[${id}]`;
+        console.log(`Silme ișlemi için tSearching foldersörler:`, foldersToSearch);
 
         for (const fld of foldersToSearch) {
           if (fs.existsSync(fld)) {
@@ -4555,16 +4689,19 @@ app.delete('/api/history/:id', (req, res) => {
             for (const file of files) {
               if (file.includes(targetPattern)) {
                 const fullPath = path.join(fld, file);
-                console.log(`Eşleşen dosya bulundu: ${file} (${fld}). Silinmeye çalışılıyor...`);
                 if (fs.existsSync(fullPath)) {
+                  console.log(`Eșleșen dosya bulundu (ID yedek): ${file}. Silinmeye çalıșılıyor...`);
                   try {
                     fs.unlinkSync(fullPath);
-                    console.log(`BAŞARI: Dosya deleted: ${file}`);
+                    console.log(`BAȘARI: Dosya silindi (ID yedek): ${file}`);
                     deletedAny = true;
                   } catch (e) {
-                    console.error(`HATA: Dosya silinemedi: ${file}`);
-                    console.error(`Error Detailı: ${e.code} - ${e.message}`);
-                    failedToDelete.push(`${file} (${e.message})`);
+                    if (e.code !== 'ENOENT') {
+                      console.error(`HATA: Dosya silinemedi (ID yedek): ${file}`, e.message);
+                      if (!failedToDelete.some(f => f.startsWith(file))) {
+                        failedToDelete.push(`${file} (${e.message})`);
+                      }
+                    }
                   }
                 }
               }
@@ -4669,6 +4806,247 @@ app.get('/api/disk-space', (req, res) => {
   } catch (e) {
     console.error('[Disk Space Errorsı]:', e.message);
     res.json({ success: false, error: e.message });
+  }
+});
+
+let cachedYoutubeApiKey = null;
+
+// Türkçe Açıklama: YouTube videosuna ait yorumları API anahtarı olmadan Innertube API'sini kullanarak çeken endpoint.
+app.get('/api/video/:videoId/comments', async (req, res) => {
+  const { videoId } = req.params;
+  const { token } = req.query;
+  if (!videoId) {
+    return res.status(400).json({ error: 'Video ID gereklidir.' });
+  }
+
+  try {
+    let apiKey = cachedYoutubeApiKey;
+    let continuationToken = token;
+
+    if (!apiKey || !continuationToken) {
+      const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      const watchRes = await fetch(watchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+      const html = await watchRes.text();
+      
+      // Extract INNERTUBE_API_KEY
+      const keyRegex = /"INNERTUBE_API_KEY":"([^"]+)"/;
+      const keyMatch = html.match(keyRegex);
+      if (keyMatch) {
+        apiKey = keyMatch[1];
+        cachedYoutubeApiKey = apiKey;
+      }
+      
+      // Extract initial continuation token
+      if (!continuationToken) {
+        const dataRegex = /var ytInitialData = ({.*?});<\/script>/s;
+        const dataMatch = html.match(dataRegex);
+        if (dataMatch) {
+          const ytInitialData = JSON.parse(dataMatch[1]);
+          const contents = ytInitialData.contents?.twoColumnWatchNextResults?.results?.results?.contents || [];
+          for (const item of contents) {
+            if (item.itemSectionRenderer && item.itemSectionRenderer.sectionIdentifier === 'comment-item-section') {
+              const continuation = item.itemSectionRenderer.contents?.[0]?.continuationItemRenderer;
+              continuationToken = continuation?.continuationEndpoint?.continuationCommand?.token;
+              break;
+            }
+          }
+          
+          if (!continuationToken) {
+            for (const item of contents) {
+              if (item.itemSectionRenderer) {
+                const contents2 = item.itemSectionRenderer.contents || [];
+                for (const c of contents2) {
+                  if (c.continuationItemRenderer) {
+                    continuationToken = c.continuationItemRenderer.continuationEndpoint?.continuationCommand?.token;
+                    break;
+                  }
+                }
+              }
+              if (continuationToken) break;
+            }
+          }
+        }
+      }
+    }
+
+    if (!apiKey) {
+      return res.json({ success: true, comments: [], nextPageToken: null });
+    }
+    if (!continuationToken) {
+      return res.json({ success: true, comments: [], nextPageToken: null });
+    }
+
+    // Now call Innertube API
+    const apiEndpoint = `https://www.youtube.com/youtubei/v1/next?key=${apiKey}`;
+    const payload = {
+      context: {
+        client: {
+          clientName: "WEB",
+          clientVersion: "2.20240101.01.00"
+        }
+      },
+      continuation: continuationToken
+    };
+    
+    const apiRes = await fetch(apiEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    const responseJson = await apiRes.json();
+    const mutations = responseJson.frameworkUpdates?.entityBatchUpdate?.mutations || [];
+    
+    const commentsList = [];
+    mutations.forEach(m => {
+      if (m.payload && m.payload.commentEntityPayload) {
+        const p = m.payload.commentEntityPayload;
+        const author = p.author?.displayName || "Unknown";
+        const authorAvatar = p.author?.avatarThumbnailUrl || "";
+        const text = p.properties?.content?.content || "";
+        const publishedTime = p.properties?.publishedTime || "";
+        
+        let likeCount = "0";
+        if (p.toolbar) {
+          likeCount = p.toolbar.likeCountNotliked || p.toolbar.likeCountLiked || "0";
+        }
+        
+        commentsList.push({ author, authorAvatar, text, publishedTime, likeCount });
+      }
+    });
+
+    // Find next page token
+    let nextToken = null;
+    if (responseJson.onResponseReceivedEndpoints) {
+      responseJson.onResponseReceivedEndpoints.forEach(endpoint => {
+        const items = (endpoint.reloadContinuationItemsCommand?.continuationItems) || 
+                      (endpoint.appendContinuationItemsAction?.continuationItems) || [];
+        
+        for (const item of items) {
+          if (item.continuationItemRenderer) {
+            nextToken = item.continuationItemRenderer.continuationEndpoint?.continuationCommand?.token ||
+                        item.continuationItemRenderer.button?.buttonRenderer?.command?.continuationCommand?.token;
+          }
+        }
+      });
+    }
+    
+    return res.json({ success: true, comments: commentsList, nextPageToken: nextToken });
+  } catch (err) {
+    console.error('[Get Comments Error]:', err.message);
+    res.json({ success: false, error: err.message, comments: [], nextPageToken: null });
+  }
+});
+
+// Serves the local video thumbnail if available, or redirects to YouTube's public thumbnail
+app.get('/api/video/:videoId/thumbnail', (req, res) => {
+  const { videoId } = req.params;
+  const db = readDb();
+  const video = db.history.find(h => h.id === videoId);
+  
+  if (video && video.filePath) {
+    try {
+      const ext = path.extname(video.filePath);
+      const basePath = video.filePath.slice(0, -ext.length);
+      const possibleExtensions = ['.jpg', '.jpeg', '.webp', '.png'];
+      for (const pExt of possibleExtensions) {
+        const thumbPath = basePath + pExt;
+        if (fs.existsSync(thumbPath)) {
+          return res.sendFile(thumbPath);
+        }
+      }
+    } catch (err) {
+      console.error('[Get Local Thumbnail Error]:', err.message);
+    }
+  }
+
+  // Fallback to youtube public thumbnail URL
+  res.redirect(`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`);
+});
+
+// Altyazı dosyalarının varlığını denetler ve listeler
+app.get('/api/video/:videoId/subtitles', (req, res) => {
+  const { videoId } = req.params;
+  const db = readDb();
+  const video = db.history.find(h => h.id === videoId);
+  
+  if (!video || !video.filePath) {
+    return res.json({ success: true, subtitles: [] });
+  }
+
+  const subtitles = [];
+  try {
+    const filePath = video.filePath;
+    const ext = path.extname(filePath);
+    const basePath = filePath.slice(0, -ext.length);
+
+    const languages = [
+      { lang: 'tr', label: 'Türkçe' },
+      { lang: 'en', label: 'English' }
+    ];
+
+    for (const item of languages) {
+      const srtPath = basePath + `.${item.lang}.srt`;
+      const vttPath = basePath + `.${item.lang}.vtt`;
+      if (fs.existsSync(srtPath) || fs.existsSync(vttPath)) {
+        subtitles.push({
+          lang: item.lang,
+          label: item.label,
+          url: `/api/video/${videoId}/subtitle/${item.lang}`
+        });
+      }
+    }
+  } catch (err) {
+    console.error('[Get Subtitles Error]:', err.message);
+  }
+
+  res.json({ success: true, subtitles });
+});
+
+// SRT dosyasını okuyup WebVTT formatında tarayıcıya sunar
+app.get('/api/video/:videoId/subtitle/:lang', (req, res) => {
+  const { videoId, lang } = req.params;
+  const db = readDb();
+  const video = db.history.find(h => h.id === videoId);
+
+  if (!video || !video.filePath) {
+    return res.status(404).send('Video bulunamadı.');
+  }
+
+  try {
+    const filePath = video.filePath;
+    const ext = path.extname(filePath);
+    const basePath = filePath.slice(0, -ext.length);
+    const srtPath = basePath + `.${lang}.srt`;
+    const vttPath = basePath + `.${lang}.vtt`;
+
+    if (fs.existsSync(vttPath)) {
+      res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
+      return fs.createReadStream(vttPath).pipe(res);
+    }
+
+    if (fs.existsSync(srtPath)) {
+      const srtContent = fs.readFileSync(srtPath, 'utf8');
+      
+      // Convert SRT to WebVTT
+      const timestampRegex = /(\d{2}:\d{2}:\d{2}),(\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}),(\d{3})/g;
+      const vttContent = 'WEBVTT\n\n' + srtContent.replace(timestampRegex, '$1.$2 --> $3.$4');
+      
+      res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
+      return res.send(vttContent);
+    }
+
+    return res.status(404).send('Altyazı dosyası bulunamadı.');
+  } catch (err) {
+    console.error('[Get Subtitle Track Error]:', err.message);
+    res.status(500).send('Altyazı okunurken hata oluştu.');
   }
 });
 
@@ -4902,9 +5280,15 @@ app.post('/api/open-folder', localhostOnly, (req, res) => {
   
   const { channelName } = req.body || {};
   if (channelName && typeof channelName === 'string') {
-    const channelFolder = path.join(folder, channelName);
-    if (fs.existsSync(channelFolder)) {
-      folder = channelFolder;
+    const baseDownloadPath = path.resolve(db.settings.downloadPath);
+    const targetFolder = path.resolve(baseDownloadPath, channelName);
+    
+    // Check path traversal: targetFolder must start with baseDownloadPath
+    const relative = path.relative(baseDownloadPath, targetFolder);
+    const isSafe = relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+    
+    if (isSafe && fs.existsSync(targetFolder)) {
+      folder = targetFolder;
     }
   }
 
@@ -5103,7 +5487,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v4.18.0
+               Versiyon: v4.19.0
                Yapımcı: HaYTo
     ====================================================
     `);

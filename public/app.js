@@ -180,7 +180,15 @@ const translations = {
     filter_last_2_days: 'Son 2 Gün',
     filter_last_3_days: 'Son 3 Gün',
     filter_last_4_days: 'Son 4 Gün',
-    filter_last_5_days: 'Son 5 Gün'
+    filter_last_5_days: 'Son 5 Gün',
+    label_subtitle_color: 'Altyazı Rengi',
+    desc_subtitle_color: 'Gömülü video oynatıcılarda altyazı rengini seçin.',
+    opt_sub_white: 'Beyaz',
+    opt_sub_yellow: 'Sarı',
+    opt_sub_green: 'Yeşil',
+    opt_sub_cyan: 'Turkuaz',
+    opt_sub_magenta: 'Pembe',
+    opt_sub_red: 'Kırmızı'
   },
   en: {
     premium_automation: 'Premium Automation',
@@ -349,7 +357,15 @@ const translations = {
     filter_last_2_days: 'Last 2 Days',
     filter_last_3_days: 'Last 3 Days',
     filter_last_4_days: 'Last 4 Days',
-    filter_last_5_days: 'Last 5 Days'
+    filter_last_5_days: 'Last 5 Days',
+    label_subtitle_color: 'Subtitle Color',
+    desc_subtitle_color: 'Select the subtitle color in embedded video players.',
+    opt_sub_white: 'White',
+    opt_sub_yellow: 'Yellow',
+    opt_sub_green: 'Green',
+    opt_sub_cyan: 'Cyan',
+    opt_sub_magenta: 'Pink',
+    opt_sub_red: 'Red'
   },
   es: {
     premium_automation: 'Automatización Premium',
@@ -518,7 +534,15 @@ const translations = {
     filter_last_2_days: 'Últimos 2 Días',
     filter_last_3_days: 'Últimos 3 Días',
     filter_last_4_days: 'Últimos 4 Días',
-    filter_last_5_days: 'Últimos 5 Días'
+    filter_last_5_days: 'Últimos 5 Días',
+    label_subtitle_color: 'Color de Subtítulos',
+    desc_subtitle_color: 'Seleccione el color de los subtítulos en los reproductores de video.',
+    opt_sub_white: 'Blanco',
+    opt_sub_yellow: 'Amarillo',
+    opt_sub_green: 'Verde',
+    opt_sub_cyan: 'Cian',
+    opt_sub_magenta: 'Rosa',
+    opt_sub_red: 'Rojo'
   },
   de: {
     premium_automation: 'Premium Automatisierung',
@@ -687,7 +711,15 @@ const translations = {
     filter_last_2_days: 'Letzte 2 Tage',
     filter_last_3_days: 'Letzte 3 Tage',
     filter_last_4_days: 'Letzte 4 Tage',
-    filter_last_5_days: 'Letzte 5 Tage'
+    filter_last_5_days: 'Letzte 5 Tage',
+    label_subtitle_color: 'Untertitel-Farbe',
+    desc_subtitle_color: 'Wählen Sie die Untertitelfarbe in eingebetteten Videoplayern.',
+    opt_sub_white: 'Weiß',
+    opt_sub_yellow: 'Gelb',
+    opt_sub_green: 'Grün',
+    opt_sub_cyan: 'Cyan',
+    opt_sub_magenta: 'Rosa',
+    opt_sub_red: 'Rot'
   },
   pt: {
     premium_automation: 'Automatização Premium',
@@ -856,7 +888,15 @@ const translations = {
     filter_last_2_days: 'Últimos 2 Dias',
     filter_last_3_days: 'Últimos 3 Dias',
     filter_last_4_days: 'Últimos 4 Dias',
-    filter_last_5_days: 'Últimos 5 Dias'
+    filter_last_5_days: 'Últimos 5 Dias',
+    label_subtitle_color: 'Cor da Legenda',
+    desc_subtitle_color: 'Selecione a cor da legenda nos players de vídeo incorporados.',
+    opt_sub_white: 'Branco',
+    opt_sub_yellow: 'Amarelo',
+    opt_sub_green: 'Verde',
+    opt_sub_cyan: 'Ciano',
+    opt_sub_magenta: 'Rosa',
+    opt_sub_red: 'Vermelho'
   },
   ar: {
     premium_automation: 'التحكم التلقائي المميز',
@@ -1025,7 +1065,15 @@ const translations = {
     filter_last_2_days: 'آخر يومين',
     filter_last_3_days: 'آخر 3 أيام',
     filter_last_4_days: 'آخر 4 أيام',
-    filter_last_5_days: 'آخر 5 أيام'
+    filter_last_5_days: 'آخر 5 أيام',
+    label_subtitle_color: 'لون الترجمة',
+    desc_subtitle_color: 'اختر لون الترجمة في مشغلات الفيديو المدمجة.',
+    opt_sub_white: 'أبيض',
+    opt_sub_yellow: 'أصفر',
+    opt_sub_green: 'أخضر',
+    opt_sub_cyan: 'سماوي',
+    opt_sub_magenta: 'وردي',
+    opt_sub_red: 'أحمر'
   },
   ru: {
     premium_automation: 'Премиум Автоматизация',
@@ -1194,7 +1242,15 @@ const translations = {
     filter_last_2_days: 'За последние 2 дня',
     filter_last_3_days: 'За последние 3 дня',
     filter_last_4_days: 'За последние 4 дня',
-    filter_last_5_days: 'За последние 5 дней'
+    filter_last_5_days: 'За последние 5 дней',
+    label_subtitle_color: 'Цвет субтитров',
+    desc_subtitle_color: 'Выберите цвет субтитров во встроенных видеоплеерах.',
+    opt_sub_white: 'Белый',
+    opt_sub_yellow: 'Желтый',
+    opt_sub_green: 'Зеленый',
+    opt_sub_cyan: 'Голубой',
+    opt_sub_magenta: 'Розовый',
+    opt_sub_red: 'Красный'
   }
 };
 
@@ -1329,6 +1385,15 @@ function applyLanguage(lang) {
 
   el('label-sponsorblock', 'label_sponsorblock');
   elQuery('label[for="settings-sponsorblock"] + span', 'desc_sponsorblock');
+
+  el('label-subtitle-color', 'label_subtitle_color');
+  el('desc-subtitle-color', 'desc_subtitle_color');
+  el('opt-sub-white', 'opt_sub_white');
+  el('opt-sub-yellow', 'opt_sub_yellow');
+  el('opt-sub-green', 'opt_sub_green');
+  el('opt-sub-cyan', 'opt_sub_cyan');
+  el('opt-sub-magenta', 'opt_sub_magenta');
+  el('opt-sub-red', 'opt_sub_red');
 
   elQuery('.form-actions button span', 'btn_save_settings');
 
@@ -1615,18 +1680,43 @@ const pathTabMap = {
   '/settings': 'settings'
 };
 
-// Türkçe Açıklama: Sekmeler arası geçişi sağlar, aktif sekmeyi görsel olarak vurgular ve tarayıcının adres satırını History API ile günceller.
+// Türkçe Açıklama: Aktif oynatıcı tipine (ArtPlayer, Plyr, HTML5) göre oynatım saniyesini ve paused durumunu alır.
 /**
- * Sekme geçişini yönetir ve tarayıcı geçmişini günceller.
+ * Aktif oynatıcının zamanını ve oynatılma durumunu döndürür.
+ * 
+ * @returns {{currentTime: number, paused: boolean}}
+ */
+function getCurrentPlaybackState() {
+  const pType = (localDb.settings && localDb.settings.playerType) || 'plyr';
+  const player = document.getElementById('embedded-video-player');
+  
+  let currentTime = 0;
+  let paused = true;
+  
+  if (pType === 'artplayer' && videoPlayerInstance) {
+    currentTime = videoPlayerInstance.currentTime || 0;
+    paused = videoPlayerInstance.paused;
+  } else if (pType === 'html5' && player) {
+    currentTime = player.currentTime || 0;
+    paused = player.paused;
+  } else if (videoPlayerInstance) {
+    currentTime = videoPlayerInstance.currentTime || 0;
+    paused = videoPlayerInstance.paused;
+  } else if (player) {
+    currentTime = player.currentTime || 0;
+    paused = player.paused;
+  }
+  
+  return { currentTime, paused };
+}
+
+// Türkçe Açıklama: Arayüzdeki sekme başlıklarını ve sekme içeriklerini aktif/pasif yapar.
+/**
+ * Sekme elemanlarının CSS sınıflarını günceller.
  * 
  * @param {string} targetTab Hedef sekme adı
- * @param {boolean} triggerPushState Adres satırı geçmişine kaydedilip kaydedilmeyeceği (varsayılan: true)
  */
-function switchTab(targetTab, triggerPushState = true) {
-  window.switchTab = switchTab;
-  if (targetTab !== 'downloaded') {
-    if (window.closeInlinePlayer) window.closeInlinePlayer();
-  }
+function performTabSwitchUI(targetTab) {
   navItems.forEach(n => {
     if (n.getAttribute('data-tab') === targetTab) {
       n.classList.add('active');
@@ -1642,6 +1732,106 @@ function switchTab(targetTab, triggerPushState = true) {
       content.classList.remove('active');
     }
   });
+
+  // Sekme değiştirildiğinde ana içerik alanını en yukarı kaydır
+  const mainContent = document.querySelector('.main-content');
+  if (mainContent) {
+    mainContent.scrollTop = 0;
+  }
+}
+
+// Türkçe Açıklama: Sekmeler arası geçişi sağlar, aktif sekmeyi görsel olarak vurgular ve tarayıcının adres satırını History API ile günceller.
+/**
+ * Sekme geçişini yönetir ve tarayıcı geçmişini günceller.
+ * 
+ * @param {string} targetTab Hedef sekme adı
+ * @param {boolean} triggerPushState Adres satırı geçmişine kaydedilip kaydedilmeyeceği (varsayılan: true)
+ */
+function switchTab(targetTab, triggerPushState = true) {
+  window.switchTab = switchTab;
+  
+  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
+  
+  // İndirilenler sekmesinden çıkış yapılıyorsa ve video oynatılıyorsa mini oynatıcıya geç
+  if (activeTab === 'downloaded' && targetTab !== 'downloaded') {
+    const inlineContainer = document.getElementById('downloaded-inline-player-container');
+    const isInlineOpen = inlineContainer && !inlineContainer.classList.contains('hidden');
+    if (isInlineOpen && currentPlayingVideoId) {
+      const { currentTime, paused } = getCurrentPlaybackState();
+      const videoId = currentPlayingVideoId;
+      
+      // Yerleşik oynatıcıyı kapat
+      if (window.closeInlinePlayer) window.closeInlinePlayer();
+      
+      // UI sekmesini değiştir
+      performTabSwitchUI(targetTab);
+      
+      // Modal oynatıcıyı minimized modunda aç
+      const modal = document.getElementById('player-modal');
+      if (modal) {
+        modal.classList.add('minimized');
+        const btn = document.getElementById('minimize-player-modal-btn');
+        if (btn) {
+          const icon = btn.querySelector('i') || btn.querySelector('[data-lucide]');
+          if (icon) icon.setAttribute('data-lucide', 'maximize-2');
+          btn.title = localDb.settings && localDb.settings.lang === 'en' ? 'Maximize' : 'Büyüt';
+        }
+        lucide.createIcons();
+      }
+      
+      // Modalda videoyu başlat
+      playVideoEmbedded(videoId, currentTime, paused);
+      
+      if (triggerPushState) {
+        const targetPath = tabPathMap[targetTab];
+        if (targetPath && window.location.pathname !== targetPath) {
+          history.pushState({ tab: targetTab }, '', targetPath);
+        }
+      }
+      return;
+    }
+  }
+  
+  // Başka sekmeden İndirilenler sekmesine geçiş yapılıyorsa ve modal oynatıcı açıksa ve video indirilmişse
+  if (targetTab === 'downloaded') {
+    const modal = document.getElementById('player-modal');
+    const isModalOpen = modal && !modal.classList.contains('hidden');
+    if (isModalOpen && currentPlayingVideoId) {
+      const video = localDb.history.find(h => h.id === currentPlayingVideoId);
+      const isCompleted = video && video.status === 'completed';
+      const isMissing = video && video.fileMissing === true;
+      const isDownloaded = isCompleted && !isMissing;
+      
+      if (isDownloaded) {
+        const { currentTime, paused } = getCurrentPlaybackState();
+        const videoId = currentPlayingVideoId;
+        
+        // Modal oynatıcıyı kapat
+        if (window.closePlayerModal) window.closePlayerModal();
+        
+        // UI sekmesini değiştir
+        performTabSwitchUI(targetTab);
+        
+        // Yerleşik oynatıcıda videoyu başlat
+        playVideoEmbedded(videoId, currentTime, paused);
+        
+        if (triggerPushState) {
+          const targetPath = tabPathMap[targetTab];
+          if (targetPath && window.location.pathname !== targetPath) {
+            history.pushState({ tab: targetTab }, '', targetPath);
+          }
+        }
+        return;
+      }
+    }
+  }
+
+  // Normal sekme geçişi
+  if (targetTab !== 'downloaded') {
+    if (window.closeInlinePlayer) window.closeInlinePlayer();
+  }
+  
+  performTabSwitchUI(targetTab);
 
   if (triggerPushState) {
     const targetPath = tabPathMap[targetTab];
@@ -1980,7 +2170,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
 
     card.innerHTML = `
       <div class="video-thumbnail-wrapper" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}">
-        <img class="video-thumbnail" src="https://img.youtube.com/vi/${item.id}/mqdefault.jpg" alt="Video Resmi" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
+        <img class="video-thumbnail" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
         ${durationBadgeHtml}
         ${shortsBadgeHtml}
       </div>
@@ -1993,9 +2183,8 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
         <div class="video-card-metadata">
           <span class="video-card-channel">
             ${item.channelId 
-              ? `<img src="/api/channels/${item.channelId}/avatar" class="video-card-channel-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />` 
+              ? `<img src="/api/channels/${item.channelId}/avatar" class="video-card-channel-avatar" onerror="this.style.display='none';" />` 
               : ''}
-            <i data-lucide="tv" style="width:12px;height:12px;${item.channelId ? 'display:none;' : 'display:inline-block;'}vertical-align:middle;margin-right:4px;"></i>
             ${escapeHtml(item.channelName)}
           </span>
           <span>${isEn ? 'Date' : 'Tarih'}: ${formatDate(item.publishedAt || item.downloadedAt)}</span>
@@ -2028,6 +2217,10 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
  */
 function updateUI(db) {
   if (!db) return;
+
+  if (db.settings && db.settings.subtitleColor) {
+    document.documentElement.style.setProperty('--subtitle-color', db.settings.subtitleColor);
+  }
 
   // 1. Sistem Durum Detayları
   const isEn = db.settings && db.settings.lang === 'en';
@@ -2490,6 +2683,11 @@ function updateUI(db) {
     const settingsPlayerType = document.getElementById('settings-player-type');
     if (settingsPlayerType && document.activeElement !== settingsPlayerType) settingsPlayerType.value = db.settings.playerType || 'plyr';
 
+    const settingsSubtitleColor = document.getElementById('settings-subtitle-color');
+    if (settingsSubtitleColor && document.activeElement !== settingsSubtitleColor) {
+      settingsSubtitleColor.value = db.settings.subtitleColor || '#ffffff';
+    }
+
     const settingsSponsorBlock = document.getElementById('settings-sponsorblock');
     if (settingsSponsorBlock && document.activeElement !== settingsSponsorBlock) settingsSponsorBlock.checked = db.settings.sponsorBlockEnabled === true;
 
@@ -2868,6 +3066,7 @@ async function performAutoSave() {
     alternativeSpeedLimit: parseInt(document.getElementById('settings-altspeedlimit').value, 10) || 500,
      port: port,
     playerType: document.getElementById('settings-player-type').value,
+    subtitleColor: document.getElementById('settings-subtitle-color').value,
     sponsorBlockEnabled: document.getElementById('settings-sponsorblock').checked,
     playSounds: document.getElementById('settings-playsounds').checked,
     showNotifications: document.getElementById('settings-shownotifications').checked,
@@ -3182,6 +3381,31 @@ document.addEventListener('keydown', (e) => {
             videoPlayerInstance.fullscreen.toggle();
           }
         }
+      },
+      toggleCaptions() {
+        if (pType === 'artplayer' && videoPlayerInstance) {
+          if (videoPlayerInstance.subtitle) {
+            videoPlayerInstance.subtitle.show = !videoPlayerInstance.subtitle.show;
+          }
+        } else if (pType === 'plyr' && videoPlayerInstance) {
+          if (typeof videoPlayerInstance.toggleCaptions === 'function') {
+            videoPlayerInstance.toggleCaptions();
+          } else if (videoPlayerInstance.captions) {
+            videoPlayerInstance.captions.active = !videoPlayerInstance.captions.active;
+          }
+        } else if (player) {
+          const tracks = player.textTracks;
+          if (tracks && tracks.length > 0) {
+            const isShowing = Array.from(tracks).some(t => t.mode === 'showing');
+            for (let i = 0; i < tracks.length; i++) {
+              if (isShowing) {
+                tracks[i].mode = 'disabled';
+              } else {
+                tracks[i].mode = i === 0 ? 'showing' : 'disabled';
+              }
+            }
+          }
+        }
       }
     };
 
@@ -3210,6 +3434,12 @@ document.addEventListener('keydown', (e) => {
       case 'M':
         e.preventDefault();
         activePlayer.muted = !activePlayer.muted;
+        break;
+
+      case 'c':
+      case 'C':
+        e.preventDefault();
+        activePlayer.toggleCaptions();
         break;
 
       case 'ArrowRight':
@@ -3281,7 +3511,6 @@ document.addEventListener('keydown', (e) => {
           const percent = parseInt(e.key, 10) * 10;
           activePlayer.currentTime = duration * (percent / 100);
         }
-        // Shift + . veya Shift + , durumları için hız kontrolü
         if (e.key === '.' && e.shiftKey) {
           e.preventDefault();
           const idx = speeds.indexOf(activePlayer.speed);
@@ -3561,7 +3790,7 @@ function checkAndSkipSponsor(currentTime, videoElementOrPlayer) {
  * 
  * @param {string} videoId Oynatılacak video ID'si
  */
-window.playVideoEmbedded = async function(videoId) {
+window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePaused = null) {
   const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
   const isInline = (activeTab === 'downloaded');
 
@@ -3576,6 +3805,18 @@ window.playVideoEmbedded = async function(videoId) {
   // Fetch SponsorBlock segments
   await fetchSponsorSegments(videoId);
   updateSponsorBlockStatusUI();
+
+  // Fetch available subtitles
+  let availableSubtitles = [];
+  try {
+    const subRes = await fetch(`/api/video/${videoId}/subtitles`);
+    const subData = await subRes.json();
+    if (subData.success && subData.subtitles) {
+      availableSubtitles = subData.subtitles;
+    }
+  } catch (err) {
+    console.error("Error loading subtitles:", err);
+  }
 
   // DOM Fallback
   if (!videoTitle) {
@@ -3621,6 +3862,12 @@ window.playVideoEmbedded = async function(videoId) {
     if (inlineContainer) inlineContainer.classList.remove('hidden');
     if (listContainer) listContainer.classList.add('hidden');
 
+    // Video oynatılmaya başladığında sayfayı en yukarı kaydır (böylece oynatıcı tam olarak görünür olur)
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.scrollTop = 0;
+    }
+
     playerContainer = document.getElementById('inline-player-body');
 
     // 3. Bilgileri yerleştir
@@ -3640,16 +3887,66 @@ window.playVideoEmbedded = async function(videoId) {
       }
     }
 
+    const channelContainer = document.querySelector('.inline-player-channel');
+    if (channelContainer) {
+      if (videoChannelId) {
+        channelContainer.style.cursor = 'pointer';
+        channelContainer.title = localDb.settings?.lang === 'en' ? 'Go to Channel Videos' : 'Kanala Git';
+        channelContainer.onclick = (e) => {
+          e.preventDefault();
+          window.open(`https://www.youtube.com/channel/${videoChannelId}/videos`, '_blank');
+        };
+      } else {
+        channelContainer.style.cursor = 'default';
+        channelContainer.title = '';
+        channelContainer.onclick = null;
+      }
+    }
+
     const publishDateEl = document.getElementById('inline-player-publish-date');
     if (publishDateEl) {
       const isEn = localDb.settings?.lang === 'en';
-      publishDateEl.textContent = (isEn ? 'Date: ' : 'Tarih: ') + (formatDate(publishDateStr) || '--');
+      const pubDate = video && video.publishedAt ? formatDate(video.publishedAt) : '--';
+      publishDateEl.textContent = (isEn ? 'Published: ' : 'Yüklenme: ') + pubDate;
+    }
+
+    const downloadDateEl = document.getElementById('inline-player-download-date');
+    if (downloadDateEl) {
+      const isEn = localDb.settings?.lang === 'en';
+      const dlDate = video && video.downloadedAt ? formatDate(video.downloadedAt) : '--';
+      downloadDateEl.textContent = (isEn ? 'Downloaded: ' : 'İndirilme: ') + dlDate;
     }
 
     const fileSizeEl = document.getElementById('inline-player-file-size');
     if (fileSizeEl) {
       const isEn = localDb.settings?.lang === 'en';
       fileSizeEl.textContent = (isEn ? 'Size: ' : 'Boyut: ') + (fileSizeStr || '--');
+    }
+
+    // Auto show comments panel
+    const commentsContainer = document.getElementById('inline-player-comments-container');
+    if (commentsContainer) {
+      commentsContainer.classList.remove('hidden');
+    }
+    const commentsBtn = document.getElementById('inline-btn-comments');
+    const isEn = localDb.settings?.lang === 'en';
+    if (commentsBtn) {
+      commentsBtn.classList.add('active');
+      commentsBtn.querySelector('span').textContent = isEn ? 'Hide Comments' : 'Yorumları Gizle';
+    }
+    loadComments(videoId);
+
+    // Toggle SponsorBlock legend if SponsorBlock is enabled
+    const sbLegend = document.getElementById('inline-player-sponsorblock-legend');
+    const sbSep = document.getElementById('inline-player-sb-sep');
+    if (sbLegend) {
+      if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
+        sbLegend.style.display = 'flex';
+        if (sbSep) sbSep.style.display = 'inline';
+      } else {
+        sbLegend.style.display = 'none';
+        if (sbSep) sbSep.style.display = 'none';
+      }
     }
 
     // 4. Eylemleri bağla
@@ -3723,11 +4020,19 @@ window.playVideoEmbedded = async function(videoId) {
       if (logoEl && videoChannelId) {
         logoEl.src = `/api/channels/${videoChannelId}/avatar`;
         logoEl.style.display = 'block';
+        logoEl.style.cursor = 'pointer';
+        logoEl.title = localDb.settings?.lang === 'en' ? 'Go to Channel Videos' : 'Kanala Git';
+        logoEl.onclick = (e) => {
+          e.preventDefault();
+          window.open(`https://www.youtube.com/channel/${videoChannelId}/videos`, '_blank');
+        };
         logoEl.onerror = function() {
           this.src = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22><rect width=%2224%22 height=%2224%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2210%22>?</text></svg>';
         };
       } else if (logoEl) {
         logoEl.style.display = 'none';
+        logoEl.style.cursor = 'default';
+        logoEl.onclick = null;
       }
 
       modal.classList.remove('minimized');
@@ -3786,10 +4091,102 @@ window.playVideoEmbedded = async function(videoId) {
         }));
       }
 
+      let defaultSubtitle = null;
+      if (availableSubtitles && availableSubtitles.length > 0) {
+        defaultSubtitle = availableSubtitles.find(s => s.lang === 'tr') || 
+                          availableSubtitles.find(s => s.lang === 'en') || 
+                          availableSubtitles[0];
+      }
+
+      const artSettings = [];
+      if (availableSubtitles && availableSubtitles.length > 0) {
+        const isEn = localDb.settings?.lang === 'en';
+        const subtitleSelector = [
+          {
+            default: !defaultSubtitle,
+            html: isEn ? 'Off' : 'Kapalı',
+            url: ''
+          }
+        ];
+        
+        availableSubtitles.forEach(sub => {
+          subtitleSelector.push({
+            default: defaultSubtitle && defaultSubtitle.lang === sub.lang,
+            html: sub.label,
+            url: sub.url
+          });
+        });
+
+        artSettings.push({
+          width: 200,
+          html: isEn ? 'Subtitle' : 'Altyazı',
+          tooltip: defaultSubtitle ? defaultSubtitle.label : (isEn ? 'Off' : 'Kapalı'),
+          selector: subtitleSelector,
+          onSelect: function (item) {
+            if (item.url) {
+              videoPlayerInstance.subtitle.show = true;
+              videoPlayerInstance.subtitle.url = item.url;
+            } else {
+              videoPlayerInstance.subtitle.show = false;
+            }
+            return item.html;
+          }
+        });
+      }
+
+      // Altyazı Rengi Ayarı
+      const artIsEn = localDb.settings?.lang === 'en';
+      const colors = [
+        { value: '#ffffff', nameEn: 'White', nameTr: 'Beyaz' },
+        { value: '#ffff00', nameEn: 'Yellow', nameTr: 'Sarı' },
+        { value: '#00ff00', nameEn: 'Green', nameTr: 'Yeşil' },
+        { value: '#00ffff', nameEn: 'Cyan', nameTr: 'Turkuaz' },
+        { value: '#ff00ff', nameEn: 'Pink', nameTr: 'Pembe' },
+        { value: '#ff0000', nameEn: 'Red', nameTr: 'Kırmızı' }
+      ];
+      
+      const currentColor = (localDb.settings && localDb.settings.subtitleColor) || '#ffffff';
+      const colorSelector = colors.map(c => ({
+        default: currentColor === c.value,
+        html: artIsEn ? c.nameEn : c.nameTr,
+        value: c.value
+      }));
+
+      artSettings.push({
+        width: 200,
+        html: artIsEn ? 'Subtitle Color' : 'Altyazı Rengi',
+        tooltip: artIsEn 
+          ? (colors.find(c => c.value === currentColor)?.nameEn || 'White')
+          : (colors.find(c => c.value === currentColor)?.nameTr || 'Beyaz'),
+        selector: colorSelector,
+        onSelect: function (item) {
+          if (videoPlayerInstance && videoPlayerInstance.subtitle) {
+            videoPlayerInstance.subtitle.style({
+              color: item.value,
+              textShadow: '0 0 4px #000000'
+            });
+          }
+          if (localDb && localDb.settings) {
+            localDb.settings.subtitleColor = item.value;
+            const selectEl = document.getElementById('settings-subtitle-color');
+            if (selectEl) selectEl.value = item.value;
+            
+            // Arka planda ayarları kaydet
+            fetch('/api/settings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...localDb.settings, subtitleColor: item.value })
+            })
+            .catch(err => console.error(err));
+          }
+          return item.html;
+        }
+      });
+
       videoPlayerInstance = new Artplayer({
         container: '#embedded-artplayer',
         url: streamUrl,
-        autoplay: true,
+        autoplay: forcePaused === true ? false : true,
         autoSize: false,
         autoMini: false,
         playbackRate: true,
@@ -3801,6 +4198,15 @@ window.playVideoEmbedded = async function(videoId) {
         mutex: true,
         theme: '#ff0055',
         highlight: artHighlight,
+        subtitle: defaultSubtitle ? {
+          url: defaultSubtitle.url,
+          type: 'vtt',
+          style: {
+            color: (localDb.settings && localDb.settings.subtitleColor) || '#ffffff',
+            textShadow: '0 0 4px #000000',
+          },
+        } : undefined,
+        settings: artSettings
       });
 
       if (playerResizeObserver) {
@@ -3860,12 +4266,16 @@ window.playVideoEmbedded = async function(videoId) {
           });
 
           if (!seekedForCurrentVideo && currentPlayingVideoId) {
-            const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-            const savedTime = resumeData[currentPlayingVideoId];
-            if (savedTime && savedTime > 0) {
-              rawVideo.currentTime = savedTime;
+            const targetTime = (startSeconds !== null) ? startSeconds : (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0);
+            if (targetTime > 0) {
+              rawVideo.currentTime = targetTime;
             }
             seekedForCurrentVideo = true;
+          }
+          if (forcePaused === true) {
+            videoPlayerInstance.pause();
+          } else if (forcePaused === false) {
+            videoPlayerInstance.play().catch(e => console.warn(e));
           }
         }
       });
@@ -3873,6 +4283,30 @@ window.playVideoEmbedded = async function(videoId) {
     } else {
       const player = document.getElementById('embedded-video-player');
       if (player) {
+        // Clear old track tags
+        const oldTracks = player.querySelectorAll('track');
+        oldTracks.forEach(t => t.remove());
+
+        // Add track tags if available
+        if (availableSubtitles && availableSubtitles.length > 0) {
+          availableSubtitles.forEach(sub => {
+            const track = document.createElement('track');
+            track.kind = 'subtitles';
+            track.label = sub.label;
+            track.srclang = sub.lang;
+            track.src = sub.url;
+            
+            const isDefault = (sub.lang === 'tr' && availableSubtitles.some(s => s.lang === 'tr')) ||
+                              (sub.lang === 'en' && !availableSubtitles.some(s => s.lang === 'tr') && sub.lang === 'en') ||
+                              (!availableSubtitles.some(s => s.lang === 'tr' || s.lang === 'en') && sub === availableSubtitles[0]);
+            
+            if (isDefault) {
+              track.default = true;
+            }
+            player.appendChild(track);
+          });
+        }
+
         if (playerType === 'plyr' && typeof Plyr !== 'undefined') {
           player.src = streamUrl;
           videoPlayerInstance = new Plyr('#embedded-video-player', {
@@ -3880,9 +4314,9 @@ window.playVideoEmbedded = async function(videoId) {
             controls: [
               'play-large', 'restart', 'rewind', 'play', 'fast-forward',
               'progress', 'current-time', 'duration', 'mute', 'volume',
-              'settings', 'pip', 'fullscreen'
+              'captions', 'settings', 'pip', 'fullscreen'
             ],
-            settings: ['speed', 'loop'],
+            settings: ['captions', 'speed', 'loop'],
             speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] }
           });
 
@@ -3937,18 +4371,23 @@ window.playVideoEmbedded = async function(videoId) {
 
           videoPlayerInstance.on('canplay', () => {
             if (!seekedForCurrentVideo && currentPlayingVideoId) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              const savedTime = resumeData[currentPlayingVideoId];
-              if (savedTime && savedTime > 0) {
-                videoPlayerInstance.currentTime = savedTime;
+              const targetTime = (startSeconds !== null) ? startSeconds : (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0);
+              if (targetTime > 0) {
+                videoPlayerInstance.currentTime = targetTime;
               }
               seekedForCurrentVideo = true;
             }
           });
 
-          videoPlayerInstance.play().catch(err => {
-            console.warn('Otomatik oynatma engellendi:', err);
-          });
+          if (forcePaused === true) {
+            videoPlayerInstance.pause();
+          } else if (forcePaused === false) {
+            videoPlayerInstance.play().catch(err => console.warn(err));
+          } else {
+            videoPlayerInstance.play().catch(err => {
+              console.warn('Otomatik oynatma engellendi:', err);
+            });
+          }
         } else {
           // HTML5 standard
           player.src = streamUrl;
@@ -3993,19 +4432,24 @@ window.playVideoEmbedded = async function(videoId) {
 
           player.addEventListener('canplay', () => {
             if (!seekedForCurrentVideo && currentPlayingVideoId) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              const savedTime = resumeData[currentPlayingVideoId];
-              if (savedTime && savedTime > 0) {
-                player.currentTime = savedTime;
+              const targetTime = (startSeconds !== null) ? startSeconds : (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0);
+              if (targetTime > 0) {
+                player.currentTime = targetTime;
               }
               seekedForCurrentVideo = true;
             }
           });
 
           player.load();
-          player.play().catch(err => {
-            console.warn('Otomatik oynatma engellendi:', err);
-          });
+          if (forcePaused === true) {
+            player.pause();
+          } else if (forcePaused === false) {
+            player.play().catch(err => console.warn(err));
+          } else {
+            player.play().catch(err => {
+              console.warn('Otomatik oynatma engellendi:', err);
+            });
+          }
         }
       }
     }
@@ -4021,6 +4465,9 @@ window.playVideoEmbedded = async function(videoId) {
 window.closeInlinePlayer = function() {
   const inlineContainer = document.getElementById('downloaded-inline-player-container');
   const listContainer = document.getElementById('downloaded-list-container');
+  if (inlineContainer && inlineContainer.classList.contains('hidden')) {
+    return;
+  }
   if (inlineContainer) inlineContainer.classList.add('hidden');
   if (listContainer) listContainer.classList.remove('hidden');
 
@@ -4097,7 +4544,7 @@ function renderDownloadedPlaylist(currentVideoId) {
 
     itemEl.innerHTML = `
       <div class="playlist-item-thumbnail-wrapper">
-        <img class="playlist-item-thumbnail" src="https://img.youtube.com/vi/${item.id}/mqdefault.jpg" alt="${escapeHtml(item.title)}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%2256%22><rect width=%22100%22 height=%2256%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%228%22>No Image</text></svg>'">
+        <img class="playlist-item-thumbnail" src="/api/video/${item.id}/thumbnail" alt="${escapeHtml(item.title)}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%2256%22><rect width=%22100%22 height=%2256%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%228%22>No Image</text></svg>'">
         ${durationHtml}
       </div>
       <div class="playlist-item-details">
@@ -4138,6 +4585,9 @@ window.playVideoSystem = async function(videoId) {
  */
 window.closePlayerModal = function() {
   const modal = document.getElementById('player-modal');
+  if (modal && modal.classList.contains('hidden')) {
+    return;
+  }
   if (modal) {
     modal.classList.add('hidden');
     modal.classList.remove('is-short-player');
@@ -5285,5 +5735,224 @@ const modalHeader = document.querySelector('#player-modal .modal-header');
 if (modalContent && modalHeader) {
   makeElementDraggable(modalContent, modalHeader);
 }
+
+// Türkçe Açıklama: Yorumlar panelini açar/kapatır ve kapatıldığında veya açıldığında yorumları sunucudan çeker.
+window.toggleCommentsPanel = async function() {
+  const container = document.getElementById('inline-player-comments-container');
+  if (!container) return;
+  
+  const isHidden = container.classList.contains('hidden');
+  const btn = document.getElementById('inline-btn-comments');
+  const isEn = localDb.settings?.lang === 'en';
+  
+  if (isHidden) {
+    container.classList.remove('hidden');
+    if (btn) {
+      btn.classList.add('active');
+      btn.querySelector('span').textContent = isEn ? 'Hide Comments' : 'Yorumları Gizle';
+    }
+    await loadComments(currentPlayingVideoId);
+  } else {
+    container.classList.add('hidden');
+    if (btn) {
+      btn.classList.remove('active');
+      btn.querySelector('span').textContent = isEn ? 'Show Comments' : 'Yorumları Göster';
+    }
+  }
+};
+
+let nextCommentsToken = null;
+let loadedCommentsList = [];
+
+// Helper to parse like counts (e.g. "1.2K", "250K", "15", "0")
+function parseLikes(likeStr) {
+  if (!likeStr) return 0;
+  const clean = String(likeStr).trim().toUpperCase();
+  if (clean === '0' || clean === '') return 0;
+  
+  let multiplier = 1;
+  let numStr = clean;
+  
+  if (clean.endsWith('K')) {
+    multiplier = 1000;
+    numStr = clean.slice(0, -1);
+  } else if (clean.endsWith('M')) {
+    multiplier = 1000000;
+    numStr = clean.slice(0, -1);
+  } else if (clean.endsWith('B')) {
+    multiplier = 1000000000;
+    numStr = clean.slice(0, -1);
+  }
+  
+  const val = parseFloat(numStr);
+  return isNaN(val) ? 0 : val * multiplier;
+}
+
+// Helper to parse relative times (e.g. "2 hours ago", "En Yeni") to seconds
+function parseRelativeTime(timeStr) {
+  if (!timeStr) return Infinity;
+  const s = String(timeStr).toLowerCase().trim();
+  
+  if (s.includes('now') || s.includes('şimdi') || s.includes('just')) return 0;
+  
+  const numMatch = s.match(/\d+/);
+  const val = numMatch ? parseInt(numMatch[0], 10) : 1;
+  
+  let multiplier = 1;
+  if (s.includes('second') || s.includes('saniye') || s.includes('sn')) {
+    multiplier = 1;
+  } else if (s.includes('minute') || s.includes('dakika') || s.includes('dk')) {
+    multiplier = 60;
+  } else if (s.includes('hour') || s.includes('saat')) {
+    multiplier = 3600;
+  } else if (s.includes('day') || s.includes('gün')) {
+    multiplier = 86400;
+  } else if (s.includes('week') || s.includes('hafta')) {
+    multiplier = 604800;
+  } else if (s.includes('month') || s.includes('ay')) {
+    multiplier = 2592000;
+  } else if (s.includes('year') || s.includes('yıl')) {
+    multiplier = 31536000;
+  }
+  
+  return val * multiplier;
+}
+
+// Render comments list with sorting
+function renderCommentsList() {
+  const list = document.getElementById('comments-list');
+  if (!list) return;
+  list.innerHTML = '';
+  
+  const sortVal = document.getElementById('comments-sort')?.value || 'default';
+  let sorted = [...loadedCommentsList];
+  
+  if (sortVal === 'likes-desc') {
+    sorted.sort((a, b) => parseLikes(b.likeCount) - parseLikes(a.likeCount));
+  } else if (sortVal === 'date-new') {
+    sorted.sort((a, b) => parseRelativeTime(a.publishedTime) - parseRelativeTime(b.publishedTime));
+  } else if (sortVal === 'date-old') {
+    sorted.sort((a, b) => parseRelativeTime(b.publishedTime) - parseRelativeTime(a.publishedTime));
+  }
+  
+  sorted.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'comment-item';
+    
+    const avatarUrl = c.authorAvatar || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><circle cx=%2220%22 cy=%2220%22 r=%2220%22 fill=%22%2316142a%22/></svg>';
+    
+    item.innerHTML = `
+      <img class="comment-avatar" src="${avatarUrl}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><circle cx=%2220%22 cy=%2220%22 r=%2220%22 fill=%22%2316142a%22/></svg>';" />
+      <div class="comment-content">
+        <div class="comment-meta">
+          <span class="comment-author">${escapeHtml(c.author)}</span>
+          <span class="comment-time">${escapeHtml(c.publishedTime)}</span>
+        </div>
+        <div class="comment-text">${escapeHtml(c.text)}</div>
+        <div class="comment-likes-row">
+          <i data-lucide="thumbs-up"></i>
+          <span>${escapeHtml(c.likeCount)}</span>
+        </div>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+  lucide.createIcons();
+}
+
+window.sortAndRenderComments = function() {
+  renderCommentsList();
+};
+
+async function loadComments(videoId) {
+  const list = document.getElementById('comments-list');
+  const loading = document.getElementById('comments-loading');
+  const empty = document.getElementById('comments-list-empty');
+  const moreContainer = document.getElementById('comments-more-container');
+  
+  if (!list || !loading || !empty) return;
+  
+  list.innerHTML = '';
+  loading.style.display = 'block';
+  empty.style.display = 'none';
+  if (moreContainer) moreContainer.style.display = 'none';
+  nextCommentsToken = null;
+  loadedCommentsList = [];
+  
+  // Translation
+  const commentsSort = document.getElementById('comments-sort');
+  if (commentsSort) {
+    const isEn = localDb.settings?.lang === 'en';
+    commentsSort.options[0].text = isEn ? 'Default' : 'Varsayılan';
+    commentsSort.options[1].text = isEn ? 'Likes (High to Low)' : 'Beğeni (Çoktan Aza)';
+    commentsSort.options[2].text = isEn ? 'Newest' : 'En Yeni';
+    commentsSort.options[3].text = isEn ? 'Oldest' : 'En Eski';
+  }
+
+  try {
+    const res = await fetch(`/api/video/${videoId}/comments`);
+    const data = await res.json();
+    loading.style.display = 'none';
+    
+    if (data.success && data.comments && data.comments.length > 0) {
+      loadedCommentsList = data.comments;
+      renderCommentsList();
+      if (data.nextPageToken) {
+        nextCommentsToken = data.nextPageToken;
+        if (moreContainer) moreContainer.style.display = 'block';
+      }
+    } else {
+      empty.style.display = 'block';
+    }
+  } catch (err) {
+    loading.style.display = 'none';
+    empty.style.display = 'block';
+    console.error("Error loading comments:", err);
+  }
+}
+
+window.loadMoreComments = async function() {
+  if (!currentPlayingVideoId || !nextCommentsToken) return;
+  
+  const moreBtn = document.getElementById('btn-load-more-comments');
+  const moreText = document.getElementById('btn-load-more-comments-text');
+  const isEn = localDb.settings?.lang === 'en';
+  
+  if (moreBtn) moreBtn.disabled = true;
+  if (moreText) {
+    moreText.textContent = isEn ? 'Loading...' : 'Yükleniyor...';
+  }
+  
+  try {
+    const res = await fetch(`/api/video/${currentPlayingVideoId}/comments?token=${encodeURIComponent(nextCommentsToken)}`);
+    const data = await res.json();
+    
+    if (data.success && data.comments && data.comments.length > 0) {
+      loadedCommentsList = loadedCommentsList.concat(data.comments);
+      renderCommentsList();
+      if (data.nextPageToken) {
+        nextCommentsToken = data.nextPageToken;
+        if (moreBtn) moreBtn.disabled = false;
+        if (moreText) {
+          moreText.textContent = isEn ? 'Show More' : 'Daha Fazla Göster';
+        }
+      } else {
+        nextCommentsToken = null;
+        const moreContainer = document.getElementById('comments-more-container');
+        if (moreContainer) moreContainer.style.display = 'none';
+      }
+    } else {
+      nextCommentsToken = null;
+      const moreContainer = document.getElementById('comments-more-container');
+      if (moreContainer) moreContainer.style.display = 'none';
+    }
+  } catch (err) {
+    console.error("Error loading more comments:", err);
+    if (moreBtn) moreBtn.disabled = false;
+    if (moreText) {
+      moreText.textContent = isEn ? 'Show More' : 'Daha Fazla Göster';
+    }
+  }
+};
 
 lucide.createIcons();

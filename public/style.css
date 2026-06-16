@@ -2854,5 +2854,23 @@ body.light-theme .nav-item.pd-btn {
   }
 }
 
+/* Player Subtitle Customizer Rules */
+::cue {
+  color: var(--subtitle-color, #ffffff) !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  text-shadow: 0 0 4px #000000 !important;
+}
+
+.plyr__captions .plyr__caption {
+  color: var(--subtitle-color, #ffffff) !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  text-shadow: 0 0 4px #000000 !important;
+}
+
+.art-subtitle {
+  color: var(--subtitle-color, #ffffff) !important;
+  text-shadow: 0 0 4px #000000 !important;
+}
+
 
 

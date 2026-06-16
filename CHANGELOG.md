@@ -4,6 +4,23 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 
 ---
 
+## [4.20.0] - 2026-06-16
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **Altyazı Özelleştirmeleri / Subtitle Color Customization:** ArtPlayer, Plyr ve HTML5 video oynatıcılarına altyazı renk seçeneği (Altyazı Rengi) eklendi. Hem genel ayarlar sekmesinde hem de ArtPlayer içi ayar menüsünde (YouTube benzeri çark menüsü) altyazı rengi değiştirilebiliyor. / Added subtitle color selection (Subtitle Color) to ArtPlayer, Plyr, and HTML5 players. Subtitle colors can be configured via both the global Settings tab and directly within the ArtPlayer settings menu.
+- **Eşzamanlılık Koruması / Database Concurrency Protection:** Eşzamanlı (asenkron) veritabanı yazma çakışmalarını (DB Lock) engellemek amacıyla asenkron kilit (Mutex) mekanizması entegre edildi. / Integrated an asynchronous DB lock mutex to serialize write operations and prevent concurrency database locks.
+- **Güvenlik İyileştirmeleri / Path Traversal Security:** Klasör açma endpoint'inde (`/api/open-folder`) path traversal zafiyetlerine karşı güvenli yol denetimi ve doğrulama eklendi. / Secured the folder opening endpoint (`/api/open-folder`) against path traversal attacks using path validation.
+- **Kanal Logo & Arayüz Sadeleştirmeleri / Metadata Cleanups:** İndirilenler sekmesindeki video kartlarında ve inline oynatıcıda kanal adı yanında duran tv ikonu kaldırıldı. / Removed the TV icon next to the channel name in both downloaded cards and the inline player view.
+
+## [4.19.0] - 2026-06-15
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **Çoklu Dil Altyazı Desteği / Multi-language Subtitles Support:** Video indirilirken Türkçe ve İngilizce altyazı dosyalarının (`.tr.srt` ve `.en.srt`) otomatik olarak indirilmesi ve video dosyasıyla aynı klasörde aynı isimle kaydedilmesi sağlandı. / Enabled automatic downloading of Turkish and English subtitles (`.tr.srt` and `.en.srt`) alongside videos. They are saved in the same directory using matching file names.
+- **Akıllı Silme Mekanizması / Smart Subtitle Deletion:** Arayüzden bir video diskten silindiğinde, o videoya ait `.tr.srt`, `.en.srt` veya diğer tüm altyazı uzantıları otomatik olarak algılanıp video dosyasıyla birlikte temizlenir. / Implemented smart cleanup which automatically deletes associated `.tr.srt`, `.en.srt`, and other subtitle formats when a video is deleted via the interface.
+- **Oynatıcılarda Dinamik Altyazı Menüsü & CC Butonu / Dynamic Subtitles Menu & CC Button in Players:** ArtPlayer, Plyr ve HTML5 oynatıcılarına dinamik altyazı dili seçme menüsü ve CC açma/kapatma butonları entegre edildi. Altyazılar stream edilerek oynatıcılara WebVTT biçiminde dinamik sunulmaktadır. / Integrated a dynamic subtitles selection menu and CC toggles into ArtPlayer, Plyr, and HTML5 players. Subtitles are dynamically converted to WebVTT format and streamed to the players.
+- **Hata Dayanıklılığı ve Varlık Doğrulama / Error Resilience & Video Verification:** Altyazı indirme aşamasında oluşabilecek ağ veya 429 rate limit hataları yt-dlp indirme sürecini durdurmasın diye `--ignore-errors` eklenerek video indirme kararlılığı sağlandı. İndirme sonrasında video dosyasının diskteki varlığı doğrulanıp dosya yoksa durum başarısız olarak işaretlenir. / Added `--ignore-errors` to yt-dlp arguments to prevent subtitle rate-limit errors (e.g. 429) from aborting the video download. Added file existence checks to ensure successful video compilation on disk before marking downloads as completed.
+- **Arayüz Odaklı Otomatik Yukarı Kaydırma / Automatic Scroll-to-Top:** İndirilenler sekmesindeki videoya tıklandığında veya sekmeler arasında geçiş yapıldığında, sayfanın dikey kaydırma konumu otomatik olarak en üste kaydırılarak video oynatıcının ekrana tam oturması sağlandı. / Added auto-scroll to top when clicking downloaded video items or switching tabs, ensuring the inline player starts fully visible in the viewport.
+
 ## [4.18.0] - 2026-06-15
 
 ### Yeni Özellikler & İyileştirmeler / New Features & Improvements

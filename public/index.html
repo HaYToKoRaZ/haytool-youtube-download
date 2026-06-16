@@ -32,7 +32,7 @@
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
         <div class="brand-text">
-          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.18.0</a></span></h1>
+          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.19.0</a></span></h1>
         </div>
       </div>
 
@@ -334,13 +334,25 @@
               <h3 id="inline-player-title" class="inline-player-title">Video Başlığı</h3>
               <div class="inline-player-meta-row">
                 <div class="inline-player-channel">
-                  <img id="inline-player-channel-avatar" class="inline-channel-avatar" src="" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />
-                  <i data-lucide="tv" style="display:none; width:16px; height:16px; margin-right:6px;"></i>
+                  <img id="inline-player-channel-avatar" class="inline-channel-avatar" src="" onerror="this.style.display='none';" />
                   <span id="inline-player-channel-name">Kanal Adı</span>
                 </div>
-                <div class="inline-player-stats">
-                  <span id="inline-player-publish-date">Tarih: --</span>
+                <div class="inline-player-stats" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.72rem; color: var(--text-muted); align-items: center; margin-top: 4px;">
+                  <span id="inline-player-publish-date">Yüklenme: --</span>
+                  <span class="meta-sep" style="color: rgba(255, 255, 255, 0.15);">•</span>
+                  <span id="inline-player-download-date">İndirilme: --</span>
+                  <span class="meta-sep" style="color: rgba(255, 255, 255, 0.15);">•</span>
                   <span id="inline-player-file-size">Boyut: --</span>
+                  <span id="inline-player-sb-sep" class="meta-sep" style="color: rgba(255, 255, 255, 0.15); display: none;">•</span>
+                  <div class="inline-player-sponsorblock-legend" id="inline-player-sponsorblock-legend" style="display: none; flex-wrap: wrap; gap: 8px; font-size: 0.72rem; color: var(--text-muted); align-items: center;">
+                    <span style="font-weight: 600; margin-right: 4px;">SponsorBlock:</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #4ade80; display: inline-block;"></span> Sponsor</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #facc15; display: inline-block;"></span> Kendi Reklamı</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #38bdf8; display: inline-block;"></span> Etkileşim</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #2dd4bf; display: inline-block;"></span> Giriş (Intro)</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #c084fc; display: inline-block;"></span> Bitiş (Outro)</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #f43f5e; display: inline-block;"></span> Önizleme/Müzik</span>
+                  </div>
                 </div>
               </div>
               <div class="inline-player-sponsorblock-status" id="inline-player-sponsorblock-status" style="display: none;"></div>
@@ -357,6 +369,10 @@
                   <i data-lucide="folder-open"></i>
                   <span>Klasör Aç</span>
                 </button>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-comments" title="Yorumları Göster" aria-label="Yorumları Göster" onclick="toggleCommentsPanel()">
+                  <i data-lucide="message-square"></i>
+                  <span>Yorumları Göster</span>
+                </button>
                 <button class="btn btn-danger btn-sm" id="inline-btn-delete" style="margin-left: auto;" title="Sil" aria-label="Sil">
                   <i data-lucide="trash-2"></i>
                   <span>Sil</span>
@@ -364,6 +380,41 @@
                 <button class="btn btn-secondary btn-sm" id="inline-btn-close" title="Kapat" aria-label="Kapat">
                   <i data-lucide="x"></i>
                   <span>Kapat</span>
+                </button>
+              </div>
+            </div>
+            
+            <!-- Yorumlar Paneli -->
+            <div id="inline-player-comments-container" class="inline-player-comments-container card hidden" style="margin-top: 15px; padding: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                <h4 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                  <i data-lucide="message-square" style="color: var(--accent-primary);"></i>
+                  <span id="comments-title-text">Yorumlar</span>
+                </h4>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <select id="comments-sort" onchange="sortAndRenderComments()" style="font-size: 0.75rem; padding: 4px 8px; background-color: var(--bg-sidebar); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 6px; outline: none; cursor: pointer; transition: border-color 0.2s;">
+                    <option value="default">Varsayılan</option>
+                    <option value="likes-desc">Beğeni (Çoktan Aza)</option>
+                    <option value="date-new">En Yeni</option>
+                    <option value="date-old">En Eski</option>
+                  </select>
+                  <button class="btn btn-secondary btn-xs" onclick="toggleCommentsPanel()" style="padding: 4px 10px; font-size: 0.8rem; height: 26px;">Kapat</button>
+                </div>
+              </div>
+              <div id="comments-loading" class="text-center text-muted" style="padding: 20px; display: none;">
+                <i data-lucide="loader" class="spin-animation" style="width: 20px; height: 20px; margin-bottom: 8px; display: inline-block;"></i>
+                <div>Yorumlar yükleniyor...</div>
+              </div>
+              <div id="comments-list-empty" class="text-center text-muted" style="padding: 20px; display: none;">
+                Yorum bulunamadı veya yüklenirken bir sorun oluştu.
+              </div>
+              <div id="comments-list" style="display: flex; flex-direction: column; gap: 15px; max-height: 1300px; overflow-y: auto; padding-right: 5px;">
+                <!-- Yorumlar buraya eklenecek -->
+              </div>
+              <div id="comments-more-container" style="display: none; text-align: center; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+                <button class="btn btn-secondary btn-sm" id="btn-load-more-comments" onclick="loadMoreComments()" style="padding: 6px 20px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 8px;">
+                  <i data-lucide="plus"></i>
+                  <span id="btn-load-more-comments-text">Daha Fazla Göster</span>
                 </button>
               </div>
             </div>
@@ -444,7 +495,7 @@
             <h2>Ayarlar</h2>
             <p id="settings-desc">Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
           </div>
-            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.18.0</a></strong></span>
+            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.19.0</a></strong></span>
         </header>
 
         <div class="card card-settings">
@@ -573,6 +624,18 @@
                         <label for="settings-sponsorblock" class="toggle-label"></label>
                         <span id="desc-sponsorblock">Sponsorlu alanları otomatik atla</span>
                       </div>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-subtitle-color" id="label-subtitle-color">Altyazı Rengi</label>
+                      <select id="settings-subtitle-color">
+                        <option value="#ffffff" id="opt-sub-white">Beyaz</option>
+                        <option value="#ffff00" id="opt-sub-yellow">Sarı</option>
+                        <option value="#00ff00" id="opt-sub-green">Yeşil</option>
+                        <option value="#00ffff" id="opt-sub-cyan">Turkuaz</option>
+                        <option value="#ff00ff" id="opt-sub-magenta">Pembe</option>
+                        <option value="#ff0000" id="opt-sub-red">Kırmızı</option>
+                      </select>
+                      <small id="desc-subtitle-color" class="form-text">Gömülü oynatıcılarda altyazı rengini belirleyin.</small>
                     </div>
                   </div>
                   
