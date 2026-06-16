@@ -5487,7 +5487,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v4.19.0
+               Versiyon: v4.20.0
                Yapımcı: HaYTo
     ====================================================
     `);
