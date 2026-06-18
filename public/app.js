@@ -2592,8 +2592,15 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
       `;
     }
 
-    const durationBadgeHtml = item.duration 
-      ? `<div class="video-duration-badge">${item.duration}</div>` 
+    let durationText = item.duration || '';
+    if (durationText === 'upcoming') {
+      durationText = isEn ? 'Upcoming' : 'Yakında';
+    } else if (durationText === 'live') {
+      durationText = isEn ? 'Live' : 'Canlı';
+    }
+
+    const durationBadgeHtml = durationText 
+      ? `<div class="video-duration-badge">${durationText}</div>` 
       : '';
 
     const shortsBadgeHtml = isShort 
@@ -2613,7 +2620,7 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
       <div class="video-card-content">
         <h3 class="video-card-title" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}: ${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-          <span class="video-card-duration-text">${item.duration || 'Süre Belirtilmedi'}</span>
+          <span class="video-card-duration-text">${durationText || (isEn ? 'Duration Not Specified' : 'Süre Belirtilmedi')}</span>
           ${shortsTagHtml}
         </div>
         <div class="video-card-metadata">
@@ -4169,16 +4176,41 @@ function drawSponsorSegmentsOnTimeline(duration, playerType) {
   container.appendChild(wrapper);
 }
 
+/**
+ * Videonun en-boy oranına göre oynatıcının yönelimini (dikey/yatay) ayarlar.
+ * Dikey videolar için hem modal hem de inline wrapper'a 'is-short-player' sınıfı ekler ve gerçek video oranını atar.
+ * 
+ * @param {HTMLVideoElement} videoElement Kontrol edilecek video DOM elementi
+ */
 function adjustPlayerOrientation(videoElement) {
   const modal = document.getElementById('player-modal');
-  if (!modal || !videoElement) return;
+  const inlineWrapper = document.querySelector('.inline-player-wrapper');
+  if (!videoElement) return;
   
   if (videoElement.videoWidth && videoElement.videoHeight) {
     const isVertical = videoElement.videoHeight > videoElement.videoWidth;
     if (isVertical) {
-      modal.classList.add('is-short-player');
+      if (modal) {
+        modal.classList.add('is-short-player');
+        const modalBody = modal.querySelector('.player-modal-body');
+        if (modalBody) {
+          modalBody.style.aspectRatio = `${videoElement.videoWidth} / ${videoElement.videoHeight}`;
+        }
+      }
+      if (inlineWrapper) {
+        inlineWrapper.classList.add('is-short-player');
+        inlineWrapper.style.aspectRatio = `${videoElement.videoWidth} / ${videoElement.videoHeight}`;
+      }
     } else {
-      modal.classList.remove('is-short-player');
+      if (modal) {
+        modal.classList.remove('is-short-player');
+        const modalBody = modal.querySelector('.player-modal-body');
+        if (modalBody) modalBody.style.aspectRatio = '';
+      }
+      if (inlineWrapper) {
+        inlineWrapper.classList.remove('is-short-player');
+        inlineWrapper.style.aspectRatio = '';
+      }
     }
   }
 }
@@ -4400,6 +4432,12 @@ window.cleanupAllPlayers = function() {
   const modalBody = document.querySelector('.player-modal-body');
   if (modalBody) {
     modalBody.innerHTML = '';
+    modalBody.style.aspectRatio = '';
+  }
+  const inlineWrapper = document.querySelector('.inline-player-wrapper');
+  if (inlineWrapper) {
+    inlineWrapper.classList.remove('is-short-player');
+    inlineWrapper.style.aspectRatio = '';
   }
 };
 
@@ -5231,12 +5269,12 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
       videoPlayerInstance.on('ready', () => {
         const rawVideo = videoPlayerInstance.video;
         if (rawVideo) {
-          if (!isInline) adjustPlayerOrientation(rawVideo);
+          adjustPlayerOrientation(rawVideo);
           if (rawVideo.duration) {
             drawSponsorSegmentsOnTimeline(rawVideo.duration, 'artplayer');
           }
           rawVideo.addEventListener('loadedmetadata', () => {
-            if (!isInline) adjustPlayerOrientation(rawVideo);
+            adjustPlayerOrientation(rawVideo);
             drawSponsorSegmentsOnTimeline(rawVideo.duration, 'artplayer');
           });
 
@@ -5316,13 +5354,13 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           });
 
           videoPlayerInstance.on('ready', () => {
-            if (!isInline) adjustPlayerOrientation(videoPlayerInstance.media);
+            adjustPlayerOrientation(videoPlayerInstance.media);
             if (videoPlayerInstance.duration) {
               drawSponsorSegmentsOnTimeline(videoPlayerInstance.duration, 'plyr');
             }
           });
           videoPlayerInstance.on('loadedmetadata', () => {
-            if (!isInline) adjustPlayerOrientation(videoPlayerInstance.media);
+            adjustPlayerOrientation(videoPlayerInstance.media);
             if (videoPlayerInstance.duration) {
               drawSponsorSegmentsOnTimeline(videoPlayerInstance.duration, 'plyr');
             }
@@ -5394,10 +5432,10 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           player.controls = true;
 
           player.addEventListener('loadedmetadata', () => {
-            if (!isInline) adjustPlayerOrientation(player);
+            adjustPlayerOrientation(player);
           });
           if (player.duration) {
-            if (!isInline) adjustPlayerOrientation(player);
+            adjustPlayerOrientation(player);
           }
 
           player.addEventListener('wheel', (e) => {

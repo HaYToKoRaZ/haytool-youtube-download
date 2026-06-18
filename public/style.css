@@ -2023,7 +2023,7 @@ body.light-theme .history-toolbar #history-channel-filter {
 }
 
 #player-modal.is-short-player .plyr {
-  aspect-ratio: 9 / 16 !important;
+  aspect-ratio: inherit !important;
   width: 100%;
   height: 100%;
 }
@@ -2615,6 +2615,24 @@ body.light-theme .nav-item.pd-btn {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Shorts Video Layout for Embedded Inline Player (Dikey 9:16 Aspect Ratio) */
+.inline-player-wrapper.is-short-player {
+  aspect-ratio: 9 / 16;
+  max-width: 380px;
+  max-height: 70vh;
+  margin: 0 auto;
+}
+
+.inline-player-wrapper.is-short-player .plyr {
+  aspect-ratio: inherit !important;
+  width: 100%;
+  height: 100%;
+}
+
+.inline-player-wrapper.is-short-player video {
+  object-fit: contain !important;
 }
 
 .inline-player-body {

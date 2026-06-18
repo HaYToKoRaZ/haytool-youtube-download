@@ -2,7 +2,7 @@
   <img src="public/logo.png" alt="HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 HaYTooL YouTube Downloader (v5.0.0)</p>
+# <p align="center">📥 HaYTooL YouTube Downloader (v5.1.0)</p>
 
 <p align="center">
   <b>Advanced, Portable, and Zero-Dependency YouTube Automation & Downloader System</b><br/>
@@ -10,7 +10,7 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=for-the-badge&logo=windows" alt="Platform Support" />
-  <img src="https://img.shields.io/badge/Version-v5.0.0-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v5.1.0-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&color=blueviolet" alt="GitHub Downloads (latest release)" />
 </p>
@@ -25,6 +25,21 @@
 ---
 
 A premium, lightweight, and cross-platform automation software that automatically monitors YouTube channels via RSS feeds and downloads new videos in the background. Built entirely in vanilla JavaScript, CSS, and HTML5.
+
+---
+
+<p align="center">
+  <b>📸 Application Screenshots</b>
+</p>
+<p align="center">
+  <img src="screenshots/en-libry.png" width="48%" alt="Library (Home) Page" />
+  <img src="screenshots/en-downlist.png" width="48%" alt="Inline Player & Downloaded Page" />
+</p>
+<p align="center">
+  <img src="screenshots/en-queue.png" width="31%" alt="Download Queue" />
+  <img src="screenshots/en-channels.png" width="31%" alt="Followed Channels" />
+  <img src="screenshots/en-setting.png" width="31%" alt="Settings Panel" />
+</p>
 
 ---
 
@@ -139,9 +154,24 @@ The software dynamically isolates configuration parameters based on the host OS,
 ---
 ---
 
-# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v5.0.0)</p>
+# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v5.1.0)</p>
 
 YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni videoları arka planda otomatik olarak indiren şık, hafif ve kararlı bir otomasyon sistemidir. Tamamen vanilla JavaScript, CSS ve HTML5 standartlarıyla geliştirilmiştir.
+
+---
+
+<p align="center">
+  <b>📸 Uygulama Ekran Görüntüleri</b>
+</p>
+<p align="center">
+  <img src="screenshots/tr-kutuphane.png" width="48%" alt="Kütüphane (Ana Sayfa)" />
+  <img src="screenshots/tr-indirilenler.png" width="48%" alt="Yerleşik Oynatıcı ve İndirilenler" />
+</p>
+<p align="center">
+  <img src="screenshots/tr-kuyruk.png" width="31%" alt="İndirme Sırası" />
+  <img src="screenshots/tr-kanallar.png" width="31%" alt="Takip Edilen Kanallar" />
+  <img src="screenshots/tr-ayarlar.png" width="31%" alt="Ayarlar Paneli" />
+</p>
 
 ---
 

@@ -250,7 +250,7 @@ const defaultDb = {
       downloadShorts: false,
       avatar: "https://yt3.googleusercontent.com/ytc/AIdro_l9oJrladQXLtLvzwQm5ScW-GUUq9tvVgnOc-0DGTKPv6o=s900-c-k-c0x00ffffff-no-rj",
       shortsDurationLimit: 180,
-      autoDownload: true
+      autoDownload: false
     }
   ],
   history: [],
@@ -4040,7 +4040,7 @@ let updateState = {
 };
 
 async function checkGithubUpdates() {
-  const currentVersion = '5.0.0';
+  const currentVersion = '5.1.0';
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -5866,7 +5866,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v5.0.0
+               Versiyon: v5.1.0
            Yapımcı: HaYTo
     ====================================================
     `);

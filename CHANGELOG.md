@@ -3,6 +3,26 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [5.1.0] - 2026-06-18
+
+### Bug Fixes & Improvements / Hata Düzeltmeleri & İyileştirmeler
+- **Vertical Video Zooming Fix / Dikey Video Yakınlaşma Hatası Düzeltildi:**
+  Fixed the issue where playing vertical (Shorts) videos inside the embedded inline player in the downloaded tab resulted in cropped and zoomed playback. Added custom layout and CSS rules to maintain correct 9:16 aspect ratio while preventing cropping.
+
+  İndirilenler sekmesindeki yerleşik video oynatıcıda dikey (Shorts) videolar oynatılırken yaşanan kırpılma ve yakınlaşma (zoom) hatası giderildi. Videonun 9:16 en-boy oranını koruyarak düzgün ve kırpılmadan gösterilmesi için özel stil ve yerleşim kuralları eklendi.
+- **Default Channel Auto-Download Disabled / Varsayılan Kanal Otomatik İndirmesi Kapatıldı:**
+  Disabled the auto-download setting for the default channel "TeknoSeyir" by default on initial launch. This prevents downloads from starting immediately when a new user runs the app.
+
+  İlk kurulumda varsayılan olarak gelen "TeknoSeyir" kanalının otomatik indirme seçeneği kapatıldı. Böylece kullanıcının yazılımı ilk açtığında habersizce indirmelerin başlaması engellenmiş oldu.
+- **Upcoming/Live Video Label Localization / Yakında/Canlı Video Etiketi Yerelleştirmesi:**
+  Translated the "upcoming" and "live" video duration/status labels in the library card to respect the application language (Turkish/English).
+
+  Kütüphane kartında yayınlanacak olan (planlanmış) ve canlı yayındaki videoların "upcoming" ve "live" olan İngilizce etiketleri, seçilen uygulama diline göre (Türkçe ise "Yakında" / "Canlı") yerelleştirildi.
+- **Version Upgrade / Sürüm Güncellemesi:**
+  Version bumped to `v5.1.0` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
+
+  Uygulama genel sürümü `v5.1.0` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi.
+
 ## [5.0.0] - 2026-06-18
 
 ### New Features & Improvements / Yeni Özellikler & İyileştirmeler
