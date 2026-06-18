@@ -8,7 +8,6 @@
   <b>Advanced, Portable, and Zero-Dependency YouTube Automation & Downloader System</b><br/>
   <i>Gelişmiş, Taşınabilir ve Sıfır Kurulumlu YouTube Otomasyon & İndirme Sistemi</i>
 </p>
-![GitHub Downloads (latest release)](https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=flat-square&color=blueviolet)
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=for-the-badge&logo=windows" alt="Platform Support" />
   <img src="https://img.shields.io/badge/Version-v5.0.0-purple?style=for-the-badge&logo=git" alt="Version" />
