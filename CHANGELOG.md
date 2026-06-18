@@ -2,7 +2,11 @@
 
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
----
+## [4.29.0] - 2026-06-18
+
+### Hata Düzeltmeleri & İyileştirmeler / Bug Fixes & Improvements
+- **FFmpeg Kurulum Zaman Aşımı Hatası Giderildi / FFmpeg Installation Timeout Fix:** İlk FFmpeg kurulumu/çıkarma işleminden sonra Windows Defender / Antivirüs programlarının yeni binary dosyalarını taramasından kaynaklanan 2 saniyelik zaman aşımı (`ETIMEDOUT`) hataları giderildi. `testFfmpegSync()` fonksiyonundaki doğrulama zaman aşımı süresi **10 saniyeye** çıkarıldı. Ayrıca zaman aşımı hatası alındığında antivirüs taramasının tamamlanabilmesi için **5 saniye beklenip otomatik bir kez yeniden deneme (retry)** mekanizması eklendi. / Fixed intermittent validation timeout failures (`ETIMEDOUT`) during initial FFmpeg extraction caused by Windows Defender / antivirus scanning new binary executables. Increased validation timeout in `testFfmpegSync()` from 2 seconds to **10 seconds**, and implemented a **5-second delay followed by an automatic retry** (with a 5-second timeout) if a timeout occurs.
+- **Sürüm Güncellemesi / Version Upgrade:** Uygulama genel sürümü `v4.29.0` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi. / Version bumped to `v4.29.0` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
 
 ## [4.28.0] - 2026-06-18
 
