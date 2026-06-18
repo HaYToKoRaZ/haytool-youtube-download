@@ -4,6 +4,12 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 
 ---
 
+## [4.28.0] - 2026-06-18
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **Taşınabilir Sürüm Paketleyici İyileştirmesi (db.json Hariç Tutulması) / Portable Release Packager Refinement (db.json Exclusion):** Taşınabilir zip paketleme betiği (`releases-maker.ps1`) güncellenerek kişisel indirme geçmişinizi ve takip edilen kanallar listesini barındıran `db.json` dosyasının dağıtılan zip arşivlerine yanlışlıkla dahil edilmesi engellendi. Bu sayede, yeni sürümler sıfır veritabanı dosyalarıyla başlayarak temiz bir kurulum sağlar. / Updated the portable release packager script (`releases-maker.ps1`) to automatically exclude the local database file (`db.json`) from being compiled into distribution zip archives. Ensures clean installations without local history files.
+- **Sürüm Güncellemesi / Version Upgrade:** Uygulama genel sürümü `v4.28.0` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi. / Version bumped to `v4.28.0` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
+
 ## [4.27.0] - 2026-06-18
 
 ### Yeni Özellikler & İyileştirmeler / New Features & Improvements
