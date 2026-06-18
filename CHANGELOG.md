@@ -1,12 +1,27 @@
-# Changelog - Sürüm Günlüğü
+# Changelog - Release History / Sürüm Günlüğü
 
+This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
+
+## [5.0.0] - 2026-06-18
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **GitHub Automatic Update Notification / GitHub Otomatik Güncelleme Bildirimi:**
+  Added a background GitHub update checker that runs at server startup and every 12 hours. Shows a sleek, animated, and dismissible glassmorphism toast notification at the bottom-right corner of the screen when a newer release is published, plus an "Update Available" badge in the Settings panel linking to the GitHub releases page.
+  Sunucu başlangıcında ve her 12 saatte bir arka planda en güncel GitHub Releases API sürümünü denetleyen ve yeni bir sürüm çıktığında arayüzün sağ alt köşesinde glassmorphism tarzında, animasyonlu ve kapatılabilir bir güncelleme uyarısı gösteren yeni sistem eklendi. Ayrıca Ayarlar sekmesindeki sürüm numarasının yanına "Güncelleme Var" rozeti eklendi.
+- **Version Upgrade / Sürüm Güncellemesi:**
+  Version bumped to `v5.0.0` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
+  Uygulama genel sürümü `v5.0.0` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi.
 
 ## [4.29.0] - 2026-06-18
 
-### Hata Düzeltmeleri & İyileştirmeler / Bug Fixes & Improvements
-- **FFmpeg Kurulum Zaman Aşımı Hatası Giderildi / FFmpeg Installation Timeout Fix:** İlk FFmpeg kurulumu/çıkarma işleminden sonra Windows Defender / Antivirüs programlarının yeni binary dosyalarını taramasından kaynaklanan 2 saniyelik zaman aşımı (`ETIMEDOUT`) hataları giderildi. `testFfmpegSync()` fonksiyonundaki doğrulama zaman aşımı süresi **10 saniyeye** çıkarıldı. Ayrıca zaman aşımı hatası alındığında antivirüs taramasının tamamlanabilmesi için **5 saniye beklenip otomatik bir kez yeniden deneme (retry)** mekanizması eklendi. / Fixed intermittent validation timeout failures (`ETIMEDOUT`) during initial FFmpeg extraction caused by Windows Defender / antivirus scanning new binary executables. Increased validation timeout in `testFfmpegSync()` from 2 seconds to **10 seconds**, and implemented a **5-second delay followed by an automatic retry** (with a 5-second timeout) if a timeout occurs.
-- **Sürüm Güncellemesi / Version Upgrade:** Uygulama genel sürümü `v4.29.0` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi. / Version bumped to `v4.29.0` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
+### Bug Fixes & Improvements / Hata Düzeltmeleri & İyileştirmeler
+- **FFmpeg Installation Timeout Fix / FFmpeg Kurulum Zaman Aşımı Hatası Giderildi:**
+  Fixed intermittent validation timeout failures (`ETIMEDOUT`) during initial FFmpeg extraction caused by Windows Defender / antivirus scanning new binary executables. Increased validation timeout in `testFfmpegSync()` from 2 seconds to **10 seconds**, and implemented a **5-second delay followed by an automatic retry** (with a 5-second timeout) if a timeout occurs.
+  İlk FFmpeg kurulumu/çıkarma işleminden sonra Windows Defender / Antivirüs programlarının yeni binary dosyalarını taramasından kaynaklanan 2 saniyelik zaman aşımı (`ETIMEDOUT`) hataları giderildi. `testFfmpegSync()` fonksiyonundaki doğrulama zaman aşımı süresi **10 saniyeye** çıkarıldı. Ayrıca zaman aşımı hatası alındığında antivirüs taramasının tamamlanabilmesi için **5 saniye beklenip otomatik bir kez yeniden deneme (retry)** mekanizması eklendi.
+- **Version Upgrade / Sürüm Güncellemesi:**
+  Version bumped to `v4.29.0` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
+  Uygulama genel sürümü `v4.29.0` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi.
 
 ## [4.28.0] - 2026-06-18
 

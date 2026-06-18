@@ -3064,5 +3064,138 @@ body.light-theme .nav-item.pd-btn {
   to { opacity: 0; transform: scale(0.95); }
 }
 
+/* GitHub Update Card Styles */
+.github-update-card {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 350px;
+  max-width: calc(100vw - 48px);
+  background: rgba(26, 21, 44, 0.9);
+  border: 1px solid rgba(138, 43, 226, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(138, 43, 226, 0.15);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 16px;
+  z-index: 9999;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-main);
+  animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.github-update-card.fade-out {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+  pointer-events: none;
+}
+
+.update-card-content {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.update-card-icon {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(138, 43, 226, 0.4);
+  flex-shrink: 0;
+}
+
+.update-card-icon i {
+  width: 20px;
+  height: 20px;
+}
+
+.update-card-body {
+  flex-grow: 1;
+}
+
+.update-card-body h4 {
+  margin: 0 0 6px 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -0.2px;
+}
+
+.update-card-body p {
+  margin: 0 0 14px 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.update-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.update-btn-action {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(138, 43, 226, 0.3);
+  cursor: pointer;
+}
+
+.update-btn-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(138, 43, 226, 0.5);
+  opacity: 0.95;
+}
+
+.update-btn-close {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.update-btn-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.update-btn-close i {
+  width: 14px;
+  height: 14px;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(100px) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+
+
 
 

@@ -4030,6 +4030,86 @@ app.post('/api/ffmpeg/download', (req, res) => {
   res.json({ success: true, message: 'İndirme işlemi başlatıldı.', state: ffmpegDownloadState });
 });
 
+// GitHub Otomatik Güncelleme Kontrolü
+let updateState = {
+  updateAvailable: false,
+  latestVersion: null,
+  releaseUrl: null,
+  releaseNotes: null,
+  checkedAt: null
+};
+
+async function checkGithubUpdates() {
+  const currentVersion = '5.0.0';
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    
+    // GitHub API requires User-Agent header
+    const response = await fetch('https://api.github.com/repos/HaYToKoRaZ/haytool-youtube-download/releases/latest', {
+      headers: {
+        'User-Agent': 'HaYTooL-YT-Downloader-UpdateChecker'
+      },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.tag_name) {
+        const remoteTag = data.tag_name.trim();
+        const remoteVer = remoteTag.replace(/^v/, '');
+        
+        const compareVersions = (v1, v2) => {
+          const parts1 = v1.split('.').map(Number);
+          const parts2 = v2.split('.').map(Number);
+          for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+            const p1 = parts1[i] || 0;
+            const p2 = parts2[i] || 0;
+            if (p1 > p2) return 1;
+            if (p1 < p2) return -1;
+          }
+          return 0;
+        };
+
+        if (compareVersions(remoteVer, currentVersion) > 0) {
+          updateState = {
+            updateAvailable: true,
+            latestVersion: remoteTag,
+            releaseUrl: data.html_url || 'https://github.com/HaYToKoRaZ/haytool-youtube-download/releases',
+            releaseNotes: data.body || '',
+            checkedAt: new Date().toISOString()
+          };
+          console.log(`Yeni bir guncelleme mevcut: ${remoteTag}. Gecerli surum: v${currentVersion}`);
+          broadcast('update_status', updateState);
+        } else {
+          updateState = {
+            updateAvailable: false,
+            latestVersion: remoteTag,
+            releaseUrl: null,
+            releaseNotes: null,
+            checkedAt: new Date().toISOString()
+          };
+          console.log(`Yazilim guncel. Gecerli surum: v${currentVersion}, En son surum: ${remoteTag}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Github guncelleme kontrolu sirasinda hata olustu:', err.message);
+  }
+}
+
+app.get('/api/updates/check', (req, res) => {
+  res.json(updateState);
+});
+
+app.post('/api/updates/check', async (req, res) => {
+  await checkGithubUpdates();
+  res.json(updateState);
+});
+
+
 // Kanalları yedek olarak dışarı aktar (Export)
 app.get('/api/channels/export', (req, res) => {
   try {
@@ -5786,7 +5866,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v4.29.0
+               Versiyon: v5.0.0
            Yapımcı: HaYTo
     ====================================================
     `);
@@ -5878,6 +5958,15 @@ if (process.argv.length <= 2) {
         addTerminalLog(`[Sistem] Sunucu başlangıcında ${queuedCount} adet yarım kalan/bekleyen indirme queue yeniden eklendi.`, 'info');
       }
     }, 4000);
+
+    // Başlangıçta GitHub güncelleme kontrolünü 5 saniye sonra yap
+    setTimeout(() => {
+      checkGithubUpdates().catch(err => console.error('Github guncelleme kontrolu baslatilamadi:', err.message));
+    }, 5000);
+    // Her 12 saatte bir güncelleme kontrolünü yenile
+    setInterval(() => {
+      checkGithubUpdates().catch(err => console.error('Github guncelleme kontrolu yenilenemedi:', err.message));
+    }, 12 * 60 * 60 * 1000);
 
     // Tarayıcıda uygulamayı otomatik aç (Eğer ayar aktifse)
     const currentDbState = readDb();
