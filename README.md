@@ -12,6 +12,7 @@
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=for-the-badge&logo=windows" alt="Platform Support" />
   <img src="https://img.shields.io/badge/Version-v5.0.0-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
+  <img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&color=blueviolet" alt="GitHub Downloads (latest release)" />
 </p>
 
 <p align="center">
