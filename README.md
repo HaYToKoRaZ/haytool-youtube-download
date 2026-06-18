@@ -2,7 +2,7 @@
   <img src="public/logo.png" alt="HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 HaYTooL YouTube Downloader (v4.22.0)</p>
+# <p align="center">📥 HaYTooL YouTube Downloader (v4.24.0)</p>
 
 <p align="center">
   <b>Gelişmiş, Taşınabilir ve Sıfır Kurulumlu YouTube Otomasyon & İndirme Sistemi</b><br/>
@@ -11,7 +11,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=for-the-badge&logo=windows" alt="Platform Support" />
-  <img src="https://img.shields.io/badge/Version-v4.22.0-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v4.24.0-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -41,6 +41,9 @@ A premium, lightweight, and cross-platform automation software that automaticall
 * **100% Offline Access:** Lucide, Plyr JS, and Plyr CSS libraries are served locally, ensuring the UI works fully without an active internet connection.
 * **Dual-Boot Loss Protection:** Detects if completed files are missing on disk and flags them as `fileMissing: true` without changing history records to `ignored`. Auto-heals records on startup if files reappear.
 * **Advanced Subtitle Translation & Customization:** Choose subtitle colors (12 colors), background opacities (12 options), and font sizes (13 sizes) from the player settings. Translate any downloaded subtitle track to 11 target languages with a visual loading overlay spinner.
+* **Per-Channel Auto-Download Toggle:** Configure auto-downloads individually per followed channel (new channels default to auto-download enabled).
+* **SponsorBlock Temporary Bypass:** Instantly toggle SponsorBlock segment skipping on/off for the current playback session using the shield icon under the player.
+* **Synchronized Video Playback:** Seamlessly coordinates inline and modal players. Starting any video immediately stops all other players to prevent double-audio or overlapping streams.
 
 ---
 
@@ -136,7 +139,7 @@ The software dynamically isolates configuration parameters based on the host OS,
 ---
 ---
 
-# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v4.22.0)</p>
+# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v4.24.0)</p>
 
 YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni videoları arka planda otomatik olarak indiren şık, hafif ve kararlı bir otomasyon sistemidir. Tamamen vanilla JavaScript, CSS ve HTML5 standartlarıyla geliştirilmiştir.
 
@@ -155,6 +158,9 @@ YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni vid
 * **%100 Çevrimdışı Kullanım:** Lucide, Plyr JS ve CSS dosyaları yerel olarak sunulur; internet bağlantısı olmadığında dahi arayüz ve oynatıcı sorunsuz çalışır.
 * **Çift Önyükleme (Dual-Boot) Dosya Koruma Sistemi:** Tamamlanmış videolar diskte bulunamadığında geçmiş kaydını bozmadan `fileMissing: true` bayrağı tanımlar. Dosya tekrar bulunduğunda otomatik onarır.
 * **Gelişmiş Altyazı Çeviri ve Özelleştirme Desteği:** Video oynatıcı üzerinden altyazı rengini (12 renk), arka plan saydamlığını (12 seçenek) ve yazı boyutunu (13 seçenek) özelleştirebilirsiniz. İndirilmiş herhangi bir altyazıyı, görsel yükleme katmanı (spinner) eşliğinde 11 farklı hedef dile çevirebilirsiniz.
+* **Kanal Özelinde Otomatik İndirme Ayarı:** Takip edilen kanallar için otomatik video indirme durumu ayrı ayrı seçilebilir (yeni eklenen kanallar varsayılan olarak indirmeye açık olur).
+* **SponsorBlock Geçici Atlama Engelleme:** Video oynatıcı altındaki kalkan (shield) ikonuna tıklayarak geçerli oynatım oturumu için SponsorBlock atlamasını anlık olarak açıp kapatabilirsiniz.
+* **Tekil/Senkronize Video Oynatıcı:** Yerleşik ve modal video oynatıcıları arasında mükemmel senkronizasyon sağlar. Herhangi bir videoyu oynatmak arka planda açık olan diğer oynatıcılardan ses gelmesini önler ve onları tamamen sonlandırır.
 
 ---
 

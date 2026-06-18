@@ -32,7 +32,7 @@
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
         <div class="brand-text">
-          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.22.0</a></span></h1>
+          <h1 style="display: flex; align-items: center; gap: 8px;">HaYTooL YouTube Downloader <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.24.0</a></span></h1>
         </div>
       </div>
 
@@ -160,39 +160,28 @@
 
       <!-- Tab: Video Kütüphanesi (Geçmiş ve Aktif İndirmelerin Birleşimi) -->
       <section id="tab-history" class="tab-content active">
-        <header class="content-header">
-          <div>
-            <h2>Video Kütüphanesi</h2>
-            <p>Aktif indirmeleri, indirme sırasını ve tüm indirilmiş videoları buradan yönetin.</p>
-          </div>
-          <button id="open-folder-btn" class="btn btn-primary">
-            <i data-lucide="folder-open"></i>
-            <span>İndirilenler Klasörünü Aç</span>
-          </button>
-        </header>
-
-
-
-        <div class="card-title-bar" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-          <h3 style="font-size: 1.15rem; font-weight: 600; margin-bottom: 0;">Kütüphane & Geçmiş</h3>
-        </div>
 
         <div class="history-toolbar">
           <div class="filter-group">
-            <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
+            <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);cursor:pointer;" onclick="resetHistoryChannelFilter()" title="Filtreyi Sıfırla"></i>
             <select id="history-channel-filter">
               <option value="all">Tüm Kanallar</option>
             </select>
           </div>
-          <div class="filter-group" style="display: flex; align-items: center; gap: 8px; margin-left: 15px;">
+          <div class="filter-group" style="display: flex; align-items: center; gap: 8px;">
             <input type="checkbox" id="history-show-shorts" class="toggle-input">
             <label for="history-show-shorts" class="toggle-label"></label>
             <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-show-shorts').click()">Shorts Videolarını Göster</span>
           </div>
+          <div class="filter-group" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="history-only-no-auto-download" class="toggle-input">
+            <label for="history-only-no-auto-download" class="toggle-label"></label>
+            <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-only-no-auto-download').click()" id="lbl-history-only-no-auto-download">Sadece Otomatik İndirme Kapalı</span>
+          </div>
 
           <!-- Hızlı Tarih Filtreleri -->
-          <div class="filter-group history-quick-filters" id="history-date-filters" style="display: flex; gap: 8px; align-items: center; margin-left: 15px;">
-            <span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 4px;" id="lbl-quick-filter">Hızlı Filtre:</span>
+          <div class="filter-group history-quick-filters" id="history-date-filters" style="display: flex; gap: 4px; align-items: center;">
+            <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 4px;" id="lbl-quick-filter">Hızlı Filtre:</span>
             <button class="btn-filter active" data-days="all" id="btn-filter-all">Tümü</button>
             <button class="btn-filter" data-days="0" id="btn-filter-today">Bugün</button>
             <button class="btn-filter" data-days="1" id="btn-filter-yesterday">Dün</button>
@@ -202,13 +191,7 @@
             <button class="btn-filter" data-days="5" id="btn-filter-5days">Son 5 Gün</button>
           </div>
 
-          <div class="filter-group" style="margin-left: auto;">
-            <button class="btn btn-secondary" onclick="updateMetadata('library')" title="Videoların Süre ve Boyut Bilgilerini Güncelle" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8rem;">
-              <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
-              <span id="btn-update-metadata-lib">Metadata Güncelle</span>
-            </button>
-          </div>
-          <div class="view-toggle-container">
+          <div class="view-toggle-container" style="margin-left: auto;">
             <button id="view-grid-btn" class="view-btn active" title="Kart Görünümü">
               <i data-lucide="layout-grid"></i>
               <span>Kartlar</span>
@@ -374,6 +357,11 @@
                   <i data-lucide="languages" style="width:16px; height:16px;"></i>
                 </button>
 
+                <!-- SponsorBlock Geçici Aç/Kapat Butonu -->
+                <button class="btn btn-secondary btn-sm" id="inline-btn-sponsorblock-toggle" title="SponsorBlock Aktif" style="width: 32px; height: 32px; display: none; align-items: center; justify-content: center; padding: 0; color: #4ade80; background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.2);">
+                  <i data-lucide="shield" style="width: 16px; height: 16px;"></i>
+                </button>
+
                 <!-- Altyazı Rengi Seçici -->
                 <select id="inline-subtitle-color" class="btn btn-secondary btn-sm" style="margin-left: auto; padding: 2px 8px; font-size: 0.8rem; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; border-radius: 6px; outline: none; height: 32px;" title="Altyazı Rengi">
                   <option value="#ffffff">Beyaz</option>
@@ -504,7 +492,7 @@
         <div id="downloaded-list-container">
           <div class="history-toolbar">
             <div class="filter-group">
-              <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);"></i>
+              <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);cursor:pointer;" onclick="resetDownloadedChannelFilter()" title="Filtreyi Sıfırla"></i>
               <select id="downloaded-channel-filter">
                 <option value="all">Tüm Kanallar</option>
               </select>
@@ -552,7 +540,7 @@
             <h2>Ayarlar</h2>
             <p id="settings-desc">Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
           </div>
-            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.22.0</a></strong></span>
+            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v4.24.0</a></strong></span>
         </header>
 
         <div class="card card-settings">

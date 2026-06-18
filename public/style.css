@@ -834,7 +834,26 @@ body.light-theme .sort-btn.active {
   min-width: 120px;
 }
 
-.channel-shorts-select:focus {
+/* Otomatik Video İndirme Seçici */
+.channel-list-auto-download {
+  flex-shrink: 0;
+}
+
+.channel-auto-download-select {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border-color);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  outline: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: border-color var(--transition-speed) ease;
+  min-width: 125px;
+}
+
+.channel-auto-download-select:focus {
   border-color: var(--primary);
 }
 
@@ -1317,36 +1336,58 @@ body.light-theme .sort-btn.active {
 /* History Toolbar */
 .history-toolbar {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: nowrap; /* Tek satırda kalmasını sağlar */
+  justify-content: flex-start;
   align-items: center;
+  gap: 8px; /* Elemanlar arasında düzenli boşluk */
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 12px 20px;
-  margin-bottom: 24px;
+  padding: 6px 12px;
+  margin-bottom: 16px;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  overflow-x: auto; /* Küçük ekranlarda yatay kaydırma desteği */
+}
+
+/* Scrollbar styling for history-toolbar horizontal scroll */
+.history-toolbar::-webkit-scrollbar {
+  height: 4px;
+}
+.history-toolbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.history-toolbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
 }
 
 .history-toolbar .filter-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0; /* Elemanların daralmasını engeller */
 }
 
+.history-toolbar span {
+  font-size: 0.75rem !important;
+}
+
+.history-toolbar select,
 .history-toolbar #history-channel-filter {
   background-color: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   color: #fff;
-  padding: 8px 12px;
-  font-size: 0.85rem;
+  padding: 4px 8px;
+  font-size: 0.75rem;
   outline: none;
   cursor: pointer;
   font-family: var(--font-body);
   transition: all var(--transition-speed) ease;
 }
 
+.history-toolbar select:focus,
 .history-toolbar #history-channel-filter:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(138, 43, 226, 0.2);
@@ -1358,19 +1399,20 @@ body.light-theme .sort-btn.active {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 3px;
+  flex-shrink: 0;
 }
 
 .view-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  padding: 6px 12px;
+  padding: 3px 6px;
   border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
+  gap: 3px;
+  font-size: 0.65rem;
   font-weight: 500;
   font-family: var(--font-body);
   transition: all var(--transition-speed) ease;
@@ -1387,31 +1429,32 @@ body.light-theme .sort-btn.active {
 }
 
 .view-btn i {
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
 }
 
 /* Quick Date Filters */
 .history-quick-filters {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
+  gap: 6px; /* Daha sıkı */
+  flex-wrap: nowrap;
   align-items: center;
-  padding: 0 4px;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 .btn-filter {
-  padding: 6px 14px;
-  font-size: 0.82rem;
+  padding: 3px 6px;
+  font-size: 0.7rem;
   font-weight: 500;
-  border-radius: 20px;
+  border-radius: 6px;
   background-color: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-color);
   color: var(--text-muted);
   cursor: pointer;
   transition: all var(--transition-speed) ease;
   font-family: var(--font-body);
+  white-space: nowrap;
 }
 
 .btn-filter:hover {
@@ -1522,7 +1565,8 @@ body.light-theme .sort-btn.active {
   gap: 4px;
   font-size: 0.8rem;
   color: var(--text-muted);
-  margin-bottom: 12px;
+  margin-bottom: 6px;
+  height: 52px;
 }
 
 .video-card-channel {
@@ -1546,7 +1590,7 @@ body.light-theme .sort-btn.active {
   justify-content: space-between;
   margin-top: auto;
   border-top: 1px solid var(--border-color);
-  padding-top: 12px;
+  padding-top: 8px;
 }
 
 .video-card-bottom .status-pill {
@@ -2661,8 +2705,8 @@ body.light-theme .nav-item.pd-btn {
   border-radius: 12px;
   display: flex;
   flex-direction: column;
-  max-height: calc(62vh + 170px);
-  overflow: hidden;
+  max-height: none;
+  overflow: visible;
 }
 
 .inline-player-sidebar .sidebar-header {
@@ -2737,7 +2781,7 @@ body.light-theme .nav-item.pd-btn {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
+  overflow-y: visible;
   flex: 1;
   padding-right: 4px;
 }
@@ -2992,6 +3036,32 @@ body.light-theme .nav-item.pd-btn {
   animation: spin 1s linear infinite;
   margin-bottom: 16px;
   box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+}
+
+/* Oynatıcı Geçici Toast Bilgilendirme Katmanı (Ses ve SponsorBlock) */
+.player-transient-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 101;
+  color: #fff;
+  animation: playerOverlayFadeIn 0.15s ease-out forwards;
+}
+
+@keyframes playerOverlayFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.95); }
 }
 
 

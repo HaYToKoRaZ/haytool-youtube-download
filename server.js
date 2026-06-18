@@ -887,8 +887,18 @@ function syncWithIni(db) {
       let name = id;
       let avatar = '';
       let shortsDurationLimit = 180;
+      let autoDownload = true;
 
-      if (parts.length >= 7) {
+      if (parts.length >= 8) {
+        autoDownload = parts[parts.length - 1] === 'true';
+        shortsDurationLimit = parseInt(parts[parts.length - 2], 10) || 180;
+        avatar = parts[parts.length - 3];
+        downloadShorts = parts[parts.length - 4] === 'true';
+        quality = parts[parts.length - 5];
+        addedAt = parts[parts.length - 6];
+        handleOrUrl = parts[parts.length - 7];
+        name = parts.slice(0, parts.length - 7).join(' | ');
+      } else if (parts.length === 7) {
         shortsDurationLimit = parseInt(parts[parts.length - 1], 10) || 180;
         avatar = parts[parts.length - 2];
         downloadShorts = parts[parts.length - 3] === 'true';
@@ -931,8 +941,9 @@ function syncWithIni(db) {
       const dbAvatar = existingChannel ? (existingChannel.avatar || '') : '';
       const finalAvatar = avatar || dbAvatar;
       const finalShortsLimit = existingChannel ? (existingChannel.shortsDurationLimit || shortsDurationLimit) : shortsDurationLimit;
+      const finalAutoDownload = existingChannel && existingChannel.autoDownload !== undefined ? existingChannel.autoDownload : autoDownload;
       
-      updatedChannels.push({ id, name, handle: handleOrUrl, addedAt, quality, downloadShorts, avatar: finalAvatar, shortsDurationLimit: finalShortsLimit });
+      updatedChannels.push({ id, name, handle: handleOrUrl, addedAt, quality, downloadShorts, avatar: finalAvatar, shortsDurationLimit: finalShortsLimit, autoDownload: finalAutoDownload });
     }
     db.channels = updatedChannels;
   } else {
@@ -1009,7 +1020,7 @@ function saveChannelsToIni(db) {
     } else if (!channelUrl) {
       channelUrl = `https://www.youtube.com/channel/${channel.id}`;
     }
-    iniData.Channels[channel.id] = `${channel.name} | ${channelUrl} | ${channel.addedAt} | ${channel.quality || 'default'} | ${channel.downloadShorts !== false} | ${channel.avatar || ''} | ${channel.shortsDurationLimit || 180}`;
+    iniData.Channels[channel.id] = `${channel.name} | ${channelUrl} | ${channel.addedAt} | ${channel.quality || 'default'} | ${channel.downloadShorts !== false} | ${channel.avatar || ''} | ${channel.shortsDurationLimit || 180} | ${channel.autoDownload !== false}`;
   }
   writeIni(channelsIniPath, iniData);
 }
@@ -3056,8 +3067,8 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
                       freshHistory.publishedAt = result.publishedAt;
                     }
                     
-                    if (freshDb.settings.autoDownload) {
-                      const channelConfig = freshDb.channels.find(c => c.id === channel.id);
+                    const channelConfig = freshDb.channels.find(c => c.id === channel.id);
+                    if (freshDb.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true)) {
                       const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
                       const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
                       
@@ -3226,7 +3237,7 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
                     duration: 'live'
                   });
                   writeDb(freshDb);
-                } else if (freshDb.settings.autoDownload) {
+                } else if (freshDb.settings.autoDownload && (freshDb.channels.find(c => c.id === channel.id) ? freshDb.channels.find(c => c.id === channel.id).autoDownload !== false : true)) {
                   const channelConfig = freshDb.channels.find(c => c.id === channel.id);
                   const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
                   const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
@@ -4142,7 +4153,8 @@ app.post('/api/channels', async (req, res) => {
         quality: 'default',
         downloadShorts: downloadShorts === true || downloadShorts === 'true',
         avatar: channelInfo.avatar || '',
-        shortsDurationLimit: 180
+        shortsDurationLimit: 180,
+        autoDownload: true
       };
       // Türkçe Açıklama: Önce kanalı listeye ekliyoruz ve veri tabanını kaydediyoruz ki RSS taraması sırasında veri tabanı çakışması veya üzerine yazma (overwrite) hatası oluşmasın.
       db.channels.push(newChannel);
@@ -4255,6 +4267,23 @@ app.post('/api/channels/:id/shorts', (req, res) => {
   if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
 
   channel.downloadShorts = downloadShorts === true || downloadShorts === 'true';
+  writeDb(db);
+  broadcast('db_update', db);
+  res.json({ success: true });
+});
+
+// Kanala özel otomatik video indirme ayarını değiştir
+app.post('/api/channels/:id/auto-download', (req, res) => {
+  const { id } = req.params;
+  if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
+    return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
+  }
+  const { autoDownload } = req.body; // boolean
+  const db = readDb();
+  const channel = db.channels.find(c => c.id === id);
+  if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
+
+  channel.autoDownload = autoDownload === true || autoDownload === 'true';
   writeDb(db);
   broadcast('db_update', db);
   res.json({ success: true });
@@ -5708,8 +5737,8 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v4.22.0
-               Yapımcı: HaYTo
+               Versiyon: v4.24.0
+           Yapımcı: HaYTo
     ====================================================
     `);
     console.log(`Sunucu http://localhost:${PORT} portunda çalışıyor.`);

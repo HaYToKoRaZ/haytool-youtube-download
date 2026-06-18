@@ -51,7 +51,7 @@ const translations = {
     queue_empty: 'Kuyrukta bekleyen video yok.',
     library_history_title: 'Kütüphane & Geçmiş',
     filter_all_channels: 'Tüm Kanallar',
-    show_shorts: 'Shorts Videolarını Göster',
+    show_shorts: 'Shorts Göster',
     view_grid: 'Kartlar',
     view_list: 'Sade Liste',
     no_videos_filter: 'Filtreye uygun video kaydı bulunmuyor.',
@@ -218,7 +218,17 @@ const translations = {
     modal_translate_no_subs: 'Bu video için indirilmiş altyazı bulunamadı. Çeviri yapabilmek için en az bir altyazı dosyası indirilmiş olmalıdır.',
     modal_translate_source: 'Çevrilecek Altyazı (Kaynak)',
     modal_translate_target: 'Hedef Dil',
-    btn_translate_action: 'Çevir'
+    btn_translate_action: 'Çevir',
+    select_auto_download_title: 'Otomatik Video İndirme Durumu',
+    select_auto_download_true: 'Otomatik İndir',
+    select_auto_download_false: 'Otomatik İndirme',
+    sponsorblock_active: 'SponsorBlock Aktif (Geçici olarak kapatmak için tıklayın)',
+    sponsorblock_disabled: 'SponsorBlock Devre Dışı (Tekrar açmak için tıklayın)',
+    lbl_history_only_no_auto_download: 'Oto-İndirme Kapalı',
+    sponsorblock_active_toast: 'SponsorBlock Aktif',
+    sponsorblock_active_toast_desc: 'Sponsorlu alanlar otomatik atlanacak',
+    sponsorblock_disabled_toast: 'SponsorBlock Devre Dışı',
+    sponsorblock_disabled_toast_desc: 'Sponsorlu alan atlamaları geçici olarak durduruldu'
   },
   en: {
     premium_automation: 'Premium Automation',
@@ -255,12 +265,11 @@ const translations = {
     active_download_eta: 'Remaining',
     active_download_cancel: 'Cancel',
     queue_title: 'Download Queue',
-    queue_empty: 'No videos waiting in the queue.',
+    queue_empty: 'No waiting videos in queue.',
     library_history_title: 'Library & History',
     filter_all_channels: 'All Channels',
-    show_shorts: 'Show Shorts Videos',
+    show_shorts: 'Show Shorts',
     view_grid: 'Cards',
-    view_list: 'Simple List',
     no_videos_filter: 'No video records match the filter.',
     downloaded_title: 'Downloads',
     downloaded_desc: 'List of all videos successfully downloaded and ready for offline playback.',
@@ -425,7 +434,17 @@ const translations = {
     modal_translate_no_subs: 'No downloaded subtitles found for this video. You need at least one downloaded subtitle track to translate.',
     modal_translate_source: 'Source Subtitle',
     modal_translate_target: 'Target Language',
-    btn_translate_action: 'Translate'
+    btn_translate_action: 'Translate',
+    select_auto_download_title: 'Auto Download Status',
+    select_auto_download_true: 'Auto Download',
+    select_auto_download_false: 'No Auto Download',
+    sponsorblock_active: 'SponsorBlock Active (Click to temporarily disable)',
+    sponsorblock_disabled: 'SponsorBlock Disabled (Click to re-enable)',
+    lbl_history_only_no_auto_download: 'Auto-Download Off',
+    sponsorblock_active_toast: 'SponsorBlock Active',
+    sponsorblock_active_toast_desc: 'Sponsor segments will be automatically skipped',
+    sponsorblock_disabled_toast: 'SponsorBlock Disabled',
+    sponsorblock_disabled_toast_desc: 'Sponsor segment skipping is temporarily paused'
   },
   es: {
     premium_automation: 'Automatización Premium',
@@ -461,11 +480,11 @@ const translations = {
     active_download_size: 'Tamaño',
     active_download_eta: 'Restante',
     active_download_cancel: 'Cancelar',
-    queue_title: 'Cola de Descargas',
-    queue_empty: 'Sin videos en la cola.',
-    library_history_title: 'Biblioteca y Historial',
+    queue_title: 'Cola de Descarga',
+    queue_empty: 'No hay videos en espera en la cola.',
+    library_history_title: 'Biblioteca e Historial',
     filter_all_channels: 'Todos los Canales',
-    show_shorts: 'Mostrar Videos Shorts',
+    show_shorts: 'Mostrar Shorts',
     view_grid: 'Tarjetas',
     view_list: 'Lista Simple',
     no_videos_filter: 'Sin registros de video.',
@@ -632,7 +651,17 @@ const translations = {
     modal_translate_no_subs: 'No se encontraron subtítulos descargados para este video. Necesita al menos una pista de subtítulos descargada para traducir.',
     modal_translate_source: 'Subtítulo de Origen',
     modal_translate_target: 'Idioma de Destino',
-    btn_translate_action: 'Traducir'
+    btn_translate_action: 'Traducir',
+    select_auto_download_title: 'Estado de descarga automática',
+    select_auto_download_true: 'Descarga automática',
+    select_auto_download_false: 'Sin descarga automática',
+    sponsorblock_active: 'SponsorBlock Activo (Haga clic para desactivar temporalmente)',
+    sponsorblock_disabled: 'SponsorBlock Desactivado (Haga clic para volver a activar)',
+    lbl_history_only_no_auto_download: 'Descarga Auto. Desactivada',
+    sponsorblock_active_toast: 'SponsorBlock Activo',
+    sponsorblock_active_toast_desc: 'Los segmentos patrocinados se omitirán automáticamente',
+    sponsorblock_disabled_toast: 'SponsorBlock Desactivado',
+    sponsorblock_disabled_toast_desc: 'La omisión de segmentos patrocinados está pausada temporalmente'
   },
   de: {
     premium_automation: 'Premium Automatisierung',
@@ -669,10 +698,10 @@ const translations = {
     active_download_eta: 'Verbleibend',
     active_download_cancel: 'Abbrechen',
     queue_title: 'Warteschlange',
-    queue_empty: 'Keine Videos in der Warteschlange.',
+    queue_empty: 'Keine wartenden Videos in der Warteschlange.',
     library_history_title: 'Bibliothek & Verlauf',
     filter_all_channels: 'Alle Kanäle',
-    show_shorts: 'Shorts Videos Anzeigen',
+    show_shorts: 'Shorts Anzeigen',
     view_grid: 'Karten',
     view_list: 'Einfache Liste',
     no_videos_filter: 'Keine Videoeinträge.',
@@ -839,7 +868,17 @@ const translations = {
     modal_translate_no_subs: 'Keine heruntergeladenen Untertitel für dieses Video gefunden. Sie benötigen mindestens eine heruntergeladene Untertitelspur zum Übersetzen.',
     modal_translate_source: 'Quelluntertitel',
     modal_translate_target: 'Zielsprache',
-    btn_translate_action: 'Übersetzen'
+    btn_translate_action: 'Übersetzen',
+    select_auto_download_title: 'Auto-Download-Status',
+    select_auto_download_true: 'Auto-Download',
+    select_auto_download_false: 'Kein Auto-Download',
+    sponsorblock_active: 'SponsorBlock Aktiv (Klicken, um vorübergehend zu deaktivieren)',
+    sponsorblock_disabled: 'SponsorBlock Deaktiviert (Klicken, um wieder zu aktivieren)',
+    lbl_history_only_no_auto_download: 'Auto-Download Aus',
+    sponsorblock_active_toast: 'SponsorBlock Aktiv',
+    sponsorblock_active_toast_desc: 'Sponsor-Segmente werden automatisch übersprungen',
+    sponsorblock_disabled_toast: 'SponsorBlock Deaktiviert',
+    sponsorblock_disabled_toast_desc: 'Das Überspringen von Sponsor-Segmenten ist vorübergehend pausiert'
   },
   pt: {
     premium_automation: 'Automatização Premium',
@@ -875,11 +914,11 @@ const translations = {
     active_download_size: 'Tamanho',
     active_download_eta: 'Restante',
     active_download_cancel: 'Cancelar',
-    queue_title: 'Fila de Downloads',
-    queue_empty: 'Sem vídeos na fila.',
+    queue_title: 'Fila de Download',
+    queue_empty: 'Nenhum vídeo aguardando na fila.',
     library_history_title: 'Biblioteca e Histórico',
     filter_all_channels: 'Todos os Canais',
-    show_shorts: 'Mostrar Vídeos Shorts',
+    show_shorts: 'Mostrar Shorts',
     view_grid: 'Cartões',
     view_list: 'Lista Simples',
     no_videos_filter: 'Sem registros de vídeo.',
@@ -1046,7 +1085,17 @@ const translations = {
     modal_translate_no_subs: 'Nenhuma legenda baixada encontrada para este vídeo. Você precisa de pelo menos uma faixa de legenda baixada para traduzir.',
     modal_translate_source: 'Legenda de Origem',
     modal_translate_target: 'Idioma de Destino',
-    btn_translate_action: 'Traduzir'
+    btn_translate_action: 'Traduzir',
+    select_auto_download_title: 'Estado de download automático',
+    select_auto_download_true: 'Download automático',
+    select_auto_download_false: 'Sem download automático',
+    sponsorblock_active: 'SponsorBlock Ativo (Clique para desativar temporariamente)',
+    sponsorblock_disabled: 'SponsorBlock Desactivado (Clique para reativar)',
+    lbl_history_only_no_auto_download: 'Download Auto. Desativado',
+    sponsorblock_active_toast: 'SponsorBlock Ativo',
+    sponsorblock_active_toast_desc: 'Os segmentos patrocinados serão ignorados automaticamente',
+    sponsorblock_disabled_toast: 'SponsorBlock Desactivado',
+    sponsorblock_disabled_toast_desc: 'A omissão de segmentos patrocinados está pausada temporariamente'
   },
   ar: {
     premium_automation: 'التحكم التلقائي المميز',
@@ -1082,13 +1131,12 @@ const translations = {
     active_download_size: 'الحجم',
     active_download_eta: 'المتبقي',
     active_download_cancel: 'إلغاء',
-    queue_title: 'قائمة انتظار التنزيل',
-    queue_empty: 'لا توجد مقاطع فيديو في قائمة الانتظار.',
+    queue_title: 'قائمة تنزيل',
+    queue_empty: 'لا توجد مقاطع فيديو قيد الانتظار في قائمة الانتظار.',
     library_history_title: 'المكتبة والسجل',
     filter_all_channels: 'جميع القنوات',
-    show_shorts: 'عرض مقاطع فيديو Shorts',
+    show_shorts: 'عرض Shorts',
     view_grid: 'بطاقات',
-    view_list: 'قائمة بسيطة',
     no_videos_filter: 'لا توجد سجلات فيديو تطابق الفلتر.',
     downloaded_title: 'التنزيلات',
     downloaded_desc: 'مقاطع الفيديو التي تم تنزيلها بنجاح وجاهزة للتشغيل دون اتصال بالإنترنت.',
@@ -1253,7 +1301,17 @@ const translations = {
     modal_translate_no_subs: 'لم يتم العثور على ترجمات مصاحبة تم تنزيلها لهذا الفيديو. تحتاج إلى مسار ترجمة مصاحبة واحد على الأقل تم تنزيله لترجمته.',
     modal_translate_source: 'الترجمة المصاحبة المصدر',
     modal_translate_target: 'اللغة الهدف',
-    btn_translate_action: 'ترجمة'
+    btn_translate_action: 'ترجمة',
+    select_auto_download_title: 'حالة التنزيل التلقائي',
+    select_auto_download_true: 'تنزيل تلقائي',
+    select_auto_download_false: 'بدون تنزيل تلقائي',
+    sponsorblock_active: 'SponsorBlock نشط (انقر للتعطيل مؤقتًا)',
+    sponsorblock_disabled: 'SponsorBlock معطل (انقر للتفعيل)',
+    lbl_history_only_no_auto_download: 'تعطيل التنزيل التلقائي',
+    sponsorblock_active_toast: 'SponsorBlock نشط',
+    sponsorblock_active_toast_desc: 'سيتم تخطي الأقسام الممولة تلقائيًا',
+    sponsorblock_disabled_toast: 'SponsorBlock معطل',
+    sponsorblock_disabled_toast_desc: 'تم إيقاف تخطي الأقسام الممولة مؤقتًا'
   },
   ru: {
     premium_automation: 'Премиум Автоматизация',
@@ -1290,12 +1348,11 @@ const translations = {
     active_download_eta: 'Осталось',
     active_download_cancel: 'Отмена',
     queue_title: 'Очередь загрузки',
-    queue_empty: 'В очереди нет видео.',
+    queue_empty: 'Нет видео в очереди.',
     library_history_title: 'Библиотека и история',
     filter_all_channels: 'Все каналы',
     show_shorts: 'Показывать Shorts',
     view_grid: 'Плитка',
-    view_list: 'Простой список',
     no_videos_filter: 'Нет видео, соответствующих фильтру.',
     downloaded_title: 'Загрузки',
     downloaded_desc: 'Список всех видео, успешно загруженных и готовых к офлайн-просмотру.',
@@ -1460,7 +1517,17 @@ const translations = {
     modal_translate_no_subs: 'Для этого видео не найдено скачанных субтитров. Для перевода вам нужна как минимум одна скачанная дорожка субтитров.',
     modal_translate_source: 'Исходные субтитры',
     modal_translate_target: 'Целевой язык',
-    btn_translate_action: 'Перевести'
+    btn_translate_action: 'Перевести',
+    select_auto_download_title: 'Статус автоскачивания',
+    select_auto_download_true: 'Автоскачивание',
+    select_auto_download_false: 'Без автоскачивания',
+    sponsorblock_active: 'SponsorBlock Активен (Нажмите для временного отключения)',
+    sponsorblock_disabled: 'SponsorBlock Отключен (Нажмите для включения)',
+    lbl_history_only_no_auto_download: 'Только без автозагрузки',
+    sponsorblock_active_toast: 'SponsorBlock Активен',
+    sponsorblock_active_toast_desc: 'Спонсорские сегменты будут автоматически пропущены',
+    sponsorblock_disabled_toast: 'SponsorBlock Отключен',
+    sponsorblock_disabled_toast_desc: 'Пропуск спонсорских сегментов временно приостановлен'
   }
 };
 
@@ -1527,11 +1594,8 @@ function applyLanguage(lang) {
   elQuery('#queue-list-empty', 'queue_list_empty');
 
   // Kütüphane Sekmesi
-  elQuery('#tab-history .content-header h2', 'library_title');
-  elQuery('#tab-history .content-header p', 'library_desc');
-  elQuery('#open-folder-btn span', 'btn_open_downloads');
-  elQuery('#tab-history > .card-title-bar h3', 'library_history_title');
   elQuery('label[for="history-show-shorts"] + span', 'show_shorts');
+  el('lbl-history-only-no-auto-download', 'lbl_history_only_no_auto_download');
 
   el('lbl-quick-filter', 'lbl_quick_filter');
   el('btn-filter-all', 'filter_all');
@@ -1629,6 +1693,10 @@ function applyLanguage(lang) {
   const inlineBtnTranslate = document.getElementById('inline-btn-translate-sub');
   if (inlineBtnTranslate) {
     inlineBtnTranslate.title = t.inline_btn_translate_sub;
+  }
+
+  if (typeof updateSBToggleButtonUI === 'function') {
+    updateSBToggleButtonUI();
   }
 
   // Altyazı Rengi Option Çevirileri
@@ -1876,6 +1944,7 @@ const viewListBtn = document.getElementById('view-list-btn');
 let historyViewMode = 'grid'; // grid veya list
 let historyFilterChannel = 'all'; // all veya kanalId
 let historyFilterDays = 'all'; // all, 0, 1, 2, 3, 4, 5
+let historyOnlyNoAutoDownload = false;
 let downloadedViewMode = 'grid'; // grid veya list
 let downloadedFilterChannel = 'all'; // all veya kanalId
 
@@ -2508,6 +2577,8 @@ function updateUI(db) {
 
   // 1. Sistem Durum Detayları
   const isEn = db.settings && db.settings.lang === 'en';
+  const lang = db.settings?.lang || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
   const browserNames = isEn ? {
     chrome: 'Google Chrome',
     edge: 'Microsoft Edge',
@@ -2681,6 +2752,12 @@ function updateUI(db) {
               <option value="720p" ${channel.quality === '720p' ? 'selected' : ''}>720p HD</option>
             </select>
           </div>
+          <div class="channel-list-auto-download">
+            <select onchange="changeChannelAutoDownload('${channel.id}', this.value)" class="channel-auto-download-select" title="${t.select_auto_download_title || 'Otomatik İndirme Durumu'}">
+              <option value="true" ${channel.autoDownload !== false ? 'selected' : ''}>${t.select_auto_download_true || 'Otomatik İndir'}</option>
+              <option value="false" ${channel.autoDownload === false ? 'selected' : ''}>${t.select_auto_download_false || 'Otomatik İndirme'}</option>
+            </select>
+          </div>
           <div class="channel-list-shorts">
             <select onchange="changeChannelShorts('${channel.id}', this.value)" class="channel-shorts-select" title="Shorts İndirme Durumu">
               <option value="true" ${channel.downloadShorts !== false ? 'selected' : ''}>Shorts İndir</option>
@@ -2812,6 +2889,11 @@ function updateUI(db) {
     
     if (historyFilterChannel !== 'all') {
       filteredHistory = filteredHistory.filter(item => item.channelId === historyFilterChannel);
+    }
+    
+    if (historyOnlyNoAutoDownload) {
+      const disabledChannelIds = new Set((db.channels || []).filter(c => c.autoDownload === false).map(c => c.id));
+      filteredHistory = filteredHistory.filter(item => disabledChannelIds.has(item.channelId));
     }
     
     if (historyFilterDays !== 'all') {
@@ -3116,6 +3198,24 @@ function isShortVideo(durationStr, title, channelId) {
  * 
  * @param {string} id Silinecek kanal ID'si
  */
+window.resetHistoryChannelFilter = function() {
+  const filterSelect = document.getElementById('history-channel-filter');
+  if (filterSelect) {
+    filterSelect.value = 'all';
+    historyFilterChannel = 'all';
+    updateUI(localDb);
+  }
+};
+
+window.resetDownloadedChannelFilter = function() {
+  const filterSelect = document.getElementById('downloaded-channel-filter');
+  if (filterSelect) {
+    filterSelect.value = 'all';
+    downloadedFilterChannel = 'all';
+    updateUI(localDb);
+  }
+};
+
 window.deleteChannel = async function(id) {
   if (!confirm('Bu kanalı takipten çıkarmak istediğinizden emin misiniz?')) return;
   
@@ -3517,6 +3617,25 @@ window.changeChannelShorts = async function(id, downloadShorts) {
     const data = await res.json();
     if (data.success) {
       showToast('Kanal Shorts indirme ayarı başarıyla güncellendi.', 'success');
+    } else {
+      showToast(data.error || 'Hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu bağlantı hatası.', 'error');
+  }
+};
+
+window.changeChannelAutoDownload = async function(id, autoDownload) {
+  try {
+    const res = await fetch(`/api/channels/${id}/auto-download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ autoDownload: autoDownload === 'true' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const isEn = localDb.settings && localDb.settings.lang === 'en';
+      showToast(isEn ? 'Channel auto download setting successfully updated.' : 'Kanal otomatik indirme ayarı başarıyla güncellendi.', 'success');
     } else {
       showToast(data.error || 'Hata oluştu.', 'error');
     }
@@ -4024,11 +4143,19 @@ function updateSponsorBlockStatusUI() {
   
   if (localDb.settings && localDb.settings.sponsorBlockEnabled === true && currentVideoSponsorSegments && currentVideoSponsorSegments.length > 0) {
     const isEn = localDb.settings.lang === 'en';
-    statusEl.innerHTML = `<i data-lucide="shield-alert" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>${
-      isEn 
-        ? `SponsorBlock active: ${currentVideoSponsorSegments.length} segment(s) will be skipped.` 
-        : `SponsorBlock aktif: ${currentVideoSponsorSegments.length} sponsorlu alan otomatik atlanacak.`
-    }`;
+    if (window.sponsorBlockTemporarilyDisabled) {
+      statusEl.innerHTML = `<i data-lucide="shield-off" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 4px; color: #ef4444;"></i><span style="color: #ef4444;">${
+        isEn 
+          ? `SponsorBlock is temporarily disabled.` 
+          : `SponsorBlock geçici olarak devre dışı bırakıldı.`
+      }</span>`;
+    } else {
+      statusEl.innerHTML = `<i data-lucide="shield-alert" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>${
+        isEn 
+          ? `SponsorBlock active: ${currentVideoSponsorSegments.length} segment(s) will be skipped.` 
+          : `SponsorBlock aktif: ${currentVideoSponsorSegments.length} sponsorlu alan otomatik atlanacak.`
+      }`;
+    }
     statusEl.style.display = 'block';
     lucide.createIcons();
   } else {
@@ -4036,7 +4163,38 @@ function updateSponsorBlockStatusUI() {
   }
 }
 
+function updateSBToggleButtonUI() {
+  const btnSBToggle = document.getElementById('inline-btn-sponsorblock-toggle');
+  if (!btnSBToggle) return;
+
+  const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
+
+  if (window.sponsorBlockTemporarilyDisabled) {
+    btnSBToggle.title = t.sponsorblock_disabled || 'SponsorBlock Devre Dışı';
+    btnSBToggle.style.color = '#ef4444';
+    btnSBToggle.style.background = 'rgba(239, 68, 68, 0.1)';
+    btnSBToggle.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+    btnSBToggle.innerHTML = '<i data-lucide="shield-off" style="width: 16px; height: 16px;"></i>';
+  } else {
+    btnSBToggle.title = t.sponsorblock_active || 'SponsorBlock Aktif';
+    btnSBToggle.style.color = '#4ade80';
+    btnSBToggle.style.background = 'rgba(74, 222, 128, 0.1)';
+    btnSBToggle.style.borderColor = 'rgba(74, 222, 128, 0.2)';
+    btnSBToggle.innerHTML = '<i data-lucide="shield" style="width: 16px; height: 16px;"></i>';
+  }
+  try {
+    lucide.createIcons();
+  } catch (e) {}
+
+  const wrappers = document.querySelectorAll('.player-sponsor-markers-wrapper');
+  wrappers.forEach(w => {
+    w.style.opacity = window.sponsorBlockTemporarilyDisabled ? '0.15' : '1';
+  });
+}
+
 function checkAndSkipSponsor(currentTime, videoElementOrPlayer) {
+  if (window.sponsorBlockTemporarilyDisabled) return;
   if (!currentVideoSponsorSegments || currentVideoSponsorSegments.length === 0) return;
   if (!localDb.settings || localDb.settings.sponsorBlockEnabled !== true) return;
 
@@ -4066,6 +4224,96 @@ function checkAndSkipSponsor(currentTime, videoElementOrPlayer) {
   }
 }
 
+window.showPlayerTransientOverlay = function(htmlContent, durationMs = 1200) {
+  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
+  const isInline = (activeTab === 'downloaded');
+  let container = null;
+  if (isInline) {
+    container = document.getElementById('inline-player-body');
+  } else {
+    const modal = document.getElementById('player-modal');
+    if (modal && !modal.classList.contains('hidden')) {
+      container = modal.querySelector('.player-modal-body');
+    }
+  }
+  
+  if (!container) return;
+
+  let overlay = container.querySelector('.player-transient-overlay');
+  if (overlay) {
+    if (overlay._fadeOutTimer) clearTimeout(overlay._fadeOutTimer);
+  } else {
+    overlay = document.createElement('div');
+    overlay.className = 'player-transient-overlay';
+    container.appendChild(overlay);
+  }
+
+  overlay.innerHTML = htmlContent;
+  
+  overlay._fadeOutTimer = setTimeout(() => {
+    overlay.style.animation = 'fadeOut 0.25s ease-in forwards';
+    setTimeout(() => {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }, 250);
+  }, durationMs);
+};
+
+window.triggerVolumeHUD = function(volume) {
+  const volPercent = Math.round(volume * 100);
+  const icon = volPercent === 0 ? 'volume-x' : (volPercent < 33 ? 'volume' : (volPercent < 66 ? 'volume-1' : 'volume-2'));
+  const html = `
+    <div style="background: rgba(22, 20, 42, 0.85); padding: 16px 24px; border-radius: 12px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 110px;">
+      <i data-lucide="${icon}" style="width: 32px; height: 32px; color: var(--accent-primary);"></i>
+      <div style="font-weight: 700; font-size: 1.15rem; font-family: 'Outfit', sans-serif;">${volPercent}%</div>
+    </div>
+  `;
+  if (typeof showPlayerTransientOverlay === 'function') {
+    showPlayerTransientOverlay(html, 800);
+  }
+  try { lucide.createIcons(); } catch(e) {}
+};
+
+window.cleanupAllPlayers = function() {
+  if (videoPlayerInstance) {
+    try {
+      if (typeof videoPlayerInstance.destroy === 'function') {
+        videoPlayerInstance.destroy();
+      }
+    } catch (e) {
+      console.error("Error destroying videoPlayerInstance:", e);
+    }
+    videoPlayerInstance = null;
+  }
+
+  const videoElements = document.querySelectorAll('video');
+  videoElements.forEach(video => {
+    try {
+      video.pause();
+      video.src = '';
+      video.load();
+    } catch (e) {
+      console.error("Error pausing video element:", e);
+    }
+  });
+
+  const iframes = document.querySelectorAll('.inline-player-body iframe, .player-modal-body iframe');
+  iframes.forEach(iframe => {
+    try {
+      iframe.src = 'about:blank';
+      iframe.remove();
+    } catch (e) {}
+  });
+
+  const inlineBody = document.getElementById('inline-player-body');
+  if (inlineBody) {
+    inlineBody.innerHTML = '';
+  }
+  const modalBody = document.querySelector('.player-modal-body');
+  if (modalBody) {
+    modalBody.innerHTML = '';
+  }
+};
+
 // Türkçe Açıklama: İndirilen videoyu arayüz içerisindeki gömülü video oynatıcı (Plyr) modalında açarak yürütür.
 /**
  * Videoyu gömülü tarayıcı oynatıcısında (Plyr) açar.
@@ -4074,6 +4322,7 @@ function checkAndSkipSponsor(currentTime, videoElementOrPlayer) {
  * @param {string} videoId Oynatılacak video ID'si
  */
 window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePaused = null) {
+  cleanupAllPlayers();
   const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
   const isInline = (activeTab === 'downloaded');
 
@@ -4120,17 +4369,7 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
     }
   }
 
-  // Önceki oynatıcıyı yok et
-  if (videoPlayerInstance) {
-    try {
-      if (typeof videoPlayerInstance.destroy === 'function') {
-        videoPlayerInstance.destroy();
-      }
-    } catch (e) {
-      console.error("Error destroying video player instance:", e);
-    }
-    videoPlayerInstance = null;
-  }
+  // Önceki oynatıcılar cleanupAllPlayers ile temizlendi
 
   let playerContainer = null;
 
@@ -4484,6 +4723,56 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
       }
     }
 
+    // SponsorBlock toggle button logic
+    const btnSBToggle = document.getElementById('inline-btn-sponsorblock-toggle');
+    if (btnSBToggle) {
+      if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
+        btnSBToggle.style.display = 'inline-flex';
+        // Reset state on load of new video
+        window.sponsorBlockTemporarilyDisabled = false;
+        if (typeof updateSBToggleButtonUI === 'function') {
+          updateSBToggleButtonUI();
+        }
+
+        btnSBToggle.onclick = () => {
+          window.sponsorBlockTemporarilyDisabled = !window.sponsorBlockTemporarilyDisabled;
+          if (typeof updateSBToggleButtonUI === 'function') {
+            updateSBToggleButtonUI();
+          }
+          if (typeof updateSponsorBlockStatusUI === 'function') {
+            updateSponsorBlockStatusUI();
+          }
+          
+          const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
+          const t = translations[lang] || translations.tr;
+          const active = !window.sponsorBlockTemporarilyDisabled;
+          const icon = active ? 'shield' : 'shield-off';
+          const title = active 
+            ? (t.sponsorblock_active_toast || 'SponsorBlock Aktif') 
+            : (t.sponsorblock_disabled_toast || 'SponsorBlock Devre Dışı');
+          const desc = active 
+            ? (t.sponsorblock_active_toast_desc || 'Sponsorlu alanlar otomatik atlanacak') 
+            : (t.sponsorblock_disabled_toast_desc || 'Sponsorlu alan atlamaları geçici olarak durduruldu');
+
+          const html = `
+            <div style="background: rgba(22, 20, 42, 0.85); padding: 20px 30px; border-radius: 12px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 80%; text-align: center;">
+              <i data-lucide="${icon}" style="width: 36px; height: 36px; color: ${active ? '#4ade80' : '#ef4444'};"></i>
+              <div style="font-weight: 700; font-size: 1.15rem; font-family: 'Outfit', sans-serif; color: #fff;">${title}</div>
+              <div style="font-size: 0.85rem; color: #a1a1aa; line-height: 1.4;">${desc}</div>
+            </div>
+          `;
+          if (typeof showPlayerTransientOverlay === 'function') {
+            showPlayerTransientOverlay(html, 1500);
+          }
+          try {
+            lucide.createIcons();
+          } catch(e) {}
+        };
+      } else {
+        btnSBToggle.style.display = 'none';
+      }
+    }
+
     const btnClose = document.getElementById('inline-btn-close');
     if (btnClose) btnClose.onclick = () => closeInlinePlayer();
 
@@ -4672,7 +4961,8 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
 
   if (playRemote) {
     if (playerContainer) {
-      playerContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" style="width: 100%; height: 100%; border: none; display: block;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      const autoplayVal = (forcePaused === true) ? '0' : '1';
+      playerContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=${autoplayVal}" style="width: 100%; height: 100%; border: none; display: block;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
     }
     videoPlayerInstance = null;
   } else {
@@ -4680,7 +4970,8 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
       if (playerType === 'artplayer') {
         playerContainer.innerHTML = '<div id="embedded-artplayer" style="width: 100%; height: 100%; display: block; outline: none;"></div>';
       } else {
-        playerContainer.innerHTML = '<video id="embedded-video-player" controls autoplay style="width: 100%; height: 100%; display: block; outline: none;"></video>';
+        const autoplayAttr = (forcePaused === true) ? '' : 'autoplay';
+        playerContainer.innerHTML = `<video id="embedded-video-player" controls ${autoplayAttr} style="width: 100%; height: 100%; display: block; outline: none;"></video>`;
       }
     }
 
@@ -4835,10 +5126,15 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
         artContainer.addEventListener('wheel', (e) => {
           e.preventDefault();
           let currentVolume = videoPlayerInstance.volume;
+          let newVolume;
           if (e.deltaY < 0) {
-            videoPlayerInstance.volume = Math.min(1, currentVolume + 0.01);
+            newVolume = Math.min(1, currentVolume + 0.02);
           } else {
-            videoPlayerInstance.volume = Math.max(0, currentVolume - 0.01);
+            newVolume = Math.max(0, currentVolume - 0.02);
+          }
+          videoPlayerInstance.volume = newVolume;
+          if (typeof triggerVolumeHUD === 'function') {
+            triggerVolumeHUD(newVolume);
           }
         }, { passive: false });
       }
@@ -4951,10 +5247,15 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
             plyrContainer.addEventListener('wheel', (e) => {
               e.preventDefault();
               let currentVolume = videoPlayerInstance.volume;
+              let newVolume;
               if (e.deltaY < 0) {
-                videoPlayerInstance.volume = Math.min(1, currentVolume + 0.01);
+                newVolume = Math.min(1, currentVolume + 0.02);
               } else {
-                videoPlayerInstance.volume = Math.max(0, currentVolume - 0.01);
+                newVolume = Math.max(0, currentVolume - 0.02);
+              }
+              videoPlayerInstance.volume = newVolume;
+              if (typeof triggerVolumeHUD === 'function') {
+                triggerVolumeHUD(newVolume);
               }
             }, { passive: false });
           }
@@ -5013,10 +5314,15 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           player.addEventListener('wheel', (e) => {
             e.preventDefault();
             let currentVolume = player.volume;
+            let newVolume;
             if (e.deltaY < 0) {
-              player.volume = Math.min(1, currentVolume + 0.01);
+              newVolume = Math.min(1, currentVolume + 0.02);
             } else {
-              player.volume = Math.max(0, currentVolume - 0.01);
+              newVolume = Math.max(0, currentVolume - 0.02);
+            }
+            player.volume = newVolume;
+            if (typeof triggerVolumeHUD === 'function') {
+              triggerVolumeHUD(newVolume);
             }
           }, { passive: false });
 
@@ -5081,21 +5387,7 @@ window.closeInlinePlayer = function() {
   if (inlineContainer) inlineContainer.classList.add('hidden');
   if (listContainer) listContainer.classList.remove('hidden');
 
-  if (videoPlayerInstance) {
-    try {
-      if (typeof videoPlayerInstance.destroy === 'function') {
-        videoPlayerInstance.destroy();
-      }
-    } catch (e) {
-      console.error("Error destroying video player instance on close:", e);
-    }
-    videoPlayerInstance = null;
-  }
-  
-  const inlineBody = document.getElementById('inline-player-body');
-  if (inlineBody) {
-    inlineBody.innerHTML = '';
-  }
+  cleanupAllPlayers();
 
   currentPlayingVideoId = null;
   seekedForCurrentVideo = false;
@@ -5271,20 +5563,7 @@ window.closePlayerModal = function() {
     playerResizeObserver.disconnect();
     playerResizeObserver = null;
   }
-  if (videoPlayerInstance) {
-    try {
-      if (typeof videoPlayerInstance.destroy === 'function') {
-        videoPlayerInstance.destroy();
-      }
-    } catch (e) {
-      console.error("Error destroying video player instance on close:", e);
-    }
-    videoPlayerInstance = null;
-  }
-  const modalBody = document.querySelector('.player-modal-body');
-  if (modalBody) {
-    modalBody.innerHTML = '<video id="embedded-video-player" controls autoplay style="width: 100%; height: 100%; display: block; outline: none;"></video>';
-  }
+  cleanupAllPlayers();
   currentPlayingVideoId = null;
   seekedForCurrentVideo = false;
   
@@ -5446,6 +5725,14 @@ document.addEventListener('click', (e) => {
 
 // Shorts Göster/Gizle Değiştiğinde Sunucuya Kaydet
 document.addEventListener('DOMContentLoaded', () => {
+  const historyOnlyNoAutoDownloadCheck = document.getElementById('history-only-no-auto-download');
+  if (historyOnlyNoAutoDownloadCheck) {
+    historyOnlyNoAutoDownloadCheck.addEventListener('change', () => {
+      historyOnlyNoAutoDownload = historyOnlyNoAutoDownloadCheck.checked;
+      updateUI(localDb);
+    });
+  }
+
   const historyShowShorts = document.getElementById('history-show-shorts');
   if (historyShowShorts) {
     historyShowShorts.addEventListener('change', async () => {
