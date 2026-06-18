@@ -139,7 +139,7 @@ The software dynamically isolates configuration parameters based on the host OS,
 ---
 ---
 
-# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v4.24.0)</p>
+# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v4.26.0)</p>
 
 YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni videoları arka planda otomatik olarak indiren şık, hafif ve kararlı bir otomasyon sistemidir. Tamamen vanilla JavaScript, CSS ve HTML5 standartlarıyla geliştirilmiştir.
 
