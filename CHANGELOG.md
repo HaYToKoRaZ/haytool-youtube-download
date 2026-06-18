@@ -4,6 +4,20 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 
 ---
 
+## [4.26.0] - 2026-06-18
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **İlk Çalışmada Varsayılan Kanal (TeknoSeyir) / Default Channel on First Run (TeknoSeyir):** Uygulamanın veritabanı bulunmadığı ilk kurulum/çalışma anında, takip edilen kanallar listesinin boş gelmesi yerine varsayılan olarak "TeknoSeyir" kanalı yüklü gelecek şekilde `defaultDb` şablonu güncellendi. Kanalın avatar, kanal adresi, otomatik indirme ve süre limitleri gibi bilgileri önceden tanımlı olarak gelir. / Updated the default database template (`defaultDb`) so that when the application is launched for the first time without a pre-existing `db.json` database, the followed channels list is pre-populated with the "TeknoSeyir" channel. Configures its avatar, YouTube handle, auto-download setting, and defaults out-of-the-box.
+- **Sürüm Güncellemesi / Version Upgrade:** Uygulama genel sürümü `v4.26.0` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi. / Version bumped to `v4.26.0` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
+
+## [4.25.0] - 2026-06-18
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **Çalışma Dizini ve İkon Düzeltmesi (Sistem Başlangıcı) / Working Directory & Icon Resolution (System Startup):** C# Tray uygulamasının (`HaYTooL YT Downloader.exe`) Windows başlangıcında (`Run` Registry anahtarı) tetiklendiğinde çalışma dizininin `C:\Windows\System32` olarak belirlenmesinden kaynaklanan `icon.ico` ve `configwin.ini` dosyalarını bulamama hatası giderildi. Çalışma dizini program başlangıcında dinamik olarak uygulamanın kendi klasörüne sabitlendi. / Fixed the startup registry launch issue where Windows set the working directory to `C:\Windows\System32`, causing relative assets like `icon.ico` and `configwin.ini` to fail loading. Now, the application sets its current directory to the executable's directory at launch.
+- **Kendi Tarayıcısında Aç Seçeneği (Edge App Modu) / Open in Own Browser (Edge App Mode):** Tepsi sağ tık menüsüne gömülü tarayıcı deneyimi sunan "Kendi Tarayıcısında Aç" (Open in App Window) seçeneği eklendi. Bu seçenek, Microsoft Edge'i `--app` parametresi ile bağımsız, chromeless (adres çubuğu ve sekmeleri olmayan) bir pencere modunda açarak yerleşik bir masaüstü uygulaması görünümü sağlar. Tepsi ikonuna çift tıklama eylemi ise varsayılan sistem tarayıcısını açmaya devam eder. / Added "Open in Own Browser" option to the tray right-click menu, launching MS Edge in `--app` mode for a dedicated chromeless window experience, mimicking a standalone desktop app. Double-clicking the tray icon continues to open the default system browser.
+- **Dil Çevirileri ve Sadeleştirmeler / Localization Updates & Refinements:** "Kendi Tarayıcısında Aç" seçeneği tr, en, es, de, pt, ru ve ar dillerinde yerelleştirildi. Ayrıca Türkçe menüdeki "Panodan İndir (Paste & Download)" seçeneği "Panodan İndir" olarak sadeleştirildi. / Localized the "Open in Own Browser" text across all supported languages. Simplified the Turkish menu item "Panodan İndir (Paste & Download)" to simply "Panodan İndir".
+- **Sürüm Güncellemesi / Version Upgrade:** Uygulama genel sürümü `v4.25.0` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi. / Version bumped to `v4.25.0` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
+
 ## [4.24.0] - 2026-06-18
 
 ### Yeni Özellikler & İyileştirmeler / New Features & Improvements

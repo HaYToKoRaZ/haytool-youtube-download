@@ -233,7 +233,19 @@ try {
 
 // Varsayılan veritabanı ayarları
 const defaultDb = {
-  channels: [],
+  channels: [
+    {
+      id: "UCFIHrIGT0MBMRHzQtmzOWlQ",
+      name: "TeknoSeyir",
+      handle: "https://www.youtube.com/@TeknoSeyir",
+      addedAt: "2026-05-25T19:36:08.981Z",
+      quality: "default",
+      downloadShorts: false,
+      avatar: "https://yt3.googleusercontent.com/ytc/AIdro_l9oJrladQXLtLvzwQm5ScW-GUUq9tvVgnOc-0DGTKPv6o=s900-c-k-c0x00ffffff-no-rj",
+      shortsDurationLimit: 180,
+      autoDownload: true
+    }
+  ],
   history: [],
   settings: {
     downloadPath: defaultDownloadDir, // Güvenlik amaçlı F: yerine proje içi dizin varsayılanı kullanılıyor
@@ -5737,7 +5749,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v4.24.0
+               Versiyon: v4.26.0
            Yapımcı: HaYTo
     ====================================================
     `);

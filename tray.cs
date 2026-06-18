@@ -23,6 +23,7 @@ namespace HaYTooLTray
 
         // Dil senkronizasyonu için sınıf düzeyinde menü öğeleri
         private MenuItem openUiItem;
+        private MenuItem openAppBrowserItem;
         private MenuItem pasteDownloadItem;
         private MenuItem shortcutsMenu;
         private MenuItem libraryShortcut;
@@ -214,6 +215,13 @@ namespace HaYTooLTray
         // Türkçe Açıklama: Sistem Tepsisi (Tray) uygulamasını başlatır, simgeyi ve sağ tık menüsünü hazırlar.
         public Program()
         {
+            // Çalışma dizinini uygulamanın kendi dizinine sabitle (sistem başlangıcında relatif yolların doğru çalışması için)
+            try
+            {
+                Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
+            }
+            catch {}
+
             // Job Object oluştur
             try
             {
@@ -283,7 +291,8 @@ namespace HaYTooLTray
 
             // Sınıf düzeyindeki menü elemanlarını oluştur
             openUiItem = new MenuItem("Arayüzü Aç", OpenWebPage);
-            pasteDownloadItem = new MenuItem("Panodan İndir (Paste & Download)", PasteAndDownload);
+            openAppBrowserItem = new MenuItem("Kendi Tarayıcısında Aç", OpenWebAppInOwnBrowser);
+            pasteDownloadItem = new MenuItem("Panodan İndir", PasteAndDownload);
 
             shortcutsMenu = new MenuItem("Sekmelere Git");
             libraryShortcut = new MenuItem("Kütüphane", (s, e) => OpenUrl("/home"));
@@ -314,6 +323,7 @@ namespace HaYTooLTray
 
             // Sağ tık menüsünü oluştur
             ContextMenu contextMenu = new ContextMenu();
+            contextMenu.MenuItems.Add(openAppBrowserItem);
             contextMenu.MenuItems.Add(pasteDownloadItem);
             contextMenu.MenuItems.Add(altSpeedItem);
             contextMenu.MenuItems.Add(bootItem);
@@ -444,6 +454,36 @@ namespace HaYTooLTray
             catch (Exception ex)
             {
                 MessageBox.Show("Tarayıcı açılamadı: " + ex.Message);
+            }
+        }
+
+        // Türkçe Açıklama: Kendi gömülü/uygulama tarayıcısında (Edge App Modu) indirilenler sayfasını açar.
+        private void OpenWebAppInOwnBrowser(object sender, EventArgs e)
+        {
+            OpenUrlInOwnBrowser("/downlist");
+        }
+
+        // Türkçe Açıklama: Belirli bir alt adresi Microsoft Edge uygulama modunda (--app) açar.
+        private void OpenUrlInOwnBrowser(string path)
+        {
+            try
+            {
+                string url = GetAppUrl(path);
+                ProcessStartInfo psi = new ProcessStartInfo("msedge.exe", "--app=" + url);
+                psi.UseShellExecute = true;
+                Process.Start(psi);
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    // Edge bulunamazsa varsayılan tarayıcı ile açmayı dene
+                    Process.Start(GetAppUrl(path));
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Tarayıcı açılamadı: " + ex.Message);
+                }
             }
         }
 
@@ -924,6 +964,7 @@ namespace HaYTooLTray
 
             if (lang == "en")
             {
+                openAppBrowserItem.Text = "Open in App Window";
                 openUiItem.Text = "Open Interface";
                 pasteDownloadItem.Text = "Paste & Download";
                 shortcutsMenu.Text = "Go to Tabs";
@@ -941,6 +982,7 @@ namespace HaYTooLTray
             }
             else if (lang == "es")
             {
+                openAppBrowserItem.Text = "Abrir en ventana de app";
                 openUiItem.Text = "Abrir Interfaz";
                 pasteDownloadItem.Text = "Pegar y Descargar";
                 shortcutsMenu.Text = "Ir a Pestañas";
@@ -958,6 +1000,7 @@ namespace HaYTooLTray
             }
             else if (lang == "de")
             {
+                openAppBrowserItem.Text = "Im App-Fenster öffnen";
                 openUiItem.Text = "Benutzeroberfläche öffnen";
                 pasteDownloadItem.Text = "Einfügen & Herunterladen";
                 shortcutsMenu.Text = "Gehe zu Tabs";
@@ -975,6 +1018,7 @@ namespace HaYTooLTray
             }
             else if (lang == "pt")
             {
+                openAppBrowserItem.Text = "Abrir na janela do app";
                 openUiItem.Text = "Abrir Interface";
                 pasteDownloadItem.Text = "Colar & Baixar";
                 shortcutsMenu.Text = "Ir para Abas";
@@ -992,6 +1036,7 @@ namespace HaYTooLTray
             }
             else if (lang == "ar")
             {
+                openAppBrowserItem.Text = "الفتح في نافذة التطبيق";
                 openUiItem.Text = "فتح الواجهة";
                 pasteDownloadItem.Text = "اللصق والتنزيل";
                 shortcutsMenu.Text = "الانتقال إلى التبويبات";
@@ -1009,6 +1054,7 @@ namespace HaYTooLTray
             }
             else if (lang == "ru")
             {
+                openAppBrowserItem.Text = "Открыть в окне приложения";
                 openUiItem.Text = "Открыть интерфейс";
                 pasteDownloadItem.Text = "Вставить и скачать";
                 shortcutsMenu.Text = "Перейти к вкладкам";
@@ -1026,6 +1072,7 @@ namespace HaYTooLTray
             }
             else // Varsayılan Türkçe (tr)
             {
+                openAppBrowserItem.Text = "Kendi Tarayıcısında Aç";
                 openUiItem.Text = "Arayüzü Aç";
                 pasteDownloadItem.Text = "Panodan İndir";
                 shortcutsMenu.Text = "Sekmelere Git";
