@@ -195,7 +195,14 @@ const configIniName = os.platform() === 'win32' ? 'configwin.ini' : 'configunix.
 const configIniPath = path.join(__dirname, configIniName);
 const channelsIniPath = path.join(__dirname, 'channels.ini');
 const ytdlpPath = path.join(__dirname, 'yt-dlp', os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
-const defaultDownloadDir = path.join(__dirname, 'download');
+const defaultDownloadDir = path.join(os.homedir(), 'Downloads', 'HaYTooLYouTubeAutoDownloads');
+if (!fs.existsSync(defaultDownloadDir)) {
+  try {
+    fs.mkdirSync(defaultDownloadDir, { recursive: true });
+  } catch (e) {
+    console.error(`Varsayılan indirme dizini oluşturulamadı: ${defaultDownloadDir}`, e.message);
+  }
+}
 
 // Determing port from config.ini early
 let PORT = 4141;
@@ -5749,7 +5756,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v4.26.0
+               Versiyon: v4.27.0
            Yapımcı: HaYTo
     ====================================================
     `);

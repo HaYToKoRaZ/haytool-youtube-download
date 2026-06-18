@@ -4,6 +4,12 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 
 ---
 
+## [4.27.0] - 2026-06-18
+
+### Yeni Özellikler & İyileştirmeler / New Features & Improvements
+- **Varsayılan İndirme Klasörü Konumu (Sistem Downloads Klasörü) / Default Download Location (System Downloads Folder):** Temiz kurulumlarda veya INI ayarları bulunmadığında, varsayılan indirme konumu proje klasöründeki `/download` dizininden sistemin genel Downloads (İndirilenler) dizininin altındaki `HaYTooLYouTubeAutoDownloads` konumuna taşındı (örn. `C:\Users\<Username>\Downloads\HaYTooLYouTubeAutoDownloads`). Klasör açılışta yoksa sistem tarafından otomatik olarak oluşturulacaktır. / Changed the default fallback download path from the local `/download` folder inside the project directory to the user's system Downloads folder, under a dedicated subdirectory named `HaYTooLYouTubeAutoDownloads`. The folder is dynamically resolved using the user's home directory and created automatically on startup if missing.
+- **Sürüm Güncellemesi / Version Upgrade:** Uygulama genel sürümü `v4.27.0` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi. / Version bumped to `v4.27.0` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
+
 ## [4.26.0] - 2026-06-18
 
 ### Yeni Özellikler & İyileştirmeler / New Features & Improvements
