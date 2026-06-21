@@ -24,6 +24,7 @@ const youtubeSvgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 
 
 const translations = {
   tr: {
+    status_merging: 'Birleştiriliyor (FFmpeg)...',
     tab_iptv: 'IPTV',
     inline_btn_description: 'Açıklamayı Göster',
     inline_description_title: 'Video Açıklaması',
@@ -238,6 +239,7 @@ const translations = {
     sponsorblock_active: 'SponsorBlock Aktif (Geçici olarak kapatmak için tıklayın)',
     sponsorblock_disabled: 'SponsorBlock Devre Dışı (Tekrar açmak için tıklayın)',
     lbl_history_only_no_auto_download: 'Oto-İndirme Kapalı',
+    lbl_history_only_not_downloaded: 'Sadece İndirilmeyenler',
     sponsorblock_active_toast: 'SponsorBlock Aktif',
     sponsorblock_active_toast_desc: 'Sponsorlu alanlar otomatik atlanacak',
     sponsorblock_disabled_toast: 'SponsorBlock Devre Dışı',
@@ -254,6 +256,7 @@ const translations = {
     lbl_swap_screens: 'Yer Değiştir'
   },
   en: {
+    status_merging: 'Merging (FFmpeg)...',
     tab_iptv: 'IPTV',
     inline_btn_description: 'Show Description',
     inline_description_title: 'Video Description',
@@ -467,6 +470,7 @@ const translations = {
     sponsorblock_active: 'SponsorBlock Active (Click to temporarily disable)',
     sponsorblock_disabled: 'SponsorBlock Disabled (Click to re-enable)',
     lbl_history_only_no_auto_download: 'Auto-Download Off',
+    lbl_history_only_not_downloaded: 'Only Undownloaded',
     sponsorblock_active_toast: 'SponsorBlock Active',
     sponsorblock_active_toast_desc: 'Sponsor segments will be automatically skipped',
     sponsorblock_disabled_toast: 'SponsorBlock Disabled',
@@ -483,6 +487,7 @@ const translations = {
     lbl_swap_screens: 'Swap Screens'
   },
   es: {
+    status_merging: 'Fusionando (FFmpeg)...',
     premium_automation: 'Automatización Premium',
     tab_library: 'Biblioteca',
     tab_downloaded: 'Descargas',
@@ -694,12 +699,14 @@ const translations = {
     sponsorblock_active: 'SponsorBlock Activo (Haga clic para desactivar temporalmente)',
     sponsorblock_disabled: 'SponsorBlock Desactivado (Haga clic para volver a activar)',
     lbl_history_only_no_auto_download: 'Descarga Auto. Desactivada',
+    lbl_history_only_not_downloaded: 'Solo no descargados',
     sponsorblock_active_toast: 'SponsorBlock Activo',
     sponsorblock_active_toast_desc: 'Los segmentos patrocinados se omitirán automáticamente',
     sponsorblock_disabled_toast: 'SponsorBlock Desactivado',
     sponsorblock_disabled_toast_desc: 'La omisión de segmentos patrocinados está pausada temporalmente'
   },
   de: {
+    status_merging: 'Zusammenführen (FFmpeg)...',
     premium_automation: 'Premium Automatisierung',
     tab_library: 'Bibliothek',
     tab_downloaded: 'Downloads',
@@ -911,12 +918,14 @@ const translations = {
     sponsorblock_active: 'SponsorBlock Aktiv (Klicken, um vorübergehend zu deaktivieren)',
     sponsorblock_disabled: 'SponsorBlock Deaktiviert (Klicken, um wieder zu aktivieren)',
     lbl_history_only_no_auto_download: 'Auto-Download Aus',
+    lbl_history_only_not_downloaded: 'Nur nicht heruntergeladen',
     sponsorblock_active_toast: 'SponsorBlock Aktiv',
     sponsorblock_active_toast_desc: 'Sponsor-Segmente werden automatisch übersprungen',
     sponsorblock_disabled_toast: 'SponsorBlock Deaktiviert',
     sponsorblock_disabled_toast_desc: 'Das Überspringen von Sponsor-Segmenten ist vorübergehend pausiert'
   },
   pt: {
+    status_merging: 'Mesclando (FFmpeg)...',
     premium_automation: 'Automatização Premium',
     tab_library: 'Biblioteca',
     tab_downloaded: 'Downloads',
@@ -1128,12 +1137,14 @@ const translations = {
     sponsorblock_active: 'SponsorBlock Ativo (Clique para desativar temporariamente)',
     sponsorblock_disabled: 'SponsorBlock Desactivado (Clique para reativar)',
     lbl_history_only_no_auto_download: 'Download Auto. Desativado',
+    lbl_history_only_not_downloaded: 'Apenas não baixados',
     sponsorblock_active_toast: 'SponsorBlock Ativo',
     sponsorblock_active_toast_desc: 'Os segmentos patrocinados serão ignorados automaticamente',
     sponsorblock_disabled_toast: 'SponsorBlock Desactivado',
     sponsorblock_disabled_toast_desc: 'A omissão de segmentos patrocinados está pausada temporariamente'
   },
   ar: {
+    status_merging: 'دمج (FFmpeg)...',
     premium_automation: 'التحكم التلقائي المميز',
     tab_library: 'المكتبة',
     tab_downloaded: 'التنزيلات',
@@ -1344,12 +1355,14 @@ const translations = {
     sponsorblock_active: 'SponsorBlock نشط (انقر للتعطيل مؤقتًا)',
     sponsorblock_disabled: 'SponsorBlock معطل (انقر للتفعيل)',
     lbl_history_only_no_auto_download: 'تعطيل التنزيل التلقائي',
+    lbl_history_only_not_downloaded: 'غير المحملة فقط',
     sponsorblock_active_toast: 'SponsorBlock نشط',
     sponsorblock_active_toast_desc: 'سيتم تخطي الأقسام الممولة تلقائيًا',
     sponsorblock_disabled_toast: 'SponsorBlock معطل',
     sponsorblock_disabled_toast_desc: 'تم إيقاف تخطي الأقسام الممولة مؤقتًا'
   },
   ru: {
+    status_merging: 'Слияние (FFmpeg)...',
     premium_automation: 'Премиум Автоматизация',
     tab_library: 'Библиотека',
     tab_downloaded: 'Загрузки',
@@ -1560,6 +1573,7 @@ const translations = {
     sponsorblock_active: 'SponsorBlock Активен (Нажмите для временного отключения)',
     sponsorblock_disabled: 'SponsorBlock Отключен (Нажмите для включения)',
     lbl_history_only_no_auto_download: 'Только без автозагрузки',
+    lbl_history_only_not_downloaded: 'Только не скачанные',
     sponsorblock_active_toast: 'SponsorBlock Активен',
     sponsorblock_active_toast_desc: 'Спонсорские сегменты будут автоматически пропущены',
     sponsorblock_disabled_toast: 'SponsorBlock Отключен',
@@ -1633,6 +1647,7 @@ function applyLanguage(lang) {
   // Kütüphane Sekmesi
   elQuery('label[for="history-show-shorts"] + span', 'show_shorts');
   el('lbl-history-only-no-auto-download', 'lbl_history_only_no_auto_download');
+  el('lbl-history-only-not-downloaded', 'lbl_history_only_not_downloaded');
 
   el('lbl-quick-filter', 'lbl_quick_filter');
   el('btn-filter-all', 'filter_all');
@@ -2096,6 +2111,7 @@ let historyViewMode = 'grid'; // grid veya list
 let historyFilterChannel = 'all'; // all veya kanalId
 let historyFilterDays = 'all'; // all, 0, 1, 2, 3, 4, 5
 let historyOnlyNoAutoDownload = false;
+let historyOnlyNotDownloaded = false;
 let downloadedViewMode = 'grid'; // grid veya list
 let downloadedFilterChannel = 'all'; // all veya kanalId
 
@@ -2547,6 +2563,10 @@ function renderVideoGrid(gridElement, videosList, viewMode) {
     const isShort = isShortVideo(item.duration, item.title, item.channelId);
     const card = document.createElement('div');
     card.className = 'video-card' + (isShort ? ' is-short' : '');
+    card.setAttribute('data-id', item.id);
+    if (typeof downloadedSortVal !== 'undefined' && downloadedSortVal === 'user' && gridElement === downloadedGrid) {
+      card.setAttribute('draggable', 'true');
+    }
     
     let statusHtml = '';
     let actionsHtml = '';
@@ -2768,6 +2788,8 @@ function updateUI(db) {
 
     // 3. Aktif İndirme ve İndirme Sırası
     const activeDownload = db.history.find(h => h.status === 'downloading');
+    const activeMerging = db.history.find(h => h.status === 'merging');
+    
     if (activeDownload) {
       if (noActiveDownload) noActiveDownload.classList.add('hidden');
       if (activeDownloadDetails) {
@@ -2780,6 +2802,18 @@ function updateUI(db) {
         if (activeEta) activeEta.textContent = activeDownload.eta || '--:--';
       }
       if (activeSpeed) activeSpeed.textContent = activeDownload.speed || '0 KB/s';
+    } else if (activeMerging) {
+      if (noActiveDownload) noActiveDownload.classList.add('hidden');
+      if (activeDownloadDetails) {
+        activeDownloadDetails.classList.remove('hidden');
+        if (activeTitle) activeTitle.textContent = activeMerging.title;
+        if (activeChannel) activeChannel.textContent = activeMerging.channelName;
+        if (activeProgressBar) activeProgressBar.style.width = `100%`;
+        if (activePercent) activePercent.textContent = t.status_merging || 'Birleştiriliyor (FFmpeg)...';
+        if (activeSize) activeSize.textContent = activeMerging.fileSize || '-- MB';
+        if (activeEta) activeEta.textContent = '--:--';
+      }
+      if (activeSpeed) activeSpeed.textContent = 'FFmpeg...';
     } else {
       if (noActiveDownload) noActiveDownload.classList.remove('hidden');
       if (activeDownloadDetails) activeDownloadDetails.classList.add('hidden');
@@ -2790,11 +2824,50 @@ function updateUI(db) {
     if (queueList) {
       queueList.innerHTML = '';
       const isEn = db.settings && db.settings.lang === 'en';
-      if (waitingVideos.length === 0) {
+      const mergingVideos = db.history.filter(h => h.status === 'merging');
+      
+      if (waitingVideos.length === 0 && mergingVideos.length === 0) {
         queueList.innerHTML = `
           <div class="text-center text-muted" id="queue-list-empty" style="padding: 30px 0; font-size: 0.85rem;">${isEn ? 'No videos waiting in the queue.' : 'Kuyrukta bekleyen video yok.'}</div>
         `;
       } else {
+        // Önce birleştirilen videoları ekle (en üstte dursunlar, sürüklenemezler)
+        mergingVideos.forEach(video => {
+          const item = document.createElement('div');
+          item.className = 'queue-item queue-item-merging';
+          item.setAttribute('draggable', 'false');
+          item.setAttribute('data-id', video.id);
+          item.style.borderColor = 'rgba(234, 179, 8, 0.3)';
+          item.style.background = 'rgba(234, 179, 8, 0.03)';
+          item.innerHTML = `
+            <div class="queue-item-drag-handle" style="display: flex; align-items: center; justify-content: center; padding-right: 12px; color: var(--text-muted); cursor: not-allowed;" title="${isEn ? 'Merging process cannot be reordered' : 'Birleştirme işlemi sıralanamaz'}">
+              <i data-lucide="loader" class="spin-animation" style="width:16px; height:16px; color: #eab308;"></i>
+            </div>
+            <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="queue-item-thumbnail" onerror="this.src='logo.png'">
+            <div class="queue-item-info" style="flex:1;">
+              <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main);">${escapeHtml(video.title)}</div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                <span class="queue-item-channel" style="font-size:0.7rem; display: flex; align-items: center; gap: 2px;">
+                  <i data-lucide="tv" style="width: 10px; height: 10px;"></i>
+                  ${escapeHtml(video.channelName)}
+                </span>
+                <span class="queue-item-status-badge" style="font-size:0.68rem; display:inline-flex; align-items:center; gap:4px; padding: 1px 6px; border-radius: 4px; background: rgba(234, 179, 8, 0.1); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); font-weight: 600;">
+                  <i data-lucide="cog" class="spin-animation" style="width: 10px; height: 10px;"></i>
+                  <span>${t.status_merging || 'Birleştiriliyor...'}</span>
+                </span>
+              </div>
+            </div>
+            <div class="queue-item-actions">
+              <button class="btn-cancel-queue" onclick="cancelDownload('${video.id}')" title="${isEn ? 'Cancel' : 'İptal Et'}">
+                <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+                <span>${isEn ? 'Cancel' : 'İptal Et'}</span>
+              </button>
+            </div>
+          `;
+          queueList.appendChild(item);
+        });
+
+        // Sonra bekleyen videoları ekle
         waitingVideos.forEach(video => {
           const item = document.createElement('div');
           item.className = 'queue-item';
@@ -2804,6 +2877,7 @@ function updateUI(db) {
             <div class="queue-item-drag-handle" style="cursor: grab; display: flex; align-items: center; justify-content: center; padding-right: 12px; color: var(--text-muted);" title="${isEn ? 'Drag to reorder' : 'Sürükleyip sıralayın'}">
               <i data-lucide="grip-vertical" style="width:16px; height:16px;"></i>
             </div>
+            <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="queue-item-thumbnail" onerror="this.src='logo.png'">
             <div class="queue-item-info" style="flex:1;">
               <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main);">${escapeHtml(video.title)}</div>
               <div class="queue-item-channel" style="font-size:0.78rem;">
@@ -2998,6 +3072,15 @@ function updateUI(db) {
     inlinePlaylistShowShorts.checked = db.settings?.showShorts !== false;
   }
 
+  const historyOnlyNotDownloadedCheck = document.getElementById('history-only-not-downloaded');
+  if (historyOnlyNotDownloadedCheck) {
+    historyOnlyNotDownloadedCheck.checked = historyOnlyNotDownloaded;
+  }
+  const historyOnlyNoAutoDownloadCheck = document.getElementById('history-only-no-auto-download');
+  if (historyOnlyNoAutoDownloadCheck) {
+    historyOnlyNoAutoDownloadCheck.checked = historyOnlyNoAutoDownload;
+  }
+
   // Görünüm butonlarının aktiflik durumunu güncelle
   if (viewGridBtn) viewGridBtn.classList.toggle('active', historyViewMode === 'grid');
   if (viewListBtn) viewListBtn.classList.toggle('active', historyViewMode === 'list');
@@ -3034,6 +3117,10 @@ function updateUI(db) {
     if (historyOnlyNoAutoDownload) {
       const disabledChannelIds = new Set((db.channels || []).filter(c => c.autoDownload === false).map(c => c.id));
       filteredHistory = filteredHistory.filter(item => disabledChannelIds.has(item.channelId));
+    }
+    
+    if (historyOnlyNotDownloaded) {
+      filteredHistory = filteredHistory.filter(item => item.status !== 'completed');
     }
     
     if (historyFilterDays !== 'all') {
@@ -3108,10 +3195,24 @@ function updateUI(db) {
       filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
     }
     
-    // Seçilen kritere göre sırala (Tarih veya Boyut)
+    // Seçilen kritere göre sırala (Tarih, Boyut veya Kullanıcı)
     const sortVal = downloadedSortVal || 'date-desc';
     filteredDownloaded.sort((a, b) => {
-      if (sortVal.startsWith('size-')) {
+      if (sortVal === 'user') {
+        const customOrder = JSON.parse(localStorage.getItem('downloaded-user-order') || '[]');
+        let indexA = customOrder.indexOf(a.id);
+        let indexB = customOrder.indexOf(b.id);
+        
+        if (indexA === -1 && indexB === -1) {
+          const dateA = new Date(a.publishedAt || a.downloadedAt || 0).getTime();
+          const dateB = new Date(b.publishedAt || b.downloadedAt || 0).getTime();
+          return dateB - dateA;
+        }
+        if (indexA === -1) return -1;
+        if (indexB === -1) return 1;
+        
+        return indexA - indexB;
+      } else if (sortVal.startsWith('size-')) {
         const sizeA = parseSizeToBytes(a.fileSize);
         const sizeB = parseSizeToBytes(b.fileSize);
         return sortVal === 'size-desc' ? sizeB - sizeA : sizeA - sizeB;
@@ -4090,6 +4191,27 @@ window.togglePlayerMinimize = function() {
   modal.classList.toggle('minimized');
   const isMinimized = modal.classList.contains('minimized');
   
+  const modalContent = modal.querySelector('.player-modal-content');
+  if (modalContent) {
+    if (isMinimized) {
+      modalContent.style.width = '';
+      modalContent.style.height = '';
+      modalContent.style.left = '';
+      modalContent.style.top = '';
+    } else {
+      const isShort = modal.classList.contains('is-short-player');
+      const suffix = isShort ? '-short' : '';
+      const w = localStorage.getItem(`player-modal${suffix}-width`);
+      const h = localStorage.getItem(`player-modal${suffix}-height`);
+      const l = localStorage.getItem(`player-modal${suffix}-left`);
+      const t = localStorage.getItem(`player-modal${suffix}-top`);
+      if (w) modalContent.style.width = w;
+      if (h) modalContent.style.height = h;
+      if (l) modalContent.style.left = l;
+      if (t) modalContent.style.top = t;
+    }
+  }
+
   if (btn) {
     const icon = btn.querySelector('i') || btn.querySelector('[data-lucide]');
     if (icon) {
@@ -4144,7 +4266,92 @@ function makeElementDraggable(modalContent, dragHeader) {
   function closeDragElement() {
     document.onmouseup = null;
     document.onmousemove = null;
+    const isShort = modalContent.closest('#player-modal')?.classList.contains('is-short-player');
+    const suffix = isShort ? '-short' : '';
+    localStorage.setItem(`player-modal${suffix}-left`, modalContent.style.left);
+    localStorage.setItem(`player-modal${suffix}-top`, modalContent.style.top);
   }
+}
+
+function makeElementResizable(modalContent) {
+  const handles = modalContent.querySelectorAll('.resize-handle');
+  
+  handles.forEach(handle => {
+    handle.onmousedown = resizeMouseDown;
+    
+    function resizeMouseDown(e) {
+      e.preventDefault();
+      
+      const isRight = handle.classList.contains('bottom-right') || handle.classList.contains('top-right');
+      const isBottom = handle.classList.contains('bottom-left') || handle.classList.contains('bottom-right');
+      const isLeft = handle.classList.contains('bottom-left') || handle.classList.contains('top-left');
+      const isTop = handle.classList.contains('top-left') || handle.classList.contains('top-right');
+      
+      const startWidth = modalContent.offsetWidth;
+      const startHeight = modalContent.offsetHeight;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startLeft = modalContent.offsetLeft;
+      const startTop = modalContent.offsetTop;
+      
+      document.onmousemove = elementResize;
+      document.onmouseup = closeResizeElement;
+      
+      function elementResize(e) {
+        let width = startWidth;
+        let height = startHeight;
+        let left = startLeft;
+        let top = startTop;
+        
+        if (isRight) {
+          width = startWidth + (e.clientX - startX);
+        } else if (isLeft) {
+          width = startWidth - (e.clientX - startX);
+          left = startLeft + (e.clientX - startX);
+        }
+        
+        if (isBottom) {
+          height = startHeight + (e.clientY - startY);
+        } else if (isTop) {
+          height = startHeight - (e.clientY - startY);
+          top = startTop + (e.clientY - startY);
+        }
+        
+        const minWidth = 320;
+        const minHeight = 180;
+        
+        if (width >= minWidth) {
+          modalContent.style.width = `${width}px`;
+          if (isLeft) {
+            modalContent.style.left = `${left}px`;
+          }
+        }
+        
+        if (height >= minHeight) {
+          modalContent.style.height = `${height}px`;
+          if (isTop) {
+            modalContent.style.top = `${top}px`;
+          }
+        }
+      }
+      
+      function closeResizeElement() {
+        document.onmousemove = null;
+        document.onmouseup = null;
+        
+        const isShort = modalContent.closest('#player-modal')?.classList.contains('is-short-player');
+        const suffix = isShort ? '-short' : '';
+        localStorage.setItem(`player-modal${suffix}-width`, modalContent.style.width);
+        localStorage.setItem(`player-modal${suffix}-height`, modalContent.style.height);
+        localStorage.setItem(`player-modal${suffix}-left`, modalContent.style.left);
+        localStorage.setItem(`player-modal${suffix}-top`, modalContent.style.top);
+        
+        if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
+          videoPlayerInstance.resize();
+        }
+      }
+    }
+  });
 }
 
 function drawSponsorSegmentsOnTimeline(duration, playerType) {
@@ -4295,37 +4502,10 @@ async function fetchSponsorSegments(videoId) {
 }
 
 function updateSponsorBlockStatusUI() {
-  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
-  const statusEl = activeTab === 'downloaded' 
-    ? document.getElementById('inline-player-sponsorblock-status')
-    : document.getElementById('player-sponsorblock-status');
-  if (!statusEl) return;
-  
-  const otherStatusEl = activeTab === 'downloaded'
-    ? document.getElementById('player-sponsorblock-status')
-    : document.getElementById('inline-player-sponsorblock-status');
-  if (otherStatusEl) otherStatusEl.style.display = 'none';
-  
-  if (localDb.settings && localDb.settings.sponsorBlockEnabled === true && currentVideoSponsorSegments && currentVideoSponsorSegments.length > 0) {
-    const isEn = localDb.settings.lang === 'en';
-    if (window.sponsorBlockTemporarilyDisabled) {
-      statusEl.innerHTML = `<i data-lucide="shield-off" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 4px; color: #ef4444;"></i><span style="color: #ef4444;">${
-        isEn 
-          ? `SponsorBlock is temporarily disabled.` 
-          : `SponsorBlock geçici olarak devre dışı bırakıldı.`
-      }</span>`;
-    } else {
-      statusEl.innerHTML = `<i data-lucide="shield-alert" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>${
-        isEn 
-          ? `SponsorBlock active: ${currentVideoSponsorSegments.length} segment(s) will be skipped.` 
-          : `SponsorBlock aktif: ${currentVideoSponsorSegments.length} sponsorlu alan otomatik atlanacak.`
-      }`;
-    }
-    statusEl.style.display = 'block';
-    lucide.createIcons();
-  } else {
-    statusEl.style.display = 'none';
-  }
+  const statusEl = document.getElementById('player-sponsorblock-status');
+  if (statusEl) statusEl.style.display = 'none';
+  const inlineStatusEl = document.getElementById('inline-player-sponsorblock-status');
+  if (inlineStatusEl) inlineStatusEl.style.display = 'none';
 }
 
 function updateSBToggleButtonUI() {
@@ -4432,9 +4612,9 @@ window.triggerVolumeHUD = function(volume) {
   const volPercent = Math.round(volume * 100);
   const icon = volPercent === 0 ? 'volume-x' : (volPercent < 33 ? 'volume' : (volPercent < 66 ? 'volume-1' : 'volume-2'));
   const html = `
-    <div style="background: rgba(22, 20, 42, 0.85); padding: 16px 24px; border-radius: 12px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 110px;">
+    <div class="player-transient-card volume-hud-card">
       <i data-lucide="${icon}" style="width: 32px; height: 32px; color: var(--accent-primary);"></i>
-      <div style="font-weight: 700; font-size: 1.15rem; font-family: 'Outfit', sans-serif;">${volPercent}%</div>
+      <div class="transient-title">${volPercent}%</div>
     </div>
   `;
   if (typeof showPlayerTransientOverlay === 'function') {
@@ -4964,10 +5144,10 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
             : (t.sponsorblock_disabled_toast_desc || 'Sponsorlu alan atlamaları geçici olarak durduruldu');
 
           const html = `
-            <div style="background: rgba(22, 20, 42, 0.85); padding: 20px 30px; border-radius: 12px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 80%; text-align: center;">
+            <div class="player-transient-card">
               <i data-lucide="${icon}" style="width: 36px; height: 36px; color: ${active ? '#4ade80' : '#ef4444'};"></i>
-              <div style="font-weight: 700; font-size: 1.15rem; font-family: 'Outfit', sans-serif; color: #fff;">${title}</div>
-              <div style="font-size: 0.85rem; color: #a1a1aa; line-height: 1.4;">${desc}</div>
+              <div class="transient-title">${title}</div>
+              <div class="transient-desc">${desc}</div>
             </div>
           `;
           if (typeof showPlayerTransientOverlay === 'function') {
@@ -4984,6 +5164,54 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
 
     const btnClose = document.getElementById('inline-btn-close');
     if (btnClose) btnClose.onclick = () => closeInlinePlayer();
+
+    // Autoplay toggle button logic
+    const btnAutoplay = document.getElementById('inline-btn-autoplay-toggle');
+    if (btnAutoplay) {
+      const isAutoplayEnabled = localStorage.getItem('inline-autoplay-enabled') === 'true';
+      if (isAutoplayEnabled) {
+        btnAutoplay.classList.add('active');
+      } else {
+        btnAutoplay.classList.remove('active');
+      }
+
+      btnAutoplay.onclick = () => {
+        const currentlyActive = btnAutoplay.classList.contains('active');
+        const nextActive = !currentlyActive;
+        localStorage.setItem('inline-autoplay-enabled', nextActive ? 'true' : 'false');
+        
+        if (nextActive) {
+          btnAutoplay.classList.add('active');
+        } else {
+          btnAutoplay.classList.remove('active');
+        }
+
+        const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
+        const isEn = lang === 'en';
+        const title = isEn 
+          ? (nextActive ? 'Autoplay: ON' : 'Autoplay: OFF') 
+          : (nextActive ? 'Otomatik Geçiş: AÇIK' : 'Otomatik Geçiş: KAPALI');
+        const desc = isEn
+          ? (nextActive ? 'Next video will play automatically.' : 'Continuous playback disabled.')
+          : (nextActive ? 'Sıradaki video otomatik olarak oynatılacak.' : 'Otomatik video geçişi devre dışı bırakıldı.');
+        const icon = nextActive ? 'repeat' : 'repeat';
+        const color = nextActive ? '#4ade80' : '#ef4444';
+
+        const html = `
+          <div class="player-transient-card">
+            <i data-lucide="${icon}" style="width: 36px; height: 36px; color: ${color};"></i>
+            <div class="transient-title">${title}</div>
+            <div class="transient-desc">${desc}</div>
+          </div>
+        `;
+        if (typeof showPlayerTransientOverlay === 'function') {
+          showPlayerTransientOverlay(html, 1500);
+        }
+        try {
+          lucide.createIcons();
+        } catch(e) {}
+      };
+    }
 
     // Subtitle Color & Opacity & Redownload bindings
     const inlineSubColor = document.getElementById('inline-subtitle-color');
@@ -5155,6 +5383,19 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
       
       modal.classList.remove('hidden');
       playerContainer = modal.querySelector('.player-modal-body');
+      const modalContent = modal.querySelector('.player-modal-content');
+      if (modalContent) {
+        const suffix = isShort ? '-short' : '';
+        const w = localStorage.getItem(`player-modal${suffix}-width`);
+        const h = localStorage.getItem(`player-modal${suffix}-height`);
+        const l = localStorage.getItem(`player-modal${suffix}-left`);
+        const t = localStorage.getItem(`player-modal${suffix}-top`);
+        
+        modalContent.style.width = w || '';
+        modalContent.style.height = h || '';
+        modalContent.style.left = l || '';
+        modalContent.style.top = t || '';
+      }
     }
   }
 
@@ -5392,6 +5633,13 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           } else if (forcePaused === false) {
             videoPlayerInstance.play().catch(e => console.warn(e));
           }
+          
+          rawVideo.addEventListener('ended', () => {
+            const isAutoplayEnabled = localStorage.getItem('inline-autoplay-enabled') === 'true';
+            if (isAutoplayEnabled) {
+              playNextVideoInPlaylist();
+            }
+          });
         }
       });
 
@@ -5508,6 +5756,13 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
               console.warn('Otomatik oynatma engellendi:', err);
             });
           }
+
+          videoPlayerInstance.on('ended', () => {
+            const isAutoplayEnabled = localStorage.getItem('inline-autoplay-enabled') === 'true';
+            if (isAutoplayEnabled) {
+              playNextVideoInPlaylist();
+            }
+          });
         } else {
           // HTML5 standard
           player.src = streamUrl;
@@ -5575,6 +5830,13 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
               console.warn('Otomatik oynatma engellendi:', err);
             });
           }
+
+          player.addEventListener('ended', () => {
+            const isAutoplayEnabled = localStorage.getItem('inline-autoplay-enabled') === 'true';
+            if (isAutoplayEnabled) {
+              playNextVideoInPlaylist();
+            }
+          });
         }
       }
     }
@@ -5608,6 +5870,7 @@ window.closeInlinePlayer = function() {
 function updateSidebarSortButtons() {
   const btnDate = document.getElementById('inline-btn-sort-date');
   const btnSize = document.getElementById('inline-btn-sort-size');
+  const btnUser = document.getElementById('inline-btn-sort-user');
   const txtDate = document.getElementById('inline-btn-sort-date-text');
   const txtSize = document.getElementById('inline-btn-sort-size-text');
 
@@ -5617,8 +5880,13 @@ function updateSidebarSortButtons() {
 
   btnDate.classList.remove('active');
   btnSize.classList.remove('active');
+  if (btnUser) btnUser.classList.remove('active');
 
-  if (downloadedSortVal.startsWith('date-')) {
+  if (downloadedSortVal === 'user') {
+    if (btnUser) btnUser.classList.add('active');
+    if (txtDate) txtDate.textContent = isEn ? 'Date ▼' : 'Tarih ▼';
+    if (txtSize) txtSize.textContent = isEn ? 'Size ▼' : 'Boyut ▼';
+  } else if (downloadedSortVal.startsWith('date-')) {
     btnDate.classList.add('active');
     if (downloadedSortVal === 'date-asc') {
       if (txtDate) txtDate.textContent = isEn ? 'Date ▲' : 'Tarih ▲';
@@ -5673,9 +5941,24 @@ function renderDownloadedPlaylist(currentVideoId) {
   if (!showShorts) {
     filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
   }
+  
   const sortVal = downloadedSortVal || 'date-desc';
   filteredDownloaded.sort((a, b) => {
-    if (sortVal.startsWith('size-')) {
+    if (sortVal === 'user') {
+      const customOrder = JSON.parse(localStorage.getItem('downloaded-user-order') || '[]');
+      let indexA = customOrder.indexOf(a.id);
+      let indexB = customOrder.indexOf(b.id);
+      
+      if (indexA === -1 && indexB === -1) {
+        const dateA = new Date(a.publishedAt || a.downloadedAt || 0).getTime();
+        const dateB = new Date(b.publishedAt || b.downloadedAt || 0).getTime();
+        return dateB - dateA;
+      }
+      if (indexA === -1) return -1;
+      if (indexB === -1) return 1;
+      
+      return indexA - indexB;
+    } else if (sortVal.startsWith('size-')) {
       const sizeA = parseSizeToBytes(a.fileSize);
       const sizeB = parseSizeToBytes(b.fileSize);
       return sortVal === 'size-desc' ? sizeB - sizeA : sizeA - sizeB;
@@ -5695,6 +5978,10 @@ function renderDownloadedPlaylist(currentVideoId) {
     const isCurrent = item.id === currentVideoId;
     const itemEl = document.createElement('div');
     itemEl.className = `playlist-item${isCurrent ? ' active' : ''}`;
+    itemEl.setAttribute('data-id', item.id);
+    if (sortVal === 'user') {
+      itemEl.setAttribute('draggable', 'true');
+    }
     
     itemEl.onclick = () => {
       if (!isCurrent) {
@@ -5914,12 +6201,13 @@ if (downloadedChannelFilter) {
 }
 
 // Sıralama Butonları Dinleyicisi
-let downloadedSortVal = 'date-desc';
+let downloadedSortVal = localStorage.getItem('downloaded-sort-val') || 'date-desc';
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.sort-btn');
   if (btn && btn.closest('#downloaded-sort-group')) {
     const sortVal = btn.getAttribute('data-sort');
     downloadedSortVal = sortVal;
+    localStorage.setItem('downloaded-sort-val', downloadedSortVal);
     
     // Aktif sınıfını güncelle
     const group = document.getElementById('downloaded-sort-group');
@@ -5938,6 +6226,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (historyOnlyNoAutoDownloadCheck) {
     historyOnlyNoAutoDownloadCheck.addEventListener('change', () => {
       historyOnlyNoAutoDownload = historyOnlyNoAutoDownloadCheck.checked;
+      updateUI(localDb);
+    });
+  }
+
+  const historyOnlyNotDownloadedCheck = document.getElementById('history-only-not-downloaded');
+  if (historyOnlyNotDownloadedCheck) {
+    historyOnlyNotDownloadedCheck.addEventListener('change', () => {
+      historyOnlyNotDownloaded = historyOnlyNotDownloadedCheck.checked;
       updateUI(localDb);
     });
   }
@@ -6005,6 +6301,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         downloadedSortVal = 'date-desc';
       }
+      localStorage.setItem('downloaded-sort-val', downloadedSortVal);
       // UI güncelle
       updateUI(localDb);
       if (currentPlayingVideoId) {
@@ -6021,6 +6318,20 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         downloadedSortVal = 'size-desc';
       }
+      localStorage.setItem('downloaded-sort-val', downloadedSortVal);
+      // UI güncelle
+      updateUI(localDb);
+      if (currentPlayingVideoId) {
+        renderDownloadedPlaylist(currentPlayingVideoId);
+      }
+    });
+  }
+
+  const btnSortUser = document.getElementById('inline-btn-sort-user');
+  if (btnSortUser) {
+    btnSortUser.addEventListener('click', () => {
+      downloadedSortVal = 'user';
+      localStorage.setItem('downloaded-sort-val', downloadedSortVal);
       // UI güncelle
       updateUI(localDb);
       if (currentPlayingVideoId) {
@@ -6166,10 +6477,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cancelActiveBtn) {
     cancelActiveBtn.addEventListener('click', () => {
       const activeDownload = localDb.history.find(h => h.status === 'downloading');
-      if (activeDownload) {
-        cancelDownload(activeDownload.id);
+      const activeMerging = localDb.history.find(h => h.status === 'merging');
+      const target = activeDownload || activeMerging;
+      if (target) {
+        cancelDownload(target.id);
       } else {
-        showToast('Şu anda aktif bir indirme bulunmuyor.', 'info');
+        showToast('Şu anda aktif bir işlem bulunmuyor.', 'info');
       }
     });
   }
@@ -6907,11 +7220,12 @@ const initialTab = pathTabMap[currentPath] || 'history';
 history.replaceState({ tab: initialTab }, '', currentPath === '/' ? '/home' : currentPath);
 switchTab(initialTab, false);
 
-// Oynatıcıyı sürüklenebilir yap
+// Oynatıcıyı sürüklenebilir ve yeniden boyutlandırılabilir yap
 const modalContent = document.querySelector('#player-modal .player-modal-content');
 const modalHeader = document.querySelector('#player-modal .modal-header');
 if (modalContent && modalHeader) {
   makeElementDraggable(modalContent, modalHeader);
+  makeElementResizable(modalContent);
 }
 
 // Türkçe Açıklama: Yorumlar panelini açar/kapatır ve kapatıldığında veya açıldığında yorumları sunucudan çeker.
@@ -8441,5 +8755,104 @@ if (iptvSwapBtn) {
 // Initial Sport Mode drag & resize setup
 initIptvSportModeDragAndResize();
 
+// Initial drag-and-drop list sortable containers setup
+initDragAndDrop();
+
 // Initial icons trigger
 lucide.createIcons();
+
+function playNextVideoInPlaylist() {
+  if (!currentPlayingVideoId) return;
+
+  let filteredDownloaded = localDb.history.filter(item => item.status === 'completed');
+  if (downloadedFilterChannel !== 'all') {
+    filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
+  }
+  const showShorts = localDb.settings?.showShorts !== false;
+  if (!showShorts) {
+    filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
+  }
+  const sortVal = downloadedSortVal || 'date-desc';
+  
+  filteredDownloaded.sort((a, b) => {
+    if (sortVal === 'user') {
+      const customOrder = JSON.parse(localStorage.getItem('downloaded-user-order') || '[]');
+      let indexA = customOrder.indexOf(a.id);
+      let indexB = customOrder.indexOf(b.id);
+      
+      if (indexA === -1 && indexB === -1) {
+        const dateA = new Date(a.publishedAt || a.downloadedAt || 0).getTime();
+        const dateB = new Date(b.publishedAt || b.downloadedAt || 0).getTime();
+        return dateB - dateA;
+      }
+      if (indexA === -1) return -1;
+      if (indexB === -1) return 1;
+      
+      return indexA - indexB;
+    } else if (sortVal.startsWith('size-')) {
+      const sizeA = parseSizeToBytes(a.fileSize);
+      const sizeB = parseSizeToBytes(b.fileSize);
+      return sortVal === 'size-desc' ? sizeB - sizeA : sizeA - sizeB;
+    } else {
+      const dateA = new Date(a.publishedAt || a.downloadedAt || 0).getTime();
+      const dateB = new Date(b.publishedAt || b.downloadedAt || 0).getTime();
+      return sortVal === 'date-asc' ? dateA - dateB : dateB - dateA;
+    }
+  });
+
+  const currentIndex = filteredDownloaded.findIndex(item => item.id === currentPlayingVideoId);
+  if (currentIndex !== -1 && currentIndex + 1 < filteredDownloaded.length) {
+    const nextVideo = filteredDownloaded[currentIndex + 1];
+    playVideoEmbedded(nextVideo.id);
+  }
+}
+
+function initDragAndDrop() {
+  setupSortableContainer(document.getElementById('downloaded-grid'), '.video-card', 'downloaded-user-order');
+  setupSortableContainer(document.getElementById('downloaded-playlist-grid'), '.playlist-item', 'downloaded-user-order');
+}
+
+function setupSortableContainer(container, itemSelector, storageKey) {
+  if (!container) return;
+  let draggingElement = null;
+
+  container.addEventListener('dragstart', (e) => {
+    if (typeof downloadedSortVal === 'undefined' || downloadedSortVal !== 'user') return;
+    const item = e.target.closest(itemSelector);
+    if (!item) return;
+    draggingElement = item;
+    item.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  container.addEventListener('dragover', (e) => {
+    if (typeof downloadedSortVal === 'undefined' || downloadedSortVal !== 'user') return;
+    e.preventDefault();
+    const target = e.target.closest(itemSelector);
+    if (!target || target === draggingElement) return;
+
+    const rect = target.getBoundingClientRect();
+    const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5 || (e.clientX - rect.left) / (rect.right - rect.left) > 0.5;
+
+    if (next) {
+      target.after(draggingElement);
+    } else {
+      target.before(draggingElement);
+    }
+  });
+
+  container.addEventListener('dragend', () => {
+    if (draggingElement) {
+      draggingElement.classList.remove('dragging');
+      draggingElement = null;
+    }
+    
+    if (typeof downloadedSortVal === 'undefined' || downloadedSortVal !== 'user') return;
+    
+    const items = Array.from(container.querySelectorAll(itemSelector));
+    const newOrder = items.map(el => el.getAttribute('data-id')).filter(Boolean);
+    localStorage.setItem(storageKey, JSON.stringify(newOrder));
+    
+    updateUI(localDb);
+  });
+}

@@ -2,7 +2,7 @@
   <img src="public/logo.png" alt="HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 HaYTooL YouTube Downloader (v5.3.5)</p>
+# <p align="center">📥 HaYTooL YouTube Downloader (v5.3.7)</p>
 
 <p align="center">
   <b>Advanced, Portable, and Zero-Dependency YouTube Automation & Downloader System</b><br/>
@@ -10,7 +10,7 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=for-the-badge&logo=windows" alt="Platform Support" />
-  <img src="https://img.shields.io/badge/Version-v5.3.5-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v5.3.7-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&color=blueviolet" alt="GitHub Downloads (latest release)" />
 </p>
@@ -49,7 +49,11 @@ A premium, lightweight, and cross-platform automation software that automaticall
 * **Automated Channel Tracking:** Continuously monitors channels for new videos using RSS feeds and fallback `yt-dlp` mechanisms.
 * **Smart Queue Manager:** Downloads videos sequentially, prevents conflicts, and automatically resumes interrupted downloads on startup.
 * **Alternative Speed Limits (qBittorrent-Style Turtle Toggle):** Toggle between a normal speed limit profile and an alternative (turtle) speed profile. Extremely useful for saving bandwidth during active usage.
-* **System Tray Integration (`HaYTooL YT Downloader.exe`):** Windows version starts the Node server silently in the background (no black CMD window) with a system tray icon. Right-clicking provides direct navigation to pages (/home, /download, /downlist, /channels, /settings), toggles the alternative speed limit, restarts the server, or exits.
+* **System Tray Integration & Single-Instance Mutex (`HaYTooL YT Downloader.exe`):** Windows version starts the Node server silently in the background (no black CMD window) with a system tray icon. Right-clicking provides direct navigation to pages, toggles alternative speeds, restarts the server, or exits. Enforces single-instance run using a C# Mutex: launching a duplicate process automatically alerts the user, opens the active web client in their browser, and terminates.
+* **Orientation-Aware Player Memory:** Floating video modal player (`#player-modal`) is resizable and automatically stores coordinates and dimensions separately for landscape and portrait (Shorts) modes, completely avoiding aspect ratio stretch or mismatch. Default fallback opens the player perfectly scaled in the bottom-right corner.
+* **Continuous Autoplay:** Playlist sidebar supports continuous play (automatically loads the next video in queue when current media ends), toggled via action bar controls with central glassmorphism overlay status alerts.
+* **Custom Drag-and-Drop Ordering:** Toggle "User" sorting mode to freely reorder video cards or playlist sidebar items using native drag-and-drop. Order is persisted instantly in local memory.
+* **Undownloaded Filter:** Library tab includes a checkbox filter to hide all completed downloads on disk, displaying only videos currently in the queue or awaiting download.
 * **Interactive Terminal Console:** C# Tray Log/Terminal window includes an interactive input field at the bottom. You can pipe control commands directly to Node's standard input (`ton`, `toff`, `status`, `pd <link>`).
 * **Log Auto-Cleanup:** Automatically deletes log files older than 7 days from the `logs/` directory at startup to keep the project clean.
 * **Floating Non-Blocking Player:** Embedded Plyr modal has no screen-blocking backdrop, allowing you to browse/scroll other tabs while watching. Clicking a new video instantly plays it in the player.
@@ -155,7 +159,7 @@ The software dynamically isolates configuration parameters based on the host OS,
 ---
 ---
 
-# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v5.3.5)</p>
+# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v5.3.7)</p>
 
 YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni videoları arka planda otomatik olarak indiren şık, hafif ve kararlı bir otomasyon sistemidir. Tamamen vanilla JavaScript, CSS ve HTML5 standartlarıyla geliştirilmiştir.
 
@@ -182,7 +186,11 @@ YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni vid
 * **Otomatik Kanal İzleme:** RSS akışları veya yedek `yt-dlp` flat-playlist mekanizması ile kanalların yeni videolarını sürekli denetler.
 * **Akıllı İndirme Kuyruğu:** Videoları sırayla indirir, çakışmaları engeller ve sunucu başlangıcında yarım kalan indirmeleri otomatik olarak kaldığı yerden sürdürür.
 * **Alternatif Hız Profili (qBittorrent Tarzı Kaplumbağa):** Normal indirme hızı sınırı ile alternatif (kaplumbağa) indirme hız profili arasında geçiş yapabilirsiniz. Aktif internet kullanımı sırasında bant genişliğinden tasarruf etmek için idealdir.
-* **Sistem Tepsisi Entegrasyonu (`HaYTooL YT Downloader.exe`):** Windows işletim sisteminde Node sunucusunu tamamen arka planda sessizce (siyah CMD penceresi olmadan) başlatır. Sağ tıklayarak sekmelere doğrudan gidebilir (/home, /download, /downlist, /channels, /settings), alternatif hız sınırını açıp kapatabilir, sistemi yeniden başlatabilir veya kapatabilirsiniz.
+* **Sistem Tepsisi Entegrasyonu & Tekil Örnek (Single-Instance) Mutex (`HaYTooL YT Downloader.exe`):** Windows işletim sisteminde Node sunucusunu tamamen arka planda sessizce başlatır. Sağ tıklayarak sekmelere doğrudan gidilebilir, alternatif hız sınırı açılıp kapatılabilir, sistemi yeniden başlatabilir veya kapatabilirsiniz. C# Mutex entegrasyonu sayesinde uygulamanın birden fazla kez açılması engellenir; ikinci kez açmaya çalışıldığında kullanıcıyı tarayıcıda çalışan mevcut arayüze yönlendirip kendini kapatır.
+* **Yönelime Duyarlı Oynatıcı Hafızası:** Yüzen video oynatıcı modalının (`#player-modal`) boyutlandırma ve koordinat hafızası dikey (Shorts) ve yatay videolar için ayrı olarak `localStorage` üzerinde saklanır. Bu sayede dikey/yatay geçişlerinde oran uyumsuzlukları ve basıklık/genişleme sorunları yaşanmaz. Kayıtlı veri olmadığında oynatıcı videonun orijinal oranlarına göre otomatik şekil alarak sağ altta açılır.
+* **Otomatik Sonraki Videoya Geçiş (Autoplay):** Playlist sidebarında video bittikten sonra sıradaki indirilmiş videoya otomatik geçiş özelliği. Kontrol barından tek tıkla açılıp kapatılabilir ve durum video ortasında beliren şık durum HUD katmanıyla bildirilir.
+* **Kullanıcı Tanımlı Sıralama (Drag-and-Drop):** "Kullanıcı" sıralama modu etkinken indirilen video kartlarını ve sağ çalma listesini sürükle-bırak yöntemiyle serbestçe organize edin. Sıralama düzeni yerel hafızada kalıcı olarak saklanır.
+* **Sadece İndirilmeyenler Filtresi:** Kütüphane listesinde sadece henüz indirilmemiş veya indirme kuyruğundaki videoları listelemek için tek tıkla tamamlanmış videoları gizleme filtresi.
 * **İnteraktif Terminal Konsolu:** Sistem tepsisindeki "Konsol Çıktısını Göster" penceresine eklenen komut giriş paneli sayesinde, doğrudan Node.js standart girdisine (`process.stdin`) komut gönderebilirsiniz. Desteklenen komutlar: `ton`, `toff`, `status`, `pd <link>`.
 * **Otomatik Log Temizleme:** Sunucu her başlatıldığında `logs/` klasöründeki 7 günden eski log dosyalarını otomatik olarak temizler.
 * **Kompakt ve Gömülü Video Oynatıcı:** Arka planı kapatmayan yüzen (floating) video oynatıcı ile sayfada gezinirken veya diğer videolara göz atarken izlemeye devam edebilirsiniz.

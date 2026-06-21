@@ -23,7 +23,7 @@
   <script src="artplayer.js"></script>
   <!-- HLS Player (M3U8 desteği için) -->
   <script src="hls.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=5.3.5">
+  <link rel="stylesheet" href="style.css?v=5.3.7">
 </head>
 <body>
   <div class="app-container">
@@ -33,7 +33,7 @@
         <div class="brand-icon">
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
-        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v5.3.5</a></span>
+        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v5.3.7</a></span>
       </div>
 
       <nav class="nav-menu">
@@ -182,6 +182,11 @@
             <label for="history-only-no-auto-download" class="toggle-label"></label>
             <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-only-no-auto-download').click()" id="lbl-history-only-no-auto-download">Sadece Otomatik İndirme Kapalı</span>
           </div>
+          <div class="filter-group" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="history-only-not-downloaded" class="toggle-input">
+            <label for="history-only-not-downloaded" class="toggle-label"></label>
+            <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-only-not-downloaded').click()" id="lbl-history-only-not-downloaded">Sadece İndirilmeyenler</span>
+          </div>
 
           <!-- Hızlı Tarih Filtreleri -->
           <div class="filter-group history-quick-filters" id="history-date-filters" style="display: flex; gap: 4px; align-items: center;">
@@ -266,8 +271,8 @@
                 </button>
               </div>
               
-              <div class="progress-bar-wrapper" style="height: 8px; margin-bottom: 15px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow:hidden;">
-                <div class="progress-bar-fill" id="active-progress-bar" style="width: 0%; height:100%; background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary)); transition: width 0.2s ease;"></div>
+              <div class="progress-bar-wrapper" style="height: 8px; margin-bottom: 15px; background: var(--progress-bg); border-radius: 4px; overflow:hidden;">
+                <div class="progress-bar-fill" id="active-progress-bar" style="width: 0%;"></div>
               </div>
 
               <div class="download-stats" style="padding: 15px; gap: 15px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border-color);">
@@ -367,6 +372,11 @@
                 <!-- SponsorBlock Geçici Aç/Kapat Butonu -->
                 <button class="btn btn-secondary btn-sm" id="inline-btn-sponsorblock-toggle" title="SponsorBlock Aktif" style="width: 32px; height: 32px; display: none; align-items: center; justify-content: center; padding: 0; color: #4ade80; background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.2);">
                   <i data-lucide="shield" style="width: 16px; height: 16px;"></i>
+                </button>
+
+                <!-- Otomatik Geçiş (Autoplay) Aç/Kapat Butonu -->
+                <button class="btn btn-secondary btn-sm" id="inline-btn-autoplay-toggle" title="Sonraki Videoya Otomatik Geç" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--text-muted); background: rgba(255, 255, 255, 0.03); border-color: var(--border-color);">
+                  <i data-lucide="play-circle" style="width: 16px; height: 16px;"></i>
                 </button>
 
                 <!-- Altyazı Rengi Seçici -->
@@ -496,6 +506,10 @@
                   <i data-lucide="hard-drive" style="width:12px; height:12px;"></i>
                   <span id="inline-btn-sort-size-text">Boyut ▼</span>
                 </button>
+                <button type="button" class="sort-btn" id="inline-btn-sort-user" style="padding: 4px 8px; font-size: 0.72rem; display: flex; align-items: center; gap: 4px; height: 26px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" title="Kullanıcı Tanımlı Sıralama">
+                  <i data-lucide="user" style="width:12px; height:12px;"></i>
+                  <span id="inline-btn-sort-user-text">Kullanıcı</span>
+                </button>
                 
                 <!-- Shorts Göster Seçeneği -->
                 <label style="display: flex; align-items: center; gap: 4px; font-size: 0.72rem; color: var(--text-main); cursor: pointer; user-select: none; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 6px; height: 26px; margin: 0;">
@@ -530,6 +544,7 @@
               <button type="button" class="sort-btn" data-sort="date-asc" id="sort-btn-date-asc" title="Tarih: Eskiden Yeniye">Tarih ▲</button>
               <button type="button" class="sort-btn" data-sort="size-desc" id="sort-btn-size-desc" title="Boyut: Büyükten Küçüğe">Boyut ▼</button>
               <button type="button" class="sort-btn" data-sort="size-asc" id="sort-btn-size-asc" title="Boyut: Küçükten Büyüğe">Boyut ▲</button>
+              <button type="button" class="sort-btn" data-sort="user" id="sort-btn-user" title="Kullanıcı Tanımlı Sıralama">Kullanıcı</button>
             </div>
             <div class="filter-group" style="display: flex; align-items: center; gap: 8px; margin-left: 15px;">
               <input type="checkbox" id="downloaded-show-shorts" class="toggle-input">
@@ -561,7 +576,7 @@
             <h2>Ayarlar</h2>
             <p id="settings-desc">Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
           </div>
-            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v5.3.5</a></strong></span>
+            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v5.3.7</a></strong></span>
         </header>
 
         <div class="card card-settings">
@@ -1152,6 +1167,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=5.3.5"></script>
+  <script src="app.js?v=5.3.7"></script>
 </body>
 </html>

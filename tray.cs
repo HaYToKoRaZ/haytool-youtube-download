@@ -121,9 +121,62 @@ namespace HaYTooLTray
                 return;
             }
 
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Program());
+            bool createdNew;
+            using (System.Threading.Mutex mutex = new System.Threading.Mutex(true, "Local\\HaYTooLYTDownloaderSingleInstanceMutex", out createdNew))
+            {
+                if (!createdNew)
+                {
+                    // Zaten çalışıyor!
+                    int port = 4141;
+                    string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configwin.ini");
+                    if (File.Exists(iniPath))
+                    {
+                        try
+                        {
+                            string[] lines = File.ReadAllLines(iniPath);
+                            foreach (string line in lines)
+                            {
+                                string trimmed = line.Trim();
+                                int equalsIdx = trimmed.IndexOf('=');
+                                if (equalsIdx != -1)
+                                {
+                                    string key = trimmed.Substring(0, equalsIdx).Trim();
+                                    string val = trimmed.Substring(equalsIdx + 1).Trim();
+                                    if (string.Equals(key, "port", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        int parsedPort;
+                                        if (int.TryParse(val, out parsedPort))
+                                        {
+                                            port = parsedPort;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch {}
+                    }
+                    
+                    string url = "http://localhost:" + port + "/downlist";
+                    
+                    MessageBox.Show("HaYTooL YouTube Downloader zaten çalışıyor!\nArayüz tarayıcınızda açılıyor.", 
+                                    "Bilgi", 
+                                    MessageBoxButtons.OK, 
+                                    MessageBoxIcon.Information);
+                    
+                    try
+                    {
+                        Process.Start(url);
+                    }
+                    catch {}
+                    
+                    return;
+                }
+
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new Program());
+            }
         }
 
         private static void RunCli(string[] args)

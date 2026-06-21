@@ -20,6 +20,11 @@
   --success: #00e676;      /* Success Green */
   --warning: #ffb300;      /* Warning Gold */
   
+  --accent-primary: var(--primary);
+  --accent-secondary: var(--secondary);
+  --accent-color: var(--primary);
+  --progress-bg: rgba(255, 255, 255, 0.08);
+  
   --text-main: #f1f5f9;
   --text-muted: #94a3b8;
   --text-dark: #64748b;
@@ -42,6 +47,11 @@ body.light-theme {
   --secondary-glow: rgba(14, 165, 233, 0.15);
   --accent-red: #df0c4b;
   --accent-red-glow: rgba(223, 12, 75, 0.15);
+  
+  --accent-primary: var(--primary);
+  --accent-secondary: var(--secondary);
+  --accent-color: var(--primary);
+  --progress-bg: rgba(0, 0, 0, 0.08);
   
   --text-main: #0f172a;
   --text-muted: #475569;
@@ -545,20 +555,38 @@ body.light-theme .sort-btn.active {
 .progress-bar-wrapper {
   width: 100%;
   height: 8px;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--progress-bg);
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+}
+
+@keyframes progress-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(to right, var(--primary), var(--secondary));
+  background: linear-gradient(
+    90deg,
+    var(--accent-primary) 0%,
+    var(--accent-secondary) 25%,
+    rgba(255, 255, 255, 0.65) 50%,
+    var(--accent-secondary) 75%,
+    var(--accent-primary) 100%
+  );
+  background-size: 200% 100%;
+  animation: progress-shimmer 2.5s infinite linear;
   border-radius: 4px;
-  transition: width 0.4s ease;
+  transition: width 0.2s ease;
   position: relative;
-  box-shadow: 0 0 10px rgba(0, 242, 254, 0.4);
+  box-shadow: 0 0 12px var(--primary-glow);
 }
 
 .download-stats {
@@ -1511,9 +1539,9 @@ body.light-theme .sort-btn.active {
 
 .video-card:hover {
   background-color: var(--bg-card-hover);
-  transform: translateY(-4px);
-  border-color: rgba(138, 43, 226, 0.25);
-  box-shadow: 0 12px 40px rgba(138, 43, 226, 0.15);
+  transform: translateY(-6px);
+  border-color: var(--accent-primary);
+  box-shadow: 0 12px 40px var(--primary-glow);
 }
 
 .video-thumbnail-wrapper {
@@ -1522,6 +1550,11 @@ body.light-theme .sort-btn.active {
   aspect-ratio: 16 / 9;
   background-color: #000;
   overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.video-card:hover .video-thumbnail-wrapper {
+  box-shadow: 0 0 15px var(--primary-glow);
 }
 
 .video-thumbnail {
@@ -1532,7 +1565,7 @@ body.light-theme .sort-btn.active {
 }
 
 .video-card:hover .video-thumbnail {
-  transform: scale(1.05);
+  transform: scale(1.06);
 }
 
 .video-duration-badge {
@@ -1684,8 +1717,9 @@ body.light-theme .sort-btn.active {
   max-width: 480px;
   transform: scale(0.95);
   transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  background-color: rgba(15, 14, 32, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
 }
 
 .modal:not(.hidden) .modal-content {
@@ -1705,7 +1739,7 @@ body.light-theme .sort-btn.active {
   font-family: var(--font-title);
   font-size: 1.2rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-main);
 }
 
 .modal-close-btn {
@@ -1719,8 +1753,8 @@ body.light-theme .sort-btn.active {
 }
 
 .modal-close-btn:hover {
-  color: #fff;
-  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  background-color: var(--border-color);
 }
 
 .modal-body {
@@ -1909,6 +1943,27 @@ body.light-theme .queue-item:hover {
   background: rgba(0, 0, 0, 0.04);
 }
 
+.queue-item-thumbnail {
+  width: 64px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: #000;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+body.light-theme .queue-item-thumbnail {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.queue-item:hover .queue-item-thumbnail {
+  transform: scale(1.08);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
 .queue-item-info {
   flex-grow: 1;
   min-width: 0;
@@ -2006,8 +2061,8 @@ body.light-theme .history-toolbar #history-channel-filter {
   max-width: 800px;
   width: 95%;
   transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background-color: rgba(15, 14, 32, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
 }
 
 .player-modal-body {
@@ -2177,14 +2232,14 @@ body.light-theme .nav-item.pd-btn {
   position: fixed !important;
   bottom: 20px;
   right: 20px;
-  width: 600px !important;
+  width: 600px;
   max-width: 90vw !important;
   margin: 0 !important;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(255, 255, 255, 0.1) !important;
   border: 1px solid var(--border-color) !important;
   border-radius: 16px !important;
   transform: none !important;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 0 !important;
   overflow: hidden !important;
 }
@@ -2369,7 +2424,7 @@ body.light-theme .nav-item.pd-btn {
 /* FFmpeg Installer Modal Extra Styling */
 .ffmpeg-installer-progress-container {
   margin: 20px 0;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--progress-bg);
   border-radius: 10px;
   height: 14px;
   overflow: hidden;
@@ -2865,6 +2920,11 @@ body.light-theme .nav-item.pd-btn {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.playlist-item:hover .playlist-item-thumbnail {
+  transform: scale(1.06);
 }
 
 .playlist-item-duration {
@@ -3053,6 +3113,12 @@ body.light-theme .nav-item.pd-btn {
   color: #fff;
   font-family: 'Outfit', sans-serif;
   border-radius: 12px;
+}
+
+body.light-theme .subtitle-translation-overlay {
+  background-color: rgba(255, 255, 255, 0.95);
+  color: var(--text-main);
+}
   backdrop-filter: blur(6px);
   animation: fadeIn 0.3s ease-out;
 }
@@ -3887,6 +3953,78 @@ body.light-theme .iptv-selects select:focus {
 /* Keep overlaid slot on top in fullscreen */
 #iptv-players-grid.sport-mode:fullscreen .iptv-slot[data-slot="1"] {
   z-index: 20 !important;
+}
+
+/* Autoplay Toggle Button & Dragging Card Styles */
+#inline-btn-autoplay-toggle.active {
+  color: #3b82f6 !important;
+  background: rgba(59, 130, 246, 0.1) !important;
+  border-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+.video-card.dragging {
+  opacity: 0.5;
+  border: 1.5px dashed var(--accent-primary) !important;
+  box-shadow: 0 0 15px var(--primary-glow) !important;
+  transform: scale(0.98);
+}
+
+/* ==========================================
+   Transient Player Overlays & Theme Overrides
+   ========================================== */
+.player-transient-card {
+  background: rgba(22, 20, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 20px 30px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 80%;
+  text-align: center;
+  transition: background-color var(--transition-speed), border-color var(--transition-speed), color var(--transition-speed);
+}
+
+.player-transient-card.volume-hud-card {
+  padding: 16px 24px;
+  gap: 8px;
+  min-width: 110px;
+}
+
+.player-transient-card .transient-title {
+  font-weight: 700;
+  font-size: 1.15rem;
+  font-family: 'Outfit', sans-serif;
+  color: inherit;
+}
+
+.player-transient-card .transient-desc {
+  font-size: 0.85rem;
+  color: #a1a1aa;
+  line-height: 1.4;
+}
+
+/* Light Theme Overrides for Transient Overlay Card */
+body.light-theme .player-transient-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text-main);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+body.light-theme .player-transient-card .transient-desc {
+  color: var(--text-muted);
+}
+
+/* Light Theme Toast Styles */
+body.light-theme .toast {
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
 }
 
 

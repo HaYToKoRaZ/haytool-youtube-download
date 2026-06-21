@@ -3,6 +3,80 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [5.3.7] - 2026-06-21
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **Floating Player Drag/Resize Memory & Orientation Logic / Modal Oynatıcı Boyut & Konum Hafızası:**
+  - Added resizable corner handles (`makeElementResizable`) to the floating modal player (`#player-modal`).
+  - Implemented separate layout coordinates and dimension storage for standard (landscape) and portrait (Shorts) orientations in `localStorage` to resolve resolution mismatch.
+  - Automatically resets coordinates and sizes to default stylesheets (placed at bottom-right based on actual aspect ratio) when opening a video type without stored preferences.
+  - Properly managed sizes during minimize/maximize transition to prevent coordinate styling clashes.
+  
+  - Ufak video oynatıcı modalının (`#player-modal`) köşelerinden (corners) yeniden boyutlandırılabilmesini sağlayan resize tutamaçları (`makeElementResizable`) entegre edildi.
+  - Normal (yatay) ve Shorts (dikey) videolar arasındaki çözünürlük/oran uyuşmazlığını gidermek amacıyla koordinat ve boyut verilerinin her video yönelim türüne göre (`localStorage` üzerinde ayrı anahtarlarla) kaydedilmesi sağlandı.
+  - Kayıtlı veri olmadığında oynatıcının videonun doğal oranına (aspect ratio) göre otomatik şekil alıp sağ altta açılması sağlandı.
+  - Simge durumuna küçültme ve büyütme geçişlerinde özel koordinatların çakışmaması sağlandı.
+
+- **Autoplay Transient HUD Overlay & Player Integration / Otomatik Geçiş Ortada Bildirim & Oynatıcı Geçişi:**
+  - Added an Autoplay toggle button (`#inline-btn-autoplay-toggle`) below the player, saving preferences to `localStorage`.
+  - Hooked into the `ended` events of Plyr, ArtPlayer, and HTML5 players to automatically fetch and play the next video in the sidebar playlist.
+  - Designed a transient, large glassmorphism HUD overlay in the center of the video player when toggling Autoplay, replacing the small bottom-right toast message.
+  
+  - Oynatıcı eylem barına "Otomatik Geçiş" (Autoplay) butonu eklendi ve seçimin `localStorage`'da saklanması sağlandı.
+  - Plyr, ArtPlayer ve HTML5 oynatıcılarının `ended` olaylarına bağlanarak video bittiğinde otomatik sonraki videonun oynatılması sağlandı.
+  - Autoplay açılıp kapatıldığında sağ alttaki küçük toast yerine, video oynatıcının tam ortasında şık ve büyük bir geçici katman (transient overlay) şeklinde durum bildirimi eklendi.
+
+- **Light Theme Compatibility / Açık Tema Uyumsuzluklarının Giderilmesi:**
+  - Standardized `.modal-content`, `.modal-header h3`, `.modal-close-btn:hover` and `.player-modal-content` elements using theme CSS variables instead of hardcoded dark-blue values. Modals now adapt beautifully to both light and dark themes.
+  - Made the transient overlay cards, volume HUD, subtitle translation overlay, and standard toasts light-theme-aware with transparent white backgrounds and dark text.
+  
+  - Genel modal yapısı, silme onay modalı (`#delete-modal`), çeviri ve oynatıcı modallarındaki hardcoded koyu mavi/beyaz renkler kaldırılarak CSS değişkenlerine bağlandı; modallar açık temada beyaz arka plan ve koyu metin renklerine kavuşturuldu.
+  - Geçici katman bildirimleri, ses göstergesi (Volume HUD), altyazı çeviri perdesi ve standart toast bildirimleri açık temada yarı saydam beyaz cam arka plan ve koyu metinlerle temaya tam uyumlu hale getirildi.
+
+- **Single-Instance Protection (C# Launcher) / Tekil Örnek Koruması:**
+  - Added a system-level `Mutex` lock check in the C# tray application (`tray.cs`) to prevent multiple launcher processes.
+  - When a second instance of `HaYTooL YT Downloader.exe` is launched, it automatically shows a message stating that the app is already running, reads the active port from `configwin.ini`, opens the user's browser to the dashboard, and exits cleanly.
+  - Recompiled the C# binary using `csc.exe` with embedded icon and GUI configuration.
+  
+  - C# tepsi (tray) uygulamasında (`tray.cs`) birden fazla başlatıcı sürecini engelleyecek Mutex yapısı kuruldu.
+  - İkinci exe açılmaya çalışıldığında uygulamanın zaten çalıştığını belirtip `configwin.ini` portunu okuyarak tarayıcıda arayüz sekmesini açması ve ikinci süreci sonlandırması sağlandı.
+  - C# kodu derlenerek `HaYTooL YT Downloader.exe` dosyası güncellendi.
+
+## [5.3.6] - 2026-06-21
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **Parallel Downloading & Merging / Paralel İndirme ve Birleştirme:**
+  - Refactored `DownloadQueue` to support multiple concurrent background processes (active processes managed via a Map).
+  - When a video completes downloading and enters the FFmpeg merging/post-processing phase (detected via stdout matching `[Merger]`, `[ffmpeg]`, or 100% progress), the active network slot is freed (`this.activeDownloads--`) and the next download in the queue starts immediately.
+  - Video status transitions to `merging` and updates the database in real-time.
+  
+  - `DownloadQueue` yapısı, arka planda birden fazla eşzamanlı işlemi (Map tabanlı aktif süreç yönetimi ile) destekleyecek şekilde baştan tasarlandı.
+  - Bir video indirmeyi bitirip FFmpeg birleştirme/dönüştürme (merge) aşamasına geçtiğinde (`[Merger]`, `[ffmpeg]` veya %100 ilerleme çıktısıyla algılanır), ağ indirme slotu hemen boşaltılır (`this.activeDownloads--`) ve kuyruktaki sıradaki videonun indirilmesi hemen başlar.
+  - Video durumu `merging` olarak güncellenir ve arayüze gerçek zamanlı yansıtılır.
+
+- **Queue UI Revamp & Video Thumbnails / Kuyruk Sekmesi Yenilikleri ve Küçük Resimler:**
+  - Redesigned the queue item template to render YouTube video thumbnails (`https://i.ytimg.com/vi/<id>/mqdefault.jpg`) for a richer look.
+  - Added a dedicated "Merging (FFmpeg)..." status indicator with a spinning loader animation at the top of the queue list for videos currently being merged.
+  - Disabled drag-and-drop ordering for merging videos as their order is locked during processing.
+  - Translated all new status states (`status_merging`) across all 7 supported application languages (TR, EN, ES, DE, PT, AR, RU).
+  
+  - Daha zengin bir görünüm için kuyruktaki her videonun yanına YouTube küçük resmi (thumbnail) gösterimi eklendi.
+  - Birleştirme aşamasındaki videolar için kuyruk listesinin en üstünde dönen bir çark (spinner) ve "Birleştiriliyor (FFmpeg)..." durum göstergesi içeren özel kart tasarımı yapıldı.
+  - Dönüştürme/birleştirme aşamasındaki videoların sırası kilitlendiğinden sürükle-bırak özelliği bu öğeler için devre dışı bırakıldı.
+  - Yeni durum etiketleri (`status_merging`) desteklenen tüm 7 uygulama diline (TR, EN, ES, DE, PT, AR, RU) entegre edildi.
+
+- **Instant Video Seeking / Anlık Video İleri/Geri Sarma:**
+  - Refactored the `/api/video-stream` endpoint to use Express's native `res.sendFile(path.resolve(fileToPlay))` method.
+  - This allows the browser to natively and efficiently handle HTTP Range requests (HTTP 206) at the C++ level, completely resolving the slow seeking/buffering issues inside embedded video players.
+  
+  - `/api/video-stream` endpoint'i, Express'in yerleşik ve son derece optimize çalışan `res.sendFile` metoduna geçirildi.
+  - Bu sayede tarayıcının HTTP Range isteklerini (HTTP 206) C++ seviyesinde yerel ve önbellekli yönetmesi sağlanarak, gömülü oynatıcılardaki ileri/geri sarma (seek) yavaşlığı ve takılma sorunları tamamen giderildi.
+
+- **Version Bump / Sürüm Güncellemesi:**
+  - Version bumped to `v5.3.6` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
+  
+  - Uygulama genel sürümü `v5.3.6` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi.
+
 ## [5.3.5] - 2026-06-20
 
 ### New Features & Improvements / Yeni Özellikler & İyileştirmeler

@@ -2379,9 +2379,52 @@ class DownloadQueue {
     this.queue = [];
     this.activeDownloads = 0;
     this.maxConcurrent = 1;
-    this.activeProcess = null;
-    this.activeVideoId = null;
+    this.activeProcesses = new Map(); // videoId -> { process, status: 'downloading' | 'merging', video }
     this.isPaused = false; // Kuyruğun duraklatılma durumu
+  }
+
+  get activeProcess() {
+    return this.getActiveDownloadingProcess();
+  }
+
+  set activeProcess(val) {
+    if (val === null) {
+      const activeVideoId = this.getActiveDownloadingVideoId();
+      if (activeVideoId) {
+        this.activeProcesses.delete(activeVideoId);
+      }
+    }
+  }
+
+  get activeVideoId() {
+    return this.getActiveDownloadingVideoId();
+  }
+
+  set activeVideoId(val) {
+    if (val === null) {
+      const activeVideoId = this.getActiveDownloadingVideoId();
+      if (activeVideoId) {
+        this.activeProcesses.delete(activeVideoId);
+      }
+    }
+  }
+
+  getActiveDownloadingVideoId() {
+    for (const [id, item] of this.activeProcesses.entries()) {
+      if (item.status === 'downloading') {
+        return id;
+      }
+    }
+    return null;
+  }
+
+  getActiveDownloadingProcess() {
+    for (const [id, item] of this.activeProcesses.entries()) {
+      if (item.status === 'downloading') {
+        return item.process;
+      }
+    }
+    return null;
   }
 
   async add(video) {
@@ -2448,7 +2491,6 @@ class DownloadQueue {
     if (!this.activeProcess && this.activeDownloads > 0) {
       console.log(`[Kuyruk Safety] No active process foundı fakat activeDownloads counter resetıyor.`);
       this.activeDownloads = 0;
-      this.activeVideoId = null;
     }
 
     if (this.activeDownloads >= this.maxConcurrent || this.queue.length === 0) return;
@@ -2473,7 +2515,7 @@ class DownloadQueue {
         status: 'failed',
         error: 'yt-dlp motoru yüklenemedi.'
       });
-      this.activeDownloads--;
+      this.activeDownloads = Math.max(0, this.activeDownloads - 1);
       broadcast('db_update', readDb());
       this.process();
       return;
@@ -2502,7 +2544,6 @@ class DownloadQueue {
     }
 
     // yt-dlp parametreleri
-    // Windows dosya sistemi için geçersiz karakterleri temizlemek adına şablon kullanıyoruz ve sonuna [ID] ekliyoruz.
     const outputTemplate = path.join(channelFolder, `${video.channelName} - %(title)s [${video.id}].%(ext)s`);
     
     const args = [
@@ -2512,7 +2553,7 @@ class DownloadQueue {
       '--ignore-errors',
       '--js-runtimes', `node:${process.execPath}`,
       '-o', outputTemplate,
-      '--newline', // Progress bar'ın anlık okunması için yeni satır çıkışı
+      '--newline',
       '--write-subs',
       '--write-auto-subs',
       '--sub-langs', 'tr,en',
@@ -2520,24 +2561,20 @@ class DownloadQueue {
       '--write-description'
     ];
 
-    // Dil seçeneğine göre YouTube altyazı/başlık dil argümanını ekle
     if (settings.lang) {
       args.push('--extractor-args', `youtube:lang=${settings.lang}`);
     }
 
-    // Türkçe Açıklama: Hız sınırı parametresi KB/s (K) olarak yt-dlp'ye iletiliyor.
     const effectiveSpeed = getEffectiveSpeedLimit(settings);
     if (effectiveSpeed && effectiveSpeed > 0) {
       args.push('--limit-rate', `${effectiveSpeed}K`);
     }
 
-    // Premium Çerezlerini Ekleme
     if (settings.browser && settings.browser !== 'none') {
       const browserName = settings.browser === 'msedge' ? 'edge' : settings.browser;
       args.push('--cookies-from-browser', browserName);
     }
 
-    // Kanala özel kaliteyi kontrol et, yoksa varsayılan ayarı kullan
     const channelConfig = db.channels.find(c => c.id === video.channelId);
     const videoQuality = (channelConfig && channelConfig.quality && channelConfig.quality !== 'default') 
       ? channelConfig.quality 
@@ -2552,9 +2589,7 @@ class DownloadQueue {
       addTerminalLog(`[Warning] FFmpeg not found or not working. Falling back to single file download (best pre-merged quality).`, 'warning');
     }
 
-    // Çözünürlük ve Birleştirme Ayarı
     if (actualMergeType === 'single') {
-      // Tek dosya (ffmpeg gerekmez)
       if (videoQuality === '1080p') {
         args.push('-f', 'best[height<=1080]/best');
       } else if (videoQuality === '720p') {
@@ -2563,7 +2598,6 @@ class DownloadQueue {
         args.push('-f', 'best');
       }
     } else if (actualMergeType === 'separate') {
-      // Ayrı ses ve video dosyası (ffmpeg gerekmez)
       if (videoQuality === '1080p') {
         args.push('-f', 'bestvideo[height<=1080],bestaudio');
       } else if (videoQuality === '720p') {
@@ -2572,7 +2606,6 @@ class DownloadQueue {
         args.push('-f', 'bestvideo,bestaudio');
       }
     } else {
-      // merge (Otomatik Birleştir - ffmpeg gerektirir)
       if (videoQuality === '1080p') {
         args.push('-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best');
       } else if (videoQuality === '720p') {
@@ -2583,7 +2616,6 @@ class DownloadQueue {
       args.push('--merge-output-format', 'mp4');
     }
 
-    // Kapak Resmi İndirme Ayarı
     if (settings.writeThumbnail) {
       args.push('--write-thumbnail');
       if (hasWorkingFfmpeg) {
@@ -2591,7 +2623,6 @@ class DownloadQueue {
       }
     }
 
-    // Eğer yerel dizinde veya subfolder'da ffmpeg.exe varsa yt-dlp'ye bunun konumunu bildir
     if (hasWorkingFfmpeg) {
       args.push('--ffmpeg-location', path.dirname(getFfmpegPath()));
     }
@@ -2599,18 +2630,20 @@ class DownloadQueue {
     console.log(`İndirme başlatılıyor: ${video.title}`);
     console.log(`Komut: yt-dlp ${args.join(' ')}`);
 
-    // Türkçe Açıklama: Windows'ta penceresiz, Unix'te süreç grubu halinde (detached) ve girdi (stdin) kilitlenmelerini önlemek için ignore stdio ile başlatırız.
     const spawnOptions = process.platform === 'win32' 
       ? { stdio: ['ignore', 'pipe', 'pipe'] } 
       : { stdio: ['ignore', 'pipe', 'pipe'], detached: true };
     const downloadProc = spawn(ytdlpPath, args, spawnOptions);
-    this.activeProcess = downloadProc;
-    this.activeVideoId = video.id;
+    
+    this.activeProcesses.set(video.id, {
+      process: downloadProc,
+      status: 'downloading',
+      video: video
+    });
 
     downloadProc.stdout.on('data', (data) => {
       const output = data.toString();
       
-      // Her satırı terminal loguna aktar (Yüzde barı spami hariç)
       const lines = output.split(/\r?\n/);
       for (const line of lines) {
         const trimmed = line.trim();
@@ -2624,41 +2657,74 @@ class DownloadQueue {
           }
         }
       }
+
+      // Birleştirme/Dönüştürme (merging) durumuna geçişi algıla
+      const isMergingOutput = output.includes('[Merger]') || 
+                              output.includes('[ffmpeg]') || 
+                              output.includes('[VideoConvertor]') || 
+                              output.includes('[postprocess]') || 
+                              output.includes('[ExtractAudio]');
       
-      // Örnek yt-dlp çıktısı: [download]  12.5% of  150.00MiB at  10.23MiB/s ETA 00:15
-      const progressMatch = output.match(/\[download\]\s+(\d+\.\d+)%\s+of\s+([^\s]+)\s+at\s+([^\s]+)\s+ETA\s+([^\s]+)/);
+      let isProgress100 = false;
+      const progressMatch = output.match(/\[download\]\s+(\d+\.\d+)%\s+of/);
       if (progressMatch) {
         const percent = parseFloat(progressMatch[1]);
-        const size = progressMatch[2];
-        const speed = progressMatch[3];
-        const eta = progressMatch[4];
+        if (percent >= 100.0) {
+          isProgress100 = true;
+        }
+      }
 
-        updateHistoryItem(video.id, {
-          progress: percent,
-          fileSize: size,
-          speed: speed,
-          eta: eta
-        });
+      if (isMergingOutput || isProgress100) {
+        const procInfo = this.activeProcesses.get(video.id);
+        if (procInfo && procInfo.status === 'downloading') {
+          procInfo.status = 'merging';
+          console.log(`[Kuyruk] "${video.title}" videosunun indirmesi bitti, FFmpeg birleştirme (merge) aşamasına geçildi.`);
+          addTerminalLog(`[Kuyruk] "${video.title}" videosunun indirmesi bitti, FFmpeg birleştirme (merge) aşamasına geçildi.`, 'warning');
+          
+          updateHistoryItem(video.id, {
+            status: 'merging',
+            progress: 100,
+            speed: '',
+            eta: ''
+          });
+          broadcast('db_update', readDb());
 
-        broadcast('progress', {
-          id: video.id,
-          progress: percent,
-          speed: speed,
-          eta: eta,
-          fileSize: size
-        });
+          // Ağ indirme slotunu boşalt ve sıradaki indirmeyi hemen başlat
+          this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+          this.process();
+        }
+      }
+
+      const detailMatch = output.match(/\[download\]\s+(\d+\.\d+)%\s+of\s+([^\s]+)\s+at\s+([^\s]+)\s+ETA\s+([^\s]+)/);
+      if (detailMatch) {
+        const percent = parseFloat(detailMatch[1]);
+        const size = detailMatch[2];
+        const speed = detailMatch[3];
+        const eta = detailMatch[4];
+
+        const procInfo = this.activeProcesses.get(video.id);
+        if (procInfo && procInfo.status === 'downloading') {
+          updateHistoryItem(video.id, {
+            progress: percent,
+            fileSize: size,
+            speed: speed,
+            eta: eta
+          });
+
+          broadcast('progress', {
+            id: video.id,
+            progress: percent,
+            speed: speed,
+            eta: eta,
+            fileSize: size
+          });
+        }
       }
     });
 
     let errorOutput = '';
     let stderrBuffer = '';
 
-    // Türkçe Açıklama: Gelen stderr satırını analiz edip hata, uyarı veya filtreleme kararı verir.
-    /**
-     * Stderr satırını ayrıştırır, filtreler ve terminal loguna ekler.
-     * 
-     * @param {string} line Çözümlenecek stderr satırı
-     */
     function handleStderrLine(line) {
       const trimmed = line.trim();
       if (!trimmed) return;
@@ -2677,7 +2743,6 @@ class DownloadQueue {
                            lowerTrimmed.startsWith('output #') ||
                            lowerTrimmed.includes('encoder') ||
                            lowerTrimmed.includes('press [q] to stop');
-      // Türkçe Açıklama: HLS/Premiere yayınlarında geçici ağ/bağlantı hatası/keep-alive ve tekrar deneme mesajlarını filtreleyip kırmızı hata olmalarını engelliyoruz.
       const isFfmpegConnection = /^\[[a-z0-9#_/.-]+ @ 0x?[0-9a-f]+\]/i.test(trimmed) && (
         lowerTrimmed.includes('cannot reuse') ||
         lowerTrimmed.includes('keepalive') ||
@@ -2685,7 +2750,6 @@ class DownloadQueue {
         lowerTrimmed.includes('http connection')
       );
 
-      // Türkçe Açıklama: Canlı yayın indirmelerinde ffmpeg'in bastığı zararsız skip (ad cuepoint atlama) uyarılarını log kirliliği yaratmaması için filtreliyoruz.
       const isFfmpegSkip = /^\[[a-z0-9#_/.-]+ @ 0x?[0-9a-f]+\]/i.test(trimmed) && (
         lowerTrimmed.includes('skip') ||
         lowerTrimmed.includes('daterange') ||
@@ -2693,7 +2757,6 @@ class DownloadQueue {
       );
 
       if (isFfmpegProgress || isFfmpegOpening || isFfmpegInfo || isFfmpegConnection || isFfmpegSkip) {
-        // Türkçe Açıklama: FFmpeg'in ilerleme, açılış, bağlantı durumu ve skip logları CMD konsolunda gürültü yapmaması için es geçiliyor.
         return;
       }
 
@@ -2713,7 +2776,7 @@ class DownloadQueue {
       stderrBuffer += output;
       
       const lines = stderrBuffer.split(/\r?\n/);
-      stderrBuffer = lines.pop(); // Türkçe Açıklama: Yarım kalmış satırı bir sonraki chunk için tamponda (buffer) tutuyoruz.
+      stderrBuffer = lines.pop();
       
       for (const line of lines) {
         handleStderrLine(line);
@@ -2727,14 +2790,16 @@ class DownloadQueue {
     });
 
     downloadProc.on('close', (code) => {
-      // Eğer bu işlem kullanıcı tarafından iptal edilip zaten temizlendiyse es geç
-      if (this.activeVideoId !== video.id) {
+      const procInfo = this.activeProcesses.get(video.id);
+      if (!procInfo) {
         return;
       }
 
-      this.activeDownloads--;
-      this.activeProcess = null;
-      this.activeVideoId = null;
+      this.activeProcesses.delete(video.id);
+
+      if (procInfo.status === 'downloading') {
+        this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+      }
 
       const db = readDb();
       const currentItem = db.history.find(h => h.id === video.id);
@@ -4057,7 +4122,7 @@ let updateState = {
  * @returns {Promise<void>}
  */
 async function checkGithubUpdates() {
-  const currentVersion = '5.3.5';
+  const currentVersion = '5.3.7';
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -4735,6 +4800,8 @@ app.post('/api/play-video', localhostOnly, (req, res) => {
 });
 
 // Gömülü Oynatıcı için Video Akışı (Stream)
+// Türkçe Açıklama: Yerel video dosyasını istemciye aktarır. Express'in yerleşik ve Range-isteklerini (HTTP 206) son derece 
+// optimize şekilde yöneten res.sendFile metodu kullanılarak, videolarda ileri/geri sarma (seeking) performansı maksimize edilmiştir.
 app.get('/api/video-stream', (req, res) => {
   const { videoId } = req.query;
   if (!videoId) return res.status(400).send('Video ID is required');
@@ -4752,53 +4819,7 @@ app.get('/api/video-stream', (req, res) => {
 
   if (fileToPlay && fs.existsSync(fileToPlay)) {
     console.log(`[Stream] Video akıtılıyor: ${fileToPlay}`);
-    
-    // Türkçe Açıklama: Gelişmiş seek/ilerletme desteği için Range isteklerini manuel olarak işleyip okuma akışı (read stream) ile sunar.
-    const stat = fs.statSync(fileToPlay);
-    const fileSize = stat.size;
-    const range = req.headers.range;
-    const ext = path.extname(fileToPlay).toLowerCase();
-    const contentType = ext === '.webm' ? 'video/webm' : 'video/mp4';
-
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      
-      if (start >= fileSize) {
-        res.status(416).set('Content-Range', `bytes */${fileSize}`).send();
-        return;
-      }
-
-      // Türkçe Açıklama: Tarayıcının talep ettiği aralığı (range) tam olarak sunar. maxChunk gibi suni sınırlandırmalar yavaşlığa ve takılmaya sebep olduğu için kaldırılmıştır.
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-      const chunksize = (end - start) + 1;
-      const file = fs.createReadStream(fileToPlay, { start, end });
-      const head = {
-        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': chunksize,
-        'Content-Type': contentType,
-      };
-      res.writeHead(206, head);
-      file.pipe(res);
-
-      // Bağlantı kesildiğinde veya ileri sarıldığında eski okuma akışı yok edilir.
-      req.on('close', () => {
-        file.destroy();
-      });
-    } else {
-      const head = {
-        'Content-Length': fileSize,
-        'Content-Type': contentType,
-      };
-      res.writeHead(200, head);
-      const file = fs.createReadStream(fileToPlay);
-      file.pipe(res);
-
-      req.on('close', () => {
-        file.destroy();
-      });
-    }
+    res.sendFile(path.resolve(fileToPlay));
   } else {
     console.error(`[Stream Errorsı] File not foundı. ID: ${videoId}`);
     res.status(404).send('Video dosyası bulunamadı.');
@@ -5521,9 +5542,9 @@ app.post('/api/cancel-download', localhostOnly, (req, res) => {
     return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
   }
 
-  // 1. Durum: Aktif İndirme İptal Ediliyor
-  if (downloadQueue.activeProcess && downloadQueue.activeVideoId === videoId) {
-    console.log(`Aktif indirme iptal ediliyor: ${videoId}`);
+  // 1. Durum: Aktif İndirme veya Birleştirme (FFmpeg) İşlemi İptal Ediliyor
+  if (downloadQueue.activeProcesses.has(videoId)) {
+    console.log(`Aktif işlem (indirme/birleştirme) iptal ediliyor: ${videoId}`);
     
     // Veritabanını güncelle
     updateHistoryItem(videoId, {
@@ -5534,14 +5555,14 @@ app.post('/api/cancel-download', localhostOnly, (req, res) => {
       error: 'Kullanıcı tarafından iptal edildi.'
     });
 
-    const proc = downloadQueue.activeProcess;
+    const procInfo = downloadQueue.activeProcesses.get(videoId);
+    const proc = procInfo.process;
     const pid = proc.pid;
 
     // Kuyruk durumunu hemen temizle (close eventini beklemeden)
-    downloadQueue.activeProcess = null;
-    downloadQueue.activeVideoId = null;
-    if (downloadQueue.activeDownloads > 0) {
-      downloadQueue.activeDownloads--;
+    downloadQueue.activeProcesses.delete(videoId);
+    if (procInfo.status === 'downloading' && downloadQueue.activeDownloads > 0) {
+      downloadQueue.activeDownloads = Math.max(0, downloadQueue.activeDownloads - 1);
     }
 
     if (pid) {
@@ -5564,7 +5585,7 @@ app.post('/api/cancel-download', localhostOnly, (req, res) => {
       }
     }
 
-    broadcast('status_log', { message: 'Aktif indirme iptal edildi.', type: 'info' });
+    broadcast('status_log', { message: 'Aktif işlem iptal edildi.', type: 'info' });
     broadcast('db_update', readDb());
 
     // Bir sonraki videoyu indirmeye başla
@@ -5593,10 +5614,10 @@ app.post('/api/cancel-download', localhostOnly, (req, res) => {
     return res.json({ success: true });
   }
 
-  // 3. Durum: Kuyrukta veya aktif süreç değil ama veritabanında 'waiting' veya 'downloading' durumunda kalmış (zombi) olabilir
+  // 3. Durum: Kuyrukta veya aktif süreç değil ama veritabanında 'waiting' veya 'downloading' veya 'merging' durumunda kalmış (zombi) olabilir
   const db = readDb();
   const historyItem = db.history.find(h => h.id === videoId);
-  if (historyItem && (historyItem.status === 'waiting' || historyItem.status === 'downloading')) {
+  if (historyItem && (historyItem.status === 'waiting' || historyItem.status === 'downloading' || historyItem.status === 'merging')) {
     updateHistoryItem(videoId, {
       status: 'ignored',
       progress: 0,
@@ -5606,11 +5627,11 @@ app.post('/api/cancel-download', localhostOnly, (req, res) => {
     });
 
     // Eğer bu video yanlışlıkla aktif süreç olarak görünüyorsa ama activeDownloads 0'dan büyükse, onu da sıfırlayalım/azaltalım
-    if (downloadQueue.activeVideoId === videoId) {
-      downloadQueue.activeProcess = null;
-      downloadQueue.activeVideoId = null;
-      if (downloadQueue.activeDownloads > 0) {
-        downloadQueue.activeDownloads--;
+    if (downloadQueue.activeProcesses.has(videoId)) {
+      const procInfo = downloadQueue.activeProcesses.get(videoId);
+      downloadQueue.activeProcesses.delete(videoId);
+      if (procInfo.status === 'downloading' && downloadQueue.activeDownloads > 0) {
+        downloadQueue.activeDownloads = Math.max(0, downloadQueue.activeDownloads - 1);
       }
     }
 
@@ -5634,20 +5655,13 @@ app.post('/api/cancel-all-downloads', localhostOnly, (req, res) => {
     updateHistoryItem(vid, { status: 'ignored', progress: 0, speed: '', eta: '', error: 'Kullanıcı tarafından iptal edildi (Tümü).' });
   });
 
-  // 2. Aktif olanı öldür
-  if (downloadQueue.activeProcess) {
-    const activeId = downloadQueue.activeVideoId;
-    updateHistoryItem(activeId, { status: 'ignored', progress: 0, speed: '', eta: '', error: 'Kullanıcı tarafından iptal edildi (Tümü).' });
+  // 2. Aktif olan tüm süreçleri öldür
+  for (const [vid, procInfo] of downloadQueue.activeProcesses.entries()) {
+    updateHistoryItem(vid, { status: 'ignored', progress: 0, speed: '', eta: '', error: 'Kullanıcı tarafından iptal edildi (Tümü).' });
     
-    const proc = downloadQueue.activeProcess;
+    const proc = procInfo.process;
     const pid = proc.pid;
     
-    downloadQueue.activeProcess = null;
-    downloadQueue.activeVideoId = null;
-    if (downloadQueue.activeDownloads > 0) {
-      downloadQueue.activeDownloads--;
-    }
-
     if (pid) {
       if (process.platform === 'win32') {
         exec(`taskkill /F /T /PID ${pid}`, () => { try { proc.kill('SIGKILL'); } catch(e){} });
@@ -5656,12 +5670,14 @@ app.post('/api/cancel-all-downloads', localhostOnly, (req, res) => {
       }
     }
   }
+  downloadQueue.activeProcesses.clear();
+  downloadQueue.activeDownloads = 0;
 
-  // 3. Veritabanında waiting veya downloading kalmış zombileri temizle
+  // 3. Veritabanında waiting veya downloading veya merging kalmış zombileri temizle
   const db = readDb();
   let updated = false;
   db.history.forEach(h => {
-    if (h.status === 'waiting' || h.status === 'downloading') {
+    if (h.status === 'waiting' || h.status === 'downloading' || h.status === 'merging') {
       h.status = 'ignored';
       h.error = 'Kullanıcı tarafından iptal edildi (Tümü).';
       h.progress = 0;
@@ -6266,7 +6282,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-                     Versiyon: v5.3.5
+                     Versiyon: v5.3.7
            Yapımcı: HaYTo
     ====================================================
     `);
