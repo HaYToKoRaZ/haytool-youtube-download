@@ -51,6 +51,17 @@ const translations = {
     select_quality_720p: '720p HD',
     select_shorts_true: 'Shorts İndir',
     select_shorts_false: 'Shorts İndirme',
+    channel_quality_title: 'İndirme Kalitesi',
+    channel_shorts_title: 'Shorts İndirme Durumu',
+    channel_shorts_limit_title: 'Shorts Süre Sınırı',
+    channel_btn_sync_title: 'Kanalı Şimdi Denetle / RSS Güncelle',
+    channel_btn_update_logo_title: 'Logoyu Güncelle',
+    channel_btn_unfollow_title: 'Takipten Çıkar',
+    shorts_limit_seconds: 'sn',
+    shorts_limit_minutes: 'dk',
+    inline_sub_color_title: 'Altyazı Rengi',
+    inline_sub_opacity_title: 'Altyazı Saydamlığı',
+    inline_sub_size_title: 'Altyazı Boyutu',
     library_title: 'Kütüphane & Geçmiş',
     library_desc: 'Tüm video geçmişini, indirme durumlarını ve kuyruğu tek ekrandan takip edin.',
     btn_open_downloads: 'İndirilenler Klasörünü Aç',
@@ -283,6 +294,17 @@ const translations = {
     select_quality_720p: '720p HD',
     select_shorts_true: 'Download Shorts',
     select_shorts_false: 'Ignore Shorts',
+    channel_quality_title: 'Download Quality',
+    channel_shorts_title: 'Shorts Download Status',
+    channel_shorts_limit_title: 'Shorts Duration Limit',
+    channel_btn_sync_title: 'Check Channel Now / Update RSS',
+    channel_btn_update_logo_title: 'Update Logo',
+    channel_btn_unfollow_title: 'Unfollow Channel',
+    shorts_limit_seconds: 's',
+    shorts_limit_minutes: 'min',
+    inline_sub_color_title: 'Subtitle Color',
+    inline_sub_opacity_title: 'Subtitle Opacity',
+    inline_sub_size_title: 'Subtitle Size',
     library_title: 'Library & History',
     library_desc: 'Track download queue, active progress, and complete history in one place.',
     btn_open_downloads: 'Open Downloads Folder',
@@ -511,6 +533,17 @@ const translations = {
     select_quality_720p: '720p HD',
     select_shorts_true: 'Descargar Shorts',
     select_shorts_false: 'Ignorar Shorts',
+    channel_quality_title: 'Calidad de Descarga',
+    channel_shorts_title: 'Estado de Descarga de Shorts',
+    channel_shorts_limit_title: 'Límite de Duración de Shorts',
+    channel_btn_sync_title: 'Comprobar Canal Ahora / Actualizar RSS',
+    channel_btn_update_logo_title: 'Actualizar Logo',
+    channel_btn_unfollow_title: 'Dejar de Seguir Canal',
+    shorts_limit_seconds: 's',
+    shorts_limit_minutes: 'min',
+    inline_sub_color_title: 'Color de Subtítulos',
+    inline_sub_opacity_title: 'Opacidad de Subtítulos',
+    inline_sub_size_title: 'Tamaño de Subtítulos',
     library_title: 'Biblioteca y Historial',
     library_desc: 'Monitoree la cola de descargas y el historial completo.',
     btn_open_downloads: 'Abrir Carpeta de Descargas',
@@ -730,6 +763,17 @@ const translations = {
     select_quality_720p: '720p HD',
     select_shorts_true: 'Shorts Herunterladen',
     select_shorts_false: 'Shorts Ignorieren',
+    channel_quality_title: 'Download-Qualität',
+    channel_shorts_title: 'Shorts-Download-Status',
+    channel_shorts_limit_title: 'Shorts-Dauerbegrenzung',
+    channel_btn_sync_title: 'Kanal jetzt prüfen / RSS aktualisieren',
+    channel_btn_update_logo_title: 'Logo aktualisieren',
+    channel_btn_unfollow_title: 'Kanal entfolgen',
+    shorts_limit_seconds: 's',
+    shorts_limit_minutes: 'Min',
+    inline_sub_color_title: 'Untertitel-Farbe',
+    inline_sub_opacity_title: 'Untertitel-Deckkraft',
+    inline_sub_size_title: 'Untertitel-Größe',
     library_title: 'Bibliothek & Verlauf',
     library_desc: 'Überwachen Sie die Warteschlange und den vollständigen Verlauf.',
     btn_open_downloads: 'Download-Ordner Öffnen',
@@ -949,6 +993,17 @@ const translations = {
     select_quality_720p: '720p HD',
     select_shorts_true: 'Baixar Shorts',
     select_shorts_false: 'Ignorar Shorts',
+    channel_quality_title: 'Qualidade de Download',
+    channel_shorts_title: 'Status de Download de Shorts',
+    channel_shorts_limit_title: 'Limite de Duração de Shorts',
+    channel_btn_sync_title: 'Verificar Canal Agora / Atualizar RSS',
+    channel_btn_update_logo_title: 'Atualizar Logo',
+    channel_btn_unfollow_title: 'Deixar de Seguir Canal',
+    shorts_limit_seconds: 's',
+    shorts_limit_minutes: 'min',
+    inline_sub_color_title: 'Cor da Legenda',
+    inline_sub_opacity_title: 'Opacidade da Legenda',
+    inline_sub_size_title: 'Tamanho da Legenda',
     library_title: 'Biblioteca e Histórico',
     library_desc: 'Monitore a fila de downloads e o histórico completo.',
     btn_open_downloads: 'Abrir Pasta de Downloads',
@@ -1168,6 +1223,17 @@ const translations = {
     select_quality_720p: '720p HD',
     select_shorts_true: 'تنزيل مقاطع Shorts',
     select_shorts_false: 'تجاهل مقاطع Shorts',
+    channel_quality_title: 'جودة التنزيل',
+    channel_shorts_title: 'حالة تنزيل مقاطع Shorts',
+    channel_shorts_limit_title: 'حد مدة مقاطع Shorts',
+    channel_btn_sync_title: 'فحص القناة الآن / تحديث RSS',
+    channel_btn_update_logo_title: 'تحديث الشعار',
+    channel_btn_unfollow_title: 'إلغاء متابعة القناة',
+    shorts_limit_seconds: 'ثانية',
+    shorts_limit_minutes: 'دقيقة',
+    inline_sub_color_title: 'لون الترجمة',
+    inline_sub_opacity_title: 'شفافية الترجمة',
+    inline_sub_size_title: 'حجم الترجمة',
     library_title: 'المكتبة والسجل',
     library_desc: 'مراقبة قائمة انتظار التنزيل والتقدم النشط والسجل الكامل.',
     btn_open_downloads: 'فتح مجلد التنزيلات',
@@ -1386,6 +1452,17 @@ const translations = {
     select_quality_720p: '720p HD',
     select_shorts_true: 'Скачивать Shorts',
     select_shorts_false: 'Игнорировать Shorts',
+    channel_quality_title: 'Качество загрузки',
+    channel_shorts_title: 'Статус загрузки Shorts',
+    channel_shorts_limit_title: 'Лимит длительности Shorts',
+    channel_btn_sync_title: 'Проверить канал сейчас / Обновить RSS',
+    channel_btn_update_logo_title: 'Обновить логотип',
+    channel_btn_unfollow_title: 'Отписаться от канала',
+    shorts_limit_seconds: 'сек',
+    shorts_limit_minutes: 'мин',
+    inline_sub_color_title: 'Цвет субтитров',
+    inline_sub_opacity_title: 'Прозрачность субтитров',
+    inline_sub_size_title: 'Размер субтитров',
     library_title: 'Библиотека и история',
     library_desc: 'Отслеживайте очередь загрузки, текущий прогресс и полную историю в одном месте.',
     btn_open_downloads: 'Открыть папку загрузок',
@@ -1854,6 +1931,11 @@ function applyLanguage(lang) {
   elQuery('.settings-tab-btn[data-subtab="automation"] span', 'settings_tab_automation');
   elQuery('.settings-tab-btn[data-subtab="notifications"] span', 'settings_tab_notifications');
   elQuery('.feedback-btn span', 'settings_tab_feedback');
+
+  el('settings-title-general-text', 'settings_tab_general');
+  el('settings-title-download-text', 'settings_tab_download');
+  el('settings-title-automation-text', 'settings_tab_automation');
+  el('settings-title-notifications-text', 'settings_tab_notifications');
 
   // Yeni eklenen Ayarlar alanı etiket, option ve açıklama çevirileri
   el('desc-download-path', 'desc_download_path');
@@ -2914,8 +2996,8 @@ function updateUI(db) {
           <div class="channels-empty-icon">
             <i data-lucide="tv-2"></i>
           </div>
-          <h3>Henüz takip edilen kanal yok</h3>
-          <p>Yukarıdaki formdan YouTube kanal linki veya kullanıcı adı girerek kanal ekleyebilirsiniz.</p>
+          <h3>${t.empty_channels_title || 'Henüz takip edilen kanal yok'}</h3>
+          <p>${t.empty_channels_desc || 'Yukarıdaki formdan YouTube kanal linki veya kullanıcı adı girerek kanal ekleyebilirsiniz.'}</p>
         </div>
       `;
     } else {
@@ -2959,11 +3041,11 @@ function updateUI(db) {
             <span class="channel-list-handle">${escapeHtml(channel.handle || '')}</span>
           </div>
           <div class="channel-list-quality">
-            <select onchange="changeChannelQuality('${channel.id}', this.value)" class="channel-quality-select" title="İndirme Kalitesi">
-              <option value="default" ${(!channel.quality || channel.quality === 'default') ? 'selected' : ''}>Varsayılan Kalite</option>
-              <option value="best" ${channel.quality === 'best' ? 'selected' : ''}>En Yüksek</option>
-              <option value="1080p" ${channel.quality === '1080p' ? 'selected' : ''}>1080p FHD</option>
-              <option value="720p" ${channel.quality === '720p' ? 'selected' : ''}>720p HD</option>
+            <select onchange="changeChannelQuality('${channel.id}', this.value)" class="channel-quality-select" title="${t.channel_quality_title || 'İndirme Kalitesi'}">
+              <option value="default" ${(!channel.quality || channel.quality === 'default') ? 'selected' : ''}>${t.select_quality_default || 'Varsayılan Kalite'}</option>
+              <option value="best" ${channel.quality === 'best' ? 'selected' : ''}>${t.select_quality_best || 'En Yüksek'}</option>
+              <option value="1080p" ${channel.quality === '1080p' ? 'selected' : ''}>${t.select_quality_1080p || '1080p FHD'}</option>
+              <option value="720p" ${channel.quality === '720p' ? 'selected' : ''}>${t.select_quality_720p || '720p HD'}</option>
             </select>
           </div>
           <div class="channel-list-auto-download">
@@ -2973,21 +3055,21 @@ function updateUI(db) {
             </select>
           </div>
           <div class="channel-list-shorts">
-            <select onchange="changeChannelShorts('${channel.id}', this.value)" class="channel-shorts-select" title="Shorts İndirme Durumu">
-              <option value="true" ${channel.downloadShorts !== false ? 'selected' : ''}>Shorts İndir</option>
-              <option value="false" ${channel.downloadShorts === false ? 'selected' : ''}>Shorts İndirme</option>
+            <select onchange="changeChannelShorts('${channel.id}', this.value)" class="channel-shorts-select" title="${t.channel_shorts_title || 'Shorts İndirme Durumu'}">
+              <option value="true" ${channel.downloadShorts !== false ? 'selected' : ''}>${t.select_shorts_true || 'Shorts İndir'}</option>
+              <option value="false" ${channel.downloadShorts === false ? 'selected' : ''}>${t.select_shorts_false || 'Shorts İndirme'}</option>
             </select>
           </div>
           <div class="channel-list-shorts-limit">
-            <select onchange="changeChannelShortsLimit('${channel.id}', this.value)" class="channel-shorts-limit-select" title="Shorts Süre Sınırı">
-              <option value="30" ${channel.shortsDurationLimit == 30 ? 'selected' : ''}>Shorts &lt; 30sn</option>
-              <option value="60" ${channel.shortsDurationLimit == 60 ? 'selected' : ''}>Shorts &lt; 60sn (1 dk)</option>
-              <option value="120" ${channel.shortsDurationLimit == 120 ? 'selected' : ''}>Shorts &lt; 120sn (2 dk)</option>
-              <option value="180" ${(!channel.shortsDurationLimit || channel.shortsDurationLimit == 180) ? 'selected' : ''}>Shorts &lt; 180sn (3 dk)</option>
-              <option value="240" ${channel.shortsDurationLimit == 240 ? 'selected' : ''}>Shorts &lt; 240sn (4 dk)</option>
-              <option value="300" ${channel.shortsDurationLimit == 300 ? 'selected' : ''}>Shorts &lt; 300sn (5 dk)</option>
-              <option value="600" ${channel.shortsDurationLimit == 600 ? 'selected' : ''}>Shorts &lt; 600sn (10 dk)</option>
-              <option value="900" ${channel.shortsDurationLimit == 900 ? 'selected' : ''}>Shorts &lt; 900sn (15 dk)</option>
+            <select onchange="changeChannelShortsLimit('${channel.id}', this.value)" class="channel-shorts-limit-select" title="${t.channel_shorts_limit_title || 'Shorts Süre Sınırı'}">
+              <option value="30" ${channel.shortsDurationLimit == 30 ? 'selected' : ''}>Shorts &lt; 30${t.shorts_limit_seconds || 'sn'}</option>
+              <option value="60" ${channel.shortsDurationLimit == 60 ? 'selected' : ''}>Shorts &lt; 60${t.shorts_limit_seconds || 'sn'} (1 ${t.shorts_limit_minutes || 'dk'})</option>
+              <option value="120" ${channel.shortsDurationLimit == 120 ? 'selected' : ''}>Shorts &lt; 120${t.shorts_limit_seconds || 'sn'} (2 ${t.shorts_limit_minutes || 'dk'})</option>
+              <option value="180" ${(!channel.shortsDurationLimit || channel.shortsDurationLimit == 180) ? 'selected' : ''}>Shorts &lt; 180${t.shorts_limit_seconds || 'sn'} (3 ${t.shorts_limit_minutes || 'dk'})</option>
+              <option value="240" ${channel.shortsDurationLimit == 240 ? 'selected' : ''}>Shorts &lt; 240${t.shorts_limit_seconds || 'sn'} (4 ${t.shorts_limit_minutes || 'dk'})</option>
+              <option value="300" ${channel.shortsDurationLimit == 300 ? 'selected' : ''}>Shorts &lt; 300${t.shorts_limit_seconds || 'sn'} (5 ${t.shorts_limit_minutes || 'dk'})</option>
+              <option value="600" ${channel.shortsDurationLimit == 600 ? 'selected' : ''}>Shorts &lt; 600${t.shorts_limit_seconds || 'sn'} (10 ${t.shorts_limit_minutes || 'dk'})</option>
+              <option value="900" ${channel.shortsDurationLimit == 900 ? 'selected' : ''}>Shorts &lt; 900${t.shorts_limit_seconds || 'sn'} (15 ${t.shorts_limit_minutes || 'dk'})</option>
             </select>
           </div>
           <div class="channel-list-meta">
@@ -2997,16 +3079,16 @@ function updateUI(db) {
             </span>
           </div>
           <div class="channel-list-actions">
-            <button class="btn-icon channel-rss-update-btn" onclick="syncSingleChannelRss('${channel.id}')" title="Kanalı Şimdi Denetle / RSS Güncelle">
+            <button class="btn-icon channel-rss-update-btn" onclick="syncSingleChannelRss('${channel.id}')" title="${t.channel_btn_sync_title || 'Kanalı Şimdi Denetle / RSS Güncelle'}">
               <i data-lucide="refresh-cw" style="color:#a855f7;"></i>
             </button>
-            <button class="btn-icon channel-logo-update-btn" onclick="updateChannelAvatar('${channel.id}')" title="Logoyu Güncelle">
+            <button class="btn-icon channel-logo-update-btn" onclick="updateChannelAvatar('${channel.id}')" title="${t.channel_btn_update_logo_title || 'Logoyu Güncelle'}">
               <i data-lucide="image" style="color:#38bdf8;"></i>
             </button>
-            <a href="${channelUrl}" target="_blank" rel="noopener noreferrer" class="btn-icon channel-open-btn" title="YouTube'da Aç">
+            <a href="${channelUrl}" target="_blank" rel="noopener noreferrer" class="btn-icon channel-open-btn" title="${t.inline_btn_youtube || 'YouTube\'da Aç'}">
               ${youtubeSvgIcon}
             </a>
-            <button class="btn-icon channel-delete-icon-btn" onclick="deleteChannel('${channel.id}')" title="Takipten Çıkar">
+            <button class="btn-icon channel-delete-icon-btn" onclick="deleteChannel('${channel.id}')" title="${t.channel_btn_unfollow_title || 'Takipten Çıkar'}">
               <i data-lucide="trash-2"></i>
             </button>
           </div>
@@ -3019,7 +3101,7 @@ function updateUI(db) {
   // 6. Geçmiş Kanal Filtresi Seçeneklerini Doldur (Alfabetik Sıralı)
   if (historyChannelFilter && db.channels) {
     const currentFilterVal = historyChannelFilter.value || 'all';
-    historyChannelFilter.innerHTML = '<option value="all">Tüm Kanallar</option>';
+    historyChannelFilter.innerHTML = `<option value="all">${t.filter_all_channels || 'Tüm Kanallar'}</option>`;
     
     // Kanalları alfabetik olarak sırala
     const sortedFilterChannels = [...db.channels].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
@@ -3036,7 +3118,7 @@ function updateUI(db) {
   // İndirilen Videolar Kanal Filtresi Seçeneklerini Doldur
   if (downloadedChannelFilter && db.channels) {
     const currentFilterVal = downloadedChannelFilter.value || 'all';
-    downloadedChannelFilter.innerHTML = '<option value="all">Tüm Kanallar</option>';
+    downloadedChannelFilter.innerHTML = `<option value="all">${t.filter_all_channels || 'Tüm Kanallar'}</option>`;
     
     // Kanalları alfabetik olarak sırala
     const sortedFilterChannels = [...db.channels].sort((a, b) => a.name.localeCompare(b.name, 'tr'));

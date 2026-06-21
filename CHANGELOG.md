@@ -42,6 +42,18 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
   - İkinci exe açılmaya çalışıldığında uygulamanın zaten çalıştığını belirtip `configwin.ini` portunu okuyarak tarayıcıda arayüz sekmesini açması ve ikinci süreci sonlandırması sağlandı.
   - C# kodu derlenerek `HaYTooL YT Downloader.exe` dosyası güncellendi.
 
+### Bug Fixes / Hata Düzeltmeleri
+- **Localization & UI Translation Corrections / Dil ve Arayüz Çeviri Düzeltmeleri:**
+  - Resolved translation bug where Settings card titles ("Çerez & Bildirim" / "Cookie & Notification" and "Otomasyon & RSS" / "Automation & RSS") remained in Turkish when switching interface language to English or other languages.
+  - Translated Shorts download preferences ("Shorts İndir" -> "Download Shorts", "Shorts İndirme" -> "Ignore Shorts") dynamically inside the Channels watchlist tab.
+  - Dynamically translated default quality options, check/sync action tooltips, logo update tooltips, unfollow button tooltips, and Shorts duration limit options across all 7 supported languages.
+  - Localized the main channel filter dropdowns ("All Channels" / "Tüm Kanallar") inside both Library and Downloads tab toolbars.
+  
+  - Dil seçimi İngilizce veya diğer dillere ayarlandığında Ayarlar sekmesi alt kart başlıklarının ("Çerez & Bildirim" ve "Otomasyon & RSS") Türkçe kalması sorunu giderildi.
+  - Kanallar (watchlist) sekmesindeki Shorts indirme seçim kutusu seçenekleri ("Shorts İndir", "Shorts İndirme") ve Shorts süre sınırları dinamik dil çevirisine bağlandı.
+  - Takip listesindeki kalite seçimleri, RSS güncelleme, logo güncelleme, takipten çıkar butonlarının durum ipuçları (tooltips) 7 farklı dil için yerelleştirildi.
+  - Kütüphane ve İndirilenler sekmelerindeki "Tüm Kanallar" (All Channels) filtre seçenekleri dinamik hale getirildi.
+
 ## [5.3.6] - 2026-06-21
 
 ### New Features & Improvements / Yeni Özellikler & İyileştirmeler
