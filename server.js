@@ -1182,7 +1182,7 @@ function buildVideoFilesMap(downloadPath) {
           scanDir(fullPath);
         } else {
           const ext = path.extname(entry.name).toLowerCase();
-          if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt'].includes(ext)) {
+          if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt', '.description'].includes(ext)) {
             const bracketMatch = entry.name.match(/\[([a-zA-Z0-9_-]{11})\]/);
             if (bracketMatch) {
               const videoId = bracketMatch[1];
@@ -1931,7 +1931,7 @@ function findVideoFileInDownloadDir(videoId, downloadPath) {
           if (entry.name.includes(targetPattern)) {
             const ext = path.extname(entry.name).toLowerCase();
             // Skip thumbnails, subtitles and metadata
-            if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt'].includes(ext)) {
+            if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt', '.description'].includes(ext)) {
               return fullPath;
             }
           }
@@ -2096,12 +2096,23 @@ function autoDeleteOldVideos() {
             // Dosyayı sil
             fs.unlinkSync(item.filePath);
             
-            // Kapak resmini sil
+            // Kapak resmi, açıklama ve altyazı dosyalarını sil
             const ext = path.extname(item.filePath);
             const thumbJpg = item.filePath.replace(ext, '.jpg');
             const thumbWebp = item.filePath.replace(ext, '.webp');
+            const descFile = item.filePath.replace(ext, '.description');
             if (fs.existsSync(thumbJpg)) fs.unlinkSync(thumbJpg);
             if (fs.existsSync(thumbWebp)) fs.unlinkSync(thumbWebp);
+            if (fs.existsSync(descFile)) fs.unlinkSync(descFile);
+
+            const trSrt = item.filePath.replace(ext, '.tr.srt');
+            const enSrt = item.filePath.replace(ext, '.en.srt');
+            const trVtt = item.filePath.replace(ext, '.tr.vtt');
+            const enVtt = item.filePath.replace(ext, '.en.vtt');
+            if (fs.existsSync(trSrt)) fs.unlinkSync(trSrt);
+            if (fs.existsSync(enSrt)) fs.unlinkSync(enSrt);
+            if (fs.existsSync(trVtt)) fs.unlinkSync(trVtt);
+            if (fs.existsSync(enVtt)) fs.unlinkSync(enVtt);
 
             item.status = 'ignored';
             item.filePath = '';
@@ -2505,7 +2516,8 @@ class DownloadQueue {
       '--write-subs',
       '--write-auto-subs',
       '--sub-langs', 'tr,en',
-      '--sub-format', 'srt'
+      '--sub-format', 'srt',
+      '--write-description'
     ];
 
     // Dil seçeneğine göre YouTube altyazı/başlık dil argümanını ekle
@@ -2746,7 +2758,7 @@ class DownloadQueue {
           const match = files.find(f => {
             if (!f.includes(`[${video.id}]`)) return false;
             const ext = path.extname(f).toLowerCase();
-            return !['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt'].includes(ext);
+            return !['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt', '.description'].includes(ext);
           });
           if (match) {
             actualPath = path.join(channelFolder, match);
@@ -4039,8 +4051,13 @@ let updateState = {
   checkedAt: null
 };
 
+/**
+ * Türkçe Açıklama: GitHub API'si üzerinden uygulamanın en güncel sürümünü kontrol eder ve güncelleme durumunu belirler.
+ * 
+ * @returns {Promise<void>}
+ */
 async function checkGithubUpdates() {
-  const currentVersion = '5.1.0';
+  const currentVersion = '5.3.5';
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -4108,6 +4125,8 @@ app.post('/api/updates/check', async (req, res) => {
   await checkGithubUpdates();
   res.json(updateState);
 });
+
+
 
 
 // Kanalları yedek olarak dışarı aktar (Export)
@@ -5225,6 +5244,36 @@ app.get('/api/video/:videoId/thumbnail', (req, res) => {
   res.redirect(`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`);
 });
 
+/**
+ * Türkçe Açıklama: İndirilmiş olan videonun .description uzantılı açıklama dosyasını diskten okur ve içeriğini döndürür.
+ * 
+ * @param {string} videoId Video kimliği
+ * @returns {Promise<void>}
+ */
+app.get('/api/video/:videoId/description', (req, res) => {
+  const { videoId } = req.params;
+  const db = readDb();
+  const video = db.history.find(h => h.id === videoId);
+  
+  if (!video || !video.filePath) {
+    return res.json({ success: true, description: '' });
+  }
+
+  try {
+    const ext = path.extname(video.filePath);
+    const descPath = video.filePath.replace(ext, '.description');
+    
+    if (fs.existsSync(descPath)) {
+      const desc = fs.readFileSync(descPath, 'utf8');
+      return res.json({ success: true, description: desc });
+    }
+  } catch (err) {
+    console.error(`Error reading description for ${videoId}:`, err.message);
+  }
+
+  return res.json({ success: true, description: '' });
+});
+
 // Altyazı dosyalarının varlığını denetler ve listeler
 app.get('/api/video/:videoId/subtitles', (req, res) => {
   const { videoId } = req.params;
@@ -5841,14 +5890,365 @@ async function resolveMissingChannelAvatars() {
   }
 }
 
-// Türkçe Açıklama: SPA yönlendirmeleri için (tarayıcı yenilendiğinde) index.html dosyasını sunuyoruz.
-app.get(['/home', '/download', '/downlist', '/channels', '/settings'], (req, res) => {
+// ==========================================
+// IPTV ENTEGRASYONU VE HLS DESTEĞİ
+// ==========================================
+
+const iptvCachePath = path.join(__dirname, 'iptv_cache.json');
+let iptvUpdateStatus = {
+  status: 'idle',
+  error: null,
+  totalChannels: 0,
+  lastUpdated: null
+};
+let iptvChannelsMemory = [];
+let iptvCountriesList = [];
+let iptvCategoriesList = [];
+
+/**
+ * Türkçe Açıklama: IPTV oynatımında kullanılan hls.min.js kütüphanesi yerelde yoksa CDN üzerinden indirip kaydeder.
+ * 
+ * @returns {Promise<void>}
+ */
+function downloadHlsJsIfNeeded() {
+  return new Promise((resolve) => {
+    const publicDir = path.join(__dirname, 'public');
+    const hlsPath = path.join(publicDir, 'hls.min.js');
+    if (fs.existsSync(hlsPath)) {
+      console.log('[IPTV] hls.min.js zaten mevcut.');
+      return resolve();
+    }
+
+    console.log('[IPTV] hls.min.js bulunamadı, CDN üzerinden indiriliyor...');
+    const url = 'https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js';
+    
+    https.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        console.error(`[IPTV] hls.min.js indirilemedi: HTTP ${res.statusCode}`);
+        return resolve();
+      }
+
+      const fileStream = fs.createWriteStream(hlsPath);
+      res.pipe(fileStream);
+      fileStream.on('finish', () => {
+        fileStream.close();
+        console.log('[IPTV] hls.min.js başarıyla indirildi.');
+        resolve();
+      });
+      fileStream.on('error', (err) => {
+        fileStream.close();
+        fs.unlink(hlsPath, () => {});
+        console.error('[IPTV] hls.min.js yazılırken hata oluştu:', err.message);
+        resolve();
+      });
+    }).on('error', (err) => {
+      console.error('[IPTV] hls.min.js indirilirken bağlantı hatası oluştu:', err.message);
+      resolve();
+    });
+  });
+}
+
+/**
+ * Türkçe Açıklama: Bellekteki IPTV kanallarını tarayarak benzersiz ülke ve kategori listelerini oluşturur ve sıralar.
+ * 
+ * @returns {void}
+ */
+function computeIptvFilters() {
+  const countries = new Set();
+  const categories = new Set();
+  for (const ch of iptvChannelsMemory) {
+    if (ch.country) countries.add(ch.country.toUpperCase());
+    if (ch.category) categories.add(ch.category);
+  }
+  iptvCountriesList = Array.from(countries).sort();
+  iptvCategoriesList = Array.from(categories).sort();
+}
+
+/**
+ * Türkçe Açıklama: M3U biçimindeki kanal çalma listesi metnini satır satır analiz ederek yapılandırılmış kanal dizisine dönüştürür.
+ * 
+ * @param {string} m3uText - Ayrıştırılacak M3U metin içeriği
+ * @returns {Array<Object>} Ayrıştırılmış IPTV kanal nesneleri dizisi
+ */
+function parseM3U(m3uText) {
+  const lines = m3uText.split(/\r?\n/);
+  const channels = [];
+  let currentItem = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    if (trimmed.startsWith('#EXTINF:')) {
+      currentItem = {};
+      
+      const tvgIdMatch = trimmed.match(/tvg-id="([^"]*)"/i);
+      const tvgNameMatch = trimmed.match(/tvg-name="([^"]*)"/i);
+      const tvgLogoMatch = trimmed.match(/tvg-logo="([^"]*)"/i);
+      const tvgCountryMatch = trimmed.match(/tvg-country="([^"]*)"/i);
+      const groupTitleMatch = trimmed.match(/group-title="([^"]*)"/i);
+
+      if (tvgIdMatch) currentItem.id = tvgIdMatch[1];
+      if (tvgNameMatch) currentItem.name = tvgNameMatch[1];
+      if (tvgLogoMatch) currentItem.logo = tvgLogoMatch[1];
+      // Ulke kodu: tvg-country varsa kullan, yoksa tvg-id suffix'inden cikar
+      if (tvgCountryMatch && tvgCountryMatch[1]) {
+        currentItem.country = tvgCountryMatch[1].toUpperCase();
+      } else if (tvgIdMatch && tvgIdMatch[1]) {
+        const idM = tvgIdMatch[1].match(/\.([a-z]{2})(?:@|$)/i);
+        if (idM) currentItem.country = idM[1].toUpperCase();
+      }
+      if (groupTitleMatch) currentItem.category = groupTitleMatch[1];
+
+      const commaIndex = trimmed.lastIndexOf(',');
+      if (commaIndex !== -1) {
+        currentItem.displayName = trimmed.substring(commaIndex + 1).trim();
+      } else {
+        currentItem.displayName = currentItem.name || 'Unnamed Channel';
+      }
+    } else if (trimmed.startsWith('#')) {
+      continue;
+    } else if (currentItem) {
+      currentItem.url = trimmed;
+      if (currentItem.url.startsWith('http')) {
+        channels.push(currentItem);
+      }
+      currentItem = null;
+    }
+  }
+  return channels;
+}
+
+// Sunucu başlangıcında cache varsa yükle
+try {
+  if (fs.existsSync(iptvCachePath)) {
+    const data = JSON.parse(fs.readFileSync(iptvCachePath, 'utf8'));
+    const rawChannels = Array.isArray(data.channels) ? data.channels : [];
+    rawChannels.forEach(function(ch) {
+      if (!ch.country && ch.id) {
+        const m = ch.id.match(/\.([a-z]{2})(?:@|$)/i);
+        if (m) ch.country = m[1].toUpperCase();
+      }
+    });
+    iptvChannelsMemory = rawChannels;
+    iptvUpdateStatus.lastUpdated = data.lastUpdated || fs.statSync(iptvCachePath).mtime.toISOString();
+    iptvUpdateStatus.totalChannels = iptvChannelsMemory.length;
+    computeIptvFilters();
+    console.log(`[IPTV] Belleğe ${iptvChannelsMemory.length} adet kanal yüklendi.`);
+  }
+} catch (e) {
+  console.error('[IPTV] Cache yüklenirken hata:', e.message);
+}
+
+// IPTV Durum Endpoint'i
+app.get('/api/iptv/status', (req, res) => {
+  res.json(iptvUpdateStatus);
+});
+
+// IPTV Guncelleme Endpoint'i - Streaming M3U indirici (RAM tasarrufu icin)
+app.post('/api/iptv/update', localhostOnly, async (req, res) => {
+  if (iptvUpdateStatus.status === 'updating') {
+    return res.status(400).json({ success: false, error: 'Update already in progress' });
+  }
+
+  iptvUpdateStatus.status = 'updating';
+  iptvUpdateStatus.error = null;
+  res.json({ success: true, message: 'Update started' });
+
+  try {
+    console.log('[IPTV] Calisma listesi stream ile indiriliyor...');
+    const m3uUrl = 'https://iptv-org.github.io/iptv/index.m3u';
+    
+    // Stream-based M3U indirme + satir satir parse (buyuk dosyalarda RAM tasarrufu)
+    const channels = await new Promise((resolve, reject) => {
+      function tryFetch(requestUrl, redirectCount = 0) {
+        if (redirectCount > 5) return reject(new Error('Cok fazla yonlendirme'));
+        const urlObj = new URL(requestUrl);
+        const getter = urlObj.protocol === 'https:' ? https : http;
+        const req2 = getter.get(urlObj, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HaYTooL/5.1)' }
+        }, (res2) => {
+          if ([301, 302, 307, 308].includes(res2.statusCode) && res2.headers.location) {
+            let loc = res2.headers.location;
+            if (!loc.startsWith('http')) loc = urlObj.origin + loc;
+            res2.resume();
+            return tryFetch(loc, redirectCount + 1);
+          }
+          if (res2.statusCode !== 200) {
+            res2.resume();
+            return reject(new Error(`HTTP ${res2.statusCode}`));
+          }
+
+          // Satir bazli stream parse - RAM dostu
+          const parsed = [];
+          let partial = '';
+          let currentItem = null;
+
+          res2.setEncoding('utf8');
+          res2.on('data', (chunk) => {
+            partial += chunk;
+            const lines = partial.split(/\r?\n/);
+            partial = lines.pop(); // Son eksik satiri bir sonraki chunk'a birak
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+
+              if (trimmed.startsWith('#EXTINF:')) {
+                currentItem = {};
+                const tvgIdMatch = trimmed.match(/tvg-id="([^"]*)"/i);
+                const tvgNameMatch = trimmed.match(/tvg-name="([^"]*)"/i);
+                const tvgLogoMatch = trimmed.match(/tvg-logo="([^"]*)"/i);
+                const tvgCountryMatch = trimmed.match(/tvg-country="([^"]*)"/i);
+                const groupTitleMatch = trimmed.match(/group-title="([^"]*)"/i);
+
+                if (tvgIdMatch) currentItem.id = tvgIdMatch[1];
+                if (tvgNameMatch) currentItem.name = tvgNameMatch[1];
+                if (tvgLogoMatch) currentItem.logo = tvgLogoMatch[1];
+                if (groupTitleMatch) currentItem.category = groupTitleMatch[1];
+
+                // Ulke kodu
+                if (tvgCountryMatch && tvgCountryMatch[1]) {
+                  currentItem.country = tvgCountryMatch[1].toUpperCase();
+                } else if (tvgIdMatch && tvgIdMatch[1]) {
+                  const idM = tvgIdMatch[1].match(/\.([a-z]{2})(?:@|$)/i);
+                  if (idM) currentItem.country = idM[1].toUpperCase();
+                }
+
+                const commaIdx = trimmed.lastIndexOf(',');
+                currentItem.displayName = commaIdx !== -1
+                  ? trimmed.substring(commaIdx + 1).trim()
+                  : (currentItem.name || 'Unnamed');
+
+              } else if (!trimmed.startsWith('#') && currentItem) {
+                if (trimmed.startsWith('http')) {
+                  currentItem.url = trimmed;
+                  parsed.push(currentItem);
+                }
+                currentItem = null;
+              }
+            }
+          });
+
+          res2.on('end', () => {
+            // Son satiri isleme al
+            if (partial.trim() && currentItem) {
+              const t = partial.trim();
+              if (t.startsWith('http')) {
+                currentItem.url = t;
+                parsed.push(currentItem);
+              }
+            }
+            resolve(parsed);
+          });
+          res2.on('error', reject);
+        });
+        req2.on('error', reject);
+      }
+      tryFetch(m3uUrl);
+    });
+    
+    console.log(`[IPTV] ${channels.length} kanal bulundu. Diske kaydediliyor...`);
+    
+    // Cache'e yaz (streaming JSON writer)
+    const cacheData = { lastUpdated: new Date().toISOString(), channels };
+    fs.writeFileSync(iptvCachePath, JSON.stringify(cacheData), 'utf8');
+    
+    iptvChannelsMemory = channels;
+    computeIptvFilters();
+    
+    iptvUpdateStatus.status = 'success';
+    iptvUpdateStatus.lastUpdated = cacheData.lastUpdated;
+    iptvUpdateStatus.totalChannels = channels.length;
+    console.log('[IPTV] Kanal listesi basariyla guncellendi.');
+    broadcast('status_log', { message: `IPTV kanal listesi guncellendi. Toplam ${channels.length} kanal.`, type: 'success' });
+  } catch (err) {
+    console.error('[IPTV] Güncelleme hatası:', err.message);
+    iptvUpdateStatus.status = 'error';
+    iptvUpdateStatus.error = err.message;
+    broadcast('status_log', { message: `IPTV güncellenirken hata oluştu: ${err.message}`, type: 'error' });
+  }
+});
+
+// IPTV Kanalları Listeleme ve Arama Endpoint'i
+app.get('/api/iptv/channels', (req, res) => {
+  let { page = 1, limit = 200, search = '', country = '', category = '' } = req.query;
+  page = parseInt(page, 10) || 1;
+  limit = parseInt(limit, 10);
+  // limit=0 veya negatif: ozel durum - ulke/arama filtresi varsa tumunu don, yoksa max 300
+  const requestedAll = limit <= 0;
+
+  let filtered = iptvChannelsMemory;
+
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(ch => 
+      (ch.displayName && ch.displayName.toLowerCase().includes(q)) ||
+      (ch.name && ch.name.toLowerCase().includes(q))
+    );
+  }
+
+  if (country) {
+    const c = country.toUpperCase();
+    filtered = filtered.filter(ch => ch.country && ch.country.toUpperCase() === c);
+  }
+
+  if (category) {
+    const cat = category.toLowerCase();
+    filtered = filtered.filter(ch => ch.category && ch.category.toLowerCase() === cat);
+  }
+
+  const totalCount = filtered.length;
+
+  let resultChannels;
+  let effectiveLimit;
+  let totalPages;
+
+  if (requestedAll) {
+    const hasFilter = (country || search || category);
+    if (hasFilter) {
+      // Filtreli liste: tamamini don
+      resultChannels = filtered;
+      effectiveLimit = totalCount;
+      totalPages = 1;
+    } else {
+      // Filtresiz tam liste istegi: ilk 300 kanal (RAM tasarrufu)
+      effectiveLimit = 300;
+      resultChannels = filtered.slice(0, effectiveLimit);
+      totalPages = Math.ceil(totalCount / effectiveLimit);
+    }
+  } else {
+    effectiveLimit = limit > 0 ? limit : 200;
+    resultChannels = filtered.slice((page - 1) * effectiveLimit, page * effectiveLimit);
+    totalPages = Math.ceil(totalCount / effectiveLimit);
+  }
+
+  res.json({
+    channels: resultChannels,
+    pagination: {
+      page,
+      limit: effectiveLimit,
+      totalCount,
+      totalPages
+    },
+    filters: {
+      countries: iptvCountriesList,
+      categories: iptvCategoriesList
+    }
+  });
+});
+
+// SPA Yönlendirmesi (IPTV Dahil)
+app.get(['/home', '/download', '/downlist', '/channels', '/settings', '/iptv'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Sunucu Başlatıldığında (Sadece CLI modu dışında)
 if (process.argv.length <= 2) {
   const server = app.listen(PORT, '127.0.0.1', async () => {
+    // hls.min.js kontrol et ve gerekliyse indir
+    await downloadHlsJsIfNeeded();
+
     cleanOldLogs(); // 7 günden eski logları temizle
 
     const db = readDb();
@@ -5866,7 +6266,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-               Versiyon: v5.1.0
+                     Versiyon: v5.3.5
            Yapımcı: HaYTo
     ====================================================
     `);

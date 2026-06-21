@@ -9,11 +9,24 @@ let localDb = { channels: [], history: [], settings: {} };
 let eventSource = null;
 let currentLang = 'tr';
 
+// IPTV Global Variables (Initialized early to avoid temporal dead zone issues)
+let iptvPlayers = [null, null, null, null];
+let activeIptvSlot = 0;
+let iptvIsLoading = false;
+let iptvSearchQuery = '';
+let iptvSelectedCountry = '';
+let iptvSelectedCategory = '';
+let iptvStatusInterval = null;
+let isRestoringIptv = false;
+
 // YouTube SVG İkon Şablonu (Lucide bağımlılığı olmadan her ortamda çalışması için yerel SVG kullanıyoruz)
 const youtubeSvgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" style="display:inline-block !important;vertical-align:middle !important;fill:#ff0000 !important;stroke:none !important;width:16px !important;height:16px !important;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" style="fill:#ff0000 !important;stroke:none !important;"/></svg>`;
 
 const translations = {
   tr: {
+    tab_iptv: 'IPTV',
+    inline_btn_description: 'Açıklamayı Göster',
+    inline_description_title: 'Video Açıklaması',
     premium_automation: 'Premium Otomasyonu',
     tab_library: 'Kütüphane',
     tab_downloaded: 'İndirilenler',
@@ -228,9 +241,22 @@ const translations = {
     sponsorblock_active_toast: 'SponsorBlock Aktif',
     sponsorblock_active_toast_desc: 'Sponsorlu alanlar otomatik atlanacak',
     sponsorblock_disabled_toast: 'SponsorBlock Devre Dışı',
-    sponsorblock_disabled_toast_desc: 'Sponsorlu alan atlamaları geçici olarak durduruldu'
+    sponsorblock_disabled_toast_desc: 'Sponsorlu alan atlamaları geçici olarak durduruldu',
+    lbl_single_view: 'Tekli Ekran',
+    lbl_dual_view: 'İkili Ekran (2 Kanal)',
+    lbl_quad_view: 'Çoklu Ekran (4 Kanal)',
+    lbl_sport_view: 'Spor Modu (PiP)',
+    lbl_select_channel: 'Kanal Seçin',
+    lbl_update_channels: 'Kanalları Güncelle',
+    lbl_loading_more: 'Daha fazla kanal yükleniyor...',
+    opt_all_countries: 'Tüm Ülkeler',
+    opt_all_categories: 'Tüm Kategoriler',
+    lbl_swap_screens: 'Yer Değiştir'
   },
   en: {
+    tab_iptv: 'IPTV',
+    inline_btn_description: 'Show Description',
+    inline_description_title: 'Video Description',
     premium_automation: 'Premium Automation',
     tab_library: 'Library',
     tab_downloaded: 'Downloads',
@@ -444,7 +470,17 @@ const translations = {
     sponsorblock_active_toast: 'SponsorBlock Active',
     sponsorblock_active_toast_desc: 'Sponsor segments will be automatically skipped',
     sponsorblock_disabled_toast: 'SponsorBlock Disabled',
-    sponsorblock_disabled_toast_desc: 'Sponsor segment skipping is temporarily paused'
+    sponsorblock_disabled_toast_desc: 'Sponsor segment skipping is temporarily paused',
+    lbl_single_view: 'Single View',
+    lbl_dual_view: 'Dual View (2 Channels)',
+    lbl_quad_view: 'Quad View (4 Channels)',
+    lbl_sport_view: 'Sport Mode (PiP)',
+    lbl_select_channel: 'Select a Channel',
+    lbl_update_channels: 'Update Channels',
+    lbl_loading_more: 'Loading more channels...',
+    opt_all_countries: 'All Countries',
+    opt_all_categories: 'All Categories',
+    lbl_swap_screens: 'Swap Screens'
   },
   es: {
     premium_automation: 'Automatización Premium',
@@ -1565,6 +1601,7 @@ function applyLanguage(lang) {
   elQuery('button[data-tab="downloaded"] span', 'tab_downloaded');
   elQuery('button[data-tab="channels"] span', 'tab_channels');
   elQuery('button[data-tab="settings"] span', 'tab_settings');
+  elQuery('#nav-iptv-btn span', 'tab_iptv');
 
   // Kanallar Sekmesi
   elQuery('#tab-channels .content-header h2', 'channels_title');
@@ -1615,6 +1652,8 @@ function applyLanguage(lang) {
   elQuery('label[for="downloaded-show-shorts"] + span', 'show_shorts');
   elQuery('#downloaded-view-grid-btn span', 'view_grid');
   elQuery('#downloaded-view-list-btn span', 'view_list');
+  elQuery('#inline-btn-description', 'inline_btn_description', 'title');
+  elQuery('#description-title-text', 'inline_description_title');
 
   // Ayarlar Sekmesi
   elQuery('#tab-settings .content-header h2', 'settings_title');
@@ -1841,70 +1880,173 @@ function applyLanguage(lang) {
   el('opt-import-append', 'opt_import_append');
   el('opt-import-overwrite', 'opt_import_overwrite');
 
-  // Üst bar bağlantı durumu metni çevirisi
-  const statusIndicator = document.getElementById('status-indicator');
+  // Ust bar baglanti durumu metni cevirisi
+  const statusIndicator2 = document.getElementById('status-indicator');
   const statusText = document.getElementById('topbar-status-text');
-  if (statusText && statusIndicator) {
-    if (statusIndicator.classList.contains('online')) {
+  if (statusText && statusIndicator2) {
+    if (statusIndicator2.classList.contains('online')) {
       statusText.textContent = t.connection_active;
-    } else if (statusIndicator.classList.contains('offline')) {
+    } else if (statusIndicator2.classList.contains('offline')) {
       statusText.textContent = t.connection_lost;
     } else {
       statusText.textContent = t.connection_connecting;
     }
   }
 
-  // CLI açıklama HTML kutusu dinamik güncellemesi
+  // CLI aciklama HTML kutusu dinamik guncellemesi
   const cliInfoDesc = document.getElementById('cli-info-desc');
   if (cliInfoDesc) {
     cliInfoDesc.innerHTML = t.cli_info_desc + `<br><small style="color: var(--accent-color); opacity: 0.8; font-weight: bold;" id="cli-info-note">${t.cli_info_note}</small>`;
   }
+
+  // IPTV Cevirileri
+  el('lbl-single-view', 'lbl_single_view');
+  el('lbl-dual-view', 'lbl_dual_view');
+  el('lbl-quad-view', 'lbl_quad_view');
+  el('lbl-sport-view', 'lbl_sport_view');
+  el('lbl-swap-screens', 'lbl_swap_screens');
+  el('lbl-update-channels', 'lbl_update_channels');
+  el('lbl-loading-more', 'lbl_loading_more');
+  el('opt-all-countries', 'opt_all_countries');
+  el('opt-all-categories', 'opt_all_categories');
+  document.querySelectorAll('.lbl-select-channel').forEach(item => {
+    if (t.lbl_select_channel) item.textContent = t.lbl_select_channel;
+  });
 }
 
-// Türkçe Açıklama: Seçilen tarayıcıya ait çerezlerin geçerli olup olmadığını backend'e sorarak arayüzdeki çerez durum lambasını günceller.
-/**
- * Tarayıcı çerezlerinin geçerliliğini test eder ve durum göstergesini günceller.
- * 
- * @returns {Promise<void>}
- */
-async function testCookies() {
-  const indicator = document.getElementById('cookie-test-indicator');
-  if (!indicator) return;
+function switchTab(targetTab, triggerPushState = true) {
+  window.switchTab = switchTab;
   
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  
-  if (!localDb.settings || !localDb.settings.browser || localDb.settings.browser === 'none') {
-    indicator.style.backgroundColor = 'var(--text-muted)';
-    indicator.title = isEn ? 'Cookies not used' : 'Çerez kullanılmıyor';
+  // Gecersiz veya bos tab kontrolu (pd-btn gibi data-tab olmayan nav-itemlar)
+  if (!targetTab || !tabPathMap[targetTab]) {
+    if (targetTab) console.warn('[switchTab] Bilinmeyen tab:', targetTab);
     return;
   }
-  
-  indicator.style.backgroundColor = 'var(--warning)';
-  indicator.title = isEn ? 'Testing cookies...' : 'Çerezler test ediliyor...';
-  
+
   try {
-    const res = await fetch('/api/test-cookies');
-    const data = await res.json();
-    if (data.success) {
-      indicator.style.backgroundColor = '#10b981'; // Green
-      indicator.title = isEn ? 'Cookies are active and valid' : 'Çerezler aktif ve geçerli';
-    } else {
-      indicator.style.backgroundColor = '#ef4444'; // Red
-      indicator.title = (isEn ? 'Cookie error: ' : 'Çerez hatası: ') + (data.error || 'Unknown error');
-      console.error('[Çerez Testi Hata]:', data.error);
+  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
+  
+  // İndirilenler sekmesinden çıkış yapılıyorsa ve video oynatılıyorsa mini oynatıcıya geç
+  if (activeTab === 'downloaded' && targetTab !== 'downloaded') {
+    const inlineContainer = document.getElementById('downloaded-inline-player-container');
+    const isInlineOpen = inlineContainer && !inlineContainer.classList.contains('hidden');
+    if (isInlineOpen && currentPlayingVideoId) {
+      const { currentTime, paused } = getCurrentPlaybackState();
+      const videoId = currentPlayingVideoId;
+      
+      // Yerleşik oynatıcıyı kapat
+      if (window.closeInlinePlayer) window.closeInlinePlayer();
+      
+      // UI sekmesini değiştir
+      performTabSwitchUI(targetTab);
+      
+      // Modal oynatıcıyı minimized modunda aç
+      const modal = document.getElementById('player-modal');
+      if (modal) {
+        modal.classList.add('minimized');
+        const btn = document.getElementById('minimize-player-modal-btn');
+        if (btn) {
+          const icon = btn.querySelector('i') || btn.querySelector('[data-lucide]');
+          if (icon) icon.setAttribute('data-lucide', 'maximize-2');
+          btn.title = localDb.settings && localDb.settings.lang === 'en' ? 'Maximize' : 'Büyüt';
+        }
+        lucide.createIcons();
+      }
+      
+      // Modalda videoyu başlat
+      playVideoEmbedded(videoId, currentTime, paused);
+      
+      if (triggerPushState) {
+        const targetPath = tabPathMap[targetTab];
+        if (targetPath && window.location.pathname !== targetPath) {
+          history.pushState({ tab: targetTab }, '', targetPath);
+        }
+      }
+      return;
     }
+  }
+  
+  // Başka sekmeden İndirilenler sekmesine geçiş yapılıyorsa ve modal oynatıcı açıksa ve video indirilmişse
+  if (targetTab === 'downloaded') {
+    const modal = document.getElementById('player-modal');
+    const isModalOpen = modal && !modal.classList.contains('hidden');
+    if (isModalOpen && currentPlayingVideoId) {
+      const video = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+      const isCompleted = video && video.status === 'completed';
+      const isMissing = video && video.fileMissing === true;
+      const isDownloaded = isCompleted && !isMissing;
+      
+      if (isDownloaded) {
+        const { currentTime, paused } = getCurrentPlaybackState();
+        const videoId = currentPlayingVideoId;
+        
+        // Modal oynatıcıyı kapat
+        if (window.closePlayerModal) window.closePlayerModal();
+        
+        // UI sekmesini değiştir
+        performTabSwitchUI(targetTab);
+        
+        // Yerleşik oynatıcıda videoyu başlat
+        playVideoEmbedded(videoId, currentTime, paused);
+        
+        if (triggerPushState) {
+          const targetPath = tabPathMap[targetTab];
+          if (targetPath && window.location.pathname !== targetPath) {
+            history.pushState({ tab: targetTab }, '', targetPath);
+          }
+        }
+        return;
+      }
+    }
+  }
+
+  // Normal sekme geçişi
+  if (targetTab !== 'downloaded') {
+    if (window.closeInlinePlayer) window.closeInlinePlayer();
+  }
+  
+  if (targetTab === 'iptv') {
+    // IPTV sekmesine gecince her turlu video player'i tamamen kapat (mini-player'a gitmeden)
+    const modal = document.getElementById('player-modal');
+    if (modal && !modal.classList.contains('hidden')) {
+      if (window.closePlayerModal) window.closePlayerModal();
+    }
+    if (window.closeInlinePlayer) window.closeInlinePlayer();
+    // IPTV kanallarini yukle ve durum kontrolunu baslat
+    if (typeof loadIptvChannels === 'function') loadIptvChannels();
+    if (typeof checkIptvStatus === 'function') checkIptvStatus();
+    // IPTV kayitli sekmeleri ve yerlesimi yukle
+    if (typeof restoreIptvState === 'function') restoreIptvState();
+  } else {
+    // IPTV sekmesinden cikinca: tum IPTV playerlar + arkaplan interval temizle
+    if (window.stopAllIptvPlayers) window.stopAllIptvPlayers();
+    if (window.clearIptvChannelList) window.clearIptvChannelList();
+    // IPTV durum kontrol interval'ini durdur
+    if (typeof iptvStatusInterval !== 'undefined' && iptvStatusInterval) {
+      clearInterval(iptvStatusInterval);
+      iptvStatusInterval = null;
+    }
+  }
+
+  performTabSwitchUI(targetTab);
+
+  if (triggerPushState) {
+    const targetPath = tabPathMap[targetTab];
+    if (targetPath && window.location.pathname !== targetPath) {
+      history.pushState({ tab: targetTab }, '', targetPath);
+    }
+  }
   } catch (err) {
-    indicator.style.backgroundColor = '#ef4444'; // Red
-    indicator.title = isEn ? 'Failed to communicate with server for cookie test' : 'Çerez testi için sunucuyla iletişim kurulamadı';
+    console.error('[switchTab] Hata olustu, tab:', targetTab, err);
+    // Hata olsa bile UI'yi guncelle
+    try { performTabSwitchUI(targetTab); } catch(e2) { console.error('[switchTab] performTabSwitchUI hatasi:', e2); }
   }
 }
 
-// Sayfa açıldığında masaüstü bildirim izni talep et
-if ('Notification' in window && Notification.permission === 'default') {
-  Notification.requestPermission();
-}
+// Sekme Degistirme - switchTab fonksiyonu tanimli, navItems henuz tanimsiz
+// Bu yuzden forEach'i navItems tanimlandiktan sonra cagiriyoruz (asagida)
 
-// DOM Elemanları
+// DOM Elemanlari
 const statusIndicator = document.getElementById('status-indicator');
 const connectionStatus = document.getElementById('connection-status');
 const cookieStatus = document.getElementById('cookie-status');
@@ -1913,7 +2055,16 @@ const qualityStatus = document.getElementById('quality-status');
 const navItems = document.querySelectorAll('.nav-item');
 const tabContents = document.querySelectorAll('.tab-content');
 
-// Dashboard Tab Elemanları
+// Sekme Degistirme - data-tab olmayan nav-itemleri (pd-btn gibi) atla
+// navItems burada tanimlandiktan sonra click handler'lari kayit ediyoruz
+document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
+  item.addEventListener('click', () => {
+    const targetTab = item.getAttribute('data-tab');
+    switchTab(targetTab, true);
+  });
+});
+
+// Dashboard Tab Elemanlari
 const noActiveDownload = document.getElementById('no-active-download');
 const activeDownloadDetails = document.getElementById('active-download-details');
 const activeSpeed = document.getElementById('active-speed');
@@ -2016,7 +2167,8 @@ const tabPathMap = {
   queue: '/download',
   downloaded: '/downlist',
   channels: '/channels',
-  settings: '/settings'
+  settings: '/settings',
+  iptv: '/iptv'
 };
 
 const pathTabMap = {
@@ -2024,7 +2176,8 @@ const pathTabMap = {
   '/download': 'queue',
   '/downlist': 'downloaded',
   '/channels': 'channels',
-  '/settings': 'settings'
+  '/settings': 'settings',
+  '/iptv': 'iptv'
 };
 
 // Türkçe Açıklama: Aktif oynatıcı tipine (ArtPlayer, Plyr, HTML5) göre oynatım saniyesini ve paused durumunu alır.
@@ -2086,115 +2239,6 @@ function performTabSwitchUI(targetTab) {
     mainContent.scrollTop = 0;
   }
 }
-
-// Türkçe Açıklama: Sekmeler arası geçişi sağlar, aktif sekmeyi görsel olarak vurgular ve tarayıcının adres satırını History API ile günceller.
-/**
- * Sekme geçişini yönetir ve tarayıcı geçmişini günceller.
- * 
- * @param {string} targetTab Hedef sekme adı
- * @param {boolean} triggerPushState Adres satırı geçmişine kaydedilip kaydedilmeyeceği (varsayılan: true)
- */
-function switchTab(targetTab, triggerPushState = true) {
-  window.switchTab = switchTab;
-  
-  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
-  
-  // İndirilenler sekmesinden çıkış yapılıyorsa ve video oynatılıyorsa mini oynatıcıya geç
-  if (activeTab === 'downloaded' && targetTab !== 'downloaded') {
-    const inlineContainer = document.getElementById('downloaded-inline-player-container');
-    const isInlineOpen = inlineContainer && !inlineContainer.classList.contains('hidden');
-    if (isInlineOpen && currentPlayingVideoId) {
-      const { currentTime, paused } = getCurrentPlaybackState();
-      const videoId = currentPlayingVideoId;
-      
-      // Yerleşik oynatıcıyı kapat
-      if (window.closeInlinePlayer) window.closeInlinePlayer();
-      
-      // UI sekmesini değiştir
-      performTabSwitchUI(targetTab);
-      
-      // Modal oynatıcıyı minimized modunda aç
-      const modal = document.getElementById('player-modal');
-      if (modal) {
-        modal.classList.add('minimized');
-        const btn = document.getElementById('minimize-player-modal-btn');
-        if (btn) {
-          const icon = btn.querySelector('i') || btn.querySelector('[data-lucide]');
-          if (icon) icon.setAttribute('data-lucide', 'maximize-2');
-          btn.title = localDb.settings && localDb.settings.lang === 'en' ? 'Maximize' : 'Büyüt';
-        }
-        lucide.createIcons();
-      }
-      
-      // Modalda videoyu başlat
-      playVideoEmbedded(videoId, currentTime, paused);
-      
-      if (triggerPushState) {
-        const targetPath = tabPathMap[targetTab];
-        if (targetPath && window.location.pathname !== targetPath) {
-          history.pushState({ tab: targetTab }, '', targetPath);
-        }
-      }
-      return;
-    }
-  }
-  
-  // Başka sekmeden İndirilenler sekmesine geçiş yapılıyorsa ve modal oynatıcı açıksa ve video indirilmişse
-  if (targetTab === 'downloaded') {
-    const modal = document.getElementById('player-modal');
-    const isModalOpen = modal && !modal.classList.contains('hidden');
-    if (isModalOpen && currentPlayingVideoId) {
-      const video = localDb.history.find(h => h.id === currentPlayingVideoId);
-      const isCompleted = video && video.status === 'completed';
-      const isMissing = video && video.fileMissing === true;
-      const isDownloaded = isCompleted && !isMissing;
-      
-      if (isDownloaded) {
-        const { currentTime, paused } = getCurrentPlaybackState();
-        const videoId = currentPlayingVideoId;
-        
-        // Modal oynatıcıyı kapat
-        if (window.closePlayerModal) window.closePlayerModal();
-        
-        // UI sekmesini değiştir
-        performTabSwitchUI(targetTab);
-        
-        // Yerleşik oynatıcıda videoyu başlat
-        playVideoEmbedded(videoId, currentTime, paused);
-        
-        if (triggerPushState) {
-          const targetPath = tabPathMap[targetTab];
-          if (targetPath && window.location.pathname !== targetPath) {
-            history.pushState({ tab: targetTab }, '', targetPath);
-          }
-        }
-        return;
-      }
-    }
-  }
-
-  // Normal sekme geçişi
-  if (targetTab !== 'downloaded') {
-    if (window.closeInlinePlayer) window.closeInlinePlayer();
-  }
-  
-  performTabSwitchUI(targetTab);
-
-  if (triggerPushState) {
-    const targetPath = tabPathMap[targetTab];
-    if (targetPath && window.location.pathname !== targetPath) {
-      history.pushState({ tab: targetTab }, '', targetPath);
-    }
-  }
-}
-
-// Sekme Değiştirme
-navItems.forEach(item => {
-  item.addEventListener('click', () => {
-    const targetTab = item.getAttribute('data-tab');
-    switchTab(targetTab, true);
-  });
-});
 
 // Tarayıcı Geri/İleri Buton Dinleyicisi
 window.addEventListener('popstate', (event) => {
@@ -4351,6 +4395,11 @@ window.showPlayerTransientOverlay = function(htmlContent, durationMs = 1200) {
   let container = null;
   if (isInline) {
     container = document.getElementById('inline-player-body');
+  } else if (activeTab === 'iptv') {
+    const activeSlotEl = document.querySelector(`.iptv-slot[data-slot="${activeIptvSlot}"]`);
+    if (activeSlotEl) {
+      container = activeSlotEl.querySelector('.slot-body');
+    }
   } else {
     const modal = document.getElementById('player-modal');
     if (modal && !modal.classList.contains('hidden')) {
@@ -4584,6 +4633,39 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
       commentsBtn.title = isEn ? 'Hide Comments' : 'Yorumları Gizle';
     }
     loadComments(videoId);
+
+    // Reset and Fetch description panel
+    const descContainer = document.getElementById('inline-player-description-container');
+    const descContent = document.getElementById('description-content');
+    const descBtn = document.getElementById('inline-btn-description');
+    
+    if (descContainer) descContainer.classList.add('hidden');
+    if (descBtn) {
+      descBtn.classList.remove('active');
+      descBtn.style.display = 'none';
+    }
+    if (descContent) descContent.innerHTML = '';
+
+    fetch(`/api/video/${videoId}/description`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.description) {
+          if (descContent) {
+            descContent.innerHTML = formatDescriptionTimestamps(data.description);
+          }
+          if (descBtn) {
+            descBtn.style.display = 'inline-flex';
+            descBtn.classList.add('active');
+            descBtn.title = isEn ? 'Hide Description' : 'Açıklamayı Gizle';
+          }
+          if (descContainer) {
+            descContainer.classList.remove('hidden');
+          }
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching description:", err);
+      });
 
     // Toggle SponsorBlock legend if SponsorBlock is enabled
     const sbLegend = document.getElementById('inline-player-sponsorblock-legend');
@@ -6857,6 +6939,91 @@ window.toggleCommentsPanel = async function() {
   }
 };
 
+/**
+ * Türkçe Açıklama: "1:23:45" veya "02:15" formatındaki süre metnini saniyeye dönüştürür.
+ * 
+ * @param {string} timeStr - Dönüştürülecek süre metni (örn: "01:23")
+ * @returns {number} Saniye cinsinden karşılığı
+ */
+function parseTimeToSeconds(timeStr) {
+  const parts = timeStr.split(':').map(Number);
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  return 0;
+}
+
+/**
+ * Türkçe Açıklama: Aktif video oynatıcının süresini belirtilen saniyeye atlatır (Plyr, Artplayer, HTML5 uyumlu).
+ * 
+ * @param {number} seconds - Atlanacak saniye değeri
+ * @returns {void}
+ */
+window.seekVideoToSeconds = function(seconds) {
+  const pType = (localDb.settings && localDb.settings.playerType) || 'plyr';
+  const player = document.getElementById('embedded-video-player');
+  
+  if (pType === 'artplayer' && videoPlayerInstance) {
+    videoPlayerInstance.currentTime = seconds;
+  } else if (pType === 'html5' && player) {
+    player.currentTime = seconds;
+  } else if (videoPlayerInstance) {
+    videoPlayerInstance.currentTime = seconds;
+  } else if (player) {
+    player.currentTime = seconds;
+  }
+};
+
+/**
+ * Türkçe Açıklama: Açıklama metnindeki zaman damgalarını (01:23 vb.) bulup tıklanabilir bağlantılara dönüştürür.
+ * 
+ * @param {string} text - Düzenlenecek açıklama metni
+ * @returns {string} Zaman damgaları linke dönüştürülmüş HTML metni
+ */
+function formatDescriptionTimestamps(text) {
+  const regex = /\b(?:(\d{1,2}):)?([0-5]?\d):([0-5]\d)\b/g;
+  
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  return html.replace(regex, (match) => {
+    const seconds = parseTimeToSeconds(match);
+    return `<a href="#" class="timestamp-link" onclick="event.preventDefault(); seekVideoToSeconds(${seconds});" style="color: var(--accent-primary); font-weight: 600; text-decoration: underline; cursor: pointer;">${match}</a>`;
+  });
+}
+
+/**
+ * Türkçe Açıklama: Video açıklama panelini açar/kapatır ve yorum panelini gizler.
+ * 
+ * @returns {void}
+ */
+window.toggleDescriptionPanel = function() {
+  const container = document.getElementById('inline-player-description-container');
+  if (!container) return;
+
+  const isHidden = container.classList.contains('hidden');
+  const btn = document.getElementById('inline-btn-description');
+  const isEn = localDb.settings?.lang === 'en';
+  
+  if (isHidden) {
+    container.classList.remove('hidden');
+    if (btn) {
+      btn.classList.add('active');
+      btn.title = isEn ? 'Hide Description' : 'Açıklamayı Gizle';
+    }
+  } else {
+    container.classList.add('hidden');
+    if (btn) {
+      btn.classList.remove('active');
+      btn.title = isEn ? 'Show Description' : 'Açıklamayı Göster';
+    }
+  }
+};
+
 let nextCommentsToken = null;
 let loadedCommentsList = [];
 
@@ -6910,8 +7077,67 @@ function parseRelativeTime(timeStr) {
   } else if (s.includes('year') || s.includes('yıl')) {
     multiplier = 31536000;
   }
-  
   return val * multiplier;
+}
+
+// IPTV Sayfalama durumu
+let iptvCurrentPage = 1;
+let iptvTotalPages = 1;
+let iptvTotalCount = 0;
+let iptvIsAppending = false;
+
+async function loadIptvChannels(append = false) {
+
+  if (!append) {
+    iptvIsLoading = true;
+    iptvCurrentPage = 1;
+    const listContainer = document.getElementById('iptv-channel-list');
+    if (listContainer) listContainer.innerHTML = '';
+  } else {
+    iptvIsAppending = true;
+  }
+
+  const loadingIndicator = document.getElementById('iptv-list-loading');
+  if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+
+  try {
+    const hasFilter = (iptvSelectedCountry || iptvSearchQuery || iptvSelectedCategory);
+    // Filtre varsa tum listeyi (limit=0), yoksa sayfalı (200)
+    const limitParam = hasFilter ? 0 : 200;
+    const url = `/api/iptv/channels?limit=${limitParam}&page=${iptvCurrentPage}&search=${encodeURIComponent(iptvSearchQuery)}&country=${encodeURIComponent(iptvSelectedCountry)}&category=${encodeURIComponent(iptvSelectedCategory)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (loadingIndicator) loadingIndicator.classList.add('hidden');
+
+    iptvTotalPages = data.pagination?.totalPages || 1;
+    iptvTotalCount = data.pagination?.totalCount || 0;
+
+    renderIptvChannels(data.channels, append);
+    populateIptvFilters(data.filters);
+    updateLoadMoreBtn();
+  } catch (err) {
+    console.error('Error loading IPTV channels:', err);
+    showToast(currentLang === 'en' ? 'Failed to load IPTV channels.' : 'IPTV kanalları yüklenemedi.', 'error');
+    if (loadingIndicator) loadingIndicator.classList.add('hidden');
+  } finally {
+    iptvIsLoading = false;
+    iptvIsAppending = false;
+  }
+}
+
+function updateLoadMoreBtn() {
+  const btn = document.getElementById('iptv-load-more-btn');
+  if (!btn) return;
+  const hasFilter = (iptvSelectedCountry || iptvSearchQuery || iptvSelectedCategory);
+  if (hasFilter || iptvCurrentPage >= iptvTotalPages) {
+    btn.classList.add('hidden');
+  } else {
+    btn.classList.remove('hidden');
+    const isEn = currentLang === 'en';
+    const shown = Math.min(iptvCurrentPage * 200, iptvTotalCount);
+    btn.textContent = `${isEn ? 'Load More' : 'Daha Fazla'} (${shown} / ${iptvTotalCount})`;
+  }
 }
 
 // Render comments list with sorting
@@ -7051,4 +7277,1169 @@ window.loadMoreComments = async function() {
   }
 };
 
+lucide.createIcons();
+
+// ==========================================
+// IPTV Oynatıcı ve Çoklu Ekran Yönetimi
+// ==========================================
+
+// Slot tıklama ve aktif slot değiştirme
+document.querySelectorAll('.iptv-slot').forEach(slot => {
+  slot.addEventListener('click', (e) => {
+    if (e.target.closest('.slot-controls')) return;
+    const slotIndex = parseInt(slot.getAttribute('data-slot'), 10);
+    selectIptvSlot(slotIndex);
+  });
+});
+
+function selectIptvSlot(slotIndex) {
+  activeIptvSlot = slotIndex;
+  
+  document.querySelectorAll('.iptv-slot').forEach(slot => {
+    const idx = parseInt(slot.getAttribute('data-slot'), 10);
+    if (idx === slotIndex) {
+      slot.classList.add('active');
+    } else {
+      slot.classList.remove('active');
+    }
+  });
+
+  const activeSlotLabel = document.getElementById('active-slot-label');
+  if (activeSlotLabel) {
+    const isEn = localDb.settings?.lang === 'en';
+    activeSlotLabel.textContent = isEn ? `Active Slot: Slot ${slotIndex + 1}` : `Aktif Slot: Slot ${slotIndex + 1}`;
+  }
+}
+
+// Mute, Swap ve Clear butonlarını bağla
+document.querySelectorAll('.iptv-slot').forEach(slot => {
+  const slotIndex = parseInt(slot.getAttribute('data-slot'), 10);
+  const muteBtn = slot.querySelector('.mute-btn');
+  const swapBtn = slot.querySelector('.swap-slot-btn');
+  const clearBtn = slot.querySelector('.clear-btn');
+
+  if (muteBtn) {
+    muteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleIptvMute(slotIndex);
+    });
+  }
+
+  if (swapBtn) {
+    swapBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      swapIptvSportModePlayers();
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearIptvSlot(slotIndex);
+    });
+  }
+});
+
+function toggleIptvMute(slotIndex) {
+  const current = iptvPlayers[slotIndex];
+  if (!current) return;
+
+  const slotEl = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"]`);
+  const muteBtn = slotEl?.querySelector('.mute-btn');
+  
+  let isMuted = false;
+  if (current.type === 'artplayer' && current.player) {
+    isMuted = current.player.muted;
+    current.player.muted = !isMuted;
+    isMuted = !isMuted;
+  } else if (current.type === 'plyr' && current.player) {
+    isMuted = current.player.muted;
+    current.player.muted = !isMuted;
+    isMuted = !isMuted;
+  } else if (current.videoElement) {
+    isMuted = current.videoElement.muted;
+    current.videoElement.muted = !isMuted;
+    isMuted = !isMuted;
+  }
+
+  if (muteBtn) {
+    muteBtn.innerHTML = isMuted ? '<i data-lucide="volume-x"></i>' : '<i data-lucide="volume-2"></i>';
+    lucide.createIcons();
+  }
+}
+
+function clearIptvSlot(slotIndex) {
+  const slotEl = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"]`);
+  if (!slotEl) return;
+
+  const current = iptvPlayers[slotIndex];
+  if (current) {
+    try {
+      if (current.type === 'artplayer' && current.player) {
+        current.player.destroy();
+      } else if (current.type === 'plyr' && current.player) {
+        current.player.destroy();
+      }
+      
+      if (current.hls) {
+        current.hls.destroy();
+      }
+      
+      if (current.videoElement) {
+        current.videoElement.pause();
+        current.videoElement.src = '';
+        current.videoElement.load();
+      }
+    } catch (e) {
+      console.error(`Error cleaning up IPTV slot ${slotIndex}:`, e);
+    }
+    iptvPlayers[slotIndex] = null;
+  }
+
+  const playerContainer = slotEl.querySelector('.slot-player-instance');
+  if (playerContainer) playerContainer.innerHTML = '';
+  
+  slotEl.classList.remove('has-video');
+  
+  const titleEl = slotEl.querySelector('.slot-title');
+  if (titleEl) {
+    titleEl.textContent = `Slot ${slotIndex + 1}: Boş`;
+  }
+
+  const muteBtn = slotEl.querySelector('.mute-btn');
+  if (muteBtn) {
+    muteBtn.innerHTML = '<i data-lucide="volume-x"></i>';
+    lucide.createIcons();
+  }
+
+  updateIptvPlayingStatus();
+  if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
+}
+
+function stopAllIptvPlayers() {
+  if (typeof saveIptvState === 'function') saveIptvState();
+  const prevRestoring = isRestoringIptv;
+  isRestoringIptv = true;
+  try {
+    for (let i = 0; i < 4; i++) {
+      clearIptvSlot(i);
+    }
+  } finally {
+    isRestoringIptv = prevRestoring;
+  }
+}
+window.stopAllIptvPlayers = stopAllIptvPlayers;
+
+// IPTV sekmesinden cikinca kanal listesini DOM'dan temizle (RAM tasarrufu)
+window.clearIptvChannelList = function() {
+  const listContainer = document.getElementById('iptv-channel-list');
+  if (listContainer) listContainer.innerHTML = '';
+  // Loading indicator'u gizle
+  const loadingEl = document.getElementById('iptv-list-loading');
+  if (loadingEl) loadingEl.classList.add('hidden');
+  // Filtreleri sifirla ki tekrar girildiginde dolu gelsin
+  iptvSearchQuery = '';
+  iptvSelectedCountry = '';
+  iptvSelectedCategory = '';
+  // Search input ve select'leri temizle
+  const searchEl = document.getElementById('iptv-search-input');
+  if (searchEl) searchEl.value = '';
+  const cEl = document.getElementById('iptv-country-filter');
+  if (cEl) cEl.value = '';
+  const catEl = document.getElementById('iptv-category-filter');
+  if (catEl) catEl.value = '';
+};
+
+// Tekli / İkili / Çoklu ekran mod butonları & Spor Modu (PiP)
+const singleBtn = document.getElementById('iptv-single-view-btn');
+const dualBtn = document.getElementById('iptv-dual-view-btn');
+const quadBtn = document.getElementById('iptv-quad-view-btn');
+const sportBtn = document.getElementById('iptv-sport-view-btn');
+const gridEl = document.getElementById('iptv-players-grid');
+
+if (singleBtn && dualBtn && quadBtn && sportBtn && gridEl) {
+  singleBtn.addEventListener('click', () => {
+    if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
+    gridEl.classList.remove('swapped-mode');
+    singleBtn.classList.add('active');
+    if (dualBtn) dualBtn.classList.remove('active');
+    quadBtn.classList.remove('active');
+    sportBtn.classList.remove('active');
+    gridEl.classList.remove('dual-mode', 'quad-mode', 'sport-mode');
+    gridEl.classList.add('single-mode');
+    if (typeof updateIptvSwapBtnVisibility === 'function') updateIptvSwapBtnVisibility();
+    resizeAllArtplayers();
+    if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
+  });
+
+  dualBtn.addEventListener('click', () => {
+    if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
+    gridEl.classList.remove('swapped-mode');
+    dualBtn.classList.add('active');
+    singleBtn.classList.remove('active');
+    quadBtn.classList.remove('active');
+    sportBtn.classList.remove('active');
+    gridEl.classList.remove('single-mode', 'quad-mode', 'sport-mode');
+    gridEl.classList.add('dual-mode');
+    if (activeIptvSlot > 1) {
+      selectIptvSlot(0);
+    }
+    if (typeof updateIptvSwapBtnVisibility === 'function') updateIptvSwapBtnVisibility();
+    resizeAllArtplayers();
+    if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
+  });
+
+  quadBtn.addEventListener('click', () => {
+    if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
+    gridEl.classList.remove('swapped-mode');
+    quadBtn.classList.add('active');
+    singleBtn.classList.remove('active');
+    if (dualBtn) dualBtn.classList.remove('active');
+    sportBtn.classList.remove('active');
+    gridEl.classList.remove('single-mode', 'dual-mode', 'sport-mode');
+    gridEl.classList.add('quad-mode');
+    if (typeof updateIptvSwapBtnVisibility === 'function') updateIptvSwapBtnVisibility();
+    resizeAllArtplayers();
+    if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
+  });
+
+  sportBtn.addEventListener('click', () => {
+    if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
+    gridEl.classList.remove('swapped-mode');
+    sportBtn.classList.add('active');
+    singleBtn.classList.remove('active');
+    if (dualBtn) dualBtn.classList.remove('active');
+    quadBtn.classList.remove('active');
+    gridEl.classList.remove('single-mode', 'dual-mode', 'quad-mode');
+    gridEl.classList.add('sport-mode');
+    if (activeIptvSlot > 1) {
+      selectIptvSlot(0);
+    }
+    if (typeof updateIptvSwapBtnVisibility === 'function') updateIptvSwapBtnVisibility();
+    resizeAllArtplayers();
+    if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
+  });
+}
+
+// Grid Fullscreen Toggle
+const gridFullscreenBtn = document.getElementById('iptv-grid-fullscreen-btn');
+if (gridFullscreenBtn && gridEl) {
+  gridFullscreenBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      gridEl.requestFullscreen().catch((err) => {
+        console.error('Error entering fullscreen for grid:', err);
+      });
+    } else {
+      document.exitFullscreen().catch((err) => {
+        console.error('Error exiting fullscreen:', err);
+      });
+    }
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    const icon = gridFullscreenBtn.querySelector('i');
+    if (icon) {
+      if (document.fullscreenElement === gridEl) {
+        icon.setAttribute('data-lucide', 'minimize');
+      } else {
+        icon.setAttribute('data-lucide', 'maximize');
+        // Reset slot styles when exiting fullscreen so they don't overflow the standard layout container
+        if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+    // Trigger window resize and player resize to adjust dimensions
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+      if (typeof resizeAllArtplayers === 'function') {
+        resizeAllArtplayers();
+      }
+    }, 150);
+  });
+}
+
+/**
+ * Türkçe Açıklama: Aktif tüm ArtPlayer oynatıcı örneklerinin boyutlarını yeniden hesaplar ve arayüze sığdırır.
+ * 
+ * @returns {void}
+ */
+function resizeAllArtplayers() {
+  iptvPlayers.forEach(p => {
+    if (p && p.type === 'artplayer' && p.player && typeof p.player.resize === 'function') {
+      setTimeout(() => {
+        p.player.resize();
+      }, 100);
+    }
+  });
+}
+
+/**
+ * Türkçe Açıklama: Mevcut IPTV slotlarının durumunu (aktif kanal URL'si ve adı) ve geçerli yerleşim modunu localStorage'a kaydeder.
+ * 
+ * @returns {void}
+ */
+function saveIptvState() {
+  const slotsData = {};
+  iptvPlayers.forEach((playerRef, idx) => {
+    if (playerRef) {
+      slotsData[idx] = {
+        streamUrl: playerRef.streamUrl,
+        displayName: playerRef.displayName
+      };
+    } else {
+      slotsData[idx] = null;
+    }
+  });
+
+  const gridEl = document.getElementById('iptv-players-grid');
+  let layout = 'single-mode';
+  if (gridEl) {
+    if (gridEl.classList.contains('dual-mode')) layout = 'dual-mode';
+    else if (gridEl.classList.contains('quad-mode')) layout = 'quad-mode';
+    else if (gridEl.classList.contains('sport-mode')) layout = 'sport-mode';
+  }
+
+  const state = {
+    layout: layout,
+    slots: slotsData
+  };
+
+  localStorage.setItem('iptv_saved_state', JSON.stringify(state));
+}
+
+/**
+ * Türkçe Açıklama: Tarayıcı hafızasında (localStorage) kayıtlı olan IPTV yerleşimini ve slotlarda çalan kanalları geri yükler.
+ * 
+ * @returns {void}
+ */
+function restoreIptvState() {
+  const saved = localStorage.getItem('iptv_saved_state');
+  if (!saved) return;
+
+  try {
+    if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
+    isRestoringIptv = true;
+    const state = JSON.parse(saved);
+    
+    // 1. Restore layout mode
+    const gridEl = document.getElementById('iptv-players-grid');
+    const singleBtn = document.getElementById('iptv-single-view-btn');
+    const dualBtn = document.getElementById('iptv-dual-view-btn');
+    const quadBtn = document.getElementById('iptv-quad-view-btn');
+    const sportBtn = document.getElementById('iptv-sport-view-btn');
+
+    if (gridEl) {
+      gridEl.classList.remove('single-mode', 'dual-mode', 'quad-mode', 'sport-mode', 'swapped-mode');
+      gridEl.classList.add(state.layout || 'single-mode');
+
+      // Update button active state
+      if (singleBtn) singleBtn.classList.remove('active');
+      if (dualBtn) dualBtn.classList.remove('active');
+      if (quadBtn) quadBtn.classList.remove('active');
+      if (sportBtn) sportBtn.classList.remove('active');
+
+      if (state.layout === 'dual-mode' && dualBtn) dualBtn.classList.add('active');
+      else if (state.layout === 'quad-mode' && quadBtn) quadBtn.classList.add('active');
+      else if (state.layout === 'sport-mode' && sportBtn) sportBtn.classList.add('active');
+      else if (singleBtn) singleBtn.classList.add('active');
+    }
+
+    // 2. Play channels in slots
+    if (state.slots) {
+      Object.keys(state.slots).forEach(slotIndexStr => {
+        const slotIndex = parseInt(slotIndexStr, 10);
+        const chan = state.slots[slotIndexStr];
+        if (chan && chan.streamUrl && chan.displayName) {
+          playIptvChannel(slotIndex, chan.streamUrl, chan.displayName);
+        }
+      });
+    }
+
+    // 3. Make sure active slot is valid for this layout mode
+    if (state.layout === 'dual-mode' || state.layout === 'sport-mode') {
+      if (activeIptvSlot > 1) {
+        selectIptvSlot(0);
+      }
+    } else if (state.layout === 'single-mode') {
+      if (activeIptvSlot !== 0) {
+        let playingSlot = 0;
+        if (state.slots) {
+          for (let i = 0; i < 4; i++) {
+            if (state.slots[i]) {
+              playingSlot = i;
+              break;
+            }
+          }
+        }
+        selectIptvSlot(playingSlot);
+      }
+    }
+
+    isRestoringIptv = false;
+    if (typeof updateIptvSwapBtnVisibility === 'function') updateIptvSwapBtnVisibility();
+    saveIptvState();
+    resizeAllArtplayers();
+  } catch (e) {
+    isRestoringIptv = false;
+    console.error('Error restoring IPTV state:', e);
+  }
+}
+
+// Kanal listesini cek ve render et (append=true ise listeye ekle, false ise temizle)
+// Not: Yeni loadIptvChannels artik yukarda (6916) tanimli - burasi eski versiyonu kaldirmak icin temizlendi
+
+/**
+ * Türkçe Açıklama: IPTV kanal listesini alır ve arayüzde dinamik kartlar olarak render eder.
+ * 
+ * @param {Array<Object>} channels - Render edilecek IPTV kanal nesneleri dizisi
+ * @param {boolean} [append=false] - Kanalların mevcut listede birikerek mi ekleneceği yoksa listenin temizlenip sıfırdan mı yazılacağı
+ * @returns {void}
+ */
+function renderIptvChannels(channels, append = false) {
+  const listContainer = document.getElementById('iptv-channel-list');
+  if (!listContainer) return;
+
+  if (!append) {
+    listContainer.innerHTML = '';
+  }
+
+  if (channels.length === 0 && !append) {
+    const isEn = currentLang === 'en';
+    listContainer.innerHTML = `<div class="text-center text-muted" style="padding: 20px 0; font-size: 0.85rem;">${isEn ? 'No channels found.' : 'Kanal bulunamad\u0131.'}</div>`;
+    return;
+  }
+
+  // DocumentFragment ile tek seferde DOM'a yaz (performans)
+  const fragment = document.createDocumentFragment();
+
+  channels.forEach(ch => {
+    const div = document.createElement('div');
+    div.className = 'iptv-channel-item';
+    div.dataset.url = ch.url;
+
+    const isPlaying = iptvPlayers.some(p => p && p.streamUrl === ch.url);
+    if (isPlaying) div.classList.add('playing');
+
+    const fallbackLogo = `<i data-lucide="monitor"></i>`;
+    const logoHtml = ch.logo
+      ? `<img src="${ch.logo}" alt="" loading="lazy" onerror="this.outerHTML='<i data-lucide=\\'monitor\\'></i>'; lucide.createIcons();">`
+      : fallbackLogo;
+
+    const badges = [];
+    if (ch.category) badges.push(`<span class="iptv-channel-badge iptv-channel-category">${ch.category}</span>`);
+    if (ch.country) badges.push(`<span class="iptv-channel-badge iptv-channel-country">${ch.country}</span>`);
+
+    div.innerHTML = `
+      <div class="iptv-channel-logo">${logoHtml}</div>
+      <div class="iptv-channel-details">
+        <div class="iptv-channel-name">${ch.displayName}</div>
+        <div class="iptv-channel-sub">${badges.join('')}</div>
+      </div>
+    `;
+
+    div.addEventListener('click', () => {
+      playIptvChannel(activeIptvSlot, ch.url, ch.displayName);
+    });
+
+    fragment.appendChild(div);
+  });
+
+  listContainer.appendChild(fragment);
+  lucide.createIcons();
+}
+
+/**
+ * Türkçe Açıklama: IPTV kanal listesindeki oynatılan kanalların aktiflik (playing) sınıfını günceller.
+ * 
+ * @returns {void}
+ */
+function updateIptvPlayingStatus() {
+  const listContainer = document.getElementById('iptv-channel-list');
+  if (!listContainer) return;
+
+  const items = listContainer.querySelectorAll('.iptv-channel-item');
+  items.forEach(item => {
+    const url = item.dataset.url;
+    const isPlaying = iptvPlayers.some(p => p && p.streamUrl === url);
+    if (isPlaying) {
+      item.classList.add('playing');
+    } else {
+      item.classList.remove('playing');
+    }
+  });
+}
+
+/**
+ * Türkçe Açıklama: IPTV kanal listesindeki ülke ve kategori filtre dropdown seçeneklerini doldurur.
+ * Kategorileri maksimum 40 karakter ile sınırlandırır.
+ * 
+ * @param {Object} filters - Filtre seçeneklerini (countries, categories) içeren nesne
+ * @returns {void}
+ */
+function populateIptvFilters(filters) {
+  if (!filters) return;
+
+  const countryFilter = document.getElementById('iptv-country-filter');
+  const categoryFilter = document.getElementById('iptv-category-filter');
+  const isEn = currentLang === 'en';
+
+  // Mevcut seçili değerleri sakla
+  const currentCountry = countryFilter ? countryFilter.value : '';
+  const currentCategory = categoryFilter ? categoryFilter.value : '';
+
+  if (countryFilter && filters.countries) {
+    countryFilter.innerHTML = `<option value="">${isEn ? 'All Countries' : 'Tüm Ülkeler'}</option>`;
+    filters.countries.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      countryFilter.appendChild(opt);
+    });
+    // Seçimi koru
+    if (currentCountry) countryFilter.value = currentCountry;
+  }
+
+  if (categoryFilter && filters.categories) {
+    categoryFilter.innerHTML = `<option value="">${isEn ? 'All Categories' : 'Tüm Kategoriler'}</option>`;
+    filters.categories.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      const dispText = cat.length > 40 ? cat.substring(0, 40) + '...' : cat;
+      opt.textContent = dispText;
+      categoryFilter.appendChild(opt);
+    });
+    // Seçimi koru
+    if (currentCategory) categoryFilter.value = currentCategory;
+  }
+}
+
+// Filtre Dinleyicileri
+const iptvSearchInput = document.getElementById('iptv-search-input');
+const iptvCountryFilter = document.getElementById('iptv-country-filter');
+const iptvCategoryFilter = document.getElementById('iptv-category-filter');
+
+if (iptvSearchInput) {
+  iptvSearchInput.addEventListener('input', debounce(() => {
+    iptvSearchQuery = iptvSearchInput.value.trim();
+    loadIptvChannels();
+  }, 300));
+}
+
+if (iptvCountryFilter) {
+  iptvCountryFilter.addEventListener('change', () => {
+    iptvSelectedCountry = iptvCountryFilter.value;
+    loadIptvChannels();
+  });
+}
+
+if (iptvCategoryFilter) {
+  iptvCategoryFilter.addEventListener('change', () => {
+    iptvSelectedCategory = iptvCategoryFilter.value;
+    loadIptvChannels();
+  });
+}
+
+// TR Hizli Erisim Butonu
+const iptvTrBtn = document.getElementById('iptv-tr-quick-btn');
+if (iptvTrBtn) {
+  iptvTrBtn.addEventListener('click', () => {
+    iptvSelectedCountry = 'TR';
+    if (iptvCountryFilter) iptvCountryFilter.value = 'TR';
+    loadIptvChannels();
+  });
+}
+
+// Daha Fazla Yukle butonu
+const iptvLoadMoreBtn = document.getElementById('iptv-load-more-btn');
+if (iptvLoadMoreBtn) {
+  iptvLoadMoreBtn.addEventListener('click', () => {
+    iptvCurrentPage++;
+    loadIptvChannels(true);
+  });
+}
+
+/**
+ * Türkçe Açıklama: Bir fonksiyonun ardışık tetiklenmesini geciktirerek belirtilen süre sonunda bir kez çalışmasını sağlar.
+ * 
+ * @param {Function} func - Geciktirilecek fonksiyon
+ * @param {number} delay - Milisaniye cinsinden gecikme süresi
+ * @returns {Function} Debounced fonksiyon sarmalayıcısı
+ */
+function debounce(func, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => func.apply(this, args), delay);
+  };
+}
+
+// IPTV Güncelleme ve Durum Denetimleri
+/**
+ * Türkçe Açıklama: Sunucudan güncel IPTV yükleme/güncelleme durumunu sorgular ve arayüzü günceller.
+ * 
+ * @returns {Promise<void>}
+ */
+async function checkIptvStatus() {
+  try {
+    const res = await fetch('/api/iptv/status');
+    const data = await res.json();
+    updateIptvStatusUI(data);
+  } catch (err) {
+    console.error('Error checking IPTV status:', err);
+  }
+}
+
+/**
+ * Türkçe Açıklama: IPTV güncelleme durumuna göre durum metnini ve güncelle butonunun yükleniyor durumunu yönetir.
+ * 
+ * @param {Object} status - Sunucudan gelen IPTV durumu nesnesi (status, lastUpdated, totalChannels vb.)
+ * @returns {void}
+ */
+function updateIptvStatusUI(status) {
+  const statusInfo = document.getElementById('iptv-status-info');
+  const updateBtn = document.getElementById('iptv-update-btn');
+  
+  if (!statusInfo) return;
+
+  const isEn = localDb.settings?.lang === 'en';
+
+  if (status.status === 'updating') {
+    statusInfo.textContent = isEn ? 'Updating channel list...' : 'Kanal listesi güncelleniyor...';
+    if (updateBtn) {
+      updateBtn.disabled = true;
+      const icon = updateBtn.querySelector('i');
+      if (icon) icon.classList.add('spin-animation');
+    }
+    startIptvStatusPolling();
+  } else {
+    if (updateBtn) {
+      updateBtn.disabled = false;
+      const icon = updateBtn.querySelector('i');
+      if (icon) icon.classList.remove('spin-animation');
+    }
+
+    if (status.lastUpdated) {
+      const date = new Date(status.lastUpdated);
+      const formattedDate = date.toLocaleString();
+      statusInfo.textContent = isEn 
+        ? `Last Updated: ${formattedDate} (${status.totalChannels} channels)`
+        : `Son Güncelleme: ${formattedDate} (${status.totalChannels} Kanal)`;
+    } else {
+      statusInfo.textContent = isEn ? 'Not updated yet.' : 'Henüz güncellenmedi.';
+    }
+  }
+}
+
+/**
+ * Türkçe Açıklama: IPTV listesinin arka planda güncellenme sürecini takip etmek amacıyla periyodik durum sorgulama (polling) başlatır.
+ * 
+ * @returns {void}
+ */
+function startIptvStatusPolling() {
+  if (iptvStatusInterval) return;
+  iptvStatusInterval = setInterval(async () => {
+    try {
+      const res = await fetch('/api/iptv/status');
+      const data = await res.json();
+      updateIptvStatusUI(data);
+      
+      if (data.status !== 'updating') {
+        clearInterval(iptvStatusInterval);
+        iptvStatusInterval = null;
+        loadIptvChannels();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, 3000);
+}
+
+const iptvUpdateBtn = document.getElementById('iptv-update-btn');
+if (iptvUpdateBtn) {
+  iptvUpdateBtn.addEventListener('click', async () => {
+    const isEn = localDb.settings?.lang === 'en';
+    try {
+      showToast(isEn ? 'IPTV list update requested...' : 'IPTV listesi güncellemesi istendi...', 'info');
+      const res = await fetch('/api/iptv/update', { method: 'POST' });
+      const data = await res.json();
+      
+      if (data.success) {
+        checkIptvStatus();
+      } else {
+        showToast(data.error || 'Update request failed.', 'error');
+      }
+    } catch (err) {
+      showToast('Connection error.', 'error');
+    }
+  });
+}
+
+/**
+ * Türkçe Açıklama: Belirli bir IPTV slotu içerisinde HLS(.m3u8) veya mp4 yayın streamini oynatıcı (Plyr, ArtPlayer veya HTML5) ile başlatır.
+ * 
+ * @param {number} slotIndex - Yayının oynatılacağı slot indeksi (0-3)
+ * @param {string} streamUrl - Yayının akış (M3U8 / MP4 vb.) adresi
+ * @param {string} displayName - Slot başlığında gösterilecek kanal adı
+ * @returns {void}
+ */
+function playIptvChannel(slotIndex, streamUrl, displayName) {
+  clearIptvSlot(slotIndex);
+
+  const slotEl = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"]`);
+  if (!slotEl) return;
+
+  const playerContainer = slotEl.querySelector('.slot-player-instance');
+  playerContainer.innerHTML = '';
+
+  const video = document.createElement('video');
+  video.id = `iptv-video-player-${slotIndex}`;
+  video.style.width = '100%';
+  video.style.height = '100%';
+  video.style.display = 'block';
+  video.style.outline = 'none';
+  video.controls = true;
+  video.autoplay = true;
+  video.muted = true;
+
+  playerContainer.appendChild(video);
+  slotEl.classList.add('has-video');
+  
+  const titleEl = slotEl.querySelector('.slot-title');
+  if (titleEl) {
+    titleEl.textContent = `Slot ${slotIndex + 1}: ${displayName}`;
+  }
+
+  const muteBtn = slotEl.querySelector('.mute-btn');
+  if (muteBtn) {
+    muteBtn.innerHTML = '<i data-lucide="volume-x"></i>';
+    lucide.createIcons();
+  }
+
+  const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
+  
+  let hlsInstance = null;
+  let playerInstance = null;
+
+  if (streamUrl.includes('.m3u8') || streamUrl.includes('m3u8') || streamUrl.includes('stream') || streamUrl.startsWith('http')) {
+    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+      hlsInstance = new Hls();
+      hlsInstance.loadSource(streamUrl);
+      hlsInstance.attachMedia(video);
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = streamUrl;
+    }
+  } else {
+    video.src = streamUrl;
+  }
+
+  if (playerType === 'artplayer' && typeof Artplayer !== 'undefined') {
+    playerContainer.innerHTML = `<div id="iptv-artplayer-${slotIndex}" style="width: 100%; height: 100%;"></div>`;
+    playerInstance = new Artplayer({
+      container: `#iptv-artplayer-${slotIndex}`,
+      url: streamUrl,
+      autoplay: true,
+      muted: true,
+      controls: true,
+      setting: false,
+      hotkey: false,
+      pip: false,
+      fullscreen: true,
+      mutex: false,
+      type: 'm3u8',
+      customType: {
+        m3u8: function (videoEl, url, art) {
+          if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+            if (art.hls) art.hls.destroy();
+            const hls = new Hls();
+            hls.loadSource(url);
+            hls.attachMedia(videoEl);
+            art.hls = hls;
+            hlsInstance = hls;
+            art.on('destroy', () => hls.destroy());
+          } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+            videoEl.src = url;
+          }
+        }
+      }
+    });
+  } else if (playerType === 'plyr' && typeof Plyr !== 'undefined') {
+    playerInstance = new Plyr(video, {
+      controls: ['play', 'mute', 'volume', 'fullscreen'],
+      keyboard: { global: false, focused: false }
+    });
+  } else {
+    playerInstance = video;
+  }
+
+  // IPTV kanalı baslatildi, player referanslarini kaydet
+  const playerRef = {
+    player: playerInstance,
+    hls: hlsInstance,
+    type: playerType,
+    videoElement: video,
+    streamUrl: streamUrl,
+    displayName: displayName
+  };
+  iptvPlayers[slotIndex] = playerRef;
+
+  // IPTV Kisayollar: Mouse Scroll (Ses) + Klavye (M/F/Bosluk/Yukari/Asagi Ok)
+  const getIptvVideo = () => playerRef.videoElement || document.getElementById(`iptv-video-player-${slotIndex}`);
+
+  // Mouse scroll ses degistir
+  playerContainer.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const vid = getIptvVideo();
+    if (!vid) return;
+    const delta = e.deltaY < 0 ? 0.05 : -0.05;
+    const newVol = Math.min(1, Math.max(0, (vid.volume || 0) + delta));
+    vid.volume = newVol;
+    if (vid.muted && newVol > 0) vid.muted = false;
+    if (typeof triggerVolumeHUD === 'function') triggerVolumeHUD(newVol);
+    const muteB = slotEl.querySelector('.mute-btn');
+    if (muteB) {
+      muteB.innerHTML = (vid.muted || newVol === 0)
+        ? '<i data-lucide="volume-x"></i>'
+        : '<i data-lucide="volume-2"></i>';
+      lucide.createIcons();
+    }
+  }, { passive: false });
+
+  // Klavye kısayolları – slot'a focus geldiğinde çalışır
+  slotEl.setAttribute('tabindex', '0');
+  slotEl.addEventListener('keydown', (e) => {
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) return;
+    const vid = getIptvVideo();
+    if (!vid) return;
+    switch (e.key) {
+      case ' ': case 'k': case 'K':
+        e.preventDefault();
+        if (vid.paused) vid.play().catch(() => {}); else vid.pause();
+        break;
+      case 'm': case 'M':
+        e.preventDefault();
+        vid.muted = !vid.muted;
+        if (typeof triggerVolumeHUD === 'function') triggerVolumeHUD(vid.muted ? 0 : vid.volume);
+        break;
+      case 'f': case 'F':
+        e.preventDefault();
+        if (!document.fullscreenElement) slotEl.requestFullscreen().catch(() => {});
+        else document.exitFullscreen().catch(() => {});
+        break;
+      case 'ArrowUp':
+        e.preventDefault(); {
+          const v = Math.min(1, (vid.volume || 0) + 0.05);
+          vid.volume = v;
+          if (vid.muted && v > 0) vid.muted = false;
+          if (typeof triggerVolumeHUD === 'function') triggerVolumeHUD(v);
+        }
+        break;
+      case 'ArrowDown':
+        e.preventDefault(); {
+          const v = Math.max(0, (vid.volume || 0) - 0.05);
+          vid.volume = v;
+          if (typeof triggerVolumeHUD === 'function') triggerVolumeHUD(v);
+        }
+        break;
+    }
+  });
+  // ─── Kısayollar Sonu ───
+
+  updateIptvPlayingStatus();
+  if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
+}
+
+function resetIptvSlotStyles(slotIdx = null) {
+  const resetSlot = (idx) => {
+    const slot = document.querySelector(`.iptv-slot[data-slot="${idx}"]`);
+    if (slot) {
+      slot.classList.remove('is-dragging', 'is-resizing');
+      slot.style.left = '';
+      slot.style.top = '';
+      slot.style.right = '';
+      slot.style.bottom = '';
+      slot.style.width = '';
+      slot.style.height = '';
+      slot.style.aspectRatio = '';
+    }
+  };
+
+  if (slotIdx !== null) {
+    resetSlot(slotIdx);
+  } else {
+    resetSlot(0);
+    resetSlot(1);
+    resetSlot(2);
+    resetSlot(3);
+  }
+}
+
+/**
+ * Türkçe Açıklama: IPTV spor modunda Slot 2'nin (PiP ekranı) sürüklenebilmesini ve yeniden boyutlandırılabilmesini başlatan olay dinleyicilerini kurar.
+ * 
+ * @returns {void}
+ */
+function initIptvSportModeDragAndResize() {
+  const setupSlotDragAndResize = (slotIndex) => {
+    const slot = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"]`);
+    if (!slot) return;
+
+    const header = slot.querySelector('.slot-header');
+    const resizeHandle = slot.querySelector('.slot-resize-handle');
+    if (!header || !resizeHandle) return;
+
+    let isDragging = false;
+    let isResizing = false;
+    let startX, startY;
+    let startLeft, startTop;
+    let startWidth, startHeight;
+    const gridEl = document.getElementById('iptv-players-grid');
+
+    // Dragging logic
+    header.addEventListener('mousedown', (e) => {
+      // Only drag in sport mode
+      if (!gridEl || !gridEl.classList.contains('sport-mode')) return;
+
+      // Only drag Slot 2 (index 1) in sport mode
+      if (slotIndex !== 1) return;
+      
+      // Ignore if clicked on buttons
+      if (e.target.closest('.slot-btn') || e.target.closest('button')) return;
+
+      e.preventDefault();
+      isDragging = true;
+      slot.classList.add('is-dragging');
+      
+      // Get initial position relative to parent
+      const rect = slot.getBoundingClientRect();
+      const parentRect = gridEl.getBoundingClientRect();
+      
+      // Set left and top explicitly so we transition from bottom/right absolute positioning
+      slot.style.right = 'auto';
+      slot.style.bottom = 'auto';
+      slot.style.left = `${rect.left - parentRect.left}px`;
+      slot.style.top = `${rect.top - parentRect.top}px`;
+      
+      // Remove aspect-ratio so resizing/dragging doesn't fight it
+      slot.style.aspectRatio = 'auto';
+      slot.style.height = `${rect.height}px`;
+      slot.style.width = `${rect.width}px`;
+
+      startX = e.clientX;
+      startY = e.clientY;
+      startLeft = parseFloat(slot.style.left) || 0;
+      startTop = parseFloat(slot.style.top) || 0;
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+
+    // Resizing logic
+    resizeHandle.addEventListener('mousedown', (e) => {
+      if (!gridEl || !gridEl.classList.contains('sport-mode')) return;
+
+      // Only resize Slot 2 (index 1) in sport mode
+      if (slotIndex !== 1) return;
+
+      e.preventDefault();
+      e.stopPropagation(); // Prevent triggering dragging
+      isResizing = true;
+      slot.classList.add('is-resizing');
+
+      const rect = slot.getBoundingClientRect();
+      const parentRect = gridEl.getBoundingClientRect();
+
+      // Set left/top explicitly if not already
+      slot.style.right = 'auto';
+      slot.style.bottom = 'auto';
+      slot.style.left = `${rect.left - parentRect.left}px`;
+      slot.style.top = `${rect.top - parentRect.top}px`;
+      
+      slot.style.aspectRatio = 'auto';
+      slot.style.height = `${rect.height}px`;
+      slot.style.width = `${rect.width}px`;
+
+      startX = e.clientX;
+      startY = e.clientY;
+      startWidth = rect.width;
+      startHeight = rect.height;
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+
+    function onMouseMove(e) {
+      if (isDragging) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        
+        const parentRect = gridEl.getBoundingClientRect();
+        const slotRect = slot.getBoundingClientRect();
+        
+        let newLeft = startLeft + dx;
+        let newTop = startTop + dy;
+
+        // Bound within the parent grid
+        const maxLeft = parentRect.width - slotRect.width;
+        const maxTop = parentRect.height - slotRect.height;
+
+        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+
+        slot.style.left = `${newLeft}px`;
+        slot.style.top = `${newTop}px`;
+      } else if (isResizing) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        // Maintain 16/9 aspect ratio during resize
+        let newWidth = startWidth + dx;
+        
+        // Bounding width between min and max (min-width: 150px, max: 80% of parent width)
+        const parentRect = gridEl.getBoundingClientRect();
+        const minW = 150;
+        const maxW = parentRect.width * 0.8;
+        newWidth = Math.max(minW, Math.min(newWidth, maxW));
+
+        let newHeight = newWidth * (9 / 16);
+        
+        // Ensure it doesn't overflow parent bottom
+        const slotRect = slot.getBoundingClientRect();
+        const currentTop = parseFloat(slot.style.top) || 0;
+        if (currentTop + newHeight > parentRect.height) {
+          newHeight = parentRect.height - currentTop;
+          newWidth = newHeight * (16 / 9);
+        }
+
+        slot.style.width = `${newWidth}px`;
+        slot.style.height = `${newHeight}px`;
+
+        // Trigger resize for player instance if any
+        resizeAllArtplayers();
+      }
+    }
+
+    function onMouseUp() {
+      isDragging = false;
+      isResizing = false;
+      slot.classList.remove('is-dragging', 'is-resizing');
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
+  };
+
+  setupSlotDragAndResize(0);
+  setupSlotDragAndResize(1);
+}
+
+/**
+ * Türkçe Açıklama: Belirli bir IPTV slotunun sessize alma (mute) butonunun ikonunu günceller.
+ * 
+ * @param {number} slotIndex - Güncellenecek slotun indeksi (0-3)
+ * @param {boolean} isMuted - Slotun sessizde olup olmadığı bilgisi
+ * @returns {void}
+ */
+function updateSlotMuteIcon(slotIndex, isMuted) {
+  const slotEl = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"]`);
+  if (!slotEl) return;
+  const muteBtn = slotEl.querySelector('.mute-btn');
+  if (muteBtn) {
+    muteBtn.innerHTML = isMuted
+      ? '<i data-lucide="volume-x"></i>'
+      : '<i data-lucide="volume-2"></i>';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+/**
+ * Türkçe Açıklama: IPTV spor modunda Slot 1 (ana ekran) ve Slot 2 (PiP ekranı) kanallarını yer değiştirir.
+ * 
+ * @returns {void}
+ */
+function swapIptvSportModePlayers() {
+  const gridEl = document.getElementById('iptv-players-grid');
+  if (!gridEl || !gridEl.classList.contains('sport-mode')) return;
+
+  const player0 = iptvPlayers[0];
+  const player1 = iptvPlayers[1];
+
+  const url0 = player0 ? player0.streamUrl : null;
+  const name0 = player0 ? player0.displayName : null;
+
+  const url1 = player1 ? player1.streamUrl : null;
+  const name1 = player1 ? player1.displayName : null;
+
+  // Swap Slot 1's channel into Slot 0
+  if (url1 && name1) {
+    playIptvChannel(0, url1, name1);
+    // Unmute Slot 0 (background)
+    const p0 = iptvPlayers[0];
+    if (p0) {
+      if (p0.videoElement) p0.videoElement.muted = false;
+      if (p0.player) p0.player.muted = false;
+      updateSlotMuteIcon(0, false);
+    }
+  } else {
+    clearIptvSlot(0);
+  }
+
+  // Swap Slot 0's channel into Slot 1
+  if (url0 && name0) {
+    playIptvChannel(1, url0, name0);
+    // Mute Slot 1 (PiP overlay)
+    const p1 = iptvPlayers[1];
+    if (p1) {
+      if (p1.videoElement) p1.videoElement.muted = true;
+      if (p1.player) p1.player.muted = true;
+      updateSlotMuteIcon(1, true);
+    }
+  } else {
+    clearIptvSlot(1);
+  }
+
+  saveIptvState();
+  resizeAllArtplayers();
+}
+
+// Global keydown event to support swapping screens via keys (s/S/y/Y) when in sports mode
+document.addEventListener('keydown', (e) => {
+  const activeEl = document.activeElement;
+  if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) return;
+  
+  const gridEl = document.getElementById('iptv-players-grid');
+  if (!gridEl || !gridEl.classList.contains('sport-mode')) return;
+
+  if (e.key === 's' || e.key === 'S' || e.key === 'y' || e.key === 'Y') {
+    e.preventDefault();
+    swapIptvSportModePlayers();
+  }
+});
+
+/**
+ * Türkçe Açıklama: Yer değiştirme (Swap) butonunun görünürlüğünü aktif yerleşim moduna göre günceller (Sadece spor modunda görünür).
+ * 
+ * @returns {void}
+ */
+function updateIptvSwapBtnVisibility() {
+  const gridEl = document.getElementById('iptv-players-grid');
+  const swapBtn = document.getElementById('iptv-swap-btn');
+  if (gridEl && swapBtn) {
+    if (gridEl.classList.contains('sport-mode')) {
+      swapBtn.classList.remove('hidden');
+    } else {
+      swapBtn.classList.add('hidden');
+    }
+  }
+}
+
+// Bind swap button listener
+const iptvSwapBtn = document.getElementById('iptv-swap-btn');
+if (iptvSwapBtn) {
+  iptvSwapBtn.addEventListener('click', swapIptvSportModePlayers);
+}
+
+// Initial Sport Mode drag & resize setup
+initIptvSportModeDragAndResize();
+
+// Initial icons trigger
 lucide.createIcons();

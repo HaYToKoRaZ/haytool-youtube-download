@@ -3,6 +3,75 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [5.3.5] - 2026-06-20
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **Video Description & Timestamps Integration / Video Açıklaması ve Zaman Damgası Entegrasyonu:**
+  - Added `--write-description` to yt-dlp arguments, allowing video descriptions to be downloaded as `.description` files inside the video directory.
+  - Implemented `/api/video/:videoId/description` GET endpoint to dynamically read and stream the downloaded `.description` text file.
+  - Added `#inline-btn-description` toggle button on the player controls and `#inline-player-description-container` sidebar panel to display the description.
+  - Automatically parses time durations (`hh:mm:ss` / `mm:ss`) inside the description into clickable hyperlink anchors that trigger seek actions on ArtPlayer, Plyr, and HTML5 players.
+  - Integrated cleanup commands in `autoDeleteOldVideos` and deletion endpoints to automatically sweep `.description` files along with video tracks.
+
+  - Video dizinine açıklamaların `.description` dosyası olarak kaydedilmesi için yt-dlp argümanlarına `--write-description` parametresi eklendi.
+  - İndirilen `.description` metin dosyasını dinamik olarak okuyup sunan `/api/video/:videoId/description` GET endpoint'i oluşturuldu.
+  - Oynatıcı kontrollerine `#inline-btn-description` (Açıklama Göster) butonu ve arayüze açıklama metnini gösterecek dikey kaydırılabilir `#inline-player-description-container` paneli eklendi.
+  - Açıklama metnindeki zaman damgaları (`hh:mm:ss` / `mm:ss`) otomatik olarak algılanıp ArtPlayer, Plyr ve HTML5 oynatıcılarında süreye atlama (seek) eylemini tetikleyen tıklanabilir bağlantılara dönüştürüldü.
+  - Video silme ve otomatik temizleme (`autoDeleteOldVideos`) logic'ine, videolarla birlikte `.description` ve altyazı dosyalarının da sistemden silinmesini sağlayan temizleme komutları entegre edildi.
+
+- **Fixed Description File Matching Bug / Açıklama Dosyası Eşleşme Hatası Düzeltildi:**
+  - Resolved the bug where the newly introduced `.description` files were mistakenly matched as the main video file instead of `.mp4`/`.webm`, causing playback failures (`NotSupportedError`). Added `.description` to the video file exclusion lists on the server.
+
+  - Yeni eklenen `.description` dosyalarının, `.mp4`/`.webm` yerine ana video dosyası gibi eşleşmesine ve oynatma hatalarına (`NotSupportedError`) yol açan hata giderildi. Sunucu üzerindeki video dosyası filtreleme listelerine `.description` uzantısı eklendi.
+
+- **UI Language Synchronization / Arayüz Dil Senkronizasyonu:**
+  - Added translations for `tab_iptv`, `inline_btn_description`, and `inline_description_title` tags across all supported application languages.
+  - Hooked language change events to dynamically update translations for the IPTV tab menu and the player description button/panel text on runtime.
+
+  - Desteklenen tüm uygulama dillerine `tab_iptv`, `inline_btn_description` ve `inline_description_title` etiketlerinin çevirileri eklendi.
+  - Dil değişim olayları (language change) IPTV tab menüsü, oynatıcı açıklama butonu ve panel başlığı metinlerini anlık olarak güncelleyecek şekilde dil mantığına bağlandı.
+
+- **Version Bump / Sürüm Güncellemesi:**
+  - Version bumped to `v5.3.5` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
+
+  - Uygulama genel sürümü `v5.3.5` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi.
+
+## [5.3.4] - 2026-06-20
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **IPTV Sports Mode & Layout Enhancements / IPTV Spor Modu ve Yerleşim Geliştirmeleri:**
+  - Added seamless fullscreen scaling for Slot 1 and automatic centering of video players.
+  - Implemented stream swapping (URL/name swap) between Slot 0 and Slot 1, keeping player sizes and custom resize states intact.
+  - Slot 1 auto-unmutes and Slot 2 (PiP overlay) auto-mutes upon swapping to prevent audio clutter.
+  - Added overlay controls for mute/unmute and swap directly on video slots.
+  - Added hotkey support ('s'/'S'/'y'/'Y') to quickly swap screens in Sports Mode.
+  - Custom drag and resize states now persist properly.
+
+  - Slot 1 için kesintisiz tam ekran ölçeklendirme ve video oynatıcıların otomatik ortalanması eklendi.
+  - Slot 0 ve Slot 1 arasında oynatıcı boyutlarını ve özel boyutlandırma durumlarını bozmayan kanal/isim yer değiştirme (swap) özelliği eklendi.
+  - Ses karmaşasını önlemek için yer değiştirme sonrasında Slot 1 sesi otomatik açılırken Slot 2 (PiP) sesi otomatik olarak kısılır.
+  - Video slotlarının üzerine doğrudan sessize alma ve yer değiştirme butonları eklendi.
+  - Spor Modundayken hızlıca ekranları yer değiştirmek için klavye kısayolu ('s'/'S'/'y'/'Y') desteği eklendi.
+  - Özel sürükleme ve yeniden boyutlandırma konumlarının kaybolmadan korunması sağlandı.
+
+- **UI & Navigation Refinements / Arayüz ve Navigasyon İyileştirmeleri:**
+  - Removed "HaYTooL YouTube Downloader" text from the header bar, keeping only the logo and version badge.
+  - Added IPTV navigation tab to the header. Re-ordered navigation tabs as: Logo/Version/Kütüphane/İndirilenler/IPTV/Kuyruk/Kanallar/PD/Ayarlar.
+  - Shrinked view mode buttons on the IPTV panel for a cleaner look.
+  - Truncated category filter names to 40 characters maximum to prevent layout distortion.
+  - Removed GitHub update confirmation dialog for a smoother user experience.
+
+  - Başlık barından "HaYTooL YouTube Downloader" metni kaldırılarak sadece logo ve versiyon rozeti bırakıldı.
+  - Başlık menüsüne IPTV sekmesi eklendi. Navigasyon sırası şu şekilde düzenlendi: Logo/Version/Kütüphane/İndirilenler/IPTV/Kuyruk/Kanallar/PD/Ayarlar.
+  - Daha temiz bir görünüm için IPTV panelindeki görünüm modu butonları küçültüldü.
+  - Tasarımın bozulmasını önlemek için kategori filtre isimleri maksimum 40 karakter ile sınırlandırıldı.
+  - Daha akıcı bir kullanıcı deneyimi için GitHub güncelleme onay kutusu kaldırıldı.
+
+- **Version Bump / Sürüm Güncellemesi:**
+  - Version bumped to `v5.3.4` across the project, including package.json, README.md, index pages, settings, and server greeting banner.
+
+  - Uygulama genel sürümü `v5.3.4` olarak güncellendi, package.json, README.md, index.html ve server.js dosyalarındaki versiyon bilgileri güncellendi.
+
 ## [5.1.0] - 2026-06-18
 
 ### Bug Fixes & Improvements / Hata Düzeltmeleri & İyileştirmeler
