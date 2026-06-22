@@ -72,7 +72,7 @@ A premium, lightweight, and cross-platform automation software that automaticall
 
 Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-packaged in the repository, you can run the application immediately after downloading.
 
-### 🖥️ Windows:
+### <img src="https://cdn.simpleicons.org/windows/0078D6" width="18" height="18" style="vertical-align: middle; margin-bottom: 3px;" /> Windows:
 * **Double-click Launch:**
   Double-click `HaYTooL YT Downloader.exe` in the root folder to start the application silently in the system tray and open the dashboard in your browser.
 * **Command Line Launch:**
@@ -80,7 +80,7 @@ Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-pac
   "HaYTooL YT Downloader.exe"
   ```
 
-### 🐧 Linux / 🍎 macOS (Unix):
+### <img src="https://cdn.simpleicons.org/linux/FCC624" width="18" height="18" style="vertical-align: middle; margin-bottom: 3px;" /> Linux / <img src="https://cdn.simpleicons.org/apple/aaaaaa" width="18" height="18" style="vertical-align: middle; margin-bottom: 3px;" /> macOS (Unix):
 1. **Make Launcher Executable:**
    ```bash
    chmod +x baslat.sh
@@ -215,7 +215,7 @@ YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni vid
 
 Tüm bağımlılıklar (`node_modules/`, `yt-dlp`, `ffmpeg`) halihazırda depo içerisinde mevcut olduğundan, indirdikten sonra doğrudan çalıştırabilirsiniz.
 
-### 🖥️ Windows:
+### <img src="https://cdn.simpleicons.org/windows/0078D6" width="18" height="18" style="vertical-align: middle; margin-bottom: 3px;" /> Windows:
 * **Çift Tıklama ile Başlatma:**
   Kök dizindeki `HaYTooL YT Downloader.exe` dosyasına çift tıklayarak uygulamayı arka planda sessizce başlatabilir ve web arayüzünü tarayıcınızda açabilirsiniz.
 * **Komut Satırı ile Başlatma:**
@@ -223,7 +223,7 @@ Tüm bağımlılıklar (`node_modules/`, `yt-dlp`, `ffmpeg`) halihazırda depo i
   "HaYTooL YT Downloader.exe"
   ```
 
-### 🐧 Linux / 🍎 macOS (Unix):
+### <img src="https://cdn.simpleicons.org/linux/FCC624" width="18" height="18" style="vertical-align: middle; margin-bottom: 3px;" /> Linux / <img src="https://cdn.simpleicons.org/apple/aaaaaa" width="18" height="18" style="vertical-align: middle; margin-bottom: 3px;" /> macOS (Unix):
 1. **Çalıştırma İzni Verin:**
    ```bash
    chmod +x baslat.sh
