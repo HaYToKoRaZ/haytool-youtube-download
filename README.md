@@ -2,7 +2,7 @@
   <img src="public/logo.png" alt="HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 HaYTooL YouTube Downloader (v5.3.7)</p>
+# <p align="center">📥 HaYTooL YouTube Downloader (v6.0.0)</p>
 
 <p align="center">
   <b>Advanced, Portable, and Zero-Dependency YouTube Automation & Downloader System</b><br/>
@@ -10,7 +10,7 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=for-the-badge&logo=windows" alt="Platform Support" />
-  <img src="https://img.shields.io/badge/Version-v5.3.7-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v6.0.0-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&color=blueviolet" alt="GitHub Downloads (latest release)" />
 </p>
@@ -64,6 +64,7 @@ A premium, lightweight, and cross-platform automation software that automaticall
 * **SponsorBlock Temporary Bypass:** Instantly toggle SponsorBlock segment skipping on/off for the current playback session using the shield icon under the player.
 * **Synchronized Video Playback:** Seamlessly coordinates inline and modal players. Starting any video immediately stops all other players to prevent double-audio or overlapping streams.
 * **IPTV Integration & Multi-Screen Views:** Stream live IPTV feeds with options for Single view, Dual view (side-by-side splits), Quad view (2x2 grid), and Sport Mode (Picture-in-Picture layout). Includes OSD overlay slot controls (appearing on hover with mute and stream swap buttons), keyboard hotkeys (`S` / `Y`) to swap stream feeds without interruption, a dedicated stop command to prevent background buffering bandwidth waste, early TDZ initialization, and borderless full-screen layout maximize mode.
+* **Discord Rich Presence Integration:** Displays the title of the video you are currently watching in the embedded player as your Discord profile activity (can be toggled on/off in Settings and System Tray).
 
 ---
 
@@ -159,7 +160,7 @@ The software dynamically isolates configuration parameters based on the host OS,
 ---
 ---
 
-# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v5.3.7)</p>
+# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v6.0.0)</p>
 
 YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni videoları arka planda otomatik olarak indiren şık, hafif ve kararlı bir otomasyon sistemidir. Tamamen vanilla JavaScript, CSS ve HTML5 standartlarıyla geliştirilmiştir.
 
@@ -201,6 +202,7 @@ YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni vid
 * **SponsorBlock Geçici Atlama Engelleme:** Video oynatıcı altındaki kalkan (shield) ikonuna tıklayarak geçerli oynatım oturumu için SponsorBlock atlamasını anlık olarak açıp kapatabilirsiniz.
 * **Tekil/Senkronize Video Oynatıcı:** Yerleşik ve modal video oynatıcıları arasında mükemmel senkronizasyon sağlar. Herhangi bir videoyu oynatmak arka planda açık olan diğer oynatıcılardan ses gelmesini önler ve onları tamamen sonlandırır.
 * **IPTV Entegrasyonu ve Çoklu Ekran Desteği:** Tekli Ekran, İkili Ekran (yan yana bölünmüş), Çoklu Ekran (2x2 ızgara) ve Spor Modu (PiP - Resim içinde Resim) düzeni seçenekleriyle canlı IPTV yayınlarını izleyin. Hover ile tetiklenen OSD kontrol barları (ses kapatma ve yayın yer değiştirme butonları dahil), yayını kesintiye uğratmadan ekranlar arası geçiş sağlayan klavye kısayolları (`S` / `Y`), arka planda veri tüketimini engelleyen durdurma butonu, TDZ korumalı hızlı başlangıç ve tüm ızgarayı tamamen kaplayan sıfır kenarlıklı tam ekran modu gibi gelişmiş oynatıcı özelliklerini barındırır.
+* **Discord Durumu (Rich Presence) Entegrasyonu:** Gömülü oynatıcıda o an izlemekte olduğunuz videonun başlığını Discord profilinizde etkinlik durumu olarak gösterir (Ayarlar menüsünden ve Sistem Tepsisinden tek tıkla açılıp kapatılabilir).
 
 ---
 

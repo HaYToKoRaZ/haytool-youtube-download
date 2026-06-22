@@ -1,6 +1,6 @@
 {
     "name":  "haytool-youtube-download",
-    "version":  "5.3.7",
+    "version":  "6.0.0",
     "description":  "HaYTool Youtube Download - YouTube Otomatik Video Indirme Paneli",
     "main":  "server.js",
     "type":  "module",

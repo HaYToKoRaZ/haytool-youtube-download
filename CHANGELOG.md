@@ -3,6 +3,44 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [6.0.0] - 2026-06-23
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **Discord Rich Presence Integration / Discord Durumu Entegrasyonu:**
+  - Added Windows Named Pipe IPC support (`\\\\.\\pipe\\discord-ipc-0`) to send status updates directly to active Discord clients.
+  - Implemented automated status reporting when standard videos are played, paused, or finished.
+  - Added a global setting (`discordRpcEnabled`) synced across database (`db.json`) and OS configuration files (`configwin.ini` / `configunix.ini`).
+  - Added "Discord Durumu" (Discord Status) toggles into both the settings menu and the C# System Tray context menu.
+  - Translates the Discord status toggle controls across all 7 supported UI languages.
+  - Recompiled the Windows Launcher binary (`HaYTooL YT Downloader.exe`) to support the new tray checkbox and settings endpoints.
+  
+  - Discord istemcisiyle doğrudan Named Pipe IPC kanalı (`\\\\.\\pipe\\discord-ipc-0`) üzerinden konuşan hafif bir Discord RPC istemcisi entegre edildi.
+  - Gömülü oynatıcıda videolar oynatıldığında, duraklatıldığında veya bittiğinde Discord etkinlik durumunun anlık güncellenmesi sağlandı.
+  - Arayüz Ayarlar paneline ve C# Sistem Tepsisi (Tray) sağ tık menüsüne "Discord Durumu" açma/kapatma seçeneği eklendi.
+  - Tüm ayarlar veritabanı (`db.json`) ve INI dosyaları (`configwin.ini` / `configunix.ini`) ile anlık senkronize çalışacak şekilde yapılandırıldı.
+  - Yeni eklenen ayar bileşenleri 7 farklı arayüz diline göre yerelleştirildi.
+  - Windows C# Başlatıcı exe dosyası (`HaYTooL YT Downloader.exe`) yeni menü öğesini ve API isteklerini destekleyecek şekilde derlenerek güncellendi.
+
+## [5.3.8] - 2026-06-22
+
+### Fixed / Düzeltmeler
+- **Windows Notification Icon & Lifecycle / Masaüstü Bildirim Simgesi & Süreci:**
+  - Resolved physical path resolution issue for `icon.ico` when the backend compiled binary is running by replacing `__dirname` with `process.cwd()`.
+  - Added a 4-second delay (`Start-Sleep -s 4`) and clean `Dispose()` command to the PowerShell notification runner to ensure the balloon tooltip displays fully with the application icon and leaves no ghost icon in the tray.
+  
+  - Derlenmiş backend exe çalışırken `__dirname` kullanımından kaynaklı oluşan `icon.ico` fiziksel dosya yolu çözümlenme hatası `process.cwd()` kullanılarak giderildi.
+  - PowerShell bildirim betiğinin sonuna 4 saniyelik bekleme süresi (`Start-Sleep -s 4`) ve `Dispose()` eklenerek, bildirimin simgeyle birlikte kaybolmadan kalması ve tepside hayalet simge bırakmadan temizlenmesi sağlandı.
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **Toast Notification Video Thumbnails / Uygulama İçi Bildirim Önizleme Resimleri:**
+  - Enhanced the in-app bottom-right toast notifications (`showToast`) to support rendering the downloaded video's thumbnail dynamically using the local/remote redirect endpoint `/api/video/:videoId/thumbnail`.
+  - Updated all download completion, error, cancel, and RSS auto-detect status broadcasts to deliver the matching video's thumbnail metadata.
+  - Implemented responsive CSS layouts (`.toast-thumbnail`) for the preview cards to align images beside message content.
+  
+  - Uygulama içi sağ alttaki bildirimlerin (`showToast`), indirilen videoların önizleme resimlerini (thumbnail) `/api/video/:videoId/thumbnail` üzerinden dinamik olarak göstermesi sağlandı.
+  - Tüm indirme başlama/tamamlanma, hata, iptal ve RSS kanal tarama durumu yayınlarına ilgili videonun görsel önizleme yolu eklendi.
+  - Toast mesajlarının yanında resimlerin düzgün yerleşmesi için `.toast-thumbnail` sınıfı eklenerek CSS tasarımı güncellendi.
+
 ## [5.3.7] - 2026-06-21
 
 ### New Features & Improvements / Yeni Özellikler & İyileştirmeler

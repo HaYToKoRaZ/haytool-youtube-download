@@ -33,6 +33,7 @@ namespace HaYTooLTray
         private MenuItem settingsShortcut;
         private MenuItem altSpeedItem;
         private MenuItem bootItem;
+        private MenuItem discordRpcItem;
         private MenuItem restartItem;
         private MenuItem showConsoleItem;
         private MenuItem exitItem;
@@ -370,6 +371,9 @@ namespace HaYTooLTray
                 bootItem.Checked = !current;
             };
 
+            discordRpcItem = new MenuItem("Discord Durumu");
+            discordRpcItem.Click += ToggleDiscordRpc;
+
             restartItem = new MenuItem("Yeniden Başlat", RestartNode);
             showConsoleItem = new MenuItem("Konsol Çıktısını Göster", ShowConsoleWindow);
             exitItem = new MenuItem("Çıkış", ExitApp);
@@ -380,6 +384,7 @@ namespace HaYTooLTray
             contextMenu.MenuItems.Add(pasteDownloadItem);
             contextMenu.MenuItems.Add(altSpeedItem);
             contextMenu.MenuItems.Add(bootItem);
+            contextMenu.MenuItems.Add(discordRpcItem);
             contextMenu.MenuItems.Add("-"); // Ayırıcı çizgi
             contextMenu.MenuItems.Add(restartItem);
             contextMenu.MenuItems.Add(showConsoleItem);
@@ -394,6 +399,7 @@ namespace HaYTooLTray
             contextMenu.Popup += (s, e) => {
                 altSpeedItem.Checked = GetUseAlternativeSpeedSetting();
                 bootItem.Checked = GetStartOnBootSetting();
+                discordRpcItem.Checked = GetDiscordRpcSetting();
             };
 
             trayIcon.ContextMenu = contextMenu;
@@ -439,6 +445,62 @@ namespace HaYTooLTray
                 catch {}
             }
             return "http://localhost:" + port + relativePath;
+        }
+
+        // Türkçe Açıklama: configwin.ini dosyasındaki discordRpcEnabled ayar değerini kontrol eder.
+        private bool GetDiscordRpcSetting()
+        {
+            string iniPath = "configwin.ini";
+            if (File.Exists(iniPath))
+            {
+                try
+                {
+                    string[] lines = File.ReadAllLines(iniPath);
+                    foreach (string line in lines)
+                    {
+                        string trimmed = line.Trim();
+                        int equalsIdx = trimmed.IndexOf('=');
+                        if (equalsIdx != -1)
+                        {
+                            string key = trimmed.Substring(0, equalsIdx).Trim();
+                            string val = trimmed.Substring(equalsIdx + 1).Trim();
+                            if (string.Equals(key, "discordRpcEnabled", StringComparison.OrdinalIgnoreCase))
+                            {
+                                return string.Equals(val, "true", StringComparison.OrdinalIgnoreCase);
+                            }
+                        }
+                    }
+                }
+                catch {}
+            }
+            return false;
+        }
+
+        // Türkçe Açıklama: Discord Rich Presence geçişini asenkron olarak tetikler.
+        private void ToggleDiscordRpc(object sender, EventArgs e)
+        {
+            ThreadPool.QueueUserWorkItem(state => {
+                try
+                {
+                    string url = GetAppUrl("/api/settings/toggle-discord-rpc");
+                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                    request.Method = "POST";
+                    request.ContentLength = 0;
+                    using (WebResponse response = request.GetResponse())
+                    {
+                        // Başarılı geçiş
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (logForm != null)
+                    {
+                        logForm.BeginInvoke(new Action(() => {
+                            MessageBox.Show("Discord status toggle failed:\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }));
+                    }
+                }
+            });
         }
 
         // Türkçe Açıklama: configwin.ini dosyasındaki useAlternativeSpeed ayar değerini kontrol eder.
@@ -1028,6 +1090,7 @@ namespace HaYTooLTray
                 settingsShortcut.Text = "Settings";
                 altSpeedItem.Text = "Alternative Speed Limit (Turtle)";
                 bootItem.Text = "Run on System Startup";
+                discordRpcItem.Text = "Discord Status";
                 restartItem.Text = "Restart Server";
                 showConsoleItem.Text = "Show Console Output";
                 exitItem.Text = "Exit";
@@ -1046,6 +1109,7 @@ namespace HaYTooLTray
                 settingsShortcut.Text = "Configuración";
                 altSpeedItem.Text = "Límite de Velocidad Alternativo (Turtle)";
                 bootItem.Text = "Ejecutar al Inicio del Sistema";
+                discordRpcItem.Text = "Estado de Discord";
                 restartItem.Text = "Reiniciar Servidor";
                 showConsoleItem.Text = "Mostrar Salida de Consola";
                 exitItem.Text = "Salir";
@@ -1064,6 +1128,7 @@ namespace HaYTooLTray
                 settingsShortcut.Text = "Einstellungen";
                 altSpeedItem.Text = "Alternative Geschwindigkeitsbegrenzung (Turtle)";
                 bootItem.Text = "Beim Systemstart ausführen";
+                discordRpcItem.Text = "Discord-Status";
                 restartItem.Text = "Server neu starten";
                 showConsoleItem.Text = "Konsolenausgabe anzeigen";
                 exitItem.Text = "Beenden";
@@ -1082,6 +1147,7 @@ namespace HaYTooLTray
                 settingsShortcut.Text = "Configurações";
                 altSpeedItem.Text = "Limite de Velocidade Alternativo (Turtle)";
                 bootItem.Text = "Executar na Inicialização do Sistema";
+                discordRpcItem.Text = "Estado do Discord";
                 restartItem.Text = "Reiniciar Servidor";
                 showConsoleItem.Text = "Mostrar Saída do Console";
                 exitItem.Text = "Sair";
@@ -1100,6 +1166,7 @@ namespace HaYTooLTray
                 settingsShortcut.Text = "الإعدادات";
                 altSpeedItem.Text = "حد السرعة البديل (السلحفاة)";
                 bootItem.Text = "التشغيل عند بدء تشغيل النظام";
+                discordRpcItem.Text = "حالة ديسكورد";
                 restartItem.Text = "إعادة تشغيل الخادم";
                 showConsoleItem.Text = "عرض مخرجات وحدة التحكم";
                 exitItem.Text = "خروج";
@@ -1118,6 +1185,7 @@ namespace HaYTooLTray
                 settingsShortcut.Text = "Настройки";
                 altSpeedItem.Text = "Альтернативный лимит скорости (Черепаха)";
                 bootItem.Text = "Запускать при старте системы";
+                discordRpcItem.Text = "Статус Discord";
                 restartItem.Text = "Перезапустить сервер";
                 showConsoleItem.Text = "Показать вывод консоли";
                 exitItem.Text = "Выход";
@@ -1136,6 +1204,7 @@ namespace HaYTooLTray
                 settingsShortcut.Text = "Ayarlar";
                 altSpeedItem.Text = "Alternatif Hız Sınırı (Turtle)";
                 bootItem.Text = "Sistem Başlangıcında Çalıştır";
+                discordRpcItem.Text = "Discord Durumu";
                 restartItem.Text = "Yeniden Başlat";
                 showConsoleItem.Text = "Konsol Çıktısını Göster";
                 exitItem.Text = "Çıkış";

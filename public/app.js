@@ -264,7 +264,9 @@ const translations = {
     lbl_loading_more: 'Daha fazla kanal yükleniyor...',
     opt_all_countries: 'Tüm Ülkeler',
     opt_all_categories: 'Tüm Kategoriler',
-    lbl_swap_screens: 'Yer Değiştir'
+    lbl_swap_screens: 'Yer Değiştir',
+    label_discord_rpc: 'Discord Durumu',
+    desc_discord_rpc: 'İzlenen videoları Discord profilinde göster'
   },
   en: {
     status_merging: 'Merging (FFmpeg)...',
@@ -506,7 +508,9 @@ const translations = {
     lbl_loading_more: 'Loading more channels...',
     opt_all_countries: 'All Countries',
     opt_all_categories: 'All Categories',
-    lbl_swap_screens: 'Swap Screens'
+    lbl_swap_screens: 'Swap Screens',
+    label_discord_rpc: 'Discord Status',
+    desc_discord_rpc: 'Show watched videos on your Discord profile'
   },
   es: {
     status_merging: 'Fusionando (FFmpeg)...',
@@ -736,7 +740,9 @@ const translations = {
     sponsorblock_active_toast: 'SponsorBlock Activo',
     sponsorblock_active_toast_desc: 'Los segmentos patrocinados se omitirán automáticamente',
     sponsorblock_disabled_toast: 'SponsorBlock Desactivado',
-    sponsorblock_disabled_toast_desc: 'La omisión de segmentos patrocinados está pausada temporalmente'
+    sponsorblock_disabled_toast_desc: 'La omisión de segmentos patrocinados está pausada temporalmente',
+    label_discord_rpc: 'Estado de Discord',
+    desc_discord_rpc: 'Mostrar videos vistos en tu perfil de Discord'
   },
   de: {
     status_merging: 'Zusammenführen (FFmpeg)...',
@@ -966,7 +972,9 @@ const translations = {
     sponsorblock_active_toast: 'SponsorBlock Aktiv',
     sponsorblock_active_toast_desc: 'Sponsor-Segmente werden automatisch übersprungen',
     sponsorblock_disabled_toast: 'SponsorBlock Deaktiviert',
-    sponsorblock_disabled_toast_desc: 'Das Überspringen von Sponsor-Segmenten ist vorübergehend pausiert'
+    sponsorblock_disabled_toast_desc: 'Das Überspringen von Sponsor-Segmenten ist vorübergehend pausiert',
+    label_discord_rpc: 'Discord-Status',
+    desc_discord_rpc: 'Gesehene Videos im Discord-Profil anzeigen'
   },
   pt: {
     status_merging: 'Mesclando (FFmpeg)...',
@@ -1196,7 +1204,9 @@ const translations = {
     sponsorblock_active_toast: 'SponsorBlock Ativo',
     sponsorblock_active_toast_desc: 'Os segmentos patrocinados serão ignorados automaticamente',
     sponsorblock_disabled_toast: 'SponsorBlock Desactivado',
-    sponsorblock_disabled_toast_desc: 'A omissão de segmentos patrocinados está pausada temporariamente'
+    sponsorblock_disabled_toast_desc: 'A omissão de segmentos patrocinados está pausada temporariamente',
+    label_discord_rpc: 'Estado do Discord',
+    desc_discord_rpc: 'Mostrar vídeos assistidos no seu perfil do Discord'
   },
   ar: {
     status_merging: 'دمج (FFmpeg)...',
@@ -1425,7 +1435,9 @@ const translations = {
     sponsorblock_active_toast: 'SponsorBlock نشط',
     sponsorblock_active_toast_desc: 'سيتم تخطي الأقسام الممولة تلقائيًا',
     sponsorblock_disabled_toast: 'SponsorBlock معطل',
-    sponsorblock_disabled_toast_desc: 'تم إيقاف تخطي الأقسام الممولة مؤقتًا'
+    sponsorblock_disabled_toast_desc: 'تم إيقاف تخطي الأقسام الممولة مؤقتًا',
+    label_discord_rpc: 'حالة ديسكورد',
+    desc_discord_rpc: 'عرض مقاطع الفيديو التي تمت مشاهدتها على ملفك الشخصي في ديسكورد'
   },
   ru: {
     status_merging: 'Слияние (FFmpeg)...',
@@ -1654,7 +1666,9 @@ const translations = {
     sponsorblock_active_toast: 'SponsorBlock Активен',
     sponsorblock_active_toast_desc: 'Спонсорские сегменты будут автоматически пропущены',
     sponsorblock_disabled_toast: 'SponsorBlock Отключен',
-    sponsorblock_disabled_toast_desc: 'Пропуск спонсорских сегментов временно приостановлен'
+    sponsorblock_disabled_toast_desc: 'Пропуск спонсорских сегментов временно приостановлен',
+    label_discord_rpc: 'Статус Discord',
+    desc_discord_rpc: 'Показывать просмотренные видео в профиле Discord'
   }
 };
 
@@ -1774,7 +1788,9 @@ function applyLanguage(lang) {
   elQuery('label[for="settings-shownotifications"]:not(.toggle-label)', 'label_show_notifications');
   elQuery('label[for="settings-shownotifications"] + span', 'desc_show_notifications');
   elQuery('label[for="settings-autoopenbrowser"]:not(.toggle-label)', 'label_auto_open_browser');
-   elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
+  elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
+  elQuery('label[for="settings-discordrpc"]:not(.toggle-label)', 'label_discord_rpc');
+  elQuery('label[for="settings-discordrpc"] + span', 'desc_discord_rpc');
   elQuery('#btn-search-channel-text', 'btn_search_channel');
   elQuery('#btn-add-channel-text', 'btn_add_channel');
   elQuery('label[for="settings-lang"]', 'label_lang');
@@ -2233,16 +2249,22 @@ const testFolderBtn = document.getElementById('test-folder-btn');
  * @param {string} message Gösterilecek mesaj metni
  * @param {string} type Bildirim tipi ('info', 'success', 'error')
  */
-function showToast(message, type = 'info') {
+function showToast(message, type = 'info', thumbnail = null) {
   const container = document.getElementById('toast-container');
   const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
+  toast.className = `toast toast-${type}${thumbnail ? ' toast-has-thumbnail' : ''}`;
   
   let iconName = 'info';
   if (type === 'success') iconName = 'check-circle';
   if (type === 'error') iconName = 'alert-triangle';
 
+  let thumbnailHtml = '';
+  if (thumbnail) {
+    thumbnailHtml = `<img src="${thumbnail}" class="toast-thumbnail" alt="thumbnail">`;
+  }
+
   toast.innerHTML = `
+    ${thumbnailHtml}
     <div class="toast-icon">
       <i data-lucide="${iconName}"></i>
     </div>
@@ -2394,7 +2416,7 @@ function connectSSE() {
   // Sistem Log Bildirimi (Toast ve Masaüstü Bildirimi)
   eventSource.addEventListener('status_log', (e) => {
     const log = JSON.parse(e.data);
-    showToast(log.message, log.type);
+    showToast(log.message, log.type, log.thumbnail);
 
     // Masaüstü Bildirimi (Sadece indirme tamamlanma başarısında ve ayarlarda izin verilmişse)
     if (localDb.settings.showNotifications !== false &&
@@ -3377,6 +3399,9 @@ function updateUI(db) {
     const settingsSponsorBlock = document.getElementById('settings-sponsorblock');
     if (settingsSponsorBlock && document.activeElement !== settingsSponsorBlock) settingsSponsorBlock.checked = db.settings.sponsorBlockEnabled === true;
 
+    const settingsDiscordRpc = document.getElementById('settings-discordrpc');
+    if (settingsDiscordRpc && document.activeElement !== settingsDiscordRpc) settingsDiscordRpc.checked = db.settings.discordRpcEnabled === true;
+
     // Kuyruk duraklatma butonu görünümü ve ikonu
     const pauseBtn = document.getElementById('queue-pause-btn');
     if (pauseBtn) {
@@ -3777,6 +3802,7 @@ async function performAutoSave() {
     playSounds: document.getElementById('settings-playsounds').checked,
     showNotifications: document.getElementById('settings-shownotifications').checked,
     autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
+    discordRpcEnabled: document.getElementById('settings-discordrpc').checked,
     lang: document.getElementById('settings-lang').value,
     historyLimitPerChannel: parseInt(document.getElementById('settings-history-limit').value, 10) || 30,
     shortsDurationLimit: settingsShortsDurationLimit ? (parseInt(settingsShortsDurationLimit.value, 10) || 180) : (localDb.settings.shortsDurationLimit || 180)
@@ -4705,7 +4731,26 @@ window.triggerVolumeHUD = function(volume) {
   try { lucide.createIcons(); } catch(e) {}
 };
 
+function sendPlayerActivity(isPlaying) {
+  if (localDb.settings && localDb.settings.discordRpcEnabled === false) return;
+
+  let title = null;
+  if (isPlaying && currentPlayingVideoId) {
+    const video = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+    if (video && video.title) {
+      title = video.title;
+    }
+  }
+
+  fetch('/api/player/activity', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title })
+  }).catch(e => console.error('[Discord RPC] Durum gönderim hatası:', e));
+}
+
 window.cleanupAllPlayers = function() {
+  sendPlayerActivity(false);
   if (videoPlayerInstance) {
     try {
       if (typeof videoPlayerInstance.destroy === 'function') {
@@ -5674,6 +5719,9 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
       videoPlayerInstance.on('ready', () => {
         const rawVideo = videoPlayerInstance.video;
         if (rawVideo) {
+          rawVideo.addEventListener('play', () => sendPlayerActivity(true));
+          rawVideo.addEventListener('pause', () => sendPlayerActivity(false));
+          rawVideo.addEventListener('ended', () => sendPlayerActivity(false));
           adjustPlayerOrientation(rawVideo);
           if (rawVideo.duration) {
             drawSponsorSegmentsOnTimeline(rawVideo.duration, 'artplayer');
@@ -5771,6 +5819,11 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
               drawSponsorSegmentsOnTimeline(videoPlayerInstance.duration, 'plyr');
             }
           });
+
+          videoPlayerInstance.on('play', () => sendPlayerActivity(true));
+          videoPlayerInstance.on('pause', () => sendPlayerActivity(false));
+          videoPlayerInstance.on('ended', () => sendPlayerActivity(false));
+
           videoPlayerInstance.on('loadedmetadata', () => {
             adjustPlayerOrientation(videoPlayerInstance.media);
             if (videoPlayerInstance.duration) {
@@ -5901,6 +5954,10 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
               seekedForCurrentVideo = true;
             }
           });
+
+          player.addEventListener('play', () => sendPlayerActivity(true));
+          player.addEventListener('pause', () => sendPlayerActivity(false));
+          player.addEventListener('ended', () => sendPlayerActivity(false));
 
           player.load();
           if (forcePaused === true) {

@@ -18,6 +18,7 @@ import { Readable } from 'stream';
 import Parser from 'rss-parser';
 import open from 'open';
 import { fileURLToPath } from 'url';
+import net from 'net';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -284,7 +285,8 @@ const defaultDb = {
     writeThumbnail: false,
     playSounds: true,
     shortsDurationLimit: 180,
-    sponsorBlockEnabled: false
+    sponsorBlockEnabled: false,
+    discordRpcEnabled: false
   }
 };
 
@@ -875,6 +877,11 @@ function syncWithIni(db) {
       if (sponsorBlockEnabled !== undefined) {
         db.settings.sponsorBlockEnabled = sponsorBlockEnabled === 'true';
       }
+
+      const discordRpcEnabled = getCaseInsensitiveKey(settingsSection, 'discordRpcEnabled');
+      if (discordRpcEnabled !== undefined) {
+        db.settings.discordRpcEnabled = discordRpcEnabled === 'true';
+      }
     }
   }
 
@@ -1012,6 +1019,7 @@ function saveSettingsToIni(db) {
   iniData.Settings.showNotifications = (db.settings.showNotifications !== false).toString();
   iniData.Settings.autoOpenBrowser = (db.settings.autoOpenBrowser !== false).toString();
   iniData.Settings.sponsorBlockEnabled = (db.settings.sponsorBlockEnabled === true).toString();
+  iniData.Settings.discordRpcEnabled = (db.settings.discordRpcEnabled === true).toString();
 
   writeIni(configIniPath, iniData);
 }
@@ -1567,7 +1575,7 @@ function showWindowsNotification(title, message) {
   const escapedTitle = cleanTitle.replace(/'/g, "''");
   const escapedMessage = cleanMessage.replace(/'/g, "''");
 
-  const iconPath = path.resolve(__dirname, 'icon.ico').replace(/\\/g, '\\\\');
+  const iconPath = path.resolve(process.cwd(), 'icon.ico').replace(/\\/g, '\\\\');
 
   const psScript = `
     [void] [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms');
@@ -1582,6 +1590,8 @@ function showWindowsNotification(title, message) {
     $notification.BalloonTipText = '${escapedMessage}';
     $notification.Visible = $true;
     $notification.ShowBalloonTip(5000);
+    Start-Sleep -s 4;
+    $notification.Dispose();
   `;
 
   // Türkçe Açıklama: PowerShell'in -EncodedCommand parametresi için betiği UTF-16LE biçiminde Base64 olarak kodlayıp çağırıyoruz. Bu sayede tüm özel karakter ve tırnak sorunlarını kökten çözüyoruz.
@@ -2806,7 +2816,7 @@ class DownloadQueue {
       const isCancelled = currentItem && currentItem.error === 'Kullanıcı tarafından iptal edildi.';
 
       if (isCancelled) {
-        broadcast('status_log', { message: `İndirme iptal edildi: ${video.title}`, type: 'info' });
+        broadcast('status_log', { message: `İndirme iptal edildi: ${video.title}`, type: 'info', thumbnail: `/api/video/${video.id}/thumbnail` });
         addTerminalLog(`[Kuyruk] İndirme kullanıcı tarafından cancelled: "${video.title}"`, 'warning');
         broadcast('db_update', readDb());
         this.process();
@@ -2865,7 +2875,7 @@ class DownloadQueue {
             error: settings.lang === 'en' ? 'Video file not found.' : 'Video dosyası bulunamadı.'
           });
           console.error(`İndirme Başarısız (Dosya bulunamadı): ${video.title}`);
-          broadcast('status_log', { message: `İndirme başarısız (Dosya bulunamadı): ${video.title}`, type: 'error' });
+          broadcast('status_log', { message: `İndirme başarısız (Dosya bulunamadı): ${video.title}`, type: 'error', thumbnail: `/api/video/${video.id}/thumbnail` });
           addTerminalLog(`[Kuyruk] İndirme FAILED: "${video.title}" - Hata: Video dosyası bulunamadı.`, 'error');
           playSystemSound('error');
           showWindowsNotification(
@@ -2899,7 +2909,7 @@ class DownloadQueue {
             fileSize: calculatedSize
           });
           console.log(`İndirme completedı: ${resolvedTitle}`);
-          broadcast('status_log', { message: `İndirme tamamlandı: ${resolvedTitle}`, type: 'success' });
+          broadcast('status_log', { message: `İndirme tamamlandı: ${resolvedTitle}`, type: 'success', thumbnail: `/api/video/${video.id}/thumbnail` });
           addTerminalLog(`[Kuyruk] İndirme SUCCESSFUL: "${resolvedTitle}" -> Dosya Yol: ${actualPath}`, 'success');
           playSystemSound('success');
           showWindowsNotification(
@@ -2925,7 +2935,7 @@ class DownloadQueue {
           error: userFriendlyError || `Hata Kodu: ${code}`
         });
         console.error(`İndirme Failed: ${video.title} - Kod: ${code}`);
-        broadcast('status_log', { message: `İndirme başarısız: ${video.title}`, type: 'error' });
+        broadcast('status_log', { message: `İndirme başarısız: ${video.title}`, type: 'error', thumbnail: `/api/video/${video.id}/thumbnail` });
         addTerminalLog(`[Kuyruk] İndirme FAILED: "${video.title}" - Error: ${userFriendlyError || `Error Code: ${code}`}`, 'error');
         playSystemSound('error');
         showWindowsNotification(
@@ -3392,7 +3402,7 @@ async function checkSingleChannelRss(channel, isFirstStart = false) {
                       writeDb(freshDb);
                     } else {
                       console.log(`Yeni video algılandı! queue ekleniyor: ${resolvedTitle}`);
-                      broadcast('status_log', { message: `Yeni video yüklendi: ${resolvedChannelName} - ${resolvedTitle}`, type: 'info' });
+                      broadcast('status_log', { message: `Yeni video yüklendi: ${resolvedChannelName} - ${resolvedTitle}`, type: 'info', thumbnail: `/api/video/${videoId}/thumbnail` });
                       addTerminalLog(`[RSS] Yeni video tespit edildi: "${resolvedTitle}" (${resolvedChannelName}) -> queue ekleniyor.`, 'info');
                       
                       // Release lock before calling async downloadQueue.add to avoid deadlock
@@ -4122,7 +4132,7 @@ let updateState = {
  * @returns {Promise<void>}
  */
 async function checkGithubUpdates() {
-  const currentVersion = '5.3.7';
+  const currentVersion = '6.0.0';
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -4315,6 +4325,32 @@ app.post('/api/settings/toggle-alt-speed', (req, res) => {
   }
   
   res.json({ success: true, settings: db.settings });
+});
+
+// Discord RPC Durumunu Aç/Kapat
+app.post('/api/settings/toggle-discord-rpc', (req, res) => {
+  const db = readDb();
+  db.settings.discordRpcEnabled = !db.settings.discordRpcEnabled;
+  writeDb(db);
+  
+  if (db.settings.discordRpcEnabled) {
+    discordRpc.connect();
+  } else {
+    discordRpc.disconnect();
+  }
+  
+  broadcast('db_update', db);
+  res.json({ success: true, settings: db.settings });
+});
+
+// Discord RPC Aktif Oynatılan Video Durumu
+app.post('/api/player/activity', (req, res) => {
+  const { title } = req.body;
+  const db = readDb();
+  if (db.settings.discordRpcEnabled !== false) {
+    discordRpc.setActivity(title || null);
+  }
+  res.json({ success: true });
 });
 
 // Kanal Ekle
@@ -6272,6 +6308,11 @@ if (process.argv.length <= 2) {
     // C# Tray uygulamasının dilini senkronize etmesi için komut gönder
     console.log(`[TRAY_CMD] lang=${db.settings.lang || 'tr'}`);
 
+    // Eğer Discord RPC aktifse bağlantıyı başlat
+    if (db.settings.discordRpcEnabled) {
+      discordRpc.connect();
+    }
+
     console.log(`
     ====================================================
      _    _         __     __ _______  ___   ___   _      
@@ -6282,7 +6323,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-                     Versiyon: v5.3.7
+                     Versiyon: v6.0.0
            Yapımcı: HaYTo
     ====================================================
     `);
@@ -6592,3 +6633,153 @@ function restartActiveDownloadWithNewLimit(db, oldSpeedLimit, newSpeedLimit) {
     });
   }
 }
+
+// ==========================================
+// Discord Rich Presence Entegrasyonu (v6.0.0)
+// ==========================================
+class DiscordRPC {
+  constructor(clientId) {
+    this.clientId = clientId;
+    this.client = null;
+    this.connected = false;
+    this.reconnectTimeout = null;
+    this.currentActivity = null;
+  }
+
+  connect() {
+    if (this.connected || this.client) return;
+    if (os.platform() !== 'win32') return;
+
+    const pipeName = '\\\\.\\pipe\\discord-ipc-0';
+    this.client = net.createConnection(pipeName);
+
+    this.client.on('connect', () => {
+      this.connected = true;
+      this.sendHandshake();
+      if (this.currentActivity) {
+        this.updateActivity(this.currentActivity);
+      }
+    });
+
+    this.client.on('data', (data) => {
+      // Yanıtlar sessizce geçilir
+    });
+
+    this.client.on('error', (err) => {
+      this.cleanup();
+    });
+
+    this.client.on('close', () => {
+      this.cleanup();
+      this.scheduleReconnect();
+    });
+  }
+
+  cleanup() {
+    this.connected = false;
+    if (this.client) {
+      this.client.destroy();
+      this.client = null;
+    }
+  }
+
+  scheduleReconnect() {
+    const db = readDb();
+    if (!db || db.settings.discordRpcEnabled === false) return;
+
+    if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+    this.reconnectTimeout = setTimeout(() => {
+      this.connect();
+    }, 15000);
+  }
+
+  sendHandshake() {
+    const payload = JSON.stringify({ v: 1, client_id: this.clientId });
+    this.send(0, payload);
+  }
+
+  send(op, payload) {
+    if (!this.connected || !this.client) return;
+
+    try {
+      const payloadBuffer = Buffer.from(payload, 'utf8');
+      const headerBuffer = Buffer.alloc(8);
+      headerBuffer.writeInt32LE(op, 0);
+      headerBuffer.writeInt32LE(payloadBuffer.length, 4);
+      this.client.write(Buffer.concat([headerBuffer, payloadBuffer]));
+    } catch (e) {
+      console.error('[Discord RPC] Gönderim hatası:', e.message);
+    }
+  }
+
+  setActivity(title) {
+    this.currentActivity = title;
+    const db = readDb();
+    if (!db || db.settings.discordRpcEnabled === false) {
+      this.disconnect();
+      return;
+    }
+
+    if (!this.connected) {
+      this.connect();
+      return;
+    }
+
+    this.updateActivity(title);
+  }
+
+  updateActivity(title) {
+    let payload;
+    if (title) {
+      const db = readDb();
+      const lang = (db && db.settings && db.settings.lang) || 'tr';
+      let detailsText = 'Video İzleniyor';
+      if (lang === 'en') detailsText = 'Watching Video';
+      else if (lang === 'es') detailsText = 'Viendo Video';
+      else if (lang === 'de') detailsText = 'Video ansehen';
+      else if (lang === 'pt') detailsText = 'Assistindo Vídeo';
+      else if (lang === 'ar') detailsText = 'مشاهدة الفيديو';
+      else if (lang === 'ru') detailsText = 'Просмотр видео';
+
+      payload = JSON.stringify({
+        cmd: 'SET_ACTIVITY',
+        args: {
+          pid: process.pid,
+          activity: {
+            state: title,
+            details: detailsText,
+            assets: {
+              large_image: 'logo',
+              large_text: 'HaYTooL YouTube Downloader'
+            },
+            buttons: [
+              {
+                label: 'Uygulamayı İndir / Download',
+                url: 'https://github.com/HaYToKoRaZ/haytool-youtube-download'
+              }
+            ]
+          }
+        },
+        nonce: Math.random().toString(36).substring(2)
+      });
+    } else {
+      payload = JSON.stringify({
+        cmd: 'SET_ACTIVITY',
+        args: {
+          pid: process.pid,
+          activity: null
+        },
+        nonce: Math.random().toString(36).substring(2)
+      });
+    }
+
+    this.send(1, payload);
+  }
+
+  disconnect() {
+    if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+    this.cleanup();
+  }
+}
+
+const discordRpc = new DiscordRPC('1518713595477622794');

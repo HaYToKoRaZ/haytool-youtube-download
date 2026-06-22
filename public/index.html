@@ -23,7 +23,7 @@
   <script src="artplayer.js"></script>
   <!-- HLS Player (M3U8 desteği için) -->
   <script src="hls.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=5.3.7">
+  <link rel="stylesheet" href="style.css?v=6.0.0">
 </head>
 <body>
   <div class="app-container">
@@ -33,7 +33,7 @@
         <div class="brand-icon">
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
-        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v5.3.7</a></span>
+        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v6.0.0</a></span>
       </div>
 
       <nav class="nav-menu">
@@ -576,7 +576,7 @@
             <h2>Ayarlar</h2>
             <p id="settings-desc">Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
           </div>
-            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v5.3.7</a></strong></span>
+            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v6.0.0</a></strong></span>
         </header>
 
         <div class="card card-settings">
@@ -781,6 +781,14 @@
                         <input type="checkbox" id="settings-showshorts" class="toggle-input">
                         <label for="settings-showshorts" class="toggle-label"></label>
                         <span id="desc-show-shorts">Geçmiş video listesinde Shorts göster</span>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-discordrpc" id="label-discord-rpc">Discord Durumu</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-discordrpc" class="toggle-input">
+                        <label for="settings-discordrpc" class="toggle-label"></label>
+                        <span id="desc-discord-rpc">İzlenen videoları Discord profilinde göster</span>
                       </div>
                     </div>
                   </div>
@@ -1167,6 +1175,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=5.3.7"></script>
+  <script src="app.js?v=6.0.0"></script>
 </body>
 </html>
