@@ -4735,17 +4735,19 @@ function sendPlayerActivity(isPlaying) {
   if (localDb.settings && localDb.settings.discordRpcEnabled === false) return;
 
   let title = null;
+  let channelName = null;
   if (isPlaying && currentPlayingVideoId) {
     const video = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
-    if (video && video.title) {
-      title = video.title;
+    if (video) {
+      title = video.title || null;
+      channelName = video.channelName || null;
     }
   }
 
   fetch('/api/player/activity', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title })
+    body: JSON.stringify({ title, channelName })
   }).catch(e => console.error('[Discord RPC] Durum gönderim hatası:', e));
 }
 

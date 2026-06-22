@@ -4345,10 +4345,10 @@ app.post('/api/settings/toggle-discord-rpc', (req, res) => {
 
 // Discord RPC Aktif Oynatılan Video Durumu
 app.post('/api/player/activity', (req, res) => {
-  const { title } = req.body;
+  const { title, channelName } = req.body;
   const db = readDb();
   if (db.settings.discordRpcEnabled !== false) {
-    discordRpc.setActivity(title || null);
+    discordRpc.setActivity(title || null, channelName || null);
   }
   res.json({ success: true });
 });
@@ -6657,7 +6657,7 @@ class DiscordRPC {
       this.connected = true;
       this.sendHandshake();
       if (this.currentActivity) {
-        this.updateActivity(this.currentActivity);
+        this.updateActivity(this.currentActivity.title, this.currentActivity.channelName);
       }
     });
 
@@ -6712,8 +6712,8 @@ class DiscordRPC {
     }
   }
 
-  setActivity(title) {
-    this.currentActivity = title;
+  setActivity(title, channelName) {
+    this.currentActivity = { title, channelName };
     const db = readDb();
     if (!db || db.settings.discordRpcEnabled === false) {
       this.disconnect();
@@ -6725,21 +6725,13 @@ class DiscordRPC {
       return;
     }
 
-    this.updateActivity(title);
+    this.updateActivity(title, channelName);
   }
 
-  updateActivity(title) {
+  updateActivity(title, channelName) {
     let payload;
     if (title) {
-      const db = readDb();
-      const lang = (db && db.settings && db.settings.lang) || 'tr';
-      let detailsText = 'Video İzleniyor';
-      if (lang === 'en') detailsText = 'Watching Video';
-      else if (lang === 'es') detailsText = 'Viendo Video';
-      else if (lang === 'de') detailsText = 'Video ansehen';
-      else if (lang === 'pt') detailsText = 'Assistindo Vídeo';
-      else if (lang === 'ar') detailsText = 'مشاهدة الفيديو';
-      else if (lang === 'ru') detailsText = 'Просмотр видео';
+      let detailsText = channelName || 'YouTube';
 
       payload = JSON.stringify({
         cmd: 'SET_ACTIVITY',
