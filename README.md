@@ -72,7 +72,7 @@ A premium, lightweight, and cross-platform automation software that automaticall
 
 Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-packaged in the repository, you can run the application immediately after downloading.
 
-### 🪟 Windows:
+### 🖥️ Windows:
 * **Double-click Launch:**
   Double-click `HaYTooL YT Downloader.exe` in the root folder to start the application silently in the system tray and open the dashboard in your browser.
 * **Command Line Launch:**
@@ -215,7 +215,7 @@ YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni vid
 
 Tüm bağımlılıklar (`node_modules/`, `yt-dlp`, `ffmpeg`) halihazırda depo içerisinde mevcut olduğundan, indirdikten sonra doğrudan çalıştırabilirsiniz.
 
-### 🪟 Windows:
+### 🖥️ Windows:
 * **Çift Tıklama ile Başlatma:**
   Kök dizindeki `HaYTooL YT Downloader.exe` dosyasına çift tıklayarak uygulamayı arka planda sessizce başlatabilir ve web arayüzünü tarayıcınızda açabilirsiniz.
 * **Komut Satırı ile Başlatma:**
