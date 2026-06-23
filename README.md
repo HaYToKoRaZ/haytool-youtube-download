@@ -2,11 +2,11 @@
   <img src="public/logo.png" alt="HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 HaYTooL YouTube Downloader (v6.0.0)</p>
+# <p align="center">📥 HaYTooL - Algoritmasız Kişisel YouTube Kütüphanesi & Otomasyonu (v6.0.0)</p>
 
 <p align="center">
-  <b>Advanced, Portable, and Zero-Dependency YouTube Automation & Downloader System</b><br/>
-  <i>Gelişmiş, Taşınabilir ve Sıfır Kurulumlu YouTube Otomasyon & İndirme Sistemi</i>
+  <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System</b><br/>
+  <i>Algoritma Dayatmalarından Kurtulun: Gelişmiş, Taşınabilir ve Otomatik YouTube Takip & İndirme Sistemi</i>
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=for-the-badge&logo=windows" alt="Platform Support" />
@@ -24,7 +24,15 @@
 
 ---
 
-A premium, lightweight, and cross-platform automation software that automatically monitors YouTube channels via RSS feeds and downloads new videos in the background. Built entirely in vanilla JavaScript, CSS, and HTML5.
+## 🎯 Core Philosophy / Temel Felsefe
+
+**English:**
+YouTube's recommendation algorithms are designed to maximize watch time by pushing distracting, addictive, and unwanted content to your feed. **HaYTooL** is built to break this cycle. 
+Instead of logging into YouTube and exposing your data to ads and algorithmic traps, **HaYTooL** acts as your private offline library. You define the exact channels you want to follow. The system continuously runs in the background, monitors their RSS feeds, and automatically downloads new videos as soon as they are uploaded. You watch your chosen content locally, 100% ad-free, offline, and entirely on your own terms.
+
+**Türkçe:**
+YouTube'un öneri algoritmaları, dikkatinizi dağıtmak, sizi platformda bağımlı kılmak ve istemediğiniz içerikleri önünüze çıkarmak üzerine tasarlanmıştır. **HaYTooL** bu dayatmayı yıkmak için geliştirildi.
+YouTube'a girip reklam tuzağına ve algoritma önerilerine maruz kalmak yerine, **HaYTooL** size özel bağımsız bir kütüphane sunar. Sadece takip etmek istediğiniz kanalları belirlersiniz; sistem arka planda bu kanalları sürekli tarayarak yeni yüklenen videoları otomatik olarak yerel diskinize indirir. Size sadece kendi kütüphanenizden, reklamsız, çevrimdışı ve özgürce izlemek kalır.
 
 ---
 
@@ -43,264 +51,112 @@ A premium, lightweight, and cross-platform automation software that automaticall
 
 ---
 
-## 🚀 Key Features
+## 🚀 Key Features / Öne Çıkan Özellikler
 
-* **Zero-Dependency Startup:** No need to run `npm install` or download external binaries. The repository comes fully pre-packaged with all required libraries (`node_modules/`) and `yt-dlp` (`yt-dlp/`). If `ffmpeg` is missing in `ffmpeg/`, the software automatically falls back to single-stream download mode (which does not require FFmpeg), and works fully out of the box. To enable high-quality separate video & audio stream merging (1080p+), simply drop `ffmpeg.exe` and `ffprobe.exe` into the `ffmpeg/` folder.
-* **Automated Channel Tracking:** Continuously monitors channels for new videos using RSS feeds and fallback `yt-dlp` mechanisms.
-* **Smart Queue Manager:** Downloads videos sequentially, prevents conflicts, and automatically resumes interrupted downloads on startup.
-* **Alternative Speed Limits (qBittorrent-Style Turtle Toggle):** Toggle between a normal speed limit profile and an alternative (turtle) speed profile. Extremely useful for saving bandwidth during active usage.
-* **System Tray Integration & Single-Instance Mutex (`HaYTooL YT Downloader.exe`):** Windows version starts the Node server silently in the background (no black CMD window) with a system tray icon. Right-clicking provides direct navigation to pages, toggles alternative speeds, restarts the server, or exits. Enforces single-instance run using a C# Mutex: launching a duplicate process automatically alerts the user, opens the active web client in their browser, and terminates.
-* **Orientation-Aware Player Memory:** Floating video modal player (`#player-modal`) is resizable and automatically stores coordinates and dimensions separately for landscape and portrait (Shorts) modes, completely avoiding aspect ratio stretch or mismatch. Default fallback opens the player perfectly scaled in the bottom-right corner.
-* **Continuous Autoplay:** Playlist sidebar supports continuous play (automatically loads the next video in queue when current media ends), toggled via action bar controls with central glassmorphism overlay status alerts.
-* **Custom Drag-and-Drop Ordering:** Toggle "User" sorting mode to freely reorder video cards or playlist sidebar items using native drag-and-drop. Order is persisted instantly in local memory.
-* **Undownloaded Filter:** Library tab includes a checkbox filter to hide all completed downloads on disk, displaying only videos currently in the queue or awaiting download.
-* **Interactive Terminal Console:** C# Tray Log/Terminal window includes an interactive input field at the bottom. You can pipe control commands directly to Node's standard input (`ton`, `toff`, `status`, `pd <link>`).
-* **Log Auto-Cleanup:** Automatically deletes log files older than 7 days from the `logs/` directory at startup to keep the project clean.
-* **Floating Non-Blocking Player:** Embedded Plyr modal has no screen-blocking backdrop, allowing you to browse/scroll other tabs while watching. Clicking a new video instantly plays it in the player.
-* **100% Offline Access:** Lucide, Plyr JS, and Plyr CSS libraries are served locally, ensuring the UI works fully without an active internet connection.
-* **Dual-Boot Loss Protection:** Detects if completed files are missing on disk and flags them as `fileMissing: true` without changing history records to `ignored`. Auto-heals records on startup if files reappear.
-* **Advanced Subtitle Translation & Customization:** Choose subtitle colors (12 colors), background opacities (12 options), and font sizes (13 sizes) from the player settings. Translate any downloaded subtitle track to 11 target languages with a visual loading overlay spinner.
-* **Per-Channel Auto-Download Toggle:** Configure auto-downloads individually per followed channel (new channels default to auto-download enabled).
-* **SponsorBlock Temporary Bypass:** Instantly toggle SponsorBlock segment skipping on/off for the current playback session using the shield icon under the player.
-* **Synchronized Video Playback:** Seamlessly coordinates inline and modal players. Starting any video immediately stops all other players to prevent double-audio or overlapping streams.
-* **IPTV Integration & Multi-Screen Views:** Stream live IPTV feeds with options for Single view, Dual view (side-by-side splits), Quad view (2x2 grid), and Sport Mode (Picture-in-Picture layout). Includes OSD overlay slot controls (appearing on hover with mute and stream swap buttons), keyboard hotkeys (`S` / `Y`) to swap stream feeds without interruption, a dedicated stop command to prevent background buffering bandwidth waste, early TDZ initialization, and borderless full-screen layout maximize mode.
-* **Discord Rich Presence Integration:** Displays the title of the video you are currently watching in the embedded player as your Discord profile activity (can be toggled on/off in Settings and System Tray).
+### 🇬🇧 English:
+* **Background Subscription Automation:** Periodically checks your followed channels via RSS feeds. Downloads new videos automatically the second they are uploaded, creating an offline, local cache of your subscription box.
+* **Algorithmic Liberation:** No distraction, no "Up Next" traps, and no algorithmic rabbit holes. You only see the videos published by the creators you specifically subscribed to.
+* **100% Ad-Free Local Playback:** Plays downloaded videos locally inside a custom dashboard using premium players (Artplayer, Plyr, or HTML5) with full seeking, speed control, and orientation-aware resizing.
+* **SponsorBlock Integration:** Automatically skips sponsor segments, intros, outros, and subscription reminders. Includes a session-based shield toggle button under the player and dimmed segments on the timeline.
+* **Advanced Subtitles & Translation:** Automatically grabs English/Turkish subtitles. Features a translation utility supporting 11 target languages with a visual loading overlay, along with customizable subtitle styling (12 colors, 12 background opacities, 13 font sizes).
+* **YouTube-Style Split Playlist View:** The "Downloads" tab features a dual-column layout. Watch the active video on the left while browsing your other downloads in a sidebar playlist on the right, supporting autoplay (sequential video playback) and status HUD overlays.
+* **Per-Channel Download Rules:** Customize download preferences for each channel individually: toggle auto-download, set duration filters, and allow/restrict downloading vertical YouTube Shorts.
+* **Windows System Tray & Interactive Terminal Console:** Runs silently in the background with a Windows Tray Icon. Right-click to navigate, toggle speed limits, or control Discord activity. The console window features a command input field piping stdin controls directly (`ton`, `toff`, `status`, `pd <link>`).
+* **Single-Instance Mutex Lock:** Prevents running multiple application processes. Launching a second instance prompts an alert, opens the active dashboard in your browser, and exits.
+* **Discord Rich Presence (RPC):** Integrates directly with Discord using Windows Named Pipe IPC to display the watched video's channel name on the `details` line and the video title as the `state`. Can be toggled in settings and tray.
+* **Dual-Boot isolated Configs:** Isolates OS-specific parameters (`configwin.ini` / `configunix.ini`). Prevents file loss on dual-boot setups; missing files are flagged as `fileMissing: true` and automatically restored if they reappear without breaking DB history.
+* **Zero-Dependency Startup:** Pre-packaged with `node_modules/`, `yt-dlp/`, and `ffmpeg/`. Works fully out of the box without external setups.
+
+### 🇹🇷 Türkçe:
+* **Arka Planda Otomatik Kanal İzleme:** Takip listenizdeki kanalları RSS akışlarıyla sürekli denetler. Yeni bir video yüklenir yüklenmez arka planda otomatik olarak indirerek yerel abonelik kutunuzu oluşturur.
+* **Algoritma Dayatmasından Kurtuluş:** Öneri algoritmaları, "Sıradaki Video" tuzakları ve dikkat dağıtıcı alakasız içerikler yok. Yalnızca takip etmek için kendi eklediğiniz yayıncıların videolarını görürsünüz.
+* **%100 Reklamsız Yerel Oynatım:** İndirilen videoları arayüzdeki gelişmiş oynatıcılar (Artplayer, Plyr, HTML5) üzerinden sıfır gecikme, HTTP 206 Range desteği ve reklamsız olarak yerel diskinizden oynatır.
+* **SponsorBlock Entegrasyonu:** Video içindeki sponsorlu alanları, intro/outro bölümlerini ve abonelik hatırlatıcılarını otomatik atlar. Oynatıcı altındaki kalkan (shield) butonuyla geçici olarak kapatılabilir.
+* **Gelişmiş Altyazı ve Otomatik Çeviri:** İngilizce/Türkçe altyazıları otomatik indirir. Yerleşik çevirici modülüyle altyazıları 11 dile anlık çevirebilir ve altyazı rengini (12 renk), arka plan opaklığını (12 düzey), yazı boyutunu (13 seçenek) özelleştirebilirsiniz.
+* **YouTube Tarzı Bölünmüş Çalma Listesi:** İndirilenler sekmesi iki sütunlu yerleşim sunar. Solda aktif video oynatılırken sağda indirilmiş diğer videoların çalma listesi listelenir; otomatik sonraki videoya geçiş (autoplay) ve ortada beliren cam tasarımlı durum HUD'ları desteklenir.
+* **Kanala Özel İndirme Kuralları:** Her kanala özel ayarlar sunar: otomatik indirmeyi açıp kapatabilir, dikey Shorts videolarının indirilip indirilmeyeceğini belirleyebilirsiniz.
+* **Windows Tepsi Uygulaması & İnteraktif Konsol:** Arka planda sessizce çalışır. Sağ tık menüsüyle hız profillerini, Discord durumunu yönetebilirsiniz. Konsol ekranındaki komut paneli üzerinden sunucuya doğrudan `ton`, `toff`, `status`, `pd <link>` komutları gönderebilirsiniz.
+* **Tekil Örnek (Mutex) Koruması:** Uygulamanın birden fazla kez açılmasını engeller. İkinci kez açmaya çalıştığınızda çalışmakta olan portu tespit edip tarayıcıda arayüzü açar ve kendini kapatır.
+* **Discord Durumu (Rich Presence) Entegrasyonu:** Windows Named Pipe IPC aracılığıyla izlediğiniz videonun kanal adını `details` satırında, video başlığını ise `state` satırında göstererek Discord profilinizde etkinlik olarak yansıtır.
+* **Çift Önyükleme (Dual-Boot) Dosya Koruması:** Windows ve Linux üzerinde ayrı ayar dosyaları (`configwin.ini` / `configunix.ini`) tutar. Diskten silinen dosyaları geçmişten silmeden `fileMissing: true` işaretler ve dosya geri geldiğinde geçmişi bozmadan otomatik onarır.
+* **Sıfır Bağımlılık (Zero-Dependency):** Gerekli tüm Node.js modülleri, `yt-dlp` ve `ffmpeg` binary dosyaları depo içinde hazır gelir. Hiçbir harici kuruluma gerek duymadan çift tıklamayla çalışır.
 
 ---
 
-## 🛠️ Installation & Running
+## 🛠️ Installation & Running / Kurulum ve Çalıştırma
 
 Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-packaged in the repository, you can run the application immediately after downloading.
+Tüm bağımlılıklar depo içerisinde hazır geldiğinden, indirdikten sonra doğrudan çalıştırabilirsiniz.
 
 ### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
-* **Double-click Launch:**
+* **Double-click Launch / Çift Tıklama ile Başlatma:**
   Double-click `HaYTooL YT Downloader.exe` in the root folder to start the application silently in the system tray and open the dashboard in your browser.
-* **Command Line Launch:**
+  *Kök dizindeki `HaYTooL YT Downloader.exe` dosyasına çift tıklayarak uygulamayı arka planda başlatabilir ve arayüzü tarayıcınızda açabilirsiniz.*
+* **Command Line Launch / Komut Satırı ile Başlatma:**
   ```cmd
   "HaYTooL YT Downloader.exe"
   ```
 
 ### ![Linux](https://img.shields.io/badge/-Linux-FCC624?style=flat-square&logo=linux&logoColor=black) / ![macOS](https://img.shields.io/badge/-macOS-aaaaaa?style=flat-square&logo=apple&logoColor=white) (Unix)
-1. **Make Launcher Executable:**
+1. **Make Launcher Executable / Çalıştırma İzni Verin:**
    ```bash
    chmod +x baslat.sh
    ```
-2. **Start the Application:**
+2. **Start the Application / Uygulamayı Başlatın:**
    ```bash
    ./baslat.sh
    ```
 
-Access the dashboard at [http://localhost:4141](http://localhost:4141) (default port can be changed in Settings).
+Access the dashboard at / Arayüze şu adresten erişebilirsiniz: [http://localhost:4141](http://localhost:4141) *(default port can be changed in Settings / varsayılan port Ayarlar'dan değiştirilebilir)*.
 
 ---
 
-## 🎹 Embedded Video Player Keyboard Shortcuts
+## 🎹 Keyboard Shortcuts / Oynatıcı Klavye Kısayolları
 
-When the embedded video player modal is open, you can use standard YouTube keyboard shortcuts to control playback:
+When the video player is focused, you can control playback using standard shortcuts:
+*Oynatıcı aktifken, aşağıdaki kısayollar ile oynatımı kontrol edebilirsiniz:*
 
-* **`Space`** or **`k` / `K`**: Toggle play and pause (e.g. Pause a video instantly).
-* **`f` / `F`**: Toggle full screen mode.
-* **`m` / `M`**: Toggle mute/unmute audio.
-* **`Arrow Right`**: Skip forward 5 seconds.
-* **`Arrow Left`**: Skip backward 5 seconds.
-* **`l` / `L`**: Skip forward 10 seconds.
-* **`j` / `J`**: Skip backward 10 seconds.
-* **`Arrow Up`**: Increase volume by 5%.
-* **`Arrow Down`**: Decrease volume by 5%.
-* **`Home`**: Jump to the beginning of the video.
-* **`End`**: Jump to the end of the video.
-* **`>`** or **`Shift + .`**: Increase playback speed (Cycles through: 0.5x, 0.75x, 1x, 1.25x, 1.5x, 1.75x, 2x).
-* **`<`** or **`Shift + ,`**: Decrease playback speed.
-* **`0` to `9`** (Number keys): Seek to a specific percentage of the video duration (e.g. `5` jumps to 50% of the video).
-
----
-
-## 💻 CLI & Console Commands
-
-You can manage speed profiles, start downloads, and view application status directly using the backend executable from the command line, or through the Interactive Terminal Console in the Windows tray app:
-
-### CLI Command Examples:
-Run these commands from your terminal in the project directory:
-* **Check Status:**
-  * Windows: `"HaYTooL YT Downloader.exe" status`
-  * Unix: `node server.js status`
-* **Download Video (Paste & Download):**
-  * Windows: `"HaYTooL YT Downloader.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ`
-  * Unix: `node server.js pd https://www.youtube.com/watch?v=dQw4w9WgXcQ`
-* **Enable Alternative Speed (Turtle Mode):**
-  * Windows: `"HaYTooL YT Downloader.exe" ton`
-  * Unix: `node server.js ton`
-* **Disable Alternative Speed (Turtle Mode):**
-  * Windows: `"HaYTooL YT Downloader.exe" toff`
-  * Unix: `node server.js toff`
-
-### Console Commands (from the Tray App window):
-Type these commands in the textbox at the bottom of the "Show Console Output" window and press Enter (no prefix needed):
-* `status` - Shows current speed limits and queue status in English.
-* `ton` - Enables alternative speed limit (Turtle Mode).
-* `toff` - Disables alternative speed limit (Turtle Mode).
-* `pd <youtube-url>` - Queues the specified video for download.
-* `clear` - Clears the terminal screen.
-* `help` - Shows available commands list.
+* **`Space`** or **`k` / `K`**: Toggle play and pause / *Oynat - Duraklat*
+* **`f` / `F`**: Toggle full screen / *Tam ekran modunu aç - kapat*
+* **`m` / `M`**: Toggle mute / *Sesi aç - kapat*
+* **`Arrow Right`**: Skip forward 5 seconds / *5 saniye ileri sar*
+* **`Arrow Left`**: Skip backward 5 seconds / *5 saniye geri sar*
+* **`l` / `L`**: Skip forward 10 seconds / *10 saniye ileri sar*
+* **`j` / `J`**: Skip backward 10 seconds / *10 saniye geri sar*
+* **`Arrow Up`**: Increase volume by 5% / *Sesi %5 artır*
+* **`Arrow Down`**: Decrease volume by 5% / *Sesi %5 azalt*
+* **`Home`**: Jump to the beginning / *Videonun en başına git*
+* **`End`**: Jump to the end / *Videonun en sonuna git*
+* **`>`** or **`Shift + .`**: Increase playback speed (up to 2x) / *Oynatma hızını artır*
+* **`<`** or **`Shift + ,`**: Decrease playback speed / *Oynatma hızını azalt*
+* **`0` to `9`**: Seek to a specific percentage (e.g., 5 jumps to 50%) / *Videonun yüzde dilimine atla*
 
 ---
 
-## 📂 Configuration Files (Dual-Boot Support)
+## 💻 CLI & Console Commands / Komut Satırı Kontrolleri
 
-The software dynamically isolates configuration parameters based on the host OS, making it safe to use the same directory in dual-boot environments (e.g., Windows & Linux):
+You can manage speed profiles and queue downloads directly through the CLI or via the Console Input at the bottom of the Tray Log window:
+*Hız sınırlarını ve indirmeleri terminalden veya Tepsi uygulamasının Konsol giriş satırından yönetebilirsiniz:*
 
-* **`configwin.ini`:** Windows-specific parameters (download paths, ports, useAlternativeSpeed, alternativeSpeedLimit, etc.).
-* **`configunix.ini`:** Linux/Unix-specific parameters.
-* **`channels.ini`:** Shared channel lists and individual download settings.
-* **`db.json`:** Shared database containing download history and queue state.
-
----
-
-## 📞 Support & Feedback
-
-📧 **korazhayto@gmail.com**
-
-*Developer & Designer:* **HaYTo**
-
----
----
-
-# <p align="center">🇹🇷 TR - HaYTooL YouTube Downloader (v6.0.0)</p>
-
-YouTube kanallarını otomatik olarak izleyen ve bu kanallara yüklenen yeni videoları arka planda otomatik olarak indiren şık, hafif ve kararlı bir otomasyon sistemidir. Tamamen vanilla JavaScript, CSS ve HTML5 standartlarıyla geliştirilmiştir.
+* `status` - Shows current speed limits, active downloads, and queue info / *Hız limitlerini ve aktif kuyruk durumunu gösterir.*
+* `ton` - Enables alternative speed limit (Turtle Mode) / *Alternatif hız sınırını (Kaplumbağa Modu) etkinleştirir.*
+* `toff` - Disables alternative speed limit (Turtle Mode) / *Alternatif hız sınırını devre dışı bırakır.*
+* `pd <youtube-url>` - Instantly adds the specified video to the download queue / *Belirtilen YouTube videosunu hemen indirme kuyruğuna ekler.*
+* `clear` - Clears the terminal screen / *Konsol log ekranını temizler.*
+* `help` - Shows the list of available commands / *Kullanılabilir komut listesini listeler.*
 
 ---
 
-<p align="center">
-  <b>📸 Uygulama Ekran Görüntüleri</b>
-</p>
-<p align="center">
-  <img src="screenshots/tr-kutuphane.png" width="48%" alt="Kütüphane (Ana Sayfa)" />
-  <img src="screenshots/tr-indirilenler.png" width="48%" alt="Yerleşik Oynatıcı ve İndirilenler" />
-</p>
-<p align="center">
-  <img src="screenshots/tr-kuyruk.png" width="31%" alt="İndirme Sırası" />
-  <img src="screenshots/tr-kanallar.png" width="31%" alt="Takip Edilen Kanallar" />
-  <img src="screenshots/tr-ayarlar.png" width="31%" alt="Ayarlar Paneli" />
-</p>
+## 📂 Configuration Files / Yapılandırma Dosyaları
+
+* **`configwin.ini`:** Windows-specific parameters (download path, port, alternative speed toggle).
+* **`configunix.ini`:** Linux/macOS-specific parameters.
+* **`channels.ini`:** Monitored channels list and their download rules.
+* **`db.json`:** Lightweight local database storing download history, queue state, and metadata.
 
 ---
 
-## 🚀 Öne Çıkan Özellikler
+## 📞 Support & Feedback / Destek ve İletişim
 
-* **Sıfır Bağımlılık (Zero-Dependency):** `npm install` çalıştırmanıza veya harici binary dosyaları indirmenize gerek yoktur. Depo, tüm gerekli kütüphaneler (`node_modules/`) ve `yt-dlp` (`yt-dlp/`) ile önceden paketlenmiş olarak gelir; hemen çalıştırabilirsiniz. Eğer `ffmpeg` klasöründe `ffmpeg.exe` bulunamazsa, yazılım otomatik olarak birleştirmesiz tekil dosya indirme moduna (FFmpeg gerektirmez) geçer ve sıfır hata ile çalışmaya devam eder. En yüksek kalitede (1080p+) ses/video birleştirmeyi etkinleştirmek için `ffmpeg/` klasörüne `ffmpeg.exe` ve `ffprobe.exe` dosyalarını eklemeniz yeterlidir.
-* **Otomatik Kanal İzleme:** RSS akışları veya yedek `yt-dlp` flat-playlist mekanizması ile kanalların yeni videolarını sürekli denetler.
-* **Akıllı İndirme Kuyruğu:** Videoları sırayla indirir, çakışmaları engeller ve sunucu başlangıcında yarım kalan indirmeleri otomatik olarak kaldığı yerden sürdürür.
-* **Alternatif Hız Profili (qBittorrent Tarzı Kaplumbağa):** Normal indirme hızı sınırı ile alternatif (kaplumbağa) indirme hız profili arasında geçiş yapabilirsiniz. Aktif internet kullanımı sırasında bant genişliğinden tasarruf etmek için idealdir.
-* **Sistem Tepsisi Entegrasyonu & Tekil Örnek (Single-Instance) Mutex (`HaYTooL YT Downloader.exe`):** Windows işletim sisteminde Node sunucusunu tamamen arka planda sessizce başlatır. Sağ tıklayarak sekmelere doğrudan gidilebilir, alternatif hız sınırı açılıp kapatılabilir, sistemi yeniden başlatabilir veya kapatabilirsiniz. C# Mutex entegrasyonu sayesinde uygulamanın birden fazla kez açılması engellenir; ikinci kez açmaya çalışıldığında kullanıcıyı tarayıcıda çalışan mevcut arayüze yönlendirip kendini kapatır.
-* **Yönelime Duyarlı Oynatıcı Hafızası:** Yüzen video oynatıcı modalının (`#player-modal`) boyutlandırma ve koordinat hafızası dikey (Shorts) ve yatay videolar için ayrı olarak `localStorage` üzerinde saklanır. Bu sayede dikey/yatay geçişlerinde oran uyumsuzlukları ve basıklık/genişleme sorunları yaşanmaz. Kayıtlı veri olmadığında oynatıcı videonun orijinal oranlarına göre otomatik şekil alarak sağ altta açılır.
-* **Otomatik Sonraki Videoya Geçiş (Autoplay):** Playlist sidebarında video bittikten sonra sıradaki indirilmiş videoya otomatik geçiş özelliği. Kontrol barından tek tıkla açılıp kapatılabilir ve durum video ortasında beliren şık durum HUD katmanıyla bildirilir.
-* **Kullanıcı Tanımlı Sıralama (Drag-and-Drop):** "Kullanıcı" sıralama modu etkinken indirilen video kartlarını ve sağ çalma listesini sürükle-bırak yöntemiyle serbestçe organize edin. Sıralama düzeni yerel hafızada kalıcı olarak saklanır.
-* **Sadece İndirilmeyenler Filtresi:** Kütüphane listesinde sadece henüz indirilmemiş veya indirme kuyruğundaki videoları listelemek için tek tıkla tamamlanmış videoları gizleme filtresi.
-* **İnteraktif Terminal Konsolu:** Sistem tepsisindeki "Konsol Çıktısını Göster" penceresine eklenen komut giriş paneli sayesinde, doğrudan Node.js standart girdisine (`process.stdin`) komut gönderebilirsiniz. Desteklenen komutlar: `ton`, `toff`, `status`, `pd <link>`.
-* **Otomatik Log Temizleme:** Sunucu her başlatıldığında `logs/` klasöründeki 7 günden eski log dosyalarını otomatik olarak temizler.
-* **Kompakt ve Gömülü Video Oynatıcı:** Arka planı kapatmayan yüzen (floating) video oynatıcı ile sayfada gezinirken veya diğer videolara göz atarken izlemeye devam edebilirsiniz.
-* **%100 Çevrimdışı Kullanım:** Lucide, Plyr JS ve CSS dosyaları yerel olarak sunulur; internet bağlantısı olmadığında dahi arayüz ve oynatıcı sorunsuz çalışır.
-* **Çift Önyükleme (Dual-Boot) Dosya Koruma Sistemi:** Tamamlanmış videolar diskte bulunamadığında geçmiş kaydını bozmadan `fileMissing: true` bayrağı tanımlar. Dosya tekrar bulunduğunda otomatik onarır.
-* **Gelişmiş Altyazı Çeviri ve Özelleştirme Desteği:** Video oynatıcı üzerinden altyazı rengini (12 renk), arka plan saydamlığını (12 seçenek) ve yazı boyutunu (13 seçenek) özelleştirebilirsiniz. İndirilmiş herhangi bir altyazıyı, görsel yükleme katmanı (spinner) eşliğinde 11 farklı hedef dile çevirebilirsiniz.
-* **Kanal Özelinde Otomatik İndirme Ayarı:** Takip edilen kanallar için otomatik video indirme durumu ayrı ayrı seçilebilir (yeni eklenen kanallar varsayılan olarak indirmeye açık olur).
-* **SponsorBlock Geçici Atlama Engelleme:** Video oynatıcı altındaki kalkan (shield) ikonuna tıklayarak geçerli oynatım oturumu için SponsorBlock atlamasını anlık olarak açıp kapatabilirsiniz.
-* **Tekil/Senkronize Video Oynatıcı:** Yerleşik ve modal video oynatıcıları arasında mükemmel senkronizasyon sağlar. Herhangi bir videoyu oynatmak arka planda açık olan diğer oynatıcılardan ses gelmesini önler ve onları tamamen sonlandırır.
-* **IPTV Entegrasyonu ve Çoklu Ekran Desteği:** Tekli Ekran, İkili Ekran (yan yana bölünmüş), Çoklu Ekran (2x2 ızgara) ve Spor Modu (PiP - Resim içinde Resim) düzeni seçenekleriyle canlı IPTV yayınlarını izleyin. Hover ile tetiklenen OSD kontrol barları (ses kapatma ve yayın yer değiştirme butonları dahil), yayını kesintiye uğratmadan ekranlar arası geçiş sağlayan klavye kısayolları (`S` / `Y`), arka planda veri tüketimini engelleyen durdurma butonu, TDZ korumalı hızlı başlangıç ve tüm ızgarayı tamamen kaplayan sıfır kenarlıklı tam ekran modu gibi gelişmiş oynatıcı özelliklerini barındırır.
-* **Discord Durumu (Rich Presence) Entegrasyonu:** Gömülü oynatıcıda o an izlemekte olduğunuz videonun başlığını Discord profilinizde etkinlik durumu olarak gösterir (Ayarlar menüsünden ve Sistem Tepsisinden tek tıkla açılıp kapatılabilir).
-
----
-
-## 🛠️ Kurulum ve Çalıştırma
-
-Tüm bağımlılıklar (`node_modules/`, `yt-dlp`, `ffmpeg`) halihazırda depo içerisinde mevcut olduğundan, indirdikten sonra doğrudan çalıştırabilirsiniz.
-
-### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
-* **Çift Tıklama ile Başlatma:**
-  Kök dizindeki `HaYTooL YT Downloader.exe` dosyasına çift tıklayarak uygulamayı arka planda sessizce başlatabilir ve web arayüzünü tarayıcınızda açabilirsiniz.
-* **Komut Satırı ile Başlatma:**
-  ```cmd
-  "HaYTooL YT Downloader.exe"
-  ```
-
-### ![Linux](https://img.shields.io/badge/-Linux-FCC624?style=flat-square&logo=linux&logoColor=black) / ![macOS](https://img.shields.io/badge/-macOS-aaaaaa?style=flat-square&logo=apple&logoColor=white) (Unix)
-1. **Çalıştırma İzni Verin:**
-   ```bash
-   chmod +x baslat.sh
-   ```
-2. **Uygulamayı Başlatın:**
-   ```bash
-   ./baslat.sh
-   ```
-
-Arayüze varsayılan olarak [http://localhost:4141](http://localhost:4141) adresinden erişebilirsiniz (varsayılan port Ayarlar'dan değiştirilebilir).
-
----
-
-## 🎹 Gömülü Video Oynatıcı Klavye Kısayolları
-
-Gömülü video oynatıcı açıkken, oynatımı kontrol etmek için standart YouTube klavye kısayollarını kullanabilirsiniz:
-
-* **`Space` (Boşluk)** veya **`k` / `K`**: Oynat / Duraklat (Örn: Videoyu anında durdurur).
-* **`f` / `F`**: Tam ekran moduna geç / çık.
-* **`m` / `M`**: Sesi kapat / aç.
-* **`Yön Tuşu Sağ`**: 5 saniye ileri sar.
-* **`Yön Tuşu Sol`**: 5 saniye geri sar.
-* **`l` / `L`**: 10 saniye ileri sar.
-* **`j` / `J`**: 10 saniye geri sar.
-* **`Yön Tuşu Yukarı`**: Sesi %5 artır.
-* **`Yön Tuşu Aşağı`**: Sesi %5 azalt.
-* **`Home`**: Videonun en başına git.
-* **`End`**: Videonun en sonuna git.
-* **`>`** veya **`Shift + .`**: Oynatma hızını artırır (Döngüsel: 0.5x, 0.75x, 1x, 1.25x, 1.5x, 1.75x, 2x).
-* **`<`** veya **`Shift + ,`**: Oynatma hızını azaltır.
-* **`0` - `9`** (Sayı tuşları): Videonun belirli bir yüzdesine atlar (Örn: `5` tuşu videonun %50'sine atlar).
-
----
-
-## 💻 CLI ve Konsol Komutları
-
-Uygulamanın hız limitlerini, indirmelerini ve durum bilgisini doğrudan terminalden veya Windows tepsi uygulamasının İnteraktif Konsol penceresinden yönetebilirsiniz:
-
-### CLI Komut Örnekleri:
-Proje dizininde terminalden çalıştırabileceğiniz komutlar (Windows için "HaYTooL YT Downloader.exe" kullanabilirsiniz, Linux/macOS için node server.js kullanabilirsiniz):
-* **Durum Bilgisi Sorgulama:**
-  * Windows: `"HaYTooL YT Downloader.exe" status`
-  * Unix: `node server.js status`
-* **Video İndirme (Paste & Download):**
-  * Windows: `"HaYTooL YT Downloader.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ`
-  * Unix: `node server.js pd https://www.youtube.com/watch?v=dQw4w9WgXcQ`
-* **Alternatif Hızı Etkinleştir (Turtle Mode):**
-  * Windows: `"HaYTooL YT Downloader.exe" ton`
-  * Unix: `node server.js ton`
-* **Alternatif Hızı Devre Dışı Bırak (Turtle Mode):**
-  * Windows: `"HaYTooL YT Downloader.exe" toff`
-  * Unix: `node server.js toff`
-
-### Konsol Komutları (Tray Log Ekranından):
-Tepsi simgesinden "Konsol Çıktısını Göster" dediğinizde açılan pencerenin altındaki metin kutusuna komut yazıp Enter'a basabilirsiniz (başında `HaYTooL YT Downloader.exe` veya `node` olmadan doğrudan):
-* `status` - Durum bilgisini anlık İngilizce olarak loglar.
-* `ton` - Alternatif hız sınırını (Turtle Mode) etkinleştirir.
-* `toff` - Alternatif hız sınırını (Turtle Mode) devre dışı bırakır.
-* `pd <youtube-url>` - Belirtilen videoyu hemen kuyruğa ekler.
-* `clear` - Konsol ekranını temizler.
-* `help` - Kullanılabilir komut listesini gösterir.
-
----
-
-## 📂 Yapılandırma Dosyaları (Çift Önyükleme Desteği)
-
-Yazılım, Windows ve Linux gibi çift önyüklemeli (dual-boot) sistemlerde aynı klasörden çalıştırıldığında yapılandırma çakışmalarını engellemek için ayarları işletim sistemine göre dinamik olarak ayırır:
-
-* **`configwin.ini`:** Windows işletim sisteminde çalışırken kullanılan ayarlar dosyasıdır (hız limitleri, alternatif hız durumu, port ve indirme yolu).
-* **`configunix.ini`:** Linux/macOS işletim sistemlerinde çalışırken kullanılan ayarlar dosyasıdır.
-* **`channels.ini`:** İzlenen kanalların listesini ve kanala özel ayarları ortak tutar.
-* **`db.json`:** İndirme geçmişi ve kuyruk verilerini tutan hafif yerel veritabanıdır.
-
----
-
-## 📞 Destek ve Geri Bildirim
-
-📧 **korazhayto@gmail.com**
-
-*Geliştirici & Tasarımcı:* **HaYTo**
+📧 **korazhayto@gmail.com**  
+*Developer & Designer / Geliştirici & Tasarımcı:* **HaYTo**
