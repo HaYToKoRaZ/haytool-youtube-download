@@ -4731,6 +4731,12 @@ window.triggerVolumeHUD = function(volume) {
   try { lucide.createIcons(); } catch(e) {}
 };
 
+/**
+ * Türkçe Açıklama: Oynatılan videonun başlığını ve kanal adını Discord RPC durumuna yansıtmak üzere backend API'ye gönderir.
+ * 
+ * @param {boolean} isPlaying - Oynatım durumu (true: oynatılıyor, false: durduruldu)
+ * @returns {void}
+ */
 function sendPlayerActivity(isPlaying) {
   if (localDb.settings && localDb.settings.discordRpcEnabled === false) return;
 

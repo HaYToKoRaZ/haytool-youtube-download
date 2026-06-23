@@ -142,7 +142,10 @@ You can manage speed profiles and queue downloads directly through the CLI or vi
 
 ## 📞 Support & Feedback
 
-📧 **korazhayto@gmail.com**  
+* **Email:** `korazhayto@gmail.com`
+* **X (Twitter):** [HaYTo](https://x.com/HaYTo)
+* **GitHub:** [haytool-youtube-download](https://github.com/HaYToKoRaZ/haytool-youtube-download)
+
 *Developer & Designer:* **HaYTo**
 
 ---
@@ -260,5 +263,8 @@ Hız sınırlarını ve indirmeleri terminalden veya Tepsi uygulamasının Konso
 
 ## 📞 Destek ve İletişim
 
-📧 **korazhayto@gmail.com**  
+* **E-posta:** `korazhayto@gmail.com`
+* **X (Twitter):** [HaYTo](https://x.com/HaYTo)
+* **GitHub:** [haytool-youtube-download](https://github.com/HaYToKoRaZ/haytool-youtube-download)
+
 *Geliştirici & Tasarımcı:* **HaYTo**

@@ -6637,7 +6637,15 @@ function restartActiveDownloadWithNewLimit(db, oldSpeedLimit, newSpeedLimit) {
 // ==========================================
 // Discord Rich Presence Entegrasyonu (v6.0.0)
 // ==========================================
+
+/**
+ * Türkçe Açıklama: Windows Named Pipe IPC üzerinden yerel Discord istemcisine
+ * durum (Rich Presence) bildirimleri gönderen hafif istemci sınıfı.
+ */
 class DiscordRPC {
+  /**
+   * @param {string} clientId - Discord Developer portalından alınan uygulama kimliği
+   */
   constructor(clientId) {
     this.clientId = clientId;
     this.client = null;
@@ -6646,6 +6654,11 @@ class DiscordRPC {
     this.currentActivity = null;
   }
 
+  /**
+   * Türkçe Açıklama: Discord Named Pipe kanalına bağlanır ve olay dinleyicilerini kurar.
+   * 
+   * @returns {void}
+   */
   connect() {
     if (this.connected || this.client) return;
     if (os.platform() !== 'win32') return;
@@ -6675,6 +6688,11 @@ class DiscordRPC {
     });
   }
 
+  /**
+   * Türkçe Açıklama: Named Pipe bağlantısını sıfırlar ve kaynakları temizler.
+   * 
+   * @returns {void}
+   */
   cleanup() {
     this.connected = false;
     if (this.client) {
@@ -6683,6 +6701,11 @@ class DiscordRPC {
     }
   }
 
+  /**
+   * Türkçe Açıklama: Bağlantı koptuğunda belirli aralıklarla yeniden bağlanma zamanlayıcısı kurar.
+   * 
+   * @returns {void}
+   */
   scheduleReconnect() {
     const db = readDb();
     if (!db || db.settings.discordRpcEnabled === false) return;
@@ -6693,11 +6716,23 @@ class DiscordRPC {
     }, 15000);
   }
 
+  /**
+   * Türkçe Açıklama: Discord istemcisine Named Pipe el sıkışma paketini gönderir.
+   * 
+   * @returns {void}
+   */
   sendHandshake() {
     const payload = JSON.stringify({ v: 1, client_id: this.clientId });
     this.send(0, payload);
   }
 
+  /**
+   * Türkçe Açıklama: Named Pipe bağlantısına veri paketi yazar.
+   * 
+   * @param {number} op - İşlem kodu (opcode)
+   * @param {string} payload - Gönderilecek JSON paket verisi
+   * @returns {void}
+   */
   send(op, payload) {
     if (!this.connected || !this.client) return;
 
@@ -6712,6 +6747,13 @@ class DiscordRPC {
     }
   }
 
+  /**
+   * Türkçe Açıklama: Oynatılan videonun bilgilerini belleğe kaydeder ve durum güncellemesini tetikler.
+   * 
+   * @param {string|null} title - Video başlığı
+   * @param {string|null} channelName - YouTube kanal adı
+   * @returns {void}
+   */
   setActivity(title, channelName) {
     this.currentActivity = { title, channelName };
     const db = readDb();
@@ -6728,6 +6770,13 @@ class DiscordRPC {
     this.updateActivity(title, channelName);
   }
 
+  /**
+   * Türkçe Açıklama: Discord istemcisine güncel SET_ACTIVITY paketini gönderir.
+   * 
+   * @param {string|null} title - Video başlığı
+   * @param {string|null} channelName - YouTube kanal adı
+   * @returns {void}
+   */
   updateActivity(title, channelName) {
     let payload;
     if (title) {
@@ -6768,6 +6817,11 @@ class DiscordRPC {
     this.send(1, payload);
   }
 
+  /**
+   * Türkçe Açıklama: Discord RPC bağlantısını kapatır ve yeniden bağlanma sürecini durdurur.
+   * 
+   * @returns {void}
+   */
   disconnect() {
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
     this.cleanup();
