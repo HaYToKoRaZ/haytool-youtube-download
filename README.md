@@ -2,12 +2,17 @@
   <img src="public/logo.png" alt="HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 HaYTooL - Algoritmasız Kişisel YouTube Kütüphanesi & Otomasyonu (v6.0.0)</p>
+# <p align="center">📥 HaYTooL - Personal YouTube Library & Automation System (v6.0.0)</p>
 
 <p align="center">
   <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System</b><br/>
   <i>Algoritma Dayatmalarından Kurtulun: Gelişmiş, Taşınabilir ve Otomatik YouTube Takip & İndirme Sistemi</i>
 </p>
+
+<p align="center">
+  <a href="#-english-version"><b>🇬🇧 English Version</b></a> | <a href="#-türkçe-versiyon"><b>🇹🇷 Türkçe Versiyon</b></a>
+</p>
+
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=for-the-badge&logo=windows" alt="Platform Support" />
   <img src="https://img.shields.io/badge/Version-v6.0.0-purple?style=for-the-badge&logo=git" alt="Version" />
@@ -23,16 +28,14 @@
 </p>
 
 ---
+---
 
-## 🎯 Core Philosophy / Temel Felsefe
+# 🇬🇧 English Version
 
-**English:**
+## 🎯 Core Philosophy
+
 YouTube's recommendation algorithms are designed to maximize watch time by pushing distracting, addictive, and unwanted content to your feed. **HaYTooL** is built to break this cycle. 
 Instead of logging into YouTube and exposing your data to ads and algorithmic traps, **HaYTooL** acts as your private offline library. You define the exact channels you want to follow. The system continuously runs in the background, monitors their RSS feeds, and automatically downloads new videos as soon as they are uploaded. You watch your chosen content locally, 100% ad-free, offline, and entirely on your own terms.
-
-**Türkçe:**
-YouTube'un öneri algoritmaları, dikkatinizi dağıtmak, sizi platformda bağımlı kılmak ve istemediğiniz içerikleri önünüze çıkarmak üzerine tasarlanmıştır. **HaYTooL** bu dayatmayı yıkmak için geliştirildi.
-YouTube'a girip reklam tuzağına ve algoritma önerilerine maruz kalmak yerine, **HaYTooL** size özel bağımsız bir kütüphane sunar. Sadece takip etmek istediğiniz kanalları belirlersiniz; sistem arka planda bu kanalları sürekli tarayarak yeni yüklenen videoları otomatik olarak yerel diskinize indirir. Size sadece kendi kütüphanenizden, reklamsız, çevrimdışı ve özgürce izlemek kalır.
 
 ---
 
@@ -51,9 +54,8 @@ YouTube'a girip reklam tuzağına ve algoritma önerilerine maruz kalmak yerine,
 
 ---
 
-## 🚀 Key Features / Öne Çıkan Özellikler
+## 🚀 Key Features
 
-### 🇬🇧 English:
 * **Background Subscription Automation:** Periodically checks your followed channels via RSS feeds. Downloads new videos automatically the second they are uploaded, creating an offline, local cache of your subscription box.
 * **Algorithmic Liberation:** No distraction, no "Up Next" traps, and no algorithmic rabbit holes. You only see the videos published by the creators you specifically subscribed to.
 * **100% Ad-Free Local Playback:** Plays downloaded videos locally inside a custom dashboard using premium players (Artplayer, Plyr, or HTML5) with full seeking, speed control, and orientation-aware resizing.
@@ -67,7 +69,111 @@ YouTube'a girip reklam tuzağına ve algoritma önerilerine maruz kalmak yerine,
 * **Dual-Boot isolated Configs:** Isolates OS-specific parameters (`configwin.ini` / `configunix.ini`). Prevents file loss on dual-boot setups; missing files are flagged as `fileMissing: true` and automatically restored if they reappear without breaking DB history.
 * **Zero-Dependency Startup:** Pre-packaged with `node_modules/`, `yt-dlp/`, and `ffmpeg/`. Works fully out of the box without external setups.
 
-### 🇹🇷 Türkçe:
+---
+
+## 🛠️ Installation & Running
+
+Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-packaged in the repository, you can run the application immediately after downloading.
+
+### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
+* **Double-click Launch:**
+  Double-click `HaYTooL YT Downloader.exe` in the root folder to start the application silently in the system tray and open the dashboard in your browser.
+* **Command Line Launch:**
+  ```cmd
+  "HaYTooL YT Downloader.exe"
+  ```
+
+### ![Linux](https://img.shields.io/badge/-Linux-FCC624?style=flat-square&logo=linux&logoColor=black) / ![macOS](https://img.shields.io/badge/-macOS-aaaaaa?style=flat-square&logo=apple&logoColor=white) (Unix)
+1. **Make Launcher Executable:**
+   ```bash
+   chmod +x baslat.sh
+   ```
+2. **Start the Application:**
+   ```bash
+   ./baslat.sh
+   ```
+
+Access the dashboard at [http://localhost:4141](http://localhost:4141) *(default port can be changed in Settings)*.
+
+---
+
+## 🎹 Keyboard Shortcuts
+
+When the video player is focused, you can control playback using standard shortcuts:
+
+* **`Space`** or **`k` / `K`**: Toggle play and pause
+* **`f` / `F`**: Toggle full screen
+* **`m` / `M`**: Toggle mute
+* **`Arrow Right`**: Skip forward 5 seconds
+* **`Arrow Left`**: Skip backward 5 seconds
+* **`l` / `L`**: Skip forward 10 seconds
+* **`j` / `J`**: Skip backward 10 seconds
+* **`Arrow Up`**: Increase volume by 5%
+* **`Arrow Down`**: Decrease volume by 5%
+* **`Home`**: Jump to the beginning of the video
+* **`End`**: Jump to the end of the video
+* **`>`** or **`Shift + .`**: Increase playback speed (up to 2x)
+* **`<`** or **`Shift + ,`**: Decrease playback speed
+* **`0` to `9`**: Seek to a specific percentage (e.g., 5 jumps to 50%)
+
+---
+
+## 💻 CLI & Console Commands
+
+You can manage speed profiles and queue downloads directly through the CLI or via the Console Input at the bottom of the Tray Log window:
+
+* `status` - Shows current speed limits, active downloads, and queue info.
+* `ton` - Enables alternative speed limit (Turtle Mode).
+* `toff` - Disables alternative speed limit (Turtle Mode).
+* `pd <youtube-url>` - Instantly adds the specified video to the download queue.
+* `clear` - Clears the terminal screen.
+* `help` - Shows the list of available commands.
+
+---
+
+## 📂 Configuration Files
+
+* **`configwin.ini`:** Windows-specific parameters (download path, port, alternative speed toggle).
+* **`configunix.ini`:** Linux/macOS-specific parameters.
+* **`channels.ini`:** Monitored channels list and their download rules.
+* **`db.json`:** Lightweight local database storing download history, queue state, and metadata.
+
+---
+
+## 📞 Support & Feedback
+
+📧 **korazhayto@gmail.com**  
+*Developer & Designer:* **HaYTo**
+
+---
+---
+
+# 🇹🇷 Türkçe Versiyon
+
+## 🎯 Temel Felsefe
+
+YouTube'un öneri algoritmaları, dikkatinizi dağıtmak, sizi platformda bağımlı kılmak ve istemediğiniz içerikleri önünüze çıkarmak üzerine tasarlanmıştır. **HaYTooL** bu dayatmayı yıkmak için geliştirildi.
+YouTube'a girip reklam tuzağına ve algoritma önerilerine maruz kalmak yerine, **HaYTooL** size özel bağımsız bir kütüphane sunar. Sadece takip etmek istediğiniz kanalları belirlersiniz; sistem arka planda bu kanalları sürekli tarayarak yeni yüklenen videoları otomatik olarak yerel diskinize indirir. Size sadece kendi kütüphanenizden, reklamsız, çevrimdışı ve özgürce izlemek kalır.
+
+---
+
+<p align="center">
+  <b>📸 Uygulama Ekran Görüntüleri</b>
+</p>
+<p align="center">
+  <img src="screenshots/tr-kutuphane.png" width="48%" alt="Kütüphane (Ana Sayfa)" />
+  <img src="screenshots/tr-indirilenler.png" width="48%" alt="Yerleşik Oynatıcı ve İndirilenler" />
+</p>
+<p align="center">
+  <img src="screenshots/tr-kuyruk.png" width="31%" alt="İndirme Sırası" />
+  <img src="screenshots/tr-kanallar.png" width="31%" alt="Takip Edilen Kanallar" />
+  <img src="screenshots/tr-ayarlar.png" width="31%" alt="Ayarlar Paneli" />
+</p>
+
+---
+
+## 🚀 Öne Çıkan Özellikler
+
 * **Arka Planda Otomatik Kanal İzleme:** Takip listenizdeki kanalları RSS akışlarıyla sürekli denetler. Yeni bir video yüklenir yüklenmez arka planda otomatik olarak indirerek yerel abonelik kutunuzu oluşturur.
 * **Algoritma Dayatmasından Kurtuluş:** Öneri algoritmaları, "Sıradaki Video" tuzakları ve dikkat dağıtıcı alakasız içerikler yok. Yalnızca takip etmek için kendi eklediğiniz yayıncıların videolarını görürsünüz.
 * **%100 Reklamsız Yerel Oynatım:** İndirilen videoları arayüzdeki gelişmiş oynatıcılar (Artplayer, Plyr, HTML5) üzerinden sıfır gecikme, HTTP 206 Range desteği ve reklamsız olarak yerel diskinizden oynatır.
@@ -83,80 +189,76 @@ YouTube'a girip reklam tuzağına ve algoritma önerilerine maruz kalmak yerine,
 
 ---
 
-## 🛠️ Installation & Running / Kurulum ve Çalıştırma
+## 🛠️ Kurulum ve Çalıştırma
 
-Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-packaged in the repository, you can run the application immediately after downloading.
 Tüm bağımlılıklar depo içerisinde hazır geldiğinden, indirdikten sonra doğrudan çalıştırabilirsiniz.
 
 ### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
-* **Double-click Launch / Çift Tıklama ile Başlatma:**
-  Double-click `HaYTooL YT Downloader.exe` in the root folder to start the application silently in the system tray and open the dashboard in your browser.
-  *Kök dizindeki `HaYTooL YT Downloader.exe` dosyasına çift tıklayarak uygulamayı arka planda başlatabilir ve arayüzü tarayıcınızda açabilirsiniz.*
-* **Command Line Launch / Komut Satırı ile Başlatma:**
+* **Çift Tıklama ile Başlatma:**
+  Kök dizindeki `HaYTooL YT Downloader.exe` dosyasına çift tıklayarak uygulamayı arka planda başlatabilir ve arayüzü tarayıcınızda açabilirsiniz.
+* **Komut Satırı ile Başlatma:**
   ```cmd
   "HaYTooL YT Downloader.exe"
   ```
 
 ### ![Linux](https://img.shields.io/badge/-Linux-FCC624?style=flat-square&logo=linux&logoColor=black) / ![macOS](https://img.shields.io/badge/-macOS-aaaaaa?style=flat-square&logo=apple&logoColor=white) (Unix)
-1. **Make Launcher Executable / Çalıştırma İzni Verin:**
+1. **Çalıştırma İzni Verin:**
    ```bash
    chmod +x baslat.sh
    ```
-2. **Start the Application / Uygulamayı Başlatın:**
+2. **Uygulamayı Başlatın:**
    ```bash
    ./baslat.sh
    ```
 
-Access the dashboard at / Arayüze şu adresten erişebilirsiniz: [http://localhost:4141](http://localhost:4141) *(default port can be changed in Settings / varsayılan port Ayarlar'dan değiştirilebilir)*.
+Arayüze varsayılan olarak [http://localhost:4141](http://localhost:4141) adresinden erişebilirsiniz *(varsayılan port Ayarlar'dan değiştirilebilir)*.
 
 ---
 
-## 🎹 Keyboard Shortcuts / Oynatıcı Klavye Kısayolları
+## 🎹 Oynatıcı Klavye Kısayolları
 
-When the video player is focused, you can control playback using standard shortcuts:
-*Oynatıcı aktifken, aşağıdaki kısayollar ile oynatımı kontrol edebilirsiniz:*
+Oynatıcı aktifken, aşağıdaki kısayollar ile oynatımı kontrol edebilirsiniz:
 
-* **`Space`** or **`k` / `K`**: Toggle play and pause / *Oynat - Duraklat*
-* **`f` / `F`**: Toggle full screen / *Tam ekran modunu aç - kapat*
-* **`m` / `M`**: Toggle mute / *Sesi aç - kapat*
-* **`Arrow Right`**: Skip forward 5 seconds / *5 saniye ileri sar*
-* **`Arrow Left`**: Skip backward 5 seconds / *5 saniye geri sar*
-* **`l` / `L`**: Skip forward 10 seconds / *10 saniye ileri sar*
-* **`j` / `J`**: Skip backward 10 seconds / *10 saniye geri sar*
-* **`Arrow Up`**: Increase volume by 5% / *Sesi %5 artır*
-* **`Arrow Down`**: Decrease volume by 5% / *Sesi %5 azalt*
-* **`Home`**: Jump to the beginning / *Videonun en başına git*
-* **`End`**: Jump to the end / *Videonun en sonuna git*
-* **`>`** or **`Shift + .`**: Increase playback speed (up to 2x) / *Oynatma hızını artır*
-* **`<`** or **`Shift + ,`**: Decrease playback speed / *Oynatma hızını azalt*
-* **`0` to `9`**: Seek to a specific percentage (e.g., 5 jumps to 50%) / *Videonun yüzde dilimine atla*
-
----
-
-## 💻 CLI & Console Commands / Komut Satırı Kontrolleri
-
-You can manage speed profiles and queue downloads directly through the CLI or via the Console Input at the bottom of the Tray Log window:
-*Hız sınırlarını ve indirmeleri terminalden veya Tepsi uygulamasının Konsol giriş satırından yönetebilirsiniz:*
-
-* `status` - Shows current speed limits, active downloads, and queue info / *Hız limitlerini ve aktif kuyruk durumunu gösterir.*
-* `ton` - Enables alternative speed limit (Turtle Mode) / *Alternatif hız sınırını (Kaplumbağa Modu) etkinleştirir.*
-* `toff` - Disables alternative speed limit (Turtle Mode) / *Alternatif hız sınırını devre dışı bırakır.*
-* `pd <youtube-url>` - Instantly adds the specified video to the download queue / *Belirtilen YouTube videosunu hemen indirme kuyruğuna ekler.*
-* `clear` - Clears the terminal screen / *Konsol log ekranını temizler.*
-* `help` - Shows the list of available commands / *Kullanılabilir komut listesini listeler.*
+* **`Space` (Boşluk)** veya **`k` / `K`**: Oynat - Duraklat
+* **`f` / `F`**: Tam ekran modunu aç - kapat
+* **`m` / `M`**: Sesi aç - kapat
+* **`Yön Tuşu Sağ`**: 5 saniye ileri sar
+* **`Yön Tuşu Sol`**: 5 saniye geri sar
+* **`l` / `L`**: 10 saniye ileri sar
+* **`j` / `J`**: 10 saniye geri sar
+* **`Yön Tuşu Yukarı`**: Sesi %5 artır
+* **`Yön Tuşu Aşağı`**: Sesi %5 azalt
+* **`Home`**: Videonun en başına git
+* **`End`**: Videonun en sonuna git
+* **`>`** veya **`Shift + .`**: Oynatma hızını artırır (en fazla 2x)
+* **`<`** veya **`Shift + ,`**: Oynatma hızını azaltır
+* **`0` - `9`**: Videonun belirli bir yüzdesine atlar (Örn: 5 tuşu videonun %50'sine atlar)
 
 ---
 
-## 📂 Configuration Files / Yapılandırma Dosyaları
+## 💻 Komut Satırı Kontrolleri
 
-* **`configwin.ini`:** Windows-specific parameters (download path, port, alternative speed toggle).
-* **`configunix.ini`:** Linux/macOS-specific parameters.
-* **`channels.ini`:** Monitored channels list and their download rules.
-* **`db.json`:** Lightweight local database storing download history, queue state, and metadata.
+Hız sınırlarını ve indirmeleri terminalden veya Tepsi uygulamasının Konsol giriş satırından yönetebilirsiniz:
+
+* `status` - Hız limitlerini ve aktif kuyruk durumunu gösterir.
+* `ton` - Alternatif hız sınırını (Kaplumbağa Modu) etkinleştirir.
+* `toff` - Alternatif hız sınırını devre dışı bırakır.
+* `pd <youtube-url>` - Belirtilen YouTube videosunu hemen indirme kuyruğuna ekler.
+* `clear` - Konsol log ekranını temizler.
+* `help` - Kullanılabilir komut listesini gösterir.
 
 ---
 
-## 📞 Support & Feedback / Destek ve İletişim
+## 📂 Yapılandırma Dosyaları
+
+* **`configwin.ini`:** Windows işletim sisteminde çalışırken kullanılan ayarlar (indirme yolu, port, alternatif hız durumu).
+* **`configunix.ini`:** Linux/macOS işletim sistemlerinde çalışırken kullanılan ayarlar.
+* **`channels.ini`:** Takip edilen kanalların listesi ve indirme kuralları.
+* **`db.json`:** İndirme geçmişi, kuyruk ve veritabanı şablonunu barındıran yerel veritabanı dosyası.
+
+---
+
+## 📞 Destek ve İletişim
 
 📧 **korazhayto@gmail.com**  
-*Developer & Designer / Geliştirici & Tasarımcı:* **HaYTo**
+*Geliştirici & Tasarımcı:* **HaYTo**
