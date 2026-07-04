@@ -892,6 +892,34 @@ async function checkApplicationUpdates() {
   }
 }
 
+async function loadAppVersion() {
+  try {
+    const res = await fetch('/api/version');
+    const data = await res.json();
+    if (data && data.version) {
+      const verStr = 'v' + data.version;
+      
+      // Topbar version badge
+      const topbarVer = document.getElementById('topbar-version');
+      if (topbarVer) {
+        const link = topbarVer.querySelector('a');
+        if (link) link.textContent = verStr;
+        else topbarVer.textContent = verStr;
+      }
+      
+      // Settings version label
+      const settingsVer = document.getElementById('settings-version');
+      if (settingsVer) {
+        const link = settingsVer.querySelector('a');
+        if (link) link.textContent = verStr;
+        else settingsVer.textContent = verStr;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load version:', err);
+  }
+}
+
 /**
  * Kullanıcıya yeni sürüm olduğunu bildiren animasyonlu bir kart gösterir.
  */
@@ -5491,6 +5519,7 @@ connectSSE();
 initCustomSelect();
 checkFfmpegStatus();
 updateDiskSpace();
+loadAppVersion();
 checkApplicationUpdates();
 setInterval(updateDiskSpace, 60 * 60 * 1000); // Her 60 dakikada bir güncelle
 

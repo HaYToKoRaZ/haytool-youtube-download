@@ -138,6 +138,9 @@ app.use('/api', historyRouter);
 app.use('/api/iptv', iptvRouter);
 app.use('/api', streamsRouter);
 app.use('/api/downloader', downloaderRouter);
+app.get('/api/version', (req, res) => {
+  res.json({ version: appVersion });
+});
 // GitHub Güncelleme Kontrolü Rotası
 app.get('/api/updates/check', (req, res) => {
   res.json(updateState);
