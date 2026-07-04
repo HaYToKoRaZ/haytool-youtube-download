@@ -97,6 +97,7 @@ import { addTerminalLog, broadcast } from './server/services/sse.js';
 import { discordRpc } from './server/services/discord.js';
 import { setIptvChannels } from './server/services/iptv.js';
 import { configIniPath, parseIni } from './server/config.js';
+import { appVersion } from './server/version.js';
 
 // API Rotası Modülleri
 import { router as settingsRouter } from './server/routes/settings.js';
@@ -211,7 +212,7 @@ let updateState = {
 };
 
 async function checkGithubUpdates() {
-  const currentVersion = '7.1.0';
+  const currentVersion = appVersion;
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
