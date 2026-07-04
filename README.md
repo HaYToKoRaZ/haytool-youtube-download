@@ -2,7 +2,7 @@
   <img src="public/logo.png" alt="HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 HaYTooL - Personal YouTube Library & Automation System (v6.0.0)</p>
+# <p align="center">📥 HaYTooL - Personal YouTube Library & Automation System (v7.4.1)</p>
 
 <p align="center">
   <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System</b><br/>
@@ -15,7 +15,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=for-the-badge&logo=windows" alt="Platform Support" />
-  <img src="https://img.shields.io/badge/Version-v6.0.0-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v7.4.1-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&color=blueviolet" alt="GitHub Downloads (latest release)" />
 </p>
@@ -128,6 +128,12 @@ You can manage speed profiles and queue downloads directly through the CLI or vi
 * `pd <youtube-url>` - Instantly adds the specified video to the download queue.
 * `clear` - Clears the terminal screen.
 * `help` - Shows the list of available commands.
+
+**CLI Example:**
+You can call the executable directly from the terminal or command prompt to download a video:
+```bash
+"HaYTooL YT Downloader.exe" pd youtubelinki
+```
 
 ---
 
@@ -249,6 +255,12 @@ Hız sınırlarını ve indirmeleri terminalden veya Tepsi uygulamasının Konso
 * `pd <youtube-url>` - Belirtilen YouTube videosunu hemen indirme kuyruğuna ekler.
 * `clear` - Konsol log ekranını temizler.
 * `help` - Kullanılabilir komut listesini gösterir.
+
+**CLI Kullanım Örneği:**
+Windows Terminal veya Komut İstemi (CMD) üzerinden indirme komutunu doğrudan tetikleyebilirsiniz:
+```bash
+"HaYTooL YT Downloader.exe" pd youtubelinki
+```
 
 ---
 

@@ -23,7 +23,7 @@
   <script src="artplayer.js"></script>
   <!-- HLS Player (M3U8 desteği için) -->
   <script src="hls.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=6.0.0">
+  <link rel="stylesheet" href="style.css?v=7.1.0">
 </head>
 <body>
   <div class="app-container">
@@ -33,7 +33,7 @@
         <div class="brand-icon">
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
-        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v6.0.0</a></span>
+        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v7.4.1</a></span>
       </div>
 
       <nav class="nav-menu">
@@ -57,14 +57,27 @@
           <i data-lucide="tv"></i>
           <span>Kanallar</span>
         </button>
-        <button class="nav-item pd-btn" id="pd-btn" onclick="pasteAndDownload()" title="Kopyalanan YouTube Linkini Yapıştır ve İndir">
-          <i data-lucide="clipboard-copy"></i>
-          <span>PD</span>
-        </button>
-        <button class="nav-item" data-tab="settings">
-          <i data-lucide="settings"></i>
-          <span>Ayarlar</span>
-        </button>
+        <div class="nav-dropdown" id="tools-dropdown">
+          <button class="tools-btn" id="tools-btn" title="Araçlar Menüsü">
+            <i data-lucide="wrench"></i>
+            <span id="nav-tools-text">Araçlar</span>
+            <i data-lucide="chevron-down" class="dropdown-arrow"></i>
+          </button>
+          <div class="nav-dropdown-menu" id="tools-menu">
+            <button class="nav-dropdown-item" id="pd-action-btn" onclick="pasteAndDownload()">
+              <i data-lucide="clipboard-copy"></i>
+              <span id="nav-hdown-pd-text">PD (Yapıştır & İndir)</span>
+            </button>
+            <button class="nav-dropdown-item" data-tab="downloader" id="downloader-action-btn">
+              <i data-lucide="list-video"></i>
+              <span id="nav-hdown-downloader-text">Downloader</span>
+            </button>
+            <button class="nav-dropdown-item" id="nav-tools-compare-btn">
+              <i data-lucide="folder-sync"></i>
+              <span id="nav-tools-compare-text">Dosya Karşılaştırma</span>
+            </button>
+          </div>
+        </div>
       </nav>
 
       <div class="topbar-status-badges">
@@ -87,6 +100,9 @@
         </div>
         <button id="open-downloads-folder-btn" onclick="openFolder()" class="btn btn-secondary btn-icon-only" title="İndirilenler Klasörünü Aç" style="margin-right: 6px;">
           <i data-lucide="folder-open"></i>
+        </button>
+        <button id="header-settings-btn" class="btn btn-secondary btn-icon-only" title="Ayarlar" style="margin-right: 6px;">
+          <i data-lucide="settings"></i>
         </button>
         <button id="sync-now-btn" class="btn btn-secondary btn-icon-only" title="Kanalları Şimdi Denetle">
           <i data-lucide="refresh-cw"></i>
@@ -140,6 +156,10 @@
                 <i data-lucide="refresh-cw"></i>
                 <span id="btn-update-all-logos-text">Tüm Logoları Güncelle</span>
               </button>
+              <button type="button" class="btn btn-secondary" onclick="updateAllChannelSubscribers()" id="update-all-subscribers-btn" style="white-space: nowrap; margin-left: 6px;">
+                <i data-lucide="users"></i>
+                <span id="btn-update-all-subs-text">Tüm Abone Sayılarını Güncelle</span>
+              </button>
             </div>
           </form>
         </div>
@@ -156,7 +176,7 @@
         </div>
 
         <div class="margin-top-lg">
-          <div class="channels-list-container" id="channels-list">
+          <div id="channels-list">
             <!-- Kanal satırları buraya JS ile dinamik eklenecek -->
           </div>
         </div>
@@ -178,6 +198,11 @@
             <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-show-shorts').click()">Shorts Videolarını Göster</span>
           </div>
           <div class="filter-group" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="history-show-live" class="toggle-input" checked>
+            <label for="history-show-live" class="toggle-label"></label>
+            <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-show-live').click()" id="lbl-history-show-live">Canlı Yayınları Göster</span>
+          </div>
+          <div class="filter-group" style="display: flex; align-items: center; gap: 8px;">
             <input type="checkbox" id="history-only-no-auto-download" class="toggle-input">
             <label for="history-only-no-auto-download" class="toggle-label"></label>
             <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-only-no-auto-download').click()" id="lbl-history-only-no-auto-download">Sadece Otomatik İndirme Kapalı</span>
@@ -186,6 +211,11 @@
             <input type="checkbox" id="history-only-not-downloaded" class="toggle-input">
             <label for="history-only-not-downloaded" class="toggle-label"></label>
             <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-only-not-downloaded').click()" id="lbl-history-only-not-downloaded">Sadece İndirilmeyenler</span>
+          </div>
+          <div class="filter-group" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="history-show-hidden" class="toggle-input">
+            <label for="history-show-hidden" class="toggle-label"></label>
+            <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('history-show-hidden').click()" id="lbl-history-show-hidden">Gizlenenleri Göster</span>
           </div>
 
           <!-- Hızlı Tarih Filtreleri -->
@@ -310,6 +340,19 @@
               <div class="text-center text-muted" id="queue-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Kuyrukta bekleyen video yok.</div>
             </div>
           </div>
+
+          <!-- Son Tamamlanan İndirmeler (Son 20) -->
+          <div class="card" style="padding: 25px; display: flex; flex-direction: column; min-height: 250px; overflow: hidden;">
+            <div class="card-title-bar" style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+              <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 0; color:var(--text-main);">
+                <i data-lucide="check-circle-2" style="width: 18px; height: 18px; color: #10b981;"></i>
+                <span id="queue-completed-title">Son İndirilen Videolar</span>
+              </h3>
+            </div>
+            <div class="queue-list" id="queue-completed-list" style="flex:1; overflow-y:auto; max-height: 400px; display:flex; flex-direction:column; gap:8px; padding-right:5px;">
+              <div class="text-center text-muted" id="queue-completed-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Henüz tamamlanan indirme yok.</div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -325,9 +368,12 @@
             <div class="inline-player-info card">
               <h3 id="inline-player-title" class="inline-player-title">Video Başlığı</h3>
               <div class="inline-player-meta-row">
-                <div class="inline-player-channel">
+                <div class="inline-player-channel" style="display: flex; align-items: center; gap: 6px;">
                   <img id="inline-player-channel-avatar" class="inline-channel-avatar" src="" onerror="this.style.display='none';" />
+                  <span id="inline-player-logo-divider" style="color: rgba(255, 255, 255, 0.15); display: none;">/</span>
                   <span id="inline-player-channel-name">Kanal Adı</span>
+                  <span id="inline-player-channel-divider" style="color: rgba(255, 255, 255, 0.15); display: none;">/</span>
+                  <span id="inline-player-channel-subs" style="font-size: 0.72rem; color: var(--accent-primary); background: rgba(168, 85, 247, 0.08); padding: 2px 8px; border-radius: 20px; font-weight: 600; border: 1px solid rgba(168, 85, 247, 0.15); display: none; align-items: center; gap: 4px;"><i data-lucide="users" style="width:10px; height:10px;"></i><span id="inline-player-channel-subs-text">--</span></span>
                 </div>
                 <div class="inline-player-stats" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.72rem; color: var(--text-muted); align-items: center; margin-top: 4px;">
                   <span id="inline-player-publish-date">Yüklenme: --</span>
@@ -576,7 +622,7 @@
             <h2>Ayarlar</h2>
             <p id="settings-desc">Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.</p>
           </div>
-            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v6.0.0</a></strong></span>
+            <span id="settings-version-label"><span id="settings-version-title">Sürüm</span>: <strong style="color: var(--text-main);" id="settings-version"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v7.4.1</a></strong></span>
         </header>
 
         <div class="card card-settings">
@@ -682,6 +728,17 @@
 
                   <div class="form-grid">
                     <div class="form-group">
+                      <label for="settings-doubleclickaction" id="label-doubleclickaction">Tepsi Çift Tıklama Eylemi</label>
+                      <select id="settings-doubleclickaction">
+                        <option value="system" id="opt-doubleclick-system">Sistem Varsayılan Tarayıcısı</option>
+                        <option value="embedded" id="opt-doubleclick-embedded">Kendi Tarayıcısı (Edge Uygulama Modu)</option>
+                      </select>
+                      <small class="form-text" id="desc-doubleclickaction">Tepsi simgesine çift tıklandığında arayüzün nerede açılacağını belirler.</small>
+                    </div>
+                  </div>
+
+                  <div class="form-grid">
+                    <div class="form-group">
                       <label id="label-settings-player-type" for="settings-player-type">Gömülü Oynatıcı Türü</label>
                       <select id="settings-player-type">
                         <option id="opt-player-plyr" value="plyr">Plyr Player (Modern & Özelleştirilmiş)</option>
@@ -738,6 +795,38 @@
                         <option value="overwrite" id="opt-import-overwrite">Tamamen Üzerine Yaz</option>
                       </select>
                       <input type="file" id="import-file-input" onchange="importChannels(event)" accept=".json" style="display: none;">
+                    </div>
+                  </div>
+                  
+                  <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 15px 0;">
+                  <div class="form-group" style="margin-bottom: 5px;">
+                    <label style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);">Sistem Veritabanı & Ayar Yedekleme</label>
+                    <small class="form-text" style="margin-bottom: 10px;">Tüm veritabanı (db.json), kanallar (channels.ini) ve ayarlarınızın manuel yedeğini alın veya eski yedekleri geri yükleyin.</small>
+                    <div style="display: flex; gap: 10px; flex-direction: column; margin-top: 10px;">
+                      <div style="display: flex; gap: 8px; align-items: center;">
+                        <button type="button" onclick="createSystemBackup()" class="btn btn-primary" style="height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 12px;">
+                          <i data-lucide="save" style="width:14px;height:14px;"></i>
+                          <span>Şimdi Manuel Yedek Al</span>
+                        </button>
+                        <button type="button" onclick="loadSystemBackupsList()" class="btn btn-secondary" style="height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 12px;">
+                          <i data-lucide="list-video" style="width:14px;height:14px;"></i>
+                          <span>Yedekleri Listele & Geri Yükle</span>
+                        </button>
+                      </div>
+                      <div id="system-backups-container" class="hidden" style="margin-top: 10px; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; background: rgba(0,0,0,0.15); max-height: 200px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left;">
+                          <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted);">
+                              <th style="padding: 6px 8px;">Yedek Adı</th>
+                              <th style="padding: 6px 8px;">Boyut</th>
+                              <th style="padding: 6px 8px; text-align: right;">İşlem</th>
+                            </tr>
+                          </thead>
+                          <tbody id="system-backups-list">
+                            <!-- JS ile doldurulacak -->
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -925,6 +1014,204 @@
               </button>
             </div>
           </form>
+        </div>
+      </section>
+
+      <!-- Tab: Araçlar (Gelişmiş Dosya Karşılaştırma & Senkronizasyon) -->
+      <section id="tab-tools" class="tab-content">
+        <header class="content-header">
+          <div>
+            <h2 id="tools-modal-title" style="margin: 0; display: flex; align-items: center; gap: 10px;">
+              <i data-lucide="folder-sync" style="color: var(--accent-color); width: 28px; height: 28px;"></i>
+              <span>Gelişmiş Dosya Karşılaştırma & Senkronizasyon</span>
+            </h2>
+            <p id="tools-modal-desc" style="margin-top: 4px; margin-bottom: 0;">İndirme klasörünüzdeki fiziksel dosyaları veritabanı kayıtları ile karşılaştırarak eksik, yetim veya alakasız dosyaları listeler.</p>
+          </div>
+          <button type="button" class="btn btn-secondary" onclick="switchTab('history')" style="display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i>
+            <span>Geri Dön</span>
+          </button>
+        </header>
+
+        <div class="card" style="padding: 24px; display: flex; flex-direction: column; gap: 24px;">
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <button type="button" class="btn btn-primary" id="start-compare-btn">
+              <i data-lucide="refresh-cw"></i>
+              <span id="compare-btn-text">Karşılaştırmayı Başlat</span>
+            </button>
+            
+            <div id="compare-loading" class="hidden text-center" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="loader" class="spin" style="width: 20px; height: 20px; color: var(--accent-color);"></i>
+              <span style="font-size: 0.9rem; color: var(--text-muted);" id="compare-loading-text">Dosyalar taranıyor...</span>
+            </div>
+          </div>
+
+          <div id="compare-results" class="hidden" style="display: flex; flex-direction: column; gap: 24px;">
+            <div id="compare-summary-box" style="padding: 14px 20px; border-radius: 8px; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.15); font-size: 0.95rem; color: var(--text-main);">
+              <!-- Summary text dynamic -->
+            </div>
+
+            <!-- Untracked Files Section -->
+            <div id="untracked-section" class="hidden" style="display: flex; flex-direction: column;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+                <h4 style="margin:0; font-size:1.05rem; font-weight:600; color:var(--accent-color);" id="untracked-files-title">Diskte Olup Veritabanında Olmayan Dosyalar (Yetimler)</h4>
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" class="btn btn-secondary btn-xs" onclick="fixAllUntracked('import')" id="btn-import-all" style="padding: 6px 12px; font-size: 0.8rem;">Tümünü İthal Et</button>
+                  <button type="button" class="btn btn-secondary btn-xs" style="background:rgba(255,0,85,0.1); border-color:rgba(255,0,85,0.2); color:var(--accent-red); padding: 6px 12px; font-size: 0.8rem;" onclick="fixAllUntracked('delete')" id="btn-delete-all-files">Tümünü Diskten Sil</button>
+                </div>
+              </div>
+              <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
+                <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
+                  <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
+                    <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                      <th style="padding:10px 12px;" id="col-filename-untracked">Dosya Adı</th>
+                      <th style="padding:10px 12px;" id="col-channel-untracked">Kanal</th>
+                      <th style="padding:10px 12px;" id="col-size-untracked">Boyut</th>
+                      <th style="padding:10px 12px; text-align:right;" id="col-actions-untracked">Eylemler</th>
+                    </tr>
+                  </thead>
+                  <tbody id="untracked-files-list"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Unrelated Files Section (Yazılımla Alakalı Olmayan Dosyalar) -->
+            <div id="unrelated-section" class="hidden" style="display: flex; flex-direction: column;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+                <h4 style="margin:0; font-size:1.05rem; font-weight:600; color:var(--accent-color);" id="unrelated-files-title">Diskteki Diğer Alakasız Dosyalar</h4>
+                <button type="button" class="btn btn-secondary btn-xs" style="background:rgba(255,0,85,0.1); border-color:rgba(255,0,85,0.2); color:var(--accent-red); padding: 6px 12px; font-size: 0.8rem;" onclick="deleteAllUnrelated()" id="btn-delete-all-unrelated">Tümünü Diskten Sil</button>
+              </div>
+              <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
+                <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
+                  <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
+                    <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                      <th style="padding:10px 12px;" id="col-filename-unrelated">Dosya Adı</th>
+                      <th style="padding:10px 12px;" id="col-size-unrelated">Boyut</th>
+                      <th style="padding:10px 12px; text-align:right;" id="col-actions-unrelated">Eylemler</th>
+                    </tr>
+                  </thead>
+                  <tbody id="unrelated-files-list"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Missing Files Section -->
+            <div id="missing-section" class="hidden" style="display: flex; flex-direction: column;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+                <h4 style="margin:0; font-size:1.05rem; font-weight:600; color:var(--accent-color);" id="missing-files-title">Veritabanında Olup Diskte Olmayan Dosyalar (Eksikler)</h4>
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" class="btn btn-secondary btn-xs" onclick="fixAllMissing('mark')" id="btn-mark-all-missing" style="padding: 6px 12px; font-size: 0.8rem;">Tümünü İndirilmedi İşaretle</button>
+                  <button type="button" class="btn btn-secondary btn-xs" style="background:rgba(255,0,85,0.1); border-color:rgba(255,0,85,0.2); color:var(--accent-red); padding: 6px 12px; font-size: 0.8rem;" onclick="fixAllMissing('delete')" id="btn-delete-all-history">Tümünü Geçmişten Sil</button>
+                </div>
+              </div>
+              <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
+                <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
+                  <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
+                    <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                      <th style="padding:10px 12px;" id="col-filename-missing">Dosya Adı / Başlık</th>
+                      <th style="padding:10px 12px;" id="col-channel-missing">Kanal</th>
+                      <th style="padding:10px 12px; text-align:right;" id="col-actions-missing">Eylemler</th>
+                    </tr>
+                  </thead>
+                  <tbody id="missing-files-list"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="compare-no-issues" class="hidden text-center" style="padding: 40px; background: rgba(40,180,99,0.05); border: 1px dashed rgba(40,180,99,0.25); border-radius: 12px; color: #28b463;">
+            <i data-lucide="check-circle" style="width: 40px; height: 40px; margin-bottom: 12px;"></i>
+            <p style="font-weight: 600; margin: 0; font-size: 0.95rem;" id="no-issues-found">Herhangi bir eşleşme sorunu bulunamadı. Klasörünüz veritabanı ile tam uyumlu!</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Downloader -->
+      <section id="tab-downloader" class="tab-content">
+        <header class="content-header">
+          <div>
+            <h2 id="downloader-header-title">Downloader</h2>
+            <p id="downloader-header-desc">YouTube video veya playlist linklerini yapıştırarak istediğiniz formatta indirin.</p>
+          </div>
+        </header>
+
+        <div class="card downloader-card">
+          <!-- URL Giriş Alanı -->
+          <div class="downloader-input-group">
+            <div class="input-group">
+              <i data-lucide="link"></i>
+              <input type="text" id="downloader-url-input" placeholder="YouTube video veya playlist linkini buraya yapıştırın...">
+            </div>
+          </div>
+
+          <!-- Format Seçimi -->
+          <div class="downloader-options">
+            <div class="downloader-option-group">
+              <label id="downloader-format-label">Format</label>
+              <select id="downloader-format-select">
+                <optgroup label="🎬 Video" id="downloader-optgroup-video">
+                  <option value="video-best">En İyi Kalite (Best)</option>
+                  <option value="video-1080p">1080p FHD</option>
+                  <option value="video-720p">720p HD</option>
+                  <option value="video-480p">480p</option>
+                  <option value="video-360p">360p</option>
+                  <option value="video-240p">240p</option>
+                  <option value="video-144p">144p</option>
+                </optgroup>
+                <optgroup label="🎵 Ses" id="downloader-optgroup-audio">
+                  <option value="audio-mp3">MP3</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Ses Bit Hızı (Sadece MP3 seçilince görünür) -->
+            <div class="downloader-option-group" id="downloader-bitrate-group" style="display:none;">
+              <label id="downloader-bitrate-label-text">Ses Bit Hızı</label>
+              <select id="downloader-bitrate-select">
+                <option value="320">320 kbps (En Yüksek)</option>
+                <option value="192" selected>192 kbps (Önerilen)</option>
+                <option value="128">128 kbps</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Klasör Muafiyeti Bilgilendirmesi -->
+          <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="info" style="width: 14px; height: 14px;"></i>
+            <span id="downloader-info-text">Tüm indirmeler doğrudan ana indirme dizinine kaydedilecek (Kanal klasörü oluşturulmayacak).</span>
+          </div>
+
+          <!-- İndirme Butonu -->
+          <button type="button" class="btn btn-primary" id="downloader-start-btn">
+            <i data-lucide="download"></i>
+            <span id="downloader-start-btn-text">İndirmeyi Başlat</span>
+          </button>
+
+          <!-- Playlist Çözümleme Sonuçları -->
+          <div id="downloader-playlist-results" class="downloader-playlist-results hidden">
+            <div class="downloader-playlist-header">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="downloader-toggle-all-checkbox" checked style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;" />
+                <h4 id="downloader-playlist-title-text">Playlist İçeriği</h4>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="downloader-download-all-btn">
+                <i data-lucide="download"></i>
+                <span id="downloader-download-all-text">Tümünü İndir</span>
+              </button>
+            </div>
+            <div id="downloader-playlist-list" class="downloader-playlist-list"></div>
+          </div>
+
+          <!-- İndirme İlerleme -->
+          <div id="downloader-progress" class="downloader-progress-container hidden">
+            <div class="downloader-progress-info">
+              <span id="downloader-progress-text">Hazırlanıyor...</span>
+              <span id="downloader-progress-percent">0%</span>
+            </div>
+            <div class="downloader-progress-bar">
+              <div class="downloader-progress-fill" id="downloader-progress-fill"></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1175,6 +1462,8 @@
     </div>
   </div>
 
-  <script src="app.js?v=6.0.0"></script>
+
+
+  <script type="module" src="app.js?v=7.1.0"></script>
 </body>
 </html>

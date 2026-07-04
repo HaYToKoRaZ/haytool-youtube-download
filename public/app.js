@@ -5,7 +5,38 @@
  * İletişim: korazhayto@gmail.com
  */
 
+import { translations } from './utils/i18n.js';
+import { escapeHtml, formatDate, getDaysAgoText, parseSizeToBytes, isShortVideo, parseTimeToSeconds, formatDescriptionTimestamps, parseLikes, parseRelativeTime, debounce } from './utils/helpers.js';
+import { showToast } from './components/toast.js';
+import { renderVideoGrid } from './components/videoCard.js';
+import { renderChannelsList } from './components/channelRow.js';
+
+// Geliştirici log kontrolü. Localhost haricinde tarayıcı konsol çıktısını devre dışı bırakır.
+const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+function devLog(...args) {
+  if (isDev) console.log('[DEV]', ...args);
+}
+function devWarn(...args) {
+  if (isDev) console.warn('[DEV_WARN]', ...args);
+}
+if (!isDev) {
+  console.log = function() {};
+  console.warn = function() {};
+}
+
+// Expose to window for inline event handlers and global state
+window.escapeHtml = escapeHtml;
+window.formatDate = formatDate;
+window.getDaysAgoText = getDaysAgoText;
+window.isShortVideo = isShortVideo;
+window.showToast = showToast;
+window.translations = translations;
+window.renderVideoGrid = renderVideoGrid;
+window.renderChannelsList = renderChannelsList;
+window.devLog = devLog;
+window.devWarn = devWarn;
 let localDb = { channels: [], history: [], settings: {} };
+window.localDb = localDb;
 let eventSource = null;
 let currentLang = 'tr';
 
@@ -22,1655 +53,7 @@ let isRestoringIptv = false;
 // YouTube SVG İkon Şablonu (Lucide bağımlılığı olmadan her ortamda çalışması için yerel SVG kullanıyoruz)
 const youtubeSvgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" style="display:inline-block !important;vertical-align:middle !important;fill:#ff0000 !important;stroke:none !important;width:16px !important;height:16px !important;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" style="fill:#ff0000 !important;stroke:none !important;"/></svg>`;
 
-const translations = {
-  tr: {
-    status_merging: 'Birleştiriliyor (FFmpeg)...',
-    tab_iptv: 'IPTV',
-    inline_btn_description: 'Açıklamayı Göster',
-    inline_description_title: 'Video Açıklaması',
-    premium_automation: 'Premium Otomasyonu',
-    tab_library: 'Kütüphane',
-    tab_downloaded: 'İndirilenler',
-    tab_channels: 'Kanallar',
-    tab_settings: 'Ayarlar',
-    cookie_yes: 'Çerez: Evet',
-    cookie_no: 'Çerez: Hayır',
-    cookie_status_active: 'Çerez Aktif ve Geçerli',
-    cookie_status_locked: 'Çerez Kilitli veya Hatalı',
-    cookie_status_none: 'Çerez Kullanılmıyor',
-    channels_title: 'Kanallar',
-    channels_desc: 'Yeni yüklenen videolarını otomatik indirmek istediğiniz YouTube kanallarını buradan yönetin.',
-    input_channel_placeholder: 'YouTube Kanal linki veya kullanıcı adı girin (Örn: @BarisOzcan veya youtube.com/@GezenAdam)',
-    btn_follow_channel: 'Kanalı Takip Et',
-    btn_update_all_logos: 'Tüm Logoları Güncelle',
-    empty_channels_title: 'Henüz takip edilen kanal yok',
-    empty_channels_desc: 'Yukarıdaki formdan YouTube kanal linki veya kullanıcı adı girerek kanal ekleyebilirsiniz.',
-    select_quality_default: 'Varsayılan Kalite',
-    select_quality_best: 'En Yüksek',
-    select_quality_1080p: '1080p FHD',
-    select_quality_720p: '720p HD',
-    select_shorts_true: 'Shorts İndir',
-    select_shorts_false: 'Shorts İndirme',
-    channel_quality_title: 'İndirme Kalitesi',
-    channel_shorts_title: 'Shorts İndirme Durumu',
-    channel_shorts_limit_title: 'Shorts Süre Sınırı',
-    channel_btn_sync_title: 'Kanalı Şimdi Denetle / RSS Güncelle',
-    channel_btn_update_logo_title: 'Logoyu Güncelle',
-    channel_btn_unfollow_title: 'Takipten Çıkar',
-    shorts_limit_seconds: 'sn',
-    shorts_limit_minutes: 'dk',
-    inline_sub_color_title: 'Altyazı Rengi',
-    inline_sub_opacity_title: 'Altyazı Saydamlığı',
-    inline_sub_size_title: 'Altyazı Boyutu',
-    library_title: 'Kütüphane & Geçmiş',
-    library_desc: 'Tüm video geçmişini, indirme durumlarını ve kuyruğu tek ekrandan takip edin.',
-    btn_open_downloads: 'İndirilenler Klasörünü Aç',
-    badge_active_download: 'Aktif İndirme',
-    queue_empty_title: 'Kuyruk Boş',
-    queue_empty_desc: 'Aktif indirme bulunmuyor. Yeni videolar çıktığında otomatik indirilecektir.',
-    active_download_progress: 'İlerleme',
-    active_download_size: 'Boyut',
-    active_download_eta: 'Kalan',
-    active_download_cancel: 'İptal Et',
-    queue_title: 'İndirme Sırası',
-    queue_empty: 'Kuyrukta bekleyen video yok.',
-    library_history_title: 'Kütüphane & Geçmiş',
-    filter_all_channels: 'Tüm Kanallar',
-    show_shorts: 'Shorts Göster',
-    view_grid: 'Kartlar',
-    view_list: 'Sade Liste',
-    no_videos_filter: 'Filtreye uygun video kaydı bulunmuyor.',
-    downloaded_title: 'İndirilenler',
-    downloaded_desc: 'Sisteme başarıyla indirilmiş ve çevrimdışı izlemeye hazır videolar.',
-    settings_title: 'Sistem Ayarları',
-    settings_desc: 'Otomasyon parametrelerini, indirme kalitesini, çerez tarayıcısını ve genel sistem tercihlerini özelleştirin.',
-    label_download_path: 'İndirme Klasörü Konumu',
-    btn_select_folder: 'Klasör Seç',
-    btn_test_folder: 'Test Et',
-    label_browser: 'Premium Çerez Tarayıcısı',
-    label_quality: 'Varsayılan İndirme Kalitesi',
-    label_merge_type: 'İndirme Yöntemi (FFmpeg / Dosya Yapısı)',
-    label_interval: 'Kanal Kontrol Sıklığı (Saniye)',
-    label_auto_download: 'Otomatik İndirme',
-    label_write_thumbnail: 'Kapak Resmi',
-    label_show_shorts: 'Shorts Videoları',
-    label_theme: 'Görünüm Teması',
-    label_auto_delete: 'Videoları Otomatik Sil (Gün)',
-    label_rss_limit: 'RSS Denetleme Limiti (Video)',
-    label_settings_speed_limit: 'Maksimum İndirme Hızı (KB/s)',
-    label_port: 'Uygulama Port Numarası',
-    label_play_sounds: 'Sesli Bildirimler',
-    desc_play_sounds: 'Video indirme durumlarında (başlama, başarı, hata) sesli uyarı çal',
-    label_show_notifications: 'Masaüstü Bildirimleri',
-    desc_show_notifications: 'İndirme başlama ve bitişlerinde Windows bildirimleri göster',
-    label_auto_open_browser: 'Tarayıcıyı Otomatik Aç',
-    desc_auto_open_browser: 'Uygulama başladığında tarayıcıda localhost sayfasını otomatik aç',
-    btn_search_channel: 'Kanal Ara',
-    btn_add_channel: 'Kanalı Takip Et',
-    desc_auto_download: 'Yeni videolar algılandığında hemen indirmeyi başlat',
-    desc_write_thumbnail: 'Videoların kapak resimlerini (thumbnail) yanına indir',
-    desc_show_shorts: 'Geçmiş video listesinde Shorts videolarını göster',
-    label_lang: 'Uygulama Dili / App Language',
-    label_settings_player_type: 'Gömülü Oynatıcı Türü',
-    desc_settings_player_type: 'Gömülü video oynatıcı arayüz tipini seçin.',
-    opt_player_plyr: 'Plyr Player (Modern & Özelleştirilmiş)',
-    opt_player_artplayer: 'ArtPlayer (Gelişmiş & Şık Oynatıcı)',
-    opt_player_html5: 'Standart HTML5 Player (Hızlı & Sade - SponsorBlock Görsel Şeritleri Desteklemez)',
-    label_sponsorblock: 'SponsorBlock (Oynatıcı)',
-    desc_sponsorblock: 'Video oynatılırken sponsorlu veya tanıtım alanlarını otomatik atla.',
-    cookie_warning_title: 'Önemli Çerez Kilidi Uyarısı:',
-    cookie_warning_desc: 'İndirme işlemleri başlamadan önce seçtiğiniz tarayıcıyı (Chrome, Edge vb.) tamamen kapattığınızdan emin olun. Aksi takdirde tarayıcı çerez dosyasını (SQLite) kilitleyeceğinden indirmeler hata verecektir.',
-    btn_save_settings: 'Ayarları Kaydet',
-    modal_delete_title: 'Videoyu Geçmişten Kaldır',
-    modal_delete_desc: 'Bu videoyu indirme geçmişinden kaldırmak istediğinize emin misiniz?',
-    modal_delete_file_checkbox: 'İndirilen video dosyasını bilgisayardan da kalıcı olarak sil',
-    modal_delete_btn: 'Sil',
-    modal_cancel_btn: 'İptal',
-    modal_player_title: 'Gömülü Video Oynatıcı',
-    tab_queue: 'Kuyruk',
-    tab_queue_title: 'İndirme Sırası & Kontrol',
-    tab_queue_desc: 'Aktif indirmeyi izleyin, sıradaki videoları sürükleyip bırakarak önceliklerini değiştirin.',
-    btn_pause_queue: 'Kuyruğu Duraklat',
-    btn_resume_queue: 'Kuyruğu Devam Ettir',
-    label_queue_speed_limit: 'Hız Sınırı:',
-    btn_speed_limit_set: 'Ayarla',
-    active_progress: 'İlerleme',
-    active_size: 'Boyut',
-    active_eta: 'Kalan Süre',
-    queue_empty_title: 'Kuyruk Beklemede',
-    queue_empty_desc: 'Aktif indirme bulunmuyor. Yeni videolar çıktığında veya kuyruğa video eklendiğinde otomatik indirilecektir.',
-    queue_list_title: 'Sıradaki Videolar',
-    drag_drop_hint: 'Sürükleyip bırakarak sırayı değiştirin',
-    queue_list_empty: 'Kuyrukta bekleyen video yok.',
-    settings_desc: 'Otomasyon seçeneklerini, çerez tarayıcısını ve indirme klasörünü yapılandırın.',
-    settings_tab_general: 'Genel Ayarlar',
-    settings_tab_download: 'İndirme ve Kalite',
-    settings_tab_automation: 'Otomasyon & RSS',
-    settings_tab_notifications: 'Çerez & Bildirim',
-    settings_tab_feedback: 'Geri Bildirim Gönder',
-    sort_btn_date_desc: 'Tarih ▼',
-    sort_btn_date_asc: 'Tarih ▲',
-    sort_btn_size_desc: 'Boyut ▼',
-    sort_btn_size_asc: 'Boyut ▲',
-    topbar_cookie_title: 'Çerez',
-    topbar_quality_title: 'Kalite',
-    topbar_disk_title_free: 'Boş',
-    topbar_disk_title_folder: 'Alan',
-    settings_version_title: 'Sürüm',
-    desc_download_path: 'Videoların kaydedileceği bilgisayarınızdaki klasör yolu.',
-    desc_lang: 'Arayüz dilini ve video başlıklarının indirileceği dili seçin.',
-    opt_theme_dark: 'Koyu Tema (Karanlık)',
-    opt_theme_light: 'Açık Tema (Aydınlık)',
-    desc_theme: 'Arayüzün görünüm rengini buradan değiştirebilirsiniz.',
-    desc_port: 'Uygulama arayüzünün portu (Yeniden başlatma gerektirir).',
-    opt_quality_best: 'En Yüksek Kalite (Otomatik)',
-    opt_quality_1080p: 'Maksimum 1080p Full HD',
-    opt_quality_720p: 'Maksimum 720p HD',
-    desc_quality: 'Kanala özel ayar yapılmadığında bu varsayılan kalite kullanılacaktır.',
-    opt_merge_single: 'Tek Hazır Dosya (En Fazla 720p, ffmpeg gerektirmez)',
-    opt_merge_merge: 'Otomatik Birleştir (Yüksek Çözünürlük, ffmpeg gerektirir)',
-    opt_merge_separate: 'Ses ve Videoyu Ayrı İndir (ffmpeg gerektirmez)',
-    desc_merge_type: 'Yüksek çözünürlükleri tek dosya yapmak için FFmpeg gereklidir.',
-    desc_speed_limit: 'Bant genişliğini sınırlamak için değer girin (Sınırsız için 0 yazın).',
-    desc_alt_speed_limit: 'Alternatif hız profili aktifken kullanılacak limit (varsayılan 500).',
-    cli_info_title: 'CLI ve Konsol Hız Komutları',
-    cli_info_desc: "Hız sınırlarını konsoldan veya terminal/CLI üzerinden kontrol edebilirsiniz (Windows'ta <code>HaYTooL YT Downloader.exe &lt;komut&gt;</code> veya <code>haytool &lt;komut&gt;</code> kullanabilirsiniz):<br>• <b>Hız Sınırını Ayarlama:</b> <code>HaYTooL YT Downloader.exe speed &lt;değer&gt;</code> (örn: <code>HaYTooL YT Downloader.exe speed 2500</code>)<br>• <b>Hız Sınırını Açma/Kapatma:</b> <code>HaYTooL YT Downloader.exe speed off</code> (kapatır) / <code>HaYTooL YT Downloader.exe speed on</code> (son değere açar)<br>• <b>Alternatif Sınırı Belirleme:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;değer&gt;</code> (örn: <code>HaYTooL YT Downloader.exe altspeed 500</code>)<br>• <b>Alternatif Sınırı Kesin Aç/Kapat (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleac</code> (açar) / <code>HaYTooL YT Downloader.exe turtleoff / turtlekapat</code> (kapatır)<br>• <b>Alternatif Sınır Profil Geçişi (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code> veya <code>HaYTooL YT Downloader.exe altspeed toggle</code><br>• <b>Durum Sorgulama:</b> <code>HaYTooL YT Downloader.exe status</code> (limit durumunu yazdırır)",
-    cli_info_note: "(Tray \"Konsol Çıktısını Göster\" penceresinde 'HaYTooL YT Downloader.exe' veya 'node' yazmadan doğrudan komutu girin: 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' vb.)",
-    desc_channel_check_interval: 'Sıradaki kanalı denetlemek için beklenecek süre.',
-    desc_rss_limit: 'Kanal başına RSS akışındaki en yeni kaç video kontrol edilsin?',
-    desc_auto_delete: 'Kaç gün sonra otomatik silinsin? (Kapatmak için 0 yazın)',
-    opt_browser_none: 'Çerez Kullanma (Sadece Açık Videolar)',
-    desc_browser: 'YouTube Premium hesabınızın açık olduğu tarayıcıyı seçin. Bu sayede Premium yüksek indirme hızı ve yüksek kalite kullanılabilir.',
-    settings_status_text: 'Değişiklikler anında otomatik kaydedilir.',
-    connection_connecting: 'Bağlantı: Bağlanıyor...',
-    connection_active: 'Bağlantı: Aktif',
-    connection_lost: 'Bağlantı: Kesildi',
-    label_history_limit: 'Kanal Başına Geçmiş Videosu Sınırı',
-    desc_history_limit: 'Kütüphanede kanal başına listelenecek maksimum video limiti (Arayüz performansını artırır).',
-    opt_limit_10: '10 Video',
-    opt_limit_20: '20 Video (Önerilen)',
-    opt_limit_50: '50 Video',
-    opt_limit_100: '100 Video',
-    opt_limit_200: '200 Video',
-    label_data_management: 'Veri ve Yedek Yönetimi',
-    desc_data_management: 'Takip ettiğiniz kanalların listesini yedekleyebilir veya yedeğinizi geri yükleyebilirsiniz.',
-    btn_export_backup: 'Yedeği Dışarı Aktar',
-    btn_import_backup: 'Yedeği İçeri Aktar',
-    opt_import_append: 'Üzerine Ekle (Append)',
-    opt_import_overwrite: 'Tamamen Üzerine Yaz (Overwrite)',
-    lbl_quick_filter: 'Hızlı Filtre:',
-    filter_all: 'Tümü',
-    filter_today: 'Bugün',
-    filter_yesterday: 'Dün',
-    filter_last_2_days: 'Son 2 Gün',
-    filter_last_3_days: 'Son 3 Gün',
-    filter_last_4_days: 'Son 4 Gün',
-    filter_last_5_days: 'Son 5 Gün',
-    label_subtitle_color: 'Altyazı Rengi',
-    desc_subtitle_color: 'Gömülü video oynatıcılarda altyazı rengini seçin.',
-    opt_sub_white: 'Beyaz',
-    opt_sub_yellow: 'Sarı',
-    opt_sub_green: 'Yeşil',
-    opt_sub_cyan: 'Turkuaz',
-    opt_sub_magenta: 'Pembe',
-    opt_sub_red: 'Kırmızı',
-    opt_sub_blue: 'Mavi',
-    opt_sub_orange: 'Turuncu',
-    opt_sub_purple: 'Mor',
-    opt_sub_black: 'Siyah',
-    opt_sub_gray: 'Gri',
-    opt_sub_lightyellow: 'Açık Sarı',
-    inline_btn_youtube: 'YouTube\'da Aç',
-    inline_btn_system: 'Sistem Oynatıcısında Aç',
-    inline_btn_folder: 'Klasör Aç',
-    inline_btn_comments: 'Yorumları Göster',
-    inline_btn_translate_sub: 'Türkçe\'ye Çevir',
-    opt_sub_opacity_0: 'Saydam (%0)',
-    opt_sub_opacity_10: 'Saydamlık (%10)',
-    opt_sub_opacity_20: 'Saydamlık (%20)',
-    opt_sub_opacity_30: 'Saydamlık (%30)',
-    opt_sub_opacity_40: 'Saydamlık (%40)',
-    opt_sub_opacity_50: 'Saydamlık (%50)',
-    opt_sub_opacity_60: 'Saydamlık (%60)',
-    opt_sub_opacity_70: 'Saydamlık (%70)',
-    opt_sub_opacity_80: 'Saydamlık (%80)',
-    opt_sub_opacity_90: 'Saydamlık (%90)',
-    opt_sub_opacity_95: 'Saydamlık (%95)',
-    opt_sub_opacity_100: 'Mat (%100)',
-    overlay_translating_title: 'Altyazı Çeviriliyor...',
-    overlay_translating_desc: 'Lütfen bekleyin, API üzerinden satır satır çeviri yapılıyor...',
-    modal_translate_title: 'Altyazı Çevirisi',
-    modal_translate_no_subs: 'Bu video için indirilmiş altyazı bulunamadı. Çeviri yapabilmek için en az bir altyazı dosyası indirilmiş olmalıdır.',
-    modal_translate_source: 'Çevrilecek Altyazı (Kaynak)',
-    modal_translate_target: 'Hedef Dil',
-    btn_translate_action: 'Çevir',
-    select_auto_download_title: 'Otomatik Video İndirme Durumu',
-    select_auto_download_true: 'Otomatik İndir',
-    select_auto_download_false: 'Otomatik İndirme',
-    sponsorblock_active: 'SponsorBlock Aktif (Geçici olarak kapatmak için tıklayın)',
-    sponsorblock_disabled: 'SponsorBlock Devre Dışı (Tekrar açmak için tıklayın)',
-    lbl_history_only_no_auto_download: 'Oto-İndirme Kapalı',
-    lbl_history_only_not_downloaded: 'Sadece İndirilmeyenler',
-    sponsorblock_active_toast: 'SponsorBlock Aktif',
-    sponsorblock_active_toast_desc: 'Sponsorlu alanlar otomatik atlanacak',
-    sponsorblock_disabled_toast: 'SponsorBlock Devre Dışı',
-    sponsorblock_disabled_toast_desc: 'Sponsorlu alan atlamaları geçici olarak durduruldu',
-    lbl_single_view: 'Tekli Ekran',
-    lbl_dual_view: 'İkili Ekran (2 Kanal)',
-    lbl_quad_view: 'Çoklu Ekran (4 Kanal)',
-    lbl_sport_view: 'Spor Modu (PiP)',
-    lbl_select_channel: 'Kanal Seçin',
-    lbl_update_channels: 'Kanalları Güncelle',
-    lbl_loading_more: 'Daha fazla kanal yükleniyor...',
-    opt_all_countries: 'Tüm Ülkeler',
-    opt_all_categories: 'Tüm Kategoriler',
-    lbl_swap_screens: 'Yer Değiştir',
-    label_discord_rpc: 'Discord Durumu',
-    desc_discord_rpc: 'İzlenen videoları Discord profilinde göster'
-  },
-  en: {
-    status_merging: 'Merging (FFmpeg)...',
-    tab_iptv: 'IPTV',
-    inline_btn_description: 'Show Description',
-    inline_description_title: 'Video Description',
-    premium_automation: 'Premium Automation',
-    tab_library: 'Library',
-    tab_downloaded: 'Downloads',
-    tab_channels: 'Channels',
-    tab_settings: 'Settings',
-    cookie_yes: 'Cookies: Yes',
-    cookie_no: 'Cookies: No',
-    cookie_status_active: 'Cookies Active and Valid',
-    cookie_status_locked: 'Cookies Locked or Invalid',
-    cookie_status_none: 'Cookies Disabled',
-    channels_title: 'Channels',
-    channels_desc: 'Manage YouTube channels you want to monitor and download videos from automatically.',
-    input_channel_placeholder: 'Enter YouTube channel link or username (e.g. @BarisOzcan or youtube.com/@GezenAdam)',
-    btn_follow_channel: 'Follow Channel',
-    btn_update_all_logos: 'Update All Logos',
-    empty_channels_title: 'No monitored channels yet',
-    empty_channels_desc: 'You can add channels by entering a YouTube channel link or username from the form above.',
-    select_quality_default: 'Default Quality',
-    select_quality_best: 'Highest',
-    select_quality_1080p: '1080p FHD',
-    select_quality_720p: '720p HD',
-    select_shorts_true: 'Download Shorts',
-    select_shorts_false: 'Ignore Shorts',
-    channel_quality_title: 'Download Quality',
-    channel_shorts_title: 'Shorts Download Status',
-    channel_shorts_limit_title: 'Shorts Duration Limit',
-    channel_btn_sync_title: 'Check Channel Now / Update RSS',
-    channel_btn_update_logo_title: 'Update Logo',
-    channel_btn_unfollow_title: 'Unfollow Channel',
-    shorts_limit_seconds: 's',
-    shorts_limit_minutes: 'min',
-    inline_sub_color_title: 'Subtitle Color',
-    inline_sub_opacity_title: 'Subtitle Opacity',
-    inline_sub_size_title: 'Subtitle Size',
-    library_title: 'Library & History',
-    library_desc: 'Track download queue, active progress, and complete history in one place.',
-    btn_open_downloads: 'Open Downloads Folder',
-    badge_active_download: 'Active Download',
-    queue_empty_title: 'Queue Empty',
-    queue_empty_desc: 'No active download. New videos will be downloaded automatically when published.',
-    active_download_progress: 'Progress',
-    active_download_size: 'Size',
-    active_download_eta: 'Remaining',
-    active_download_cancel: 'Cancel',
-    queue_title: 'Download Queue',
-    queue_empty: 'No waiting videos in queue.',
-    library_history_title: 'Library & History',
-    filter_all_channels: 'All Channels',
-    show_shorts: 'Show Shorts',
-    view_grid: 'Cards',
-    no_videos_filter: 'No video records match the filter.',
-    downloaded_title: 'Downloads',
-    downloaded_desc: 'List of all videos successfully downloaded and ready for offline playback.',
-    settings_title: 'System Settings',
-    settings_desc: 'Configure automation options, download quality, cookie browser, and system preferences.',
-    label_download_path: 'Downloads Folder Path',
-    btn_select_folder: 'Select Folder',
-    btn_test_folder: 'Test Folder',
-    label_browser: 'Premium Cookie Browser',
-    label_quality: 'Default Download Quality',
-    label_merge_type: 'Download Method (FFmpeg / File Structure)',
-    label_interval: 'Channel Check Interval (Seconds)',
-    label_auto_download: 'Auto Download',
-    label_write_thumbnail: 'Cover Image',
-    label_show_shorts: 'Shorts Videos',
-    label_theme: 'UI Theme',
-    label_auto_delete: 'Auto Delete Videos (Days)',
-    label_rss_limit: 'RSS Check Limit (Videos)',
-    label_settings_speed_limit: 'Maximum Download Speed (KB/s)',
-    label_port: 'Application Port Number',
-    label_play_sounds: 'Audio Notifications',
-    desc_play_sounds: 'Play sound notifications for video download events (start, success, error)',
-    label_show_notifications: 'Desktop Notifications',
-    desc_show_notifications: 'Show Windows desktop notifications when downloads start and finish',
-    label_auto_open_browser: 'Auto-Open Browser',
-    desc_auto_open_browser: 'Automatically open the localhost page in browser when application starts',
-    btn_search_channel: 'Search Channel',
-    btn_add_channel: 'Follow Channel',
-    desc_auto_download: 'Start downloading immediately when new videos are detected',
-    desc_write_thumbnail: 'Download video cover images (thumbnails) alongside them',
-    desc_show_shorts: 'Show Shorts videos in the history library list',
-    label_lang: 'App Language',
-    label_settings_player_type: 'Embedded Player Type',
-    desc_settings_player_type: 'Select the embedded video player interface style.',
-    opt_player_plyr: 'Plyr Player (Modern & Customized)',
-    opt_player_artplayer: 'ArtPlayer (Advanced & Sleek Player)',
-    opt_player_html5: 'Standard HTML5 Player (Fast & Simple - SponsorBlock Visual Timelines Not Supported)',
-    label_sponsorblock: 'SponsorBlock (Player)',
-    desc_sponsorblock: 'Automatically skip sponsored segments or self-promotions during playback.',
-    cookie_warning_title: 'Important Cookie Lock Warning:',
-    cookie_warning_desc: 'Please make sure to completely CLOSE your selected browser (Chrome, Edge, etc.) before downloading. Otherwise, the browser locks the cookie database (SQLite) and causes download errors.',
-    btn_save_settings: 'Save Settings',
-    modal_delete_title: 'Remove Video from History',
-    modal_delete_desc: 'Are you sure you want to remove this video from download history?',
-    modal_delete_file_checkbox: 'Permanently delete the downloaded video file from computer as well',
-    modal_delete_btn: 'Delete',
-    modal_cancel_btn: 'Cancel',
-    modal_player_title: 'Embedded Video Player',
-    tab_queue: 'Queue',
-    tab_queue_title: 'Download Queue & Control',
-    tab_queue_desc: 'Monitor active downloads, drag and drop videos in the queue to change their priority.',
-    btn_pause_queue: 'Pause Queue',
-    btn_resume_queue: 'Resume Queue',
-    label_queue_speed_limit: 'Speed Limit:',
-    btn_speed_limit_set: 'Set Limit',
-    active_progress: 'Progress',
-    active_size: 'Size',
-    active_eta: 'Remaining',
-    queue_empty_title: 'Queue Idle',
-    queue_empty_desc: 'No active download. It will start automatically when new videos are published or added to the queue.',
-    queue_list_title: 'Queue Videos',
-    drag_drop_hint: 'Drag and drop items to reorder the queue',
-    queue_list_empty: 'No videos waiting in the queue.',
-    settings_desc: 'Configure automation options, cookie browser, and download folder.',
-    settings_tab_general: 'General Settings',
-    settings_tab_download: 'Download & Quality',
-    settings_tab_automation: 'Automation & RSS',
-    settings_tab_notifications: 'Cookie & Notification',
-    settings_tab_feedback: 'Send Feedback',
-    sort_btn_date_desc: 'Date ▼',
-    sort_btn_date_asc: 'Date ▲',
-    sort_btn_size_desc: 'Size ▼',
-    sort_btn_size_asc: 'Size ▲',
-    topbar_cookie_title: 'Cookie',
-    topbar_quality_title: 'Quality',
-    topbar_disk_title_free: 'Free',
-    topbar_disk_title_folder: 'Size',
-    settings_version_title: 'Version',
-    desc_download_path: 'The directory path on your computer where videos will be saved.',
-    desc_lang: 'Choose the interface language and the language for video titles.',
-    opt_theme_dark: 'Dark Theme',
-    opt_theme_light: 'Light Theme',
-    desc_theme: 'You can change the interface color theme here.',
-    desc_port: 'Application port number (Requires restart).',
-    opt_quality_best: 'Highest Quality (Automatic)',
-    opt_quality_1080p: 'Maximum 1080p Full HD',
-    opt_quality_720p: 'Maximum 720p HD',
-    desc_quality: 'This default quality will be used unless a channel-specific setting is set.',
-    opt_merge_single: 'Single Ready File (Max 720p, no ffmpeg required)',
-    opt_merge_merge: 'Auto Merge (High Resolution, requires ffmpeg)',
-    opt_merge_separate: 'Download Audio & Video Separately (no ffmpeg required)',
-    desc_merge_type: 'FFmpeg is required to merge high resolutions into a single file.',
-    desc_speed_limit: 'Enter value to limit bandwidth (Write 0 for unlimited).',
-    desc_alt_speed_limit: 'Limit to be used when alternative speed profile is active (default 500).',
-    cli_info_title: 'CLI and Console Speed Commands',
-    cli_info_desc: "You can control speed limits from the console or terminal/CLI (you can use <code>HaYTooL YT Downloader.exe &lt;command&gt;</code> or <code>haytool &lt;command&gt;</code> on Windows):<br>• <b>Set Speed Limit:</b> <code>HaYTooL YT Downloader.exe speed &lt;value&gt;</code> (e.g. <code>HaYTooL YT Downloader.exe speed 2500</code>)<br>• <b>Speed Limit On/Off:</b> <code>HaYTooL YT Downloader.exe speed off</code> (disables) / <code>HaYTooL YT Downloader.exe speed on</code> (restores to last value)<br>• <b>Set Alt Speed Limit:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;value&gt;</code> (e.g. <code>HaYTooL YT Downloader.exe altspeed 500</code>)<br>• <b>Alt Speed Limit Forced On/Off (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleac</code> (enables) / <code>HaYTooL YT Downloader.exe turtleoff / turtlekapat</code> (disables)<br>• <b>Alt Speed Profile Toggle:</b> <code>HaYTooL YT Downloader.exe toggle</code> or <code>HaYTooL YT Downloader.exe altspeed toggle</code><br>• <b>Query Status:</b> <code>HaYTooL YT Downloader.exe status</code> (prints limit status)",
-    cli_info_note: "(In the Tray 'Show Console Output' window, enter the command directly without writing 'HaYTooL YT Downloader.exe' or 'node': 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' etc.)",
-    desc_channel_check_interval: 'Waiting time to check the next channel.',
-    desc_rss_limit: 'How many of the latest videos in the RSS feed should be checked per channel?',
-    desc_auto_delete: 'After how many days should it be deleted automatically? (Write 0 to disable)',
-    opt_browser_none: 'Do Not Use Cookies (Public Videos Only)',
-    desc_browser: 'Select the browser where your YouTube Premium account is logged in. This enables Premium high download speed and high quality.',
-    settings_status_text: 'Changes are automatically saved instantly.',
-    connection_connecting: 'Connection: Connecting...',
-    connection_active: 'Connection: Connected',
-    connection_lost: 'Connection: Lost',
-    label_history_limit: 'History Limit per Channel',
-    desc_history_limit: 'Maximum video limit to list in the library per channel (Improves UI performance).',
-    opt_limit_10: '10 Videos',
-    opt_limit_20: '20 Videos (Recommended)',
-    opt_limit_50: '50 Videos',
-    opt_limit_100: '100 Videos',
-    opt_limit_200: '200 Videos',
-    label_data_management: 'Data & Backup Management',
-    desc_data_management: 'You can backup your followed channels list or restore from a backup file.',
-    btn_export_backup: 'Export Backup',
-    btn_import_backup: 'Import Backup',
-    opt_import_append: 'Append to Existing (Append)',
-    opt_import_overwrite: 'Overwrite Completely (Overwrite)',
-    lbl_quick_filter: 'Quick Filter:',
-    filter_all: 'All',
-    filter_today: 'Today',
-    filter_yesterday: 'Yesterday',
-    filter_last_2_days: 'Last 2 Days',
-    filter_last_3_days: 'Last 3 Days',
-    filter_last_4_days: 'Last 4 Days',
-    filter_last_5_days: 'Last 5 Days',
-    label_subtitle_color: 'Subtitle Color',
-    desc_subtitle_color: 'Select the subtitle color in embedded video players.',
-    opt_sub_white: 'White',
-    opt_sub_yellow: 'Yellow',
-    opt_sub_green: 'Green',
-    opt_sub_cyan: 'Cyan',
-    opt_sub_magenta: 'Pink',
-    opt_sub_red: 'Red',
-    opt_sub_blue: 'Blue',
-    opt_sub_orange: 'Orange',
-    opt_sub_purple: 'Purple',
-    opt_sub_black: 'Black',
-    opt_sub_gray: 'Gray',
-    opt_sub_lightyellow: 'Light Yellow',
-    inline_btn_youtube: 'Open on YouTube',
-    inline_btn_system: 'Open in System Player',
-    inline_btn_folder: 'Open Folder',
-    inline_btn_comments: 'Show Comments',
-    inline_btn_translate_sub: 'Translate to Turkish',
-    opt_sub_opacity_0: 'Transparent (%0)',
-    opt_sub_opacity_10: 'Opacity (%10)',
-    opt_sub_opacity_20: 'Opacity (%20)',
-    opt_sub_opacity_30: 'Opacity (%30)',
-    opt_sub_opacity_40: 'Opacity (%40)',
-    opt_sub_opacity_50: 'Opacity (%50)',
-    opt_sub_opacity_60: 'Opacity (%60)',
-    opt_sub_opacity_70: 'Opacity (%70)',
-    opt_sub_opacity_80: 'Opacity (%80)',
-    opt_sub_opacity_90: 'Opacity (%90)',
-    opt_sub_opacity_95: 'Opacity (%95)',
-    opt_sub_opacity_100: 'Solid (%100)',
-    overlay_translating_title: 'Translating Subtitles...',
-    overlay_translating_desc: 'Please wait, translating track line-by-line using API...',
-    modal_translate_title: 'Subtitle Translation',
-    modal_translate_no_subs: 'No downloaded subtitles found for this video. You need at least one downloaded subtitle track to translate.',
-    modal_translate_source: 'Source Subtitle',
-    modal_translate_target: 'Target Language',
-    btn_translate_action: 'Translate',
-    select_auto_download_title: 'Auto Download Status',
-    select_auto_download_true: 'Auto Download',
-    select_auto_download_false: 'No Auto Download',
-    sponsorblock_active: 'SponsorBlock Active (Click to temporarily disable)',
-    sponsorblock_disabled: 'SponsorBlock Disabled (Click to re-enable)',
-    lbl_history_only_no_auto_download: 'Auto-Download Off',
-    lbl_history_only_not_downloaded: 'Only Undownloaded',
-    sponsorblock_active_toast: 'SponsorBlock Active',
-    sponsorblock_active_toast_desc: 'Sponsor segments will be automatically skipped',
-    sponsorblock_disabled_toast: 'SponsorBlock Disabled',
-    sponsorblock_disabled_toast_desc: 'Sponsor segment skipping is temporarily paused',
-    lbl_single_view: 'Single View',
-    lbl_dual_view: 'Dual View (2 Channels)',
-    lbl_quad_view: 'Quad View (4 Channels)',
-    lbl_sport_view: 'Sport Mode (PiP)',
-    lbl_select_channel: 'Select a Channel',
-    lbl_update_channels: 'Update Channels',
-    lbl_loading_more: 'Loading more channels...',
-    opt_all_countries: 'All Countries',
-    opt_all_categories: 'All Categories',
-    lbl_swap_screens: 'Swap Screens',
-    label_discord_rpc: 'Discord Status',
-    desc_discord_rpc: 'Show watched videos on your Discord profile'
-  },
-  es: {
-    status_merging: 'Fusionando (FFmpeg)...',
-    premium_automation: 'Automatización Premium',
-    tab_library: 'Biblioteca',
-    tab_downloaded: 'Descargas',
-    tab_channels: 'Canales',
-    tab_settings: 'Ajustes',
-    cookie_yes: 'Cookies: Sí',
-    cookie_no: 'Cookies: No',
-    cookie_status_active: 'Cookies Activas y Válidas',
-    cookie_status_locked: 'Cookies Bloqueadas o Inválidas',
-    cookie_status_none: 'Cookies Desactivadas',
-    channels_title: 'Canales',
-    channels_desc: 'Gestione los canales de YouTube que desea monitorear y descargar automáticamente.',
-    input_channel_placeholder: 'Ingrese enlace o usuario de canal (Ej: @BarisOzcan)',
-    btn_follow_channel: 'Seguir Canal',
-    btn_update_all_logos: 'Actualizar Logos',
-    empty_channels_title: 'Sin canales monitoreados',
-    empty_channels_desc: 'Agregue canales ingresando un enlace o usuario de YouTube arriba.',
-    select_quality_default: 'Calidad por Defecto',
-    select_quality_best: 'La Mejor',
-    select_quality_1080p: '1080p FHD',
-    select_quality_720p: '720p HD',
-    select_shorts_true: 'Descargar Shorts',
-    select_shorts_false: 'Ignorar Shorts',
-    channel_quality_title: 'Calidad de Descarga',
-    channel_shorts_title: 'Estado de Descarga de Shorts',
-    channel_shorts_limit_title: 'Límite de Duración de Shorts',
-    channel_btn_sync_title: 'Comprobar Canal Ahora / Actualizar RSS',
-    channel_btn_update_logo_title: 'Actualizar Logo',
-    channel_btn_unfollow_title: 'Dejar de Seguir Canal',
-    shorts_limit_seconds: 's',
-    shorts_limit_minutes: 'min',
-    inline_sub_color_title: 'Color de Subtítulos',
-    inline_sub_opacity_title: 'Opacidad de Subtítulos',
-    inline_sub_size_title: 'Tamaño de Subtítulos',
-    library_title: 'Biblioteca y Historial',
-    library_desc: 'Monitoree la cola de descargas y el historial completo.',
-    btn_open_downloads: 'Abrir Carpeta de Descargas',
-    badge_active_download: 'Descarga Activa',
-    queue_empty_title: 'Cola Vacía',
-    queue_empty_desc: 'No hay descargas activas.',
-    active_download_progress: 'Progreso',
-    active_download_size: 'Tamaño',
-    active_download_eta: 'Restante',
-    active_download_cancel: 'Cancelar',
-    queue_title: 'Cola de Descarga',
-    queue_empty: 'No hay videos en espera en la cola.',
-    library_history_title: 'Biblioteca e Historial',
-    filter_all_channels: 'Todos los Canales',
-    show_shorts: 'Mostrar Shorts',
-    view_grid: 'Tarjetas',
-    view_list: 'Lista Simple',
-    no_videos_filter: 'Sin registros de video.',
-    downloaded_title: 'Descargas',
-    downloaded_desc: 'Videos descargados listos para reproducir sin conexión.',
-    settings_title: 'Ajustes del Sistema',
-    settings_desc: 'Configure automatización, calidad, cookies y preferencias.',
-    label_download_path: 'Ruta de Carpeta de Descargas',
-    btn_select_folder: 'Seleccionar Carpeta',
-    btn_test_folder: 'Probar Carpeta',
-    label_browser: 'Navegador de Cookies Premium',
-    label_quality: 'Calidad de Descarga por Defecto',
-    label_merge_type: 'Método de Descarga (FFmpeg)',
-    label_interval: 'Intervalo de Comprobación (Segundos)',
-    label_auto_download: 'Descarga Automática',
-    label_write_thumbnail: 'Imagen de Portada',
-    label_show_shorts: 'Videos Shorts',
-    label_theme: 'Tema de la Interfaz',
-    label_auto_delete: 'Eliminación Automática (Días)',
-    label_rss_limit: 'Límite de RSS (Videos)',
-    label_settings_speed_limit: 'Velocidad Máxima de Descarga (KB/s)',
-    label_port: 'Número de Puerto',
-    label_play_sounds: 'Notificaciones de Audio',
-    desc_play_sounds: 'Reproducir sonidos para eventos de descarga',
-    label_show_notifications: 'Notificaciones de Escritorio',
-    desc_show_notifications: 'Mostrar notificaciones cuando las descargas comiencen/terminen',
-    label_auto_open_browser: 'Abrir Navegador Automáticamente',
-    desc_auto_open_browser: 'Abrir localhost al iniciar la aplicación',
-    btn_search_channel: 'Buscar Canal',
-    btn_add_channel: 'Seguir Canal',
-    desc_auto_download: 'Descargar inmediatamente al detectar videos nuevos',
-    desc_write_thumbnail: 'Descargar miniaturas junto a los videos',
-    desc_show_shorts: 'Mostrar Shorts en el historial',
-    label_lang: 'Idioma de la App',
-    label_settings_player_type: 'Tipo de Reproductor Integrado',
-    desc_settings_player_type: 'Seleccione el estilo del reproductor integrado.',
-    opt_player_plyr: 'Reproductor Plyr',
-    opt_player_artplayer: 'Reproductor ArtPlayer',
-    opt_player_html5: 'Reproductor HTML5 Estándar (Rápido y simple - No admite líneas de tiempo de SponsorBlock)',
-    label_sponsorblock: 'SponsorBlock (Reproductor)',
-    desc_sponsorblock: 'Omitir automáticamente los segmentos patrocinados durante la reproducción.',
-    cookie_warning_title: 'Advertencia Importante de Cookies:',
-    cookie_warning_desc: 'Cierre completamente el navegador seleccionado antes de descargar.',
-    btn_save_settings: 'Guardar Ajustes',
-    modal_delete_title: 'Eliminar Video del Historial',
-    modal_delete_desc: '¿Seguro que desea eliminar este video del historial?',
-    modal_delete_file_checkbox: 'Eliminar permanentemente el archivo del ordenador',
-    modal_delete_btn: 'Eliminar',
-    modal_cancel_btn: 'Cancelar',
-    modal_player_title: 'Reproductor de Video Integrado',
-    tab_queue: 'Cola',
-    tab_queue_title: 'Control de la Cola de Descargas',
-    tab_queue_desc: 'Monitoree descargas activas y organice la prioridad.',
-    btn_pause_queue: 'Pausar Cola',
-    btn_resume_queue: 'Reanudar Cola',
-    label_queue_speed_limit: 'Límite de Velocidad:',
-    btn_speed_limit_set: 'Establecer Límite',
-    active_progress: 'Progreso',
-    active_size: 'Tamaño',
-    active_eta: 'Restante',
-    queue_empty_title: 'Cola en Espera',
-    queue_empty_desc: 'No hay descargas activas.',
-    queue_list_title: 'Videos en Cola',
-    drag_drop_hint: 'Arrastre y suelte para reordenar la cola',
-    queue_list_empty: 'Sin videos en cola.',
-    settings_desc: 'Configure automatización, cookie browser, y carpeta de descargas.',
-    settings_tab_general: 'Ajustes Generales',
-    settings_tab_download: 'Descarga y Calidad',
-    settings_tab_automation: 'Automatización y RSS',
-    settings_tab_notifications: 'Cookies y Notificación',
-    settings_tab_feedback: 'Enviar Comentarios',
-    sort_btn_date_desc: 'Fecha ▼',
-    sort_btn_date_asc: 'Fecha ▲',
-    sort_btn_size_desc: 'Tamaño ▼',
-    sort_btn_size_asc: 'Tamaño ▲',
-    topbar_cookie_title: 'Cookies',
-    topbar_quality_title: 'Calidad',
-    topbar_disk_title_free: 'Libre',
-    topbar_disk_title_folder: 'Tamaño',
-    settings_version_title: 'Versión',
-    desc_download_path: 'Carpeta donde se guardarán los videos.',
-    desc_lang: 'Seleccione el idioma de la interfaz y de los títulos.',
-    opt_theme_dark: 'Tema Oscuro',
-    opt_theme_light: 'Tema Claro',
-    desc_theme: 'Cambie el tema de color de la interfaz aquí.',
-    desc_port: 'Puerto de la aplicación (Requiere reiniciar).',
-    opt_quality_best: 'Mejor Calidad (Automático)',
-    opt_quality_1080p: 'Máximo 1080p FHD',
-    opt_quality_720p: 'Máximo 720p HD',
-    desc_quality: 'Calidad por defecto a usar.',
-    opt_merge_single: 'Archivo Único (Max 720p, sin ffmpeg)',
-    opt_merge_merge: 'Fusión Automática (Alta resolución, requiere ffmpeg)',
-    opt_merge_separate: 'Descargar Audio y Video por Separado',
-    desc_merge_type: 'Se requiere FFmpeg para fusionar altas resoluciones.',
-    desc_speed_limit: 'Límite de velocidad (0 para ilimitado).',
-    desc_alt_speed_limit: 'Límite de velocidad alternativo.',
-    cli_info_title: 'Comandos de Consola y CLI',
-    cli_info_desc: "Puede controlar los límites de velocidad desde la consola o terminal/CLI (puede usar <code>HaYTooL YT Downloader.exe &lt;comando&gt;</code> o <code>haytool &lt;comando&gt;</code> en Windows):<br>• <b>Ajustar Límite:</b> <code>HaYTooL YT Downloader.exe speed &lt;valor&gt;</code><br>• <b>Límite On/Off:</b> <code>HaYTooL YT Downloader.exe speed off / on</code><br>• <b>Límite Alt:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;valor&gt;</code><br>• <b>Límite Alt Forzado (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleoff</code><br>• <b>Perfil Alt Toggle:</b> <code>HaYTooL YT Downloader.exe toggle</code><br>• <b>Consultar Estado:</b> <code>HaYTooL YT Downloader.exe status</code>",
-    cli_info_note: "(Ingrese comandos en la consola directamente: speed, toggle, etc.)",
-    desc_channel_check_interval: 'Tiempo para revisar el siguiente canal.',
-    desc_rss_limit: 'Número de videos RSS a revisar por canal.',
-    desc_auto_delete: 'Silenciar automáticamente tras días (0 para desactivar).',
-    opt_browser_none: 'No Usar Cookies',
-    desc_browser: 'Seleccione el navegador para acceder a Premium.',
-    settings_status_text: 'Los cambios se guardan automáticamente.',
-    connection_connecting: 'Conexión: Conectando...',
-    connection_active: 'Conexión: Conectada',
-    connection_lost: 'Conexión: Perdida',
-    label_history_limit: 'Límite por Canal',
-    desc_history_limit: 'Límite máximo de videos a listar por canal.',
-    opt_limit_10: '10 Videos',
-    opt_limit_20: '20 Videos (Recomendado)',
-    opt_limit_50: '50 Videos',
-    opt_limit_100: '100 Videos',
-    opt_limit_200: '200 Videos',
-    label_data_management: 'Gestión de Datos y Copias',
-    desc_data_management: 'Puede exportar su lista de canales o restaurarla desde un archivo.',
-    btn_export_backup: 'Exportar Copia',
-    btn_import_backup: 'Importar Copia',
-    opt_import_append: 'Añadir a lo Existente (Append)',
-    opt_import_overwrite: 'Sobrescribir Completamente (Overwrite)',
-    lbl_quick_filter: 'Filtro Rápido:',
-    filter_all: 'Todos',
-    filter_today: 'Hoy',
-    filter_yesterday: 'Ayer',
-    filter_last_2_days: 'Últimos 2 Días',
-    filter_last_3_days: 'Últimos 3 Días',
-    filter_last_4_days: 'Últimos 4 Días',
-    filter_last_5_days: 'Últimos 5 Días',
-    label_subtitle_color: 'Color de Subtítulos',
-    desc_subtitle_color: 'Seleccione el color de los subtítulos en los reproductores de video.',
-    opt_sub_white: 'Blanco',
-    opt_sub_yellow: 'Amarillo',
-    opt_sub_green: 'Verde',
-    opt_sub_cyan: 'Cian',
-    opt_sub_magenta: 'Rosa',
-    opt_sub_red: 'Rojo',
-    opt_sub_blue: 'Azul',
-    opt_sub_orange: 'Naranja',
-    opt_sub_purple: 'Morado',
-    opt_sub_black: 'Negro',
-    opt_sub_gray: 'Gris',
-    opt_sub_lightyellow: 'Amarillo Claro',
-    inline_btn_youtube: 'Abrir en YouTube',
-    inline_btn_system: 'Abrir en Reproductor del Sistema',
-    inline_btn_folder: 'Abrir Carpeta',
-    inline_btn_comments: 'Mostrar Comentarios',
-    inline_btn_translate_sub: 'Traducir al Turco',
-    opt_sub_opacity_0: 'Transparente (%0)',
-    opt_sub_opacity_10: 'Opacidad (%10)',
-    opt_sub_opacity_20: 'Opacidad (%20)',
-    opt_sub_opacity_30: 'Opacidad (%30)',
-    opt_sub_opacity_40: 'Opacidad (%40)',
-    opt_sub_opacity_50: 'Opacidad (%50)',
-    opt_sub_opacity_60: 'Opacidad (%60)',
-    opt_sub_opacity_70: 'Opacidad (%70)',
-    opt_sub_opacity_80: 'Opacidad (%80)',
-    opt_sub_opacity_90: 'Opacidad (%90)',
-    opt_sub_opacity_95: 'Opacidad (%95)',
-    opt_sub_opacity_100: 'Sólido (%100)',
-    overlay_translating_title: 'Traduciendo subtítulos...',
-    overlay_translating_desc: 'Por favor espere, traduciendo la pista línea por línea usando la API...',
-    modal_translate_title: 'Traducción de Subtítulos',
-    modal_translate_no_subs: 'No se encontraron subtítulos descargados para este video. Necesita al menos una pista de subtítulos descargada para traducir.',
-    modal_translate_source: 'Subtítulo de Origen',
-    modal_translate_target: 'Idioma de Destino',
-    btn_translate_action: 'Traducir',
-    select_auto_download_title: 'Estado de descarga automática',
-    select_auto_download_true: 'Descarga automática',
-    select_auto_download_false: 'Sin descarga automática',
-    sponsorblock_active: 'SponsorBlock Activo (Haga clic para desactivar temporalmente)',
-    sponsorblock_disabled: 'SponsorBlock Desactivado (Haga clic para volver a activar)',
-    lbl_history_only_no_auto_download: 'Descarga Auto. Desactivada',
-    lbl_history_only_not_downloaded: 'Solo no descargados',
-    sponsorblock_active_toast: 'SponsorBlock Activo',
-    sponsorblock_active_toast_desc: 'Los segmentos patrocinados se omitirán automáticamente',
-    sponsorblock_disabled_toast: 'SponsorBlock Desactivado',
-    sponsorblock_disabled_toast_desc: 'La omisión de segmentos patrocinados está pausada temporalmente',
-    label_discord_rpc: 'Estado de Discord',
-    desc_discord_rpc: 'Mostrar videos vistos en tu perfil de Discord'
-  },
-  de: {
-    status_merging: 'Zusammenführen (FFmpeg)...',
-    premium_automation: 'Premium Automatisierung',
-    tab_library: 'Bibliothek',
-    tab_downloaded: 'Downloads',
-    tab_channels: 'Kanäle',
-    tab_settings: 'Einstellungen',
-    cookie_yes: 'Cookies: Ja',
-    cookie_no: 'Cookies: Nein',
-    cookie_status_active: 'Cookies Aktiv und Gültig',
-    cookie_status_locked: 'Cookies Gesperrt oder Ungültig',
-    cookie_status_none: 'Cookies Deaktiviert',
-    channels_title: 'Kanäle',
-    channels_desc: 'Kanäle verwalten, die Sie automatisch überwachen und herunterladen möchten.',
-    input_channel_placeholder: 'Kanal-Link oder Benutzernamen eingeben (Z.B. @BarisOzcan)',
-    btn_follow_channel: 'Kanal Folgen',
-    btn_update_all_logos: 'Logos Aktualisieren',
-    empty_channels_title: 'Noch keine überwachten Kanäle',
-    empty_channels_desc: 'Fügen Sie Kanäle hinzu, indem Sie oben einen YouTube-Link eingeben.',
-    select_quality_default: 'Standardqualität',
-    select_quality_best: 'Beste Qualität',
-    select_quality_1080p: '1080p FHD',
-    select_quality_720p: '720p HD',
-    select_shorts_true: 'Shorts Herunterladen',
-    select_shorts_false: 'Shorts Ignorieren',
-    channel_quality_title: 'Download-Qualität',
-    channel_shorts_title: 'Shorts-Download-Status',
-    channel_shorts_limit_title: 'Shorts-Dauerbegrenzung',
-    channel_btn_sync_title: 'Kanal jetzt prüfen / RSS aktualisieren',
-    channel_btn_update_logo_title: 'Logo aktualisieren',
-    channel_btn_unfollow_title: 'Kanal entfolgen',
-    shorts_limit_seconds: 's',
-    shorts_limit_minutes: 'Min',
-    inline_sub_color_title: 'Untertitel-Farbe',
-    inline_sub_opacity_title: 'Untertitel-Deckkraft',
-    inline_sub_size_title: 'Untertitel-Größe',
-    library_title: 'Bibliothek & Verlauf',
-    library_desc: 'Überwachen Sie die Warteschlange und den vollständigen Verlauf.',
-    btn_open_downloads: 'Download-Ordner Öffnen',
-    badge_active_download: 'Aktiver Download',
-    queue_empty_title: 'Warteschlange Leer',
-    queue_empty_desc: 'Keine aktiven Downloads.',
-    active_download_progress: 'Fortschritt',
-    active_download_size: 'Größe',
-    active_download_eta: 'Verbleibend',
-    active_download_cancel: 'Abbrechen',
-    queue_title: 'Warteschlange',
-    queue_empty: 'Keine wartenden Videos in der Warteschlange.',
-    library_history_title: 'Bibliothek & Verlauf',
-    filter_all_channels: 'Alle Kanäle',
-    show_shorts: 'Shorts Anzeigen',
-    view_grid: 'Karten',
-    view_list: 'Einfache Liste',
-    no_videos_filter: 'Keine Videoeinträge.',
-    downloaded_title: 'Downloads',
-    downloaded_desc: 'Erfolgreich heruntergeladene Videos für die Offline-Wiedergabe.',
-    settings_title: 'Systemeinstellungen',
-    settings_desc: 'Konfigurieren Sie Automatisierung, Qualität, Cookies und Präferenzen.',
-    label_download_path: 'Download-Pfad',
-    btn_select_folder: 'Ordner Auswählen',
-    btn_test_folder: 'Ordner Testen',
-    label_browser: 'Premium-Cookie-Browser',
-    label_quality: 'Standard-Download-Qualität',
-    label_merge_type: 'Download-Methode (FFmpeg)',
-    label_interval: 'Überprüfungsintervall (Sekunden)',
-    label_auto_download: 'Automatischer Download',
-    label_write_thumbnail: 'Cover-Bild',
-    label_show_shorts: 'Shorts-Videos',
-    label_theme: 'UI-Theme',
-    label_auto_delete: 'Videos automatisch löschen (Tage)',
-    label_rss_limit: 'RSS-Limit (Videos)',
-    label_settings_speed_limit: 'Maximale Geschwindigkeit (KB/s)',
-    label_port: 'Portnummer',
-    label_play_sounds: 'Audio-Benachrichtigungen',
-    desc_play_sounds: 'Töne bei Download-Ereignissen abspielen',
-    label_show_notifications: 'Desktop-Benachrichtigungen',
-    desc_show_notifications: 'Desktop-Benachrichtigungen anzeigen, wenn Downloads starten/enden',
-    label_auto_open_browser: 'Browser automatisch öffnen',
-    desc_auto_open_browser: 'Localhost beim Start der Anwendung öffnen',
-    btn_search_channel: 'Kanal Suchen',
-    btn_add_channel: 'Kanal Folgen',
-    desc_auto_download: 'Sofort herunterladen, wenn neue Videos erkannt werden',
-    desc_write_thumbnail: 'Vorschaubilder mit herunterladen',
-    desc_show_shorts: 'Shorts im Verlauf anzeigen',
-    label_lang: 'App-Sprache',
-    label_settings_player_type: 'Integrierter Player-Typ',
-    desc_settings_player_type: 'Wählen Sie den Stil des integrierten Players.',
-    opt_player_plyr: 'Plyr-Player',
-    opt_player_artplayer: 'ArtPlayer-Player',
-    opt_player_html5: 'Standard HTML5-Player (Schnell & Einfach - SponsorBlock Visuelle Zeitleisten nicht unterstützt)',
-    label_sponsorblock: 'SponsorBlock (Player)',
-    desc_sponsorblock: 'Sponsorierte Segmente oder Eigenwerbung während der Wiedergabe automatisch überspringen.',
-    cookie_warning_title: 'Wichtiger Cookie-Warnhinweis:',
-    cookie_warning_desc: 'Schließen Sie den ausgewählten Browser vor dem Herunterladen vollständig.',
-    btn_save_settings: 'Einstellungen Speichern',
-    modal_delete_title: 'Video aus Verlauf entfernen',
-    modal_delete_desc: 'Möchten Sie dieses Video aus dem Verlauf löschen?',
-    modal_delete_file_checkbox: 'Datei dauerhaft vom Computer löschen',
-    modal_delete_btn: 'Löschen',
-    modal_cancel_btn: 'Abbrechen',
-    modal_player_title: 'Integrierter Videoplayer',
-    tab_queue: 'Warteschlange',
-    tab_queue_title: 'Steuerung der Warteschlange',
-    tab_queue_desc: 'Überwachen Sie aktive Downloads und organisieren Sie Prioritäten.',
-    btn_pause_queue: 'Warteschlange Pausieren',
-    btn_resume_queue: 'Warteschlange Fortsetzen',
-    label_queue_speed_limit: 'Geschwindigkeitsbegrenzung:',
-    btn_speed_limit_set: 'Begrenzung Festlegen',
-    active_progress: 'Fortschritt',
-    active_size: 'Größe',
-    active_eta: 'Verbleibend',
-    queue_empty_title: 'Warteschlange im Standby',
-    queue_empty_desc: 'Keine aktiven Downloads.',
-    queue_list_title: 'Videos in Warteschlange',
-    drag_drop_hint: 'Ziehen und Ablegen zum Neuordnen',
-    queue_list_empty: 'Keine Videos in der Warteschlange.',
-    settings_desc: 'Konfigurieren Sie die Optionen, den Cookie-Browser und den Download-Ordner.',
-    settings_tab_general: 'Allgemeine Einstellungen',
-    settings_tab_download: 'Download & Qualität',
-    settings_tab_automation: 'Automatisierung & RSS',
-    settings_tab_notifications: 'Cookies & Benachrichtigung',
-    settings_tab_feedback: 'Feedback Senden',
-    sort_btn_date_desc: 'Datum ▼',
-    sort_btn_date_asc: 'Datum ▲',
-    sort_btn_size_desc: 'Größe ▼',
-    sort_btn_size_asc: 'Größe ▲',
-    topbar_cookie_title: 'Cookies',
-    topbar_quality_title: 'Qualität',
-    topbar_disk_title_free: 'Frei',
-    topbar_disk_title_folder: 'Größe',
-    settings_version_title: 'Version',
-    desc_download_path: 'Ordner, in dem Videos gespeichert werden.',
-    desc_lang: 'Wählen Sie die Sprache für die Oberfläche und die Titel.',
-    opt_theme_dark: 'Dunkles Theme',
-    opt_theme_light: 'Helles Theme',
-    desc_theme: 'Ändern Sie das Farbschema der Benutzeroberfläche hier.',
-    desc_port: 'Anwendungsport (Erfordert Neustart).',
-    opt_quality_best: 'Beste Qualität (Automatisch)',
-    opt_quality_1080p: 'Maximal 1080p FHD',
-    opt_quality_720p: 'Maximal 720p HD',
-    desc_quality: 'Standardmäßig zu verwendende Qualität.',
-    opt_merge_single: 'Einzelne Datei (Max 720p, kein ffmpeg)',
-    opt_merge_merge: 'Zusammenführen (Hohe Auflösung, erfordert ffmpeg)',
-    opt_merge_separate: 'Audio und Video separat herunterladen',
-    desc_merge_type: 'FFmpeg ist für hohe Auflösungen erforderlich.',
-    desc_speed_limit: 'Geschwindigkeit begrenzen (0 für unbegrenzt).',
-    desc_alt_speed_limit: 'Alternative Geschwindigkeitsbegrenzung.',
-    cli_info_title: 'Konsolen- und CLI-Befehle',
-    cli_info_desc: "Sie können die Geschwindigkeitsbegrenzung über die Konsole oder das Terminal steuern (Sie können <code>HaYTooL YT Downloader.exe &lt;Befehl&gt;</code> oder <code>haytool &lt;Befehl&gt;</code> unter Windows verwenden):<br>• <b>Begrenzung Festlegen:</b> <code>HaYTooL YT Downloader.exe speed &lt;Wert&gt;</code><br>• <b>Begrenzung Ein/Aus:</b> <code>HaYTooL YT Downloader.exe speed off / on</code><br>• <b>Alternative Begrenzung:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;Wert&gt;</code><br>• <b>Alternative Begrenzung Erzwingen (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleoff</code><br>• <b>Alternative Begrenzung Umschalten (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code><br>• <b>Status Abfragen:</b> <code>HaYTooL YT Downloader.exe status</code>",
-    cli_info_note: "(Geben Sie Befehle direkt in das Konsolenfenster ein: speed, toggle usw.)",
-    desc_channel_check_interval: 'Wartezeit vor dem Überprüfen des nächsten Kanals.',
-    desc_rss_limit: 'Anzahl der RSS-Videos pro Kanal.',
-    desc_auto_delete: 'Nach wie vielen Tagen automatisch löschen? (0 zum Deaktivieren)',
-    opt_browser_none: 'Keine Cookies Verwenden',
-    desc_browser: 'Wählen Sie den Browser für den Premium-Zugriff aus.',
-    settings_status_text: 'Änderungen werden sofort automatisch gespeichert.',
-    connection_connecting: 'Verbindung: Verbinden...',
-    connection_active: 'Verbindung: Aktiv',
-    connection_lost: 'Verbindung: Getrennt',
-    label_history_limit: 'Limit pro Kanal',
-    desc_history_limit: 'Maximale Anzahl an Videos, die pro Kanal aufgelistet werden.',
-    opt_limit_10: '10 Videos',
-    opt_limit_20: '20 Videos (Empfohlen)',
-    opt_limit_50: '50 Videos',
-    opt_limit_100: '100 Videos',
-    opt_limit_200: '200 Videos',
-    label_data_management: 'Daten- & Backup-Verwaltung',
-    desc_data_management: 'Sie können Ihre Kanalliste sichern oder aus einer Backup-Datei wiederherstellen.',
-    btn_export_backup: 'Backup Exportieren',
-    btn_import_backup: 'Backup Importieren',
-    opt_import_append: 'An Vorhandenes Anfügen (Append)',
-    opt_import_overwrite: 'Vollständig Überschreiben (Overwrite)',
-    lbl_quick_filter: 'Schnellfilter:',
-    filter_all: 'Alle',
-    filter_today: 'Heute',
-    filter_yesterday: 'Gestern',
-    filter_last_2_days: 'Letzte 2 Tage',
-    filter_last_3_days: 'Letzte 3 Tage',
-    filter_last_4_days: 'Letzte 4 Tage',
-    filter_last_5_days: 'Letzte 5 Tage',
-    label_subtitle_color: 'Untertitel-Farbe',
-    desc_subtitle_color: 'Wählen Sie die Untertitelfarbe in eingebetteten Videoplayern.',
-    opt_sub_white: 'Weiß',
-    opt_sub_yellow: 'Gelb',
-    opt_sub_green: 'Grün',
-    opt_sub_cyan: 'Cyan',
-    opt_sub_magenta: 'Rosa',
-    opt_sub_red: 'Rot',
-    opt_sub_blue: 'Blau',
-    opt_sub_orange: 'Orange',
-    opt_sub_purple: 'Lila',
-    opt_sub_black: 'Schwarz',
-    opt_sub_gray: 'Grau',
-    opt_sub_lightyellow: 'Hellgelb',
-    inline_btn_youtube: 'Auf YouTube öffnen',
-    inline_btn_system: 'Im Systemplayer öffnen',
-    inline_btn_folder: 'Ordner öffnen',
-    inline_btn_comments: 'Kommentare anzeigen',
-    inline_btn_translate_sub: 'Ins Türkische übersetzen',
-    opt_sub_opacity_0: 'Transparent (%0)',
-    opt_sub_opacity_10: 'Deckkraft (%10)',
-    opt_sub_opacity_20: 'Deckkraft (%20)',
-    opt_sub_opacity_30: 'Deckkraft (%30)',
-    opt_sub_opacity_40: 'Deckkraft (%40)',
-    opt_sub_opacity_50: 'Deckkraft (%50)',
-    opt_sub_opacity_60: 'Deckkraft (%60)',
-    opt_sub_opacity_70: 'Deckkraft (%70)',
-    opt_sub_opacity_80: 'Deckkraft (%80)',
-    opt_sub_opacity_90: 'Deckkraft (%90)',
-    opt_sub_opacity_95: 'Deckkraft (%95)',
-    opt_sub_opacity_100: 'Undurchsichtig (%100)',
-    overlay_translating_title: 'Untertitel übersetzen...',
-    overlay_translating_desc: 'Bitte warten, der Track wird Zeile für Zeile über die API übersetzt...',
-    modal_translate_title: 'Untertitel Übersetzung',
-    modal_translate_no_subs: 'Keine heruntergeladenen Untertitel für dieses Video gefunden. Sie benötigen mindestens eine heruntergeladene Untertitelspur zum Übersetzen.',
-    modal_translate_source: 'Quelluntertitel',
-    modal_translate_target: 'Zielsprache',
-    btn_translate_action: 'Übersetzen',
-    select_auto_download_title: 'Auto-Download-Status',
-    select_auto_download_true: 'Auto-Download',
-    select_auto_download_false: 'Kein Auto-Download',
-    sponsorblock_active: 'SponsorBlock Aktiv (Klicken, um vorübergehend zu deaktivieren)',
-    sponsorblock_disabled: 'SponsorBlock Deaktiviert (Klicken, um wieder zu aktivieren)',
-    lbl_history_only_no_auto_download: 'Auto-Download Aus',
-    lbl_history_only_not_downloaded: 'Nur nicht heruntergeladen',
-    sponsorblock_active_toast: 'SponsorBlock Aktiv',
-    sponsorblock_active_toast_desc: 'Sponsor-Segmente werden automatisch übersprungen',
-    sponsorblock_disabled_toast: 'SponsorBlock Deaktiviert',
-    sponsorblock_disabled_toast_desc: 'Das Überspringen von Sponsor-Segmenten ist vorübergehend pausiert',
-    label_discord_rpc: 'Discord-Status',
-    desc_discord_rpc: 'Gesehene Videos im Discord-Profil anzeigen'
-  },
-  pt: {
-    status_merging: 'Mesclando (FFmpeg)...',
-    premium_automation: 'Automatização Premium',
-    tab_library: 'Biblioteca',
-    tab_downloaded: 'Downloads',
-    tab_channels: 'Canais',
-    tab_settings: 'Ajustes',
-    cookie_yes: 'Cookies: Sim',
-    cookie_no: 'Cookies: Não',
-    cookie_status_active: 'Cookies Ativos e Válidos',
-    cookie_status_locked: 'Cookies Bloqueados ou Inválidos',
-    cookie_status_none: 'Cookies Desativados',
-    channels_title: 'Canais',
-    channels_desc: 'Gerencie os canais do YouTube que deseja monitorar e baixar automaticamente.',
-    input_channel_placeholder: 'Insira o link ou usuário do canal (Ex: @BarisOzcan)',
-    btn_follow_channel: 'Seguir Canal',
-    btn_update_all_logos: 'Atualizar Logos',
-    empty_channels_title: 'Nenhum canal monitorado ainda',
-    empty_channels_desc: 'Adicione canais inserindo um link ou usuário do YouTube acima.',
-    select_quality_default: 'Qualidade Padrão',
-    select_quality_best: 'A Melhor',
-    select_quality_1080p: '1080p FHD',
-    select_quality_720p: '720p HD',
-    select_shorts_true: 'Baixar Shorts',
-    select_shorts_false: 'Ignorar Shorts',
-    channel_quality_title: 'Qualidade de Download',
-    channel_shorts_title: 'Status de Download de Shorts',
-    channel_shorts_limit_title: 'Limite de Duração de Shorts',
-    channel_btn_sync_title: 'Verificar Canal Agora / Atualizar RSS',
-    channel_btn_update_logo_title: 'Atualizar Logo',
-    channel_btn_unfollow_title: 'Deixar de Seguir Canal',
-    shorts_limit_seconds: 's',
-    shorts_limit_minutes: 'min',
-    inline_sub_color_title: 'Cor da Legenda',
-    inline_sub_opacity_title: 'Opacidade da Legenda',
-    inline_sub_size_title: 'Tamanho da Legenda',
-    library_title: 'Biblioteca e Histórico',
-    library_desc: 'Monitore a fila de downloads e o histórico completo.',
-    btn_open_downloads: 'Abrir Pasta de Downloads',
-    badge_active_download: 'Download Ativo',
-    queue_empty_title: 'Fila Vazia',
-    queue_empty_desc: 'Sem downloads ativos.',
-    active_download_progress: 'Progresso',
-    active_download_size: 'Tamanho',
-    active_download_eta: 'Restante',
-    active_download_cancel: 'Cancelar',
-    queue_title: 'Fila de Download',
-    queue_empty: 'Nenhum vídeo aguardando na fila.',
-    library_history_title: 'Biblioteca e Histórico',
-    filter_all_channels: 'Todos os Canais',
-    show_shorts: 'Mostrar Shorts',
-    view_grid: 'Cartões',
-    view_list: 'Lista Simples',
-    no_videos_filter: 'Sem registros de vídeo.',
-    downloaded_title: 'Downloads',
-    downloaded_desc: 'Vídeos baixados prontos para assistir offline.',
-    settings_title: 'Ajustes do Sistema',
-    settings_desc: 'Configure automatização, qualidade, cookies e preferências.',
-    label_download_path: 'Caminho da Pasta de Downloads',
-    btn_select_folder: 'Selecionar Pasta',
-    btn_test_folder: 'Testar Pasta',
-    label_browser: 'Navegador de Cookies Premium',
-    label_quality: 'Qualidade de Download Padrão',
-    label_merge_type: 'Método de Download (FFmpeg)',
-    label_interval: 'Intervalo de Verificação (Segundos)',
-    label_auto_download: 'Download Automático',
-    label_write_thumbnail: 'Imagem de Capa',
-    label_show_shorts: 'Vídeos Shorts',
-    label_theme: 'Tema da Interface',
-    label_auto_delete: 'Exclusão Automática (Dias)',
-    label_rss_limit: 'Limite de RSS (Vídeos)',
-    label_settings_speed_limit: 'Velocidade Máxima de Download (KB/s)',
-    label_port: 'Número da Porta',
-    label_play_sounds: 'Notificações de Áudio',
-    desc_play_sounds: 'Tocar sons para eventos de download',
-    label_show_notifications: 'Notificações de Área de Trabalho',
-    desc_show_notifications: 'Mostrar notificações quando os downloads começarem/terminarem',
-    label_auto_open_browser: 'Abrir Navegador Automaticamente',
-    desc_auto_open_browser: 'Abrir localhost ao iniciar a aplicação',
-    btn_search_channel: 'Buscar Canal',
-    btn_add_channel: 'Seguir Canal',
-    desc_auto_download: 'Baixar imediatamente ao detectar novos vídeos',
-    desc_write_thumbnail: 'Baixar miniaturas junto com os vídeos',
-    desc_show_shorts: 'Mostrar Shorts no histórico',
-    label_lang: 'Idioma da App',
-    label_settings_player_type: 'Tipo de Reprodutor Integrado',
-    desc_settings_player_type: 'Selecione o estilo do reprodutor integrado.',
-    opt_player_plyr: 'Reprodutor Plyr',
-    opt_player_artplayer: 'Reprodutor ArtPlayer',
-    opt_player_html5: 'Reprodutor HTML5 Padrão (Rápido e simples - Não suporta linhas de tempo visuais do SponsorBlock)',
-    label_sponsorblock: 'SponsorBlock (Reprodutor)',
-    desc_sponsorblock: 'Pular automaticamente segmentos patrocinados ou de auto-promoção durante a reprodução.',
-    cookie_warning_title: 'Aviso Importante sobre Cookies:',
-    cookie_warning_desc: 'Feche completamente o navegador selecionado antes de baixar.',
-    btn_save_settings: 'Salvar Configurações',
-    modal_delete_title: 'Remover Vídeo do Histórico',
-    modal_delete_desc: 'Tem certeza que deseja remover este vídeo do histórico?',
-    modal_delete_file_checkbox: 'Excluir permanentemente o arquivo do computador',
-    modal_delete_btn: 'Excluir',
-    modal_cancel_btn: 'Cancelar',
-    modal_player_title: 'Reprodutor de Vídeo Integrado',
-    tab_queue: 'Fila',
-    tab_queue_title: 'Controle da Fila de Downloads',
-    tab_queue_desc: 'Monitore downloads ativos e organize a prioridade.',
-    btn_pause_queue: 'Pausar Fila',
-    btn_resume_queue: 'Retomar Fila',
-    label_queue_speed_limit: 'Limite de Velocidade:',
-    btn_speed_limit_set: 'Definir Limite',
-    active_progress: 'Progresso',
-    active_size: 'Tamanho',
-    active_eta: 'Restante',
-    queue_empty_title: 'Fila em Espera',
-    queue_empty_desc: 'Sem downloads ativos.',
-    queue_list_title: 'Vídeos na Fila',
-    drag_drop_hint: 'Arraste e solte para reordenar a fila',
-    queue_list_empty: 'Sem vídeos na fila.',
-    settings_desc: 'Configure opções de automação, navegador de cookies e pasta de downloads.',
-    settings_tab_general: 'Configurações Gerais',
-    settings_tab_download: 'Download & Qualidade',
-    settings_tab_automation: 'Automação & RSS',
-    settings_tab_notifications: 'Cookies & Notificação',
-    settings_tab_feedback: 'Enviar Comentários',
-    sort_btn_date_desc: 'Data ▼',
-    sort_btn_date_asc: 'Data ▲',
-    sort_btn_size_desc: 'Tamanho ▼',
-    sort_btn_size_asc: 'Tamanho ▲',
-    topbar_cookie_title: 'Cookies',
-    topbar_quality_title: 'Qualidade',
-    topbar_disk_title_free: 'Livre',
-    topbar_disk_title_folder: 'Tamanho',
-    settings_version_title: 'Versão',
-    desc_download_path: 'Pasta onde os vídeos serão salvos.',
-    desc_lang: 'Selecione o idioma da interface e dos títulos.',
-    opt_theme_dark: 'Tema Escuro',
-    opt_theme_light: 'Tema Claro',
-    desc_theme: 'Altere o tema de cor da interface aqui.',
-    desc_port: 'Porta da aplicação (Requer reiniciar).',
-    opt_quality_best: 'Melhor Qualidade (Automático)',
-    opt_quality_1080p: 'Máximo 1080p FHD',
-    opt_quality_720p: 'Máximo 720p HD',
-    desc_quality: 'Qualidade padrão a ser usada.',
-    opt_merge_single: 'Arquivo Único (Max 720p, sem ffmpeg)',
-    opt_merge_merge: 'Fusão Automática (Alta resolução, requer ffmpeg)',
-    opt_merge_separate: 'Baixar Áudio e Vídeo Separadamente',
-    desc_merge_type: 'O FFmpeg é necessário para fundir altas resoluções.',
-    desc_speed_limit: 'Limite de velocidade (0 para ilimitado).',
-    desc_alt_speed_limit: 'Limite de velocidade alternativo.',
-    cli_info_title: 'Comandos de Console e CLI',
-    cli_info_desc: "Pode controlar os limites de velocidade a partir da consola ou do terminal/CLI (pode utilizar o comando <code>HaYTooL YT Downloader.exe &lt;comando&gt;</code> ou <code>haytool &lt;comando&gt;</code> no Windows):<br>• <b>Definir Limite:</b> <code>HaYTooL YT Downloader.exe speed &lt;valor&gt;</code><br>• <b>Limite On/Off:</b> <code>HaYTooL YT Downloader.exe speed off / on</code><br>• <b>Limite Alt:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;valor&gt;</code><br>• <b>Limite Alt Forçado (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleoff</code><br>• <b>Alternar Perfil Alt (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code><br>• <b>Consultar Estado:</b> <code>HaYTooL YT Downloader.exe status</code>",
-    cli_info_note: "(Insira comandos diretamente no console: speed, toggle, etc.)",
-    desc_channel_check_interval: 'Tempo para verificar o próximo canal.',
-    desc_rss_limit: 'Número de vídeos RSS a verificar por canal.',
-    desc_auto_delete: 'Excluir automaticamente após dias (0 para desativar).',
-    opt_browser_none: 'Não Usar Cookies',
-    desc_browser: 'Selecione o navegador para acessar ao Premium.',
-    settings_status_text: 'As alterações são salvas automaticamente.',
-    connection_connecting: 'Conexão: Conectando...',
-    connection_active: 'Conexão: Ativa',
-    connection_lost: 'Conexão: Perdida',
-    label_history_limit: 'Limite por Canal',
-    desc_history_limit: 'Limite máximo de vídeos a listar por canal.',
-    opt_limit_10: '10 Vídeos',
-    opt_limit_20: '20 Vídeos (Recomendado)',
-    opt_limit_50: '50 Vídeos',
-    opt_limit_100: '100 Vídeos',
-    opt_limit_200: '200 Vídeos',
-    label_data_management: 'Gestão de Dados e Cópias',
-    desc_data_management: 'Pode exportar a sua lista de canais ou restaurá-la a partir de um ficheiro de cópia de segurança.',
-    btn_export_backup: 'Exportar Cópia',
-    btn_import_backup: 'Importar Cópia',
-    opt_import_append: 'Adicionar ao Existente (Append)',
-    opt_import_overwrite: 'Substituir Completamente (Overwrite)',
-    lbl_quick_filter: 'Filtro Rápido:',
-    filter_all: 'Todos',
-    filter_today: 'Hoje',
-    filter_yesterday: 'Ontem',
-    filter_last_2_days: 'Últimos 2 Dias',
-    filter_last_3_days: 'Últimos 3 Dias',
-    filter_last_4_days: 'Últimos 4 Dias',
-    filter_last_5_days: 'Últimos 5 Dias',
-    label_subtitle_color: 'Cor da Legenda',
-    desc_subtitle_color: 'Selecione a cor da legenda nos players de vídeo incorporados.',
-    opt_sub_white: 'Branco',
-    opt_sub_yellow: 'Amarelo',
-    opt_sub_green: 'Verde',
-    opt_sub_cyan: 'Ciano',
-    opt_sub_magenta: 'Rosa',
-    opt_sub_red: 'Vermelho',
-    opt_sub_blue: 'Azul',
-    opt_sub_orange: 'Laranja',
-    opt_sub_purple: 'Roxo',
-    opt_sub_black: 'Preto',
-    opt_sub_gray: 'Cinza',
-    opt_sub_lightyellow: 'Amarelo Claro',
-    inline_btn_youtube: 'Abrir no YouTube',
-    inline_btn_system: 'Abrir no Reprodutor do Sistema',
-    inline_btn_folder: 'Abrir Pasta',
-    inline_btn_comments: 'Mostrar Comentários',
-    inline_btn_translate_sub: 'Traduzir para o Turco',
-    opt_sub_opacity_0: 'Transparente (%0)',
-    opt_sub_opacity_10: 'Opacidade (%10)',
-    opt_sub_opacity_20: 'Opacidade (%20)',
-    opt_sub_opacity_30: 'Opacidade (%30)',
-    opt_sub_opacity_40: 'Opacidade (%40)',
-    opt_sub_opacity_50: 'Opacidade (%50)',
-    opt_sub_opacity_60: 'Opacidade (%60)',
-    opt_sub_opacity_70: 'Opacidade (%70)',
-    opt_sub_opacity_80: 'Opacidade (%80)',
-    opt_sub_opacity_90: 'Opacidade (%90)',
-    opt_sub_opacity_95: 'Opacidade (%95)',
-    opt_sub_opacity_100: 'Sólido (%100)',
-    overlay_translating_title: 'Traduzindo legendas...',
-    overlay_translating_desc: 'Aguarde, traduzindo a faixa linha por linha usando a API...',
-    modal_translate_title: 'Tradução de Legendas',
-    modal_translate_no_subs: 'Nenhuma legenda baixada encontrada para este vídeo. Você precisa de pelo menos uma faixa de legenda baixada para traduzir.',
-    modal_translate_source: 'Legenda de Origem',
-    modal_translate_target: 'Idioma de Destino',
-    btn_translate_action: 'Traduzir',
-    select_auto_download_title: 'Estado de download automático',
-    select_auto_download_true: 'Download automático',
-    select_auto_download_false: 'Sem download automático',
-    sponsorblock_active: 'SponsorBlock Ativo (Clique para desativar temporariamente)',
-    sponsorblock_disabled: 'SponsorBlock Desactivado (Clique para reativar)',
-    lbl_history_only_no_auto_download: 'Download Auto. Desativado',
-    lbl_history_only_not_downloaded: 'Apenas não baixados',
-    sponsorblock_active_toast: 'SponsorBlock Ativo',
-    sponsorblock_active_toast_desc: 'Os segmentos patrocinados serão ignorados automaticamente',
-    sponsorblock_disabled_toast: 'SponsorBlock Desactivado',
-    sponsorblock_disabled_toast_desc: 'A omissão de segmentos patrocinados está pausada temporariamente',
-    label_discord_rpc: 'Estado do Discord',
-    desc_discord_rpc: 'Mostrar vídeos assistidos no seu perfil do Discord'
-  },
-  ar: {
-    status_merging: 'دمج (FFmpeg)...',
-    premium_automation: 'التحكم التلقائي المميز',
-    tab_library: 'المكتبة',
-    tab_downloaded: 'التنزيلات',
-    tab_channels: 'القنوات',
-    tab_settings: 'الإعدادات',
-    cookie_yes: 'ملفات تعريف الارتباط: نعم',
-    cookie_no: 'ملفات تعريف الارتباط: لا',
-    cookie_status_active: 'ملفات تعريف الارتباط نشطة وصالحة',
-    cookie_status_locked: 'ملفات تعريف الارتباط مقفلة أو غير صالحة',
-    cookie_status_none: 'ملفات تعريف الارتباط غير مستخدمة',
-    channels_title: 'القنوات',
-    channels_desc: 'إدارة قنوات YouTube التي تريد مراقبتها وتنزيل مقاطع الفيديو منها تلقائيًا.',
-    input_channel_placeholder: 'أدخل رابط القناة أو اسم المستخدم (مثال: BarisOzcan@)',
-    btn_follow_channel: 'متابعة القناة',
-    btn_update_all_logos: 'تحديث جميع الشعارات',
-    empty_channels_title: 'لا توجد قنوات مراقبة بعد',
-    empty_channels_desc: 'يمكنك إضافة قنوات عن طريق إدخال رابط أو اسم مستخدم YouTube أعلاه.',
-    select_quality_default: 'الجودة الافتراضية',
-    select_quality_best: 'الأعلى',
-    select_quality_1080p: '1080p FHD',
-    select_quality_720p: '720p HD',
-    select_shorts_true: 'تنزيل مقاطع Shorts',
-    select_shorts_false: 'تجاهل مقاطع Shorts',
-    channel_quality_title: 'جودة التنزيل',
-    channel_shorts_title: 'حالة تنزيل مقاطع Shorts',
-    channel_shorts_limit_title: 'حد مدة مقاطع Shorts',
-    channel_btn_sync_title: 'فحص القناة الآن / تحديث RSS',
-    channel_btn_update_logo_title: 'تحديث الشعار',
-    channel_btn_unfollow_title: 'إلغاء متابعة القناة',
-    shorts_limit_seconds: 'ثانية',
-    shorts_limit_minutes: 'دقيقة',
-    inline_sub_color_title: 'لون الترجمة',
-    inline_sub_opacity_title: 'شفافية الترجمة',
-    inline_sub_size_title: 'حجم الترجمة',
-    library_title: 'المكتبة والسجل',
-    library_desc: 'مراقبة قائمة انتظار التنزيل والتقدم النشط والسجل الكامل.',
-    btn_open_downloads: 'فتح مجلد التنزيلات',
-    badge_active_download: 'تنزيل نشط',
-    queue_empty_title: 'قائمة الانتظار فارغة',
-    queue_empty_desc: 'لا يوجد تنزيل نشط حالياً.',
-    active_download_progress: 'التقدم',
-    active_download_size: 'الحجم',
-    active_download_eta: 'المتبقي',
-    active_download_cancel: 'إلغاء',
-    queue_title: 'قائمة تنزيل',
-    queue_empty: 'لا توجد مقاطع فيديو قيد الانتظار في قائمة الانتظار.',
-    library_history_title: 'المكتبة والسجل',
-    filter_all_channels: 'جميع القنوات',
-    show_shorts: 'عرض Shorts',
-    view_grid: 'بطاقات',
-    no_videos_filter: 'لا توجد سجلات فيديو تطابق الفلتر.',
-    downloaded_title: 'التنزيلات',
-    downloaded_desc: 'مقاطع الفيديو التي تم تنزيلها بنجاح وجاهزة للتشغيل دون اتصال بالإنترنت.',
-    settings_title: 'إعدادات النظام',
-    settings_desc: 'تكوين خيارات التشغيل التلقائي وجودة التنزيل ومتصفح ملفات تعريف الارتباط وتفضيلات النظام.',
-    label_download_path: 'مسار مجلد التنزيلات',
-    btn_select_folder: 'اختر مجلد',
-    btn_test_folder: 'اختبار المجلد',
-    label_browser: 'متصفح ملفات تعريف الارتباط المميز',
-    label_quality: 'جودة التنزيل الافتراضية',
-    label_merge_type: 'طريقة التنزيل (FFmpeg / بنية الملف)',
-    label_interval: 'فترة فحص القناة (بالثواني)',
-    label_auto_download: 'تنزيل تلقائي',
-    label_write_thumbnail: 'صورة الغلاف',
-    label_show_shorts: 'مقاطع فيديو Shorts',
-    label_theme: 'مظهر واجهة المستخدم',
-    label_auto_delete: 'حذف مقاطع الفيديو تلقائيًا (أيام)',
-    label_rss_limit: 'حد فحص RSS (مقاطع فيديو)',
-    label_settings_speed_limit: 'السرعة القصوى للتنزيل (كيلوبايت/ثانية)',
-    label_port: 'رقم المنفذ',
-    label_play_sounds: 'التنبيهات الصوتية',
-    desc_play_sounds: 'تشغيل تنبيهات صوتية لأحداث تنزيل الفيديو',
-    label_show_notifications: 'تنبيهات سطح المكتب',
-    desc_show_notifications: 'عرض تنبيهات سطح المكتب عند بدء التنزيل وانتهائه',
-    label_auto_open_browser: 'فتح المتصفح تلقائياً',
-    desc_auto_open_browser: 'فتح localhost في المتصفح تلقائياً عند بدء التطبيق',
-    btn_search_channel: 'بحث عن قناة',
-    btn_add_channel: 'متابعة القناة',
-    desc_auto_download: 'بدء التنزيل فورًا عند اكتشاف مقاطع فيديو جديدة',
-    desc_write_thumbnail: 'تنزيل صور غلاف الفيديو (الصور المصغرة) معها',
-    desc_show_shorts: 'عرض مقاطع فيديو Shorts في قائمة مكتبة السجل',
-    label_lang: 'لغة التطبيق',
-    label_settings_player_type: 'نوع المشغل المدمج',
-    desc_settings_player_type: 'اختر نمط واجهة مشغل الفيديو المدمج.',
-    opt_player_plyr: 'مشغل Plyr',
-    opt_player_artplayer: 'مشغل ArtPlayer',
-    opt_player_html5: 'مشغل HTML5 القياسي (سريع وبسيط - لا يدعم الأشرطة المرئية لـ SponsorBlock)',
-    label_sponsorblock: 'SponsorBlock (المشغل)',
-    desc_sponsorblock: 'تخطي المقاطع الإعلانية أو الترويجية تلقائيًا أثناء التشغيل.',
-    cookie_warning_title: 'تحذير هام بشأن قفل ملفات تعريف الارتباط:',
-    cookie_warning_desc: 'يرجى إغلاق المتصفح المختار تمامًا قبل التنزيل لتجنب أخطاء قفل قاعدة البيانات.',
-    btn_save_settings: 'حفظ الإعدادات',
-    modal_delete_title: 'إزالة الفيديو من السجل',
-    modal_delete_desc: 'هل أنت متأكد من رغبتك في إزالة هذا الفيديو من السجل؟',
-    modal_delete_file_checkbox: 'حذف ملف الفيديو الذي تم تنزيله نهائياً من الكمبيوتر أيضاً',
-    modal_delete_btn: 'حذف',
-    modal_cancel_btn: 'إلغاء',
-    modal_player_title: 'مشغل الفيديو المدمج',
-    tab_queue: 'قائمة الانتظار',
-    tab_queue_title: 'التحكم في قائمة انتظار التنزيل',
-    tab_queue_desc: 'مراقبة التنزيلات النشطة وسحب وإفلات مقاطع الفيديو لتغيير أولويتها.',
-    btn_pause_queue: 'إيقاف مؤقت لقائمة الانتظار',
-    btn_resume_queue: 'استئناف قائمة الانتظار',
-    label_queue_speed_limit: 'حد السرعة:',
-    btn_speed_limit_set: 'تعيين الحد',
-    active_progress: 'التقدم',
-    active_size: 'الحجم',
-    active_eta: 'الوقت المتبقي',
-    queue_empty_title: 'قائمة الانتظار في وضع الاستعداد',
-    queue_empty_desc: 'لا يوجد تنزيل نشط.',
-    queue_list_title: 'فيديوهات قائمة الانتظار',
-    drag_drop_hint: 'السحب والإفلات لإعادة ترتيب قائمة الانتظار',
-    queue_list_empty: 'لا توجد مقاطع فيديو تنتظر في قائمة الانتظار.',
-    settings_desc: 'تكوين خيارات التشغيل التلقائي، ومتصفح ملفات تعريف الارتباط، ومجلد التنزيلات.',
-    settings_tab_general: 'الإعدادات العامة',
-    settings_tab_download: 'التنزيل والجودة',
-    settings_tab_automation: 'التشغيل التلقائي و RSS',
-    settings_tab_notifications: 'ملفات تعريف الارتباط والتنبيهات',
-    settings_tab_feedback: 'إرسال ملاحظات',
-    sort_btn_date_desc: 'التاريخ ▼',
-    sort_btn_date_asc: 'التاريخ ▲',
-    sort_btn_size_desc: 'الحجم ▼',
-    sort_btn_size_asc: 'الحجم ▲',
-    topbar_cookie_title: 'ملفات تعريف الارتباط',
-    topbar_quality_title: 'الجودة',
-    topbar_disk_title_free: 'خالي',
-    topbar_disk_title_folder: 'الحجم',
-    settings_version_title: 'الإصدار',
-    desc_download_path: 'مجلد حفظ مقاطع الفيديو على جهاز الكمبيوتر الخاص بك.',
-    desc_lang: 'اختر لغة واجهة المستخدم ولغة عناوين الفيديو.',
-    opt_theme_dark: 'مظهر داكن',
-    opt_theme_light: 'مظهر فاتح',
-    desc_theme: 'يمكنك تغيير مظهر لون واجهة المستخدم من هنا.',
-    desc_port: 'منفذ التطبيق (يتطلب إعادة التشغيل).',
-    opt_quality_best: 'أعلى جودة (تلقائي)',
-    opt_quality_1080p: 'الحد الأقصى 1080p FHD',
-    opt_quality_720p: 'الحد الأقصى 720p HD',
-    desc_quality: 'الجودة الافتراضية التي سيتم استخدامها.',
-    opt_merge_single: 'ملف جاهز واحد (720p كحد أقصى، لا يتطلب ffmpeg)',
-    opt_merge_merge: 'دمج تلقائي (دقة عالية، يتطلب ffmpeg)',
-    opt_merge_separate: 'تنزيل الصوت والفيديو بشكل منفصل',
-    desc_merge_type: 'يتطلب FFmpeg لدمج الدقة العالية في ملف واحد.',
-    desc_speed_limit: 'حد السرعة (0 لغير محدود).',
-    desc_alt_speed_limit: 'حد السرعة البديل.',
-    cli_info_title: 'أوامر وحدة التحكم و CLI',
-    cli_info_desc: "يمكنك التحكم في حدود السرعة من خلال وحدة التحكم أو موجه الأوامر (يمكنك استخدام <code>HaYTooL YT Downloader.exe &lt;الأمر&gt;</code> أو <code>haytool &lt;الأمر&gt;</code> على نظام Windows):<br>• <b>تعيين السرعة:</b> <code>HaYTooL YT Downloader.exe speed &lt;القيمة&gt;</code><br>• <b>تشغيل/إيقاف الحد:</b> <code>HaYTooL YT Downloader.exe speed off / on</code><br>• <b>الحد البديل:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;القيمة&gt;</code><br>• <b>تشغيل/إيقاف الحد البديل (السلحفاة):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleoff</code><br>• <b>تبديل ملف التعريف البديل (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code><br>• <b>الاستعلام عن الحالة:</b> <code>HaYTooL YT Downloader.exe status</code>",
-    cli_info_note: "(أدخل الأوامر مباشرة في نافذة وحدة التحكم: speed ، toggle ، إلخ.)",
-    desc_channel_check_interval: 'وقت الانتظار لفحص القناة التالية.',
-    desc_rss_limit: 'عدد مقاطع الفيديو RSS التي يتم فحصها لكل قناة.',
-    desc_auto_delete: 'حذف تلقائي بعد أيام (0 للتعطيل).',
-    opt_browser_none: 'عدم استخدام ملفات تعريف الارتباط',
-    desc_browser: 'اختر المتصفح للوصول إلى الحساب المميز.',
-    settings_status_text: 'يتم حفظ التغييرات تلقائيًا على الفور.',
-    connection_connecting: 'الاتصال: جاري الاتصال...',
-    connection_active: 'الاتصال: نشط',
-    connection_lost: 'الاتصال: مقطوع',
-    label_history_limit: 'الحد لكل قناة',
-    desc_history_limit: 'الحد الأقصى لمقاطع الفيديو التي يتم سردها لكل قناة.',
-    opt_limit_10: '10 مقاطع فيديو',
-    opt_limit_20: '20 مقاطع فيديو (موصى به)',
-    opt_limit_50: '50 مقاطع فيديو',
-    opt_limit_100: '100 مقاطع فيديو',
-    opt_limit_200: '200 مقاطع فيديو',
-    label_data_management: 'إدارة البيانات والنسخ الاحتياطي',
-    desc_data_management: 'يمكنك تصدير قائمة قنواتك أو استعادتها من ملف نسخة احتياطية.',
-    btn_export_backup: 'تصدير النسخة الاحتياطية',
-    btn_import_backup: 'استيراد النسخة الاحتياطية',
-    opt_import_append: 'إضافة إلى الموجود (Append)',
-    opt_import_overwrite: 'الكتابة فوق الكل (Overwrite)',
-    lbl_quick_filter: 'تصفية سريعة:',
-    filter_all: 'الكل',
-    filter_today: 'اليوم',
-    filter_yesterday: 'أمس',
-    filter_last_2_days: 'آخر يومين',
-    filter_last_3_days: 'آخر 3 أيام',
-    filter_last_4_days: 'آخر 4 أيام',
-    filter_last_5_days: 'آخر 5 أيام',
-    label_subtitle_color: 'لون الترجمة',
-    desc_subtitle_color: 'اختر لون الترجمة في مشغلات الفيديو المدمجة.',
-    opt_sub_white: 'أبيض',
-    opt_sub_yellow: 'أصفر',
-    opt_sub_green: 'أخضر',
-    opt_sub_cyan: 'سماوي',
-    opt_sub_magenta: 'وردي',
-    opt_sub_red: 'أحمر',
-    opt_sub_blue: 'أزرق',
-    opt_sub_orange: 'برتقالي',
-    opt_sub_purple: 'أرجواني',
-    opt_sub_black: 'أسود',
-    opt_sub_gray: 'رمادي',
-    opt_sub_lightyellow: 'أصفر فاتح',
-    inline_btn_youtube: 'فتح في YouTube',
-    inline_btn_system: 'فتح في مشغل النظام',
-    inline_btn_folder: 'فتح المجلد',
-    inline_btn_comments: 'عرض التعليقات',
-    inline_btn_translate_sub: 'ترجمة إلى التركية',
-    opt_sub_opacity_0: 'شفاف (%0)',
-    opt_sub_opacity_10: 'شفافية (%10)',
-    opt_sub_opacity_20: 'شفافية (%20)',
-    opt_sub_opacity_30: 'شفافية (%30)',
-    opt_sub_opacity_40: 'شفافية (%40)',
-    opt_sub_opacity_50: 'شفافية (%50)',
-    opt_sub_opacity_60: 'شفافية (%60)',
-    opt_sub_opacity_70: 'شفافية (%70)',
-    opt_sub_opacity_80: 'شفافية (%80)',
-    opt_sub_opacity_90: 'شفافية (%90)',
-    opt_sub_opacity_95: 'شفافية (%95)',
-    opt_sub_opacity_100: 'معتم (%100)',
-    overlay_translating_title: 'ترجمة الترجمة المصاحبة...',
-    overlay_translating_desc: 'يرجى الانتظار، جاري ترجمة المسار سطرًا بسطر باستخدام واجهة برمجة التطبيقات...',
-    modal_translate_title: 'ترجمة الترجمة المصاحبة',
-    modal_translate_no_subs: 'لم يتم العثور على ترجمات مصاحبة تم تنزيلها لهذا الفيديو. تحتاج إلى مسار ترجمة مصاحبة واحد على الأقل تم تنزيله لترجمته.',
-    modal_translate_source: 'الترجمة المصاحبة المصدر',
-    modal_translate_target: 'اللغة الهدف',
-    btn_translate_action: 'ترجمة',
-    select_auto_download_title: 'حالة التنزيل التلقائي',
-    select_auto_download_true: 'تنزيل تلقائي',
-    select_auto_download_false: 'بدون تنزيل تلقائي',
-    sponsorblock_active: 'SponsorBlock نشط (انقر للتعطيل مؤقتًا)',
-    sponsorblock_disabled: 'SponsorBlock معطل (انقر للتفعيل)',
-    lbl_history_only_no_auto_download: 'تعطيل التنزيل التلقائي',
-    lbl_history_only_not_downloaded: 'غير المحملة فقط',
-    sponsorblock_active_toast: 'SponsorBlock نشط',
-    sponsorblock_active_toast_desc: 'سيتم تخطي الأقسام الممولة تلقائيًا',
-    sponsorblock_disabled_toast: 'SponsorBlock معطل',
-    sponsorblock_disabled_toast_desc: 'تم إيقاف تخطي الأقسام الممولة مؤقتًا',
-    label_discord_rpc: 'حالة ديسكورد',
-    desc_discord_rpc: 'عرض مقاطع الفيديو التي تمت مشاهدتها على ملفك الشخصي في ديسكورد'
-  },
-  ru: {
-    status_merging: 'Слияние (FFmpeg)...',
-    premium_automation: 'Премиум Автоматизация',
-    tab_library: 'Библиотека',
-    tab_downloaded: 'Загрузки',
-    tab_channels: 'Каналы',
-    tab_settings: 'Настройки',
-    cookie_yes: 'Куки: Да',
-    cookie_no: 'Куки: Нет',
-    cookie_status_active: 'Куки активны и действительны',
-    cookie_status_locked: 'Куки заблокированы или недействительны',
-    cookie_status_none: 'Куки отключены',
-    channels_title: 'Каналы',
-    channels_desc: 'Управление YouTube-каналами, видео с которых вы хотите скачивать автоматически.',
-    input_channel_placeholder: 'Введите ссылку на канал YouTube или имя пользователя (например, @BarisOzcan или youtube.com/@GezenAdam)',
-    btn_follow_channel: 'Подписаться на канал',
-    btn_update_all_logos: 'Обновить все логотипы',
-    empty_channels_title: 'Нет отслеживаемых каналов',
-    empty_channels_desc: 'Вы можете добавить каналы, введя ссылку на канал YouTube или имя пользователя в форму выше.',
-    select_quality_default: 'Качество по умолчанию',
-    select_quality_best: 'Максимальное',
-    select_quality_1080p: '1080p FHD',
-    select_quality_720p: '720p HD',
-    select_shorts_true: 'Скачивать Shorts',
-    select_shorts_false: 'Игнорировать Shorts',
-    channel_quality_title: 'Качество загрузки',
-    channel_shorts_title: 'Статус загрузки Shorts',
-    channel_shorts_limit_title: 'Лимит длительности Shorts',
-    channel_btn_sync_title: 'Проверить канал сейчас / Обновить RSS',
-    channel_btn_update_logo_title: 'Обновить логотип',
-    channel_btn_unfollow_title: 'Отписаться от канала',
-    shorts_limit_seconds: 'сек',
-    shorts_limit_minutes: 'мин',
-    inline_sub_color_title: 'Цвет субтитров',
-    inline_sub_opacity_title: 'Прозрачность субтитров',
-    inline_sub_size_title: 'Размер субтитров',
-    library_title: 'Библиотека и история',
-    library_desc: 'Отслеживайте очередь загрузки, текущий прогресс и полную историю в одном месте.',
-    btn_open_downloads: 'Открыть папку загрузок',
-    badge_active_download: 'Активная загрузка',
-    queue_empty_title: 'Очередь пуста',
-    queue_empty_desc: 'Активных загрузок нет. Новые видео будут загружаться автоматически при публикации.',
-    active_download_progress: 'Прогресс',
-    active_download_size: 'Размер',
-    active_download_eta: 'Осталось',
-    active_download_cancel: 'Отмена',
-    queue_title: 'Очередь загрузки',
-    queue_empty: 'Нет видео в очереди.',
-    library_history_title: 'Библиотека и история',
-    filter_all_channels: 'Все каналы',
-    show_shorts: 'Показывать Shorts',
-    view_grid: 'Плитка',
-    no_videos_filter: 'Нет видео, соответствующих фильтру.',
-    downloaded_title: 'Загрузки',
-    downloaded_desc: 'Список всех видео, успешно загруженных и готовых к офлайн-просмотру.',
-    settings_title: 'Системные настройки',
-    settings_desc: 'Настройте параметры автоматизации, качество загрузки, браузер куки и системные настройки.',
-    label_download_path: 'Путь к папке загрузок',
-    btn_select_folder: 'Выбрать папку',
-    btn_test_folder: 'Тестировать папку',
-    label_browser: 'Браузер для куки',
-    label_quality: 'Качество загрузки по умолчанию',
-    label_merge_type: 'Метод загрузки (FFmpeg / Структура файлов)',
-    label_interval: 'Интервал проверки каналов (секунды)',
-    label_auto_download: 'Автоматическая загрузка',
-    label_write_thumbnail: 'Обложка видео',
-    label_show_shorts: 'Shorts видео',
-    label_theme: 'Тема интерфейса',
-    label_auto_delete: 'Автоудаление видео (дней)',
-    label_rss_limit: 'Лимит проверки RSS (видео)',
-    label_settings_speed_limit: 'Максимальная скорость (КБ/с)',
-    label_port: 'Порт приложения',
-    label_play_sounds: 'Звуковые уведомления',
-    desc_play_sounds: 'Воспроизводить звуковые сигналы при событиях загрузки (старт, успех, ошибка)',
-    label_show_notifications: 'Системные уведомления',
-    desc_show_notifications: 'Показывать уведомления Windows при начале и завершении загрузок',
-    label_auto_open_browser: 'Автооткрытие браузера',
-    desc_auto_open_browser: 'Автоматически открывать страницу localhost в браузере при запуске приложения',
-    btn_search_channel: 'Искать канал',
-    btn_add_channel: 'Подписаться на канал',
-    desc_auto_download: 'Начинавать загрузку сразу при обнаружении новых видео',
-    desc_write_thumbnail: 'Скачивать обложки видео (миниатюры) вместе с ними',
-    desc_show_shorts: 'Показывать Shorts видео в списке библиотеки',
-    label_lang: 'Язык приложения',
-    label_settings_player_type: 'Тип встроенного плеера',
-    desc_settings_player_type: 'Выберите стиль интерфейса встроенного видеоплеера.',
-    opt_player_plyr: 'Плеер Plyr (Модернизированный)',
-    opt_player_artplayer: 'ArtPlayer (Продвинутый и стильный)',
-    opt_player_html5: 'Стандартный HTML5 плеер (Быстрый и простой - визуальные полосы SponsorBlock не поддерживаются)',
-    label_sponsorblock: 'SponsorBlock (Плеер)',
-    desc_sponsorblock: 'Автоматически пропускать спонсорские сегменты и самопиар во время воспроизведения.',
-    cookie_warning_title: 'Важное предупреждение о блокировке куки:',
-    cookie_warning_desc: 'Пожалуйста, убедитесь, что полностью ЗАКРЫЛИ выбранный браузер (Chrome, Edge и др.) перед загрузкой. В противном случае браузер блокирует базу данных куки (SQLite), что приводит к ошибкам загрузки.',
-    btn_save_settings: 'Сохранить настройки',
-    modal_delete_title: 'Удалить видео из истории',
-    modal_delete_desc: 'Вы уверены, что хотите удалить это видео из истории загрузок?',
-    modal_delete_file_checkbox: 'Также безвозвратно удалить загруженный файл видео с компьютера',
-    modal_delete_btn: 'Удалить',
-    modal_cancel_btn: 'Отмена',
-    modal_player_title: 'Встроенный видеоплеер',
-    tab_queue: 'Очередь',
-    tab_queue_title: 'Очередь загрузки и управление',
-    tab_queue_desc: 'Следите за активными загрузками, перетаскивайте видео в очереди для изменения приоритета.',
-    btn_pause_queue: 'Приостановить очередь',
-    btn_resume_queue: 'Возобновить очередь',
-    label_queue_speed_limit: 'Лимит скорости:',
-    btn_speed_limit_set: 'Установить лимит',
-    active_progress: 'Прогресс',
-    active_size: 'Размер',
-    active_eta: 'Осталось',
-    queue_empty_title: 'Очередь свободна',
-    queue_empty_desc: 'Активных загрузок нет. Загрузка начнется автоматически при появлении новых видео.',
-    queue_list_title: 'Видео в очереди',
-    drag_drop_hint: 'Перетаскивайте элементы для изменения порядка очереди',
-    queue_list_empty: 'В очереди нет видео.',
-    settings_desc: 'Настройте автоматизацию, браузер куки и папку загрузок.',
-    settings_tab_general: 'Основные настройки',
-    settings_tab_download: 'Загрузка и качество',
-    settings_tab_automation: 'Автоматизация и RSS',
-    settings_tab_notifications: 'Куки и уведомления',
-    settings_tab_feedback: 'Отправить отзыв',
-    sort_btn_date_desc: 'Дата ▼',
-    sort_btn_date_asc: 'Дата ▲',
-    sort_btn_size_desc: 'Размер ▼',
-    sort_btn_size_asc: 'Размер ▲',
-    topbar_cookie_title: 'Куки',
-    topbar_quality_title: 'Качество',
-    topbar_disk_title_free: 'Свободно',
-    topbar_disk_title_folder: 'Размер',
-    settings_version_title: 'Версия',
-    desc_download_path: 'Путь к директории на вашем компьютере, где будут сохраняться видео.',
-    desc_lang: 'Выберите язык интерфейса и язык для названий видео.',
-    opt_theme_dark: 'Темная тема',
-    opt_theme_light: 'Светлая тема',
-    desc_theme: 'Здесь вы можете изменить цветовую тему интерфейса.',
-    desc_port: 'Номер порта приложения (Требуется перезапуск).',
-    opt_quality_best: 'Максимальное качество (Автоматически)',
-    opt_quality_1080p: 'Максимум 1080p Full HD',
-    opt_quality_720p: 'Максимум 720p HD',
-    desc_quality: 'Это качество будет использоваться по умолчанию, если не заданы настройки для конкретного канала.',
-    opt_merge_single: 'Один готовый файл (Макс 720p, ffmpeg не требуется)',
-    opt_merge_merge: 'Автослияние (Высокое разрешение, требуется ffmpeg)',
-    opt_merge_separate: 'Скачивать аудио и видео отдельно (ffmpeg не требуется)',
-    desc_merge_type: 'FFmpeg требуется для объединения видео и аудио высокого качества в один файл.',
-    desc_speed_limit: 'Введите значение для ограничения скорости (0 для безлимитного).',
-    desc_alt_speed_limit: 'Лимит скорости при активном альтернативном профиле (по умолчанию 500).',
-    cli_info_title: 'Команды CLI и консоли скорости',
-    cli_info_desc: "Вы можете управлять лимитами скорости из консоли или терминала (используйте &lt;code&gt;HaYTooL YT Downloader.exe &amp;lt;команда&amp;gt;&lt;/code&gt; или &lt;code&gt;haytool &amp;lt;команда&amp;gt;&lt;/code&gt; в Windows):&lt;br&gt;• &lt;b&gt;Установить лимит:&lt;/b&gt; &lt;code&gt;HaYTooL YT Downloader.exe speed &amp;lt;значение&amp;gt;&lt;/code&gt; (например, &lt;code&gt;HaYTooL YT Downloader.exe speed 2500&lt;/code&gt;)&lt;br&gt;• &lt;b&gt;Вкл/Выкл лимит:&lt;/b&gt; &lt;code&gt;HaYTooL YT Downloader.exe speed off&lt;/code&gt; (отключить) / &lt;code&gt;HaYTooL YT Downloader.exe speed on&lt;/code&gt; (восстановить последнее значение)&lt;br&gt;• &lt;b&gt;Установить альт. лимит:&lt;/b&gt; &lt;code&gt;HaYTooL YT Downloader.exe altspeed &amp;lt;значение&amp;gt;&lt;/code&gt; (например, &lt;code&gt;HaYTooL YT Downloader.exe altspeed 500&lt;/code&gt;)&lt;br&gt;• &lt;b&gt;Принудительно включить альт. скорость (Черепаха):&lt;/b&gt; &lt;code&gt;HaYTooL YT Downloader.exe turtleon&lt;/code&gt; (включить) / &lt;code&gt;HaYTooL YT Downloader.exe turtleoff&lt;/code&gt; (выключить)&lt;br&gt;• &lt;b&gt;Переключить альт. скорость:&lt;/b&gt; &lt;code&gt;HaYTooL YT Downloader.exe toggle&lt;/code&gt; или &lt;code&gt;HaYTooL YT Downloader.exe altspeed toggle&lt;/code&gt;&lt;br&gt;• &lt;b&gt;Запрос статуса:&lt;/b&gt; &lt;code&gt;HaYTooL YT Downloader.exe status&lt;/code&gt; (выводит состояние лимитов)",
-    cli_info_note: "(В окне Tray 'Показать вывод консоли' вводите команду напрямую без 'HaYTooL YT Downloader.exe' или 'node': 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' и т. д.)",
-    desc_channel_check_interval: 'Время ожидания перед проверкой следующего канала.',
-    desc_rss_limit: 'Сколько последних видео из RSS-ленты должно проверяться для каждого канала?',
-    desc_auto_delete: 'Через сколько дней видео должно удаляться автоматически? (0 для отключения)',
-    opt_browser_none: 'Не использовать куки (Только публичные видео)',
-    desc_browser: 'Выберите браузер, в котором выполнен вход в ваш аккаунт YouTube Premium. Это активирует высокую скорость скачивания Premium и высокое качество.',
-    settings_status_text: 'Изменения автоматически сохраняются мгновенно.',
-    connection_connecting: 'Подключение: Соединение...',
-    connection_active: 'Подключение: Соединено',
-    connection_lost: 'Подключение: Разорвано',
-    label_history_limit: 'Лимит истории на канал',
-    desc_history_limit: 'Максимальный лимит видео для отображения в библиотеке на канал (Улучшает производительность интерфейса).',
-    opt_limit_10: '10 видео',
-    opt_limit_20: '20 видео (Рекомендуется)',
-    opt_limit_50: '50 видео',
-    opt_limit_100: '100 видео',
-    opt_limit_200: '200 видео',
-    label_data_management: 'Управление данными и бэкапом',
-    desc_data_management: 'Вы можете сделать бэкап списка подписок или восстановить его из файла резервной копии.',
-    btn_export_backup: 'Экспорт бэкапа',
-    btn_import_backup: 'Импорт бэкапа',
-    opt_import_append: 'Добавить к существующим (Append)',
-    opt_import_overwrite: 'Перезаписать полностью (Overwrite)',
-    lbl_quick_filter: 'Быстрый фильтр:',
-    filter_all: 'Все',
-    filter_today: 'Сегодня',
-    filter_yesterday: 'Вчера',
-    filter_last_2_days: 'За последние 2 дня',
-    filter_last_3_days: 'За последние 3 дня',
-    filter_last_4_days: 'За последние 4 дня',
-    filter_last_5_days: 'За последние 5 дней',
-    label_subtitle_color: 'Цвет субтитров',
-    desc_subtitle_color: 'Выберите цвет субтитров во встроенных видеоплеерах.',
-    opt_sub_white: 'Белый',
-    opt_sub_yellow: 'Желтый',
-    opt_sub_green: 'Зеленый',
-    opt_sub_cyan: 'Голубой',
-    opt_sub_magenta: 'Розовый',
-    opt_sub_red: 'Красный',
-    opt_sub_blue: 'Синий',
-    opt_sub_orange: 'Оранжевый',
-    opt_sub_purple: 'Фиолетовый',
-    opt_sub_black: 'Черный',
-    opt_sub_gray: 'Серый',
-    opt_sub_lightyellow: 'Светло-желтый',
-    inline_btn_youtube: 'Открыть на YouTube',
-    inline_btn_system: 'Открыть в системном плеере',
-    inline_btn_folder: 'Открыть папку',
-    inline_btn_comments: 'Показать комментарии',
-    inline_btn_translate_sub: 'Перевести на турецкий',
-    opt_sub_opacity_0: 'Прозрачный (%0)',
-    opt_sub_opacity_10: 'Прозрачность (%10)',
-    opt_sub_opacity_20: 'Прозрачность (%20)',
-    opt_sub_opacity_30: 'Прозрачность (%30)',
-    opt_sub_opacity_40: 'Прозрачность (%40)',
-    opt_sub_opacity_50: 'Прозрачность (%50)',
-    opt_sub_opacity_60: 'Прозрачность (%60)',
-    opt_sub_opacity_70: 'Прозрачность (%70)',
-    opt_sub_opacity_80: 'Прозрачность (%80)',
-    opt_sub_opacity_90: 'Прозрачность (%90)',
-    opt_sub_opacity_95: 'Прозрачность (%95)',
-    opt_sub_opacity_100: 'Непрозрачный (%100)',
-    overlay_translating_title: 'Перевод субтитров...',
-    overlay_translating_desc: 'Пожалуйста, подождите, идет перевод дорожки строка за строкой через API...',
-    modal_translate_title: 'Перевод субтитров',
-    modal_translate_no_subs: 'Для этого видео не найдено скачанных субтитров. Для перевода вам нужна как минимум одна скачанная дорожка субтитров.',
-    modal_translate_source: 'Исходные субтитры',
-    modal_translate_target: 'Целевой язык',
-    btn_translate_action: 'Перевести',
-    select_auto_download_title: 'Статус автоскачивания',
-    select_auto_download_true: 'Автоскачивание',
-    select_auto_download_false: 'Без автоскачивания',
-    sponsorblock_active: 'SponsorBlock Активен (Нажмите для временного отключения)',
-    sponsorblock_disabled: 'SponsorBlock Отключен (Нажмите для включения)',
-    lbl_history_only_no_auto_download: 'Только без автозагрузки',
-    lbl_history_only_not_downloaded: 'Только не скачанные',
-    sponsorblock_active_toast: 'SponsorBlock Активен',
-    sponsorblock_active_toast_desc: 'Спонсорские сегменты будут автоматически пропущены',
-    sponsorblock_disabled_toast: 'SponsorBlock Отключен',
-    sponsorblock_disabled_toast_desc: 'Пропуск спонсорских сегментов временно приостановлен',
-    label_discord_rpc: 'Статус Discord',
-    desc_discord_rpc: 'Показывать просмотренные видео в профиле Discord'
-  }
-};
+;
 
 // Türkçe Açıklama: Seçilen dil paketine (TR veya EN) göre sayfadaki tüm metin etiketlerini ve açıklamaları dinamik olarak günceller.
 /**
@@ -1716,6 +99,7 @@ function applyLanguage(lang) {
   elQuery('#add-channel-btn span', 'btn_follow_channel');
   // Türkçe Açıklama: Toplu güncelleme butonu dil etiketine bağlandı.
   elQuery('#btn-update-all-logos-text', 'btn_update_all_logos');
+  elQuery('#btn-update-all-subs-text', 'btn_update_all_subscribers');
 
   // İndirme Sırası Sekmesi
   elQuery('#tab-queue-title', 'tab_queue_title');
@@ -1734,6 +118,7 @@ function applyLanguage(lang) {
   elQuery('#queue-list-title', 'queue_list_title');
   elQuery('#drag-drop-hint', 'drag_drop_hint');
   elQuery('#queue-list-empty', 'queue_list_empty');
+  elQuery('#queue-completed-title', 'queue_completed_title');
 
   // Kütüphane Sekmesi
   elQuery('label[for="history-show-shorts"] + span', 'show_shorts');
@@ -2025,6 +410,47 @@ function applyLanguage(lang) {
   document.querySelectorAll('.lbl-select-channel').forEach(item => {
     if (t.lbl_select_channel) item.textContent = t.lbl_select_channel;
   });
+
+  // Tools ve Downloader i18n Güncellemeleri
+  el('nav-tools-text', 'nav_tools_text');
+  el('nav-hdown-pd-text', 'nav_hdown_pd');
+  el('nav-hdown-downloader-text', 'nav_hdown_downloader');
+  el('nav-tools-compare-text', 'compare_title');
+
+  el('downloader-header-title', 'downloader_title');
+  el('downloader-header-desc', 'downloader_desc');
+  el('downloader-format-label', 'downloader_format_label');
+  el('downloader-bitrate-label-text', 'downloader_bitrate_label');
+  el('downloader-info-text', 'downloader_no_channel_folder');
+  el('downloader-start-btn-text', 'downloader_start_btn');
+  el('downloader-playlist-title-text', 'downloader_playlist_title');
+  el('downloader-download-all-text', 'downloader_download_all');
+
+  const urlInput = document.getElementById('downloader-url-input');
+  if (urlInput && t.downloader_url_placeholder) {
+    urlInput.placeholder = t.downloader_url_placeholder;
+  }
+
+  // Format seçeneklerinin metinlerini güncelle
+  const formatSelect = document.getElementById('downloader-format-select');
+  if (formatSelect && formatSelect.options.length >= 8) {
+    formatSelect.options[0].text = t.downloader_format_video_best || 'En İyi Kalite (Best)';
+    formatSelect.options[1].text = t.downloader_format_video_1080p || '1080p FHD';
+    formatSelect.options[2].text = t.downloader_format_video_720p || '720p HD';
+    formatSelect.options[3].text = t.downloader_format_video_480p || '480p';
+    formatSelect.options[4].text = t.downloader_format_video_360p || '360p';
+    formatSelect.options[5].text = t.downloader_format_video_240p || '240p';
+    formatSelect.options[6].text = t.downloader_format_video_144p || '144p';
+    formatSelect.options[7].text = t.downloader_format_audio_mp3 || 'MP3';
+  }
+
+  // Bitrate seçeneklerinin metinlerini güncelle
+  const bitrateSelect = document.getElementById('downloader-bitrate-select');
+  if (bitrateSelect && bitrateSelect.options.length >= 3) {
+    bitrateSelect.options[0].text = t.downloader_bitrate_320 || '320 kbps (En Yüksek)';
+    bitrateSelect.options[1].text = t.downloader_bitrate_192 || '192 kbps (Önerilen)';
+    bitrateSelect.options[2].text = t.downloader_bitrate_128 || '128 kbps';
+  }
 }
 
 function switchTab(targetTab, triggerPushState = true) {
@@ -2210,6 +636,7 @@ let historyFilterChannel = 'all'; // all veya kanalId
 let historyFilterDays = 'all'; // all, 0, 1, 2, 3, 4, 5
 let historyOnlyNoAutoDownload = false;
 let historyOnlyNotDownloaded = false;
+let historyShowHidden = false;
 let downloadedViewMode = 'grid'; // grid veya list
 let downloadedFilterChannel = 'all'; // all veya kanalId
 
@@ -2243,44 +670,6 @@ const openFolderBtn = document.getElementById('open-folder-btn');
 const selectFolderBtn = document.getElementById('select-folder-btn');
 const testFolderBtn = document.getElementById('test-folder-btn');
 
-/**
- * Ekranda anlık bildirim (toast) mesajı gösterir.
- * 
- * @param {string} message Gösterilecek mesaj metni
- * @param {string} type Bildirim tipi ('info', 'success', 'error')
- */
-function showToast(message, type = 'info', thumbnail = null) {
-  const container = document.getElementById('toast-container');
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}${thumbnail ? ' toast-has-thumbnail' : ''}`;
-  
-  let iconName = 'info';
-  if (type === 'success') iconName = 'check-circle';
-  if (type === 'error') iconName = 'alert-triangle';
-
-  let thumbnailHtml = '';
-  if (thumbnail) {
-    thumbnailHtml = `<img src="${thumbnail}" class="toast-thumbnail" alt="thumbnail">`;
-  }
-
-  toast.innerHTML = `
-    ${thumbnailHtml}
-    <div class="toast-icon">
-      <i data-lucide="${iconName}"></i>
-    </div>
-    <div class="toast-message">${message}</div>
-  `;
-  
-  container.appendChild(toast);
-  lucide.createIcons(); // Yeni ikonu işle
-
-  // 4 saniye sonra bildirimi kaldır
-  setTimeout(() => {
-    toast.style.animation = 'slideIn 0.3s reverse forwards';
-    setTimeout(() => toast.remove(), 300);
-  }, 4000);
-}
-
 // Türkçe Açıklama: SPA yönlendirmeleri için sekmeler arası gezinme ve HTML5 History API entegrasyonu.
 const tabPathMap = {
   history: '/home',
@@ -2288,7 +677,9 @@ const tabPathMap = {
   downloaded: '/downlist',
   channels: '/channels',
   settings: '/settings',
-  iptv: '/iptv'
+  iptv: '/iptv',
+  tools: '/tools',
+  downloader: '/downloader'
 };
 
 const pathTabMap = {
@@ -2297,7 +688,9 @@ const pathTabMap = {
   '/downlist': 'downloaded',
   '/channels': 'channels',
   '/settings': 'settings',
-  '/iptv': 'iptv'
+  '/iptv': 'iptv',
+  '/tools': 'tools',
+  '/downloader': 'downloader'
 };
 
 // Türkçe Açıklama: Aktif oynatıcı tipine (ArtPlayer, Plyr, HTML5) göre oynatım saniyesini ve paused durumunu alır.
@@ -2337,6 +730,15 @@ function getCurrentPlaybackState() {
  * @param {string} targetTab Hedef sekme adı
  */
 function performTabSwitchUI(targetTab) {
+  const toolsDropdown = document.getElementById('tools-dropdown');
+  if (toolsDropdown) {
+    if (targetTab === 'downloader' || targetTab === 'tools') {
+      toolsDropdown.classList.add('active');
+    } else {
+      toolsDropdown.classList.remove('active');
+    }
+  }
+
   navItems.forEach(n => {
     if (n.getAttribute('data-tab') === targetTab) {
       n.classList.add('active');
@@ -2411,6 +813,12 @@ function connectSSE() {
   eventSource.addEventListener('progress', (e) => {
     const data = JSON.parse(e.data);
     updateActiveDownloadProgress(data);
+  });
+
+  // Kanal Tarama İlerleme Bildirimi
+  eventSource.addEventListener('channel_scan_progress', (e) => {
+    const data = JSON.parse(e.data);
+    updateScanProgressToast(data);
   });
 
   // Sistem Log Bildirimi (Toast ve Masaüstü Bildirimi)
@@ -2561,264 +969,6 @@ function updateActiveDownloadProgress(data) {
   activeSpeed.textContent = data.speed || '0 KB/s';
 }
 
-// Türkçe Açıklama: ISO formatındaki tarih dizgelerini Türkiye saat dilimi ve formatına uygun şekilde (GG.AA.YYYY SS:DK) biçimlendirir.
-/**
- * ISO tarih dizgesini Türkçe yerel tarih ve saat formatına çevirir (GG.AA.YYYY SS:DK).
- * 
- * @param {string} isoString ISO tarih dizgesi
- * @returns {string} Biçimlendirilmiş tarih metni
- */
-function formatDate(isoString) {
-  if (!isoString) return '--';
-  const date = new Date(isoString);
-  return date.toLocaleString('tr-TR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
-
-/**
- * Verilen ISO tarih dizgesine göre bugünden geriye kaç gün geçtiğini hesaplar ve Türkçe/İngilizce metin döner.
- * 
- * @param {string} dateStr ISO tarih dizgesi
- * @param {boolean} isEn İngilizce dil desteği aktif mi
- * @returns {string} Kaç gün geçtiğini belirten metin
- */
-function getDaysAgoText(dateStr, isEn = false) {
-  if (!dateStr || dateStr === '-') return '';
-  try {
-    const pubDate = new Date(dateStr);
-    const now = new Date();
-    
-    // Saat, dakika, saniyeleri sıfırlayarak sadece gün farkını al
-    const pubZero = new Date(pubDate.getFullYear(), pubDate.getMonth(), pubDate.getDate());
-    const nowZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    const diffMs = nowZero - pubZero;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffDays <= 0) {
-      return isEn ? 'Today' : 'Bugün';
-    } else if (diffDays === 1) {
-      return isEn ? 'Yest.' : 'Dün';
-    } else {
-      return isEn ? `${diffDays}d` : `${diffDays}g`;
-    }
-  } catch (e) {
-    return '';
-  }
-}
-
-// Türkçe Açıklama: Dosya boyutu metnini (Örn: 15.4 MB, 1.2 GB) karşılaştırma yapabilmek için sayısal byte değerine çevirir.
-/**
- * Dosya boyutu dizgesini byte cinsinden sayısal değere çevirir.
- * 
- * @param {string} sizeStr Dosya boyutu dizgesi (Örn: "15.4 MB")
- * @returns {number} Byte cinsinden sayısal değer
- */
-function parseSizeToBytes(sizeStr) {
-  if (!sizeStr || sizeStr === '--' || sizeStr === '-- MB') return 0;
-  const cleanStr = sizeStr.replace(/[^0-9.,a-zA-Z]/g, '').trim();
-  const match = cleanStr.match(/^([0-9.,]+)\s*([a-zA-Z]+)$/i) || cleanStr.match(/^([0-9.,]+)$/);
-  if (!match) return 0;
-  const numStr = match[1].replace(',', '.');
-  const val = parseFloat(numStr);
-  if (isNaN(val)) return 0;
-  const unit = (match[2] || '').toUpperCase();
-  if (unit.includes('G')) return val * 1024 * 1024 * 1024;
-  if (unit.includes('M')) return val * 1024 * 1024;
-  if (unit.includes('K')) return val * 1024;
-  return val;
-}
-
-// Türkçe Açıklama: Arayüzdeki kütüphane veya indirilenler listesindeki video kartlarını grid (ızgara) ya da liste görünümünde dinamik olarak çizer.
-/**
- * Video listesini belirtilen grid elementi içerisine kart veya liste düzeninde çizer.
- * 
- * @param {HTMLElement} gridElement Hedef DOM elemanı
- * @param {Array<object>} videosList Çizilecek videoların dizisi
- * @param {string} viewMode Görünüm modu ('grid' veya 'list')
- */
-function renderVideoGrid(gridElement, videosList, viewMode) {
-  if (!gridElement) return;
-  gridElement.innerHTML = '';
-  
-  if (viewMode === 'list') {
-    gridElement.classList.add('compact-list');
-  } else {
-    gridElement.classList.remove('compact-list');
-  }
-
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-
-  if (videosList.length === 0) {
-    gridElement.innerHTML = `
-      <div class="card text-center" style="grid-column: 1 / -1; padding: 40px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px;">
-        <p class="text-muted">${isEn ? 'No video records match the filter.' : 'Filtreye uygun video kaydı bulunmuyor.'}</p>
-      </div>
-    `;
-    return;
-  }
-
-  videosList.forEach(item => {
-    const isShort = isShortVideo(item.duration, item.title, item.channelId);
-    const card = document.createElement('div');
-    card.className = 'video-card' + (isShort ? ' is-short' : '');
-    card.setAttribute('data-id', item.id);
-    if (typeof downloadedSortVal !== 'undefined' && downloadedSortVal === 'user' && gridElement === downloadedGrid) {
-      card.setAttribute('draggable', 'true');
-    }
-    
-    let statusHtml = '';
-    let actionsHtml = '';
-
-    const isMissing = item.fileMissing === true;
-    const isCompleted = item.status === 'completed';
-    const canPlayEmbedded = isCompleted && !isMissing;
-
-    const clickAction = `playVideoEmbedded('${item.id}')`;
-    const clickTitle = isEn ? 'Play video' : 'Videoyu Gömülü Oynatıcıda Aç';
-
-    if (item.status === 'completed') {
-      if (isMissing) {
-        statusHtml = `<span class="status-dot-warning" title="${isEn ? 'File not found on disk!' : 'Dosya disk üzerinde bulunamadı!'}"></span>`;
-        actionsHtml = `
-          <button class="btn-icon" onclick="openYouTube('${item.id}')" title="${isEn ? 'Open on YouTube' : 'YouTube\'da Aç'}">
-            ${youtubeSvgIcon}
-          </button>
-          <button class="btn-icon btn-icon-primary" disabled title="${isEn ? 'File missing on disk' : 'Dosya diskte mevcut değil'}" style="opacity:0.4; cursor:not-allowed;">
-            <i data-lucide="tv"></i>
-          </button>
-          <button class="btn-icon" disabled title="${isEn ? 'File missing on disk' : 'Dosya diskte mevcut değil'}" style="opacity:0.4; cursor:not-allowed;">
-            <i data-lucide="folder-open"></i>
-          </button>
-        `;
-      } else {
-        statusHtml = `<span class="status-dot-completed" title="${isEn ? 'Downloaded' : 'İndirildi'}"></span>`;
-        actionsHtml = `
-          <button class="btn-icon" onclick="openYouTube('${item.id}')" title="${isEn ? 'Open on YouTube' : 'YouTube\'da Aç'}">
-            ${youtubeSvgIcon}
-          </button>
-          <button class="btn-icon btn-icon-primary" onclick="playVideoSystem('${item.id}')" title="${isEn ? 'Open in System Player' : 'Sistem Oynatıcısında Aç'}">
-            <i data-lucide="tv"></i>
-          </button>
-          <button class="btn-icon" onclick="openFolder(decodeURIComponent('${encodeURIComponent(item.channelName)}'))" title="${isEn ? 'Open Channel Folder' : 'Kanal Klasörünü Aç'}">
-            <i data-lucide="folder-open"></i>
-          </button>
-        `;
-      }
-    } else if (item.status === 'downloading') {
-      statusHtml = `<span class="status-pill downloading"><i data-lucide="loader" class="pulse-animation" style="width:12px;height:12px;margin-right:4px;"></i> ${isEn ? 'Downloading' : 'İndiriliyor'} (${item.progress}%)</span>`;
-      actionsHtml = `
-        <button class="btn-icon" onclick="cancelDownload('${item.id}')" title="${isEn ? 'Cancel Download' : 'İndirmeyi İptal Et'}" style="color: var(--accent-red); background: rgba(255, 0, 85, 0.05); border: 1px solid rgba(255, 0, 85, 0.15);">
-          <i data-lucide="square"></i>
-        </button>
-        <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç">
-          ${youtubeSvgIcon}
-        </button>
-      `;
-    } else if (item.status === 'waiting') {
-      statusHtml = `<span class="status-pill waiting"><i data-lucide="clock" style="width:12px;height:12px;margin-right:4px;"></i> ${isEn ? 'In Queue' : 'Kuyrukta'}</span>`;
-      actionsHtml = `
-        <button class="btn-icon" onclick="cancelQueuedVideo('${item.id}')" title="${isEn ? 'Cancel' : 'İptal Et'}" style="color: var(--accent-red); background: rgba(255, 0, 85, 0.05); border: 1px solid rgba(255, 0, 85, 0.15);">
-          <i data-lucide="square"></i>
-        </button>
-        <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç">
-          ${youtubeSvgIcon}
-        </button>
-      `;
-    } else if (item.status === 'failed') {
-      statusHtml = `<span class="status-pill failed" title="${item.error || ''}"><i data-lucide="alert-circle" style="width:12px;height:12px;margin-right:4px;"></i> ${isEn ? 'Error' : 'Hata'}</span>`;
-      actionsHtml = `
-        <button class="btn-icon" onclick="downloadVideoManual('${item.id}')" title="${isEn ? 'Retry Download' : 'Yeniden İndirmeyi Dene'}">
-          <i data-lucide="rotate-ccw"></i>
-        </button>
-        <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç">
-          ${youtubeSvgIcon}
-        </button>
-      `;
-    } else if (item.status === 'ignored') {
-      statusHtml = `<span class="status-dot-warning" style="background-color: var(--accent-red); box-shadow: 0 0 8px rgba(255, 0, 85, 0.8);" title="${isEn ? 'Ignored' : 'Göz Ardı Edildi'}"></span>`;
-      actionsHtml = `
-        <button class="btn-icon" onclick="downloadVideoManual('${item.id}')" title="${isEn ? 'Download Now' : 'Videoyu Şimdi İndir'}">
-          <i data-lucide="download"></i>
-        </button>
-        <button class="btn-icon" onclick="openYouTube('${item.id}')" title="YouTube'da Aç">
-          ${youtubeSvgIcon}
-        </button>
-      `;
-    }
-
-    if (item.status === 'completed') {
-      actionsHtml += `
-        <button class="btn-icon video-action-delete" onclick="showDeleteModal('${item.id}')" title="${isEn ? 'Delete from History/Disk' : 'Geçmişten/Diskten Sil'}">
-          <i data-lucide="trash-2"></i>
-        </button>
-      `;
-    }
-
-    let durationText = item.duration || '';
-    if (durationText === 'upcoming') {
-      durationText = isEn ? 'Upcoming' : 'Yakında';
-    } else if (durationText === 'live') {
-      durationText = isEn ? 'Live' : 'Canlı';
-    }
-
-    const durationBadgeHtml = durationText 
-      ? `<div class="video-duration-badge">${durationText}</div>` 
-      : '';
-
-    const shortsBadgeHtml = isShort 
-      ? `<div class="video-shorts-badge"><i data-lucide="zap" style="width:10px;height:10px;margin-right:2px;"></i> Shorts</div>` 
-      : '';
-
-    const shortsTagHtml = isShort 
-      ? `<span class="video-card-shorts-tag"><i data-lucide="zap" style="width:10px;height:10px;margin-right:2px;"></i> Shorts</span>` 
-      : '';
-
-    card.innerHTML = `
-      <div class="video-thumbnail-wrapper" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}">
-        <img class="video-thumbnail" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
-        ${durationBadgeHtml}
-        ${shortsBadgeHtml}
-      </div>
-      <div class="video-card-content">
-        <h3 class="video-card-title" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}: ${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-          <span class="video-card-duration-text">${durationText || (isEn ? 'Duration Not Specified' : 'Süre Belirtilmedi')}</span>
-          ${shortsTagHtml}
-        </div>
-        <div class="video-card-metadata">
-          <span class="video-card-channel">
-            ${item.channelId 
-              ? `<img src="/api/channels/${item.channelId}/avatar" class="video-card-channel-avatar" onerror="this.style.display='none';" />` 
-              : ''}
-            ${escapeHtml(item.channelName)}
-          </span>
-          <span>${isEn ? 'Date' : 'Tarih'}: ${formatDate(item.publishedAt || item.downloadedAt)}</span>
-          ${item.status === 'completed' ? `<span>${isEn ? 'Size' : 'Boyut'}: ${item.fileSize || '-- MB'}</span>` : ''}
-        </div>
-        <div class="video-card-bottom">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            ${statusHtml}
-            <span class="video-card-age-text" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: inline-block;">
-              ${getDaysAgoText(item.publishedAt || item.downloadedAt, isEn)}
-            </span>
-          </div>
-          <div class="video-card-actions">
-            ${actionsHtml}
-          </div>
-        </div>
-      </div>
-    `;
-    gridElement.appendChild(card);
-  });
-  
-  lucide.createIcons();
-}
 
 // Türkçe Açıklama: Sunucudan veya SSE bağlantısından gelen güncel veritabanı verilerine göre tüm ekran kartlarını, istatistikleri ve listeleri günceller.
 /**
@@ -3007,117 +1157,71 @@ function updateUI(db) {
         });
       }
     }
+
+    // 4.2. Son İndirilen Videolar (Son 20)
+    const queueCompletedList = document.getElementById('queue-completed-list');
+    if (queueCompletedList && db.history) {
+      queueCompletedList.innerHTML = '';
+      const isEn = db.settings && db.settings.lang === 'en';
+      const t = translations[lang] || translations.tr;
+      
+      const completedVideos = db.history
+        .filter(h => h.status === 'completed' && h.manualDownloader !== true)
+        .sort((a, b) => new Date(b.downloadedAt || 0).getTime() - new Date(a.downloadedAt || 0).getTime())
+        .slice(0, 20);
+
+      if (completedVideos.length === 0) {
+        queueCompletedList.innerHTML = `
+          <div class="text-center text-muted" id="queue-completed-list-empty" style="padding: 30px 0; font-size: 0.85rem;">
+            ${t.queue_completed_empty || (isEn ? 'No completed downloads yet.' : 'Henüz tamamlanan indirme yok.')}
+          </div>
+        `;
+      } else {
+        completedVideos.forEach(video => {
+          const item = document.createElement('div');
+          item.className = 'queue-item queue-item-completed';
+          item.setAttribute('draggable', 'false');
+          item.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+          item.style.background = 'rgba(16, 185, 129, 0.02)';
+          item.innerHTML = `
+            <div class="queue-item-status-icon" style="display: flex; align-items: center; justify-content: center; padding-right: 12px; color: #10b981;" title="${isEn ? 'Downloaded' : 'İndirildi'}">
+              <i data-lucide="check-circle" style="width:16px; height:16px; color: #10b981;"></i>
+            </div>
+            <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="queue-item-thumbnail" onerror="this.src='logo.png'">
+            <div class="queue-item-info" style="flex:1;">
+              <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main);">${escapeHtml(video.title)}</div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                <span class="queue-item-channel" style="font-size:0.7rem; display: flex; align-items: center; gap: 2px;">
+                  <i data-lucide="tv" style="width: 10px; height: 10px;"></i>
+                  ${escapeHtml(video.channelName)}
+                </span>
+                <span class="queue-item-size" style="font-size:0.7rem; color:var(--text-muted);">
+                  ${video.fileSize || ''}
+                </span>
+              </div>
+            </div>
+            <div class="queue-item-actions">
+              <button class="btn-cancel-queue" onclick="playVideoEmbedded('${video.id}')" title="${isEn ? 'Play' : 'Oynat'}" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #10b981; display: flex; align-items: center; gap: 4px;">
+                <i data-lucide="play" style="width: 10px; height: 10px;"></i>
+                <span>${isEn ? 'Play' : 'Oynat'}</span>
+              </button>
+            </div>
+          `;
+          queueCompletedList.appendChild(item);
+        });
+        
+        try {
+          if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+          }
+        } catch (e) {}
+      }
+    }
   }
 
   // 5. Kanallar Listesi (Alfabetik Sıralı)
   if (channelsList && db.channels) {
-    channelsList.innerHTML = '';
-    if (db.channels.length === 0) {
-      channelsList.innerHTML = `
-        <div class="channels-empty-state">
-          <div class="channels-empty-icon">
-            <i data-lucide="tv-2"></i>
-          </div>
-          <h3>${t.empty_channels_title || 'Henüz takip edilen kanal yok'}</h3>
-          <p>${t.empty_channels_desc || 'Yukarıdaki formdan YouTube kanal linki veya kullanıcı adı girerek kanal ekleyebilirsiniz.'}</p>
-        </div>
-      `;
-    } else {
-      // Alfabetik sıralama
-      const sortedChannels = [...db.channels].sort((a, b) => 
-        (a.name || '').localeCompare(b.name || '', 'tr', { sensitivity: 'base' })
-      );
-      
-      sortedChannels.forEach((channel, index) => {
-        const channelInitial = (channel.name || 'Y').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-        
-        // YouTube kanal URL'si oluştur
-        const channelUrl = channel.handle 
-          ? (channel.handle.startsWith('http') ? channel.handle : `https://www.youtube.com/${channel.handle.startsWith('@') ? channel.handle : '@' + channel.handle}`)
-          : `https://www.youtube.com/channel/${channel.id}`;
-        
-        // Kanal profil resmi URL'si (YouTube thumbnail API)
-        const avatarImgId = `ch-avatar-${channel.id}`;
-        
-        const row = document.createElement('div');
-        row.className = 'channel-list-item';
-        row.style.animationDelay = `${index * 0.04}s`;
-        row.innerHTML = `
-          <div class="channel-list-rank">${index + 1}</div>
-          <div class="channel-list-avatar-wrap">
-            <img 
-              id="${avatarImgId}"
-              class="channel-list-avatar-img"
-              // Türkçe Açıklama: Kanal logosu yerel sunucu API'si üzerinden linklendi.
-              src="/api/channels/${channel.id}/avatar"
-              alt="${escapeHtml(channel.name)}"
-              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-            />
-            <div class="channel-list-avatar-fallback" style="display:none;">${channelInitial}</div>
-          </div>
-          <div class="channel-list-info">
-            <a class="channel-list-name" href="${channelUrl}" target="_blank" rel="noopener noreferrer" title="YouTube'da Aç: ${escapeHtml(channel.name)}">
-              ${escapeHtml(channel.name)}
-              <i data-lucide="external-link" style="width:13px;height:13px;display:inline-block;vertical-align:middle;margin-left:5px;opacity:0.5;"></i>
-            </a>
-            <span class="channel-list-handle">${escapeHtml(channel.handle || '')}</span>
-          </div>
-          <div class="channel-list-quality">
-            <select onchange="changeChannelQuality('${channel.id}', this.value)" class="channel-quality-select" title="${t.channel_quality_title || 'İndirme Kalitesi'}">
-              <option value="default" ${(!channel.quality || channel.quality === 'default') ? 'selected' : ''}>${t.select_quality_default || 'Varsayılan Kalite'}</option>
-              <option value="best" ${channel.quality === 'best' ? 'selected' : ''}>${t.select_quality_best || 'En Yüksek'}</option>
-              <option value="1080p" ${channel.quality === '1080p' ? 'selected' : ''}>${t.select_quality_1080p || '1080p FHD'}</option>
-              <option value="720p" ${channel.quality === '720p' ? 'selected' : ''}>${t.select_quality_720p || '720p HD'}</option>
-            </select>
-          </div>
-          <div class="channel-list-auto-download">
-            <select onchange="changeChannelAutoDownload('${channel.id}', this.value)" class="channel-auto-download-select" title="${t.select_auto_download_title || 'Otomatik İndirme Durumu'}">
-              <option value="true" ${channel.autoDownload !== false ? 'selected' : ''}>${t.select_auto_download_true || 'Otomatik İndir'}</option>
-              <option value="false" ${channel.autoDownload === false ? 'selected' : ''}>${t.select_auto_download_false || 'Otomatik İndirme'}</option>
-            </select>
-          </div>
-          <div class="channel-list-shorts">
-            <select onchange="changeChannelShorts('${channel.id}', this.value)" class="channel-shorts-select" title="${t.channel_shorts_title || 'Shorts İndirme Durumu'}">
-              <option value="true" ${channel.downloadShorts !== false ? 'selected' : ''}>${t.select_shorts_true || 'Shorts İndir'}</option>
-              <option value="false" ${channel.downloadShorts === false ? 'selected' : ''}>${t.select_shorts_false || 'Shorts İndirme'}</option>
-            </select>
-          </div>
-          <div class="channel-list-shorts-limit">
-            <select onchange="changeChannelShortsLimit('${channel.id}', this.value)" class="channel-shorts-limit-select" title="${t.channel_shorts_limit_title || 'Shorts Süre Sınırı'}">
-              <option value="30" ${channel.shortsDurationLimit == 30 ? 'selected' : ''}>Shorts &lt; 30${t.shorts_limit_seconds || 'sn'}</option>
-              <option value="60" ${channel.shortsDurationLimit == 60 ? 'selected' : ''}>Shorts &lt; 60${t.shorts_limit_seconds || 'sn'} (1 ${t.shorts_limit_minutes || 'dk'})</option>
-              <option value="120" ${channel.shortsDurationLimit == 120 ? 'selected' : ''}>Shorts &lt; 120${t.shorts_limit_seconds || 'sn'} (2 ${t.shorts_limit_minutes || 'dk'})</option>
-              <option value="180" ${(!channel.shortsDurationLimit || channel.shortsDurationLimit == 180) ? 'selected' : ''}>Shorts &lt; 180${t.shorts_limit_seconds || 'sn'} (3 ${t.shorts_limit_minutes || 'dk'})</option>
-              <option value="240" ${channel.shortsDurationLimit == 240 ? 'selected' : ''}>Shorts &lt; 240${t.shorts_limit_seconds || 'sn'} (4 ${t.shorts_limit_minutes || 'dk'})</option>
-              <option value="300" ${channel.shortsDurationLimit == 300 ? 'selected' : ''}>Shorts &lt; 300${t.shorts_limit_seconds || 'sn'} (5 ${t.shorts_limit_minutes || 'dk'})</option>
-              <option value="600" ${channel.shortsDurationLimit == 600 ? 'selected' : ''}>Shorts &lt; 600${t.shorts_limit_seconds || 'sn'} (10 ${t.shorts_limit_minutes || 'dk'})</option>
-              <option value="900" ${channel.shortsDurationLimit == 900 ? 'selected' : ''}>Shorts &lt; 900${t.shorts_limit_seconds || 'sn'} (15 ${t.shorts_limit_minutes || 'dk'})</option>
-            </select>
-          </div>
-          <div class="channel-list-meta">
-            <span class="channel-list-date">
-              <i data-lucide="calendar" style="width:11px;height:11px;vertical-align:middle;margin-right:3px;"></i>
-              ${formatDate(channel.addedAt).split(' ')[0]}
-            </span>
-          </div>
-          <div class="channel-list-actions">
-            <button class="btn-icon channel-rss-update-btn" onclick="syncSingleChannelRss('${channel.id}')" title="${t.channel_btn_sync_title || 'Kanalı Şimdi Denetle / RSS Güncelle'}">
-              <i data-lucide="refresh-cw" style="color:#a855f7;"></i>
-            </button>
-            <button class="btn-icon channel-logo-update-btn" onclick="updateChannelAvatar('${channel.id}')" title="${t.channel_btn_update_logo_title || 'Logoyu Güncelle'}">
-              <i data-lucide="image" style="color:#38bdf8;"></i>
-            </button>
-            <a href="${channelUrl}" target="_blank" rel="noopener noreferrer" class="btn-icon channel-open-btn" title="${t.inline_btn_youtube || 'YouTube\'da Aç'}">
-              ${youtubeSvgIcon}
-            </a>
-            <button class="btn-icon channel-delete-icon-btn" onclick="deleteChannel('${channel.id}')" title="${t.channel_btn_unfollow_title || 'Takipten Çıkar'}">
-              <i data-lucide="trash-2"></i>
-            </button>
-          </div>
-        `;
-        channelsList.appendChild(row);
-      });
-    }
+    renderChannelsList(channelsList, db.channels, t);
   }
 
   // 6. Geçmiş Kanal Filtresi Seçeneklerini Doldur (Alfabetik Sıralı)
@@ -3184,6 +1288,10 @@ function updateUI(db) {
   if (historyOnlyNoAutoDownloadCheck) {
     historyOnlyNoAutoDownloadCheck.checked = historyOnlyNoAutoDownload;
   }
+  const historyShowHiddenCheck = document.getElementById('history-show-hidden');
+  if (historyShowHiddenCheck) {
+    historyShowHiddenCheck.checked = historyShowHidden;
+  }
 
   // Görünüm butonlarının aktiflik durumunu güncelle
   if (viewGridBtn) viewGridBtn.classList.toggle('active', historyViewMode === 'grid');
@@ -3225,6 +1333,10 @@ function updateUI(db) {
     
     if (historyOnlyNotDownloaded) {
       filteredHistory = filteredHistory.filter(item => item.status !== 'completed');
+    }
+    
+    if (!historyShowHidden) {
+      filteredHistory = filteredHistory.filter(item => item.hidden !== true);
     }
     
     if (historyFilterDays !== 'all') {
@@ -3471,75 +1583,6 @@ function updateUI(db) {
   lucide.createIcons();
 }
 
-/**
- * XSS açıklarını önlemek amacıyla metin içerisindeki tehlikeli HTML karakterlerini kaçış dizgilerine çevirir.
- * 
- * @param {string} str Kaçış yapılacak metin
- * @returns {string} Güvenli hale getirilmiş metin
- */
-function escapeHtml(str) {
-  if (!str) return '';
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-// Türkçe Açıklama: Video başlığında '#shorts' etiketi olup olmamasına veya video süresinin 3 dakikadan kısa olup olmamasına bakarak Shorts videosu ayrımı yapar.
-/**
- * Süre değerine ve başlığına bakarak bir videonun Shorts olup olmadığını belirler.
- * 
- * @param {string} durationStr Biçimlendirilmiş süre metni (Örn: 1:30)
- * @param {string} title Video başlığı
- * @returns {boolean} Video Shorts ise true
- */
-function isShortVideo(durationStr, title, channelId) {
-  if (title) {
-    const lowerTitle = title.toLowerCase();
-    if (lowerTitle.includes('#shorts') || lowerTitle.includes('#short')) {
-      return true;
-    }
-  }
-  if (!durationStr) return false;
-  
-  let limit = 180;
-  if (channelId && localDb && localDb.channels) {
-    const chan = localDb.channels.find(c => c.id === channelId);
-    if (chan && chan.shortsDurationLimit !== undefined) {
-      limit = chan.shortsDurationLimit;
-    }
-  } else if (localDb && localDb.settings && localDb.settings.shortsDurationLimit !== undefined) {
-    limit = localDb.settings.shortsDurationLimit;
-  }
-
-  const parts = durationStr.split(':').map(Number);
-  let totalSeconds = 0;
-  
-  if (parts.length === 1) {
-    totalSeconds = parts[0];
-  } else if (parts.length === 2) {
-    totalSeconds = (parts[0] * 60) + parts[1];
-  } else if (parts.length === 3) {
-    totalSeconds = (parts[0] * 3600) + (parts[1] * 60) + parts[2];
-  }
-  
-  // To avoid false positives (e.g. standard landscape videos that are under 60 seconds,
-  // or videos with "short" adjective in their title like "React short tutorial"),
-  // we ONLY classify as Short if:
-  // 1. The title contains hashtag "#shorts" or "#short" (checked above).
-  // 2. OR the title contains the isolated word "shorts" (plural) and the duration is within the limit.
-  // Note: For downloaded local videos, the aspect ratio is dynamically checked and corrected on load.
-  if (title && totalSeconds <= limit) {
-    const lowerTitle = title.toLowerCase();
-    if (/\bshorts\b/.test(lowerTitle)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // Türkçe Açıklama: Belirtilen kanal ID'sini backend API'sine ileterek kanalı izleme listesinden çıkarır ve geçmiş verilerini siler.
 /**
  * Belirtilen kanalı takipten çıkarır ve veritabanından siler.
@@ -3638,6 +1681,68 @@ window.updateAllChannelAvatars = async function() {
     }
   } catch (err) {
     showToast('Sunucu ile iletişim hatası.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+};
+
+/**
+ * Belirtilen kanalın abone sayısını YouTube'dan çeker ve günceller.
+ * 
+ * @param {string} id Güncellenecek kanal ID'si
+ */
+window.updateChannelSubscribers = async function(id) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  try {
+    showToast(isEn ? 'Updating subscriber count...' : 'Kanal abone sayısı güncelleniyor...', 'info');
+    const res = await fetch(`/api/channels/${id}/update-subscribers`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Subscriber count updated successfully.' : 'Kanal abone sayısı başarıyla güncellendi.', 'success');
+      
+      const badge = document.getElementById(`ch-subs-badge-${id}`);
+      if (badge && data.subscriberCount) {
+        const textNode = badge.querySelector('.subs-count-val');
+        if (textNode) {
+          textNode.textContent = data.subscriberCount;
+        }
+        badge.style.display = 'inline-flex';
+        try {
+          if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+          }
+        } catch (e) {}
+      }
+    } else {
+      showToast(data.error || (isEn ? 'Error occurred.' : 'Hata oluştu.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Server communication error.' : 'Sunucu ile iletişim hatası.', 'error');
+  }
+};
+
+/**
+ * Takip edilen tüm kanalların abone sayılarını arka planda toplu olarak günceller.
+ */
+window.updateAllChannelSubscribers = async function() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (!confirm(isEn ? 'Are you sure you want to update all subscriber counts? This may take some time.' : 'Tüm kanal abone sayılarını güncellemek istediğinize emin misiniz? Bu işlem biraz zaman alabilir.')) return;
+  
+  showToast(isEn ? 'Updating all subscriber counts...' : 'Tüm kanal abone sayıları güncelleniyor...', 'info');
+  
+  const btn = document.getElementById('update-all-subscribers-btn');
+  if (btn) btn.disabled = true;
+  
+  try {
+    const res = await fetch('/api/channels/update-all-subscribers', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'All subscriber counts updated successfully.' : 'Tüm kanal abone sayıları başarıyla güncellendi.', 'success');
+    } else {
+      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız oldu.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Server communication error.' : 'Sunucu ile iletişim hatası.', 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -4600,12 +2705,12 @@ async function fetchSponsorSegments(videoId) {
           end: item.segment[1],
           category: item.category
         }));
-        console.log(`[SponsorBlock] Found ${currentVideoSponsorSegments.length} segments:`, currentVideoSponsorSegments);
+        devLog(`[SponsorBlock] Found ${currentVideoSponsorSegments.length} segments:`, currentVideoSponsorSegments);
       }
     }
   } catch (err) {
     clearTimeout(timeoutId);
-    console.warn('[SponsorBlock] Failed to fetch segments or request timed out:', err);
+    devWarn('[SponsorBlock] Failed to fetch segments or request timed out:', err);
   }
 }
 
@@ -4657,7 +2762,7 @@ function checkAndSkipSponsor(currentTime, videoElementOrPlayer) {
       insideAnySegment = true;
       if (lastSkippedSegmentStart !== seg.start) {
         lastSkippedSegmentStart = seg.start;
-        console.log(`[SponsorBlock] Skipping segment from ${seg.start} to ${seg.end}`);
+        devLog(`[SponsorBlock] Skipping segment from ${seg.start} to ${seg.end}`);
         showToast(
           currentLang === 'en' 
             ? `Skipped sponsor section (${Math.round(seg.start)}s - ${Math.round(seg.end)}s)` 
@@ -4891,13 +2996,33 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
     if (channelNameEl) channelNameEl.textContent = videoChannelName || '';
 
     const avatarEl = document.getElementById('inline-player-channel-avatar');
+    const logoDividerEl = document.getElementById('inline-player-logo-divider');
     if (avatarEl) {
       if (videoChannelId) {
         avatarEl.src = `/api/channels/${videoChannelId}/avatar`;
         avatarEl.style.display = 'block';
+        if (logoDividerEl) logoDividerEl.style.display = 'inline';
       } else {
         avatarEl.style.display = 'none';
+        if (logoDividerEl) logoDividerEl.style.display = 'none';
       }
+    }
+
+    const subsEl = document.getElementById('inline-player-channel-subs');
+    const subsTextEl = document.getElementById('inline-player-channel-subs-text');
+    const dividerEl = document.getElementById('inline-player-channel-divider');
+    if (subsEl && subsTextEl) {
+      const channel = localDb.channels?.find(c => c.id === videoChannelId || (videoChannelName && c.name === videoChannelName));
+      const subVal = channel && channel.subscriberCount ? channel.subscriberCount : '?';
+      
+      subsTextEl.textContent = subVal;
+      subsEl.style.display = 'inline-flex';
+      if (dividerEl) dividerEl.style.display = 'inline';
+      try {
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons();
+        }
+      } catch (e) {}
     }
 
     const channelContainer = document.querySelector('.inline-player-channel');
@@ -6385,6 +4510,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const historyShowHiddenCheck = document.getElementById('history-show-hidden');
+  if (historyShowHiddenCheck) {
+    historyShowHiddenCheck.addEventListener('change', () => {
+      historyShowHidden = historyShowHiddenCheck.checked;
+      updateUI(localDb);
+    });
+  }
+
   const historyShowShorts = document.getElementById('history-show-shorts');
   if (historyShowShorts) {
     historyShowShorts.addEventListener('change', async () => {
@@ -7400,21 +5533,6 @@ window.toggleCommentsPanel = async function() {
   }
 };
 
-/**
- * Türkçe Açıklama: "1:23:45" veya "02:15" formatındaki süre metnini saniyeye dönüştürür.
- * 
- * @param {string} timeStr - Dönüştürülecek süre metni (örn: "01:23")
- * @returns {number} Saniye cinsinden karşılığı
- */
-function parseTimeToSeconds(timeStr) {
-  const parts = timeStr.split(':').map(Number);
-  if (parts.length === 3) {
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  } else if (parts.length === 2) {
-    return parts[0] * 60 + parts[1];
-  }
-  return 0;
-}
 
 /**
  * Türkçe Açıklama: Aktif video oynatıcının süresini belirtilen saniyeye atlatır (Plyr, Artplayer, HTML5 uyumlu).
@@ -7437,25 +5555,6 @@ window.seekVideoToSeconds = function(seconds) {
   }
 };
 
-/**
- * Türkçe Açıklama: Açıklama metnindeki zaman damgalarını (01:23 vb.) bulup tıklanabilir bağlantılara dönüştürür.
- * 
- * @param {string} text - Düzenlenecek açıklama metni
- * @returns {string} Zaman damgaları linke dönüştürülmüş HTML metni
- */
-function formatDescriptionTimestamps(text) {
-  const regex = /\b(?:(\d{1,2}):)?([0-5]?\d):([0-5]\d)\b/g;
-  
-  let html = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  return html.replace(regex, (match) => {
-    const seconds = parseTimeToSeconds(match);
-    return `<a href="#" class="timestamp-link" onclick="event.preventDefault(); seekVideoToSeconds(${seconds});" style="color: var(--accent-primary); font-weight: 600; text-decoration: underline; cursor: pointer;">${match}</a>`;
-  });
-}
 
 /**
  * Türkçe Açıklama: Video açıklama panelini açar/kapatır ve yorum panelini gizler.
@@ -7487,59 +5586,6 @@ window.toggleDescriptionPanel = function() {
 
 let nextCommentsToken = null;
 let loadedCommentsList = [];
-
-// Helper to parse like counts (e.g. "1.2K", "250K", "15", "0")
-function parseLikes(likeStr) {
-  if (!likeStr) return 0;
-  const clean = String(likeStr).trim().toUpperCase();
-  if (clean === '0' || clean === '') return 0;
-  
-  let multiplier = 1;
-  let numStr = clean;
-  
-  if (clean.endsWith('K')) {
-    multiplier = 1000;
-    numStr = clean.slice(0, -1);
-  } else if (clean.endsWith('M')) {
-    multiplier = 1000000;
-    numStr = clean.slice(0, -1);
-  } else if (clean.endsWith('B')) {
-    multiplier = 1000000000;
-    numStr = clean.slice(0, -1);
-  }
-  
-  const val = parseFloat(numStr);
-  return isNaN(val) ? 0 : val * multiplier;
-}
-
-// Helper to parse relative times (e.g. "2 hours ago", "En Yeni") to seconds
-function parseRelativeTime(timeStr) {
-  if (!timeStr) return Infinity;
-  const s = String(timeStr).toLowerCase().trim();
-  
-  if (s.includes('now') || s.includes('şimdi') || s.includes('just')) return 0;
-  
-  const numMatch = s.match(/\d+/);
-  const val = numMatch ? parseInt(numMatch[0], 10) : 1;
-  
-  let multiplier = 1;
-  if (s.includes('second') || s.includes('saniye') || s.includes('sn')) {
-    multiplier = 1;
-  } else if (s.includes('minute') || s.includes('dakika') || s.includes('dk')) {
-    multiplier = 60;
-  } else if (s.includes('hour') || s.includes('saat')) {
-    multiplier = 3600;
-  } else if (s.includes('day') || s.includes('gün')) {
-    multiplier = 86400;
-  } else if (s.includes('week') || s.includes('hafta')) {
-    multiplier = 604800;
-  } else if (s.includes('month') || s.includes('ay')) {
-    multiplier = 2592000;
-  } else if (s.includes('year') || s.includes('yıl')) {
-    multiplier = 31536000;
-  }
-  return val * multiplier;
-}
 
 // IPTV Sayfalama durumu
 let iptvCurrentPage = 1;
@@ -8319,20 +6365,7 @@ if (iptvLoadMoreBtn) {
   });
 }
 
-/**
- * Türkçe Açıklama: Bir fonksiyonun ardışık tetiklenmesini geciktirerek belirtilen süre sonunda bir kez çalışmasını sağlar.
- * 
- * @param {Function} func - Geciktirilecek fonksiyon
- * @param {number} delay - Milisaniye cinsinden gecikme süresi
- * @returns {Function} Debounced fonksiyon sarmalayıcısı
- */
-function debounce(func, delay) {
-  let timer;
-  return function (...args) {
-    clearTimeout(timer);
-    timer = setTimeout(() => func.apply(this, args), delay);
-  };
-}
+
 
 // IPTV Güncelleme ve Durum Denetimleri
 /**
@@ -9003,3 +7036,906 @@ function setupSortableContainer(container, itemSelector, storageKey) {
     updateUI(localDb);
   });
 }
+
+
+// State variables for folder comparison
+let untrackedFilesList = [];
+let unrelatedFilesList = [];
+let missingFilesList = [];
+let scanProgressToast = null;
+
+// Download Folder Comparison tool
+async function runFileComparison() {
+  const compareBtn = document.getElementById('start-compare-btn');
+  const compareLoading = document.getElementById('compare-loading');
+  const noIssuesFound = document.getElementById('compare-no-issues');
+  const untrackedSection = document.getElementById('untracked-section');
+  const unrelatedSection = document.getElementById('unrelated-section');
+  const missingSection = document.getElementById('missing-section');
+  const compareResults = document.getElementById('compare-results');
+  
+  if (!compareBtn) return;
+  compareBtn.disabled = true;
+  
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
+  
+  // Show toast when starting comparison
+  showToast(isEn ? 'Folder comparison started, scanning physical files...' : 'Dosya karşılaştırması başlatıldı, fiziksel dosyalar taranıyor...', 'info');
+  
+  // Set button state to comparing
+  const compareBtnText = compareBtn.querySelector('#compare-btn-text');
+  if (compareBtnText) {
+    compareBtnText.textContent = t.compare_btn_running || 'Comparing...';
+  }
+  if (compareLoading) compareLoading.classList.remove('hidden');
+  if (compareResults) compareResults.classList.add('hidden');
+  if (noIssuesFound) noIssuesFound.classList.add('hidden');
+  if (untrackedSection) untrackedSection.classList.add('hidden');
+  if (unrelatedSection) unrelatedSection.classList.add('hidden');
+  if (missingSection) missingSection.classList.add('hidden');
+  
+  try {
+    const res = await fetch('/api/tools/compare-files');
+    const data = await res.json();
+    if (data.success) {
+      untrackedFilesList = data.untrackedFiles || [];
+      unrelatedFilesList = data.unrelatedFiles || [];
+      missingFilesList = data.missingFiles || [];
+      
+      renderComparisonResults();
+    } else {
+      showToast(data.error || (isEn ? 'Comparison failed.' : 'Karşılaştırma başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  } finally {
+    compareBtn.disabled = false;
+    if (compareBtnText) {
+      compareBtnText.textContent = t.compare_btn || 'Start Comparison';
+    }
+    if (compareLoading) compareLoading.classList.add('hidden');
+  }
+}
+
+async function openFileLocation(filePath) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  try {
+    const res = await fetch('/api/tools/open-file-location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || (isEn ? 'Could not open folder.' : 'Klasör açılamadı.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+async function deleteAllUnrelated() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (unrelatedFilesList.length === 0) return;
+  if (!confirm(isEn ? 'Are you sure you want to delete all unrelated files from disk?' : 'Tüm alakasız dosyaları diskten silmek istediğinize emin misiniz?')) {
+    return;
+  }
+  
+  try {
+    const res = await fetch('/api/tools/fix-files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'delete-untracked-file',
+        filePaths: unrelatedFilesList.map(f => f.filePath)
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+function renderComparisonResults() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
+  
+  const noIssuesFound = document.getElementById('compare-no-issues');
+  const untrackedSection = document.getElementById('untracked-section');
+  const unrelatedSection = document.getElementById('unrelated-section');
+  const missingSection = document.getElementById('missing-section');
+  const compareResults = document.getElementById('compare-results');
+  
+  const untrackedBody = document.getElementById('untracked-files-list');
+  const unrelatedBody = document.getElementById('unrelated-files-list');
+  const missingBody = document.getElementById('missing-files-list');
+  
+  if (untrackedBody) untrackedBody.innerHTML = '';
+  if (unrelatedBody) unrelatedBody.innerHTML = '';
+  if (missingBody) missingBody.innerHTML = '';
+  
+  if (compareResults) compareResults.classList.remove('hidden');
+  
+  if (untrackedFilesList.length === 0 && unrelatedFilesList.length === 0 && missingFilesList.length === 0) {
+    if (noIssuesFound) noIssuesFound.classList.remove('hidden');
+    if (untrackedSection) untrackedSection.classList.add('hidden');
+    if (unrelatedSection) unrelatedSection.classList.add('hidden');
+    if (missingSection) missingSection.classList.add('hidden');
+    showToast(isEn ? 'Folder comparison completed. No issues found!' : 'Dosya karşılaştırması tamamlandı. Sorun bulunamadı!', 'success');
+    return;
+  }
+  
+  if (noIssuesFound) noIssuesFound.classList.add('hidden');
+  
+  const summaryBox = document.getElementById('compare-summary-box');
+  if (summaryBox) {
+    summaryBox.innerHTML = isEn 
+      ? `Found ${untrackedFilesList.length} untracked files, ${unrelatedFilesList.length} unrelated files, and ${missingFilesList.length} missing records.`
+      : `${untrackedFilesList.length} yetim dosya, ${unrelatedFilesList.length} alakasız dosya ve ${missingFilesList.length} eksik kayıt bulundu.`;
+  }
+  
+  showToast(isEn ? 'Folder comparison completed.' : 'Dosya karşılaştırması tamamlandı.', 'success');
+  
+  // Untracked Files (Orphans)
+  if (untrackedFilesList.length > 0) {
+    if (untrackedSection) untrackedSection.classList.remove('hidden');
+    untrackedFilesList.forEach(file => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="file-name-cell" title="${file.filePath}">
+            <i data-lucide="file-video" class="file-icon"></i>
+            <span>${file.filename}</span>
+          </div>
+        </td>
+        <td>${file.channelName || '<span class="text-muted">--</span>'}</td>
+        <td class="text-nowrap">${file.fileSize || '--'}</td>
+        <td>
+          <div class="action-buttons-cell" style="text-align: right;">
+            <button class="btn btn-secondary btn-sm" onclick="openFileLocation('${file.filePath.replace(/\\/g, '\\\\')}')" title="${isEn ? 'Open File Location' : 'Dosya Konumunu Aç'}">
+              <i data-lucide="external-link"></i>
+              <span>${isEn ? 'Open Location' : 'Konumu Aç'}</span>
+            </button>
+            ${file.id ? `
+              <button class="btn btn-primary btn-sm" onclick="fixFileIssue('import', '${file.filePath.replace(/\\/g, '\\\\')}', '${file.id}')">
+                <i data-lucide="plus"></i>
+                <span>${t.btn_import || 'Import'}</span>
+              </button>
+            ` : ''}
+            <button class="btn btn-danger btn-sm" onclick="fixFileIssue('delete', '${file.filePath.replace(/\\/g, '\\\\')}', '')">
+              <i data-lucide="trash-2"></i>
+              <span>${t.btn_delete_file || 'Delete'}</span>
+            </button>
+          </div>
+        </td>
+      `;
+      untrackedBody.appendChild(tr);
+    });
+  } else {
+    if (untrackedSection) untrackedSection.classList.add('hidden');
+  }
+  
+  // Unrelated Files
+  if (unrelatedFilesList.length > 0) {
+    if (unrelatedSection) unrelatedSection.classList.remove('hidden');
+    unrelatedFilesList.forEach(file => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="file-name-cell" title="${file.filePath}">
+            <i data-lucide="file" class="file-icon" style="color: var(--text-muted);"></i>
+            <span>${file.filename}</span>
+          </div>
+        </td>
+        <td class="text-nowrap">${file.fileSize || '--'}</td>
+        <td>
+          <div class="action-buttons-cell" style="text-align: right;">
+            <button class="btn btn-secondary btn-sm" onclick="openFileLocation('${file.filePath.replace(/\\/g, '\\\\')}')" title="${isEn ? 'Open File Location' : 'Dosya Konumunu Aç'}">
+              <i data-lucide="external-link"></i>
+              <span>${isEn ? 'Open Location' : 'Konumu Aç'}</span>
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="fixFileIssue('delete', '${file.filePath.replace(/\\/g, '\\\\')}', '')">
+              <i data-lucide="trash-2"></i>
+              <span>${t.btn_delete_file || 'Delete'}</span>
+            </button>
+          </div>
+        </td>
+      `;
+      unrelatedBody.appendChild(tr);
+    });
+  } else {
+    if (unrelatedSection) unrelatedSection.classList.add('hidden');
+  }
+  
+  // Missing Files
+  if (missingFilesList.length > 0) {
+    if (missingSection) missingSection.classList.remove('hidden');
+    missingFilesList.forEach(file => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="file-name-cell" title="${file.filePath || ''}">
+            <i data-lucide="video-off" class="file-icon"></i>
+            <span>${file.title}</span>
+          </div>
+        </td>
+        <td>${file.channelName || '<span class="text-muted">--</span>'}</td>
+        <td>
+          <div class="action-buttons-cell" style="text-align: right;">
+            <button class="btn btn-primary btn-sm" onclick="downloadMissingVideo('${file.id}', '${escapeHtml(file.title)}', '${escapeHtml(file.channelName || '')}', '${file.channelId || ''}')" title="${isEn ? 'Redownload Video' : 'Videoyu Tekrar İndir'}">
+              <i data-lucide="download"></i>
+              <span>${isEn ? 'Redownload' : 'Tekrar İndir'}</span>
+            </button>
+            <button class="btn btn-warning btn-sm" onclick="fixFileIssue('mark_not_downloaded', '', '${file.id}')">
+              <i data-lucide="refresh-cw"></i>
+              <span>${t.btn_mark_not_downloaded || 'Mark Not Downloaded'}</span>
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="fixFileIssue('delete_history', '', '${file.id}')">
+              <i data-lucide="trash-2"></i>
+              <span>${t.btn_delete_history || 'Delete History'}</span>
+            </button>
+          </div>
+        </td>
+      `;
+      missingBody.appendChild(tr);
+    });
+  } else {
+    if (missingSection) missingSection.classList.add('hidden');
+  }
+  
+  lucide.createIcons();
+}
+
+async function fixFileIssue(actionType, filePath, id) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  let body = {};
+  
+  if (actionType === 'import') {
+    const file = untrackedFilesList.find(f => f.filePath === filePath);
+    if (!file) return;
+    body = {
+      action: 'import-untracked-file',
+      filesToImport: [{
+        id: file.id,
+        title: file.title,
+        channelName: file.channelName,
+        fileSize: file.fileSize,
+        filePath: file.filePath
+      }]
+    };
+  } else if (actionType === 'delete') {
+    body = {
+      action: 'delete-untracked-file',
+      filePaths: [filePath]
+    };
+  } else if (actionType === 'mark_not_downloaded') {
+    body = {
+      action: 'mark-missing-as-not-downloaded',
+      videoIds: [id]
+    };
+  } else if (actionType === 'delete_history') {
+    body = {
+      action: 'delete-history-item',
+      videoIds: [id]
+    };
+  }
+  
+  try {
+    const res = await fetch('/api/tools/fix-files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
+      // Refresh comparison
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+async function fixAllUntracked(actionType) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (untrackedFilesList.length === 0) return;
+  
+  let body = {};
+  if (actionType === 'import') {
+    // Only import files that have a valid ID
+    const filesToImport = untrackedFilesList.filter(f => f.id).map(file => ({
+      id: file.id,
+      title: file.title,
+      channelName: file.channelName,
+      fileSize: file.fileSize,
+      filePath: file.filePath
+    }));
+    if (filesToImport.length === 0) {
+      showToast(isEn ? 'No files with valid video IDs to import.' : 'İçe aktarılacak geçerli video ID\'sine sahip dosya yok.', 'info');
+      return;
+    }
+    body = {
+      action: 'import-untracked-file',
+      filesToImport
+    };
+  } else if (actionType === 'delete') {
+    if (!confirm(isEn ? 'Are you sure you want to delete all untracked files from disk?' : 'Tüm yetim dosyaları diskten silmek istediğinize emin misiniz?')) {
+      return;
+    }
+    body = {
+      action: 'delete-untracked-file',
+      filePaths: untrackedFilesList.map(f => f.filePath)
+    };
+  }
+  
+  try {
+    const res = await fetch('/api/tools/fix-files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+async function fixAllMissing(actionType) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (missingFilesList.length === 0) return;
+  
+  let body = {};
+  if (actionType === 'mark' || actionType === 'mark_not_downloaded') {
+    body = {
+      action: 'mark-missing-as-not-downloaded',
+      videoIds: missingFilesList.map(f => f.id)
+    };
+  } else if (actionType === 'delete') {
+    if (!confirm(isEn ? 'Are you sure you want to delete all missing videos from history?' : 'Tüm eksik videoları geçmişten silmek istediğinize emin misiniz?')) {
+      return;
+    }
+    body = {
+      action: 'delete-history-item',
+      videoIds: missingFilesList.map(f => f.id)
+    };
+  }
+  
+  try {
+    const res = await fetch('/api/tools/fix-files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+// Hide video from library
+window.hideVideo = async function(videoId) {
+  if (!videoId) return;
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  try {
+    const res = await fetch(`/api/history/${videoId}/hide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Video hidden from library.' : 'Video kütüphaneden gizlendi.', 'success');
+    } else {
+      showToast(data.error || (isEn ? 'Failed to hide video.' : 'Video gizlenemedi.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+};
+
+// Unhide video from library
+window.unhideVideo = async function(videoId) {
+  if (!videoId) return;
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  try {
+    const res = await fetch(`/api/history/${videoId}/unhide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Video is now visible in library.' : 'Video kütüphanede tekrar görünür yapıldı.', 'success');
+    } else {
+      showToast(data.error || (isEn ? 'Failed to unhide video.' : 'Video görünür yapılamadı.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+};
+
+// Filter library/downloaded grid by channel name click
+window.filterByChannel = function(channelId, gridId) {
+  if (!channelId) return;
+  
+  if (gridId === 'downloaded-grid') {
+    const downloadedChannelFilter = document.getElementById('downloaded-channel-filter');
+    if (downloadedChannelFilter) {
+      downloadedChannelFilter.value = channelId;
+      downloadedFilterChannel = channelId;
+      updateUI(localDb);
+    }
+  } else {
+    const historyChannelFilter = document.getElementById('history-channel-filter');
+    if (historyChannelFilter) {
+      historyChannelFilter.value = channelId;
+      historyFilterChannel = channelId;
+      updateUI(localDb);
+    }
+  }
+};
+
+// SSE Channel Scan progress toast
+function updateScanProgressToast(data) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (!data.active) {
+    if (scanProgressToast) {
+      scanProgressToast.style.animation = 'slideIn 0.3s reverse forwards';
+      const toastRef = scanProgressToast;
+      setTimeout(() => toastRef.remove(), 300);
+      scanProgressToast = null;
+      showToast(isEn ? 'Channel scan completed.' : 'Kanal denetimi tamamlandı.', 'success');
+    }
+    return;
+  }
+
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const msg = isEn 
+    ? `${data.current}/${data.total} - Checking ${data.channelName}` 
+    : `${data.current}/${data.total} - ${data.channelName} denetleniyor`;
+
+  if (!scanProgressToast) {
+    scanProgressToast = document.createElement('div');
+    scanProgressToast.className = 'toast toast-info toast-persistent';
+    container.appendChild(scanProgressToast);
+  }
+
+  scanProgressToast.innerHTML = `
+    <i data-lucide="loader" class="toast-icon spin"></i>
+    <div class="toast-message">${msg}</div>
+  `;
+  lucide.createIcons();
+}
+
+// Make functions globally accessible
+window.fixFileIssue = fixFileIssue;
+window.fixAllUntracked = fixAllUntracked;
+window.fixAllMissing = fixAllMissing;
+window.runFileComparison = runFileComparison;
+window.openFileLocation = openFileLocation;
+window.deleteAllUnrelated = deleteAllUnrelated;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const compareBtn = document.getElementById('start-compare-btn');
+  if (compareBtn) {
+    compareBtn.addEventListener('click', runFileComparison);
+  }
+  
+  // Header Settings button click handler
+  const headerSettingsBtn = document.getElementById('header-settings-btn');
+  if (headerSettingsBtn) {
+    headerSettingsBtn.addEventListener('click', () => {
+      if (window.switchTab) {
+        window.switchTab('settings');
+      }
+    });
+  }
+  
+
+
+  // Initialize Downloader Tab and Dropdown Elements
+  initDownloaderUI();
+});
+
+// === DOWNLISTER / DOWNLOADER FRONTEND MANTIĞI ===
+let activePlaylistVideos = [];
+
+function toggleToolsDropdown(e) {
+  e.stopPropagation();
+  const dropdown = document.getElementById('tools-dropdown');
+  if (dropdown) {
+    dropdown.classList.toggle('open');
+  }
+}
+
+// Dışarı tıklayınca dropdown kapatma
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('tools-dropdown');
+  if (dropdown && !dropdown.contains(e.target)) {
+    dropdown.classList.remove('open');
+  }
+});
+
+function initDownloaderUI() {
+  const toolsBtn = document.getElementById('tools-btn');
+  if (toolsBtn) {
+    toolsBtn.addEventListener('click', toggleToolsDropdown);
+  }
+
+  const downloaderActionBtn = document.getElementById('downloader-action-btn');
+  if (downloaderActionBtn) {
+    downloaderActionBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchTab('downloader');
+      const dropdown = document.getElementById('tools-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+    });
+  }
+
+  const toolsCompareBtn = document.getElementById('nav-tools-compare-btn');
+  if (toolsCompareBtn) {
+    toolsCompareBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchTab('tools');
+      runFileComparison();
+      const dropdown = document.getElementById('tools-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+    });
+  }
+
+  const formatSelect = document.getElementById('downloader-format-select');
+  const bitrateGroup = document.getElementById('downloader-bitrate-group');
+  if (formatSelect && bitrateGroup) {
+    formatSelect.addEventListener('change', () => {
+      if (formatSelect.value === 'audio-mp3') {
+        bitrateGroup.style.display = 'block';
+      } else {
+        bitrateGroup.style.display = 'none';
+      }
+    });
+  }
+
+  const startBtn = document.getElementById('downloader-start-btn');
+  if (startBtn) {
+    startBtn.addEventListener('click', handleDownloaderStart);
+  }
+
+  const downloadAllBtn = document.getElementById('downloader-download-all-btn');
+  if (downloadAllBtn) {
+    downloadAllBtn.addEventListener('click', handleDownloaderAll);
+  }
+
+  const toggleAllCheckbox = document.getElementById('downloader-toggle-all-checkbox');
+  if (toggleAllCheckbox) {
+    toggleAllCheckbox.addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      document.querySelectorAll('.playlist-item-checkbox').forEach(cb => {
+        cb.checked = checked;
+      });
+    });
+  }
+}
+
+async function handleDownloaderStart() {
+  const urlInput = document.getElementById('downloader-url-input');
+  if (!urlInput) return;
+
+  const url = urlInput.value.trim();
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+
+  if (!url) {
+    showToast(isEn ? 'Please enter a valid URL.' : 'Lütfen geçerli bir URL girin.', 'error');
+    return;
+  }
+
+  const formatSelect = document.getElementById('downloader-format-select');
+  const bitrateSelect = document.getElementById('downloader-bitrate-select');
+  const format = formatSelect ? formatSelect.value : 'video-best';
+  const bitrate = (format === 'audio-mp3' && bitrateSelect) ? bitrateSelect.value : null;
+
+  const startBtn = document.getElementById('downloader-start-btn');
+  if (startBtn) {
+    startBtn.disabled = true;
+    const originalText = startBtn.innerHTML;
+    startBtn.innerHTML = `<i class="toast-icon spin" data-lucide="loader" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:5px;"></i> <span>${isEn ? 'Processing...' : 'İşleniyor...'}</span>`;
+    lucide.createIcons();
+  }
+
+  try {
+    // Playlist URL kontrolü
+    const isPlaylist = url.includes('list=') && !url.includes('watch?v=');
+    
+    if (isPlaylist || url.includes('list=')) {
+      // Playlist'i çözümle
+      showToast(isEn ? 'Resolving playlist, please wait...' : 'Playlist çözümleniyor, lütfen bekleyin...', 'info');
+      const res = await fetch('/api/downloader/resolve-playlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      
+      if (data.success && data.videos && data.videos.length > 0) {
+        activePlaylistVideos = data.videos;
+        renderPlaylistResults(data.videos);
+        showToast(isEn ? `${data.videos.length} videos found.` : `${data.videos.length} video bulundu.`, 'success');
+      } else {
+        showToast(data.error || (isEn ? 'Failed to resolve playlist.' : 'Playlist çözümlenemedi.'), 'error');
+      }
+    } else {
+      // Tekil video indir
+      const res = await fetch('/api/downloader/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, format, bitrate })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(isEn ? 'Added to download queue.' : 'Kuyruğa başarıyla eklendi.', 'success');
+        urlInput.value = '';
+        switchTab('queue');
+      } else {
+        showToast(data.error || (isEn ? 'Failed to start download.' : 'İndirme başlatılamadı.'), 'error');
+      }
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  } finally {
+    if (startBtn) {
+      startBtn.disabled = false;
+      startBtn.innerHTML = `<i data-lucide="download"></i> <span>${isEn ? 'Start Download' : 'İndirmeyi Başlat'}</span>`;
+      lucide.createIcons();
+    }
+  }
+}
+
+async function handleDownloaderAll() {
+  if (activePlaylistVideos.length === 0) return;
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  
+  const checkboxes = document.querySelectorAll('.playlist-item-checkbox:checked');
+  if (checkboxes.length === 0) {
+    showToast(isEn ? 'Please select at least one video.' : 'Lütfen en az bir video seçin.', 'error');
+    return;
+  }
+
+  const selectedIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-id'));
+  const targetVideos = activePlaylistVideos.filter(v => selectedIds.includes(v.id));
+
+  const formatSelect = document.getElementById('downloader-format-select');
+  const bitrateSelect = document.getElementById('downloader-bitrate-select');
+  const format = formatSelect ? formatSelect.value : 'video-best';
+  const bitrate = (format === 'audio-mp3' && bitrateSelect) ? bitrateSelect.value : null;
+
+  const downloadAllBtn = document.getElementById('downloader-download-all-btn');
+  if (downloadAllBtn) {
+    downloadAllBtn.disabled = true;
+  }
+
+  let addedCount = 0;
+  for (const video of targetVideos) {
+    try {
+      const videoUrl = `https://www.youtube.com/watch?v=${video.id}`;
+      const res = await fetch('/api/downloader/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          url: videoUrl, 
+          format, 
+          bitrate, 
+          title: video.title,
+          channelId: 'manual',
+          channelName: video.uploader || 'Manuel İndirme'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        addedCount++;
+      }
+    } catch (e) {
+      console.error('Playlist video ekleme hatası:', e);
+    }
+  }
+
+  showToast(isEn ? `${addedCount} videos added to queue.` : `${addedCount} video kuyruğa eklendi.`, 'success');
+  
+  // Temizle ve Kuyruğa yönlendir
+  document.getElementById('downloader-playlist-results').classList.add('hidden');
+  document.getElementById('downloader-url-input').value = '';
+  activePlaylistVideos = [];
+  
+  if (downloadAllBtn) {
+    downloadAllBtn.disabled = false;
+  }
+  
+  switchTab('queue');
+}
+
+function renderPlaylistResults(videos) {
+  const container = document.getElementById('downloader-playlist-results');
+  const listContainer = document.getElementById('downloader-playlist-list');
+  if (!container || !listContainer) return;
+
+  listContainer.innerHTML = '';
+  videos.forEach((video, index) => {
+    const item = document.createElement('div');
+    item.className = 'downloader-playlist-item';
+    item.setAttribute('data-video-id', video.id);
+    
+    let durationStr = '';
+    if (video.duration) {
+      const min = Math.floor(video.duration / 60);
+      const sec = Math.floor(video.duration % 60);
+      durationStr = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    }
+
+    const thumbUrl = video.thumbnail || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`;
+
+    item.innerHTML = `
+      <input type="checkbox" class="playlist-item-checkbox" checked data-id="${video.id}" onclick="event.stopPropagation();" />
+      <span class="item-index">${index + 1}</span>
+      <div class="playlist-item-thumb-wrap">
+        <img src="${thumbUrl}" class="playlist-item-thumb" onerror="this.src='logo.png';" />
+      </div>
+      <span class="item-title" title="${escapeHtml(video.title)}">${escapeHtml(video.title)}</span>
+      <span class="item-duration">${durationStr}</span>
+    `;
+
+    item.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'INPUT') {
+        const cb = item.querySelector('.playlist-item-checkbox');
+        if (cb) cb.checked = !cb.checked;
+      }
+    });
+
+    listContainer.appendChild(item);
+  });
+
+  container.classList.remove('hidden');
+}
+
+async function downloadMissingVideo(videoId, title, channelName, channelId) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  try {
+    showToast(isEn ? 'Adding video to download queue...' : 'Video indirme kuyruğuna ekleniyor...', 'info');
+    const res = await fetch('/api/downloader/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: videoId,
+        title: title,
+        channelName: channelName,
+        channelId: channelId
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Video added to queue successfully.' : 'Video kuyruğa başarıyla eklendi.', 'success');
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Failed to queue video.' : 'Kuyruğa eklenemedi.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+window.downloadMissingVideo = downloadMissingVideo;
+
+async function createSystemBackup() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  try {
+    showToast(isEn ? 'Creating manual system backup...' : 'Manuel sistem yedeği oluşturuluyor...', 'info');
+    const res = await fetch('/api/backup', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Backup created successfully.' : 'Yedek başarıyla oluşturuldu.', 'success');
+      // Eğer yedekler listesi açıksa güncelle
+      const container = document.getElementById('system-backups-container');
+      if (container && !container.classList.contains('hidden')) {
+        loadSystemBackupsList(true);
+      }
+    } else {
+      showToast(data.error || (isEn ? 'Failed to create backup.' : 'Yedek oluşturulamadı.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+async function loadSystemBackupsList(forceOpen = false) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const container = document.getElementById('system-backups-container');
+  const tbody = document.getElementById('system-backups-list');
+  if (!container || !tbody) return;
+
+  // Toggle container visibility
+  if (!forceOpen && !container.classList.contains('hidden')) {
+    container.classList.add('hidden');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/backups');
+    const data = await res.json();
+    if (data.success) {
+      tbody.innerHTML = '';
+      if (data.backups.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="padding: 10px; text-align: center; color: var(--text-muted);">${isEn ? 'No manual backups found.' : 'Henüz manuel yedek bulunmuyor.'}</td></tr>`;
+      } else {
+        data.backups.forEach(backup => {
+          const tr = document.createElement('tr');
+          tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+          const date = new Date(backup.createdAt).toLocaleString(isEn ? 'en-US' : 'tr-TR');
+          tr.innerHTML = `
+            <td style="padding: 6px 8px;" title="${backup.filename}">${backup.filename}</td>
+            <td style="padding: 6px 8px; color: var(--text-muted);">${backup.size}</td>
+            <td style="padding: 6px 8px; text-align: right;">
+              <button type="button" class="btn btn-secondary btn-xs" onclick="restoreSystemBackup('${backup.filename}')" style="padding: 2px 6px; font-size: 0.75rem; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.2); color: var(--accent-color);">
+                ${isEn ? 'Geri Yükle' : 'Geri Yükle'}
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+      container.classList.remove('hidden');
+    } else {
+      showToast(data.error || (isEn ? 'Failed to load backups list.' : 'Yedek listesi yüklenemedi.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+async function restoreSystemBackup(filename) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (!confirm(isEn ? `Are you sure you want to restore the backup "${filename}"? Current data will be overwritten.` : `"${filename}" yedeğini geri yüklemek istediğinize emin misiniz? Mevcut verilerin üzerine yazılacaktır.`)) {
+    return;
+  }
+
+  try {
+    showToast(isEn ? 'Restoring backup, please wait...' : 'Yedek geri yükleniyor, lütfen bekleyin...', 'info');
+    const res = await fetch('/api/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Backup restored successfully! Reloading page...' : 'Yedek başarıyla geri yüklendi! Sayfa yenileniyor...', 'success');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } else {
+      showToast(data.error || (isEn ? 'Failed to restore backup.' : 'Yedek geri yüklenemedi.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+window.createSystemBackup = createSystemBackup;
+window.loadSystemBackupsList = loadSystemBackupsList;
+window.restoreSystemBackup = restoreSystemBackup;

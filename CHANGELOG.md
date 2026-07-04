@@ -3,6 +3,142 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [7.4.1] - 2026-07-04
+
+### Bug Fixes / Hata Düzeltmeleri
+- **Atomic Database Writes / Atomik Veritabanı Yazımı:**
+  - Implemented secure atomic file writing for `db.json` using temporary files (`db.json.tmp`) and atomic rename methods (`fs.renameSync`). This prevents data corruption and settings resets (factory resets) in case of sudden power outages.
+  - Ani elektrik kesintilerinde `db.json` dosyasının bozulmasını ve ayarların sıfırlanmasını önlemek amacıyla geçici dosya kullanılarak atomik dosya yazma yapısı (`fs.renameSync`) entegre edildi.
+- **FFmpeg & yt-dlp Queue Timeout / FFmpeg ve yt-dlp Zaman Aşımı Koruması:**
+  - Added a global 30-minute timeout for spawn processes to kill hung FFmpeg merge conversions or yt-dlp downloads, preventing infinite queue blockages.
+  - Saatlerce süren veya takılıp kuyruğu kilitleyen FFmpeg birleştirme (merge) ve yt-dlp indirme işlemlerine 30 dakikalık zaman aşımı koruması getirildi.
+- **Manual Backups Directory Update / Manuel Yedek Klasörü Değişikliği:**
+  - Updated the manual system backups directory from `0nogithub/backups/manual/` to the application's root `backup/` directory.
+  - Manuel sistem yedeklerinin `0nogithub` yerine doğrudan uygulamanın ana dizinindeki `backup/` klasörüne alınması sağlandı.
+
+## [7.4.0] - 2026-07-04
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **Terminal Log Colorization / Renkli Konsol Logları:**
+  - Forced ANSI color output on Windows terminals by setting `FORCE_COLOR` and `TERM` environment variables inside the Node.js entry script.
+  - Node.js başlatıcı dosyasına `FORCE_COLOR` ve `TERM` değişkenleri eklenerek Windows terminal ekranındaki logların renkli akması sağlandı.
+- **Folder Sync Security Fix / Dosya Karşılaştırma Güvenlik Düzeltmesi:**
+  - Fixed 403 authorization error on folder comparison paths under Windows due to case sensitivity by comparing paths in lowercase mode.
+  - Windows üzerindeki harf duyarlılığından kaynaklanan ve dosya karşılaştırmada 403 hatasına sebep olan yol doğrulama açığı, yollar küçük harfe çevrilerek çözüldü.
+- **Compare Button Double-Trigger / Mükerrer Buton Tetikleme Engeli:**
+  - Removed duplicate click triggers from the file comparison button to prevent concurrent server-side scanning requests.
+  - Dosya karşılaştırma butonundaki mükerrer onclick tetikleyicisi kaldırılarak aynı anda birden fazla tarama yapılması engellendi.
+- **Redownload Missing Videos / Eksik Dosyaları Tekrar İndirme Seçeneği:**
+  - Added a "Redownload" button directly next to missing files, allowing users to queue them back with a single click.
+  - Veritabanında kayıtlı olup diskten silinen (eksik) videolar için tek tıkla tekrar indirme sırasına eklemeyi sağlayan "Tekrar İndir" seçeneği eklendi.
+- **Manual Database & Settings Backup / Manuel Sistem Yedekleme:**
+  - Implemented a secure backup utility inside Settings tab that bundles `db.json`, `channels.ini`, and settings INI file into a single date-stamped JSON backup file.
+  - Ayarlar sekmesine `db.json`, `channels.ini` ve ayar dosyalarınızı tek tıkla yedekleyip geri yüklemenizi sağlayan manuel sistem yedekleme arayüzü ve API desteği eklendi.
+
+## [7.2.0] - 2026-06-29
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **Channels Card Grid Redesign & Alphabetical Sorting / Kanallar Kart Tasarımı & Alfabetik Sıralama:**
+  - Channels tab completely redesigned with modern card-based grid layout (9 cards per row).
+  - Each card shows channel avatar, name, handle, and all channel-specific settings.
+  - Added A-Z alphabetic sidebar navigation for quick scrolling.
+  - Channels containing numbers and special characters sorted under "#" are now pushed to the bottom of the list instead of top.
+  - Cleared redundant URL prefixes (e.g. `https://www.youtube.com/@`) from channel handles, showing only the username.
+  - Kanallar sekmesi tamamen modern grid kart tasarımıyla (satır başına 9 kart) yenilendi. Sayı ve özel karakterle başlayan ve "#" altında toplanan kanallar alfabetik sıralamada en üste gelmek yerine listenin en sonuna taşındı. Kanal kullanıcı adlarındaki Youtube URL önekleri temizlendi.
+
+- **Tools Dropdown Menu / Araçlar Açılır Menüsü:**
+  - Replaced the old "Hdown" dropdown menu with the new "Tools" (Araçlar) dropdown menu.
+  - Removed the standalone folder sync compare button from top bar, placing the "File Comparison & Sync" option directly inside the new Tools dropdown menu.
+  - Clicking "File Comparison" instantly switches active view to Advanced Tools tab and automatically triggers the folder scanner.
+  - Eski "Hdown" menüsü "Araçlar" (Tools) olarak yeniden adlandırıldı. Sağ üstteki bağımsız dosya karşılaştırma butonu kaldırılarak bu menü altına "Dosya Karşılaştırma" seçeneği olarak eklendi. Tıklandığında hem sekmeyi açar hem de karşılaştırma işlemini anında başlatır.
+
+- **Downloader Playlist Selection & Cover Arts / Playlist Seçimli İndirme & Kapak Resimleri:**
+  - The "Downloader" page completely styled to offer a premium, modern user interface.
+  - Playlist video resolution now fetches and displays video thumbnails, duration, and interactive checkboxes for each video item.
+  - Added a "Select/Deselect All" checkbox in the playlist header. The download button now acts as "Download Selected" by pushing only checked videos into the download queue.
+  - Downloader sayfası, mor/eflatun premium detaylarla tamamen görsel olarak yenilendi. Playlist çözümlemede videoların kapak resimleri (thumbnail), süreleri ve yanlarında seçim kutuları (checkbox) eklendi. Listede sadece seçilen videoların indirilmesini sağlayan seçimli indirme kuyruğu mantığı uygulandı.
+
+- **YouTube Music & MP3 Embedded Thumbnails / YouTube Music & MP3 Kapak Resmi Desteği:**
+  - Integrated YouTube Music playlist and video URL parsing using native downloader regex extensions.
+  - When downloading audio as MP3, yt-dlp now embeds the video's cover image directly into the generated MP3 file (`--embed-thumbnail`).
+  - YouTube Music URL regex tanımları genişletildi. MP3 olarak indirilen tüm müzik ve ses dosyalarında videonun orijinal kapak resminin MP3 dosyasına gömülmesi (`--embed-thumbnail`) sağlandı.
+
+## [7.1.0] - 2026-06-27
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **Foreground Explorer Focus / Windows Gezgini Ön Plana Getirme:**
+  - Implemented PowerShell COM `wscript.shell AppActivate` wrapper to bring the opened Explorer windows directly to the foreground when clicking "Open Location" (Konumu Aç) or "Open Folder" (Klasörü Aç) on Windows, resolving background window issue.
+  - Windows üzerinde "Konumu Aç" veya "Klasörü Aç" butonlarına tıklandığında, açılan Windows Gezgini pencerelerinin arka planda kalmasını önleyen ve doğrudan ön plana (aktif pencereye) getiren PowerShell COM `wscript.shell AppActivate` mekanizması entegre edildi.
+
+- **Orphan File Companion Cleaning Fix / Yetim ve Alakasız Dosya Silme:**
+  - Standardized orphan video companion file (.part, .ytdl, .jpg) cleanups to automatically trace and purge all supplementary files during a single untracked file deletion.
+  - Yetim videolar silindiğinde, video dosyası ile ilişkili tüm yan/companion dosyaların (.part, .ytdl, kapak resimleri, altyazılar vb.) tek tıkla temizlenmesi asenkron olarak tamamlandı.
+
+- **CLI & Console Commands Documentation / CLI & Konsol Hız Komutları Örneği:**
+  - Added CLI usage example `"HaYTooL YT Downloader.exe" pd youtubelinki` to the translation tables under Settings page and updated `README.md` across all 7 supported languages.
+  - Ayarlar sekmesindeki terminal/konsol yönergelerine ve `README.md` içerisine doğrudan CLI üzerinden video indirmeyi tetikleyen `"HaYTooL YT Downloader.exe" pd youtubelinki` komut satırı örneği tüm 7 dilde eklendi.
+
+### Bug Fixes / Hata Düzeltmeleri
+- **ES Module Require Error Fix / ES Modül Require Hatası Giderimi:**
+  - Fixed the `require is not defined` reference error encountered when opening file locations by using the globally imported ES module `exec` method.
+  - Dosya konumunu açarken oluşan `require is not defined` hatası, globalde önceden içe aktarılmış olan ES modül `exec` işlevi kullanılarak tamamen giderildi.
+
+- **Dynamic Table Heights in Tools Page / Araçlar Sayfası Tablo Yükseklikleri:**
+  - Removed the fixed `max-height: 450px` scroll limits on the Advanced File Comparison file list tables, allowing list elements to expand vertically according to their content size for easier readability.
+  - Gelişmiş Dosya Karşılaştırma listelerindeki 450px maksimum dikey yükseklik kısıtlaması kaldırılarak, listelerin dikeyde sığacak şekilde otomatik olarak genişlemesi sağlandı.
+
+- **Library History Channel Limit Ordering / Kütüphane Kanal Sınırı Mantığı:**
+  - Updated the library video filtering system to apply the channel history limit *before* hiding hidden videos. This prevents older archived videos from automatically populating the grid slots when a newer video is hidden.
+  - Kütüphane listeleme mantığında kanal limitleri (Örn: 5) uygulanırken, gizli videolar da limit havuzuna dahil edildi. Böylece bir video gizlendiğinde arkadan eski bir videonun listeye girmesi engellenerek gösterim sayısının 4'e düşmesi sağlandı.
+
+## [7.0.0] - 2026-06-27
+
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **Download Folder Comparison & DB Reconciliation / İndirme Klasörü Karşılaştırma & Senkronizasyon:**
+  - Implemented the "Advanced Tools" (Gelişmiş Araçlar) tab to scan and compare physical files on disk with the database history.
+  - Detects "Orphan Files" (yetim dosyalar - files on disk but missing in DB) and "Missing Files" (eksik dosyalar - records in DB but deleted on disk).
+  - Added quick action commands: "Import to Database" (Veritabanına Ekle), "Delete from Disk" (Diskten Sil), "Mark as Not Downloaded" (İndirilmedi İşaretle), and "Delete from History" (Geçmişten Sil).
+  - Supports bulk actions: "Import/Delete All Orphans" and "Reset/Delete All Missing" records.
+  
+  - Disk üzerindeki dosyaları veritabanı kayıtları ile fiziksel olarak karşılaştıran "Gelişmiş Araçlar" sekmesi geliştirildi.
+  - "Yetim Dosyaları" (disk üzerinde var olan ancak veritabanında kaydı bulunmayanlar) ve "Eksik Dosyaları" (veritabanında kayıtlı fakat diskte silinmiş olanlar) tespit eder.
+  - "Veritabanına Ekle", "Diskten Sil", "İndirilmedi İşaretle" ve "Geçmişten Sil" hızlı eylem komutları eklendi.
+  - Toplu düzeltme düğmeleri ile tek tıkla yetim dosyaları içe aktarma/silme ve eksik kayıtları güncelleme desteği sunuldu.
+
+- **System Tray Double-Click Preference / Sistem Tepsisi Çift Tıklama Tercihi:**
+  - Added a configuration setting (`doubleClickAction`) to general settings allowing users to choose whether double-clicking the system tray icon opens the UI in their default system browser or in the application's Edge App Mode browser.
+  - Updated the C# System Tray launcher (`tray.cs`) to dynamically read `configwin.ini` and launch the selected browser mode.
+  - Recompiled the Windows Launcher executable (`HaYTooL YT Downloader.exe`) with the updated behavior and embedded application icon.
+  
+  - Sistem tepsisindeki (tray) simgeye çift tıklandığında uygulamanın varsayılan sistem tarayıcısında mı yoksa Edge App modunda mı açılacağını seçmeyi sağlayan `doubleClickAction` ayarı eklendi.
+  - C# başlatıcısı (`tray.cs`), `configwin.ini` dosyasından bu tercihi okuyup ilgili tarayıcı modunu başlatacak şekilde güncellendi.
+  - C# başlatıcı programı (`HaYTooL YT Downloader.exe`), gömülü simge desteğiyle yeniden derlendi.
+
+- **Live Stream Tracking in Library / Kütüphanede Canlı Yayın Takibi:**
+  - Detects active live streams from followed channels and renders them in the Library tab with a custom blinking red "LIVE" / "CANLI" status pill.
+  - Clicking an active live stream card opens the stream in the embedded player (falling back to YouTube iframe embed streaming).
+  - Added a toggle filter (`history-show-live`) at the top of the Library tab to dynamically show or hide active live streams in the grid.
+  
+  - Takip edilen kanallardaki aktif canlı yayınları otomatik tespit eder ve Kütüphane sekmesinde yanıp sönen kırmızı bir "LIVE" / "CANLI" durum rozetiyle görüntüler.
+  - Canlı yayın kartına tıklandığında, video gömülü oynatıcı üzerinden (YouTube iframe akışı ile) anında oynatılabilir/izlenebilir.
+  - Kütüphane araç çubuğuna, canlı yayınları grid listesinde gösterip gizlemeyi sağlayan bir filtreleme seçeneği (`history-show-live`) eklendi.
+
+- **Clickable Channel Names / Tıklanabilir Kanal İsimleri:**
+  - Channel names displayed on video cards in both Library and Downloaded tabs are now clickable, instantly applying a filter to show only that channel's videos.
+  
+  - Kütüphane ve İndirilenler sekmelerindeki video kartlarında yer alan kanal isimleri tıklanabilir hale getirildi; tıklandığında ilgili kanalın videolarını otomatik olarak filtreler.
+
+- **Granular Shorts Duration Limit Expansion / Gelişmiş Shorts Süre Sınırı Seçenekleri:**
+  - Expanded the shorts duration limit options under the Channels tab configuration to include options up to 1.5 hours (20m, 30m, 45m, 1h, 1.5h) for much more granular control.
+  
+  - Kanal ayarlarındaki Shorts indirme süre sınırı seçenekleri genişletilerek 1.5 saate kadar olan süre limitleri (20dk, 30dk, 45dk, 1sa, 1.5sa) eklendi.
+
+- **SSE Channel Scan Progress Toast / SSE Kanal Denetim İlerleme Bildirimi:**
+  - Implemented real-time progress update to manual channel scan triggers, showing a single persistent toast notification indicating current scan progress (e.g. "5/30 - Checking AkademikLink").
+  
+  - Sağ üstten tetiklenen manuel kanal denetimi işlemine gerçek zamanlı ilerleme takibi eklendi. Denetleme durumunu gösteren tek ve kalıcı bir bildirim toast kutusu ile ilerleme anlık yansıtılır (Örn: "5/30 - AkademikLink denetleniyor").
+
 ## [6.0.0] - 2026-06-23
 
 ### New Features & Improvements / Yeni Özellikler & İyileştirmeler

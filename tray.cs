@@ -31,6 +31,7 @@ namespace HaYTooLTray
         private MenuItem downloadedShortcut;
         private MenuItem channelsShortcut;
         private MenuItem settingsShortcut;
+        private MenuItem settingsItem;
         private MenuItem altSpeedItem;
         private MenuItem bootItem;
         private MenuItem discordRpcItem;
@@ -354,6 +355,7 @@ namespace HaYTooLTray
             downloadedShortcut = new MenuItem("İndirilenler", (s, e) => OpenUrl("/downlist"));
             channelsShortcut = new MenuItem("Kanallar", (s, e) => OpenUrl("/channels"));
             settingsShortcut = new MenuItem("Ayarlar", (s, e) => OpenUrl("/settings"));
+            settingsItem = new MenuItem("Ayarlar", OpenSettingsPage);
             
             shortcutsMenu.MenuItems.Add(libraryShortcut);
             shortcutsMenu.MenuItems.Add(queueShortcut);
@@ -381,6 +383,7 @@ namespace HaYTooLTray
             // Sağ tık menüsünü oluştur
             ContextMenu contextMenu = new ContextMenu();
             contextMenu.MenuItems.Add(openAppBrowserItem);
+            contextMenu.MenuItems.Add(settingsItem);
             contextMenu.MenuItems.Add(pasteDownloadItem);
             contextMenu.MenuItems.Add(altSpeedItem);
             contextMenu.MenuItems.Add(bootItem);
@@ -791,10 +794,60 @@ namespace HaYTooLTray
             }
         }
 
-        // Türkçe Açıklama: Varsayılan tarayıcıda uygulamanın indirilenler sayfasını açar.
+        private string GetDoubleClickActionSetting()
+        {
+            string iniPath = "configwin.ini";
+            if (File.Exists(iniPath))
+            {
+                try
+                {
+                    string[] lines = File.ReadAllLines(iniPath);
+                    foreach (string line in lines)
+                    {
+                        string trimmed = line.Trim();
+                        int equalsIdx = trimmed.IndexOf('=');
+                        if (equalsIdx != -1)
+                        {
+                            string key = trimmed.Substring(0, equalsIdx).Trim();
+                            string val = trimmed.Substring(equalsIdx + 1).Trim();
+                            if (string.Equals(key, "doubleClickAction", StringComparison.OrdinalIgnoreCase))
+                            {
+                                return val;
+                            }
+                        }
+                    }
+                }
+                catch {}
+            }
+            return "system";
+        }
+
+        // Türkçe Açıklama: Varsayılan tarayıcıda veya gömülü Edge App modunda uygulamanın indirilenler sayfasını açar.
         private void OpenWebPage(object sender, EventArgs e)
         {
-            OpenUrl("/downlist");
+            string action = GetDoubleClickActionSetting();
+            if (string.Equals(action, "embedded", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenUrlInOwnBrowser("/downlist");
+            }
+            else
+            {
+                OpenUrl("/downlist");
+            }
+        }
+
+        // Türkçe Açıklama: Varsayılan tarayıcıda veya gömülü Edge App modunda uygulamanın ayarlar sayfasını açar.
+        private void OpenSettingsPage(object sender, EventArgs e)
+        {
+            string action = GetDoubleClickActionSetting();
+            if (string.Equals(action, "embedded", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenUrlInOwnBrowser("/settings");
+            }
+            else
+            {
+                OpenUrl("/settings");
+            }
         }
 
         // Türkçe Açıklama: Panodaki YouTube bağlantısını okur, Node.js sunucusuna indirme komutunu gönderir ve İndirme Sırası sekmesini açar.
@@ -1088,6 +1141,7 @@ namespace HaYTooLTray
                 downloadedShortcut.Text = "Downloads";
                 channelsShortcut.Text = "Channels";
                 settingsShortcut.Text = "Settings";
+                settingsItem.Text = "Settings";
                 altSpeedItem.Text = "Alternative Speed Limit (Turtle)";
                 bootItem.Text = "Run on System Startup";
                 discordRpcItem.Text = "Discord Status";
@@ -1107,6 +1161,7 @@ namespace HaYTooLTray
                 downloadedShortcut.Text = "Descargas";
                 channelsShortcut.Text = "Canales";
                 settingsShortcut.Text = "Configuración";
+                settingsItem.Text = "Configuración";
                 altSpeedItem.Text = "Límite de Velocidad Alternativo (Turtle)";
                 bootItem.Text = "Ejecutar al Inicio del Sistema";
                 discordRpcItem.Text = "Estado de Discord";
@@ -1126,6 +1181,7 @@ namespace HaYTooLTray
                 downloadedShortcut.Text = "Downloads";
                 channelsShortcut.Text = "Kanäle";
                 settingsShortcut.Text = "Einstellungen";
+                settingsItem.Text = "Einstellungen";
                 altSpeedItem.Text = "Alternative Geschwindigkeitsbegrenzung (Turtle)";
                 bootItem.Text = "Beim Systemstart ausführen";
                 discordRpcItem.Text = "Discord-Status";
@@ -1145,6 +1201,7 @@ namespace HaYTooLTray
                 downloadedShortcut.Text = "Downloads";
                 channelsShortcut.Text = "Canais";
                 settingsShortcut.Text = "Configurações";
+                settingsItem.Text = "Configurações";
                 altSpeedItem.Text = "Limite de Velocidade Alternativo (Turtle)";
                 bootItem.Text = "Executar na Inicialização do Sistema";
                 discordRpcItem.Text = "Estado do Discord";
@@ -1164,6 +1221,7 @@ namespace HaYTooLTray
                 downloadedShortcut.Text = "التنزيلات";
                 channelsShortcut.Text = "القنوات";
                 settingsShortcut.Text = "الإعدادات";
+                settingsItem.Text = "الإعدادات";
                 altSpeedItem.Text = "حد السرعة البديل (السلحفاة)";
                 bootItem.Text = "التشغيل عند بدء تشغيل النظام";
                 discordRpcItem.Text = "حالة ديسكورد";
@@ -1183,6 +1241,7 @@ namespace HaYTooLTray
                 downloadedShortcut.Text = "Загрузки";
                 channelsShortcut.Text = "Каналы";
                 settingsShortcut.Text = "Настройки";
+                settingsItem.Text = "Настройки";
                 altSpeedItem.Text = "Альтернативный лимит скорости (Черепаха)";
                 bootItem.Text = "Запускать при старте системы";
                 discordRpcItem.Text = "Статус Discord";
@@ -1202,6 +1261,7 @@ namespace HaYTooLTray
                 downloadedShortcut.Text = "İndirilenler";
                 channelsShortcut.Text = "Kanallar";
                 settingsShortcut.Text = "Ayarlar";
+                settingsItem.Text = "Ayarlar";
                 altSpeedItem.Text = "Alternatif Hız Sınırı (Turtle)";
                 bootItem.Text = "Sistem Başlangıcında Çalıştır";
                 discordRpcItem.Text = "Discord Durumu";

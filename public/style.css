@@ -4028,7 +4028,6 @@ body.light-theme .player-transient-card .transient-desc {
   color: var(--text-muted);
 }
 
-/* Light Theme Toast Styles */
 body.light-theme .toast {
   background-color: rgba(255, 255, 255, 0.95);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
@@ -4036,7 +4035,663 @@ body.light-theme .toast {
   color: var(--text-main);
 }
 
+/* Custom styles for v7.1.0 */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin {
+  animation: spin 1.5s linear infinite;
+}
 
+.tools-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+.tools-table th, .tools-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+.tools-table th {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.tools-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
 
+.status-pill.live {
+  background-color: var(--accent-red) !important;
+  color: #fff !important;
+  box-shadow: 0 0 8px rgba(255, 0, 85, 0.4);
+  display: inline-flex;
+  align-items: center;
+  font-weight: bold;
+}
+.status-pill.upcoming {
+  background-color: #f59e0b !important;
+  color: #fff !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.animate-pulse {
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 
+/* === v7.2.0 GÜNCELLEMELERİ === */
 
+/* A-Z Gruplama ve Layout */
+.channels-layout-container {
+  display: flex;
+  gap: 20px;
+  position: relative;
+  width: 100%;
+}
+
+.channels-main-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Kanallar Tabı Yeni Kart Tasarımı */
+.channel-group-section {
+  margin-bottom: 32px;
+  scroll-margin-top: 80px; /* Hızlı kaydırmada başlığın üstte kalmaması için */
+}
+
+.channel-group-header {
+  font-family: var(--font-title);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent-color);
+  margin-bottom: 16px;
+  border-bottom: 2px solid rgba(138, 43, 226, 0.2);
+  padding-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.channels-grid-container {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+/* Kanal Kartı Tasarımı */
+.channel-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  position: relative;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+.channel-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--primary);
+  box-shadow: 0 8px 24px rgba(138, 43, 226, 0.25);
+}
+
+/* Kanal Logo/Avatar */
+.channel-card-avatar-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(138, 43, 226, 0.3);
+  margin-bottom: 8px;
+  flex-shrink: 0;
+  position: relative;
+  background: rgba(0,0,0,0.2);
+}
+
+.channel-card-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.channel-card-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.2rem;
+  border-radius: 50%;
+}
+
+/* Kanal Bilgileri */
+.channel-card-name {
+  font-family: var(--font-title);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+  text-decoration: none;
+}
+
+.channel-card-name:hover {
+  color: var(--secondary);
+  text-decoration: none;
+}
+
+.channel-card-handle {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 10px;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Kart İçi Kanal Ayarları */
+.channel-card-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 10px;
+  margin-bottom: 10px;
+}
+
+.channel-card-select {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  outline: none;
+  cursor: pointer;
+  width: 100%;
+  transition: border-color var(--transition-speed) ease;
+}
+
+.channel-card-select:focus {
+  border-color: var(--primary);
+}
+
+/* Kart İçi Aksiyon Butonları */
+.channel-card-actions {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 8px;
+}
+
+.channel-card-actions .btn-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-muted);
+}
+
+.channel-card-actions .btn-icon:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-main);
+  transform: scale(1.05);
+}
+
+.channel-card-actions .channel-delete-btn:hover {
+  color: var(--accent-red);
+  background: rgba(255, 0, 85, 0.1);
+  border-color: rgba(255, 0, 85, 0.2);
+}
+
+/* Sağ Menü Alfabetik İndeks */
+.channels-alpha-sidebar {
+  display: flex;
+  flex-direction: column;
+  background: rgba(20, 20, 30, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 8px 4px;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  position: sticky;
+  top: 90px;
+  height: calc(100vh - 200px);
+  min-height: 380px;
+  max-height: 520px;
+  z-index: 10;
+  backdrop-filter: blur(10px);
+}
+
+.alpha-letter {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  width: 24px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  margin: 1px 0;
+}
+
+.alpha-letter:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+.alpha-letter.active {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff;
+}
+
+/* --- Hdown Dropdown Menüsü --- */
+.nav-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.tools-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all var(--transition-speed) ease;
+  height: 42px;
+}
+
+.tools-btn:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--text-main);
+}
+
+.nav-dropdown.active .tools-btn {
+  background: linear-gradient(135deg, rgba(138, 43, 226, 0.15), rgba(0, 242, 254, 0.05));
+  border-bottom: 3px solid var(--primary);
+  border-radius: 8px 8px 0 0;
+  color: #fff;
+  box-shadow: inset 0 0 15px rgba(138, 43, 226, 0.05);
+}
+
+.dropdown-arrow {
+  width: 14px !important;
+  height: 14px !important;
+  transition: transform 0.2s ease;
+  opacity: 0.7;
+}
+
+.nav-dropdown.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.nav-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  display: none;
+  flex-direction: column;
+  background: rgba(18, 18, 28, 0.95);
+  border: 1px solid var(--border-color);
+  border-radius: 0 8px 8px 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  min-width: 200px;
+  backdrop-filter: blur(15px);
+  padding: 6px;
+  margin-top: -1px;
+}
+
+.nav-dropdown.open .nav-dropdown-menu {
+  display: flex;
+}
+
+.nav-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-align: left;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.nav-dropdown-item:hover {
+  background: rgba(138, 43, 226, 0.12);
+  color: #fff;
+}
+
+.nav-dropdown-item i {
+  width: 16px;
+  height: 16px;
+}
+
+/* --- Downloader Sayfası --- */
+.downloader-card {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.downloader-input-group {
+  width: 100%;
+}
+
+.downloader-options {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.downloader-option-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 220px;
+  flex: 1;
+}
+
+.downloader-option-group label {
+  font-family: var(--font-title);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.downloader-option-group select {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-color);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: border-color var(--transition-speed) ease;
+}
+
+.downloader-option-group select:focus {
+  border-color: var(--primary);
+}
+
+#downloader-start-btn {
+  align-self: flex-start;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 28px;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+  border: none !important;
+  color: #fff;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(138, 43, 226, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#downloader-start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(138, 43, 226, 0.6);
+  filter: brightness(1.1);
+}
+
+#downloader-start-btn:active {
+  transform: translateY(0);
+}
+
+#downloader-url-input {
+  background: rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid var(--border-color) !important;
+  color: #fff !important;
+  padding: 14px 18px 14px 44px !important;
+  border-radius: 12px !important;
+  font-size: 0.95rem !important;
+  width: 100% !important;
+  outline: none !important;
+  font-family: var(--font-body) !important;
+  transition: all 0.3s ease !important;
+}
+
+#downloader-url-input:focus {
+  border-color: var(--primary) !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.2) !important;
+}
+
+/* Playlist Çözümleme Bölümü */
+.downloader-playlist-results {
+  border: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 10px;
+}
+
+.downloader-playlist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 10px;
+}
+
+.downloader-playlist-header h4 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 1.05rem;
+  color: var(--text-main);
+}
+
+.downloader-playlist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 550px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.downloader-playlist-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.downloader-playlist-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(138, 43, 226, 0.15);
+}
+
+.playlist-item-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.playlist-item-thumb-wrap {
+  width: 50px;
+  height: 36px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.playlist-item-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.downloader-playlist-item .item-index {
+  color: var(--text-muted);
+  font-weight: 600;
+  width: 20px;
+  text-align: center;
+}
+
+.downloader-playlist-item .item-title {
+  flex-grow: 1;
+  color: var(--text-main);
+  font-weight: 500;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.downloader-playlist-item .item-duration {
+  font-family: 'Inter', sans-serif;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+/* İndirme İlerleme Bölümü */
+.downloader-progress-container {
+  border: 1px solid var(--border-color);
+  background: rgba(138, 43, 226, 0.05);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.downloader-progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.downloader-progress-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.downloader-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* Responsive Düzenlemeleri */
+@media (max-width: 1600px) {
+  .channels-grid-container {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
+@media (max-width: 1200px) {
+  .channels-grid-container {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .channels-grid-container {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .channels-alpha-sidebar {
+    display: none; /* Mobilde veya dar ekranlarda A-Z sidebar'ı gizleyelim */
+  }
+}
+
+@media (max-width: 600px) {
+  .channels-grid-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
