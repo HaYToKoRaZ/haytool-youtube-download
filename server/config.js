@@ -11,6 +11,7 @@ const rootDir = path.resolve(__dirname, '..');
 export const configIniName = os.platform() === 'win32' ? 'configwin.ini' : 'configunix.ini';
 export const configIniPath = path.join(rootDir, configIniName);
 export const channelsIniPath = path.join(rootDir, 'channels.ini');
+export const categoriesIniPath = path.join(rootDir, 'categories.ini');
 
 /**
  * Belirtilen INI dosyasını okuyup JavaScript nesnesi (JSON) olarak ayrıştırır.
@@ -88,7 +89,7 @@ export const settingComments = {
   downloadPath: '# İndirme Klasörü / Download Directory\n# Varsayılan: download (Uygulama klasörü içindeki download dizini)\n# Default: download (Download directory inside the application folder)',
   browser: '# Çerez Çekilecek Tarayıcı / Browser to Import Cookies From\n# Seçenekler: none, chrome, firefox, edge, msedge vb.\n# Options: none, chrome, firefox, edge, msedge, etc.',
   quality: '# Video İndirme Kalitesi / Video Download Quality\n# Seçenekler: best, 1080p, 720p, 480p, 360p vb.\n# Options: best, 1080p, 720p, 480p, 360p, etc.',
-  channelCheckInterval: '# Kanal Kontrol Sıklığı (Saniye) / Channel Check Interval (Seconds)\n# Kanalların ne sıklıkla taranacağını belirler.\n# Determines how frequently channels are scanned.',
+  channelCheckInterval: '# Tüm Kanalları Otomatik Denetleme Sıklığı (Saniye) / All Channels Automatic Check Interval (Seconds)\n# Tüm kanalların topluca ne sıklıkla taranacağını belirler.\n# Determines how frequently all channels are scanned together.',
   autoDownload: '# Yeni Videoları Otomatik İndir / Auto-download New Videos\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
   mergeType: '# Ses ve Video Birleştirme Biçimi / Video Merge Type\n# Seçenekler: merge (FFmpeg ile birleştir), video (Sadece video), audio (Sadece ses)\n# Options: merge (Merge with FFmpeg), video (Video only), audio (Audio only)',
   writeThumbnail: '# Önizleme Resmini İndir / Download Video Thumbnail\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
@@ -106,7 +107,8 @@ export const settingComments = {
   lang: '# Uygulama Dili / Application Language\n# Seçenekler: tr, en, es, de, pt, ru, ar\n# Options: tr, en, es, de, pt, ru, ar',
   isPaused: '# Otomatik Kontrol Duraklatıldı mı / Is Automatic Checking Paused\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
   showNotifications: '# Windows Bildirimlerini Göster / Show Windows Notifications\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
-  autoOpenBrowser: '# Başlangıçta Tarayıcıyı Aç / Auto Open Browser on Startup\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)'
+  autoOpenBrowser: '# Başlangıçta Tarayıcıyı Aç / Auto Open Browser on Startup\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  enableAltThumbnailsHover: '# Fare Üzerine Geldiğinde Alternatif Kapak Döngüsü / Hover Alternative Thumbnail Cycle\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)'
 };
 
 /**
@@ -131,5 +133,7 @@ export function writeIni(filePath, data) {
       content += `${key} = ${data[section][key]}\n\n`;
     }
   }
-  fs.writeFileSync(filePath, content, 'utf-8');
+  const tempPath = `${filePath}.tmp`;
+  fs.writeFileSync(tempPath, content, 'utf-8');
+  fs.renameSync(tempPath, filePath);
 }

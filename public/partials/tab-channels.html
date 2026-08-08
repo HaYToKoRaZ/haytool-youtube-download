@@ -1,0 +1,52 @@
+      <section id="tab-channels" class="tab-content">
+        <header class="content-header">
+          <div>
+            <h2>İzlanan Kanallar</h2>
+            <p>Yeni videolarını otomatik indirmek istediğiniz kanalları ekleyin veya çıkarın.</p>
+          </div>
+          <div class="channels-header-badge" id="channels-count-badge">
+            <i data-lucide="tv" style="width:14px;height:14px;"></i>
+            <span id="channels-total-count">0 Kanal</span>
+          </div>
+        </header>
+
+        <div class="channel-action-row card">
+          <form id="add-channel-form" class="form-row">
+            <div class="input-group">
+              <i data-lucide="search" class="input-icon"></i>
+              <input type="text" id="channel-input" placeholder="YouTube Kanal linki veya kullanıcı adı girin (Örn: @BarisOzcan veya youtube.com/@GezenAdam)" required>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap: wrap;">
+              <button type="submit" class="btn btn-primary" id="add-channel-btn">
+                <i data-lucide="plus"></i>
+                <span id="btn-add-channel-text">Kanalı Takip Et</span>
+              </button>
+              <button type="button" class="btn btn-secondary" id="search-channel-btn" onclick="triggerChannelSearch()" style="background: #1e88e5; border-color: #1e88e5; color: #fff;">
+                <i data-lucide="search"></i>
+                <span id="btn-search-channel-text">Kanal Ara</span>
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="updateAllChannelInfo()" id="update-all-channels-btn" title="Takip edilen tüm kanalların abone sayılarını ve avatarlarını tek tıkla güncelle" data-i18n-title="btn_update_all_channels_title" style="white-space: nowrap; margin-left: 6px;">
+                <i data-lucide="refresh-cw"></i>
+                <span id="btn-update-all-channels-text" data-i18n="btn_update_all_channels">Tüm Abone ve Avatarları Güncelle</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Arama Sonuçları Listesi -->
+        <div id="channel-search-results" class="card margin-top-md" style="display: none; border: 1px solid var(--border-color); background: var(--bg-card); padding: 15px; border-radius: 8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+            <h4 id="search-results-title" style="margin:0; font-size:1.1rem; color:var(--text-color);">Kanal Arama Sonuçları</h4>
+            <button class="btn btn-secondary btn-sm" onclick="closeChannelSearchResults()" style="padding: 2px 8px; font-size: 0.8rem;">X</button>
+          </div>
+          <div id="search-results-list" style="display:flex; flex-direction:column; gap:12px; max-height: 300px; overflow-y: auto; padding-right:5px;">
+            <!-- Arama sonuçları buraya eklenecek -->
+          </div>
+        </div>
+
+        <div class="margin-top-lg">
+          <div id="channels-list">
+            <!-- Kanal satırları buraya JS ile dinamik eklenecek -->
+          </div>
+        </div>
+      </section>

@@ -124,7 +124,11 @@ export function isShortVideo(durationStr, title, channelId) {
     totalSeconds = (parts[0] * 3600) + (parts[1] * 60) + parts[2];
   }
   
-  if (title && totalSeconds <= limit) {
+  if (totalSeconds <= limit) {
+    return true;
+  }
+  
+  if (title) {
     const lowerTitle = title.toLowerCase();
     // Arama kelimeleri içeren ve süresi uyanları işaretle
     if (lowerTitle.includes('shorts') || lowerTitle.includes('short')) {

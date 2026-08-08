@@ -17,11 +17,30 @@ import { broadcast } from '../services/sse.js';
 export const router = express.Router();
 
 // IPTV Durum Endpoint'i
+/**
+ * IPTV güncelleme ve senkronizasyon durumunu döner.
+ * 
+ * @name GET /api/iptv/status
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/status', (req, res) => {
   res.json(iptvUpdateStatus);
 });
 
-// IPTV Guncelleme Endpoint'i - Streaming M3U indirici (RAM tasarrufu icin)
+/**
+ * IPTV M3U çalma listesini GitHub üzerinden akış (stream) ile indirerek veritabanını günceller.
+ * 
+ * @name POST /api/iptv/update
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
 router.post('/update', localhostOnly, async (req, res) => {
   if (iptvUpdateStatus.status === 'updating') {
     return res.status(400).json({ success: false, error: 'Update already in progress' });
@@ -148,7 +167,21 @@ router.post('/update', localhostOnly, async (req, res) => {
   }
 });
 
-// IPTV Kanalları Listeleme ve Arama Endpoint'i
+/**
+ * IPTV kanal listesini filtreleme (kategori, ülke, arama) ve sayfalama parametrelerine göre getirir.
+ * 
+ * @name GET /api/iptv/channels
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {number} [req.query.page=1] - Hangi sayfanın getirileceği
+ * @param {number} [req.query.limit=200] - Sayfa başına maksimum eleman sayısı
+ * @param {string} [req.query.search] - Kanal ismi arama terimi
+ * @param {string} [req.query.country] - Ülke kodu filtresi (örn. TR)
+ * @param {string} [req.query.category] - Kategori filtresi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/channels', (req, res) => {
   let { page = 1, limit = 200, search = '', country = '', category = '' } = req.query;
   page = parseInt(page, 10) || 1;

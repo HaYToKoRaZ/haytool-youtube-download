@@ -1,0 +1,148 @@
+      <!-- Tab: Video Kütüphanesi (Geçmiş ve Aktif İndirmelerin Birleşimi) -->
+      <section id="tab-history" class="tab-content active">
+
+        <div class="history-toolbar">
+          <div class="filter-group">
+            <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);cursor:pointer;" onclick="resetHistoryChannelFilter()" title="Filtreyi Sıfırla"></i>
+            <div class="custom-channel-dropdown" id="history-custom-dropdown">
+              <button type="button" class="custom-dropdown-trigger" id="history-channel-trigger" onclick="toggleCustomChannelPicker('history', event)">
+                <span class="custom-dropdown-selected-content" id="history-channel-trigger-content">
+                  <i data-lucide="globe" style="width:14px;height:14px;color:var(--accent-color);"></i>
+                  <span>Tüm Kanallar</span>
+                </span>
+                <i data-lucide="chevron-down" style="width:14px;height:14px;color:var(--text-muted);margin-left:8px;"></i>
+              </button>
+              <div class="custom-dropdown-menu" id="history-channel-options-panel">
+                <!-- JS ile logolu kanallar yüklenecek -->
+              </div>
+            </div>
+            <select id="history-channel-filter" style="display:none;" onchange="onHistoryChannelFilterChange()">
+              <option value="all">Tüm Kanallar</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <i data-lucide="clock" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);cursor:pointer;" onclick="resetHistoryDurationFilter()" title="Süre Filtresini Sıfırla"></i>
+            <select id="history-duration-filter" onchange="onHistoryDurationFilterChange()">
+              <option value="off" id="opt-duration-off">Süre Filtresi Kapalı</option>
+
+              <option value="1">1 dk ve Altı</option>
+              <option value="2">2 dk ve Altı</option>
+              <option value="3">3 dk ve Altı</option>
+              <option value="4">4 dk ve Altı</option>
+              <option value="5">5 dk ve Altı</option>
+              <option value="10">10 dk ve Altı</option>
+              <option value="15">15 dk ve Altı</option>
+              <option value="20">20 dk ve Altı</option>
+              <option value="25">25 dk ve Altı</option>
+              <option value="30">30 dk ve Altı</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <i data-lucide="calendar" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);cursor:pointer;" onclick="resetHistoryDateFilter()" title="Tarih Filtresini Sıfırla"></i>
+            <select id="history-date-filter" onchange="onHistoryDateFilterChange()">
+              <option value="all" id="opt-date-all">Tümü</option>
+              <option value="0" id="opt-date-today">Bugün</option>
+              <option value="1" id="opt-date-yesterday">Dün</option>
+              <option value="2" id="opt-date-2days">Son 2 Gün</option>
+              <option value="3" id="opt-date-3days">Son 3 Gün</option>
+              <option value="4" id="opt-date-4days">Son 4 Gün</option>
+              <option value="5" id="opt-date-5days">Son 5 Gün</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <input type="checkbox" id="history-show-shorts" style="display:none;">
+            <button type="button" class="filter-chip-btn" id="btn-filter-show-shorts" onclick="toggleFilterChip('history-show-shorts')" title="Shorts Videolarını Göster/Gizle">
+              <i data-lucide="zap"></i>
+              <span id="lbl-history-show-shorts">Shorts</span>
+            </button>
+          </div>
+          <div class="filter-group">
+            <input type="checkbox" id="history-show-live" style="display:none;" checked>
+            <button type="button" class="filter-chip-btn" id="btn-filter-show-live" onclick="toggleFilterChip('history-show-live')" title="Canlı Yayınları Göster/Gizle">
+              <i data-lucide="radio"></i>
+              <span id="lbl-history-show-live">Canlı</span>
+            </button>
+          </div>
+          <div class="filter-group">
+            <input type="checkbox" id="history-only-no-auto-download" style="display:none;">
+            <button type="button" class="filter-chip-btn" id="btn-filter-no-auto-download" onclick="toggleFilterChip('history-only-no-auto-download')" title="Sadece Otomatik İndirmesi Kapalı Olanları Göster/Gizle">
+              <i data-lucide="download-cloud"></i>
+              <span id="lbl-history-only-no-auto-download">Oto İndirme Kapalı</span>
+            </button>
+          </div>
+          <div class="filter-group">
+            <input type="checkbox" id="history-only-not-downloaded" style="display:none;">
+            <button type="button" class="filter-chip-btn" id="btn-filter-not-downloaded" onclick="toggleFilterChip('history-only-not-downloaded')" title="Sadece İndirilmeyen Videoları Göster/Gizle">
+              <i data-lucide="arrow-down-circle"></i>
+              <span id="lbl-history-only-not-downloaded">İndirilmeyenler</span>
+            </button>
+          </div>
+          <div class="filter-group">
+            <input type="checkbox" id="history-show-hidden" style="display:none;">
+            <button type="button" class="filter-chip-btn" id="btn-filter-show-hidden" onclick="toggleFilterChip('history-show-hidden')" title="Gizlenen Videoları Göster/Gizle">
+              <i data-lucide="eye-off"></i>
+              <span id="lbl-history-show-hidden">Gizlenenler</span>
+            </button>
+          </div>
+
+          <div class="filter-group" style="margin-left: auto; display: flex; gap: 8px;">
+            <button id="history-bulk-hide-toggle-btn" class="btn btn-secondary"
+              onclick="toggleHistoryBulkHideMode()"
+              title="Toplu Gizleme Modunu Aç/Kapat"
+              style="display:flex; align-items:center; gap:6px; padding:6px 12px; font-size:0.8rem;">
+              <i data-lucide="eye-off" style="width:14px;height:14px;"></i>
+              <span id="btn-bulk-hide-history-toggle">Toplu Gizle</span>
+            </button>
+          </div>
+
+          <div class="view-toggle-container">
+            <button id="view-grid-btn" class="view-btn active" title="Kart Görünümü">
+              <i data-lucide="layout-grid"></i>
+              <span>Kartlar</span>
+            </button>
+            <button id="view-list-btn" class="view-btn" title="Sade Liste Görünümü">
+              <i data-lucide="list"></i>
+              <span>Sade Liste</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Kütüphane Toplu Gizleme Barı -->
+        <div id="history-bulk-hide-bar" class="hidden card"
+          style="display:flex; align-items:center; justify-content:space-between; padding:12px 20px;
+                 margin-bottom:16px; background:rgba(22,20,42,0.95);
+                 border:1px solid var(--secondary); border-radius:12px;
+                 box-shadow:0 4px 20px rgba(0,212,255,0.15); backdrop-filter:blur(10px);">
+          <div style="display:flex; align-items:center; gap:15px;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.9rem; color:var(--text-main); cursor:pointer; user-select:none; margin:0;">
+              <input type="checkbox" id="history-bulk-hide-select-all"
+                     onchange="toggleSelectAllHistoryBulkHide(this)"
+                     style="cursor:pointer; width:16px; height:16px; accent-color:var(--secondary);">
+              <span id="lbl-history-bh-select-all">Tümünü Seç</span>
+            </label>
+            <span style="color:rgba(255,255,255,0.15); font-size:0.9rem;">|</span>
+            <span style="font-size:0.9rem; color:var(--text-main);">
+              <span id="lbl-history-bh-selected-count">Seçilen:</span>
+              <strong id="history-bulk-hide-selected-count"
+                      style="color:var(--secondary); font-size:1rem; font-family:var(--font-title);">0</strong>
+            </span>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="cancelHistoryBulkHideMode()"
+                    style="padding:6px 14px; font-size:0.8rem; border-radius:8px;"
+                    id="lbl-history-bh-cancel">İptal</button>
+            <button type="button" class="btn btn-primary btn-sm"
+                    onclick="executeHistoryBulkHide()"
+                    style="background:var(--secondary); border-color:var(--secondary); color:#0a0818;
+                           padding:6px 14px; font-size:0.8rem; border-radius:8px; font-weight:600;
+                           box-shadow:0 4px 12px rgba(0,212,255,0.2);">
+              <span id="lbl-history-bh-execute">Seçilenleri Gizle</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="history-grid" id="history-grid">
+          <!-- Video kartları JS ile buraya yüklenecek -->
+        </div>
+      </section>

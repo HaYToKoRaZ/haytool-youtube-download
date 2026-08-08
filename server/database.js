@@ -8,6 +8,7 @@ import {
   configIniName,
   configIniPath, 
   channelsIniPath, 
+  categoriesIniPath,
   parseIni, 
   getCaseInsensitiveKey, 
   writeIni 
@@ -31,10 +32,30 @@ export const defaultDb = {
       downloadShorts: false,
       avatar: "https://yt3.googleusercontent.com/ytc/AIdro_l9oJrladQXLtLvzwQm5ScW-GUUq9tvVgnOc-0DGTKPv6o=s900-c-k-c0x00ffffff-no-rj",
       shortsDurationLimit: 180,
-      autoDownload: false
+      autoDownload: false,
+      categoryId: 1
     }
   ],
   history: [],
+  categories: [
+    { id: 1, name: "Genel" },
+    { id: 2, name: "Oyun" },
+    { id: 3, name: "Eğitim" },
+    { id: 4, name: "Müzik" },
+    { id: 5, name: "Teknoloji" },
+    { id: 6, name: "Spor" },
+    { id: 7, name: "Sinema & Film" },
+    { id: 8, name: "Haberler & Siyaset" },
+    { id: 9, name: "Eğlence" },
+    { id: 10, name: "Bilim" },
+    { id: 11, name: "Gezi & Yaşam" },
+    { id: 12, name: "Komedi" },
+    { id: 13, name: "Belgesel" },
+    { id: 14, name: "Anime & Çizgi Film" },
+    { id: 15, name: "Finans & Ekonomi" },
+    { id: 16, name: "League of Legends" },
+    { id: 17, name: "Podcast" }
+  ],
   settings: {
     downloadPath: defaultDownloadDir,
     browser: 'none',
@@ -57,6 +78,7 @@ export const defaultDb = {
     subtitleOpacity: '0.7',
     subtitleSize: '26px',
     lang: 'tr',
+    preferredAudioLang: 'tr',
     isPaused: false,
     showNotifications: true,
     autoOpenBrowser: true,
@@ -67,7 +89,18 @@ export const defaultDb = {
     shortsDurationLimit: 180,
     sponsorBlockEnabled: false,
     discordRpcEnabled: false,
-    doubleClickAction: 'system'
+    doubleClickAction: 'system',
+    tempDirType: 'system',
+    durationFetchMethod: 'auto',
+    ytdlpRunMode: 'exe',
+    pythonCmd: os.platform() === 'win32' ? 'python' : 'python3',
+    maxConcurrentDownloads: 1,
+    hideOnDelete: true,
+    checkChannelsOnStartup: false,
+    enableAltThumbnailsHover: true,
+    githubToken: '',
+    githubGistId: '',
+    autoSyncGist: false
   }
 };
 
@@ -75,8 +108,16 @@ let cachedDb = null;
 let lastDbJsonMtime = 0;
 let lastConfigIniMtime = 0;
 let lastChannelsIniMtime = 0;
+let lastCategoriesIniMtime = 0;
 
 let dbLockPromise = Promise.resolve();
+/**
+ * Veritabanı yazma işlemleri için sıralı kilit (mutex) mekanizmasını yönetir.
+ * Eş zamanlı birden fazla yazma isteğinin çakışmasını önler.
+ * Kullanım: `const release = await acquireDbLock();` → işlem → `release()`
+ *
+ * @returns {Promise<Function>} Kilidi serbest bırakan `release` fonksiyonu
+ */
 export async function acquireDbLock() {
   let release;
   const nextLock = new Promise(resolve => {
@@ -148,11 +189,17 @@ export function readDb() {
       channelsIniMtime = fs.statSync(channelsIniPath).mtimeMs;
     }
 
+    let categoriesIniMtime = 0;
+    if (fs.existsSync(categoriesIniPath)) {
+      categoriesIniMtime = fs.statSync(categoriesIniPath).mtimeMs;
+    }
+
     // Disk üzerindeki dosyalar değişmediyse, doğrudan RAM önbelleğindeki veriyi dön
     if (cachedDb && 
         dbJsonMtime === lastDbJsonMtime && 
         configIniMtime === lastConfigIniMtime && 
-        channelsIniMtime === lastChannelsIniMtime) {
+        channelsIniMtime === lastChannelsIniMtime &&
+        categoriesIniMtime === lastCategoriesIniMtime) {
       return cachedDb;
     }
 
@@ -219,6 +266,9 @@ export function readDb() {
     if (fs.existsSync(channelsIniPath)) {
       lastChannelsIniMtime = fs.statSync(channelsIniPath).mtimeMs;
     }
+    if (fs.existsSync(categoriesIniPath)) {
+      lastCategoriesIniMtime = fs.statSync(categoriesIniPath).mtimeMs;
+    }
     
     return db;
   } catch (err) {
@@ -237,13 +287,19 @@ export function writeDb(data) {
     // RAM önbelleği hemen güncelleyelim ki gecikme olmasın
     cachedDb = data;
     
-    // Diske yazarken manual indirmeleri (yani standalone downloader videolarını) db.history listesinden çıkarıyoruz
-    const dataCopy = JSON.parse(JSON.stringify(data));
-    if (dataCopy.history) {
-      dataCopy.history = dataCopy.history.filter(h => h.channelId !== 'manual' && h.isStandalone !== true);
+    // Otomatik rolling yedek (db.json.bak)
+    if (fs.existsSync(dbPath)) {
+      try {
+        const stats = fs.statSync(dbPath);
+        if (stats.size > 0) {
+          fs.copyFileSync(dbPath, dbPath + '.bak');
+        }
+      } catch (bakErr) {
+        // Sessizce geç
+      }
     }
-    
-    const dbString = JSON.stringify(dataCopy, null, 2);
+
+    const dbString = JSON.stringify(data, null, 2);
     const tempDbPath = dbPath + '.tmp';
     fs.writeFileSync(tempDbPath, dbString, 'utf8');
     fs.renameSync(tempDbPath, dbPath);
@@ -252,6 +308,7 @@ export function writeDb(data) {
     // Eş zamanlı olarak config.ini ve channels.ini dosyalarını güncelle
     saveSettingsToIni(data);
     saveChannelsToIni(data);
+    saveCategoriesToIni(data);
   } catch (err) {
     console.error('Veritabanı yazma hatası:', err);
   }
@@ -279,6 +336,61 @@ export function syncWithIni(db) {
       console.log(`[Migration] config.ini başarıyla ${configIniName} olarak yeniden adlandırıldı.`);
     } catch (e) {
       console.error('[Migration] Eski config.ini taşınırken Error occurred:', e.message);
+    }
+  }
+
+  // 1. categories.ini (Kategoriler) Eşitlemesi
+  let categoriesData = null;
+  if (fs.existsSync(categoriesIniPath)) {
+    const parsedCategories = parseIni(categoriesIniPath);
+    categoriesData = getCaseInsensitiveKey(parsedCategories, 'Categories') || parsedCategories;
+  }
+
+  if (categoriesData) {
+    const updatedCategories = [];
+    for (const id in categoriesData) {
+      updatedCategories.push({
+        id: parseInt(id, 10),
+        name: categoriesData[id]
+      });
+    }
+
+    const defaultCategories = [
+      { id: 1, name: "Genel" },
+      { id: 2, name: "Oyun" },
+      { id: 3, name: "Eğitim" },
+      { id: 4, name: "Müzik" },
+      { id: 5, name: "Teknoloji" },
+      { id: 6, name: "Spor" },
+      { id: 7, name: "Sinema & Film" },
+      { id: 8, name: "Haberler & Siyaset" },
+      { id: 9, name: "Eğlence" },
+      { id: 10, name: "Bilim" },
+      { id: 11, name: "Gezi & Yaşam" },
+      { id: 12, name: "Komedi" },
+      { id: 13, name: "Belgesel" },
+      { id: 14, name: "Anime & Çizgi Film" },
+      { id: 15, name: "Finans & Ekonomi" },
+      { id: 16, name: "League of Legends" },
+      { id: 17, name: "Podcast" }
+    ];
+
+    let hasNewDefault = false;
+    defaultCategories.forEach(defCat => {
+      const exists = updatedCategories.some(c => c.id === defCat.id);
+      if (!exists) {
+        updatedCategories.push(defCat);
+        hasNewDefault = true;
+      }
+    });
+
+    db.categories = updatedCategories.length > 0 ? updatedCategories : defaultCategories;
+    if (hasNewDefault) {
+      saveCategoriesToIni(db);
+    }
+  } else {
+    if (!fs.existsSync(categoriesIniPath)) {
+      saveCategoriesToIni(db);
     }
   }
 
@@ -434,6 +546,16 @@ export function syncWithIni(db) {
       if (doubleClickAction !== undefined) {
         db.settings.doubleClickAction = doubleClickAction;
       }
+
+      const historyDurationFilter = getCaseInsensitiveKey(settingsSection, 'historyDurationFilter');
+      if (historyDurationFilter !== undefined) {
+        db.settings.historyDurationFilter = historyDurationFilter;
+      }
+
+      const enableAltThumbnailsHover = getCaseInsensitiveKey(settingsSection, 'enableAltThumbnailsHover');
+      if (enableAltThumbnailsHover !== undefined) {
+        db.settings.enableAltThumbnailsHover = enableAltThumbnailsHover === 'true';
+      }
     }
   }
 
@@ -448,8 +570,41 @@ export function syncWithIni(db) {
   if (migratedChannels) {
     channelsData = migratedChannels;
   } else if (fs.existsSync(channelsIniPath)) {
-    const parsedChannels = parseIni(channelsIniPath);
-    channelsData = getCaseInsensitiveKey(parsedChannels, 'Channels') || parsedChannels;
+    let rawContent = '';
+    try {
+      rawContent = fs.readFileSync(channelsIniPath, 'utf-8').trim();
+    } catch (e) {
+      console.error('[Hata] channels.ini okunamadı:', e);
+    }
+
+    if (!rawContent) {
+      console.warn('[Uyarı] channels.ini boş (0 byte) tespit edildi! Otomatik kurtarma devreye giriyor...');
+      if (db.channels && db.channels.length > 0) {
+        console.log(`[Kurtarma] db.json içindeki ${db.channels.length} adet kanal channels.ini dosyasına yeniden yazılıyor...`);
+        saveChannelsToIni(db);
+        channelsData = null;
+      } else if (fs.existsSync(channelsIniPath + '.bak')) {
+        try {
+          const bakContent = fs.readFileSync(channelsIniPath + '.bak', 'utf-8').trim();
+          if (bakContent) {
+            console.log('[Kurtarma] channels.ini.bak yedeğinden geri yükleniyor...');
+            fs.writeFileSync(channelsIniPath, bakContent, 'utf-8');
+            const parsedChannels = parseIni(channelsIniPath);
+            channelsData = getCaseInsensitiveKey(parsedChannels, 'Channels') || parsedChannels;
+          }
+        } catch (bakErr) {
+          console.error('[Hata] channels.ini.bak okuma hatası:', bakErr);
+        }
+      }
+    } else {
+      const parsedChannels = parseIni(channelsIniPath);
+      channelsData = getCaseInsensitiveKey(parsedChannels, 'Channels') || parsedChannels;
+      if (channelsData && Object.keys(channelsData).length === 0 && db.channels && db.channels.length > 0) {
+        console.warn('[Uyarı] channels.ini içinde kanal bulunamadı fakat db.json dolu. channels.ini koruma amacıyla yeniden yazılıyor.');
+        saveChannelsToIni(db);
+        channelsData = null;
+      }
+    }
   }
 
   if (channelsData) {
@@ -466,8 +621,44 @@ export function syncWithIni(db) {
       let avatar = '';
       let shortsDurationLimit = 180;
       let autoDownload = true;
+      let categoryId = 1;
+      let categoryIds = [1];
 
-      if (parts.length >= 8) {
+      let subscriberCountFromIni = '?';
+      if (parts.length >= 10) {
+        subscriberCountFromIni = parts[parts.length - 1];
+        const catPart = parts[parts.length - 2];
+        if (catPart.includes(',')) {
+          categoryIds = catPart.split(',').map(x => parseInt(x.trim(), 10) || 1);
+        } else {
+          categoryIds = [parseInt(catPart, 10) || 1];
+        }
+        categoryId = categoryIds[0] || 1;
+        autoDownload = parts[parts.length - 3] === 'true';
+        shortsDurationLimit = parseInt(parts[parts.length - 4], 10) || 180;
+        avatar = parts[parts.length - 5];
+        downloadShorts = parts[parts.length - 6] === 'true';
+        quality = parts[parts.length - 7];
+        addedAt = parts[parts.length - 8];
+        handleOrUrl = parts[parts.length - 9];
+        name = parts.slice(0, parts.length - 9).join(' | ');
+      } else if (parts.length === 9) {
+        const catPart = parts[parts.length - 1];
+        if (catPart.includes(',')) {
+          categoryIds = catPart.split(',').map(x => parseInt(x.trim(), 10) || 1);
+        } else {
+          categoryIds = [parseInt(catPart, 10) || 1];
+        }
+        categoryId = categoryIds[0] || 1;
+        autoDownload = parts[parts.length - 2] === 'true';
+        shortsDurationLimit = parseInt(parts[parts.length - 3], 10) || 180;
+        avatar = parts[parts.length - 4];
+        downloadShorts = parts[parts.length - 5] === 'true';
+        quality = parts[parts.length - 6];
+        addedAt = parts[parts.length - 7];
+        handleOrUrl = parts[parts.length - 8];
+        name = parts.slice(0, parts.length - 8).join(' | ');
+      } else if (parts.length === 8) {
         autoDownload = parts[parts.length - 1] === 'true';
         shortsDurationLimit = parseInt(parts[parts.length - 2], 10) || 180;
         avatar = parts[parts.length - 3];
@@ -518,10 +709,31 @@ export function syncWithIni(db) {
       const existingChannel = db.channels.find(c => c.id === id);
       const dbAvatar = existingChannel ? (existingChannel.avatar || '') : '';
       const finalAvatar = avatar || dbAvatar;
+      const dbSubCount = existingChannel ? existingChannel.subscriberCount : '';
+      const finalSubscriberCount = (dbSubCount && dbSubCount !== '?')
+        ? dbSubCount 
+        : ((subscriberCountFromIni && subscriberCountFromIni !== '?') ? subscriberCountFromIni : '?');
       const finalShortsLimit = existingChannel ? (existingChannel.shortsDurationLimit || shortsDurationLimit) : shortsDurationLimit;
       const finalAutoDownload = existingChannel && existingChannel.autoDownload !== undefined ? existingChannel.autoDownload : autoDownload;
-      
-      updatedChannels.push({ id, name, handle: handleOrUrl, addedAt, quality, downloadShorts, avatar: finalAvatar, shortsDurationLimit: finalShortsLimit, autoDownload: finalAutoDownload });
+      const finalCategoryId = existingChannel && existingChannel.categoryId !== undefined ? existingChannel.categoryId : categoryId;
+      const finalCategoryIds = existingChannel && existingChannel.categoryIds !== undefined 
+         ? existingChannel.categoryIds 
+         : (existingChannel && existingChannel.categoryId ? [existingChannel.categoryId] : categoryIds);
+       
+       updatedChannels.push({ 
+         id, 
+         name, 
+         handle: handleOrUrl, 
+         addedAt, 
+         quality, 
+         downloadShorts, 
+         avatar: finalAvatar, 
+         subscriberCount: finalSubscriberCount,
+         shortsDurationLimit: finalShortsLimit, 
+         autoDownload: finalAutoDownload, 
+         categoryId: finalCategoryId,
+         categoryIds: finalCategoryIds 
+       });
     }
     db.channels = updatedChannels;
   } else {
@@ -573,6 +785,8 @@ export function saveSettingsToIni(db) {
   iniData.Settings.sponsorBlockEnabled = (db.settings.sponsorBlockEnabled === true).toString();
   iniData.Settings.discordRpcEnabled = (db.settings.discordRpcEnabled === true).toString();
   iniData.Settings.doubleClickAction = (db.settings.doubleClickAction || 'system').toString();
+  iniData.Settings.historyDurationFilter = (db.settings.historyDurationFilter || 'off').toString();
+  iniData.Settings.enableAltThumbnailsHover = (db.settings.enableAltThumbnailsHover !== false).toString();
 
   writeIni(configIniPath, iniData);
 }
@@ -583,6 +797,18 @@ export function saveSettingsToIni(db) {
  * @param {object} db Kaydedilecek veritabanı nesnesi
  */
 export function saveChannelsToIni(db) {
+  if (!db || !Array.isArray(db.channels)) return;
+
+  // Otomatik .bak koruma yedeği
+  if (fs.existsSync(channelsIniPath)) {
+    try {
+      const stats = fs.statSync(channelsIniPath);
+      if (stats.size > 0) {
+        fs.copyFileSync(channelsIniPath, channelsIniPath + '.bak');
+      }
+    } catch (e) {}
+  }
+
   const iniData = { Channels: {} };
   
   const sortedChannels = [...db.channels].sort((a, b) => 
@@ -608,28 +834,72 @@ export function saveChannelsToIni(db) {
       (channel.downloadShorts !== false).toString(),
       channel.avatar || '',
       (channel.shortsDurationLimit || 180).toString(),
-      (channel.autoDownload !== false).toString()
+      (channel.autoDownload !== false).toString(),
+      (channel.categoryIds && channel.categoryIds.length > 0 
+        ? channel.categoryIds.join(',') 
+        : (channel.categoryId !== undefined ? channel.categoryId : 1).toString()).toString(),
+      channel.subscriberCount || '?'
     ].join(' | ');
     iniData.Channels[channel.id] = info;
   }
+  let oldContent = '';
+  if (fs.existsSync(channelsIniPath)) {
+    try { oldContent = fs.readFileSync(channelsIniPath, 'utf-8'); } catch(e) {}
+  }
+
   writeIni(channelsIniPath, iniData);
+
+  let newContent = '';
+  if (fs.existsSync(channelsIniPath)) {
+    try { newContent = fs.readFileSync(channelsIniPath, 'utf-8'); } catch(e) {}
+  }
+
+  // Sadece kanal listesi gerçekten değiştiğinde (ekleme/çıkarma/ayar) Gist yedeğini tetikle
+  if (oldContent !== newContent && oldContent.trim().length > 0) {
+    import('./routes/gist.js').then(m => m.triggerAutoGistSync()).catch(() => {});
+  }
+}
+
+/**
+ * Veritabanı nesnesindeki kategorileri 'categories.ini' dosyasına yazar.
+ * 
+ * @param {object} db Kaydedilecek veritabanı nesnesi
+ */
+export function saveCategoriesToIni(db) {
+  const iniData = { Categories: {} };
+  
+  const categoriesList = db.categories || [{ id: 1, name: 'Genel' }];
+  const sortedCategories = [...categoriesList].sort((a, b) => a.id - b.id);
+  
+  for (const cat of sortedCategories) {
+    iniData.Categories[cat.id.toString()] = cat.name || '';
+  }
+  writeIni(categoriesIniPath, iniData);
 }
 
 /**
  * Belirtilen klasörü tarayarak video dosyalarının ID'lerine göre bir eşleme (Map) döndürür.
+ * Sistem klasörlerini ($RECYCLE.BIN, System Volume Information vb.) atlar ve maksimum derinlik sınırı koyar.
  */
 export function buildVideoFilesMap(downloadPath) {
   const map = new Map();
   try {
     if (!fs.existsSync(downloadPath)) return map;
     
-    function scanDir(dir) {
+    const ignoredFolders = ['$recycle.bin', 'system volume information', '.git', 'node_modules', 'temp', '0nogithub', 'scratch', 'backup'];
+
+    function scanDir(dir, depth = 0) {
+      if (depth > 3) return; // Maksimum 3 derinlik sınırı
+      const folderName = path.basename(dir).toLowerCase();
+      if (ignoredFolders.includes(folderName) || folderName.startsWith('.')) return;
+
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
-          if (entry.name.startsWith('.')) continue; // Gizli klasörleri atla
-          scanDir(fullPath);
+          const entryLower = entry.name.toLowerCase();
+          if (ignoredFolders.includes(entryLower) || entryLower.startsWith('.')) continue;
+          scanDir(fullPath, depth + 1);
         } else {
           const ext = path.extname(entry.name).toLowerCase();
           if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt', '.description'].includes(ext)) {
@@ -642,7 +912,7 @@ export function buildVideoFilesMap(downloadPath) {
         }
       }
     }
-    scanDir(downloadPath);
+    scanDir(downloadPath, 0);
   } catch (e) {
     console.error(`[Disk Sync] Klasör taranırken hata oluştu: ${downloadPath}`, e.message);
   }
@@ -651,8 +921,26 @@ export function buildVideoFilesMap(downloadPath) {
 
 /**
  * Disk üzerindeki dosyaları veritabanıyla senkronize eder.
+ * Aktif bir indirme veya FFmpeg birleştirme varsa diski yormamak için işlemi erteler.
  */
 export function syncDbWithDisk() {
+  try {
+    // Aktif indirme veya birleştirme varken disk senkronizasyonunu ertele
+    import('./services/downloader.js').then(({ downloadQueue }) => {
+      if (downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
+        console.log('[Disk Sync] Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.');
+        return;
+      }
+      performDiskSync();
+    }).catch(() => {
+      performDiskSync();
+    });
+  } catch (err) {
+    console.error('[Disk Sync Error]', err.message);
+  }
+}
+
+function performDiskSync() {
   try {
     let db = defaultDb;
     if (fs.existsSync(dbPath)) {
@@ -667,9 +955,7 @@ export function syncDbWithDisk() {
 
     let dbUpdated = false;
     if (db.history && db.history.length > 0) {
-      const initialLength = db.history.length;
       const newHistory = [];
-      
       const downloadPath = db.settings.downloadPath || defaultDownloadDir;
       const diskMap = buildVideoFilesMap(downloadPath);
 
@@ -689,11 +975,9 @@ export function syncDbWithDisk() {
               }
               newHistory.push(item);
             } catch (err) {
-              // Dosya okunamıyorsa kaydetme
               dbUpdated = true;
             }
           } else {
-            // Diskten silinmişse durumunu değiştir
             item.status = 'failed';
             item.progress = 0;
             item.speed = '';
@@ -713,27 +997,40 @@ export function syncDbWithDisk() {
       }
     }
   } catch (err) {
-    console.error('[Disk Sync Error]', err.message);
+    console.error('[Disk Sync Performance Error]', err.message);
   }
 }
 
+/**
+ * İndirme klasörü altındaki tüm alt dizinlerde verilen video ID'sine sahip
+ * dosyayı özyinelemeli (recursive) olarak arar. Sistem klasörlerini ve derin yolları atlar.
+ *
+ * @param {string} videoId - Aranacak YouTube video ID'si (11 karakter)
+ * @param {string} downloadPath - Taranacak kök indirme dizini
+ * @returns {string|null} Bulunan dosyanın tam yolu veya bulunamazsa null
+ */
 export function findVideoFileInDownloadDir(videoId, downloadPath) {
   try {
     if (!fs.existsSync(downloadPath)) return null;
     const targetPattern = `[${videoId}]`;
+    const ignoredFolders = ['$recycle.bin', 'system volume information', '.git', 'node_modules', 'temp', '0nogithub', 'scratch', 'backup'];
 
-    function searchDir(dir) {
+    function searchDir(dir, depth = 0) {
+      if (depth > 3) return null; // Maksimum 3 derinlik sınırı
+      const folderName = path.basename(dir).toLowerCase();
+      if (ignoredFolders.includes(folderName) || folderName.startsWith('.')) return null;
+
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
-          if (entry.name.startsWith('.')) continue; // Skip hidden folders
-          const result = searchDir(fullPath);
+          const entryLower = entry.name.toLowerCase();
+          if (ignoredFolders.includes(entryLower) || entryLower.startsWith('.')) continue;
+          const result = searchDir(fullPath, depth + 1);
           if (result) return result;
         } else {
           if (entry.name.includes(targetPattern)) {
             const ext = path.extname(entry.name).toLowerCase();
-            // Skip thumbnails, subtitles and metadata
             if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt', '.description'].includes(ext)) {
               return fullPath;
             }
@@ -743,13 +1040,27 @@ export function findVideoFileInDownloadDir(videoId, downloadPath) {
       return null;
     }
 
-    return searchDir(downloadPath);
+    return searchDir(downloadPath, 0);
   } catch (e) {
     console.error(`Error searching recursively for video ${videoId} in ${downloadPath}:`, e.message);
   }
   return null;
 }
 
+/**
+ * Yeni bir video geçmişi (history) kaydı oluşturur.
+ * İndirme klasöründe dosya mevcutsa `completed`, değilse `ignored` durumu atanır.
+ * Dosya varsa boyutu otomatik hesaplanır.
+ *
+ * @param {string} videoId - YouTube video ID'si
+ * @param {string} title - Video başlığı
+ * @param {string} channelId - Kanal ID'si
+ * @param {string} channelName - Kanal adı
+ * @param {string} publishedAt - Yayınlanma tarihi (ISO 8601)
+ * @param {string} duration - Video süresi (örn. '12:34')
+ * @param {object} settings - Uygulama ayarları (downloadPath dahil)
+ * @returns {object} Oluşturulan history kaydı nesnesi
+ */
 export function createHistoryItem(videoId, title, channelId, channelName, publishedAt, duration, settings) {
   const downloadPath = settings.downloadPath || defaultDownloadDir;
   const foundPath = findVideoFileInDownloadDir(videoId, downloadPath);
@@ -791,6 +1102,15 @@ export function createHistoryItem(videoId, title, channelId, channelName, publis
   };
 }
 
+/**
+ * Verilen süre dizesini (örn. '1:23' veya '0:45') saniyeye çevirerek
+ * belirtilen limite eşit ya da daha kısa olup olmadığını kontrol eder.
+ * YouTube Shorts filtrelemesinde kullanılır.
+ *
+ * @param {string} durationStr - 'SS', 'DD:SS' veya 'SS:DD:SS' formatında süre
+ * @param {number} [limit=180] - Karşılaştırma yapılacak saniye cinsinden üst sınır
+ * @returns {boolean} Süre limiti aşmıyorsa true, aşıyorsa false
+ */
 export function isShortDuration(durationStr, limit = 180) {
   if (!durationStr) return false;
   
@@ -808,10 +1128,21 @@ export function isShortDuration(durationStr, limit = 180) {
   return totalSeconds <= limit;
 }
 
+/**
+ * Veritabanındaki belirtilen video kaydını kısmi olarak günceller.
+ * Yalnızca `updates` nesnesinde verilen alanlar değiştirilir, diğerleri korunur.
+ *
+ * @param {string} videoId - Güncellenecek videonun YouTube ID'si
+ * @param {object} updates - Uygulanacak kısmi güncelleme alanları (örn. `{ status: 'completed', progress: 100 }`)
+ * @returns {void}
+ */
 export function updateHistoryItem(videoId, updates) {
   const db = readDb();
   const index = db.history.findIndex(h => h.id === videoId);
   if (index !== -1) {
+    if (updates && updates.error && typeof updates.error === 'string' && updates.error.length > 2000) {
+      updates.error = updates.error.slice(-2000);
+    }
     db.history[index] = { ...db.history[index], ...updates };
     writeDb(db);
   }

@@ -26,7 +26,11 @@ function colorizeText(text) {
   
   colored = colored.replace(/^(\[RSS\])/g, `${magenta}$1${reset}`);
   colored = colored.replace(/^(\[RSS Fallback\])/g, `${brightMagenta}$1${reset}`);
-  colored = colored.replace(/^(\[DOWNLOAD\])/g, `${cyan}$1${reset}`);
+  colored = colored.replace(/^(\[DOWNLOAD\]|\[İNDİRME\])/gi, `${cyan}$1${reset}`);
+  colored = colored.replace(/^(\[KOMUT\])/gi, `${yellow}$1${reset}`);
+  colored = colored.replace(/^(\[yt-dlp Uyarı\]|yt-dlp uyarı satırı:)/gi, `${yellow}$1${reset}`);
+  colored = colored.replace(/^(\[yt-dlp\])/gi, `${brightMagenta}$1${reset}`);
+  colored = colored.replace(/^(\[GIST\]|\[Gist\])/gi, `${brightMagenta}$1${reset}`);
   colored = colored.replace(/^(\[DATABASE\])/g, `${yellow}$1${reset}`);
   colored = colored.replace(/^(\[IPTV\])/g, `${brightBlue}$1${reset}`);
   colored = colored.replace(/^(\[SYSTEM\])/g, `${green}$1${reset}`);
@@ -36,12 +40,46 @@ function colorizeText(text) {
   return colored;
 }
 
+import fs from 'fs';
+import path from 'path';
+
+// Oturum Log Yönetimi
+const logsDir = path.join(process.cwd(), 'logs');
+if (!fs.existsSync(logsDir)) {
+  try { fs.mkdirSync(logsDir, { recursive: true }); } catch (e) {}
+}
+
+function getSessionTimestamp() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  const secs = String(d.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day}_${hours}-${mins}-${secs}`;
+}
+
+const sessionLogFile = path.join(logsDir, `haytool_session_${getSessionTimestamp()}.log`);
+
+function appendSessionLog(text) {
+  if (!text) return;
+  const cleanText = String(text).replace(/\x1b\[[0-9;]*m/g, '');
+  const timestamp = new Date().toLocaleTimeString('tr-TR');
+  const line = `[${timestamp}] ${cleanText}\n`;
+  fs.appendFile(sessionLogFile, line, 'utf8', () => {});
+}
+
 console.log = function(...args) {
+  const text = args.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
+  appendSessionLog(text);
   const colorized = args.map(arg => colorizeText(arg));
   originalLog.apply(console, colorized);
 };
 
 console.error = function(...args) {
+  const text = args.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
+  appendSessionLog(`[HATA] ${text}`);
   const reset = '\x1b[0m';
   const red = '\x1b[31m';
   const colorized = args.map(arg => {
@@ -54,6 +92,8 @@ console.error = function(...args) {
 };
 
 console.warn = function(...args) {
+  const text = args.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
+  appendSessionLog(`[UYARI] ${text}`);
   const reset = '\x1b[0m';
   const yellow = '\x1b[33m';
   const colorized = args.map(arg => {
@@ -66,8 +106,6 @@ console.warn = function(...args) {
 };
 
 import express from 'express';
-import fs from 'fs';
-import path from 'path';
 import os from 'os';
 import net from 'net';
 import https from 'https';
@@ -85,11 +123,12 @@ import {
 } from './server/database.js';
 import { 
   getFfmpegPath, 
-  ytdlpPath 
+  ytdlpPath,
+  cleanLocalTempDir 
 } from './server/services/paths.js';
 import { downloadQueue, getEffectiveSpeedLimit } from './server/services/downloader.js';
 import { 
-  checkNextChannelRss, 
+  triggerChannelCheck,
   resolveMissingDurations, 
   fetchVideoDuration 
 } from './server/services/rss.js';
@@ -107,6 +146,7 @@ import { router as iptvRouter } from './server/routes/iptv.js';
 import { router as streamsRouter } from './server/routes/streams.js';
 import { router as queueRouter } from './server/routes/queue.js';
 import { router as downloaderRouter } from './server/routes/downloader.js';
+import { router as gistRouter } from './server/routes/gist.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -117,15 +157,14 @@ const settingsSection = config.Settings || config;
 const PORT = parseInt(settingsSection.port || settingsSection.Port || 4141, 10);
 
 // Dizin Tanımları
-const logsDir = path.join(process.cwd(), 'logs');
 const iptvCachePath = path.join(process.cwd(), 'iptv_cache.json');
 
 // Express Uygulaması Kurulumu
 const app = express();
 app.use(express.json());
 
-// Statik Dosyaları Sun (public/ klasörü)
-app.use(express.static(path.join(__dirname, 'public')));
+// Statik Dosyaları Sun (public/ klasörü, index.html otomatik gönderimi devre dışı)
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // Geliştirme/Hata Ayıklama Günlükleri (İsteğe bağlı)
 const isDev = process.env.NODE_ENV === 'development';
@@ -138,6 +177,7 @@ app.use('/api', historyRouter);
 app.use('/api/iptv', iptvRouter);
 app.use('/api', streamsRouter);
 app.use('/api/downloader', downloaderRouter);
+app.use('/api/gist', gistRouter);
 app.get('/api/version', (req, res) => {
   res.json({ version: appVersion });
 });
@@ -161,9 +201,44 @@ app.post('/api/player/activity', (req, res) => {
   res.json({ success: true });
 });
 
-// SPA Yönlendirmesi (IPTV Dahil)
-app.get(['/home', '/download', '/downlist', '/channels', '/settings', '/iptv', '/downloader', '/tools'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+/**
+ * public/partials/ altındaki modüler HTML parçalarını index.html şablonu ile anında birleştirir.
+ * @returns {string} Birleştirilmiş eksiksiz HTML içeriği
+ */
+export function getCompositeIndexHtml() {
+  const publicDir = path.join(__dirname, 'public');
+  const partialsDir = path.join(publicDir, 'partials');
+  const indexPath = path.join(publicDir, 'index.html');
+  let html = fs.readFileSync(indexPath, 'utf8');
+
+  const partialMap = {
+    '<!--PARTIAL:header-->': 'header.html',
+    '<!--PARTIAL:tab-channels-->': 'tab-channels.html',
+    '<!--PARTIAL:tab-history-->': 'tab-history.html',
+    '<!--PARTIAL:tab-queue-->': 'tab-queue.html',
+    '<!--PARTIAL:tab-downloaded-->': 'tab-downloaded.html',
+    '<!--PARTIAL:tab-settings-->': 'tab-settings.html',
+    '<!--PARTIAL:tab-tools-->': 'tab-tools.html',
+    '<!--PARTIAL:tab-downloader-->': 'tab-downloader.html',
+    '<!--PARTIAL:tab-iptv-->': 'tab-iptv.html',
+    '<!--PARTIAL:modals-->': 'modals.html',
+  };
+
+  for (const [tag, file] of Object.entries(partialMap)) {
+    const fullPath = path.join(partialsDir, file);
+    if (fs.existsSync(fullPath)) {
+      const content = fs.readFileSync(fullPath, 'utf8');
+      html = html.replace(tag, content);
+    }
+  }
+
+  return html;
+}
+
+// Ana Sayfa ve SPA Yönlendirmeleri (Modüler Partial Birleştirmeli)
+app.get(['/', '/index.html', '/home', '/download', '/downlist', '/channels', '/settings', '/iptv', '/downloader', '/tools'], (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(getCompositeIndexHtml());
 });
 
 // Başlangıç Yolu ve Veritabanı Doğrulama Kontrolleri
@@ -198,7 +273,7 @@ function startIntervalTimer() {
   
   checkIntervalTimer = setInterval(async () => {
     try {
-      await checkNextChannelRss();
+      await triggerChannelCheck('timer');
     } catch (err) {
       console.error('[Zamanlayıcı] RSS kontrolü çalıştırılamadı:', err.message);
     }
@@ -220,10 +295,17 @@ async function checkGithubUpdates() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
     
+    const db = readDb();
+    const token = db.settings?.githubToken;
+    const headers = {
+      'User-Agent': 'HaYTooL-YT-Downloader-UpdateChecker'
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token.trim()}`;
+    }
+
     const response = await fetch('https://api.github.com/repos/HaYToKoRaZ/haytool-youtube-download/releases/latest', {
-      headers: {
-        'User-Agent': 'HaYTooL-YT-Downloader-UpdateChecker'
-      },
+      headers,
       signal: controller.signal
     });
     
@@ -268,6 +350,8 @@ async function checkGithubUpdates() {
           console.log(`Yazılım güncel. Geçerli sürüm: v${currentVersion}, En son sürüm: ${remoteTag}`);
         }
       }
+    } else if (response.status === 403 || response.status === 429) {
+      console.warn('[GitHub Updates]: API hız sınırı aşıldı (rate limit exceeded), güncelleme kontrolü ertelendi.');
     }
   } catch (err) {
     console.warn('GitHub güncelleme kontrolü sırasında hata oluştu:', err.message);
@@ -367,6 +451,10 @@ function cleanOldLogs() {
 
 // Süresi dolmuş videoları otomatik sil
 function autoDeleteOldVideos() {
+  if (downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
+    return; // Aktif indirme veya FFmpeg birleştirmesi varken oto-silmeyi ertele
+  }
+
   const db = readDb();
   const autoDeleteDays = db.settings.autoDeleteDays || 0;
   if (autoDeleteDays <= 0) return;
@@ -621,7 +709,7 @@ if (process.argv.length <= 2) {
     |_|  |_|           |_|      |_|               |______|
 
                -- Premium Otomasyonu --
-                      Versiyon: v7.1.0
+                      Versiyon: v${appVersion}
            Yapımcı: HaYTo
     ====================================================
     `);
@@ -650,6 +738,9 @@ if (process.argv.length <= 2) {
     addTerminalLog(`[Sistem] Sunucu başarıyla başlatıldı. Adres: http://localhost:${PORT}`, 'success');
     addTerminalLog(`[Sistem] Otomatik indirme klasörü: "${db.settings.downloadPath}"`, 'info');
     
+    // Ana dizindeki Temp klasörünü açılışta temizle
+    cleanLocalTempDir();
+
     try {
       await ensureYtdlp();
     } catch (e) {
@@ -661,11 +752,6 @@ if (process.argv.length <= 2) {
     }
 
     startIntervalTimer();
-
-    // RSS kanallarını tarama döngüsünü başlat
-    setTimeout(() => {
-      checkNextChannelRss();
-    }, 3000);
 
     // Otomatik video silme döngüsü
     setTimeout(() => {
@@ -708,6 +794,18 @@ if (process.argv.length <= 2) {
     setInterval(() => {
       checkGithubUpdates().catch(err => console.error('GitHub güncelleme kontrolü yenilenemedi:', err.message));
     }, 12 * 60 * 60 * 1000);
+
+    // Sunucu açılışında tüm kanalları otomatik tarama (Ayarlarda aktifse)
+    setTimeout(async () => {
+      const currentDb = readDb();
+      if (currentDb.settings.checkChannelsOnStartup && !currentDb.settings.isPaused && currentDb.channels.length > 0) {
+        try {
+          await triggerChannelCheck('startup');
+        } catch (err) {
+          console.error('[RSS] Başlangıç taramasında hata oluştu:', err.message);
+        }
+      }
+    }, 10000);
 
     // Tarayıcıyı aç
     const currentDbState = readDb();

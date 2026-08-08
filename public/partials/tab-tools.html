@@ -1,0 +1,147 @@
+      <!-- Tab: Araçlar (Gelişmiş Dosya Karşılaştırma & Senkronizasyon) -->
+      <section id="tab-tools" class="tab-content">
+        <header class="content-header">
+          <div>
+            <h2 id="tools-modal-title" style="margin: 0; display: flex; align-items: center; gap: 10px;">
+              <i id="tools-modal-icon" data-lucide="folder-sync" style="color: var(--accent-color); width: 28px; height: 28px;"></i>
+              <span>Gelişmiş Dosya Karşılaştırma & Senkronizasyon</span>
+            </h2>
+            <p id="tools-modal-desc" style="margin-top: 4px; margin-bottom: 0;">İndirme klasörünüzdeki fiziksel dosyaları veritabanı kayıtları ile karşılaştırarak eksik, yetim veya alakasız dosyaları listeler.</p>
+          </div>
+          <button type="button" class="btn btn-secondary" onclick="switchTab('history')" style="display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i>
+            <span>Geri Dön</span>
+          </button>
+        </header>
+
+        <div class="card" id="tools-compare-container" style="padding: 24px; display: flex; flex-direction: column; gap: 24px;">
+
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <button type="button" class="btn btn-primary" id="start-compare-btn">
+              <i data-lucide="refresh-cw"></i>
+              <span id="compare-btn-text">Karşılaştırmayı Başlat</span>
+            </button>
+            
+            <div id="compare-loading" class="hidden text-center" style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="loader" class="spin" style="width: 20px; height: 20px; color: var(--accent-color);"></i>
+              <span style="font-size: 0.9rem; color: var(--text-muted);" id="compare-loading-text">Dosyalar taranıyor...</span>
+            </div>
+          </div>
+
+          <div id="compare-results" class="hidden" style="display: flex; flex-direction: column; gap: 24px;">
+            <div id="compare-summary-box" style="padding: 14px 20px; border-radius: 8px; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.15); font-size: 0.95rem; color: var(--text-main);">
+              <!-- Summary text dynamic -->
+            </div>
+
+            <!-- Untracked Files Section -->
+            <div id="untracked-section" class="hidden" style="display: flex; flex-direction: column;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+                <h4 style="margin:0; font-size:1.05rem; font-weight:600; color:var(--accent-color);" id="untracked-files-title">Diskte Olup Veritabanında Olmayan Dosyalar (Yetimler)</h4>
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" class="btn btn-secondary btn-xs" onclick="fixAllUntracked('import')" id="btn-import-all" style="padding: 6px 12px; font-size: 0.8rem;">Tümünü İthal Et</button>
+                  <button type="button" class="btn btn-secondary btn-xs" style="background:rgba(255,0,85,0.1); border-color:rgba(255,0,85,0.2); color:var(--accent-red); padding: 6px 12px; font-size: 0.8rem;" onclick="fixAllUntracked('delete')" id="btn-delete-all-files">Tümünü Diskten Sil</button>
+                </div>
+              </div>
+              <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
+                <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
+                  <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
+                    <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                      <th style="padding:10px 12px;" id="col-filename-untracked">Dosya Adı</th>
+                      <th style="padding:10px 12px;" id="col-channel-untracked">Kanal</th>
+                      <th style="padding:10px 12px;" id="col-size-untracked">Boyut</th>
+                      <th style="padding:10px 12px; text-align:right;" id="col-actions-untracked">Eylemler</th>
+                    </tr>
+                  </thead>
+                  <tbody id="untracked-files-list"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Unrelated Files Section (Yazılımla Alakalı Olmayan Dosyalar) -->
+            <div id="unrelated-section" class="hidden" style="display: flex; flex-direction: column;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+                <h4 style="margin:0; font-size:1.05rem; font-weight:600; color:var(--accent-color);" id="unrelated-files-title">Diskteki Diğer Alakasız Dosyalar</h4>
+                <button type="button" class="btn btn-secondary btn-xs" style="background:rgba(255,0,85,0.1); border-color:rgba(255,0,85,0.2); color:var(--accent-red); padding: 6px 12px; font-size: 0.8rem;" onclick="deleteAllUnrelated()" id="btn-delete-all-unrelated">Tümünü Diskten Sil</button>
+              </div>
+              <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
+                <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
+                  <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
+                    <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                      <th style="padding:10px 12px;" id="col-filename-unrelated">Dosya Adı</th>
+                      <th style="padding:10px 12px;" id="col-size-unrelated">Boyut</th>
+                      <th style="padding:10px 12px; text-align:right;" id="col-actions-unrelated">Eylemler</th>
+                    </tr>
+                  </thead>
+                  <tbody id="unrelated-files-list"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Missing Files Section -->
+            <div id="missing-section" class="hidden" style="display: flex; flex-direction: column;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+                <h4 style="margin:0; font-size:1.05rem; font-weight:600; color:var(--accent-color);" id="missing-files-title">Veritabanında Olup Diskte Olmayan Dosyalar (Eksikler)</h4>
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" class="btn btn-secondary btn-xs" onclick="fixAllMissing('mark')" id="btn-mark-all-missing" style="padding: 6px 12px; font-size: 0.8rem;">Tümünü İndirilmedi İşaretle</button>
+                  <button type="button" class="btn btn-secondary btn-xs" style="background:rgba(255,0,85,0.1); border-color:rgba(255,0,85,0.2); color:var(--accent-red); padding: 6px 12px; font-size: 0.8rem;" onclick="fixAllMissing('delete')" id="btn-delete-all-history">Tümünü Geçmişten Sil</button>
+                </div>
+              </div>
+              <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
+                <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
+                  <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
+                    <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                      <th style="padding:10px 12px;" id="col-filename-missing">Dosya Adı / Başlık</th>
+                      <th style="padding:10px 12px;" id="col-channel-missing">Kanal</th>
+                      <th style="padding:10px 12px; text-align:right;" id="col-actions-missing">Eylemler</th>
+                    </tr>
+                  </thead>
+                  <tbody id="missing-files-list"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="compare-no-issues" class="hidden text-center" style="padding: 40px; background: rgba(40,180,99,0.05); border: 1px dashed rgba(40,180,99,0.25); border-radius: 12px; color: #28b463;">
+            <i data-lucide="check-circle" style="width: 40px; height: 40px; margin-bottom: 12px;"></i>
+            <p style="font-weight: 600; margin: 0; font-size: 0.95rem;" id="no-issues-found">Herhangi bir eşleşme sorunu bulunamadı. Klasörünüz veritabanı ile tam uyumlu!</p>
+          </div>
+        </div>
+
+        <!-- Kategori Yönetimi Kartı -->
+        <div class="card" id="tools-categories-container" style="padding: 24px; display: flex; flex-direction: column; gap: 16px; margin-top: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap; gap: 12px;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.2rem;">
+              <i data-lucide="tag" style="color: var(--accent-color); width: 24px; height: 24px;"></i>
+              <span id="tools-categories-title">Kategori Yönetimi</span>
+            </h3>
+          </div>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0; line-height: 1.5;" id="tools-categories-desc">
+            Kanallarınızı gruplandırmak için kategoriler oluşturabilir, düzenleyebilir veya silebilirsiniz.
+          </p>
+          
+          <!-- Kategori Ekleme Formu -->
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px;">
+            <input type="text" id="new-category-input" placeholder="Yeni kategori adı yazın..." style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 0.9rem; flex: 1; min-width: 200px;">
+            <button type="button" class="btn btn-primary" id="btn-add-category" onclick="addCategoryFromTools()" style="display: flex; align-items: center; gap: 6px; padding: 8px 16px;">
+              <i data-lucide="plus" style="width:16px; height:16px;"></i>
+              <span id="btn-add-category-text">Kategori Ekle</span>
+            </button>
+          </div>
+
+          <!-- Kategori Listesi -->
+          <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px; margin-top: 10px;">
+            <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
+              <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
+                <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                  <th style="padding:10px 12px; width: 80px;" id="col-category-id">ID</th>
+                  <th style="padding:10px 12px;" id="col-category-name">Kategori Adı</th>
+                  <th style="padding:10px 12px; text-align:right; width: 150px;" id="col-category-actions">Eylemler</th>
+                </tr>
+              </thead>
+              <tbody id="tools-categories-list">
+                <!-- Kategoriler JS ile doldurulacak -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>

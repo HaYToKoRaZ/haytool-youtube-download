@@ -6,23 +6,32 @@ import os from 'os';
 import https from 'https';
 import { spawn, exec } from 'child_process';
 import { Readable } from 'stream';
+import open from 'open';
 import { 
   readDb, 
   writeDb, 
   syncDbWithDisk, 
   updateHistoryItem,
-  defaultDownloadDir
+  defaultDownloadDir,
+  saveCategoriesToIni
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
-import { ytdlpPath, getFfmpegPath, testFfmpegSync, setFfmpegWorkingCached } from '../services/paths.js';
+import { ytdlpPath, getFfmpegPath, testFfmpegSync, setFfmpegWorkingCached, getLocalTempDir, spawnYtdlp } from '../services/paths.js';
 import { downloadQueue, getEffectiveSpeedLimit } from '../services/downloader.js';
 import { broadcast, addTerminalLog, terminalLogs } from '../services/sse.js';
+import { categoriesIniPath } from '../config.js';
+import { appVersion } from '../version.js';
 
 export const router = express.Router();
 
 let checkIntervalTimer = null;
 
 // Türkçe Açıklama: RSS video kontrol döngüsünü ayardaki saniyeye göre başlatır (rss.js modülünü dinamik çağırır).
+/**
+ * RSS video kontrol döngüsünü ayardaki saniyeye göre başlatır / günceller.
+ * 
+ * @returns {Promise<void>}
+ */
 async function startIntervalTimer() {
   const db = readDb();
   if (checkIntervalTimer) {
@@ -37,28 +46,56 @@ async function startIntervalTimer() {
   
   checkIntervalTimer = setInterval(async () => {
     try {
-      const { checkNextChannelRss } = await import('../services/rss.js');
-      await checkNextChannelRss();
+      const { triggerChannelCheck } = await import('../services/rss.js');
+      await triggerChannelCheck('timer');
     } catch (err) {
       console.error('[Zamanlayıcı Error] RSS kontrolü çalıştırılamadı:', err.message);
     }
   }, seconds * 1000);
 }
 
-// Çerez Test Etme Rotası
+/**
+ * Seçilen tarayıcının premium çerezlerinin YouTube için geçerli olup olmadığını test eder.
+ * 
+ * @name GET /api/test-cookies
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
 router.get('/test-cookies', localhostOnly, async (req, res) => {
   const db = readDb();
   const result = await testCookiesValidity(db.settings.browser);
   res.json(result);
 });
 
-// Terminal log geçmişini getir
+/**
+ * Bellekteki terminal günlüklerini (SSE terminal log geçmişi) istemciye döner.
+ * 
+ * @name GET /api/logs
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/logs', (req, res) => {
   res.json(terminalLogs);
 });
 
-// Ayarları kaydet
-router.post('/settings', (req, res) => {
+/**
+ * Uygulama ayarlarını günceller ve kaydeder. Hız sınırları, tema ve diğer tercihleri veritabanına yazar.
+ * 
+ * @name POST /api/settings
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} req.body - Güncellenecek ayarların anahtar-değer çiftleri
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/settings', localhostOnly, (req, res) => {
   const db = readDb();
   const oldSpeedLimit = getEffectiveSpeedLimit(db.settings);
 
@@ -147,6 +184,14 @@ router.post('/settings', (req, res) => {
 // FFmpeg İndirme Durumu ve API Rotaları
 export let ffmpegDownloadState = { status: 'idle', progress: 0, error: null };
 
+/**
+ * FFmpeg ve FFprobe binary dosyalarını platforma göre (Windows/Linux/macOS)
+ * ffbinaries CDN üzerinden indirir, ZIP'ten çıkarır ve `ffmpeg/` klasörüne yerleştirir.
+ * İndirme sırasında `ffmpegDownloadState` durumu SSE üzerinden arayüze anlık iletilir.
+ * Zaten indirme/çıkarma aşamasındaysa tekrar başlatılmaz (idempotent).
+ *
+ * @returns {Promise<void>}
+ */
 export async function downloadFfmpegAsync() {
   if (ffmpegDownloadState.status === 'downloading' || ffmpegDownloadState.status === 'extracting') {
     return;
@@ -394,7 +439,7 @@ export function testCookiesValidity(browser) {
     ];
     
     console.log(`[Çerez Testi] yt-dlp çerez testi başlatılıyor: ${browserName}`);
-    const proc = spawn(ytdlpPath, args);
+    const proc = spawnYtdlp(args);
     let errorOutput = '';
     
     proc.stderr.on('data', (data) => {
@@ -440,7 +485,7 @@ router.post('/ffmpeg/download', localhostOnly, (req, res) => {
   res.json({ success: true });
 });
 
-router.post('/settings/toggle-alt-speed', (req, res) => {
+router.post('/settings/toggle-alt-speed', localhostOnly, (req, res) => {
   const db = readDb();
   const oldSpeed = getEffectiveSpeedLimit(db.settings);
   db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
@@ -480,7 +525,7 @@ router.post('/settings/toggle-alt-speed', (req, res) => {
   res.json({ success: true, settings: db.settings });
 });
 
-router.post('/settings/toggle-discord-rpc', (req, res) => {
+router.post('/settings/toggle-discord-rpc', localhostOnly, (req, res) => {
   const db = readDb();
   db.settings.discordRpcEnabled = req.body.discordRpcEnabled === true || req.body.discordRpcEnabled === 'true';
   writeDb(db);
@@ -516,6 +561,16 @@ function getDirSize(dirPath) {
   return totalSize;
 }
 
+/**
+ * Uygulamanın kurulu olduğu veya indirme dizininin bulunduğu disk alanının (boş alan, toplam alan, klasör boyutu) bilgilerini sorgular.
+ * 
+ * @name GET /api/disk-space
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/disk-space', (req, res) => {
   const db = readDb();
   const folder = db.settings.downloadPath || defaultDownloadDir;
@@ -547,9 +602,16 @@ router.get('/disk-space', (req, res) => {
   }
 });
 
-// Manuel Yedekleri Yönetmek İçin Yeni Rotalar
-
-// 1. GET /api/settings/backups - Mevcut yedekleri listeler
+/**
+ * Oluşturulmuş olan tüm manuel sistem yedek paketlerini (backup/*.json) listeler.
+ * 
+ * @name GET /api/settings/backups
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/backups', localhostOnly, (req, res) => {
   const backupsDir = path.resolve(process.cwd(), 'backup');
   try {
@@ -576,12 +638,22 @@ router.get('/backups', localhostOnly, (req, res) => {
   }
 });
 
-// 2. POST /api/settings/backup - Yeni yedek paketi oluşturur
+/**
+ * db.json, channels.ini ve config dosyalarını paketleyerek backup/ klasörüne yeni bir yedek kaydeder.
+ * 
+ * @name POST /api/settings/backup
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/backup', localhostOnly, (req, res) => {
   try {
     const rootDir = path.resolve(process.cwd());
     const dbFilePath = path.join(rootDir, 'db.json');
     const channelsIniFilePath = path.join(rootDir, 'channels.ini');
+    const catIniFilePath = path.join(rootDir, 'categories.ini');
     
     // configwin.ini veya configunix.ini hangisi varsa onu yedekle
     const configWinPath = path.join(rootDir, 'configwin.ini');
@@ -590,13 +662,15 @@ router.post('/backup', localhostOnly, (req, res) => {
     
     const dbContent = fs.existsSync(dbFilePath) ? JSON.parse(fs.readFileSync(dbFilePath, 'utf8')) : null;
     const channelsIniContent = fs.existsSync(channelsIniFilePath) ? fs.readFileSync(channelsIniFilePath, 'utf8') : '';
+    const categoriesIniContent = fs.existsSync(catIniFilePath) ? fs.readFileSync(catIniFilePath, 'utf8') : '';
     const configIniContent = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : '';
     
     const backupData = {
       timestamp: new Date().toISOString(),
-      version: '7.4.0',
+      version: appVersion || '8.0.0',
       db: dbContent,
       channelsIni: channelsIniContent,
+      categoriesIni: categoriesIniContent,
       configIni: configIniContent,
       configIniName: path.basename(configPath)
     };
@@ -628,7 +702,17 @@ router.post('/backup', localhostOnly, (req, res) => {
   }
 });
 
-// 3. POST /api/settings/restore - Seçilen yedeği geri yükler
+/**
+ * Belirtilen yedek paketini (JSON) okuyarak sistem veritabanını, kanalları, kategorileri ve yapılandırmaları geri yükler.
+ * 
+ * @name POST /api/settings/restore
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.body.filename - Geri yüklenecek yedek dosyasının adı
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
 router.post('/restore', localhostOnly, async (req, res) => {
   const { filename } = req.body;
   if (!filename) return res.status(400).json({ error: 'filename parametresi gereklidir.' });
@@ -656,7 +740,16 @@ router.post('/restore', localhostOnly, async (req, res) => {
       fs.writeFileSync(channelsIniFilePath, backupContent.channelsIni, 'utf8');
     }
     
-    // 3. config ini dosyasını yaz
+    // 3. categories.ini'yi yaz
+    const catIniFilePath = path.join(rootDir, 'categories.ini');
+    if (backupContent.categoriesIni) {
+      fs.writeFileSync(catIniFilePath, backupContent.categoriesIni, 'utf8');
+    } else if (backupContent.db && backupContent.db.categories) {
+      // Eski yedek paketleri için: db.json içindeki kategorilerden categories.ini oluştur
+      saveCategoriesToIni(backupContent.db);
+    }
+    
+    // 4. config ini dosyasını yaz
     if (backupContent.configIni) {
       const configIniName = backupContent.configIniName || (os.platform() === 'win32' ? 'configwin.ini' : 'configunix.ini');
       const configPath = path.join(rootDir, configIniName);
@@ -667,9 +760,75 @@ router.post('/restore', localhostOnly, async (req, res) => {
     syncDbWithDisk();
     
     addTerminalLog(`[Sistem] Yedek başarıyla geri yüklendi: ${filename}`, 'success');
-    res.json({ success: true, message: 'Yedek başarıyla geri yüklendi. Sunucu verileri güncellendi.' });
+    res.json({ success: true, message: 'Yedek başarıyla geri yüklendi. Sunucu verileri ve kategoriler güncellendi.' });
   } catch (err) {
     console.error('[Restore Error]:', err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+/**
+ * Aktif geçici dosyalar (Temp) klasörünü işletim sistemi dosya gezgininde açar.
+ * 
+ * @name POST /api/settings/open-temp
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/settings/open-temp', localhostOnly, (req, res) => {
+  try {
+    const tempDir = getLocalTempDir();
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    if (process.platform === 'win32') {
+      const resolvedFolder = path.resolve(tempDir);
+      exec(`explorer.exe "${resolvedFolder}"`);
+      const folderName = path.basename(resolvedFolder);
+      const folderNameSafe = folderName.replace(/'/g, "''");
+      setTimeout(() => {
+        exec(`powershell -Command "(New-Object -ComObject wscript.shell).AppActivate('${folderNameSafe}')"`, (err) => {});
+      }, 500);
+    } else if (process.platform === 'darwin') {
+      open(tempDir);
+    } else {
+      exec(`xdg-open "${path.resolve(tempDir)}"`);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Temp Open Error]:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Sistem python'ının pip paket yöneticisini kullanarak yt-dlp paketini kurar veya günceller.
+ * 
+ * @name POST /api/settings/install-python-dep
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/settings/install-python-dep', localhostOnly, (req, res) => {
+  const db = readDb();
+  const pythonCmd = db.settings?.pythonCmd || 'python';
+  
+  addTerminalLog(`[Sistem] Python bağımlılığı (yt-dlp) kurulumu başlatılıyor: "${pythonCmd} -m pip install -U yt-dlp"`, 'info');
+  
+  exec(`"${pythonCmd}" -m pip install -U yt-dlp`, (error, stdout, stderr) => {
+    if (error) {
+      console.error('[pip install error]:', error.message);
+      addTerminalLog(`[Sistem] Bağımlılık kurulumu başarısız: ${error.message}`, 'error');
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    
+    console.log('[pip install success]:', stdout);
+    addTerminalLog(`[Sistem] Bağımlılık kurulumu/güncellemesi başarıyla tamamlandı.`, 'success');
+    res.json({ success: true, output: stdout });
+  });
 });

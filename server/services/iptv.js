@@ -86,7 +86,7 @@ export function computeIptvFilters() {
  * @param {string} m3uText - Ayrıştırılacak M3U metin içeriği
  * @returns {Array<Object>} Ayrıştırılmış IPTV kanal nesneleri dizisi
  */
-export function parseM3U(m3uText) {
+function parseM3U(m3uText) {
   const lines = m3uText.split(/\r?\n/);
   const channels = [];
   let currentItem = null;
@@ -138,7 +138,7 @@ export function parseM3U(m3uText) {
 /**
  * Başlangıçta cache'i diskten yükleyen fonksiyon.
  */
-export function loadIptvCache() {
+function loadIptvCache() {
   try {
     if (fs.existsSync(iptvCachePath)) {
       const data = JSON.parse(fs.readFileSync(iptvCachePath, 'utf8'));

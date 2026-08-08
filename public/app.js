@@ -19,10 +19,7 @@ function devLog(...args) {
 function devWarn(...args) {
   if (isDev) console.warn('[DEV_WARN]', ...args);
 }
-if (!isDev) {
-  console.log = function() {};
-  console.warn = function() {};
-}
+
 
 // Expose to window for inline event handlers and global state
 window.escapeHtml = escapeHtml;
@@ -39,6 +36,16 @@ let localDb = { channels: [], history: [], settings: {} };
 window.localDb = localDb;
 let eventSource = null;
 let currentLang = 'tr';
+window.isDownloadedBulkDeleteMode = false;
+window.isHistoryBulkHideMode = false;
+window.historyFilterChannel = 'all';
+window.downloadedFilterChannel = 'all';
+window.historyFilterDays = 'all';
+window.historyOnlyNoAutoDownload = false;
+window.historyOnlyNotDownloaded = false;
+window.historyShowHidden = false;
+window.historyViewMode = 'grid';
+window.downloadedViewMode = 'grid';
 
 // IPTV Global Variables (Initialized early to avoid temporal dead zone issues)
 let iptvPlayers = [null, null, null, null];
@@ -125,14 +132,13 @@ function applyLanguage(lang) {
   el('lbl-history-only-no-auto-download', 'lbl_history_only_no_auto_download');
   el('lbl-history-only-not-downloaded', 'lbl_history_only_not_downloaded');
 
-  el('lbl-quick-filter', 'lbl_quick_filter');
-  el('btn-filter-all', 'filter_all');
-  el('btn-filter-today', 'filter_today');
-  el('btn-filter-yesterday', 'filter_yesterday');
-  el('btn-filter-2days', 'filter_last_2_days');
-  el('btn-filter-3days', 'filter_last_3_days');
-  el('btn-filter-4days', 'filter_last_4_days');
-  el('btn-filter-5days', 'filter_last_5_days');
+  el('opt-date-all', 'filter_all');
+  el('opt-date-today', 'filter_today');
+  el('opt-date-yesterday', 'filter_yesterday');
+  el('opt-date-2days', 'filter_last_2_days');
+  el('opt-date-3days', 'filter_last_3_days');
+  el('opt-date-4days', 'filter_last_4_days');
+  el('opt-date-5days', 'filter_last_5_days');
   elQuery('#view-grid-btn span', 'view_grid');
   elQuery('#view-list-btn span', 'view_list');
 
@@ -162,6 +168,8 @@ function applyLanguage(lang) {
   elQuery('label[for="settings-writethumbnail"] + span', 'desc_write_thumbnail');
   elQuery('label[for="settings-showshorts"]:not(.toggle-label)', 'label_show_shorts');
   elQuery('label[for="settings-showshorts"] + span', 'desc_show_shorts');
+  elQuery('label[for="settings-hideondelete"]:not(.toggle-label)', 'label_hide_on_delete');
+  elQuery('label[for="settings-hideondelete"] + span', 'desc_hide_on_delete');
   elQuery('label[for="settings-theme"]', 'label_theme');
   elQuery('label[for="settings-autodelete"]', 'label_auto_delete');
   elQuery('label[for="settings-rsslimit"]', 'label_rss_limit');
@@ -174,11 +182,40 @@ function applyLanguage(lang) {
   elQuery('label[for="settings-shownotifications"] + span', 'desc_show_notifications');
   elQuery('label[for="settings-autoopenbrowser"]:not(.toggle-label)', 'label_auto_open_browser');
   elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
+  elQuery('label[for="settings-checkonstartup"]', 'label_check_on_startup');
+  elQuery('label[for="settings-checkonstartup"] + span', 'desc_check_on_startup');
   elQuery('label[for="settings-discordrpc"]:not(.toggle-label)', 'label_discord_rpc');
   elQuery('label[for="settings-discordrpc"] + span', 'desc_discord_rpc');
   elQuery('#btn-search-channel-text', 'btn_search_channel');
   elQuery('#btn-add-channel-text', 'btn_add_channel');
   elQuery('label[for="settings-lang"]', 'label_lang');
+  el('label-temp-dir-type', 'label_temp_dir_type');
+  el('desc-temp-dir-type', 'desc_temp_dir_type');
+  el('opt-temp-local', 'opt_temp_local');
+  el('opt-temp-system', 'opt_temp_system');
+  el('btn-open-temp-text', 'btn_open_temp_text');
+  el('label-duration-fetch-method', 'label_duration_fetch_method');
+  el('opt-duration-auto', 'opt_duration_auto');
+  el('opt-duration-waterfall', 'opt_duration_waterfall');
+  el('opt-duration-ytdlp', 'opt_duration_ytdlp');
+  el('desc-duration-method-info', 'desc_duration_method_info', 'innerHTML');
+  el('label-ytdlp-run-mode', 'label_ytdlp_run_mode');
+  el('opt-ytdlp-exe', 'opt_ytdlp_exe');
+  el('opt-ytdlp-python', 'opt_ytdlp_python');
+  el('desc-ytdlp-mode-info', 'desc_ytdlp_mode_info', 'innerHTML');
+  el('label-python-cmd', 'label_python_cmd');
+  el('desc-python-cmd', 'desc_python_cmd', 'innerHTML');
+  el('btn-download-python-text', 'btn_download_python_text');
+  el('btn-install-pip-text', 'btn_install_pip_text');
+  el('label-preferred-audio-lang', 'label_preferred_audio_lang');
+  el('desc-preferred-audio-lang', 'desc_preferred_audio_lang');
+  
+  // Tepsi Çift Tıklama Eylemi çevirileri
+  el('label-doubleclickaction', 'label_doubleclickaction');
+  el('desc-doubleclickaction', 'desc_doubleclickaction');
+  el('opt-doubleclick-system', 'opt_doubleclick_system');
+  el('opt-doubleclick-embedded', 'opt_doubleclick_embedded');
+  el('opt-doubleclick-player', 'opt_doubleclick_player');
   
   // Oynatıcı tipi ve Çerez kilitleme uyarısı çevirileri
   el('label-settings-player-type', 'label_settings_player_type');
@@ -191,6 +228,9 @@ function applyLanguage(lang) {
 
   el('label-sponsorblock', 'label_sponsorblock');
   elQuery('label[for="settings-sponsorblock"] + span', 'desc_sponsorblock');
+
+  el('label-alt-thumbnails-hover', 'label_alt_thumbnails_hover');
+  el('desc-alt-thumbnails-hover', 'desc_alt_thumbnails_hover');
 
   el('label-subtitle-color', 'label_subtitle_color');
   el('desc-subtitle-color', 'desc_subtitle_color');
@@ -343,6 +383,7 @@ function applyLanguage(lang) {
   el('desc-lang', 'desc_lang');
   el('opt-theme-dark', 'opt_theme_dark');
   el('opt-theme-light', 'opt_theme_light');
+  el('opt-theme-matrix', 'opt_theme_matrix');
   el('desc-theme', 'desc_theme');
   el('desc-port', 'desc_port');
   el('opt-quality-best', 'opt_quality_best');
@@ -377,6 +418,12 @@ function applyLanguage(lang) {
   el('btn-import-text', 'btn_import_backup');
   el('opt-import-append', 'opt_import_append');
   el('opt-import-overwrite', 'opt_import_overwrite');
+  el('label-ytdlp-version', 'label_ytdlp_version');
+  el('desc-ytdlp-version', 'desc_ytdlp_version');
+  el('btn-ytdlp-update-text', 'btn_ytdlp_update');
+  el('ytdlp-version-prefix', 'ytdlp_version_prefix');
+  el('ytdlp-latest-version-prefix', 'ytdlp_latest_version_prefix');
+
 
   // Ust bar baglanti durumu metni cevirisi
   const statusIndicator2 = document.getElementById('status-indicator');
@@ -416,6 +463,56 @@ function applyLanguage(lang) {
   el('nav-hdown-pd-text', 'nav_hdown_pd');
   el('nav-hdown-downloader-text', 'nav_hdown_downloader');
   el('nav-tools-compare-text', 'compare_title');
+  el('nav-tools-categories-text', 'category_manage_title');
+
+
+
+
+  // Süre Filtresi i18n
+  const durationSelect = document.getElementById('history-duration-filter');
+  if (durationSelect && durationSelect.options.length >= 11) {
+    durationSelect.options[0].text = t.duration_filter_off || 'Kapalı';
+    durationSelect.options[1].text = t.duration_filter_1 || '< 1 dk';
+    durationSelect.options[2].text = t.duration_filter_2 || '< 2 dk';
+    durationSelect.options[3].text = t.duration_filter_3 || '< 3 dk';
+    durationSelect.options[4].text = t.duration_filter_4 || '< 4 dk';
+    durationSelect.options[5].text = t.duration_filter_5 || '< 5 dk';
+    durationSelect.options[6].text = t.duration_filter_10 || '< 10 dk';
+    durationSelect.options[7].text = t.duration_filter_15 || '< 15 dk';
+    durationSelect.options[8].text = t.duration_filter_20 || '< 20 dk';
+    durationSelect.options[9].text = t.duration_filter_25 || '< 25 dk';
+    durationSelect.options[10].text = t.duration_filter_30 || '< 30 dk';
+  }
+
+  // Toplu Silme Kartı i18n
+  el('tools-bulk-delete-title', 'bulk_delete_title');
+  el('tools-bulk-delete-files-label', 'bulk_delete_also_file');
+  el('tools-bulk-delete-select-all-label', 'bulk_delete_select_all');
+  el('tools-bulk-delete-btn-text', 'bulk_delete_btn');
+  el('tools-bulk-delete-selected-text', 'bulk_delete_selected_text');
+
+  // Kütüphane Toplu Gizleme Barı i18n
+  el('btn-bulk-hide-history-toggle', 'history_bulk_hide_toggle');
+  el('lbl-history-bh-select-all', 'history_bulk_hide_select_all');
+  el('lbl-history-bh-selected-count', 'history_bulk_hide_selected_count');
+  el('lbl-history-bh-execute', 'history_bulk_hide_execute');
+  el('lbl-history-bh-cancel', 'history_bulk_hide_cancel');
+
+
+  // Kategori Yönetimi i18n
+  el('tools-categories-title', 'category_manage_title');
+  el('tools-categories-desc', 'category_manage_desc');
+  
+  const newCatInput = document.getElementById('new-category-input');
+  if (newCatInput) {
+    newCatInput.placeholder = t.category_name_placeholder || 'Yeni kategori adı yazın...';
+  }
+  el('btn-add-category-text', 'btn_add_category');
+  el('col-category-id', 'category_id_col');
+  el('col-category-name', 'category_name_col');
+  el('col-category-actions', 'category_actions_col');
+
+
 
   el('downloader-header-title', 'downloader_title');
   el('downloader-header-desc', 'downloader_desc');
@@ -569,6 +666,21 @@ function switchTab(targetTab, triggerPushState = true) {
 
   performTabSwitchUI(targetTab);
 
+  if (targetTab === 'tools') {
+    if (typeof loadCategoriesToTools === 'function') loadCategoriesToTools(localDb.categories);
+    const compareContainer = document.getElementById('tools-compare-container');
+    const metaContainer = document.getElementById('tools-refresh-metadata-container');
+    const categoriesContainer = document.getElementById('tools-categories-container');
+    if (compareContainer) {
+      const allHidden = compareContainer.classList.contains('hidden') &&
+                        (!metaContainer || metaContainer.classList.contains('hidden')) &&
+                        (!categoriesContainer || categoriesContainer.classList.contains('hidden'));
+      if (allHidden) {
+        if (typeof showToolsSubSection === 'function') showToolsSubSection('compare');
+      }
+    }
+  }
+
   if (triggerPushState) {
     const targetPath = tabPathMap[targetTab];
     if (targetPath && window.location.pathname !== targetPath) {
@@ -628,6 +740,7 @@ const addChannelBtn = document.getElementById('add-channel-btn');
 // Geçmiş Tab Elemanları
 const historyGrid = document.getElementById('history-grid');
 const historyChannelFilter = document.getElementById('history-channel-filter');
+const historyDateFilter = document.getElementById('history-date-filter');
 const viewGridBtn = document.getElementById('view-grid-btn');
 const viewListBtn = document.getElementById('view-list-btn');
 
@@ -807,6 +920,12 @@ function connectSSE() {
     const db = JSON.parse(e.data);
     localDb = db;
     updateUI(db);
+    if (typeof renderChannels === 'function' && document.getElementById('channels-view')?.classList.contains('active')) {
+      renderChannels();
+    }
+    if (typeof renderHistory === 'function' && document.getElementById('history-view')?.classList.contains('active')) {
+      renderHistory();
+    }
   });
 
   // İndirme İlerleme Bildirimi
@@ -1006,6 +1125,11 @@ function updateActiveDownloadProgress(data) {
  */
 function updateUI(db) {
   if (!db) return;
+  localDb = db;
+  window.localDb = db;
+
+  if (typeof restoreHistoryFilterState === 'function') restoreHistoryFilterState();
+  if (typeof restoreDownloadedFilterState === 'function') restoreDownloadedFilterState();
 
   if (db.settings && db.settings.subtitleColor) {
     document.documentElement.style.setProperty('--subtitle-color', db.settings.subtitleColor);
@@ -1018,42 +1142,35 @@ function updateUI(db) {
   }
 
   // 1. Sistem Durum Detayları
-  const isEn = db.settings && db.settings.lang === 'en';
   const lang = db.settings?.lang || currentLang || 'tr';
   const t = translations[lang] || translations.tr;
-  const browserNames = isEn ? {
+  const browserNames = {
     chrome: 'Google Chrome',
     edge: 'Microsoft Edge',
     msedge: 'Microsoft Edge',
     firefox: 'Mozilla Firefox',
     brave: 'Brave',
     opera: 'Opera',
-    none: 'Disabled'
-  } : {
-    chrome: 'Google Chrome',
-    edge: 'Microsoft Edge',
-    msedge: 'Microsoft Edge',
-    firefox: 'Mozilla Firefox',
-    brave: 'Brave',
-    opera: 'Opera',
-    none: 'Devre Dışı'
+    none: t.status_disabled || 'Devre Dışı'
   };
   
   if (cookieStatus && db.settings) {
-    cookieStatus.textContent = browserNames[db.settings.browser] || (isEn ? 'Not Specified' : 'Belirtilmedi');
+    cookieStatus.textContent = browserNames[db.settings.browser] || (t.status_not_specified || 'Belirtilmedi');
   }
   
-  const qualityNames = isEn ? {
-    best: 'Best Quality',
-    '1080p': '1080p FHD',
-    '720p': '720p HD'
-  } : {
-    best: 'En Yüksek',
+  const qualityNames = {
+    best: t.status_best_quality || 'En Yüksek',
     '1080p': '1080p FHD',
     '720p': '720p HD'
   };
   if (qualityStatus && db.settings) {
-    qualityStatus.textContent = qualityNames[db.settings.quality] || (isEn ? 'Automatic' : 'Otomatik');
+    qualityStatus.textContent = qualityNames[db.settings.quality] || (t.status_automatic || 'Otomatik');
+  }
+
+  // Eşzamanlı İndirme Limiti Dropdown Eşleme
+  const concurrentSelect = document.getElementById('queue-concurrent-limit');
+  if (concurrentSelect && db.settings && db.settings.maxConcurrentDownloads !== undefined) {
+    concurrentSelect.value = db.settings.maxConcurrentDownloads.toString();
   }
 
   // 2. İstatistik Sayıcılar
@@ -1107,8 +1224,17 @@ function updateUI(db) {
       queueList.innerHTML = '';
       const isEn = db.settings && db.settings.lang === 'en';
       const mergingVideos = db.history.filter(h => h.status === 'merging');
+      const downloadingVideos = db.history.filter(h => h.status === 'downloading');
+      const waitingVideos = db.history.filter(h => h.status === 'waiting');
+      const allActiveQueue = [...downloadingVideos, ...waitingVideos];
       
-      if (waitingVideos.length === 0 && mergingVideos.length === 0) {
+      const totalQueueCount = allActiveQueue.length + mergingVideos.length;
+      const navQueueCountBadge = document.getElementById('nav-queue-count-badge');
+      if (navQueueCountBadge) {
+        navQueueCountBadge.textContent = totalQueueCount;
+      }
+      
+      if (allActiveQueue.length === 0 && mergingVideos.length === 0) {
         queueList.innerHTML = `
           <div class="text-center text-muted" id="queue-list-empty" style="padding: 30px 0; font-size: 0.85rem;">${isEn ? 'No videos waiting in the queue.' : 'Kuyrukta bekleyen video yok.'}</div>
         `;
@@ -1149,12 +1275,21 @@ function updateUI(db) {
           queueList.appendChild(item);
         });
 
-        // Sonra bekleyen videoları ekle
-        waitingVideos.forEach(video => {
+        // Sonra aktif indirmeleri ve bekleyen videoları ekle (hepsi sürüklenebilir)
+        allActiveQueue.forEach(video => {
           const item = document.createElement('div');
           item.className = 'queue-item';
           item.setAttribute('draggable', 'true');
           item.setAttribute('data-id', video.id);
+          
+          if (video.status === 'downloading') {
+            item.className = 'queue-item queue-item-downloading';
+            item.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            item.style.background = 'rgba(16, 185, 129, 0.03)';
+          }
+
+          const cancelOnClick = video.status === 'downloading' ? `cancelDownload('${video.id}')` : `cancelQueuedVideo('${video.id}')`;
+
           item.innerHTML = `
             <div class="queue-item-drag-handle" style="cursor: grab; display: flex; align-items: center; justify-content: center; padding-right: 12px; color: var(--text-muted);" title="${isEn ? 'Drag to reorder' : 'Sürükleyip sıralayın'}">
               <i data-lucide="grip-vertical" style="width:16px; height:16px;"></i>
@@ -1162,13 +1297,30 @@ function updateUI(db) {
             <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="queue-item-thumbnail" onerror="this.src='logo.png'">
             <div class="queue-item-info" style="flex:1;">
               <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main);">${escapeHtml(video.title)}</div>
-              <div class="queue-item-channel" style="font-size:0.78rem;">
-                <i data-lucide="tv" style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin-right: 2px;"></i>
-                ${escapeHtml(video.channelName)}
+              <div class="queue-item-channel" style="font-size:0.78rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:2px;">
+                <span style="display:flex; align-items:center; gap:2px;">
+                  <i data-lucide="tv" style="width: 10px; height: 10px;"></i>
+                  ${escapeHtml(video.channelName)}
+                </span>
+                ${video.duration ? `
+                <span style="display:flex; align-items:center; gap:2px; color:var(--text-muted);" title="${isEn ? 'Duration' : 'Süre'}">
+                  <i data-lucide="clock" style="width: 10px; height: 10px;"></i>
+                  ${video.duration}
+                </span>` : ''}
+                ${video.fileSize ? `
+                <span style="display:flex; align-items:center; gap:2px; color:var(--text-muted);" title="${isEn ? 'File Size' : 'Dosya Boyutu'}">
+                  <i data-lucide="file-video" style="width: 10px; height: 10px;"></i>
+                  ${video.fileSize}
+                </span>` : ''}
+                ${video.status === 'downloading' ? `
+                <span class="queue-item-status-badge" style="font-size:0.68rem; display:inline-flex; align-items:center; gap:4px; padding: 1px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); font-weight: 600;">
+                  <i class="spin-animation" style="width: 8px; height: 8px; display:inline-block; border: 1.5px solid #10b981; border-top-color: transparent; border-radius:50%;"></i>
+                  <span>%${video.progress || 0}</span>
+                </span>` : ''}
               </div>
             </div>
             <div class="queue-item-actions">
-              <button class="btn-cancel-queue" onclick="cancelQueuedVideo('${video.id}')" title="${isEn ? 'Cancel' : 'İptal Et'}">
+              <button class="btn-cancel-queue" onclick="${cancelOnClick}" title="${isEn ? 'Cancel' : 'İptal Et'}">
                 <i data-lucide="x" style="width: 12px; height: 12px;"></i>
                 <span>${isEn ? 'Cancel' : 'İptal Et'}</span>
               </button>
@@ -1228,10 +1380,14 @@ function updateUI(db) {
                 </span>
               </div>
             </div>
-            <div class="queue-item-actions">
+            <div class="queue-item-actions" style="display:flex; gap:6px;">
               <button class="btn-cancel-queue" onclick="playVideoEmbedded('${video.id}')" title="${isEn ? 'Play' : 'Oynat'}" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #10b981; display: flex; align-items: center; gap: 4px;">
                 <i data-lucide="play" style="width: 10px; height: 10px;"></i>
                 <span>${isEn ? 'Play' : 'Oynat'}</span>
+              </button>
+              <button class="btn-cancel-queue" onclick="showDeleteModal('${video.id}')" title="${isEn ? 'Delete' : 'Sil'}" style="background: rgba(220, 53, 69, 0.1); border-color: rgba(220, 53, 69, 0.2); color: var(--danger-color); display: flex; align-items: center; gap: 4px; padding: 4px 8px;">
+                <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
+                <span>${isEn ? 'Delete' : 'Sil'}</span>
               </button>
             </div>
           `;
@@ -1249,42 +1405,18 @@ function updateUI(db) {
 
   // 5. Kanallar Listesi (Alfabetik Sıralı)
   if (channelsList && db.channels) {
-    renderChannelsList(channelsList, db.channels, t);
+    renderChannelsList(channelsList, db.channels, t, db.categories);
   }
 
-  // 6. Geçmiş Kanal Filtresi Seçeneklerini Doldur (Alfabetik Sıralı)
-  if (historyChannelFilter && db.channels) {
-    const currentFilterVal = historyChannelFilter.value || 'all';
-    historyChannelFilter.innerHTML = `<option value="all">${t.filter_all_channels || 'Tüm Kanallar'}</option>`;
-    
-    // Kanalları alfabetik olarak sırala
-    const sortedFilterChannels = [...db.channels].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
-    sortedFilterChannels.forEach(channel => {
-      const opt = document.createElement('option');
-      opt.value = channel.id;
-      opt.textContent = channel.name;
-      historyChannelFilter.appendChild(opt);
-    });
-    historyChannelFilter.value = currentFilterVal;
-    historyFilterChannel = historyChannelFilter.value; // Senkronize et
+  // Kategori Yönetimi Arayüzünü Yükle (Araçlar Sekmesinde)
+  if (typeof loadCategoriesToTools === 'function') {
+    loadCategoriesToTools(db.categories);
   }
 
-  // İndirilen Videolar Kanal Filtresi Seçeneklerini Doldur
-  if (downloadedChannelFilter && db.channels) {
-    const currentFilterVal = downloadedChannelFilter.value || 'all';
-    downloadedChannelFilter.innerHTML = `<option value="all">${t.filter_all_channels || 'Tüm Kanallar'}</option>`;
-    
-    // Kanalları alfabetik olarak sırala
-    const sortedFilterChannels = [...db.channels].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
-    sortedFilterChannels.forEach(channel => {
-      const opt = document.createElement('option');
-      opt.value = channel.id;
-      opt.textContent = channel.name;
-      downloadedChannelFilter.appendChild(opt);
-    });
-    downloadedChannelFilter.value = currentFilterVal;
-    downloadedFilterChannel = downloadedChannelFilter.value; // Senkronize et
-  }
+  // 6. Kanal Filtresi Seçeneklerini Doldur (Standart Doğal Seçim Listesi)
+  populateChannelFilters(db);
+
+
 
   // Yerleşik oynatma listesi sidebar filtrelerini doldur ve senkronize et
   if (typeof updateSidebarSortButtons === 'function') {
@@ -1310,15 +1442,27 @@ function updateUI(db) {
 
   const historyOnlyNotDownloadedCheck = document.getElementById('history-only-not-downloaded');
   if (historyOnlyNotDownloadedCheck) {
-    historyOnlyNotDownloadedCheck.checked = historyOnlyNotDownloaded;
+    historyOnlyNotDownloadedCheck.checked = !!window.historyOnlyNotDownloaded;
+    syncFilterChipUI('history-only-not-downloaded');
   }
   const historyOnlyNoAutoDownloadCheck = document.getElementById('history-only-no-auto-download');
   if (historyOnlyNoAutoDownloadCheck) {
-    historyOnlyNoAutoDownloadCheck.checked = historyOnlyNoAutoDownload;
+    historyOnlyNoAutoDownloadCheck.checked = !!window.historyOnlyNoAutoDownload;
+    syncFilterChipUI('history-only-no-auto-download');
   }
   const historyShowHiddenCheck = document.getElementById('history-show-hidden');
   if (historyShowHiddenCheck) {
-    historyShowHiddenCheck.checked = historyShowHidden;
+    historyShowHiddenCheck.checked = !!window.historyShowHidden;
+    syncFilterChipUI('history-show-hidden');
+  }
+  const historyShowShortsCheck = document.getElementById('history-show-shorts');
+  if (historyShowShortsCheck) {
+    historyShowShortsCheck.checked = localDb.settings?.showShorts !== false;
+    syncFilterChipUI('history-show-shorts');
+  }
+  const historyShowLiveCheck = document.getElementById('history-show-live');
+  if (historyShowLiveCheck) {
+    syncFilterChipUI('history-show-live');
   }
 
   // Görünüm butonlarının aktiflik durumunu güncelle
@@ -1351,20 +1495,23 @@ function updateUI(db) {
     let filteredHistory = db.history.filter(item => item.channelId && trackedChannelIds.has(item.channelId));
     
     if (historyFilterChannel !== 'all') {
-      filteredHistory = filteredHistory.filter(item => item.channelId === historyFilterChannel);
+      if (historyFilterChannel.startsWith('category:')) {
+        const catId = parseInt(historyFilterChannel.split(':')[1], 10);
+        const channelIdsInCat = (db.channels || []).filter(c => (c.categoryIds || [c.categoryId || 1]).includes(catId)).map(c => c.id);
+        const channelIdsInCatSet = new Set(channelIdsInCat);
+        filteredHistory = filteredHistory.filter(item => channelIdsInCatSet.has(item.channelId));
+      } else {
+        filteredHistory = filteredHistory.filter(item => item.channelId === historyFilterChannel);
+      }
     }
     
-    if (historyOnlyNoAutoDownload) {
+    if (window.historyOnlyNoAutoDownload) {
       const disabledChannelIds = new Set((db.channels || []).filter(c => c.autoDownload === false).map(c => c.id));
       filteredHistory = filteredHistory.filter(item => disabledChannelIds.has(item.channelId));
     }
     
-    if (historyOnlyNotDownloaded) {
+    if (window.historyOnlyNotDownloaded) {
       filteredHistory = filteredHistory.filter(item => item.status !== 'completed');
-    }
-    
-    if (!historyShowHidden) {
-      filteredHistory = filteredHistory.filter(item => item.hidden !== true);
     }
     
     if (historyFilterDays !== 'all') {
@@ -1399,6 +1546,17 @@ function updateUI(db) {
     if (!showShorts) {
       filteredHistory = filteredHistory.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
     }
+
+    // Süre filtresi: seçilen dakikadan kısa veya eşit olan videoları gizle
+    const durationFilterVal = db.settings.historyDurationFilter || 'off';
+    if (durationFilterVal !== 'off') {
+      const maxSeconds = parseInt(durationFilterVal, 10) * 60;
+      filteredHistory = filteredHistory.filter(item => {
+        const sec = parseDurationToSeconds(item.duration);
+        // Süresi bilinmeyen videoları göster, süresi maxSeconds'tan büyük olanları da göster
+        return sec === null || sec > maxSeconds;
+      });
+    }
     
     // Yüklenme tarihine göre sırala (Yeni olan en üstte)
     filteredHistory.sort((a, b) => {
@@ -1422,6 +1580,12 @@ function updateUI(db) {
       }
     }
     filteredHistory = limitedHistory;
+
+    // Silinen/gizlenen videoları limit uygulandıktan sonra filtrele ki
+    // gizlenmiş videolar son videolar kontenjanını kaplasın ve yerine eski videolar sızmasın.
+    if (!window.historyShowHidden) {
+      filteredHistory = filteredHistory.filter(item => item.hidden !== true);
+    }
     
     renderVideoGrid(historyGrid, filteredHistory, historyViewMode);
   }
@@ -1431,7 +1595,14 @@ function updateUI(db) {
     let filteredDownloaded = db.history.filter(item => item.status === 'completed');
     
     if (downloadedFilterChannel !== 'all') {
-      filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
+      if (downloadedFilterChannel.startsWith('category:')) {
+        const catId = parseInt(downloadedFilterChannel.split(':')[1], 10);
+        const channelIdsInCat = (db.channels || []).filter(c => (c.categoryIds || [c.categoryId || 1]).includes(catId)).map(c => c.id);
+        const channelIdsInCatSet = new Set(channelIdsInCat);
+        filteredDownloaded = filteredDownloaded.filter(item => channelIdsInCatSet.has(item.channelId));
+      } else {
+        filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
+      }
     }
     
     const showShorts = db.settings.showShorts !== false;
@@ -1478,6 +1649,27 @@ function updateUI(db) {
   // 7. Ayarlar Değerleri (Sadece alan odaklanılmamışsa doldur)
   if (db.settings) {
     if (settingsDownloadPath && document.activeElement !== settingsDownloadPath) settingsDownloadPath.value = db.settings.downloadPath || '';
+    const settingsTempDirType = document.getElementById('settings-temp-dir-type');
+    if (settingsTempDirType && document.activeElement !== settingsTempDirType) settingsTempDirType.value = db.settings.tempDirType || 'system';
+
+    const settingsDurationFetchMethod = document.getElementById('settings-duration-fetch-method');
+    if (settingsDurationFetchMethod && document.activeElement !== settingsDurationFetchMethod) {
+      settingsDurationFetchMethod.value = db.settings.durationFetchMethod || 'auto';
+    }
+
+    const settingsYtdlpRunMode = document.getElementById('settings-ytdlp-run-mode');
+    if (settingsYtdlpRunMode && document.activeElement !== settingsYtdlpRunMode) {
+      settingsYtdlpRunMode.value = db.settings.ytdlpRunMode || 'exe';
+    }
+
+    const settingsPythonCmd = document.getElementById('settings-python-cmd');
+    if (settingsPythonCmd && document.activeElement !== settingsPythonCmd) {
+      settingsPythonCmd.value = db.settings.pythonCmd || 'python';
+    }
+    
+    if (typeof window.togglePythonSettingsVisibility === 'function') {
+      window.togglePythonSettingsVisibility();
+    }
     if (settingsBrowser && document.activeElement !== settingsBrowser) settingsBrowser.value = db.settings.browser || 'none';
     if (settingsQuality && document.activeElement !== settingsQuality) settingsQuality.value = db.settings.quality || 'best';
     if (settingsChannelCheckInterval && document.activeElement !== settingsChannelCheckInterval) settingsChannelCheckInterval.value = db.settings.channelCheckInterval || 60;
@@ -1491,6 +1683,9 @@ function updateUI(db) {
 
     const settingsShowShorts = document.getElementById('settings-showshorts');
     if (settingsShowShorts && document.activeElement !== settingsShowShorts) settingsShowShorts.checked = db.settings.showShorts !== false;
+
+    const settingsHideOnDelete = document.getElementById('settings-hideondelete');
+    if (settingsHideOnDelete && document.activeElement !== settingsHideOnDelete) settingsHideOnDelete.checked = db.settings.hideOnDelete !== false;
 
     const historyShowShorts = document.getElementById('history-show-shorts');
     if (historyShowShorts && document.activeElement !== historyShowShorts) historyShowShorts.checked = db.settings.showShorts !== false;
@@ -1519,6 +1714,9 @@ function updateUI(db) {
     const settingsShowNotifications = document.getElementById('settings-shownotifications');
     if (settingsShowNotifications && document.activeElement !== settingsShowNotifications) settingsShowNotifications.checked = db.settings.showNotifications !== false;
 
+    const settingsCheckOnStartup = document.getElementById('settings-checkonstartup');
+    if (settingsCheckOnStartup && document.activeElement !== settingsCheckOnStartup) settingsCheckOnStartup.checked = db.settings.checkChannelsOnStartup === true;
+
     const settingsAutoOpenBrowser = document.getElementById('settings-autoopenbrowser');
     if (settingsAutoOpenBrowser && document.activeElement !== settingsAutoOpenBrowser) settingsAutoOpenBrowser.checked = db.settings.autoOpenBrowser !== false;
 
@@ -1528,8 +1726,18 @@ function updateUI(db) {
       setCustomSelectValue(db.settings.lang || 'tr');
     }
 
+    const settingsPrefAudioLang = document.getElementById('settings-preferredaudiolang');
+    if (settingsPrefAudioLang && document.activeElement !== settingsPrefAudioLang) {
+      settingsPrefAudioLang.value = db.settings.preferredAudioLang || 'auto';
+    }
+
     const settingsPlayerType = document.getElementById('settings-player-type');
     if (settingsPlayerType && document.activeElement !== settingsPlayerType) settingsPlayerType.value = db.settings.playerType || 'plyr';
+
+    const settingsDoubleClickAction = document.getElementById('settings-doubleclickaction');
+    if (settingsDoubleClickAction && document.activeElement !== settingsDoubleClickAction) {
+      settingsDoubleClickAction.value = db.settings.doubleClickAction || 'system';
+    }
 
     const settingsSubtitleColor = document.getElementById('settings-subtitle-color');
     if (settingsSubtitleColor && document.activeElement !== settingsSubtitleColor) {
@@ -1538,6 +1746,9 @@ function updateUI(db) {
 
     const settingsSponsorBlock = document.getElementById('settings-sponsorblock');
     if (settingsSponsorBlock && document.activeElement !== settingsSponsorBlock) settingsSponsorBlock.checked = db.settings.sponsorBlockEnabled === true;
+
+    const settingsAltThumbnailsHover = document.getElementById('settings-alt-thumbnails-hover');
+    if (settingsAltThumbnailsHover && document.activeElement !== settingsAltThumbnailsHover) settingsAltThumbnailsHover.checked = db.settings.enableAltThumbnailsHover !== false;
 
     const settingsDiscordRpc = document.getElementById('settings-discordrpc');
     if (settingsDiscordRpc && document.activeElement !== settingsDiscordRpc) settingsDiscordRpc.checked = db.settings.discordRpcEnabled === true;
@@ -1590,7 +1801,7 @@ function updateUI(db) {
     }
 
     // Tema Sınıfı Eşitlemesi
-    document.body.classList.toggle('light-theme', db.settings.theme === 'light');
+    applyTheme(db.settings.theme || 'dark');
     
     // Dil Çevirisini Uygula
     if (db.settings.lang) {
@@ -1607,8 +1818,26 @@ function updateUI(db) {
     }
   }
 
+  // Gist alanlarını ve bağlantılarını doldur
+  populateGistFields();
+
   // İkonları yeniden yükle
   lucide.createIcons();
+
+  // URL'deki play parametresini kontrol et ve ilk yüklemede otomatik oynat
+  if (!window.hasProcessedUrlPlayParam) {
+    window.hasProcessedUrlPlayParam = true;
+    const urlParams = new URLSearchParams(window.location.search);
+    const playVideoId = urlParams.get('play');
+    if (playVideoId) {
+      switchTab('downloaded', true);
+      setTimeout(() => {
+        playVideoEmbedded(playVideoId);
+      }, 150);
+    }
+  }
+
+  // (eski renderBulkHideList çağrısı kaldırıldı - artık Kütüphane tabında inline mod kullanılıyor)
 }
 
 // Türkçe Açıklama: Belirtilen kanal ID'sini backend API'sine ileterek kanalı izleme listesinden çıkarır ve geçmiş verilerini siler.
@@ -1681,66 +1910,53 @@ window.updateChannelAvatar = async function(id) {
  * Takip edilen tüm kanalların logolarını arka planda toplu olarak günceller.
  */
 // Türkçe Açıklama: Arayüzden toplu kanal logosu güncelleme API'sini çağırır.
-window.updateAllChannelAvatars = async function() {
+window.updateAllChannelInfo = async function() {
   const isEn = localDb.settings && localDb.settings.lang === 'en';
-  if (!confirm(isEn ? 'Are you sure you want to update all channel logos? This may take some time.' : 'Tüm kanal logolarını güncellemek istediğinize emin misiniz? Bu işlem biraz zaman alabilir.')) return;
+  showToast(isEn ? 'Updating subscriber counts & avatars for all channels...' : 'Tüm kanal abone sayıları ve avatarları güncelleniyor...', 'info');
   
-  showToast(isEn ? 'Updating all channel logos...' : 'Tüm kanal logoları güncelleniyor...', 'info');
-  
-  const btn = document.getElementById('update-all-logos-btn');
+  const btn = document.getElementById('update-all-channels-btn');
   if (btn) btn.disabled = true;
   
   try {
-    const res = await fetch('/api/channels/update-all-avatars', { method: 'POST' });
+    const res = await fetch('/api/channels/update-all-info', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
-      // Başarı logları SSE kanalıyla sunucudan gelecektir.
-      // Her resim için cache-busting uygulayarak arayüzü yenileriz
-      setTimeout(() => {
-        document.querySelectorAll('.channel-list-avatar-img').forEach(img => {
-          const idMatch = img.id.match(/ch-avatar-(UC[a-zA-Z0-9_-]{22})/);
-          if (idMatch) {
-            img.src = `/api/channels/${idMatch[1]}/avatar?t=${Date.now()}`;
-          }
-        });
-      }, 2000);
+      showToast(isEn ? 'All channel info updated successfully.' : 'Tüm kanal bilgileri başarıyla güncellendi.', 'success');
+      if (typeof fetchDb === 'function') {
+        await fetchDb();
+      }
+      if (typeof renderChannels === 'function') renderChannels();
+      if (typeof renderHistory === 'function') renderHistory();
     } else {
-      showToast(data.error || 'İşlem başarısız oldu.', 'error');
+      showToast(data.error || (isEn ? 'Process failed.' : 'İşlem başarısız oldu.'), 'error');
     }
   } catch (err) {
-    showToast('Sunucu ile iletişim hatası.', 'error');
+    showToast(isEn ? 'Server connection error.' : 'Sunucu ile iletişim hatası.', 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
 };
 
-/**
- * Belirtilen kanalın abone sayısını YouTube'dan çeker ve günceller.
- * 
- * @param {string} id Güncellenecek kanal ID'si
- */
-window.updateChannelSubscribers = async function(id) {
+window.updateChannelInfo = async function(id) {
   const isEn = localDb.settings && localDb.settings.lang === 'en';
   try {
-    showToast(isEn ? 'Updating subscriber count...' : 'Kanal abone sayısı güncelleniyor...', 'info');
-    const res = await fetch(`/api/channels/${id}/update-subscribers`, { method: 'POST' });
+    showToast(isEn ? 'Updating channel info (subscribers & avatar)...' : 'Kanal bilgileri (abone sayısı & avatar) güncelleniyor...', 'info');
+    const res = await fetch(`/api/channels/${id}/update-info`, { method: 'POST' });
     const data = await res.json();
     if (data.success) {
-      showToast(isEn ? 'Subscriber count updated successfully.' : 'Kanal abone sayısı başarıyla güncellendi.', 'success');
+      showToast(isEn ? 'Channel info updated successfully.' : 'Kanal bilgileri başarıyla güncellendi.', 'success');
       
-      const badge = document.getElementById(`ch-subs-badge-${id}`);
-      if (badge && data.subscriberCount) {
-        const textNode = badge.querySelector('.subs-count-val');
-        if (textNode) {
-          textNode.textContent = data.subscriberCount;
-        }
-        badge.style.display = 'inline-flex';
-        try {
-          if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-          }
-        } catch (e) {}
+      const targetChannel = localDb.channels?.find(c => c.id === id);
+      if (targetChannel) {
+        if (data.subscriberCount) targetChannel.subscriberCount = data.subscriberCount;
+        if (data.avatar) targetChannel.avatar = data.avatar;
       }
+
+      if (typeof fetchDb === 'function') {
+        await fetchDb();
+      }
+      if (typeof renderChannels === 'function') renderChannels();
+      if (typeof renderHistory === 'function') renderHistory();
     } else {
       showToast(data.error || (isEn ? 'Error occurred.' : 'Hata oluştu.'), 'error');
     }
@@ -1749,31 +1965,16 @@ window.updateChannelSubscribers = async function(id) {
   }
 };
 
-/**
- * Takip edilen tüm kanalların abone sayılarını arka planda toplu olarak günceller.
- */
+window.updateAllChannelAvatars = async function() {
+  return window.updateAllChannelInfo();
+};
+
+window.updateChannelSubscribers = async function(id) {
+  return window.updateChannelInfo(id);
+};
+
 window.updateAllChannelSubscribers = async function() {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  if (!confirm(isEn ? 'Are you sure you want to update all subscriber counts? This may take some time.' : 'Tüm kanal abone sayılarını güncellemek istediğinize emin misiniz? Bu işlem biraz zaman alabilir.')) return;
-  
-  showToast(isEn ? 'Updating all subscriber counts...' : 'Tüm kanal abone sayıları güncelleniyor...', 'info');
-  
-  const btn = document.getElementById('update-all-subscribers-btn');
-  if (btn) btn.disabled = true;
-  
-  try {
-    const res = await fetch('/api/channels/update-all-subscribers', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'All subscriber counts updated successfully.' : 'Tüm kanal abone sayıları başarıyla güncellendi.', 'success');
-    } else {
-      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız oldu.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Server communication error.' : 'Sunucu ile iletişim hatası.', 'error');
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+  return window.updateAllChannelInfo();
 };
 
 /**
@@ -1914,6 +2115,10 @@ async function performAutoSave() {
   
   const settings = {
     downloadPath: settingsDownloadPath.value.trim(),
+    tempDirType: document.getElementById('settings-temp-dir-type') ? document.getElementById('settings-temp-dir-type').value : 'system',
+    durationFetchMethod: document.getElementById('settings-duration-fetch-method') ? document.getElementById('settings-duration-fetch-method').value : 'auto',
+    ytdlpRunMode: document.getElementById('settings-ytdlp-run-mode') ? document.getElementById('settings-ytdlp-run-mode').value : 'exe',
+    pythonCmd: document.getElementById('settings-python-cmd') ? document.getElementById('settings-python-cmd').value : 'python',
     browser: settingsBrowser.value,
     quality: settingsQuality.value,
     channelCheckInterval: parseInt(settingsChannelCheckInterval.value, 10) || 60,
@@ -1921,6 +2126,7 @@ async function performAutoSave() {
     mergeType: document.getElementById('settings-mergetype').value,
     writeThumbnail: document.getElementById('settings-writethumbnail').checked,
     showShorts: document.getElementById('settings-showshorts').checked,
+    hideOnDelete: document.getElementById('settings-hideondelete').checked,
     theme: document.getElementById('settings-theme').value,
     autoDeleteDays: parseInt(document.getElementById('settings-autodelete').value, 10) || 0,
     rssLimit: parseInt(document.getElementById('settings-rsslimit').value, 10) || 5,
@@ -1935,10 +2141,17 @@ async function performAutoSave() {
     playSounds: document.getElementById('settings-playsounds').checked,
     showNotifications: document.getElementById('settings-shownotifications').checked,
     autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
+    checkChannelsOnStartup: document.getElementById('settings-checkonstartup') ? document.getElementById('settings-checkonstartup').checked : false,
     discordRpcEnabled: document.getElementById('settings-discordrpc').checked,
     lang: document.getElementById('settings-lang').value,
+    preferredAudioLang: document.getElementById('settings-preferredaudiolang') ? document.getElementById('settings-preferredaudiolang').value : 'auto',
+    doubleClickAction: document.getElementById('settings-doubleclickaction').value,
     historyLimitPerChannel: parseInt(document.getElementById('settings-history-limit').value, 10) || 30,
-    shortsDurationLimit: settingsShortsDurationLimit ? (parseInt(settingsShortsDurationLimit.value, 10) || 180) : (localDb.settings.shortsDurationLimit || 180)
+    shortsDurationLimit: settingsShortsDurationLimit ? (parseInt(settingsShortsDurationLimit.value, 10) || 180) : (localDb.settings.shortsDurationLimit || 180),
+    enableAltThumbnailsHover: document.getElementById('settings-alt-thumbnails-hover') ? document.getElementById('settings-alt-thumbnails-hover').checked : true,
+    githubToken: document.getElementById('gist-token-input') ? document.getElementById('gist-token-input').value.trim() : (localDb.settings.githubToken || ''),
+    githubGistId: document.getElementById('gist-id-input') ? document.getElementById('gist-id-input').value.trim() : (localDb.settings.githubGistId || ''),
+    autoSyncGist: document.getElementById('gist-auto-sync-checkbox') ? document.getElementById('gist-auto-sync-checkbox').checked : (localDb.settings.autoSyncGist || false)
   };
 
   const oldPort = localDb.settings.port || 4141;
@@ -1993,6 +2206,143 @@ if (settingsForm) {
     }
   });
 }
+
+/**
+ * Tema Değiştirme ve Uygulama Yardımcı Fonksiyonu
+ * 
+ * @param {string} themeName - 'dark' | 'light' | 'matrix'
+ * @returns {void}
+ */
+function applyTheme(themeName) {
+  const targetTheme = themeName || 'dark';
+  document.body.classList.remove('light-theme', 'matrix-theme', 'discord-theme', 'youtube-theme');
+  
+  if (targetTheme === 'light') {
+    document.body.classList.add('light-theme');
+  } else if (targetTheme === 'matrix') {
+    document.body.classList.add('matrix-theme');
+  } else if (targetTheme === 'discord') {
+    document.body.classList.add('discord-theme');
+  } else if (targetTheme === 'youtube') {
+    document.body.classList.add('youtube-theme');
+  }
+  
+  try {
+    localStorage.setItem('haytool_theme', targetTheme);
+  } catch(e) {}
+
+  if (window.localDb && window.localDb.settings) {
+    window.localDb.settings.theme = targetTheme;
+  }
+
+  const settingsThemeEl = document.getElementById('settings-theme');
+  if (settingsThemeEl) {
+    settingsThemeEl.value = targetTheme;
+  }
+
+  updateThemeToggleUI(targetTheme);
+}
+window.applyTheme = applyTheme;
+
+/**
+ * Hızlı Tema Değiştir (Quick Theme Toggle Cycle)
+ * Koyu -> Açık -> Matrix -> Discord -> YouTube -> Koyu temaları arasında sıralı hızlı geçiş yapar.
+ * 
+ * @returns {Promise<void>}
+ */
+async function toggleQuickTheme() {
+  const isLight = document.body.classList.contains('light-theme');
+  const isMatrix = document.body.classList.contains('matrix-theme');
+  const isDiscord = document.body.classList.contains('discord-theme');
+  const isYoutube = document.body.classList.contains('youtube-theme');
+  
+  let newTheme = 'dark';
+  if (!isLight && !isMatrix && !isDiscord && !isYoutube) {
+    newTheme = 'light';
+  } else if (isLight) {
+    newTheme = 'matrix';
+  } else if (isMatrix) {
+    newTheme = 'discord';
+  } else if (isDiscord) {
+    newTheme = 'youtube';
+  } else {
+    newTheme = 'dark';
+  }
+
+  applyTheme(newTheme);
+
+  try {
+    const payload = { ...window.localDb.settings, theme: newTheme };
+    await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    devWarn('Tema değişikliği sunucuya kaydedilemedi:', err);
+  }
+
+  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
+  let toastText = '';
+  if (newTheme === 'light') {
+    toastText = isEn ? 'Light Theme Activated' : 'Açık Tema (Aydınlık) Aktifleştirildi';
+  } else if (newTheme === 'matrix') {
+    toastText = isEn ? 'Matrix Theme Activated (Cyber Green)' : 'Matrix Teması (Siber Yeşil) Aktifleştirildi 🟢';
+  } else if (newTheme === 'discord') {
+    toastText = isEn ? 'Discord Theme Activated (Blurple)' : 'Discord Teması (Koyu Blurple) Aktifleştirildi 💬';
+  } else if (newTheme === 'youtube') {
+    toastText = isEn ? 'YouTube Theme Activated (Obsidian Red)' : 'YouTube Teması (Koyu Kırmızı) Aktifleştirildi ▶️';
+  } else {
+    toastText = isEn ? 'Dark Theme Activated' : 'Koyu Tema (Karanlık) Aktifleştirildi 🌙';
+  }
+  
+  showToast(toastText, 'info');
+}
+window.toggleQuickTheme = toggleQuickTheme;
+
+/**
+ * Tema Buton İkon ve Başlık Arayüzünü Günceller
+ * 
+ * @param {string} themeName - Mevcut aktif tema
+ * @returns {void}
+ */
+function updateThemeToggleUI(themeName) {
+  const btn = document.getElementById('quick-theme-toggle-btn');
+  if (!btn) return;
+
+  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
+  let currentTheme = 'dark';
+  if (typeof themeName === 'string') {
+    currentTheme = themeName;
+  } else if (document.body.classList.contains('light-theme')) {
+    currentTheme = 'light';
+  } else if (document.body.classList.contains('matrix-theme')) {
+    currentTheme = 'matrix';
+  } else if (document.body.classList.contains('discord-theme')) {
+    currentTheme = 'discord';
+  } else if (document.body.classList.contains('youtube-theme')) {
+    currentTheme = 'youtube';
+  }
+
+  if (currentTheme === 'light') {
+    btn.setAttribute('title', isEn ? 'Switch to Matrix Theme (Cyber Green)' : 'Matrix Temasına Geç (Siber Yeşil)');
+    btn.innerHTML = `<i data-lucide="terminal" id="quick-theme-icon"></i>`;
+  } else if (currentTheme === 'matrix') {
+    btn.setAttribute('title', isEn ? 'Switch to Discord Theme (Blurple)' : 'Discord Temasına Geç (Blurple)');
+    btn.innerHTML = `<i data-lucide="message-square" id="quick-theme-icon"></i>`;
+  } else if (currentTheme === 'discord') {
+    btn.setAttribute('title', isEn ? 'Switch to YouTube Theme (Obsidian Red)' : 'YouTube Temasına Geç (Koyu Kırmızı)');
+    btn.innerHTML = `<i data-lucide="play-circle" id="quick-theme-icon"></i>`;
+  } else if (currentTheme === 'youtube') {
+    btn.setAttribute('title', isEn ? 'Switch to Dark Theme' : 'Koyu Temaya Geç (Karanlık)');
+    btn.innerHTML = `<i data-lucide="moon" id="quick-theme-icon"></i>`;
+  } else {
+    btn.setAttribute('title', isEn ? 'Switch to Light Theme' : 'Açık Temaya Geç (Aydınlık)');
+    btn.innerHTML = `<i data-lucide="sun" id="quick-theme-icon"></i>`;
+  }
+  try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
+}
+window.updateThemeToggleUI = updateThemeToggleUI;
 
 if (syncNowBtn) {
   syncNowBtn.addEventListener('click', async () => {
@@ -2938,6 +3288,8 @@ window.cleanupAllPlayers = function() {
   }
 };
 
+
+
 // Türkçe Açıklama: İndirilen videoyu arayüz içerisindeki gömülü video oynatıcı (Plyr) modalında açarak yürütür.
 /**
  * Videoyu gömülü tarayıcı oynatıcısında (Plyr) açar.
@@ -2946,6 +3298,8 @@ window.cleanupAllPlayers = function() {
  * @param {string} videoId Oynatılacak video ID'si
  */
 window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePaused = null) {
+  // C# PlayerWindow açılmasını devredışı bıraktık, artık her şey tek pencerede arayüz içinde oynatılacak.
+
   cleanupAllPlayers();
   const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
   const isInline = (activeTab === 'downloaded');
@@ -2957,6 +3311,8 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
   let videoDuration = video ? video.duration : '';
   let fileSizeStr = video ? video.fileSize : '';
   let publishDateStr = video ? (video.publishedAt || video.downloadedAt || '') : '';
+
+
 
   // Fetch SponsorBlock segments
   await fetchSponsorSegments(videoId);
@@ -3018,7 +3374,22 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
 
     // 3. Bilgileri yerleştir
     const titleEl = document.getElementById('inline-player-title');
-    if (titleEl) titleEl.textContent = videoTitle || 'Yerleşik Oynatıcı';
+    if (titleEl) {
+      const titleText = videoTitle || 'Yerleşik Oynatıcı';
+      titleEl.textContent = titleText;
+      titleEl.title = titleText; // Hover tooltip showing full title
+
+      // Karakter sayısına göre yazı boyutunu dinamik ayarla (2. satıra taşmayı engellemek için)
+      if (titleText.length > 80) {
+        titleEl.style.fontSize = '0.85rem';
+      } else if (titleText.length > 60) {
+        titleEl.style.fontSize = '0.95rem';
+      } else if (titleText.length > 40) {
+        titleEl.style.fontSize = '1.1rem';
+      } else {
+        titleEl.style.fontSize = '1.25rem';
+      }
+    }
 
     const channelNameEl = document.getElementById('inline-player-channel-name');
     if (channelNameEl) channelNameEl.textContent = videoChannelName || '';
@@ -3501,6 +3872,90 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
       };
     }
 
+    // Açıklama ve Yorumları Güncelleme Butonu logic
+    const btnRefreshDetails = document.getElementById('inline-btn-refresh-details');
+    if (btnRefreshDetails) {
+      btnRefreshDetails.onclick = async () => {
+        const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
+        const isEn = lang === 'en';
+        
+        // İlk yükleniyor bildirimi
+        const loadingHtml = `
+          <div class="player-transient-card">
+            <i data-lucide="refresh-cw" style="width: 36px; height: 36px; color: #38bdf8; animation: spin 1s linear infinite;"></i>
+            <div class="transient-title">${isEn ? 'Refreshing...' : 'Güncelleniyor...'}</div>
+            <div class="transient-desc">${isEn ? 'Updating description and comments from YouTube' : 'Açıklama ve yorumlar YouTube\'dan tazelemekte'}</div>
+          </div>
+        `;
+        if (typeof showPlayerTransientOverlay === 'function') {
+          showPlayerTransientOverlay(loadingHtml, 6000);
+        }
+        try {
+          lucide.createIcons();
+        } catch(e) {}
+
+        try {
+          // Açıklamayı güncelle
+          const descRes = await fetch(`/api/video/${videoId}/refresh-details`, {
+            method: 'POST'
+          });
+          const descData = await descRes.json();
+
+          if (descData.success) {
+            // Açıklama alanını tazele
+            const descContent = document.getElementById('description-content');
+            if (descContent && descData.description) {
+              descContent.innerHTML = formatDescriptionTimestamps(descData.description);
+            }
+            
+            const descBtn = document.getElementById('inline-btn-description');
+            if (descBtn) {
+              descBtn.style.display = 'inline-flex';
+              descBtn.classList.add('active');
+              descBtn.title = isEn ? 'Hide Description' : 'Açıklamayı Gizle';
+            }
+            
+            const descContainer = document.getElementById('inline-player-description-container');
+            if (descContainer) {
+              descContainer.classList.remove('hidden');
+            }
+
+            // Yorumları yeniden yükle
+            loadComments(videoId);
+
+            // Başarılı bildirimi göster
+            const successHtml = `
+              <div class="player-transient-card">
+                <i data-lucide="check-circle" style="width: 36px; height: 36px; color: #4ade80;"></i>
+                <div class="transient-title">${isEn ? 'Details Updated' : 'Detaylar Güncellendi'}</div>
+                <div class="transient-desc">${isEn ? 'Description and comments updated successfully.' : 'Açıklama ve yorumlar başarıyla yenilendi.'}</div>
+              </div>
+            `;
+            if (typeof showPlayerTransientOverlay === 'function') {
+              showPlayerTransientOverlay(successHtml, 2000);
+            }
+          } else {
+            throw new Error(descData.error || 'API Error');
+          }
+        } catch (err) {
+          console.error("Refresh details error:", err);
+          const errorHtml = `
+            <div class="player-transient-card">
+              <i data-lucide="alert-circle" style="width: 36px; height: 36px; color: #ef4444;"></i>
+              <div class="transient-title">${isEn ? 'Update Failed' : 'Güncelleme Başarısız'}</div>
+              <div class="transient-desc">${err.message || 'Error occurred.'}</div>
+            </div>
+          `;
+          if (typeof showPlayerTransientOverlay === 'function') {
+            showPlayerTransientOverlay(errorHtml, 2500);
+          }
+        }
+        try {
+          lucide.createIcons();
+        } catch(e) {}
+      };
+    }
+
     // Subtitle Color & Opacity & Redownload bindings
     const inlineSubColor = document.getElementById('inline-subtitle-color');
     if (inlineSubColor) {
@@ -3690,11 +4145,25 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
   seekedForCurrentVideo = false;
   currentPlayingVideoId = videoId;
 
-  const streamUrl = `/api/video-stream?videoId=${videoId}`;
-  const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
-  
   const isCompleted = video && video.status === 'completed';
   const isMissing = video && video.fileMissing === true;
+  let streamUrl = `/api/video-stream?videoId=${videoId}`;
+
+  // Eğer WPF Player (WebView2) içindeysek ve video indirilmesi tamamlanmış yerel bir video ise doğrudan sanal yerel disk yolunu kullan
+  if (isCompleted && !isMissing && window.chrome?.webview && video.filePath) {
+    const pathNormalized = video.filePath.replace(/\\/g, '/');
+    const match = pathNormalized.match(/^([a-zA-Z]):\/(.*)$/);
+    if (match) {
+      const driveLetter = match[1].toLowerCase();
+      const relativePath = match[2];
+      const encodedPath = relativePath.split('/').map(seg => encodeURIComponent(seg)).join('/');
+      streamUrl = `http://haytool-${driveLetter}.local/${encodedPath}`;
+    } else {
+      streamUrl = `file:///${encodeURI(pathNormalized)}`;
+    }
+  }
+
+  const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
   const playRemote = !isCompleted || isMissing;
 
   if (playRemote) {
@@ -3881,7 +4350,6 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
         const rawVideo = videoPlayerInstance.video;
         if (rawVideo) {
           rawVideo.addEventListener('play', () => sendPlayerActivity(true));
-          rawVideo.addEventListener('pause', () => sendPlayerActivity(false));
           rawVideo.addEventListener('ended', () => sendPlayerActivity(false));
           adjustPlayerOrientation(rawVideo);
           if (rawVideo.duration) {
@@ -3982,7 +4450,6 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           });
 
           videoPlayerInstance.on('play', () => sendPlayerActivity(true));
-          videoPlayerInstance.on('pause', () => sendPlayerActivity(false));
           videoPlayerInstance.on('ended', () => sendPlayerActivity(false));
 
           videoPlayerInstance.on('loadedmetadata', () => {
@@ -4117,7 +4584,6 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           });
 
           player.addEventListener('play', () => sendPlayerActivity(true));
-          player.addEventListener('pause', () => sendPlayerActivity(false));
           player.addEventListener('ended', () => sendPlayerActivity(false));
 
           player.load();
@@ -4235,7 +4701,14 @@ function renderDownloadedPlaylist(currentVideoId) {
 
   let filteredDownloaded = localDb.history.filter(item => item.status === 'completed');
   if (downloadedFilterChannel !== 'all') {
-    filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
+    if (downloadedFilterChannel.startsWith('category:')) {
+      const catId = parseInt(downloadedFilterChannel.split(':')[1], 10);
+      const channelIdsInCat = (localDb.channels || []).filter(c => (c.categoryIds || [c.categoryId || 1]).includes(catId)).map(c => c.id);
+      const channelIdsInCatSet = new Set(channelIdsInCat);
+      filteredDownloaded = filteredDownloaded.filter(item => channelIdsInCatSet.has(item.channelId));
+    } else {
+      filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
+    }
   }
   const showShorts = localDb.settings?.showShorts !== false;
   if (!showShorts) {
@@ -4330,6 +4803,60 @@ window.playVideoSystem = async function(videoId) {
   }
 };
 
+// Türkçe Açıklama: Fare video kapağı üzerine geldiğinde yüksek çözünürlüklü (HQ) 7 farklı kapak karesi arasında 400ms aralıklarla akıcı geçiş yapar.
+window.handleThumbMouseEnter = function(wrapperEl) {
+  if (!wrapperEl || (window.dbSettings && window.dbSettings.enableAltThumbnailsHover === false)) return;
+  const videoId = wrapperEl.getAttribute('data-video-id');
+  if (!videoId) return;
+
+  const imgEl = wrapperEl.querySelector('.video-thumbnail');
+  if (!imgEl) return;
+
+  if (!wrapperEl.dataset.origSrc) {
+    wrapperEl.dataset.origSrc = imgEl.src;
+  }
+
+  // 4 Yüksek Çözünürlüklü (HQ/HD) kapak ve frame döngü listesi
+  // Sıralama: Orijinal Kapak -> HQ Kare 1 -> HQ Kare 2 -> HQ Kare 3 -> Tekrar Başa (Orijinal Kapak)
+  const altUrls = [
+    wrapperEl.dataset.origSrc,
+    `https://img.youtube.com/vi/${videoId}/hq1.jpg`,
+    `https://img.youtube.com/vi/${videoId}/hq2.jpg`,
+    `https://img.youtube.com/vi/${videoId}/hq3.jpg`
+  ];
+
+  // HD görselleri önceden yükle (Belirli bir kare açılmazsa otomatik orijinal resme düşer)
+  altUrls.forEach((url, idx) => {
+    if (idx === 0) return;
+    const pImg = new Image();
+    pImg.onerror = () => {
+      altUrls[idx] = wrapperEl.dataset.origSrc;
+    };
+    pImg.src = url;
+  });
+
+  let currentIndex = 0;
+  if (wrapperEl._thumbTimer) clearInterval(wrapperEl._thumbTimer);
+
+  wrapperEl._thumbTimer = setInterval(() => {
+    currentIndex = (currentIndex + 1) % altUrls.length;
+    imgEl.src = altUrls[currentIndex];
+  }, 666);
+};
+
+window.handleThumbMouseLeave = function(wrapperEl) {
+  if (!wrapperEl) return;
+  if (wrapperEl._thumbTimer) {
+    clearInterval(wrapperEl._thumbTimer);
+    wrapperEl._thumbTimer = null;
+  }
+  const imgEl = wrapperEl.querySelector('.video-thumbnail');
+  if (imgEl && wrapperEl.dataset.origSrc) {
+    imgEl.src = wrapperEl.dataset.origSrc;
+    imgEl.style.opacity = '1';
+  }
+};
+
 // Türkçe Açıklama: Arayüzdeki gömülü Plyr video oynatıcı modalını kapatır ve çalmakta olan videoyu durdurup kaynağını temizler.
 /**
  * Gömülü video oynatıcı modalını kapatır ve çalmakta olan videoyu durdurur.
@@ -4379,8 +4906,16 @@ window.closePlayerModal = function() {
  * 
  * @param {string} videoId Açılacak video ID'si
  */
-window.openYouTube = function(videoId) {
-  window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+window.openYouTube = async function(videoId) {
+  try {
+    await fetch('/api/open-youtube', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId })
+    });
+  } catch (err) {
+    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+  }
 };
 
 // Türkçe Açıklama: Seçilen videoyu geçmişten veya diskteki dosyasından silmek üzere kullanıcıya onay modalı (penceresi) gösterir.
@@ -4446,11 +4981,165 @@ if (confirmDeleteBtn) {
   });
 }
 
-// Görünüm ve Filtre Olay Dinleyicileri
-// Görünüm ve Filtre Olay Dinleyicileri
+// === FILTER PERSISTENCE SYSTEM (KÜTÜPHANE & İNDİRİLENLER) ===
+function saveHistoryFilterState() {
+  try {
+    const channelSelect = document.getElementById('history-channel-filter');
+    const durationSelect = document.getElementById('history-duration-filter');
+    const dateSelect = document.getElementById('history-date-filter');
+    const showShortsCb = document.getElementById('history-show-shorts');
+    const showLiveCb = document.getElementById('history-show-live');
+    const noAutoDlCb = document.getElementById('history-only-no-auto-download');
+    const notDownloadedCb = document.getElementById('history-only-not-downloaded');
+    const showHiddenCb = document.getElementById('history-show-hidden');
+
+    const state = {
+      channel: channelSelect ? channelSelect.value : (window.historyFilterChannel || 'all'),
+      duration: durationSelect ? durationSelect.value : 'off',
+      date: dateSelect ? dateSelect.value : (window.historyFilterDays || 'all'),
+      showShorts: showShortsCb ? showShortsCb.checked : false,
+      showLive: showLiveCb ? showLiveCb.checked : true,
+      noAutoDownload: noAutoDlCb ? noAutoDlCb.checked : !!window.historyOnlyNoAutoDownload,
+      notDownloaded: notDownloadedCb ? notDownloadedCb.checked : !!window.historyOnlyNotDownloaded,
+      showHidden: showHiddenCb ? showHiddenCb.checked : !!window.historyShowHidden,
+      viewMode: typeof historyViewMode !== 'undefined' ? historyViewMode : 'grid'
+    };
+
+    localStorage.setItem('haytool_history_filters_v2', JSON.stringify(state));
+  } catch (err) {
+    console.error('saveHistoryFilterState error:', err);
+  }
+}
+window.saveHistoryFilterState = saveHistoryFilterState;
+
+function restoreHistoryFilterState() {
+  try {
+    const raw = localStorage.getItem('haytool_history_filters_v2');
+    if (!raw) return;
+    const state = JSON.parse(raw);
+
+    if (state.channel !== undefined) {
+      window.historyFilterChannel = state.channel;
+      const channelSelect = document.getElementById('history-channel-filter');
+      if (channelSelect) channelSelect.value = state.channel;
+    }
+
+    if (state.duration !== undefined) {
+      const durationSelect = document.getElementById('history-duration-filter');
+      if (durationSelect) durationSelect.value = state.duration;
+      if (!localDb.settings) localDb.settings = {};
+      localDb.settings.historyDurationFilter = state.duration;
+    }
+
+    if (state.date !== undefined) {
+      window.historyFilterDays = state.date;
+      const dateSelect = document.getElementById('history-date-filter');
+      if (dateSelect) dateSelect.value = state.date;
+    }
+
+    if (state.noAutoDownload !== undefined) window.historyOnlyNoAutoDownload = !!state.noAutoDownload;
+    if (state.notDownloaded !== undefined) window.historyOnlyNotDownloaded = !!state.notDownloaded;
+    if (state.showHidden !== undefined) window.historyShowHidden = !!state.showHidden;
+
+    const checkMap = {
+      'history-show-shorts': state.showShorts,
+      'history-show-live': state.showLive,
+      'history-only-no-auto-download': window.historyOnlyNoAutoDownload,
+      'history-only-not-downloaded': window.historyOnlyNotDownloaded,
+      'history-show-hidden': window.historyShowHidden
+    };
+
+    for (const [id, val] of Object.entries(checkMap)) {
+      if (val !== undefined) {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = !!val;
+        if (typeof syncFilterChipUI === 'function') syncFilterChipUI(id);
+      }
+    }
+
+    if (state.viewMode) {
+      window.historyViewMode = state.viewMode;
+      const viewGridBtn = document.getElementById('view-grid-btn');
+      const viewListBtn = document.getElementById('view-list-btn');
+      if (viewGridBtn && viewListBtn) {
+        viewGridBtn.classList.toggle('active', state.viewMode === 'grid');
+        viewListBtn.classList.toggle('active', state.viewMode === 'list');
+      }
+    }
+  } catch (err) {
+    console.error('restoreHistoryFilterState error:', err);
+  }
+}
+window.restoreHistoryFilterState = restoreHistoryFilterState;
+
+function saveDownloadedFilterState() {
+  try {
+    const channelSelect = document.getElementById('downloaded-channel-filter');
+    const showShortsCb = document.getElementById('downloaded-show-shorts');
+
+    const state = {
+      channel: channelSelect ? channelSelect.value : 'all',
+      sortVal: typeof downloadedSortVal !== 'undefined' ? downloadedSortVal : 'date-desc',
+      showShorts: showShortsCb ? showShortsCb.checked : false,
+      viewMode: typeof downloadedViewMode !== 'undefined' ? downloadedViewMode : 'grid'
+    };
+
+    localStorage.setItem('haytool_downloaded_filters_v2', JSON.stringify(state));
+  } catch (err) {
+    console.error('saveDownloadedFilterState error:', err);
+  }
+}
+window.saveDownloadedFilterState = saveDownloadedFilterState;
+
+function restoreDownloadedFilterState() {
+  try {
+    const raw = localStorage.getItem('haytool_downloaded_filters_v2');
+    if (!raw) return;
+    const state = JSON.parse(raw);
+
+    const channelSelect = document.getElementById('downloaded-channel-filter');
+    if (channelSelect && state.channel) {
+      channelSelect.value = state.channel;
+      window.downloadedFilterChannel = state.channel;
+    }
+
+    if (state.sortVal) {
+      window.downloadedSortVal = state.sortVal;
+      localStorage.setItem('downloaded-sort-val', state.sortVal);
+      const group = document.getElementById('downloaded-sort-group');
+      if (group) {
+        group.querySelectorAll('.sort-btn').forEach(b => {
+          b.classList.toggle('active', b.getAttribute('data-sort') === state.sortVal);
+        });
+      }
+    }
+
+    const showShortsCb = document.getElementById('downloaded-show-shorts');
+    if (showShortsCb && state.showShorts !== undefined) {
+      showShortsCb.checked = !!state.showShorts;
+      const inlineCb = document.getElementById('inline-playlist-show-shorts');
+      if (inlineCb) inlineCb.checked = !!state.showShorts;
+    }
+
+    if (state.viewMode) {
+      window.downloadedViewMode = state.viewMode;
+      const gridBtn = document.getElementById('downloaded-view-grid-btn');
+      const listBtn = document.getElementById('downloaded-view-list-btn');
+      if (gridBtn && listBtn) {
+        gridBtn.classList.toggle('active', state.viewMode === 'grid');
+        listBtn.classList.toggle('active', state.viewMode === 'list');
+      }
+    }
+  } catch (err) {
+    console.error('restoreDownloadedFilterState error:', err);
+  }
+}
+window.restoreDownloadedFilterState = restoreDownloadedFilterState;
+
 if (viewGridBtn) {
   viewGridBtn.addEventListener('click', () => {
     historyViewMode = 'grid';
+    saveHistoryFilterState();
     updateUI(localDb);
   });
 }
@@ -4458,6 +5147,7 @@ if (viewGridBtn) {
 if (viewListBtn) {
   viewListBtn.addEventListener('click', () => {
     historyViewMode = 'list';
+    saveHistoryFilterState();
     updateUI(localDb);
   });
 }
@@ -4465,23 +5155,36 @@ if (viewListBtn) {
 if (historyChannelFilter) {
   historyChannelFilter.addEventListener('change', () => {
     historyFilterChannel = historyChannelFilter.value;
+    saveHistoryFilterState();
     updateUI(localDb);
   });
 }
 
-// Hızlı Tarih Filtreleme Buton Dinleyicileri
-document.querySelectorAll('.btn-filter').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    historyFilterDays = btn.getAttribute('data-days');
+// Hızlı Tarih Filtreleme Seçim Dinleyicisi
+if (historyDateFilter) {
+  historyDateFilter.addEventListener('change', () => {
+    historyFilterDays = historyDateFilter.value;
+    saveHistoryFilterState();
     updateUI(localDb);
   });
-});
+}
+
+const historyClearDateFilterBtn = document.getElementById('history-clear-date-filter');
+if (historyClearDateFilterBtn) {
+  historyClearDateFilterBtn.addEventListener('click', () => {
+    if (historyDateFilter) {
+      historyDateFilter.value = 'all';
+    }
+    historyFilterDays = 'all';
+    saveHistoryFilterState();
+    updateUI(localDb);
+  });
+}
 
 if (downloadedViewGridBtn) {
   downloadedViewGridBtn.addEventListener('click', () => {
     downloadedViewMode = 'grid';
+    saveDownloadedFilterState();
     updateUI(localDb);
   });
 }
@@ -4489,6 +5192,7 @@ if (downloadedViewGridBtn) {
 if (downloadedViewListBtn) {
   downloadedViewListBtn.addEventListener('click', () => {
     downloadedViewMode = 'list';
+    saveDownloadedFilterState();
     updateUI(localDb);
   });
 }
@@ -4496,6 +5200,7 @@ if (downloadedViewListBtn) {
 if (downloadedChannelFilter) {
   downloadedChannelFilter.addEventListener('change', () => {
     downloadedFilterChannel = downloadedChannelFilter.value;
+    saveDownloadedFilterState();
     updateUI(localDb);
   });
 }
@@ -4508,6 +5213,7 @@ document.addEventListener('click', (e) => {
     const sortVal = btn.getAttribute('data-sort');
     downloadedSortVal = sortVal;
     localStorage.setItem('downloaded-sort-val', downloadedSortVal);
+    saveDownloadedFilterState();
     
     // Aktif sınıfını güncelle
     const group = document.getElementById('downloaded-sort-group');
@@ -4522,10 +5228,15 @@ document.addEventListener('click', (e) => {
 
 // Shorts Göster/Gizle Değiştiğinde Sunucuya Kaydet
 document.addEventListener('DOMContentLoaded', () => {
+  restoreHistoryFilterState();
+  restoreDownloadedFilterState();
+
   const historyOnlyNoAutoDownloadCheck = document.getElementById('history-only-no-auto-download');
   if (historyOnlyNoAutoDownloadCheck) {
     historyOnlyNoAutoDownloadCheck.addEventListener('change', () => {
       historyOnlyNoAutoDownload = historyOnlyNoAutoDownloadCheck.checked;
+      syncFilterChipUI('history-only-no-auto-download');
+      saveHistoryFilterState();
       updateUI(localDb);
     });
   }
@@ -4534,6 +5245,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (historyOnlyNotDownloadedCheck) {
     historyOnlyNotDownloadedCheck.addEventListener('change', () => {
       historyOnlyNotDownloaded = historyOnlyNotDownloadedCheck.checked;
+      syncFilterChipUI('history-only-not-downloaded');
+      saveHistoryFilterState();
       updateUI(localDb);
     });
   }
@@ -4542,14 +5255,45 @@ document.addEventListener('DOMContentLoaded', () => {
   if (historyShowHiddenCheck) {
     historyShowHiddenCheck.addEventListener('change', () => {
       historyShowHidden = historyShowHiddenCheck.checked;
+      syncFilterChipUI('history-show-hidden');
+      saveHistoryFilterState();
       updateUI(localDb);
     });
   }
+
+// === FILTER CHIP HELPERS ===
+function toggleFilterChip(checkboxId) {
+  const cb = document.getElementById(checkboxId);
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  cb.dispatchEvent(new Event('change'));
+  syncFilterChipUI(checkboxId);
+}
+window.toggleFilterChip = toggleFilterChip;
+
+function syncFilterChipUI(checkboxId) {
+  const cb = document.getElementById(checkboxId);
+  if (!cb) return;
+  const chipMap = {
+    'history-show-hidden': 'btn-filter-show-hidden',
+    'history-only-not-downloaded': 'btn-filter-not-downloaded',
+    'history-show-shorts': 'btn-filter-show-shorts',
+    'history-show-live': 'btn-filter-show-live',
+    'history-only-no-auto-download': 'btn-filter-no-auto-download'
+  };
+  const btnId = chipMap[checkboxId];
+  if (btnId) {
+    const chipBtn = document.getElementById(btnId);
+    if (chipBtn) chipBtn.classList.toggle('active', cb.checked);
+  }
+}
+window.syncFilterChipUI = syncFilterChipUI;
 
   const historyShowShorts = document.getElementById('history-show-shorts');
   if (historyShowShorts) {
     historyShowShorts.addEventListener('change', async () => {
       const showShorts = historyShowShorts.checked;
+      syncFilterChipUI('history-show-shorts');
       try {
         const res = await fetch('/api/settings', {
           method: 'POST',
@@ -5361,6 +6105,57 @@ function setCustomSelectValue(val) {
 window.exportChannels = exportChannels;
 window.triggerImportFile = triggerImportFile;
 window.importChannels = importChannels;
+
+async function openTempFolder() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  showToast(isEn ? 'Opening temp folder...' : 'Temp klasörü açılıyor...', 'info');
+  try {
+    const res = await fetch('/api/settings/open-temp', { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || (isEn ? 'Could not open temp folder.' : 'Temp klasörü açılamadı.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+window.openTempFolder = openTempFolder;
+
+function togglePythonSettingsVisibility() {
+  const runModeSelect = document.getElementById('settings-ytdlp-run-mode');
+  const pythonContainer = document.getElementById('python-settings-container');
+  if (!runModeSelect || !pythonContainer) return;
+  
+  if (runModeSelect.value === 'python') {
+    pythonContainer.classList.remove('hidden');
+  } else {
+    pythonContainer.classList.add('hidden');
+  }
+}
+window.togglePythonSettingsVisibility = togglePythonSettingsVisibility;
+
+async function installPythonDependencies() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const btn = document.getElementById('btn-install-pip-deps');
+  if (btn) btn.disabled = true;
+  
+  showToast(isEn ? 'Installing pip dependencies (yt-dlp)...' : 'pip bağımlılıkları (yt-dlp) kuruluyor...', 'info');
+  
+  try {
+    const res = await fetch('/api/settings/install-python-dep', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(isEn ? 'Dependencies installed successfully!' : 'Bağımlılıklar başarıyla kuruldu/güncellendi!', 'success');
+    } else {
+      showToast(data.error || (isEn ? 'Installation failed.' : 'Kurulum başarısız oldu.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+window.installPythonDependencies = installPythonDependencies;
 
 // FFmpeg Installer Logic
 async function checkFfmpegStatus() {
@@ -6975,7 +7770,14 @@ function playNextVideoInPlaylist() {
 
   let filteredDownloaded = localDb.history.filter(item => item.status === 'completed');
   if (downloadedFilterChannel !== 'all') {
-    filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
+    if (downloadedFilterChannel.startsWith('category:')) {
+      const catId = parseInt(downloadedFilterChannel.split(':')[1], 10);
+      const channelIdsInCat = (localDb.channels || []).filter(c => (c.categoryIds || [c.categoryId || 1]).includes(catId)).map(c => c.id);
+      const channelIdsInCatSet = new Set(channelIdsInCat);
+      filteredDownloaded = filteredDownloaded.filter(item => channelIdsInCatSet.has(item.channelId));
+    } else {
+      filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
+    }
   }
   const showShorts = localDb.settings?.showShorts !== false;
   if (!showShorts) {
@@ -7627,12 +8429,29 @@ function initDownloaderUI() {
   if (toolsCompareBtn) {
     toolsCompareBtn.addEventListener('click', (e) => {
       e.preventDefault();
+      showToolsSubSection('compare');
       switchTab('tools');
       runFileComparison();
       const dropdown = document.getElementById('tools-dropdown');
       if (dropdown) dropdown.classList.remove('open');
     });
   }
+
+  const toolsCategoriesBtn = document.getElementById('nav-tools-categories-btn');
+  if (toolsCategoriesBtn) {
+    toolsCategoriesBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      showToolsSubSection('categories');
+      switchTab('tools');
+      const dropdown = document.getElementById('tools-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+    });
+  }
+
+
+
+
+
 
   const formatSelect = document.getElementById('downloader-format-select');
   const bitrateGroup = document.getElementById('downloader-bitrate-group');
@@ -7667,6 +8486,345 @@ function initDownloaderUI() {
   }
 }
 
+function showToolsSubSection(section) {
+  const compareContainer = document.getElementById('tools-compare-container');
+  const bulkContainer = document.getElementById('tools-bulk-delete-container');
+  const categoriesContainer = document.getElementById('tools-categories-container');
+  const toolsHeaderTitle = document.querySelector('#tab-tools .content-header h2 span');
+  const toolsHeaderDesc = document.getElementById('tools-modal-desc');
+
+  if (compareContainer) compareContainer.classList.add('hidden');
+  if (bulkContainer) bulkContainer.classList.add('hidden');
+  if (categoriesContainer) categoriesContainer.classList.add('hidden');
+
+  const isEn = localDb.settings?.lang === 'en';
+
+  if (section === 'categories' && categoriesContainer) {
+    categoriesContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Edit Channel Categories' : 'Kanal Kategorilerini Düzenleme';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Create, edit, or delete categories to group your channels.' : 'Kanallarınızı gruplandırmak için kategoriler oluşturabilir, düzenleyebilir veya silebilirsiniz.';
+    if (typeof loadCategoriesToTools === 'function') loadCategoriesToTools(localDb.categories);
+  } else if (section === 'bulk-delete' && bulkContainer) {
+    bulkContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Bulk Video Deletion' : 'Toplu Video Silme';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'List and bulk delete your downloaded videos along with their physical files from disk.' : 'Kütüphanenizdeki indirilen videoları seçerek diskten veya veritabanından toplu olarak silebilirsiniz.';
+  } else {
+    if (compareContainer) compareContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Advanced File Comparison & Sync' : 'Gelişmiş Dosya Karşılaştırma & Senkronizasyon';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Compares physical files in your download folder with database records.' : 'İndirme klasörünüzdeki fiziksel dosyaları veritabanı kayıtları ile karşılaştırarak eksik, yetim veya alakasız dosyaları listeler.';
+  }
+}
+window.showToolsSubSection = showToolsSubSection;
+
+// === DOWNLOADED BULK DELETE FUNCTIONS ===
+function toggleDownloadedBulkDeleteMode() {
+  const isEn = localDb.settings?.lang === 'en';
+  const toggleBtn = document.getElementById('downloaded-bulk-delete-toggle-btn');
+  const bar = document.getElementById('downloaded-bulk-delete-bar');
+  
+  window.isDownloadedBulkDeleteMode = !window.isDownloadedBulkDeleteMode;
+  
+  if (window.isDownloadedBulkDeleteMode) {
+    if (toggleBtn) {
+      toggleBtn.classList.add('active');
+      toggleBtn.style.background = 'var(--primary)';
+      toggleBtn.style.color = '#fff';
+    }
+    if (bar) bar.classList.remove('hidden');
+    const filesCb = document.getElementById('downloaded-bulk-delete-files-checkbox');
+    if (filesCb) filesCb.checked = true;
+  } else {
+    if (toggleBtn) {
+      toggleBtn.classList.remove('active');
+      toggleBtn.style.background = '';
+      toggleBtn.style.color = '';
+    }
+    if (bar) bar.classList.add('hidden');
+    // Clear selections
+    const selectAllCb = document.getElementById('downloaded-bulk-delete-select-all');
+    if (selectAllCb) selectAllCb.checked = false;
+  }
+  
+  // Update counts
+  updateDownloadedBulkDeleteCount();
+  
+  // Re-render UI to apply isDownloadedBulkDeleteMode state to cards
+  if (typeof updateUI === 'function') {
+    updateUI(localDb);
+  }
+}
+window.toggleDownloadedBulkDeleteMode = toggleDownloadedBulkDeleteMode;
+
+function cancelDownloadedBulkDeleteMode() {
+  window.isDownloadedBulkDeleteMode = false;
+  const toggleBtn = document.getElementById('downloaded-bulk-delete-toggle-btn');
+  const bar = document.getElementById('downloaded-bulk-delete-bar');
+  if (toggleBtn) {
+    toggleBtn.classList.remove('active');
+    toggleBtn.style.background = '';
+    toggleBtn.style.color = '';
+  }
+  if (bar) bar.classList.add('hidden');
+  
+  const selectAllCb = document.getElementById('downloaded-bulk-delete-select-all');
+  if (selectAllCb) selectAllCb.checked = false;
+  
+  updateDownloadedBulkDeleteCount();
+  if (typeof updateUI === 'function') {
+    updateUI(localDb);
+  }
+}
+window.cancelDownloadedBulkDeleteMode = cancelDownloadedBulkDeleteMode;
+
+function toggleSelectAllDownloadedBulkDelete(masterCb) {
+  const cbs = document.querySelectorAll('.downloaded-bulk-delete-cb');
+  cbs.forEach(cb => {
+    cb.checked = masterCb.checked;
+    const card = cb.closest('.video-card');
+    if (card) {
+      card.classList.toggle('bulk-delete-selected', cb.checked);
+    }
+  });
+  updateDownloadedBulkDeleteCount();
+}
+window.toggleSelectAllDownloadedBulkDelete = toggleSelectAllDownloadedBulkDelete;
+
+function toggleDownloadedCardSelection(id) {
+  const cb = document.querySelector(`.downloaded-bulk-delete-cb[data-id="${id}"]`);
+  if (cb) {
+    cb.checked = !cb.checked;
+    
+    const card = cb.closest('.video-card');
+    if (card) {
+      card.classList.toggle('bulk-delete-selected', cb.checked);
+    }
+    
+    // Sync Select All checkbox
+    const allCbs = document.querySelectorAll('.downloaded-bulk-delete-cb');
+    const checkedCbs = document.querySelectorAll('.downloaded-bulk-delete-cb:checked');
+    const selectAllCb = document.getElementById('downloaded-bulk-delete-select-all');
+    if (selectAllCb) {
+      selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
+    }
+    
+    updateDownloadedBulkDeleteCount();
+  }
+}
+window.toggleDownloadedCardSelection = toggleDownloadedCardSelection;
+
+function updateDownloadedBulkDeleteCount(e) {
+  if (e) {
+    e.stopPropagation();
+    const cb = e.target;
+    const card = cb.closest('.video-card');
+    if (card) {
+      card.classList.toggle('bulk-delete-selected', cb.checked);
+    }
+    // Sync Select All checkbox
+    const allCbs = document.querySelectorAll('.downloaded-bulk-delete-cb');
+    const checkedCbs = document.querySelectorAll('.downloaded-bulk-delete-cb:checked');
+    const selectAllCb = document.getElementById('downloaded-bulk-delete-select-all');
+    if (selectAllCb) {
+      selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
+    }
+  }
+  const checkedCount = document.querySelectorAll('.downloaded-bulk-delete-cb:checked').length;
+  const countEl = document.getElementById('downloaded-bulk-delete-selected-count');
+  if (countEl) countEl.textContent = checkedCount;
+}
+window.updateDownloadedBulkDeleteCount = updateDownloadedBulkDeleteCount;
+
+async function executeDownloadedBulkDelete() {
+  const isEn = localDb.settings?.lang === 'en';
+  const checked = document.querySelectorAll('.downloaded-bulk-delete-cb:checked');
+  if (checked.length === 0) {
+    showToast(isEn ? 'Please select at least one video to delete.' : 'Lütfen silmek için en az bir video seçin.', 'error');
+    return;
+  }
+  
+  const videoIds = Array.from(checked).map(cb => cb.getAttribute('data-id'));
+  const alsoDeleteFiles = document.getElementById('downloaded-bulk-delete-files-checkbox')?.checked || false;
+  
+  const confirmMsg = isEn 
+    ? `Are you sure you want to delete the selected ${videoIds.length} video(s)?`
+    : `Seçilen ${videoIds.length} videoyu silmek istediğinize emin misiniz?`;
+    
+  if (!confirm(confirmMsg)) return;
+  
+  try {
+    const response = await fetch('/api/history/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: videoIds, deleteFiles: alsoDeleteFiles })
+    });
+    
+    if (response.ok) {
+      showToast(isEn ? `${videoIds.length} video(s) deleted successfully.` : `${videoIds.length} video başarıyla silindi.`, 'success');
+      cancelDownloadedBulkDeleteMode();
+      
+      if (typeof loadDb === 'function') {
+        await loadDb();
+      }
+    } else {
+      showToast(isEn ? 'Failed to delete videos.' : 'Videolar silinirken bir hata oluştu.', 'error');
+    }
+  } catch (err) {
+    console.error('[executeDownloadedBulkDelete] Hata:', err);
+    showToast(isEn ? 'An error occurred during deletion.' : 'Silme işlemi sırasında bir hata oluştu.', 'error');
+  }
+}
+window.executeDownloadedBulkDelete = executeDownloadedBulkDelete;
+
+// === HISTORY BULK HIDE FUNCTIONS ===
+function toggleHistoryBulkHideMode() {
+  const toggleBtn = document.getElementById('history-bulk-hide-toggle-btn');
+  const bar = document.getElementById('history-bulk-hide-bar');
+  
+  window.isHistoryBulkHideMode = !window.isHistoryBulkHideMode;
+  
+  if (window.isHistoryBulkHideMode) {
+    if (toggleBtn) {
+      toggleBtn.classList.add('active');
+    }
+    if (bar) bar.classList.remove('hidden');
+  } else {
+    if (toggleBtn) {
+      toggleBtn.classList.remove('active');
+    }
+    if (bar) bar.classList.add('hidden');
+    // Clear selections
+    const selectAllCb = document.getElementById('history-bulk-hide-select-all');
+    if (selectAllCb) selectAllCb.checked = false;
+  }
+  
+  updateHistoryBulkHideCount();
+  
+  // Re-render UI to apply isHistoryBulkHideMode state to history cards
+  if (typeof updateUI === 'function') {
+    updateUI(localDb);
+  }
+}
+window.toggleHistoryBulkHideMode = toggleHistoryBulkHideMode;
+
+function cancelHistoryBulkHideMode() {
+  window.isHistoryBulkHideMode = false;
+  const toggleBtn = document.getElementById('history-bulk-hide-toggle-btn');
+  const bar = document.getElementById('history-bulk-hide-bar');
+  if (toggleBtn) {
+    toggleBtn.classList.remove('active');
+  }
+  if (bar) bar.classList.add('hidden');
+  
+  const selectAllCb = document.getElementById('history-bulk-hide-select-all');
+  if (selectAllCb) selectAllCb.checked = false;
+  
+  updateHistoryBulkHideCount();
+  if (typeof updateUI === 'function') {
+    updateUI(localDb);
+  }
+}
+window.cancelHistoryBulkHideMode = cancelHistoryBulkHideMode;
+
+function toggleSelectAllHistoryBulkHide(masterCb) {
+  const cbs = document.querySelectorAll('.history-bulk-hide-cb');
+  cbs.forEach(cb => {
+    cb.checked = masterCb.checked;
+    const card = cb.closest('.video-card');
+    if (card) {
+      card.classList.toggle('bulk-hide-selected', cb.checked);
+    }
+  });
+  updateHistoryBulkHideCount();
+}
+window.toggleSelectAllHistoryBulkHide = toggleSelectAllHistoryBulkHide;
+
+function toggleHistoryBulkHideCardSelection(id) {
+  const cb = document.querySelector(`.history-bulk-hide-cb[data-id="${id}"]`);
+  if (cb) {
+    cb.checked = !cb.checked;
+    
+    const card = cb.closest('.video-card');
+    if (card) {
+      card.classList.toggle('bulk-hide-selected', cb.checked);
+    }
+    
+    // Sync Select All checkbox
+    const allCbs = document.querySelectorAll('.history-bulk-hide-cb');
+    const checkedCbs = document.querySelectorAll('.history-bulk-hide-cb:checked');
+    const selectAllCb = document.getElementById('history-bulk-hide-select-all');
+    if (selectAllCb) {
+      selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
+    }
+    
+    updateHistoryBulkHideCount();
+  }
+}
+window.toggleHistoryBulkHideCardSelection = toggleHistoryBulkHideCardSelection;
+
+function updateHistoryBulkHideCount(e) {
+  if (e) {
+    e.stopPropagation();
+    const cb = e.target;
+    const card = cb.closest('.video-card');
+    if (card) {
+      card.classList.toggle('bulk-hide-selected', cb.checked);
+    }
+    // Sync Select All checkbox
+    const allCbs = document.querySelectorAll('.history-bulk-hide-cb');
+    const checkedCbs = document.querySelectorAll('.history-bulk-hide-cb:checked');
+    const selectAllCb = document.getElementById('history-bulk-hide-select-all');
+    if (selectAllCb) {
+      selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
+    }
+  }
+  const checkedCount = document.querySelectorAll('.history-bulk-hide-cb:checked').length;
+  const countEl = document.getElementById('history-bulk-hide-selected-count');
+  if (countEl) countEl.textContent = checkedCount;
+}
+window.updateHistoryBulkHideCount = updateHistoryBulkHideCount;
+
+async function executeHistoryBulkHide() {
+  const isEn = localDb.settings?.lang === 'en';
+  const checked = document.querySelectorAll('.history-bulk-hide-cb:checked');
+  if (checked.length === 0) {
+    showToast(isEn ? 'Please select at least one video to hide.' : 'Lütfen gizlemek için en az bir video seçin.', 'warning');
+    return;
+  }
+  
+  const videoIds = Array.from(checked).map(cb => cb.getAttribute('data-id'));
+  
+  const confirmMsg = isEn 
+    ? `Are you sure you want to hide the selected ${videoIds.length} video(s)?`
+    : `Seçilen ${videoIds.length} videoyu gizlemek istediğinize emin misiniz?`;
+    
+  if (!confirm(confirmMsg)) return;
+  
+  try {
+    const response = await fetch('/api/history/bulk-hide', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: videoIds })
+    });
+    
+    const result = await response.json();
+    if (result.success) {
+      const count = result.count || videoIds.length;
+      showToast(isEn ? `${count} video(s) hidden successfully.` : `${count} video başarıyla gizlendi.`, 'success');
+      cancelHistoryBulkHideMode();
+      
+      if (typeof loadDb === 'function') {
+        await loadDb();
+      }
+    } else {
+      showToast(result.error || (isEn ? 'Failed to hide videos.' : 'Videolar gizlenirken bir hata oluştu.'), 'error');
+    }
+  } catch (err) {
+    console.error('[executeHistoryBulkHide] Hata:', err);
+    showToast(isEn ? 'An error occurred while hiding videos.' : 'Gizleme işlemi sırasında bir hata oluştu.', 'error');
+  }
+}
+window.executeHistoryBulkHide = executeHistoryBulkHide;
+
 async function handleDownloaderStart() {
   const urlInput = document.getElementById('downloader-url-input');
   if (!urlInput) return;
@@ -7696,7 +8854,7 @@ async function handleDownloaderStart() {
     // Playlist URL kontrolü
     const isPlaylist = url.includes('list=') && !url.includes('watch?v=');
     
-    if (isPlaylist || url.includes('list=')) {
+    if (isPlaylist) {
       // Playlist'i çözümle
       showToast(isEn ? 'Resolving playlist, please wait...' : 'Playlist çözümleniyor, lütfen bekleyin...', 'info');
       const res = await fetch('/api/downloader/resolve-playlist', {
@@ -7739,6 +8897,8 @@ async function handleDownloaderStart() {
     }
   }
 }
+window.handleDownloaderStart = handleDownloaderStart;
+window.initDownloaderUI = initDownloaderUI;
 
 async function handleDownloaderAll() {
   if (activePlaylistVideos.length === 0) return;
@@ -7968,3 +9128,1041 @@ async function restoreSystemBackup(filename) {
 window.createSystemBackup = createSystemBackup;
 window.loadSystemBackupsList = loadSystemBackupsList;
 window.restoreSystemBackup = restoreSystemBackup;
+
+async function updateConcurrentLimit() {
+  const select = document.getElementById('queue-concurrent-limit');
+  if (!select) return;
+
+  const val = parseInt(select.value, 10);
+  const isEn = localDb.settings?.lang === 'en';
+
+  try {
+    const res = await fetch('/api/settings/concurrent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: val })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? `Concurrent downloads limit set to ${val}!` : `Eşzamanlı indirme limiti ${val} olarak ayarlandı!`, 'success');
+    }
+  } catch (err) {
+    console.error('Error updating concurrent limit:', err);
+    showToast(isEn ? 'Failed to update concurrent limit.' : 'Eşzamanlı limit güncellenemedi.', 'error');
+  }
+}
+
+window.updateConcurrentLimit = updateConcurrentLimit;
+
+// Türkçe Açıklama: Mevcut yt-dlp motor sürümünü sunucudan sorgulayarak ayarlar sayfasındaki sürüm etiketini günceller.
+/**
+ * yt-dlp motor sürümünü API'den sorgular ve #ytdlp-current-version alanına yazar.
+ */
+async function fetchYtdlpVersion() {
+  const versionEl = document.getElementById('ytdlp-current-version');
+  const latestEl = document.getElementById('ytdlp-latest-version');
+  const btn = document.getElementById('ytdlp-update-btn');
+  if (!versionEl) return;
+  try {
+    const res = await fetch('/api/downloader/ytdlp-version');
+    const data = await res.json();
+    
+    // Yerel Sürüm
+    if (data.version) {
+      versionEl.textContent = data.version;
+    } else {
+      versionEl.textContent = '?';
+    }
+
+    // En Son Sürüm (Uzak Sunucu)
+    if (latestEl) {
+      if (data.latestVersion) {
+        latestEl.textContent = data.latestVersion;
+        
+        // Eğer zaten güncelse buton stilini nötralize et (gri tonu yap)
+        if (btn && data.version === data.latestVersion) {
+          btn.style.background = 'rgba(128, 128, 128, 0.1)';
+          btn.style.borderColor = 'rgba(128, 128, 128, 0.3)';
+          btn.style.color = 'var(--text-muted)';
+        } else if (btn) {
+          // Güncelleme varsa yeşil tonunda tut
+          btn.style.background = 'rgba(40, 180, 99, 0.1)';
+          btn.style.borderColor = 'rgba(40, 180, 99, 0.3)';
+          btn.style.color = '#28b463';
+        }
+      } else {
+        latestEl.textContent = '-';
+      }
+    }
+  } catch (err) {
+    versionEl.textContent = '?';
+    if (latestEl) latestEl.textContent = '-';
+  }
+}
+
+// Türkçe Açıklama: yt-dlp motorunu en son sürüme günceller ve sonucu kullanıcıya toast mesajıyla bildirir.
+/**
+ * yt-dlp motorunu --update komutuyla güncelleyerek sonucu gösterir.
+ */
+async function updateYtdlp() {
+  const btn = document.getElementById('ytdlp-update-btn');
+  const icon = btn ? btn.querySelector('i') : null;
+  const t = translations[currentLang] || translations.tr;
+
+  if (btn) btn.disabled = true;
+  if (icon) icon.style.animation = 'spin 1s linear infinite';
+
+  showToast(t.toast_ytdlp_updating || 'yt-dlp güncelleniyor...', 'info');
+
+  try {
+    const res = await fetch('/api/downloader/ytdlp-update', { method: 'POST' });
+    const data = await res.json();
+
+    if (data.success) {
+      showToast((t.toast_ytdlp_success || 'yt-dlp başarıyla güncellendi') + (data.newVersion ? ': ' + data.newVersion : ''), 'success');
+      fetchYtdlpVersion();
+    } else {
+      showToast((t.toast_ytdlp_fail || 'yt-dlp güncellemesi başarısız oldu') + (data.error ? ': ' + data.error : ''), 'error');
+    }
+  } catch (err) {
+    showToast((t.toast_ytdlp_fail || 'yt-dlp güncellemesi başarısız oldu') + ': ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (icon) icon.style.animation = '';
+  }
+}
+
+window.updateYtdlp = updateYtdlp;
+
+// Sayfa yüklendiğinde yt-dlp sürümünü ve Gist alanlarını otomatik sorgula
+document.addEventListener('DOMContentLoaded', () => {
+  fetchYtdlpVersion();
+  setTimeout(() => {
+    populateGistFields();
+  }, 500);
+});
+
+/**
+ * Türkçe Açıklama: Video süre stringini (HH:MM:SS, MM:SS, veya saniye) saniyeye çevirir.
+ * Bilinmeyen formatlar için null döner.
+ * @param {string|number|undefined} duration - Video süresi
+ * @returns {number|null} Saniye cinsinden süre veya null
+ */
+function parseDurationToSeconds(duration) {
+  if (duration === undefined || duration === null || duration === '' || duration === '-') return null;
+  if (typeof duration === 'number') return duration;
+  const str = String(duration).trim();
+  if (!str) return null;
+  // HH:MM:SS veya MM:SS formatı
+  const parts = str.split(':');
+  if (parts.length === 3) {
+    return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseInt(parts[2], 10);
+  }
+  if (parts.length === 2) {
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  }
+  // Düz sayı (saniye)
+  const num = parseInt(str, 10);
+  return isNaN(num) ? null : num;
+}
+
+/**
+ * Türkçe Açıklama: Kütüphane süre filtresi dropdown değiştiğinde tetiklenir.
+ */
+function onHistoryDurationFilterChange() {
+  const sel = document.getElementById('history-duration-filter');
+  if (!sel) return;
+  const val = sel.value;
+  if (!localDb.settings) localDb.settings = {};
+  localDb.settings.historyDurationFilter = val;
+  saveHistoryFilterState();
+  updateUI(localDb);
+  // Backend'e kaydet
+  fetch('/api/settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ historyDurationFilter: val })
+  }).catch(err => console.error('Duration filter save error:', err));
+}
+window.onHistoryDurationFilterChange = onHistoryDurationFilterChange;
+
+function onHistoryChannelFilterChange() {
+  const sel = document.getElementById('history-channel-filter');
+  if (!sel) return;
+  window.historyFilterChannel = sel.value;
+  saveHistoryFilterState();
+  updateUI(localDb);
+}
+window.onHistoryChannelFilterChange = onHistoryChannelFilterChange;
+
+function onHistoryDateFilterChange() {
+  const sel = document.getElementById('history-date-filter');
+  if (!sel) return;
+  window.historyFilterDays = sel.value;
+  saveHistoryFilterState();
+  updateUI(localDb);
+}
+window.onHistoryDateFilterChange = onHistoryDateFilterChange;
+
+/**
+ * Türkçe Açıklama: Süre filtresini sıfırlar (kapalı konumuna getirir).
+ */
+function resetHistoryDurationFilter() {
+  const sel = document.getElementById('history-duration-filter');
+  if (sel) {
+    sel.value = 'off';
+    onHistoryDurationFilterChange();
+  }
+}
+window.resetHistoryDurationFilter = resetHistoryDurationFilter;
+function formatFileSize(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const k = 1024;
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + units[i];
+}
+
+// Türkçe Açıklama: İndirilenler ve Kütüphane genelindeki videoların eksik süre ve dosya boyutu (MB/GB) bilgilerini backend'de yeniler.
+async function executeRefreshMetadata() {
+  const dlBtn = document.getElementById('dl-refresh-metadata-btn');
+  const startBtn = document.getElementById('start-refresh-metadata-btn');
+  const loading = document.getElementById('refresh-metadata-loading');
+  const lang = localDb.settings?.lang || 'tr';
+  const t = translations[lang] || translations.tr;
+  const isEn = lang === 'en';
+
+  console.log('[Metadata Refresh] İndirilen videolar için metadata güncelleme başlatılıyor...');
+
+  if (dlBtn) dlBtn.disabled = true;
+  if (startBtn) startBtn.disabled = true;
+  if (loading) loading.classList.remove('hidden');
+
+  const originalDlHtml = dlBtn ? dlBtn.innerHTML : '';
+  if (dlBtn) {
+    dlBtn.innerHTML = `<i data-lucide="loader" class="spin" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> <span>${isEn ? 'Refreshing...' : 'Güncelleniyor...'}</span>`;
+    try { lucide.createIcons(); } catch(e) {}
+  }
+
+  try {
+    const res = await fetch('/api/tools/refresh-metadata', {
+      method: 'POST'
+    });
+    const result = await res.json();
+    console.log('[Metadata Refresh] Sunucu yanıtı alındı:', result);
+
+    if (result.success) {
+      const successMsg = result.message || (isEn ? 'Metadata refresh started in background.' : 'İndirilen videoların metadata taraması arka planda başlatıldı.');
+      showToast(successMsg, 'success');
+      
+      if (typeof loadDb === 'function') {
+        await loadDb();
+      }
+    } else {
+      console.warn('[Metadata Refresh] Hata:', result.error);
+      showToast(result.error || t.refresh_metadata_error || (isEn ? 'Metadata refresh failed.' : 'Metadata yenileme başarısız.'), 'error');
+    }
+  } catch (err) {
+    console.error('[Metadata Refresh] İstek hatası:', err);
+    showToast(isEn ? 'Metadata refresh request failed.' : 'Metadata yenileme isteği başarısız.', 'error');
+  } finally {
+    if (dlBtn) {
+      dlBtn.disabled = false;
+      dlBtn.innerHTML = originalDlHtml;
+      try { lucide.createIcons(); } catch(e) {}
+    }
+    if (startBtn) startBtn.disabled = false;
+    if (loading) loading.classList.add('hidden');
+  }
+}
+window.executeRefreshMetadata = executeRefreshMetadata;
+
+
+/**
+ * Kanala yeni bir kategori ekler (Çoklu Kategori).
+ */
+async function changeChannelCategory(channelId, categoryId) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const catInt = parseInt(categoryId, 10);
+  if (!catInt) return;
+
+  const channel = localDb.channels.find(c => c.id === channelId);
+  if (!channel) return;
+
+  let currentIds = channel.categoryIds || (channel.categoryId !== undefined ? [channel.categoryId] : [1]);
+  if (currentIds.includes(catInt)) return; // Zaten ekliyse ekleme
+
+  let newIds = [...currentIds, catInt];
+  if (catInt !== 1 && newIds.includes(1)) {
+    newIds = newIds.filter(id => id !== 1);
+  }
+
+  try {
+    const res = await fetch(`/api/channels/${channelId}/category`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categoryIds: newIds })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast(isEn ? 'Category added to channel.' : 'Kategori kanala eklendi.', 'success');
+    } else {
+      showToast(result.error || (isEn ? 'Failed to add category.' : 'Kategori eklenemedi.'), 'error');
+    }
+  } catch (err) {
+    console.error('changeChannelCategory error:', err);
+    showToast(isEn ? 'Failed to add category.' : 'Kategori eklenemedi.', 'error');
+  }
+}
+window.changeChannelCategory = changeChannelCategory;
+
+/**
+ * Kanaldan kategori kaldırır (Çoklu Kategori).
+ */
+async function removeChannelCategory(channelId, catId) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const catInt = parseInt(catId, 10);
+  if (!catInt) return;
+
+  const channel = localDb.channels.find(c => c.id === channelId);
+  if (!channel) return;
+
+  let currentIds = channel.categoryIds || (channel.categoryId !== undefined ? [channel.categoryId] : [1]);
+  let newIds = currentIds.filter(id => id !== catInt);
+
+  if (newIds.length === 0) {
+    newIds = [1];
+  }
+
+  try {
+    const res = await fetch(`/api/channels/${channelId}/category`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categoryIds: newIds })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast(isEn ? 'Category removed from channel.' : 'Kategori kanaldan kaldırıldı.', 'success');
+    } else {
+      showToast(result.error || (isEn ? 'Failed to remove category.' : 'Kategori kaldırılamadı.'), 'error');
+    }
+  } catch (err) {
+    console.error('removeChannelCategory error:', err);
+    showToast(isEn ? 'Failed to remove category.' : 'Kategori kaldırılamadı.', 'error');
+  }
+}
+window.removeChannelCategory = removeChannelCategory;
+
+/**
+ * Araçlar sekmesindeki kategori listesini render eder.
+ */
+function loadCategoriesToTools(categories) {
+  const listEl = document.getElementById('tools-categories-list');
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const lang = localDb.settings?.lang || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
+
+  const cats = categories || [];
+  const defaultNames = {
+    1: ["Genel", "General"],
+    2: ["Oyun", "Gaming"],
+    3: ["Eğitim", "Education"],
+    4: ["Müzik", "Music"],
+    5: ["Teknoloji", "Technology"],
+    6: ["Spor", "Sports"],
+    7: ["Sinema & Film", "Movies & Cinema"],
+    8: ["Haberler & Siyaset", "News & Politics"],
+    9: ["Eğlence", "Entertainment"],
+    10: ["Bilim", "Science"],
+    11: ["Gezi & Yaşam", "Travel & Life"],
+    12: ["Komedi", "Comedy"],
+    13: ["Belgesel", "Documentary"],
+    14: ["Anime & Çizgi Film", "Anime & Cartoon"],
+    15: ["Finans & Ekonomi", "Finance & Economy"],
+    16: ["League of Legends", "League of Legends"],
+    17: ["Podcast", "Podcast"]
+  };
+
+  const getCatTranslatedName = (cat) => {
+    let catName = cat.name;
+    if (cat.id >= 1 && cat.id <= 17) {
+      const list = defaultNames[cat.id];
+      if (list && (cat.name === list[0] || cat.name === list[1] || !cat.name)) {
+        catName = t[`category_${cat.id}`] || cat.name;
+      }
+    }
+    return catName;
+  };
+
+  const sortedCats = [...cats].sort((a, b) => {
+    if (a.id === 1) return -1;
+    if (b.id === 1) return 1;
+    const nameA = getCatTranslatedName(a);
+    const nameB = getCatTranslatedName(b);
+    return nameA.localeCompare(nameB, lang, { sensitivity: 'base' });
+  });
+
+  sortedCats.forEach(cat => {
+    const catName = getCatTranslatedName(cat);
+
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border-color)';
+    
+    const deleteBtnDisabled = cat.id === 1 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+    
+    tr.innerHTML = `
+      <td style="padding:10px 12px; font-weight: 600; color: var(--text-muted);">${cat.id}</td>
+      <td style="padding:10px 12px;" id="cat-name-text-${cat.id}">${escapeHtml(catName)}</td>
+      <td style="padding:10px 12px; text-align:right;">
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button class="btn-icon" onclick="editCategoryName(${cat.id}, '${escapeHtml(cat.name)}')" title="${t.category_edit_tooltip || 'Kategoriyi Düzenle'}">
+            <i data-lucide="edit-3" style="width: 14px; height: 14px; color: var(--accent-color);"></i>
+          </button>
+          <button class="btn-icon" onclick="deleteCategory(${cat.id})" ${deleteBtnDisabled} title="${t.category_delete_tooltip || 'Kategoriyi Sil'}">
+            <i data-lucide="trash-2" style="width: 14px; height: 14px; color: var(--accent-red);"></i>
+          </button>
+        </div>
+      </td>
+    `;
+    listEl.appendChild(tr);
+  });
+
+  try {
+    lucide.createIcons();
+  } catch (e) {}
+}
+window.loadCategoriesToTools = loadCategoriesToTools;
+
+/**
+ * Araçlar sekmesinden yeni kategori ekler.
+ */
+async function addCategoryFromTools() {
+  const input = document.getElementById('new-category-input');
+  if (!input) return;
+  const name = input.value.trim();
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+
+  if (!name) {
+    showToast(isEn ? 'Category name cannot be empty.' : 'Kategori adı boş olamaz.', 'warning');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/channels/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const result = await res.json();
+    if (result.success) {
+      input.value = '';
+      showToast(isEn ? 'Category added.' : 'Kategori başarıyla eklendi.', 'success');
+    } else {
+      showToast(result.error || (isEn ? 'Failed to add category.' : 'Kategori eklenemedi.'), 'error');
+    }
+  } catch (err) {
+    console.error('addCategoryFromTools error:', err);
+    showToast(isEn ? 'Failed to add category.' : 'Kategori eklenemedi.', 'error');
+  }
+}
+window.addCategoryFromTools = addCategoryFromTools;
+
+/**
+ * Kategori adını düzenler (inline input alanı oluşturarak).
+ */
+function editCategoryName(id, currentName) {
+  const cell = document.getElementById(`cat-name-text-${id}`);
+  if (!cell) return;
+
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentName;
+  input.style.cssText = 'padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 0.85rem; width: 80%;';
+  
+  const saveBtn = document.createElement('button');
+  saveBtn.innerHTML = '✓';
+  saveBtn.className = 'btn btn-primary';
+  saveBtn.style.cssText = 'padding: 4px 8px; margin-left: 6px; font-size: 0.8rem;';
+  
+  cell.innerHTML = '';
+  cell.appendChild(input);
+  cell.appendChild(saveBtn);
+  input.focus();
+
+  const performSave = async () => {
+    const newName = input.value.trim();
+    if (!newName) {
+      showToast(isEn ? 'Category name cannot be empty.' : 'Kategori adı boş olamaz.', 'warning');
+      cell.textContent = currentName;
+      return;
+    }
+    if (newName === currentName) {
+      cell.textContent = currentName;
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/channels/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName })
+      });
+      const result = await res.json();
+      if (result.success) {
+        showToast(isEn ? 'Category updated.' : 'Kategori güncellendi.', 'success');
+      } else {
+        showToast(result.error || (isEn ? 'Failed to update category.' : 'Kategori güncellenemedi.'), 'error');
+        cell.textContent = currentName;
+      }
+    } catch (err) {
+      console.error('editCategoryName error:', err);
+      showToast(isEn ? 'Failed to update category.' : 'Kategori güncellenemedi.', 'error');
+      cell.textContent = currentName;
+    }
+  };
+
+  saveBtn.onclick = performSave;
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') performSave();
+    if (e.key === 'Escape') cell.textContent = currentName;
+  };
+}
+window.editCategoryName = editCategoryName;
+
+/**
+ * Kategoriyi siler.
+ */
+async function deleteCategory(id) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const confirmMsg = isEn 
+    ? 'Are you sure you want to delete this category? Channels in this category will be moved to General.' 
+    : 'Bu kategoriyi silmek istediğinize emin misiniz? Bu kategorideki kanallar Genel kategorisine taşınacaktır.';
+  
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const res = await fetch(`/api/channels/categories/${id}`, {
+      method: 'DELETE'
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast(isEn ? 'Category deleted.' : 'Kategori silindi.', 'success');
+    } else {
+      showToast(result.error || (isEn ? 'Failed to delete category.' : 'Kategori silinemedi.'), 'error');
+    }
+  } catch (err) {
+    console.error('deleteCategory error:', err);
+    showToast(isEn ? 'Failed to delete category.' : 'Kategori silinemedi.', 'error');
+  }
+}
+window.deleteCategory = deleteCategory;
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof initDownloaderUI === 'function') initDownloaderUI();
+  if (typeof restoreHistoryFilterState === 'function') restoreHistoryFilterState();
+  if (typeof restoreDownloadedFilterState === 'function') restoreDownloadedFilterState();
+
+  const durationFilterEl = document.getElementById('history-duration-filter');
+  if (durationFilterEl) {
+    durationFilterEl.addEventListener('change', onHistoryDurationFilterChange);
+  }
+
+  // Kanal Filtrelerini Sayfa Yüklenince Otomatik Doldur
+  setTimeout(() => {
+    if (typeof populateChannelFilters === 'function') {
+      populateChannelFilters(localDb);
+    }
+  }, 300);
+});
+
+/* ===== Global Custom Channel Avatar Dropdown Component ===== */
+function toggleCustomChannelPicker(type, event) {
+  if (event) {
+    event.stopPropagation();
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+  }
+  const dropdown = document.getElementById(`${type}-custom-dropdown`);
+  if (!dropdown) return;
+  const isOpen = dropdown.classList.contains('open');
+  document.querySelectorAll('.custom-channel-dropdown').forEach(d => d.classList.remove('open'));
+  if (!isOpen) {
+    dropdown.classList.add('open');
+  }
+}
+window.toggleCustomChannelPicker = toggleCustomChannelPicker;
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.custom-channel-dropdown')) {
+    document.querySelectorAll('.custom-channel-dropdown').forEach(d => d.classList.remove('open'));
+  }
+});
+
+function selectCustomChannelOption(type, value, event) {
+  if (event) {
+    event.stopPropagation();
+  }
+  const selectEl = document.getElementById(`${type}-channel-filter`);
+  const dropdown = document.getElementById(`${type}-custom-dropdown`);
+
+  if (selectEl) selectEl.value = value;
+  if (dropdown) dropdown.classList.remove('open');
+
+  if (type === 'history') {
+    historyFilterChannel = value;
+  } else if (type === 'downloaded') {
+    downloadedFilterChannel = value;
+  }
+
+  // Yeniden render et ve arayüzü güncelle
+  if (typeof updateUI === 'function') {
+    updateUI(localDb);
+  } else {
+    populateChannelFilters(localDb);
+  }
+}
+window.selectCustomChannelOption = selectCustomChannelOption;
+
+function populateChannelFilters(db) {
+  const targetDb = db || localDb || {};
+  const channels = targetDb.channels || [];
+  const categories = targetDb.categories || [];
+  const lang = localDb.settings?.lang || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
+
+  const defaultNames = {
+    1: ["Genel", "General"], 2: ["Oyun", "Gaming"], 3: ["Eğitim", "Education"],
+    4: ["Müzik", "Music"], 5: ["Teknoloji", "Technology"], 6: ["Spor", "Sports"],
+    7: ["Sinema & Film", "Movies & Cinema"], 8: ["Haberler & Siyaset", "News & Politics"],
+    9: ["Eğlence", "Entertainment"], 10: ["Bilim", "Science"], 11: ["Gezi & Yaşam", "Travel & Life"],
+    12: ["Komedi", "Comedy"], 13: ["Belgesel", "Documentary"], 14: ["Anime & Çizgi Film", "Anime & Cartoon"],
+    15: ["Finans & Ekonomi", "Finance & Economy"], 16: ["League of Legends", "League of Legends"], 17: ["Podcast", "Podcast"]
+  };
+
+  const getCatTranslatedName = (cat) => {
+    let catName = cat.name;
+    if (cat.id >= 1 && cat.id <= 17) {
+      const list = defaultNames[cat.id];
+      if (list && (cat.name === list[0] || cat.name === list[1] || !cat.name)) {
+        catName = t[`category_${cat.id}`] || cat.name;
+      }
+    }
+    return catName;
+  };
+
+  ['history', 'downloaded'].forEach(type => {
+    const panel = document.getElementById(`${type}-channel-options-panel`);
+    const triggerContent = document.getElementById(`${type}-channel-trigger-content`);
+    const selectEl = document.getElementById(`${type}-channel-filter`);
+    if (!panel) return;
+
+    const currentValue = (type === 'history' ? historyFilterChannel : downloadedFilterChannel) || (selectEl ? selectEl.value : 'all');
+
+    let html = '';
+    let activeTriggerHtml = `<i data-lucide="globe" style="width:14px;height:14px;color:var(--accent-color);"></i><span>${escapeHtml(t.filter_all_channels || 'Tüm Kanallar')}</span>`;
+
+    // 1. Tüm Kanallar
+    const allText = t.filter_all_channels || 'Tüm Kanallar';
+    const allIcon = `<i data-lucide="globe" style="width:16px;height:16px;color:var(--accent-color);"></i>`;
+    if (currentValue === 'all') {
+      activeTriggerHtml = `${allIcon}<span>${escapeHtml(allText)}</span>`;
+    }
+    html += `
+      <div class="custom-dropdown-item ${currentValue === 'all' ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', 'all', event)">
+        ${allIcon}
+        <span>${escapeHtml(allText)}</span>
+      </div>
+    `;
+
+    // 2. Kategoriler (Tek Kategori İkonu)
+    if (categories && categories.length > 0) {
+      const sortedFilterCats = [...categories].sort((a, b) => {
+        if (a.id === 1) return -1;
+        if (b.id === 1) return 1;
+        return getCatTranslatedName(a).localeCompare(getCatTranslatedName(b), lang, { sensitivity: 'base' });
+      });
+
+      sortedFilterCats.forEach(cat => {
+        const catName = getCatTranslatedName(cat);
+        const hasChannel = channels.some(c => (c.categoryIds || [c.categoryId || 1]).includes(cat.id));
+        if (hasChannel) {
+          const catValue = `category:${cat.id}`;
+          const catText = catName;
+          const catIcon = `<i data-lucide="folder" style="width:16px;height:16px;color:var(--accent-color);"></i>`;
+          const isSel = currentValue === catValue;
+          if (isSel) {
+            activeTriggerHtml = `${catIcon}<span>${escapeHtml(catText)}</span>`;
+          }
+          html += `
+            <div class="custom-dropdown-item ${isSel ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', '${catValue}', event)">
+              ${catIcon}
+              <span>${escapeHtml(catText)}</span>
+            </div>
+          `;
+        }
+      });
+
+      html += `<div class="custom-dropdown-divider"></div>`;
+    }
+
+    // 3. Kanallar (GERÇEK YOUTUBE KANAL LOGOLARI/AVATARLARI İLE)
+    const sortedChannels = [...channels].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+    sortedChannels.forEach(channel => {
+      const avatarUrl = `/api/channels/${channel.id}/avatar`;
+      const isSel = currentValue === channel.id;
+      const avatarImgHtml = `<img src="${avatarUrl}" class="custom-dropdown-avatar" onerror="this.src='/logo.png'">`;
+      
+      if (isSel) {
+        activeTriggerHtml = `${avatarImgHtml}<span>${escapeHtml(channel.name)}</span>`;
+      }
+
+      html += `
+        <div class="custom-dropdown-item ${isSel ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', '${channel.id}', event)">
+          ${avatarImgHtml}
+          <span>${escapeHtml(channel.name)}</span>
+        </div>
+      `;
+    });
+
+    panel.innerHTML = html;
+    if (triggerContent) {
+      triggerContent.innerHTML = activeTriggerHtml;
+    }
+  });
+
+  try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
+}
+window.populateChannelFilters = populateChannelFilters;
+
+// ==========================================
+// GitHub Gist Senkronizasyon İşlevleri
+// ==========================================
+
+/**
+ * GitHub Token (PAT) şifreli alanının görünürlüğünü açık/kapalı yapar.
+ */
+function toggleGistTokenVisibility() {
+  const input = document.getElementById('gist-token-input');
+  const icon = document.getElementById('gist-token-eye-icon');
+  if (!input) return;
+
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.setAttribute('data-lucide', 'eye-off');
+  } else {
+    input.type = 'password';
+    if (icon) icon.setAttribute('data-lucide', 'eye');
+  }
+  try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
+}
+window.toggleGistTokenVisibility = toggleGistTokenVisibility;
+
+/**
+ * GitHub Token'ının geçerliliğini test eder.
+ */
+async function testGistToken() {
+  const input = document.getElementById('gist-token-input');
+  const token = input ? input.value.trim() : '';
+  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
+
+  if (!token) {
+    showToast(isEn ? 'Please enter a GitHub Token.' : 'Lütfen bir GitHub Token girin.', 'error');
+    return;
+  }
+
+  try {
+    showToast(isEn ? 'Verifying GitHub Token...' : 'GitHub Token doğrulanıyor...', 'info');
+    const res = await fetch('/api/gist/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      if (data.warning) {
+        showToast(data.warning, 'warning');
+      } else {
+        showToast(isEn ? `Token verified! Connected as: ${data.username}` : `Token doğrulandı! Bağlanan kullanıcı: ${data.username}`, 'success');
+      }
+    } else {
+      showToast(data.error || (isEn ? 'Token verification failed.' : 'Token doğrulaması başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+window.testGistToken = testGistToken;
+
+/**
+ * Yerel channels.ini dosyasını GitHub Gist'e aktarır (Push).
+ */
+async function pushGistChannels() {
+  const tokenInput = document.getElementById('gist-token-input');
+  const idInput = document.getElementById('gist-id-input');
+  const autoSyncCheckbox = document.getElementById('gist-auto-sync-checkbox');
+
+  const token = tokenInput ? tokenInput.value.trim() : '';
+  const gistId = idInput ? idInput.value.trim() : '';
+  const autoSync = autoSyncCheckbox ? autoSyncCheckbox.checked : false;
+  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
+
+  if (!token) {
+    showToast(isEn ? 'Please enter a GitHub Token.' : 'Lütfen bir GitHub Token girin.', 'error');
+    return;
+  }
+
+  try {
+    showToast(isEn ? 'Uploading channels to GitHub Gist...' : 'Kanallar GitHub Gist üzerine aktarılıyor...', 'info');
+    const res = await fetch('/api/gist/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, gistId, autoSync })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      if (idInput && data.gistId) {
+        idInput.value = data.gistId;
+      }
+      if (window.localDb && window.localDb.settings) {
+        window.localDb.settings.githubToken = token;
+        window.localDb.settings.githubGistId = data.gistId || gistId;
+        window.localDb.settings.autoSyncGist = autoSync;
+      }
+      populateGistFields();
+      if (typeof triggerAutoSave === 'function') {
+        await triggerAutoSave(true);
+      }
+      showToast(isEn ? 'Channels uploaded to GitHub Gist successfully!' : 'Kanallar başarıyla GitHub Gist üzerine yüklendi!', 'success');
+    } else {
+      showToast(data.error || (isEn ? 'Push failed.' : 'Gist yüklemesi başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+window.pushGistChannels = pushGistChannels;
+
+/**
+ * GitHub Gist üzerindeki channels.ini dosyasını indirir (Pull).
+ */
+async function pullGistChannels() {
+  const tokenInput = document.getElementById('gist-token-input');
+  const idInput = document.getElementById('gist-id-input');
+
+  const token = tokenInput ? tokenInput.value.trim() : '';
+  const gistId = idInput ? idInput.value.trim() : '';
+  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
+
+  if (!token || !gistId) {
+    showToast(isEn ? 'Please enter both GitHub Token and Gist ID.' : 'Lütfen hem GitHub Token hem de Gist ID girin.', 'error');
+    return;
+  }
+
+  try {
+    showToast(isEn ? 'Downloading channels from GitHub Gist...' : 'Kanallar GitHub Gist üzerinden indiriliyor...', 'info');
+    const res = await fetch('/api/gist/pull', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, gistId })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      if (window.localDb && window.localDb.settings) {
+        window.localDb.settings.githubToken = token;
+        window.localDb.settings.githubGistId = gistId;
+      }
+      populateGistFields();
+      if (typeof triggerAutoSave === 'function') {
+        await triggerAutoSave(true);
+      }
+      showToast(isEn ? 'Channels pulled from Gist successfully!' : 'Kanallar Gist üzerinden başarıyla yüklendi!', 'success');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1200);
+    } else {
+      showToast(data.error || (isEn ? 'Pull failed.' : 'Gist indirmesi başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+window.pullGistChannels = pullGistChannels;
+
+/**
+ * Otomatik Gist senkronizasyon ayarını günceller.
+ */
+function toggleAutoSyncGist(checked) {
+  if (window.localDb && window.localDb.settings) {
+    window.localDb.settings.autoSyncGist = checked;
+  }
+}
+window.toggleAutoSyncGist = toggleAutoSyncGist;
+
+/**
+ * Ayarlar yüklendiğinde Gist alanlarını doldurur.
+ */
+function populateGistFields() {
+  if (!window.localDb || !window.localDb.settings) return;
+  const tokenInput = document.getElementById('gist-token-input');
+  const idInput = document.getElementById('gist-id-input');
+  const autoSyncCheckbox = document.getElementById('gist-auto-sync-checkbox');
+  const linkContainer = document.getElementById('gist-online-link-container');
+  const linkEl = document.getElementById('gist-online-link');
+
+  const unregState = document.getElementById('gist-unregistered-state');
+  const regState = document.getElementById('gist-registered-state');
+  const hasSavedToken = !!(window.localDb.settings.githubToken && window.localDb.settings.githubToken.trim());
+
+  if (unregState && regState) {
+    if (hasSavedToken) {
+      unregState.style.display = 'none';
+      regState.style.display = 'block';
+    } else {
+      unregState.style.display = 'block';
+      regState.style.display = 'none';
+    }
+  }
+
+  if (tokenInput && window.localDb.settings.githubToken !== undefined) {
+    if (document.activeElement !== tokenInput) {
+      tokenInput.value = window.localDb.settings.githubToken || '';
+    }
+  }
+  if (idInput && window.localDb.settings.githubGistId !== undefined) {
+    if (document.activeElement !== idInput) {
+      idInput.value = window.localDb.settings.githubGistId || '';
+    }
+  }
+  if (autoSyncCheckbox && window.localDb.settings.autoSyncGist !== undefined) {
+    if (document.activeElement !== autoSyncCheckbox) {
+      autoSyncCheckbox.checked = !!window.localDb.settings.autoSyncGist;
+    }
+  }
+
+  const gistId = idInput ? idInput.value.trim() : (window.localDb.settings.githubGistId || '');
+  if (linkContainer && linkEl) {
+    if (gistId) {
+      linkEl.href = `https://gist.github.com/${gistId}`;
+      linkContainer.style.display = 'block';
+    } else {
+      linkContainer.style.display = 'none';
+    }
+  }
+
+  // Input değişimlerinde otomatik kaydetme dinleyicileri
+  if (tokenInput && !tokenInput.dataset.listenerAttached) {
+    tokenInput.dataset.listenerAttached = 'true';
+    tokenInput.addEventListener('input', () => {
+      if (window.localDb && window.localDb.settings) {
+        window.localDb.settings.githubToken = tokenInput.value.trim();
+      }
+      if (typeof triggerAutoSave === 'function') triggerAutoSave();
+    });
+  }
+  if (idInput && !idInput.dataset.listenerAttached) {
+    idInput.dataset.listenerAttached = 'true';
+    idInput.addEventListener('input', () => {
+      const val = idInput.value.trim();
+      if (window.localDb && window.localDb.settings) {
+        window.localDb.settings.githubGistId = val;
+      }
+      if (linkContainer && linkEl) {
+        if (val) {
+          linkEl.href = `https://gist.github.com/${val}`;
+          linkContainer.style.display = 'block';
+        } else {
+          linkContainer.style.display = 'none';
+        }
+      }
+      if (typeof triggerAutoSave === 'function') triggerAutoSave();
+    });
+  }
+}
+window.populateGistFields = populateGistFields;
+
+/**
+ * Kullanıcının girdiği Token ve Gist ID bilgilerini doğrular ve db.json'a kaydeder.
+ */
+async function saveGistToken() {
+  const tokenInput = document.getElementById('gist-token-input');
+  const idInput = document.getElementById('gist-id-input');
+  const token = tokenInput ? tokenInput.value.trim() : '';
+  const gistId = idInput ? idInput.value.trim() : '';
+  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
+
+  if (!token) {
+    showToast(isEn ? 'Please enter a GitHub Token.' : 'Lütfen geçerli bir GitHub Token girin.', 'error');
+    return;
+  }
+
+  showToast(isEn ? 'Verifying token...' : 'Token doğrulanıyor...', 'info');
+
+  try {
+    const res = await fetch('/api/gist/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      if (window.localDb && window.localDb.settings) {
+        window.localDb.settings.githubToken = token;
+        window.localDb.settings.githubGistId = gistId;
+      }
+      populateGistFields();
+      if (typeof triggerAutoSave === 'function') {
+        await triggerAutoSave(true);
+      }
+      showToast(isEn ? `Token verified and saved! Account: @${data.user}` : `Token başarıyla doğrulandı ve kaydedildi! Kullanıcı: @${data.user}`, 'success');
+    } else {
+      showToast(data.error || (isEn ? 'Token is invalid.' : 'Token geçersiz.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+window.saveGistToken = saveGistToken;
+
+/**
+ * Kayıtlı Token ve Gist ID bilgilerini siler ve düzenleme moduna döner.
+ */
+async function deleteGistToken() {
+  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
+  const confirmMsg = isEn 
+    ? 'Are you sure you want to remove your GitHub Token credentials from this device?' 
+    : 'GitHub Token ve bağlantı bilgilerinizi bu bilgisayardan silmek istediğinize emin misiniz?';
+
+  if (!confirm(confirmMsg)) return;
+
+  if (window.localDb && window.localDb.settings) {
+    window.localDb.settings.githubToken = '';
+    window.localDb.settings.githubGistId = '';
+  }
+
+  const tokenInput = document.getElementById('gist-token-input');
+  const idInput = document.getElementById('gist-id-input');
+  if (tokenInput) tokenInput.value = '';
+  if (idInput) idInput.value = '';
+
+  populateGistFields();
+
+  if (typeof triggerAutoSave === 'function') {
+    await triggerAutoSave(true);
+  }
+
+  showToast(isEn ? 'GitHub Token removed.' : 'GitHub Token ve bağlantı bilgileri silindi.', 'info');
+}
+window.deleteGistToken = deleteGistToken;
+
+
+
+
+

@@ -18,6 +18,7 @@ export function showToast(message, type = 'info', thumbnail = null) {
   let iconName = 'info';
   if (type === 'success') iconName = 'check-circle';
   if (type === 'error') iconName = 'alert-triangle';
+  if (type === 'warning') iconName = 'alert-circle';
 
   let thumbnailHtml = '';
   if (thumbnail) {

@@ -1,0 +1,169 @@
+      <!-- Tab: IPTV -->
+      <section id="tab-iptv" class="tab-content">
+        <div class="iptv-layout">
+          <!-- Sol Kısım: Video Slotları Grid Arayüzü -->
+          <div class="iptv-player-container">
+            <div class="iptv-view-toolbar">
+              <div class="view-mode-buttons" style="display: flex; gap: 8px; align-items: center;">
+                <button id="iptv-single-view-btn" class="btn btn-secondary btn-sm active">
+                  <i data-lucide="monitor"></i>
+                  <span id="lbl-single-view">Tekli Ekran</span>
+                </button>
+                <button id="iptv-dual-view-btn" class="btn btn-secondary btn-sm">
+                  <i data-lucide="columns"></i>
+                  <span id="lbl-dual-view">İkili Ekran</span>
+                </button>
+                <button id="iptv-quad-view-btn" class="btn btn-secondary btn-sm">
+                  <i data-lucide="layout-grid"></i>
+                  <span id="lbl-quad-view">Çoklu Ekran (4 Kanal)</span>
+                </button>
+                <button id="iptv-sport-view-btn" class="btn btn-secondary btn-sm">
+                  <i data-lucide="layers"></i>
+                  <span id="lbl-sport-view">Spor Modu</span>
+                </button>
+                <button id="iptv-swap-btn" class="btn btn-secondary btn-sm hidden" title="Ekranları Yer Değiştir" style="margin-left: 4px;">
+                  <i data-lucide="refresh-cw"></i>
+                  <span id="lbl-swap-screens">Yer Değiştir</span>
+                </button>
+                <button id="iptv-grid-fullscreen-btn" class="btn btn-secondary btn-sm" title="Tüm Ekranları Tam Ekran Yap" style="padding: 0 8px; height: 28px; width: 28px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; margin-left: 4px;">
+                  <i data-lucide="maximize" style="width: 14px; height: 14px;"></i>
+                </button>
+              </div>
+              <div class="active-slot-indicator">
+                <span id="active-slot-label">Aktif Slot: Slot 1</span>
+              </div>
+            </div>
+
+            <!-- 2x2 Grid Video Slotları -->
+            <div id="iptv-players-grid" class="iptv-grid single-mode">
+              <!-- Slot 1 -->
+              <div class="iptv-slot active" data-slot="0">
+                <div class="slot-resize-handle"></div>
+                <div class="slot-header">
+                  <span class="slot-title">Slot 1: Boş</span>
+                  <div class="slot-controls">
+                    <button class="slot-btn mute-btn" title="Sesi Aç/Kapa"><i data-lucide="volume-2"></i></button>
+                    <button class="slot-btn swap-slot-btn" title="Ekranları Yer Değiştir"><i data-lucide="refresh-cw"></i></button>
+                    <button class="slot-btn clear-btn" title="Yayını Durdur"><i data-lucide="square"></i></button>
+                  </div>
+                </div>
+                <div class="slot-body">
+                  <div class="slot-placeholder">
+                    <i data-lucide="tv-2"></i>
+                    <span class="lbl-select-channel">Kanal Seçin</span>
+                  </div>
+                  <div class="slot-player-instance"></div>
+                </div>
+              </div>
+
+              <!-- Slot 2 -->
+              <div class="iptv-slot" data-slot="1">
+                <div class="slot-resize-handle"></div>
+                <div class="slot-header">
+                  <span class="slot-title">Slot 2: Boş</span>
+                  <div class="slot-controls">
+                    <button class="slot-btn mute-btn" title="Sesi Aç/Kapa"><i data-lucide="volume-2"></i></button>
+                    <button class="slot-btn swap-slot-btn" title="Ekranları Yer Değiştir"><i data-lucide="refresh-cw"></i></button>
+                    <button class="slot-btn clear-btn" title="Yayını Durdur"><i data-lucide="square"></i></button>
+                  </div>
+                </div>
+                <div class="slot-body">
+                  <div class="slot-placeholder">
+                    <i data-lucide="tv-2"></i>
+                    <span class="lbl-select-channel">Kanal Seçin</span>
+                  </div>
+                  <div class="slot-player-instance"></div>
+                </div>
+              </div>
+
+              <!-- Slot 3 -->
+              <div class="iptv-slot" data-slot="2">
+                <div class="slot-header">
+                  <span class="slot-title">Slot 3: Boş</span>
+                  <div class="slot-controls">
+                    <button class="slot-btn mute-btn" title="Sesi Aç/Kapa"><i data-lucide="volume-2"></i></button>
+                    <button class="slot-btn swap-slot-btn" title="Ekranları Yer Değiştir"><i data-lucide="refresh-cw"></i></button>
+                    <button class="slot-btn clear-btn" title="Yayını Durdur"><i data-lucide="square"></i></button>
+                  </div>
+                </div>
+                <div class="slot-body">
+                  <div class="slot-placeholder">
+                    <i data-lucide="tv-2"></i>
+                    <span class="lbl-select-channel">Kanal Seçin</span>
+                  </div>
+                  <div class="slot-player-instance"></div>
+                </div>
+              </div>
+
+              <!-- Slot 4 -->
+              <div class="iptv-slot" data-slot="3">
+                <div class="slot-header">
+                  <span class="slot-title">Slot 4: Boş</span>
+                  <div class="slot-controls">
+                    <button class="slot-btn mute-btn" title="Sesi Aç/Kapa"><i data-lucide="volume-2"></i></button>
+                    <button class="slot-btn swap-slot-btn" title="Ekranları Yer Değiştir"><i data-lucide="refresh-cw"></i></button>
+                    <button class="slot-btn clear-btn" title="Yayını Durdur"><i data-lucide="square"></i></button>
+                  </div>
+                </div>
+                <div class="slot-body">
+                  <div class="slot-placeholder">
+                    <i data-lucide="tv-2"></i>
+                    <span class="lbl-select-channel">Kanal Seçin</span>
+                  </div>
+                  <div class="slot-player-instance"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sağ Kısım: Kanal Listesi & Arama/Filtre Paneli -->
+          <div class="iptv-sidebar card">
+            <div class="iptv-sidebar-header">
+              <div class="iptv-update-row">
+                <button id="iptv-update-btn" class="btn btn-secondary btn-sm">
+                  <i data-lucide="refresh-cw"></i>
+                  <span id="lbl-update-channels">Kanalları Güncelle</span>
+                </button>
+                <div id="iptv-status-info" class="iptv-status-text">Yükleniyor...</div>
+              </div>
+            </div>
+
+            <!-- Filtreler -->
+            <div class="iptv-filters">
+              <div class="iptv-search-row">
+                <div class="iptv-search-box">
+                  <i data-lucide="search"></i>
+                  <input type="text" id="iptv-search-input" placeholder="Kanal Ara...">
+                </div>
+                <button id="iptv-tr-quick-btn" title="Türk Kanalları">
+                  🇹🇷 <span>TR</span>
+                </button>
+              </div>
+              <div class="iptv-selects">
+                <select id="iptv-country-filter">
+                  <option value="" id="opt-all-countries">Tüm Ülkeler</option>
+                </select>
+                <select id="iptv-category-filter">
+                  <option value="" id="opt-all-categories">Tüm Kategoriler</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Kanal Kartları Listesi -->
+            <div class="iptv-list-wrapper">
+              <div id="iptv-channel-list" class="iptv-channel-list">
+                <!-- Kanallar dinamik eklenecektir -->
+              </div>
+              <div id="iptv-list-loading" class="iptv-loading hidden">
+                <i data-lucide="loader" class="spin-animation"></i>
+                <span id="lbl-loading-more">Daha fazla kanal yükleniyor...</span>
+              </div>
+              <div style="text-align: center; padding: 8px 0;">
+                <button id="iptv-load-more-btn" class="btn btn-secondary btn-sm hidden" style="width: 100%; font-size: 0.8rem;">
+                  Daha Fazla Yükle
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>

@@ -1,0 +1,119 @@
+      <!-- Tab: İndirme Sırası ve Kontrolü -->
+      <section id="tab-queue" class="tab-content">
+        <header class="content-header">
+          <div>
+            <h2 id="tab-queue-title">İndirme Sırası & Kontrol</h2>
+            <p id="tab-queue-desc">Aktif indirmeyi izleyin, sıradaki videoları sürükleyip bırakarak önceliklerini değiştirin.</p>
+          </div>
+          <div class="queue-header-actions" style="display:flex; gap:10px; align-items:center;">
+            <button id="queue-cancel-all-btn" class="btn btn-danger" onclick="cancelAllDownloads()" style="background: rgba(220, 53, 69, 0.1); color: var(--danger-color); border: 1px solid rgba(220, 53, 69, 0.2); display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="x-octagon"></i>
+              <span id="queue-cancel-all-text">Tümünü İptal Et</span>
+            </button>
+            <button id="queue-pause-btn" class="btn btn-secondary" onclick="toggleQueuePause()">
+              <i data-lucide="pause"></i>
+              <span id="queue-pause-text">Kuyruğu Duraklat</span>
+            </button>
+            <div class="concurrent-limit-wrap" style="display:flex; align-items:center; gap:8px; background:var(--bg-card); padding: 6px 12px; border-radius: 8px; border:1px solid var(--border-color);">
+              <i data-lucide="split" style="color:var(--text-muted); width:16px; height:16px;"></i>
+              <span id="concurrent-limit-label" style="font-size:0.8rem; color:var(--text-muted);">Eşzamanlı İndirme:</span>
+              <select id="queue-concurrent-limit" onchange="updateConcurrentLimit()" style="padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; outline: none; cursor: pointer;">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </div>
+            <div class="speed-limit-wrap" style="display:flex; align-items:center; gap:8px; background:var(--bg-card); padding: 6px 12px; border-radius: 8px; border:1px solid var(--border-color);">
+              <i data-lucide="gauge" style="color:var(--text-muted); width:16px; height:16px;"></i>
+              <span id="speed-limit-label" style="font-size:0.8rem; color:var(--text-muted);">Hız Sınırı:</span>
+              <input type="number" id="queue-speed-limit-input" min="0" max="100000" style="width: 70px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem;" title="0 = Sınırsız" placeholder="0">
+              <span style="font-size:0.8rem; color:var(--text-muted);">KB/s</span>
+              <button class="btn btn-primary" onclick="updateQueueSpeedLimit()" id="speed-limit-set-btn" style="padding: 2px 8px; font-size: 0.75rem;">Ayarla</button>
+              <button class="btn btn-secondary" onclick="toggleAlternativeSpeed()" id="alt-speed-toggle-btn" style="padding: 2px 6px; display:flex; align-items:center; justify-content:center;" title="Alternatif Hız Sınırı (Turtle) Aç/Kapat">
+                <i data-lucide="turtle" style="width:16px; height:16px;"></i>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div class="queue-layout">
+          <!-- Aktif İndirme Detaylı Kartı -->
+          <div class="card card-hero" style="min-height: 250px; padding: 25px; display:flex; flex-direction:column; justify-content:center;">
+            <div class="card-header" style="margin-bottom: 15px;">
+              <span class="badge badge-pulse" id="queue-active-badge">Aktif İndirme</span>
+              <span class="speed-indicator" id="active-speed">0 MB/s</span>
+            </div>
+            
+            <div id="no-active-download" class="empty-state" style="padding: 20px;">
+              <div class="empty-icon-wrapper" style="width: 60px; height: 60px; margin-bottom: 15px;">
+                <i data-lucide="cloud-download" class="pulse-animation" style="width: 28px; height: 28px;"></i>
+              </div>
+              <h3 id="queue-empty-title" style="font-size: 1.1rem; margin-bottom: 6px;">Kuyruk Beklemede</h3>
+              <p id="queue-empty-desc" style="font-size: 0.85rem; max-width: 340px;">Aktif indirme bulunmuyor. Yeni videolar çıktığında veya kuyruğa video eklendiğinde otomatik indirilecektir.</p>
+            </div>
+
+            <div id="active-download-details" class="download-progress-container hidden" style="width:100%;">
+              <h3 class="download-video-title" id="active-title" style="font-size: 1.25rem; margin-bottom: 8px; font-weight:700; color:var(--text-main);">Kanal Adı - Video Başlığı</h3>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px;">
+                <span class="download-channel-name" id="active-channel" style="margin-bottom:0; font-size: 0.9rem; color:var(--text-muted);"><i data-lucide="tv" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> Kanal Adı</span>
+                <button id="cancel-active-btn" class="btn btn-secondary" style="padding: 5px 12px; font-size: 0.8rem; background: rgba(255,0,85,0.08); border-color: rgba(255,0,85,0.2); color: var(--accent-red); font-weight:600;">
+                  <i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> <span>İptal Et</span>
+                </button>
+              </div>
+              
+              <div class="progress-bar-wrapper" style="height: 8px; margin-bottom: 15px; background: var(--progress-bg); border-radius: 4px; overflow:hidden;">
+                <div class="progress-bar-fill" id="active-progress-bar" style="width: 0%;"></div>
+              </div>
+
+              <div class="download-stats" style="padding: 15px; gap: 15px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border-color);">
+                <div>
+                  <span class="stat-label" id="active-progress-label" style="font-size: 0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">İlerleme</span>
+                  <span class="stat-value" id="active-percent" style="font-size: 1.1rem; font-weight:700; color:var(--text-main);">0%</span>
+                </div>
+                <div>
+                  <span class="stat-label" id="active-size-label" style="font-size: 0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Boyut</span>
+                  <span class="stat-value" id="active-size" style="font-size: 1.1rem; font-weight:700; color:var(--text-main);">-- MB</span>
+                </div>
+                <div>
+                  <span class="stat-label" id="active-eta-label" style="font-size: 0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Kalan Süre</span>
+                  <span class="stat-value" id="active-eta" style="font-size: 1.1rem; font-weight:700; color:var(--text-main);">--:--</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gelişmiş Sıralama Listesi -->
+          <div class="card" style="padding: 25px; display: flex; flex-direction: column; min-height: 250px; overflow: hidden;">
+            <div class="card-title-bar" style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+              <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 0; color:var(--text-main);">
+                <i data-lucide="list-ordered" style="width: 18px; height: 18px; color: var(--warning);"></i>
+                <span id="queue-list-title">Sıradaki Videolar</span> (<span id="stat-waiting-count">0</span>)
+              </h3>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <small id="drag-drop-hint" style="color:var(--text-muted); font-size:0.75rem; font-style:italic;">Sürükleyip bırakarak sırayı değiştirin</small>
+                <button class="btn btn-secondary" onclick="cancelAllQueued()" title="Kuyruktaki Tüm Videoları İptal Et" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(255,0,85,0.08); border-color: rgba(255,0,85,0.2); color: var(--accent-red);">
+                  <i data-lucide="x-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> <span id="btn-cancel-all-queue">Tümünü İptal Et</span>
+                </button>
+              </div>
+            </div>
+            <div class="queue-list" id="queue-list" style="flex:1; overflow-y:auto; max-height: 400px; display:flex; flex-direction:column; gap:8px; padding-right:5px;">
+              <div class="text-center text-muted" id="queue-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Kuyrukta bekleyen video yok.</div>
+            </div>
+          </div>
+
+          <!-- Son Tamamlanan İndirmeler (Son 20) -->
+          <div class="card" style="padding: 25px; display: flex; flex-direction: column; min-height: 250px; overflow: hidden;">
+            <div class="card-title-bar" style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+              <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 0; color:var(--text-main);">
+                <i data-lucide="check-circle-2" style="width: 18px; height: 18px; color: #10b981;"></i>
+                <span id="queue-completed-title">Son İndirilen Videolar</span>
+              </h3>
+            </div>
+            <div class="queue-list" id="queue-completed-list" style="flex:1; overflow-y:auto; max-height: 400px; display:flex; flex-direction:column; gap:8px; padding-right:5px;">
+              <div class="text-center text-muted" id="queue-completed-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Henüz tamamlanan indirme yok.</div>
+            </div>
+          </div>
+        </div>
+      </section>

@@ -1,12 +1,12 @@
 #!/bin/bash
-# HaYTool Youtube Download - Unix Başlatıcı Betiği
+# HaYTool Youtube Download - CachyOS & Unix Masaüstü Başlatıcı Betiği
 # Yapımcı: HaYTo
 # İletişim: korazhayto@gmail.com
 
 # Çalışma dizinini betiğin bulunduğu dizin olarak ayarla
 cd "$(dirname "$0")"
 
-# Türkçe Açıklama: configunix.ini dosyasından port değerini dinamik olarak okur, bulamazsa varsayılan 4141 portunu kullanır.
+# configunix.ini dosyasından port değerini dinamik olarak okur, bulamazsa varsayılan 4141 portunu kullanır.
 PORT=4141
 CONFIG_FILE="configunix.ini"
 if [ -f "$CONFIG_FILE" ]; then
@@ -16,17 +16,14 @@ if [ -f "$CONFIG_FILE" ]; then
     fi
 fi
 
-# Türkçe Açıklama: Belirlenen portun başka bir süreç tarafından kullanılıp kullanılmadığını denetler.
+# Belirlenen portun başka bir süreç tarafından kullanılıp kullanılmadığını denetler.
 PORT_PID=$(lsof -t -i:$PORT 2>/dev/null)
 if [ -z "$PORT_PID" ]; then
     PORT_PID=$(fuser $PORT/tcp 2>/dev/null | tr -d ' ')
 fi
 
 if [ ! -z "$PORT_PID" ]; then
-    # Süreç ismini tespit et
     PNAME=$(ps -p $PORT_PID -o comm= 2>/dev/null)
-    
-    # Uyarı ekranını göster
     echo -e "\e[31m  ====================================================\e[0m"
     echo -e "\e[31m  [UYARI] Port $PORT şu anda başka bir işlem tarafından kullanılıyor!\e[0m"
     echo -e "\e[31m  İşlem ID (PID): $PORT_PID\e[0m"
@@ -61,17 +58,40 @@ echo -e "\e[33m | |  | | \\__,_|    | |      | |               | |____\e[0m"
 echo -e "\e[33m |_|  |_|           |_|      |_|               |______|\e[0m"
 echo ""
 echo -e "\e[33m             -- Premium Otomasyonu --\e[0m"
-echo -e "\e[33m             Versiyon: v4.6\e[0m"
+echo -e "\e[33m             Versiyon: v8.17.0 (CachyOS & Unix)\e[0m"
 echo -e "\e[33m  ====================================================\e[0m"
 echo ""
 echo -e "  \e[32m[+] Sunucu Port: $PORT denetleniyor...\e[0m"
-echo -e "  \e[32m[+] Tarayıcı bağlantısı hazırlanıyor...\e[0m"
-echo -e "  \e[32m[+] Kapatmak için bu pencereyi kapatabilir veya Ctrl+C yapabilirsiniz.\e[0m"
+echo -e "  \e[32m[+] Masaüstü Pencere Modu (App Mode) Hazırlanıyor...\e[0m"
+echo -e "  \e[32m[+] Kapatmak için pencereyi kapatabilir veya Ctrl+C yapabilirsiniz.\e[0m"
 echo ""
 echo -e "  \e[34m----------------------------------------------------\e[0m"
-echo -e "  \e[34m[Sistem] Arayüz başlatılıyor...\e[0m"
+echo -e "  \e[34m[Sistem] HaYTooL Arayüzü Başlatılıyor...\e[0m"
 echo -e "  \e[34m----------------------------------------------------\e[0m"
 echo ""
 
-# Uygulamayı başlat
+# Arka planda tarayıcıyı Standalone App Mode olarak tetikle
+(
+  sleep 2
+  URL="http://localhost:$PORT"
+  if command -v cachy-browser >/dev/null 2>&1; then
+      cachy-browser --app="$URL" >/dev/null 2>&1 &
+  elif command -v google-chrome >/dev/null 2>&1; then
+      google-chrome --app="$URL" >/dev/null 2>&1 &
+  elif command -v chromium >/dev/null 2>&1; then
+      chromium --app="$URL" >/dev/null 2>&1 &
+  elif command -v brave >/dev/null 2>&1; then
+      brave --app="$URL" >/dev/null 2>&1 &
+  elif command -v zen-browser >/dev/null 2>&1; then
+      zen-browser --app="$URL" >/dev/null 2>&1 &
+  elif command -v firefox >/dev/null 2>&1; then
+      firefox --new-window "$URL" >/dev/null 2>&1 &
+  elif command -v xdg-open >/dev/null 2>&1; then
+      xdg-open "$URL" >/dev/null 2>&1 &
+  else
+      echo -e "\e[31m  [UYARI] Sistemde tarayıcı bulunamadı. Lütfen 'http://localhost:$PORT' adresini tarayıcınızda açın.\e[0m"
+  fi
+) &
+
+# Uygulama sunucusunu başlat
 npm start

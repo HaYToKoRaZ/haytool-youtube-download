@@ -3,6 +3,8 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import open from 'open';
+import { spawn } from 'child_process';
+import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp } from '../services/paths.js';
 import { readDb, findVideoFileInDownloadDir } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
 
@@ -10,7 +12,17 @@ export const router = express.Router();
 
 let cachedYoutubeApiKey = null;
 
-// Gömülü Oynatıcı için Video Akışı (Stream)
+/**
+ * İstemciye gömülü video oynatıcı (embed player) için video dosyasını akış (stream) olarak sunar.
+ * 
+ * @name GET /api/video-stream
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.query.videoId - Hedef videonun YouTube ID'si (11 karakter)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/video-stream', (req, res) => {
   const { videoId } = req.query;
   if (!videoId) return res.status(400).send('Video ID is required');
@@ -35,7 +47,17 @@ router.get('/video-stream', (req, res) => {
   }
 });
 
-// Video Kapak Resmi (Thumbnail) Sunumu
+/**
+ * Belirtilen videonun yerel diskteki kapak resmini (thumbnail) sunar. Yerelde yoksa YouTube API'sine yönlendirir.
+ * 
+ * @name GET /api/video/:videoId/thumbnail
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.videoId - Hedef videonun YouTube ID'si (11 karakter)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/video/:videoId/thumbnail', (req, res) => {
   const { videoId } = req.params;
   if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
@@ -66,7 +88,44 @@ router.get('/video/:videoId/thumbnail', (req, res) => {
   res.redirect(`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`);
 });
 
-// Video Açıklaması (Description) Okuma
+/**
+ * Belirtilen videonun alternatif kapak resimleri URL listesini ve DeArrow karelerini döner.
+ * 
+ * @name GET /api/video/:videoId/alt-thumbnails
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.videoId - Hedef videonun YouTube ID'si (11 karakter)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.get('/video/:videoId/alt-thumbnails', (req, res) => {
+  const { videoId } = req.params;
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+    return res.status(400).json({ error: 'Invalid Video ID format' });
+  }
+
+  const thumbnails = [
+    `/api/video/${videoId}/thumbnail`,
+    `https://img.youtube.com/vi/${videoId}/1.jpg`,
+    `https://img.youtube.com/vi/${videoId}/2.jpg`,
+    `https://img.youtube.com/vi/${videoId}/3.jpg`
+  ];
+
+  res.json({ videoId, thumbnails });
+});
+
+/**
+ * İndirilmiş olan videonun .description dosyasından açıklama metnini okur ve döner.
+ * 
+ * @name GET /api/video/:videoId/description
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.videoId - Hedef videonun YouTube ID'si (11 karakter)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/video/:videoId/description', (req, res) => {
   const { videoId } = req.params;
   if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
@@ -93,7 +152,95 @@ router.get('/video/:videoId/description', (req, res) => {
   return res.json({ success: true, description: '' });
 });
 
-// Altyazı dosyalarının varlığını denetler ve listeler
+function fetchDescriptionFromYtdlp(videoId) {
+  return new Promise((resolve, reject) => {
+    const db = readDb();
+    const args = ['--encoding', 'utf-8', '--get-description', `https://www.youtube.com/watch?v=${videoId}`];
+    if (db.settings && db.settings.cookiesFromBrowser) {
+      args.push('--cookies-from-browser', db.settings.cookiesFromBrowser);
+    }
+    
+    // Windows ve diğer platformlarda UTF-8 kodlamasını garanti altına al
+    const localTemp = getLocalTempDir();
+    const spawnOptions = {
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8', LANG: 'en_US.UTF-8', TEMP: localTemp, TMP: localTemp }
+    };
+    if (process.platform === 'win32') {
+      spawnOptions.windowsVerbatimArguments = false;
+      spawnOptions.windowsHide = true;
+    }
+
+    const proc = spawnYtdlp(args, spawnOptions);
+
+    const stdoutChunks = [];
+    const stderrChunks = [];
+
+    proc.stdout.on('data', (data) => {
+      stdoutChunks.push(data);
+    });
+
+    proc.stderr.on('data', (data) => {
+      stderrChunks.push(data);
+    });
+
+    proc.on('close', (code) => {
+      cleanMeiForPid(proc.pid);
+      const stdoutStr = Buffer.concat(stdoutChunks).toString('utf8');
+      const stderrStr = Buffer.concat(stderrChunks).toString('utf8');
+      
+      if (code === 0) {
+        resolve(stdoutStr.trim());
+      } else {
+        reject(new Error(stderrStr.trim() || `Exit code ${code}`));
+      }
+    });
+  });
+}
+
+/**
+ * Belirtilen video için açıklama dosyasını ve yorumlarını YouTube'dan tazeleyip günceller.
+ * 
+ * @name POST /api/video/:videoId/refresh-details
+ */
+router.post('/video/:videoId/refresh-details', localhostOnly, async (req, res) => {
+  const { videoId } = req.params;
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+    return res.status(400).json({ error: 'Geçersiz Video ID formatı' });
+  }
+
+  try {
+    const db = readDb();
+    const item = db.history.find(h => h.id === videoId);
+
+    // YouTube'dan güncel açıklamayı çek
+    const updatedDesc = await fetchDescriptionFromYtdlp(videoId);
+
+    // .description dosyasını diske kaydet
+    if (item && item.filePath) {
+      const ext = path.extname(item.filePath);
+      const basePath = item.filePath.slice(0, -ext.length);
+      const descPath = basePath + '.description';
+      fs.writeFileSync(descPath, updatedDesc, 'utf8');
+    }
+
+    res.json({ success: true, description: updatedDesc });
+  } catch (err) {
+    console.error(`Error refreshing description/comments for ${videoId}:`, err.message);
+    res.status(500).json({ error: `Detaylar güncellenemedi: ${err.message}` });
+  }
+});
+
+/**
+ * Belirtilen video için indirilmiş altyazı dosyalarını arar ve listeler.
+ * 
+ * @name GET /api/video/:videoId/subtitles
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.videoId - Hedef videonun YouTube ID'si (11 karakter)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/video/:videoId/subtitles', (req, res) => {
   const { videoId } = req.params;
   const db = readDb();
@@ -106,23 +253,44 @@ router.get('/video/:videoId/subtitles', (req, res) => {
   const subtitles = [];
   try {
     const filePath = video.filePath;
-    const ext = path.extname(filePath);
-    const basePath = filePath.slice(0, -ext.length);
+    const dir = path.dirname(filePath);
+    const fileNameWithoutExt = path.basename(filePath, path.extname(filePath));
 
-    const languages = [
-      { lang: 'tr', label: 'Türkçe' },
-      { lang: 'en', label: 'English' }
-    ];
+    if (fs.existsSync(dir)) {
+      const files = fs.readdirSync(dir);
+      const escapedName = fileNameWithoutExt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const subRegex = new RegExp(`^${escapedName}\\.([a-z]{2}(?:-[a-z0-9]+)?)\\.(srt|vtt)$`, 'i');
 
-    for (const item of languages) {
-      const srtPath = basePath + `.${item.lang}.srt`;
-      const vttPath = basePath + `.${item.lang}.vtt`;
-      if (fs.existsSync(srtPath) || fs.existsSync(vttPath)) {
-        subtitles.push({
-          lang: item.lang,
-          label: item.label,
-          url: `/api/video/${videoId}/subtitle/${item.lang}`
-        });
+      const foundLangs = new Set();
+      for (const file of files) {
+        const match = file.match(subRegex);
+        if (match) {
+          const langCode = match[1].toLowerCase();
+          if (!foundLangs.has(langCode)) {
+            foundLangs.add(langCode);
+            let label = langCode.toUpperCase();
+            try {
+              const displayNames = new Intl.DisplayNames(['tr', 'en'], { type: 'language' });
+              const name = displayNames.of(langCode);
+              if (name) {
+                label = name.charAt(0).toUpperCase() + name.slice(1);
+              }
+            } catch (e) {
+              const staticMap = {
+                tr: 'Türkçe', en: 'English', ar: 'Arapça', de: 'Almanca',
+                es: 'İspanyolca', fr: 'Fransızca', ru: 'Rusça', ja: 'Japonca',
+                pt: 'Portekizce', it: 'İtalyanca', zh: 'Çince', ko: 'Korece'
+              };
+              if (staticMap[langCode]) label = staticMap[langCode];
+            }
+
+            subtitles.push({
+              lang: langCode,
+              label: label,
+              url: `/api/video/${videoId}/subtitle/${langCode}`
+            });
+          }
+        }
       }
     }
   } catch (err) {
@@ -132,7 +300,14 @@ router.get('/video/:videoId/subtitles', (req, res) => {
   res.json({ success: true, subtitles });
 });
 
-// Google Translate ile metin çeviren yardımcı fonksiyon
+/**
+ * Google Translate API kullanarak tek bir metin satırını çevirir.
+ * 
+ * @param {string} text - Çevrilecek metin içeriği
+ * @param {string} [fromLang='en'] - Kaynak dil kodu
+ * @param {string} [toLang='tr'] - Hedef dil kodu
+ * @returns {Promise<string>} Çevrilmiş metin veya hata durumunda orijinal metin
+ */
 async function translateText(text, fromLang = 'en', toLang = 'tr') {
   if (!text || !text.trim()) return '';
   const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${fromLang}&tl=${toLang}&dt=t&q=${encodeURIComponent(text)}`;
@@ -148,7 +323,15 @@ async function translateText(text, fromLang = 'en', toLang = 'tr') {
   return text;
 }
 
-// SRT veya WebVTT altyazı içeriğini satır satır çeviren fonksiyon
+/**
+ * SRT veya WebVTT altyazı dosyasının içeriğini zaman damgalarını koruyarak satır satır çevirir.
+ * 
+ * @param {string} content - Altyazı dosyasının tüm metin içeriği
+ * @param {boolean} [isVtt=false] - WebVTT formatında olup olmadığı
+ * @param {string} [fromLang='en'] - Kaynak dil kodu
+ * @param {string} [toLang='tr'] - Hedef dil kodu
+ * @returns {Promise<string>} Çevrilmiş altyazı içeriği
+ */
 async function translateSrtOrVttContent(content, isVtt = false, fromLang = 'en', toLang = 'tr') {
   const lines = content.split(/\r?\n/);
   const resultLines = [];
@@ -198,8 +381,20 @@ async function translateSrtOrVttContent(content, isVtt = false, fromLang = 'en',
   return outputLines.join('\n');
 }
 
-// Altyazıyı manuel olarak seçilen dilden hedef dile çeviren endpoint
-router.post('/video/:videoId/translate-subtitle', async (req, res) => {
+/**
+ * Belirtilen videonun altyazısını Google Translate aracılığıyla kaynak dilden hedef dile çevirip kaydeder.
+ * 
+ * @name POST /api/video/:videoId/translate-subtitle
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.videoId - Hedef videonun YouTube ID'si (11 karakter)
+ * @param {string} req.body.fromLang - Kaynak dil kodu (örn. 'en')
+ * @param {string} req.body.toLang - Hedef dil kodu (örn. 'tr')
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.post('/video/:videoId/translate-subtitle', localhostOnly, async (req, res) => {
   const { videoId } = req.params;
   const { fromLang, toLang } = req.body;
   const db = readDb();
@@ -254,7 +449,18 @@ router.post('/video/:videoId/translate-subtitle', async (req, res) => {
   }
 });
 
-// SRT dosyasını okuyup WebVTT formatında tarayıcıya sunar
+/**
+ * Belirtilen dildeki SRT altyazısını okuyup dinamik olarak WebVTT formatına dönüştürerek tarayıcıya/oynatıcıya servis eder.
+ * 
+ * @name GET /api/video/:videoId/subtitle/:lang
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.videoId - Hedef videonun YouTube ID'si (11 karakter)
+ * @param {string} req.params.lang - Altyazı dil kodu (örn. 'tr', 'en')
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/video/:videoId/subtitle/:lang', (req, res) => {
   const { videoId, lang } = req.params;
   const db = readDb();
@@ -292,7 +498,18 @@ router.get('/video/:videoId/subtitle/:lang', (req, res) => {
   }
 });
 
-// YouTube videosuna ait yorumları Innertube API'si kullanarak çeken endpoint
+/**
+ * YouTube'un dahili Innertube API'sini simüle ederek bir videoya ait kullanıcı yorumlarını ve sayfalama belirteçlerini çeker.
+ * 
+ * @name GET /api/video/:videoId/comments
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.videoId - Yorumları istenecek videonun YouTube ID'si (11 karakter)
+ * @param {string} [req.query.token] - Sonraki yorum sayfalarını çekmek için sayfalama belirteci
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
 router.get('/video/:videoId/comments', async (req, res) => {
   const { videoId } = req.params;
   const { token } = req.query;
@@ -419,8 +636,18 @@ router.get('/video/:videoId/comments', async (req, res) => {
   }
 });
 
-// YouTube Linkini Tarayıcıda Aç
-router.post('/open-youtube', (req, res) => {
+/**
+ * Belirtilen videonun YouTube sayfasını işletim sisteminin varsayılan web tarayıcısında açar.
+ * 
+ * @name POST /api/open-youtube
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.body.videoId - Açılacak videonun YouTube ID'si (11 karakter)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/open-youtube', localhostOnly, (req, res) => {
   const { videoId } = req.body;
   if (!videoId) return res.status(400).json({ error: 'Video ID gereklidir.' });
   
@@ -428,7 +655,17 @@ router.post('/open-youtube', (req, res) => {
   res.json({ success: true });
 });
 
-// Videoyu Yerel Medya Oynatıcıda Aç
+/**
+ * İndirilmiş olan videoyu işletim sisteminin varsayılan yerel medya oynatıcısında (örn. VLC, Windows Media Player) başlatır.
+ * 
+ * @name POST /api/play-video
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.body.videoId - Oynatılacak videonun YouTube ID'si (11 karakter)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/play-video', localhostOnly, (req, res) => {
   const { videoId } = req.body;
   if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {

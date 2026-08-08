@@ -17,9 +17,14 @@ namespace HaYTooLTray
 
         private StringBuilder consoleBuffer = new StringBuilder();
         private Form logForm;
-        private TextBox logTextBox;
+        private RichTextBox logTextBox;
         private object bufferLock = new object();
-        private Form syncForm;
+        public Form syncForm;
+
+        /// <summary>
+        /// Uygulamanın tepsisiz (Tray simgesi olmadan) silent modda çalışıp çalışmayacağını belirtir.
+        /// </summary>
+        public static bool IsSilentMode = false;
 
         // Dil senkronizasyonu için sınıf düzeyinde menü öğeleri
         private MenuItem openUiItem;
@@ -32,12 +37,38 @@ namespace HaYTooLTray
         private MenuItem channelsShortcut;
         private MenuItem settingsShortcut;
         private MenuItem settingsItem;
+        private MenuItem checkChannelsItem;
         private MenuItem altSpeedItem;
         private MenuItem bootItem;
         private MenuItem discordRpcItem;
         private MenuItem restartItem;
         private MenuItem showConsoleItem;
         private MenuItem exitItem;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+        private static extern uint RegisterWindowMessage(string lpString);
+        public static readonly uint WM_TASKBARCREATED = RegisterWindowMessage("TaskbarCreated");
+
+        public class SyncMessageForm : Form
+        {
+            private Program programRef;
+            public SyncMessageForm(Program program)
+            {
+                programRef = program;
+            }
+
+            protected override void WndProc(ref Message m)
+            {
+                if (m.Msg == Program.WM_TASKBARCREATED)
+                {
+                    if (programRef != null)
+                    {
+                        programRef.RefreshTrayIcon();
+                    }
+                }
+                base.WndProc(ref m);
+            }
+        }
 
         [System.Runtime.InteropServices.DllImport("kernel32.dll")]
         private static extern bool AttachConsole(int dwProcessId);
@@ -115,69 +146,121 @@ namespace HaYTooLTray
         [STAThread]
         public static void Main(string[] args)
         {
-            if (args.Length > 0)
-            {
-                // CLI Modu - Ebeveyn konsoluna bağlan ve Node sunucusuna argümanları aktar
-                AttachConsole(ATTACH_PARENT_PROCESS);
-                RunCli(args);
-                return;
-            }
+            try { Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory); } catch {}
 
-            bool createdNew;
-            using (System.Threading.Mutex mutex = new System.Threading.Mutex(true, "Local\\HaYTooLYTDownloaderSingleInstanceMutex", out createdNew))
+            Application.ThreadException += (sender, e) => {
+                File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.txt"), "ThreadException:\n" + e.Exception.ToString());
+            };
+            AppDomain.CurrentDomain.UnhandledException += (sender, e) => {
+                File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.txt"), "UnhandledException:\n" + e.ExceptionObject.ToString());
+            };
+
+            try
             {
-                if (!createdNew)
+                if (args.Length > 0)
                 {
-                    // Zaten çalışıyor!
-                    int port = 4141;
-                    string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configwin.ini");
-                    if (File.Exists(iniPath))
+                    if (args.Length == 1 && string.Equals(args[0], "silent", StringComparison.OrdinalIgnoreCase))
                     {
-                        try
+                        IsSilentMode = true;
+                    }
+                    else
+                    {
+                        // CLI Modu - Ebeveyn konsoluna bağlan ve Node sunucusuna argümanları aktar
+                        AttachConsole(ATTACH_PARENT_PROCESS);
+                        RunCli(args);
+                        return;
+                    }
+                }
+
+                bool createdNew;
+                using (System.Threading.Mutex mutex = new System.Threading.Mutex(true, "Local\\HaYTooLYTDownloaderSingleInstanceMutexV8", out createdNew))
+                {
+                    if (!createdNew)
+                    {
+                        File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mutex_lock.txt"), "Mutex zaten kilitli! Program calisiyor.");
+                        // Zaten çalışıyor!
+                        int port = 4141;
+                        string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configwin.ini");
+                        if (File.Exists(iniPath))
                         {
-                            string[] lines = File.ReadAllLines(iniPath);
-                            foreach (string line in lines)
+                            try
                             {
-                                string trimmed = line.Trim();
-                                int equalsIdx = trimmed.IndexOf('=');
-                                if (equalsIdx != -1)
+                                string[] lines = File.ReadAllLines(iniPath);
+                                foreach (string line in lines)
                                 {
-                                    string key = trimmed.Substring(0, equalsIdx).Trim();
-                                    string val = trimmed.Substring(equalsIdx + 1).Trim();
-                                    if (string.Equals(key, "port", StringComparison.OrdinalIgnoreCase))
+                                    string trimmed = line.Trim();
+                                    int equalsIdx = trimmed.IndexOf('=');
+                                    if (equalsIdx != -1)
                                     {
-                                        int parsedPort;
-                                        if (int.TryParse(val, out parsedPort))
+                                        string key = trimmed.Substring(0, equalsIdx).Trim();
+                                        string val = trimmed.Substring(equalsIdx + 1).Trim();
+                                        if (string.Equals(key, "port", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            port = parsedPort;
-                                            break;
+                                            int parsedPort;
+                                            if (int.TryParse(val, out parsedPort))
+                                            {
+                                                port = parsedPort;
+                                                break;
+                                            }
                                         }
                                     }
                                 }
                             }
+                            catch {}
+                        }
+                        
+                        string url = "http://localhost:" + port + "/downlist";
+                        
+                        MessageBox.Show("HaYTooL YouTube Downloader zaten çalışıyor!\nArayüz tarayıcınızda açılıyor.", 
+                                        "Bilgi", 
+                                        MessageBoxButtons.OK, 
+                                        MessageBoxIcon.Information);
+                        
+                        try
+                        {
+                            Process.Start(url);
                         }
                         catch {}
+                        
+                        return;
                     }
-                    
-                    string url = "http://localhost:" + port + "/downlist";
-                    
-                    MessageBox.Show("HaYTooL YouTube Downloader zaten çalışıyor!\nArayüz tarayıcınızda açılıyor.", 
-                                    "Bilgi", 
-                                    MessageBoxButtons.OK, 
-                                    MessageBoxIcon.Information);
-                    
-                    try
-                    {
-                        Process.Start(url);
-                    }
-                    catch {}
-                    
-                    return;
-                }
 
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new Program());
+                    File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mutex_lock.txt"), "Mutex basariyla olusturuldu. Program baslatiliyor.");
+                    if (IsSilentMode)
+                    {
+                        try
+                        {
+                            Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
+                            string backendPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "HaYTool-Backend.exe");
+                            ProcessStartInfo psi = new ProcessStartInfo(backendPath, "server.js");
+                            psi.CreateNoWindow = true;
+                            psi.UseShellExecute = false;
+                            psi.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                            
+                            Process p = Process.Start(psi);
+                            if (p != null)
+                            {
+                                p.WaitForExit();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "silent_backend_error.txt"), ex.ToString());
+                        }
+                    }
+                    else
+                    {
+                        Application.EnableVisualStyles();
+                        Application.SetCompatibleTextRenderingDefault(false);
+                        Program app = new Program();
+                        File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mutex_lock.txt"), "Program nesnesi basariyla olusturuldu!");
+                        Application.Run(app);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                try { File.WriteAllText(Path.Combine(Path.GetTempPath(), "haytool_main_crash.txt"), ex.ToString()); } catch {}
             }
         }
 
@@ -270,12 +353,9 @@ namespace HaYTooLTray
         // Türkçe Açıklama: Sistem Tepsisi (Tray) uygulamasını başlatır, simgeyi ve sağ tık menüsünü hazırlar.
         public Program()
         {
-            // Çalışma dizinini uygulamanın kendi dizinine sabitle (sistem başlangıcında relatif yolların doğru çalışması için)
             try
             {
-                Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
-            }
-            catch {}
+                try { Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory); } catch {}
 
             // Job Object oluştur
             try
@@ -310,8 +390,8 @@ namespace HaYTooLTray
                 AppendLog("[TRAY ERROR] Job Object oluşturulurken hata: " + ex.Message);
             }
 
-            // Güvenli asenkron UI çağrıları için senkronizasyon formunu hazırla
-            syncForm = new Form();
+            // Güvenli asenkron UI çağrıları ve TaskbarCreated takibi için senkronizasyon formunu hazırla
+            syncForm = new SyncMessageForm(this);
             IntPtr forcedHandle = syncForm.Handle; // Handle oluşturulmasını zorunlu kıl
 
             // Logs dizinini oluştur
@@ -320,33 +400,38 @@ namespace HaYTooLTray
                 Directory.CreateDirectory("logs");
             }
 
-            // Tray İkonunu Hazırla
-            trayIcon = new NotifyIcon();
-            trayIcon.Text = "HaYTooL YouTube Downloader";
-            
-            // icon.ico dosyasını yükle
-            if (File.Exists("icon.ico"))
+            // Tray İkonunu Hazırla (Sadece silent mod dışındaysa)
+            if (!IsSilentMode)
             {
-                try
+                trayIcon = new NotifyIcon();
+                trayIcon.Text = "HaYTooL YouTube Downloader";
+                
+                // Mutlak dosya yolu ile icon.ico dosyasını yükle (Startup kaynaklı yol hatalarını önler)
+                string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
+                if (File.Exists(iconPath))
                 {
-                    trayIcon.Icon = new Icon("icon.ico");
+                    try
+                    {
+                        trayIcon.Icon = new Icon(iconPath);
+                    }
+                    catch
+                    {
+                        trayIcon.Icon = SystemIcons.Application;
+                    }
                 }
-                catch
+                else
                 {
                     trayIcon.Icon = SystemIcons.Application;
                 }
-            }
-            else
-            {
-                trayIcon.Icon = SystemIcons.Application;
-            }
 
-            // Çift tıklama olayını bağla
-            trayIcon.DoubleClick += OpenWebPage;
+                // Çift tıklama olayını bağla
+                trayIcon.DoubleClick += OpenWebPage;
+            }
 
             // Sınıf düzeyindeki menü elemanlarını oluştur
             openUiItem = new MenuItem("Arayüzü Aç", OpenWebPage);
             openAppBrowserItem = new MenuItem("Kendi Tarayıcısında Aç", OpenWebAppInOwnBrowser);
+            checkChannelsItem = new MenuItem("Kanalları Denetle", TriggerCheckChannels);
             pasteDownloadItem = new MenuItem("Panodan İndir", PasteAndDownload);
 
             shortcutsMenu = new MenuItem("Sekmelere Git");
@@ -384,6 +469,7 @@ namespace HaYTooLTray
             ContextMenu contextMenu = new ContextMenu();
             contextMenu.MenuItems.Add(openAppBrowserItem);
             contextMenu.MenuItems.Add(settingsItem);
+            contextMenu.MenuItems.Add(checkChannelsItem);
             contextMenu.MenuItems.Add(pasteDownloadItem);
             contextMenu.MenuItems.Add(altSpeedItem);
             contextMenu.MenuItems.Add(bootItem);
@@ -405,14 +491,23 @@ namespace HaYTooLTray
                 discordRpcItem.Checked = GetDiscordRpcSetting();
             };
 
-            trayIcon.ContextMenu = contextMenu;
-            trayIcon.Visible = true;
+            if (trayIcon != null)
+            {
+                trayIcon.ContextMenu = contextMenu;
+                trayIcon.Visible = !IsSilentMode;
+            }
 
             // Node Sunucusunu Başlat
             StartNode();
 
             // Kapatma eventlerini yakala
             Application.ApplicationExit += (s, e) => CleanUp();
+            }
+            catch (Exception ex)
+            {
+                try { File.WriteAllText(Path.Combine(Path.GetTempPath(), "haytool_constructor_crash.txt"), ex.ToString()); } catch {}
+                throw;
+            }
         }
 
         // Türkçe Açıklama: configwin.ini dosyasından port değerini dinamik olarak okuyarak localhost adresini döner.
@@ -535,6 +630,49 @@ namespace HaYTooLTray
             return false;
         }
 
+        // Türkçe Açıklama: Windows Görev Çubuğu (Explorer) veya başlangıç durumunda tepsi simgesini yeniler.
+        public void RefreshTrayIcon()
+        {
+            try
+            {
+                if (trayIcon != null && !IsSilentMode)
+                {
+                    trayIcon.Visible = false;
+                    trayIcon.Visible = true;
+                }
+            }
+            catch {}
+        }
+
+        // Türkçe Açıklama: Tüm kanalların RSS akışlarını kontrol eden API isteğini arka planda tetikler.
+        private void TriggerCheckChannels(object sender, EventArgs e)
+        {
+            ThreadPool.QueueUserWorkItem(state => {
+                try
+                {
+                    string url = GetAppUrl("/api/history/sync");
+                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                    request.Method = "POST";
+                    request.ContentType = "application/json";
+                    byte[] body = Encoding.UTF8.GetBytes("{\"source\":\"tray\"}");
+                    request.ContentLength = body.Length;
+                    using (Stream stream = request.GetRequestStream())
+                    {
+                        stream.Write(body, 0, body.Length);
+                    }
+                    using (WebResponse response = request.GetResponse())
+                    {
+                        // Başarılı istek
+                    }
+                    AppendLog("[TRAY] Tüm kanallar için denetim tetiklendi (Kaynak: Tray).");
+                }
+                catch (Exception ex)
+                {
+                    AppendLog("[TRAY ERROR] Kanalları denetleme isteği başarısız: " + ex.Message);
+                }
+            });
+        }
+
         // Türkçe Açıklama: Alternatif hız sınırı geçişini asenkron olarak tetikler.
         private void ToggleAlternativeSpeed(object sender, EventArgs e)
         {
@@ -646,14 +784,78 @@ namespace HaYTooLTray
                     catch {}
                 }
 
+                bool portOk = false;
                 try
                 {
                     System.Net.Sockets.TcpListener listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Any, port);
                     listener.Start();
                     listener.Stop();
+                    portOk = true;
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "port_debug.txt"), ex.ToString());
+                    string confirmTitle = "Port Çakışması";
+                    string confirmMsg = "Port " + port + " başka bir uygulama veya süreç tarafından kullanılıyor!\n\nBu portu kullanan arka plan sürecini sonlandırıp HaYTooL'u yeniden başlatmayı denemek ister misiniz?";
+                    string lang = GetLanguageSetting();
+
+                    if (lang == "en")
+                    {
+                        confirmTitle = "Port Conflict";
+                        confirmMsg = "Port " + port + " is already in use by another application or process!\n\nDo you want to terminate the process using this port and retry starting HaYTooL?";
+                    }
+                    else if (lang == "es")
+                    {
+                        confirmTitle = "Conflicto de Puerto";
+                        confirmMsg = "¡El puerto " + port + " ya está siendo utilizado por otra aplicación!\n\n¿Desea finalizar el proceso que utiliza este puerto y reiniciar HaYTooL?";
+                    }
+                    else if (lang == "de")
+                    {
+                        confirmTitle = "Port-Konflikt";
+                        confirmMsg = "Port " + port + " wird bereits von einer anderen Anwendung verwendet!\n\nMöchten Sie den Prozess, der diesen Port verwendet, beenden und HaYTooL neu starten?";
+                    }
+                    else if (lang == "pt")
+                    {
+                        confirmTitle = "Conflito de Porta";
+                        confirmMsg = "A porta " + port + " já está em uso por outro aplicativo!\n\nDeseja encerrar o processo que usa esta porta e reiniciar o HaYTooL?";
+                    }
+                    else if (lang == "ar")
+                    {
+                        confirmTitle = "تعارض المنفذ";
+                        confirmMsg = "المنفذ " + port + " مستخدم بالفعل بواسطة تطبيق آخر!\n\nهل تريد إنهاء العملية التي تستخدم هذا المنفذ وإعادة تشغيل HaYTooL؟";
+                    }
+                    else if (lang == "ru")
+                    {
+                        confirmTitle = "Конфликт портов";
+                        confirmMsg = "Порт " + port + " уже используется другим приложением!\n\nХотите завершить процесс, использующий этот порт, и перезапустить HaYTooL?";
+                    }
+
+                    DialogResult result = MessageBox.Show(confirmMsg, confirmTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    if (result == DialogResult.Yes)
+                    {
+                        if (KillProcessOnPort(port))
+                        {
+                            portOk = true;
+                        }
+                        else
+                        {
+                            string errTitle = "Hata";
+                            string errMsg = "Port " + port + " serbest bırakılamadı. Lütfen o süreci el ile kapatın.";
+                            if (lang == "en") { errTitle = "Error"; errMsg = "Port " + port + " could not be freed. Please close the process manually."; }
+                            else if (lang == "es") { errTitle = "Error"; errMsg = "El puerto " + port + " no se pudo liberar. Cierre el proceso manualmente."; }
+                            else if (lang == "de") { errTitle = "Fehler"; errMsg = "Port " + port + " konnte nicht freigegeben werden. Bitte schließen Sie den Prozess manuell."; }
+                            else if (lang == "pt") { errTitle = "Erro"; errMsg = "A porta " + port + " não pôde ser liberada. Feche o processo manualmente."; }
+                            else if (lang == "ar") { errTitle = "خطأ"; errMsg = "تعذر تحرير المنفذ " + port + ". يرجى إغلاق العملية يدويًا."; }
+                            else if (lang == "ru") { errTitle = "Ошибка"; errMsg = "Не удалось освободить порт " + port + ". Пожалуйста, закройте процесс вручную."; }
+
+                            MessageBox.Show(errMsg, errTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+
+                if (!portOk)
+                {
+                    File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "port_debug.txt"), "portOk is false. Exiting.");
                     ShowPortInUseWarning(port);
                     ExitApp(null, null);
                     return;
@@ -680,38 +882,83 @@ namespace HaYTooLTray
                 psi.CreateNoWindow = true;
                 psi.UseShellExecute = false;
                 psi.WindowStyle = ProcessWindowStyle.Hidden;
-                psi.RedirectStandardOutput = true;
-                psi.RedirectStandardError = true;
-                psi.RedirectStandardInput = true; // Stdin yönlendirmesi aktif
-                psi.StandardOutputEncoding = Encoding.UTF8;
-                psi.StandardErrorEncoding = Encoding.UTF8;
+                psi.RedirectStandardOutput = !IsSilentMode;
+                psi.RedirectStandardError = !IsSilentMode;
+                psi.RedirectStandardInput = !IsSilentMode; // Stdin yönlendirmesi aktif
+                if (!IsSilentMode)
+                {
+                    psi.StandardOutputEncoding = Encoding.UTF8;
+                    psi.StandardErrorEncoding = Encoding.UTF8;
+                }
                 psi.WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory;
 
                 nodeProcess = new Process();
                 nodeProcess.StartInfo = psi;
                 
-                nodeProcess.OutputDataReceived += (s, e) => {
-                    if (e.Data != null) 
-                    {
-                        if (e.Data.StartsWith("[TRAY_CMD] lang="))
+                if (!IsSilentMode)
+                {
+                    nodeProcess.OutputDataReceived += (s, e) => {
+                        if (e.Data != null) 
                         {
-                            string newLang = e.Data.Substring("[TRAY_CMD] lang=".Length).Trim();
-                            if (syncForm != null && syncForm.IsHandleCreated)
+                            if (e.Data.StartsWith("[TRAY_CMD] lang="))
                             {
-                                syncForm.BeginInvoke(new Action(() => {
+                                string newLang = e.Data.Substring("[TRAY_CMD] lang=".Length).Trim();
+                                if (syncForm != null && syncForm.IsHandleCreated)
+                                {
+                                    if (syncForm.InvokeRequired)
+                                    {
+                                        try
+                                        {
+                                            syncForm.BeginInvoke(new Action(() => {
+                                                ApplyLanguage(newLang);
+                                            }));
+                                        }
+                                        catch
+                                        {
+                                            ApplyLanguage(newLang);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        ApplyLanguage(newLang);
+                                    }
+                                }
+                                else
+                                {
                                     ApplyLanguage(newLang);
-                                }));
+                                }
+                            }
+                            else if (e.Data.StartsWith("[TRAY_CMD] play_sound="))
+                            {
+                                string soundType = e.Data.Substring("[TRAY_CMD] play_sound=".Length).Trim();
+                                System.Threading.Thread soundThread = new System.Threading.Thread(() => {
+                                    try
+                                    {
+                                        if (soundType == "success")
+                                        {
+                                            System.Console.Beep(1046, 120);
+                                        }
+                                        else if (soundType == "error")
+                                        {
+                                            System.Console.Beep(330, 200);
+                                        }
+                                    }
+                                    catch {}
+                                });
+                                soundThread.IsBackground = true;
+                                soundThread.Start();
+                            }
+                            else
+                            {
+                                AppendLog(e.Data);
                             }
                         }
-                        else
-                        {
-                            AppendLog(e.Data);
-                        }
-                    }
-                };
-                nodeProcess.ErrorDataReceived += (s, e) => {
-                    if (e.Data != null) AppendLog("[HATA] " + e.Data);
-                };
+                    };
+
+                    nodeProcess.ErrorDataReceived += (s, e) => {
+                        if (e.Data != null) AppendLog("[HATA] " + e.Data);
+                    };
+                }
 
                 nodeProcess.Start();
 
@@ -728,13 +975,16 @@ namespace HaYTooLTray
                     }
                 }
 
-                nodeProcess.BeginOutputReadLine();
-                nodeProcess.BeginErrorReadLine();
-                
-                AppendLog("[TRAY] Node.js sunucu süreci başlatıldı.");
+                if (!IsSilentMode)
+                {
+                    nodeProcess.BeginOutputReadLine();
+                    nodeProcess.BeginErrorReadLine();
+                    AppendLog("[TRAY] Node.js sunucu süreci başlatıldı.");
+                }
             }
             catch (Exception ex)
             {
+                try { File.WriteAllText(Path.Combine(Path.GetTempPath(), "haytool_backend_start_crash.txt"), ex.ToString()); } catch {}
                 MessageBox.Show("Node.js başlatılamadı. Lütfen Node.js'in yüklü ve PATH değişkenine ekli olduğundan emin olun.\nHata: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ExitApp(null, null);
             }
@@ -755,6 +1005,81 @@ namespace HaYTooLTray
             {
                 AppendLog("[TRAY ERROR] Komut gönderilemedi: " + ex.Message);
             }
+        }
+
+        /// <summary>
+        /// RichTextBox metin kutusuna, log satırındaki etiketlere göre renklendirilmiş metin ekler.
+        /// </summary>
+        /// <param name="box">Hedef RichTextBox nesnesi</param>
+        /// <param name="text">Eklenecek satır metni</param>
+        private void AppendColoredText(RichTextBox box, string text)
+        {
+            if (box == null || box.IsDisposed) return;
+
+            // Varsayılan açık gri
+            Color color = Color.FromArgb(220, 220, 220); 
+
+            if (text.Contains("[RSS]"))
+            {
+                if (text.Contains("Manuel tetikleme"))
+                {
+                    color = Color.FromArgb(255, 140, 0); // Koyu Turuncu (Orange/Gold)
+                }
+                else if (text.Contains("Sunucu başlangıcı"))
+                {
+                    color = Color.FromArgb(186, 85, 211); // Açık Mor / Eflatun (Medium Orchid/Violet)
+                }
+                else
+                {
+                    color = Color.FromArgb(255, 0, 255); // Pembe (Magenta)
+                }
+            }
+            else if (text.Contains("[RSS Fallback]"))
+            {
+                color = Color.FromArgb(255, 128, 255); // Açık Pembe (Light Magenta)
+            }
+            else if (text.Contains("[DOWNLOAD]") || text.Contains("[İNDİRME]") || text.Contains("İndirme başlatılıyor"))
+            {
+                color = Color.FromArgb(0, 225, 255); // Canlı Açık Mavi / Cyan
+            }
+            else if (text.Contains("[KOMUT]") || text.Contains("Komut:"))
+            {
+                color = Color.FromArgb(245, 200, 50); // Parlak Altın Sarısı (Gold/Yellow)
+            }
+            else if (text.Contains("[yt-dlp Uyarı]") || text.Contains("uyarı satırı") || text.Contains("WARNING") || text.Contains("Too Many Requests"))
+            {
+                color = Color.FromArgb(255, 160, 50); // Tatlı Turuncu (Orange/Coral)
+            }
+            else if (text.Contains("[yt-dlp]"))
+            {
+                color = Color.FromArgb(186, 85, 211); // Açık Mor / Eflatun (Medium Orchid)
+            }
+            else if (text.Contains("[DATABASE]"))
+            {
+                color = Color.FromArgb(255, 255, 0); // Sarı (Yellow)
+            }
+            else if (text.Contains("[IPTV]"))
+            {
+                color = Color.FromArgb(100, 149, 237); // Açık Mavi (Cornflower Blue)
+            }
+            else if (text.Contains("[SYSTEM]") || text.Contains("[Sistem]"))
+            {
+                color = Color.FromArgb(50, 205, 50); // Yeşil (Lime Green)
+            }
+            else if (text.Contains("[API]"))
+            {
+                color = Color.FromArgb(30, 144, 255); // Mavi (Dodger Blue)
+            }
+            else if (text.Contains("[HATA]") || text.Contains("[ERROR]") || text.Contains("[Hata]") || text.Contains("[Error]"))
+            {
+                color = Color.FromArgb(255, 60, 60); // Kırmızı (Red)
+            }
+
+            box.SelectionStart = box.TextLength;
+            box.SelectionLength = 0;
+            box.SelectionColor = color;
+            box.AppendText(text);
+            box.SelectionColor = box.ForeColor; // Rengi varsayılana sıfırla
         }
 
         // Türkçe Açıklama: Gelen konsol çıktılarını bellek tamponuna ekler ve arayüze tarihsiz şekilde yansıtır.
@@ -787,7 +1112,9 @@ namespace HaYTooLTray
                 try
                 {
                     logTextBox.BeginInvoke(new Action(() => {
-                        logTextBox.AppendText(formattedText);
+                        AppendColoredText(logTextBox, formattedText);
+                        logTextBox.SelectionStart = logTextBox.TextLength;
+                        logTextBox.ScrollToCaret();
                     }));
                 }
                 catch {}
@@ -826,7 +1153,11 @@ namespace HaYTooLTray
         private void OpenWebPage(object sender, EventArgs e)
         {
             string action = GetDoubleClickActionSetting();
-            if (string.Equals(action, "embedded", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(action, "player", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenInPlayer("/downlist");
+            }
+            else if (string.Equals(action, "embedded", StringComparison.OrdinalIgnoreCase))
             {
                 OpenUrlInOwnBrowser("/downlist");
             }
@@ -840,13 +1171,40 @@ namespace HaYTooLTray
         private void OpenSettingsPage(object sender, EventArgs e)
         {
             string action = GetDoubleClickActionSetting();
-            if (string.Equals(action, "embedded", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(action, "player", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenInPlayer("/settings");
+            }
+            else if (string.Equals(action, "embedded", StringComparison.OrdinalIgnoreCase))
             {
                 OpenUrlInOwnBrowser("/settings");
             }
             else
             {
                 OpenUrl("/settings");
+            }
+        }
+
+        // Türkçe Açıklama: HaYTooL-Player Beta.exe uygulamasını belirtilen alt sayfa argümanıyla başlatır.
+        private void OpenInPlayer(string path)
+        {
+            try
+            {
+                string playerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HaYTooL-Player Beta.exe");
+                if (File.Exists(playerPath))
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo(playerPath, path);
+                    psi.UseShellExecute = true;
+                    Process.Start(psi);
+                }
+                else
+                {
+                    MessageBox.Show("HaYTooL-Player Beta.exe bulunamadı: " + playerPath, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Oynatıcı başlatılamadı: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -913,10 +1271,8 @@ namespace HaYTooLTray
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 55F));
 
-            logTextBox = new TextBox();
-            logTextBox.Multiline = true;
+            logTextBox = new RichTextBox();
             logTextBox.ReadOnly = true;
-            logTextBox.ScrollBars = ScrollBars.Vertical;
             logTextBox.Dock = DockStyle.Fill;
             logTextBox.BackColor = Color.FromArgb(15, 14, 32);
             logTextBox.ForeColor = Color.FromArgb(220, 220, 220);
@@ -924,11 +1280,16 @@ namespace HaYTooLTray
 
             lock (bufferLock)
             {
-                logTextBox.Text = consoleBuffer.ToString();
+                string[] lines = consoleBuffer.ToString().Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrEmpty(line)) continue;
+                    AppendColoredText(logTextBox, line + "\r\n");
+                }
             }
 
             // En alta kaydır
-            logTextBox.SelectionStart = logTextBox.Text.Length;
+            logTextBox.SelectionStart = logTextBox.TextLength;
             logTextBox.ScrollToCaret();
 
             mainLayout.Controls.Add(logTextBox, 0, 0);
@@ -1134,6 +1495,7 @@ namespace HaYTooLTray
             {
                 openAppBrowserItem.Text = "Open in App Window";
                 openUiItem.Text = "Open Interface";
+                checkChannelsItem.Text = "Check Channels";
                 pasteDownloadItem.Text = "Paste & Download";
                 shortcutsMenu.Text = "Go to Tabs";
                 libraryShortcut.Text = "Library";
@@ -1148,12 +1510,12 @@ namespace HaYTooLTray
                 restartItem.Text = "Restart Server";
                 showConsoleItem.Text = "Show Console Output";
                 exitItem.Text = "Exit";
-                trayIcon.Text = "HaYTooL YouTube Downloader";
             }
             else if (lang == "es")
             {
                 openAppBrowserItem.Text = "Abrir en ventana de app";
                 openUiItem.Text = "Abrir Interfaz";
+                checkChannelsItem.Text = "Comprobar canales";
                 pasteDownloadItem.Text = "Pegar y Descargar";
                 shortcutsMenu.Text = "Ir a Pestañas";
                 libraryShortcut.Text = "Biblioteca";
@@ -1168,12 +1530,12 @@ namespace HaYTooLTray
                 restartItem.Text = "Reiniciar Servidor";
                 showConsoleItem.Text = "Mostrar Salida de Consola";
                 exitItem.Text = "Salir";
-                trayIcon.Text = "HaYTooL YouTube Downloader";
             }
             else if (lang == "de")
             {
                 openAppBrowserItem.Text = "Im App-Fenster öffnen";
                 openUiItem.Text = "Benutzeroberfläche öffnen";
+                checkChannelsItem.Text = "Kanäle prüfen";
                 pasteDownloadItem.Text = "Einfügen & Herunterladen";
                 shortcutsMenu.Text = "Gehe zu Tabs";
                 libraryShortcut.Text = "Bibliothek";
@@ -1188,12 +1550,12 @@ namespace HaYTooLTray
                 restartItem.Text = "Server neu starten";
                 showConsoleItem.Text = "Konsolenausgabe anzeigen";
                 exitItem.Text = "Beenden";
-                trayIcon.Text = "HaYTooL YouTube Downloader";
             }
             else if (lang == "pt")
             {
                 openAppBrowserItem.Text = "Abrir na janela do app";
                 openUiItem.Text = "Abrir Interface";
+                checkChannelsItem.Text = "Verificar canais";
                 pasteDownloadItem.Text = "Colar & Baixar";
                 shortcutsMenu.Text = "Ir para Abas";
                 libraryShortcut.Text = "Biblioteca";
@@ -1208,12 +1570,12 @@ namespace HaYTooLTray
                 restartItem.Text = "Reiniciar Servidor";
                 showConsoleItem.Text = "Mostrar Saída do Console";
                 exitItem.Text = "Sair";
-                trayIcon.Text = "HaYTooL YouTube Downloader";
             }
             else if (lang == "ar")
             {
                 openAppBrowserItem.Text = "الفتح في نافذة التطبيق";
                 openUiItem.Text = "فتح الواجهة";
+                checkChannelsItem.Text = "التحقق من القنوات";
                 pasteDownloadItem.Text = "اللصق والتنزيل";
                 shortcutsMenu.Text = "الانتقال إلى التبويبات";
                 libraryShortcut.Text = "المكتبة";
@@ -1228,12 +1590,12 @@ namespace HaYTooLTray
                 restartItem.Text = "إعادة تشغيل الخادم";
                 showConsoleItem.Text = "عرض مخرجات وحدة التحكم";
                 exitItem.Text = "خروج";
-                trayIcon.Text = "HaYTooL YouTube Downloader";
             }
             else if (lang == "ru")
             {
                 openAppBrowserItem.Text = "Открыть в окне приложения";
                 openUiItem.Text = "Открыть интерфейс";
+                checkChannelsItem.Text = "Проверить каналы";
                 pasteDownloadItem.Text = "Вставить и скачать";
                 shortcutsMenu.Text = "Перейти к вкладкам";
                 libraryShortcut.Text = "Библиотека";
@@ -1248,12 +1610,12 @@ namespace HaYTooLTray
                 restartItem.Text = "Перезапустить сервер";
                 showConsoleItem.Text = "Показать вывод консоли";
                 exitItem.Text = "Выход";
-                trayIcon.Text = "HaYTooL YouTube Downloader";
             }
             else // Varsayılan Türkçe (tr)
             {
                 openAppBrowserItem.Text = "Kendi Tarayıcısında Aç";
                 openUiItem.Text = "Arayüzü Aç";
+                checkChannelsItem.Text = "Kanalları Denetle";
                 pasteDownloadItem.Text = "Panodan İndir";
                 shortcutsMenu.Text = "Sekmelere Git";
                 libraryShortcut.Text = "Kütüphane";
@@ -1268,6 +1630,10 @@ namespace HaYTooLTray
                 restartItem.Text = "Yeniden Başlat";
                 showConsoleItem.Text = "Konsol Çıktısını Göster";
                 exitItem.Text = "Çıkış";
+            }
+
+            if (trayIcon != null)
+            {
                 trayIcon.Text = "HaYTooL YouTube Downloader";
             }
         }
@@ -1344,6 +1710,42 @@ namespace HaYTooLTray
                 catch {}
             }
             return "tr";
+        }
+
+        // Türkçe Açıklama: Belirtilen portu kullanan TCP sürecini netstat ve taskkill aracılığıyla sonlandırır.
+        private bool KillProcessOnPort(int port)
+        {
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo("cmd.exe");
+                psi.Arguments = "/c \"for /f \\\"tokens=5\\\" %a in ('netstat -aon ^| findstr /r /c:\":" + port + " *LISTENING\"') do taskkill /F /PID %a\"";
+                psi.CreateNoWindow = true;
+                psi.UseShellExecute = false;
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
+                
+                using (Process p = Process.Start(psi))
+                {
+                    p.WaitForExit(3000);
+                    
+                    // Portun gerçekten boşalıp boşalmadığını doğrula
+                    try
+                    {
+                        System.Net.Sockets.TcpListener listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Any, port);
+                        listener.Start();
+                        listener.Stop();
+                        return true;
+                    }
+                    catch (Exception)
+                    {
+                        return false;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
     }
 }

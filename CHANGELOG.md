@@ -3,10 +3,626 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.17.0] - 2026-07-30
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **CachyOS (Arch Linux) & Windows 11 Dual-Boot Cross-OS Full Compatibility (Çift İşletim Sistemi Tam Uyumluluk):**
+  - **Shared Download Path & Database Integrity:** Video history and disk file verification dynamically resolves file paths across Windows (`D:\...`) and CachyOS (`/mnt/...` or `/run/media/...`), ensuring zero missing files and seamless playback on both operating systems.
+  - **Side-by-Side Binary Architecture (Option B):** Supported placing Windows binaries (`yt-dlp.exe`, `ffmpeg.exe`) and Linux binaries (`yt-dlp`, `ffmpeg`) side-by-side in `yt-dlp/` and `ffmpeg/` folders.
+  - **Automatic `chmod +x` & GitHub Linux Engine Updating:** Added automatic execution permission (`chmod +x`) for Linux binaries on startup and updated the UI "yt-dlp Güncelle" button to download the latest official Linux binary if missing.
+  - **Universal Linux File Manager Opener (`xdg-open`):** Transformed "Open Folder" and "Open File Location" endpoints to support universal Linux desktop environments (`xdg-open` / `dolphin`) without hardcoded Windows `explorer.exe` dependencies.
+  - **OS-Aware Python Command Fallback:** System defaults to `python3` on Linux/CachyOS and `python` on Windows in database and process spawns.
+  - **CachyOS Standalone App Mode (`baslat.sh`):** Enhanced `baslat.sh` to automatically detect CachyOS/Linux browsers (`cachy-browser`, `chromium`, `chrome`, `brave`, `zen-browser`, `microsoft-edge`) and launch HaYTool in standalone App Mode (`--app=http://localhost:4141`) without tabs or address bars.
+  - **DeArrow Alternative Thumbnail Hover Cycling:** Added interactive video thumbnail hover cycling through official YouTube/DeArrow frame snapshots (`1.jpg`, `2.jpg`, `3.jpg`) with a toggle switch in Settings.
+- **Strict Compliance & Automatic Backup:**
+  - Verified project constitution (`clinerules.md`) and generated automated 7z backup (`HaYTooL_Yedek_2026-07-30_22-52.09.7z`).
+
+## [8.16.0] - 2026-07-30
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Universal Theme-Adaptive Toast Notification System (Tüm Bildirimler İçin Temalara Tam Uyumlu Toast Sistemi):**
+  - Updated all toast notifications (`info`, `success`, `error`, `warning`) generated across the app (video downloading, completed, deleted, channel updates, metadata refresh, queue actions, system errors) to automatically match the active color theme.
+  - Custom palette overrides implemented across all 5 themes (**Dark**, **Light**, **Matrix**, **Discord**, **YouTube**):
+    - **Dark Theme:** Signature Neon Purple (`#8a2be2`) glow, dark glassmorphism card background, themed icon badges.
+    - **Light Theme:** Pristine white background (`#ffffff`), Sky Blue (`#0ea5e9`) info border, Green (`#16a34a`) success, Red (`#dc2626`) error, Amber (`#d97706`) warning.
+    - **Matrix Theme:** Deep cyber black background (`rgba(2, 10, 3, 0.96)`), Cyber Green (`#00ff41`) info/success border & glow, Bright Red (`#ff3333`) error, Yellow (`#ffff00`) warning.
+    - **Discord Theme:** Discord Charcoal background (`rgba(43, 45, 49, 0.96)`), Blurple (`#5865f2`) info border, Discord Green (`#57f287`) success, Discord Red (`#ed4245`) error, Discord Yellow (`#fee75c`) warning.
+    - **YouTube Theme:** YouTube Obsidian background (`rgba(24, 24, 24, 0.96)`), Iconic Red (`#ff0000`) info/error border, Forest Green (`#2ba640`) success, Gold (`#fbc02d`) warning.
+  - Added explicit `toast.toast-warning` styling and `alert-circle` icon support in `toast.js`.
+- **Strict Compliance & Automatic Backup:**
+  - Verified project constitution (`clinerules.md`) and generated automated 7z backup (`HaYTooL_Yedek_2026-07-30_03-59.35.7z`).
+
+## [8.15.0] - 2026-07-30
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Discord & YouTube Authentic Themes Addition (Discord ve YouTube Özel Temaları):**
+  - Added authentic **Discord Theme** (`discord-theme`) featuring Discord's iconic Blurple (`#5865f2`), Charcoal dark bg (`#313338`), and Discord green (`#57f287`) accents.
+  - Added authentic **YouTube Theme** (`youtube-theme`) featuring YouTube's iconic Obsidian Black bg (`#0f0f0f`) and Red (`#ff0000`) glowing highlights.
+  - Updated `#quick-theme-toggle-btn` to cycle through 5 themes sequentially (**Dark -> Light -> Matrix -> Discord -> YouTube -> Dark**) with dynamic Lucide icons (`moon` 🌙, `sun` ☀️, `terminal` 💻, `message-square` 💬, `play-circle` ▶️).
+  - Added `opt_theme_discord` and `opt_theme_youtube` translation keys across all 7 supported language files (`tr`, `en`, `de`, `es`, `pt`, `ru`, `ar`).
+- **Strict Compliance & Automatic Backup:**
+  - Verified project constitution (`clinerules.md`) and generated automated 7z backup (`HaYTooL_Yedek_2026-07-30_03-48.15.7z`).
+
+## [8.14.0] - 2026-07-30
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Tools Dropdown Purple Theme Harmonization (Araçlar Açılır Menüsü Mor Tema Uyumu):**
+  - Updated `.nav-dropdown-menu`, `.nav-dropdown-item`, `.nav-dropdown-header`, `.nav-item-icon-box`, and `.nav-dropdown-badge` in default Dark Theme to use signature neon purple (`#8a2be2` / `var(--primary)`) instead of legacy cyan accents.
+  - Araçlar menüsünün açılır paneli (`#tools-menu`), başlık şeridi, kart kenarlıkları, ikon kutuları ve hover efektleri tamamen neon mor renge dönüştürüldü.
+- **Strict Compliance & Automatic Backup:**
+  - Verified project constitution (`clinerules.md`) and generated automated 7z backup (`HaYTooL_Yedek_2026-07-30_03-41.30.7z`).
+
+## [8.13.0] - 2026-07-30
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Settings Layout Restructuring (Ayarlar Düzeni Güncellemesi):**
+  - Moved the `#subtab-automation` ("Otomasyon & RSS") card from Column 1 into Column 2 (`div.settings-column:nth-of-type(2)`), creating a balanced, clean 2-column layout.
+  - Ayarlar sekmesindeki "Otomasyon & RSS" kartı 2. sütuna taşınarak sağ tarafa alındı ve sayfa düzeni dengelendi.
+- **Dark Theme Navigation Bar Harmonization (Koyu Tema Üst Menü Renk Uyumu):**
+  - Converted navigation menu buttons (`.nav-item`, `.tools-btn`) in the default Dark Theme from cyan/blue accents to the system's signature neon purple (`var(--primary)` / `rgba(138, 43, 226, ...)`).
+  - Varsayılan Koyu Tema üst navigasyon menüsü mavi tonlarından arındırılarak sistem genelindeki cam neon mor (`#8a2be2`) estetiği ile %100 uyumlu hale getirildi.
+- **Strict Compliance & Automatic Backup:**
+  - Verified project constitution (`clinerules.md`) and generated automated 7z backup (`HaYTooL_Yedek_2026-07-30_03-37.46.7z`).
+
+## [8.12.0] - 2026-07-30
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Matrix Theme Addition (Matrix Siber Yeşil Teması):**
+  - Added new high-contrast Cyberpunk **Matrix Theme** (`matrix-theme`) with glowing neon green (`#00ff41`), glassmorphic dark emerald background (`#020803`), custom cyber borders (`rgba(0, 255, 65, 0.22)`), and high-contrast pale text (`#e0ffe6`).
+  - Uygulamaya özel siber yeşil fosfor detaylarına sahip yüksek kontrastlı **Matrix Teması** eklendi.
+- **3-Way Theme Cycle (3 Yönlü Hızlı Tema Döngüsü):**
+  - Updated `#quick-theme-toggle-btn` to cycle through **Dark -> Light -> Matrix -> Dark** sequentially with dynamic Lucide icons (`sun` ☀️, `terminal` 💻, `moon` 🌙) and toast notifications.
+  - Hızlı tema değiştirme butonu **Koyu -> Açık -> Matrix -> Koyu** şeklinde 3 temalı döngüsel geçiş yapacak şekilde güncellendi.
+- **Multi-Language (i18n) Support Across All 7 Languages:**
+  - Added `opt_theme_matrix` translations to all 7 language files (`tr`, `en`, `de`, `es`, `pt`, `ru`, `ar`).
+  - 7 dilde Matrix Teması seçenek metinleri tanımlandı.
+- **Strict Compliance & Automatic Backup:**
+  - Verified project constitution (`clinerules.md`) and generated automated 7z backup (`HaYTooL_Yedek_2026-07-30_03-31.19.7z`).
+
+## [8.11.0] - 2026-07-30
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Quick Theme Toggle Button (Hızlı Tema Değiştirme Butonu):**
+  - Added `#quick-theme-toggle-btn` to the top status badges bar (`.topbar-status-badges`) right next to `#open-downloads-folder-btn`.
+  - Enables 1-click instant switching between **Dark Theme (Karanlık)** and **Light Theme (Aydınlık)** with dynamic sun/moon icons, tooltip updates, and server settings persistence (`/api/settings`).
+  - Üst bardaki İndirilenler Klasörünü Aç butonunun hemen sağına hızlı Koyu/Açık tema değiştirme düğmesi eklendi. Tek tıkla canlı tema değişimi sağlandı.
+- **Portable Packaging Script Exclusion Audit (`releases-maker.ps1`):**
+  - Audited and updated `0nogithub/releases-maker.ps1` folder exclusions (`.vs`, `.vscode`) and file exclusions (`*.pdb`, `*.tmp`, `*.bak`).
+  - Taşınabilir dağıtım paketi hazırlayıcı script güncellenerek debug sembolleri (*.pdb) ve geçici dosyaların otomatik dışlanması sağlandı.
+- **Strict Compliance & Automatic Backup:**
+  - Verified project constitution (`clinerules.md`) and successfully generated automated compressed backup (`HaYTooL_Yedek_2026-07-30_03-23.46.7z`).
+
+## [8.10.0] - 2026-07-29
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Library Filter Chip System (Kütüphane Filtre Hap Butonları Sistemi):**
+  - Converted all 5 bulky toggle switches in the Library (`#tab-history`) toolbar (Shorts, Canlı, Oto İndirme Kapalı, İndirilmeyenler, Gizlenenler) into modern, compact **Filter Chip Buttons** (`.filter-chip-btn`).
+  - Added CSS styling with rounded pill borders, hover elevation, and a cyan glow effect when activated (`.filter-chip-btn.active`).
+  - Integrated `toggleFilterChip()` and `syncFilterChipUI()` in `app.js` to seamlessly sync with existing settings and filter logic.
+  - Kütüphane sekmesindeki 5 adet çok yer kaplayan toggle switch ögesinin tamamı (Shorts, Canlı, Oto İndirme Kapalı, İndirilmeyenler, Gizlenenler) modern, ikonlu ve aktifleştiğinde turkuaz fosforlu parlayan **Filtre Hap Butonlarına** dönüştürüldü. Toolbar araç çubuğu %60 daha kompakt bir görünüme kavuşturuldu.
+- **Modern Tab Header Showcase (Kütüphane, İndirilenler, IPTV, Kuyruk, Kanallar & Araçlar Sekme Başlıkları):**
+  - Applied the user-preferred **Tactical Cyber Glassmorphic Capsule** design system across all top navigation header tabs (`.nav-item` & `.tools-btn`).
+  - Integrated cyan neon borders (`var(--secondary)`), glassmorphic backdrop blur, interactive icon hover animations, and vibrant active gradient glow.
+  - Updated **Kütüphane** tab icon from `history` to `library` (media vault icon) while retaining its smooth rotation/scaling micro-animation on hover.
+  - Fixed topbar CSS syntax error (removed stray semicolon) and unified fixed height (`38px`) across both tab buttons and right-side status badges (**Kalite**, **Boş Alan**, **Çerez**, **Bağlantı**), forcing strict pixel-perfect single horizontal line alignment without vertical offsets or line breaks.
+  - Redesigned the **Araçlar Dropdown Menu Panel** into a premium Cyber Glassmorphic Control Panel with a glowing top accent bar (`::before`), header badge (`HIZLI ARAÇLAR PANELİ`), rounded icon boxes (`.nav-item-icon-box`), micro-badge capsules, spring pop-down animations, and left-accent neon hover highlights.
+  - Full dynamic **Light & Dark Theme compatibility** across all navigation headers and dropdown elements.
+
+## [8.9.0] - 2026-07-29
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Metadata Refresh Consolidation / Metadata Yenileme Birleştirmesi:**
+  - Consolidated the metadata refresh feature into the **Downloaded (`#tab-downloaded`)** tab toolbar, enabling users to trigger backend duration & disk size (`fs.stat`) resolution directly from the "Metadata Güncelle" button.
+  - Removed the redundant "Metadata Yenileme (Süre & Boyut)" card and header dropdown link from the **Tools** tab.
+  - Added live spinner feedback on the Downloaded tab refresh button and automatic database view reload (`loadDb()`) upon completion.
+  - Araçlar menüsündeki bağımsız "Metadata Yenileme (Süre & Boyut)" kartı ve üst menü seçeneği kaldırıldı. Bu işlevsellik doğrudan **İndirilenler (`#tab-downloaded`)** sekmesi toolbar'ındaki **"Metadata Güncelle"** butonuna bağlandı. Butona tıklandığında arka planda eksik süreler ve diskteki gerçek dosya boyutları taranarak güncellenmesi, canlı ikon ve veritabanı görünümü yenileme desteği sağlandı.
+
+## [8.8.0] - 2026-07-29
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Inline Library Bulk Video Hiding Mode / Kütüphane İçi Toplu Video Gizleme Modu:**
+  - Integrated bulk video hiding directly into the **Library (`#tab-history`)** tab toolbar as an inline feature with toggle button and selection bar, using the exact visual interaction design established in Downloaded Bulk Deletion mode.
+  - Removed the standalone "Toplu Video Gizleme" tool card and dropdown navigation link from the **Tools** tab for a cleaner and more integrated workflow.
+  - Supported selecting videos directly on cards/thumbnails, displaying cyan accent borders on selected items, updating selection counts in real time, and maintaining active Library filters during bulk operations.
+  - Toplu video gizleme özelliği doğrudan **Kütüphane (`#tab-history`)** sekmesi toolbar'ına yerleşik (inline) bir mod olarak taşındı. İndirilenler sekmesindeki Toplu Silme modunun görsel ve etkileşim dili birebir uygulanarak toolbar'a "Toplu Gizle" butonu ve seçim barı eklendi.
+  - Araçlar menüsündeki bağımsız "Toplu Video Gizleme" kartı ve dropdown bağlantısı kaldırıldı. Doğrudan Kütüphane kartları üzerinden tıklayarak seçim yapma, turkuaz vurgu çerçeveleri, canlı seçim sayacı ve mevcut Kütüphane filtrelerini koruyarak gizleme işlemini gerçekleştirme desteği sağlandı.
+
+## [8.7.0] - 2026-07-29
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **UI Streamlining & Navigation Bug Fix / Arayüz Sadeleştirme & Navigasyon Hata Düzeltimi:**
+  - Removed the redundant subnavigation menu bar (`tools-subnav-bar`) from the Tools page, allowing users to control all tool sections cleanly and directly from the main header dropdown menu.
+  - Fixed a direct tab navigation bug where clicking "Kanal Kategorilerini Düzenleme" (Channel Categories Edit) from the header dropdown menu would force-reset the view back to "Dosya Karşılaştırma" (File Comparison) due to tab visibility evaluations.
+  - Set the "Delete files from disk" option to be checked by default when entering downloaded bulk delete mode.
+  - Araçlar sayfasındaki gereksiz alt menü çubuğu (`tools-subnav-bar`) kaldırılarak arayüz sadeleştirildi. Üst araçlar menüsünden doğrudan ve tek noktadan yönlendirme yapılması sağlandı. Üst menüden "Kanal Kategorilerini Düzenleme"ye tıklandığında sekme görünürlük kontrolleri sebebiyle görünümün otomatik olarak "Dosya Karşılaştırma"ya sıfırlanması hatası giderildi.
+  - İndirilenler sekmesindeki "Toplu Silme" moduna girildiğinde "Diskteki Dosyaları da Sil" seçeneğinin varsayılan olarak seçili gelmesi sağlandı.
+
+## [8.6.0] - 2026-07-29
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Bulk Video Hiding / Toplu Video Gizleme:**
+  - Added new "Toplu Video Gizleme" (Bulk Video Hiding) tool in both upper tools dropdown and Tools subnavigation tab.
+  - Implemented backend API endpoint (`POST /api/history/bulk-hide`) to easily hide multiple videos at once from SQLite database.
+  - Aligned bulk hiding video filter with Library tab filters (tracked channels, channel video limits, shorts rules, duration limits) to only list exact hideable videos currently visible in the user's Library.
+  - Üst araçlar dropdown menüsüne ve Araçlar alt sekme navigasyon barına "Toplu Video Gizleme" seçeneği eklendi. Seçilen birden fazla videoyu SQLite veritabanında toplu olarak gizlemek için backend API uç noktası (`POST /api/history/bulk-hide`) ve arayüz entegrasyonu tamamlandı. Gizleme listesi, kullanıcının Kütüphane sekmesindeki tüm aktif filtreler ve kanal limitleri ile birebir eşitlenerek sayı ve içerik uyuşmazlığı giderildi.
+
+## [8.5.0] - 2026-07-28
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Python Mode Resolution Quality Fix / Sistem Python Modunda Çözünürlük Hatası Düzeltilmesi:**
+  - Removed restrictive `player_client=android,web_embedded` extractor arguments from all download commands in `downloader.js`, `routes/downloader.js` and `rss.js`.
+  - Restored full resolution availability (1080p, 1440p, 4K etc.) under System Python mode by letting `yt-dlp` use its default client priority (e.g. `android_vr` which bypasses signature decryption challenges).
+  - Sistem Python modunda videoların sadece 360p kalitesinde inmesine yol açan TV/Android istemci kısıtlaması kaldırıldı. `yt-dlp`'nin varsayılan istemci önceliklerine (örn. şifresiz veri sunan `android_vr`) geçişi sağlanarak 1080p, 2K ve 4K gibi tüm yüksek çözünürlüklerin başarıyla indirilmesi sağlandı.
+
+- **Dropdown Menu Stacking Context Fix / Navigasyon Araçlar Menüsü Z-Index Düzeltmesi:**
+  - Raised `.topbar` container `z-index` from `100` to `1000000` to prevent `.history-toolbar` (which has `z-index: 999999`) from overlapping the absolute navigation dropdown menu.
+  - Üst gezinme çubuğu (`.topbar`) bileşeninin `z-index` değeri `100`'den `1000000` seviyesine yükseltilerek, Kütüphane ve İndirilenler sayfalarındaki filtre çubuğunun (`.history-toolbar`, `z-index: 999999`) açılan "Araçlar" menüsünün üstüne binmesi ve menüyü kapatması sorunu kesin olarak giderildi.
+
+
+## [8.4.0] - 2026-07-28
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **System Python execution & Proxy Waterfall improvements / Sistem Python'da Yürütme ve Proxy Waterfall Süre Çözümleme:**
+  - Added new settings for "Duration Fetch Method" (`auto`, `waterfall`, `ytdlp`) and "yt-dlp Execution Mode" (`exe`, `python`) across all 7 language files.
+  - Implemented automatic Proxy Waterfall in `rss.js` to fetch durations entirely in memory (RAM), fully protecting SSD life by eliminating temporary file writes.
+  - Configured System Python run mode (`python -m yt_dlp`) in `paths.js` to run downloads and metadata tasks directly, completely avoiding Temp folder (`_MEI`) unpacking.
+  - Added step-by-step setup guides (1-2-3 list formatting) under the Python command path setting.
+  - Süre sorgulamalarında diske yazmayı sıfırlayan Proxy Waterfall (Vekil Sunucu) altyapısı ve video indirmelerinde SSD aşınmasını sıfırlayan Sistem Python çalıştırma modu entegre edildi. Arayüze Lucide ikonlarıyla ayarlar ve Python komut yolu için 1-2-3 adımlı Türkçe/İngilizce kurulum kılavuzu eklendi.
+
+## [8.2.0] - 2026-07-24
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Multi-Language Audio & Title Localization / Çoklu Dil Videolarda Türkçe Ses Dublajı & Türkçe Başlık:**
+  - Added HTTP `Accept-Language` headers, `youtube:lang` extractor arguments, `--format-sort`, and language-preferred audio format specifiers (`bestaudio[language^=lang]`) to `downloader.js`.
+  - Automatically fetches localized Turkish titles, descriptions, and audio dubbing tracks for multi-language YouTube videos (e.g. Ruhi Çenet Documentaries, MrBeast).
+  - Added "Preferred Audio & Title Language" (`preferredAudioLang`) configuration option to Settings tab across all 7 language files (`tr`, `en`, `es`, `de`, `pt`, `ar`, `ru`).
+  - Çoklu dil ve dublaj seçeneği olan YouTube videolarında uygulamanın seçili diline uygun Türkçe başlık, açıklama ve Türkçe ses dublajı akışının otomatik indirilmesi sağlandı. Ayarlar sekmesine "Tercih Edilen Ses & Başlık Dili" ayarı eklendi.
+
+## [8.1.0] - 2026-07-21
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Special Character URL Encoding in Player / Oynatıcıda Özel Karakterli Dosya Yolu URL Kodlaması:**
+  - Added path segment `encodeURIComponent` handling in `playVideoModal` for local WebView2 video playback. Prevents Chromium/WebView2 from truncating URLs at `#` symbols (e.g. `#10`, `#Shorts`) and resolves 404 file not found errors in `HaYTooL-Player Beta.exe`.
+  - WebView2 sanal dosya adresi oluşturulurken dosya yolu segmentlerine `encodeURIComponent` uygulandı. `#` ve `?` içeren videoların WebView2 yerel oynatıcısında kesilme ve 404 hatasına düşme sorunu giderildi.
+
+- **Future Download Title Metadata Sanitization / Gelecek İndirmeler İçin Dosya İsmi Temizleme:**
+  - Configured `--replace-in-metadata` yt-dlp arguments in `downloader.js` to strip `#`, `?`, `%` and sanitize `|` symbols in titles for future downloads while preserving native Turkish characters.
+  - Gelecek indirmelerde yt-dlp motoruna özel karakter temizleme parametreleri (`--replace-in-metadata`) eklenerek yeni dosyaların isimlerindeki `#`, `?`, `%` simgeleri otomatik arındırıldı.
+
+- **System Backup & Restore Categories Support / Sistem Yedeğine Kanal Kategorileri (`categories.ini`) Dahil Edilmesi:**
+  - Updated `POST /api/settings/backup` and `POST /api/settings/restore` to bundle and restore `categories.ini` alongside `db.json`, `channels.ini`, and `configwin.ini`.
+  - Manuel sistem yedekleme ve geri yükleme uç noktaları `categories.ini` dosyasını otomatik yedekleyecek ve geri yükleyecek şekilde güncellendi.
+
+## [8.0.0] - 2026-07-21
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Tray Context Menu "Check Channels" Feature / Sistem Tepsisi "Kanalları Denetle" Menü Seçeneği:**
+  - Added "Kanalları Denetle" (Check Channels) option to the system tray context menu in `tray.cs`, localized across 7 languages (`tr`, `en`, `es`, `de`, `pt`, `ar`, `ru`).
+  - Triggers parallel RSS feed checks across all subscribed YouTube channels on demand via `POST /api/sync`.
+  - Sistem tepsisindeki sağ tık menüsüne 7 dilde desteklenen "Kanalları Denetle" seçeneği eklendi. Tıklandığında tüm kanalların RSS akışları `POST /api/sync` uç noktası üzerinden anında paralel olarak taranır.
+
+- **System Startup Tray Icon Visibility Fix / Sistem Açılışında Tepsi İkonu Kaybolma Hatası Düzeltmesi:**
+  - Resolved missing tray icon issue when launched via Windows Run registry by binding working directory to `AppDomain.CurrentDomain.BaseDirectory` and using absolute `icon.ico` path.
+  - Implemented `WM_TASKBARCREATED` message handler in `SyncMessageForm` to automatically restore notify icon visibility when Explorer.exe restarts or initializes.
+  - Windows başlangıcında (`SOFTWARE\Microsoft\Windows\CurrentVersion\Run`) uygulamanın `C:\Windows\System32` varsayılan dizininde çalıştırılması nedeniyle ikon dosyasının okunamaması sorunu çalışma dizini sabitlemesi ve mutlak dosya yolu ile çözüldü. Windows görev çubuğu veya Explorer yeniden başladığında tepsiyi güncelleyen `WM_TASKBARCREATED` mesaj dinleyicisi eklendi.
+
+- **Category Management Auto-Load Restoration / Araçlar Sekmesi Kategori Yönetimi Otomatik Yükleme:**
+  - Integrated `loadCategoriesToTools` trigger upon switching to Tools tab (`switchTab('tools')`), rendering category manager cards with 17 default categories (including Podcast) fully localized and editable.
+  - Araçlar sekmesine geçildiğinde (`switchTab('tools')`) Kategori Yönetimi tablosunun otomatik yüklenmesi ve tüm 17 kategorinin (Podcast dahil) canlı olarak listelenmesi sağlandı.
+
+- **Channel Option Emoji Symbols / Filtre Listesi Kanal İkon Simgeleri:**
+  - Restored visually distinct `📺 ` channel symbols and `📁 ` category symbols in filter selection dropdowns across History and Downloads views.
+  - Kütüphane ve İndirilenler filtre listelerindeki seçeneklerin başına ayırt edici `📺 ` kanal ve `📁 ` kategori simgeleri eklendi.
+
+- **Release Packaging Exclusion List Update / Dağıtım Paketi Hariç Tutma Listesi Güncellemesi:**
+  - Updated `$ExcludeFolders` and `$ExcludeFiles` in `0nogithub/releases-maker.ps1` to filter out build artifacts, screenshots, releases, mutex locks, and log files (`screenshots`, `releases`, `mutex_lock.txt`, `iptv_cache.json`, `crash.txt` etc.).
+  - `0nogithub/releases-maker.ps1` sıkıştırma scripti güncellenerek pakete girmemesi gereken ekran görüntüleri, önbellek dosyaları ve kilit dosyaları hariç tutuldu.
+
+## [7.9.15] - 2026-07-20
+
+### Bug Fixes & Refactoring / Hata Düzeltmeleri & Düzenlemeler
+
+- **WPF Player Local Playback Direct Access / WPF Oynatıcı Yerel Diskten Oynatma Desteği:**
+  - Configured `streamUrl` in `app.js` to map directly to `file:///` local paths instead of backend HTTP stream endpoint when running inside the standalone WPF WebView2 player (`HaYTooL-Player Beta.exe`).
+  - Allows downloaded videos to be played directly from the local disk inside the unified Downloads tab player (embedded HTML5 Plyr/Artplayer) with native zero-latency, keeping comment/description sidebars interactive.
+  - Eliminated the separate `PlayerWindow` redirect trigger, ensuring all playbacks remain seamlessly inside the tab layout as intended.
+  - `app.js` içindeki `streamUrl` ataması güncellenerek, uygulamanın `HaYTooL-Player Beta.exe` (WPF WebView2) içinde çalıştığı tespit edildiğinde ve video indirilmiş durumdaysa, Express.js `/api/video-stream` HTTP akışı yerine doğrudan yerel dosya yolu (`file:///`) kullanılması sağlandı.
+  - Bu sayede yerel diskteki videolar, ayrı bir oynatıcı penceresi açılmasına gerek kalmadan, doğrudan İndirilenler sekmesi içindeki gömülü oynatıcı (Plyr/Artplayer) alanında sıfır gecikmeyle oynatılır. Yan paneldeki açıklama ve yorum alanları da kesintisiz olarak görüntülenebilir.
+  - Arayüzün bütünlüğünü korumak adına, harici WPF penceresi açan yönlendirme mantığı devredışı bırakılarak tüm oynatım deneyiminin sekme içinde kalması sağlanmıştır.
+
+## [7.9.14] - 2026-07-18
+
+### Features & Enhancements / Özellikler & Geliştirmeler
+
+- **Queue Concurrency Slot Optimization / İndirme Sırası Slot Optimizasyonu:**
+  - Kept download slots active during FFmpeg merging phase to prevent starting too many parallel processes, overloading CPU, and causing YouTube rate limits (HTTP 429).
+  - İndirme slotlarının FFmpeg birleştirme (merging) işlemi tamamen sonlanana kadar aktif tutulması sağlandı. Bu sayede eşzamanlı limitlerin aşılması, CPU aşırı yüklenmesi ve YouTube engeli (HTTP 429 / Bot doğrulaması) durumları kesin olarak önlendi.
+
+- **Unknown Duration Filtering Check / Belirsiz Süre İndirme Koruması:**
+  - Suspended automatic download queueing for newly discovered RSS videos from channels restricting shorts (`downloadShorts: false`) if the duration cannot be fetched immediately.
+  - Shorts indirilmesi engellenmiş kanallarda video süresi başlangıçta çözülemezse otomatik indirme kuyruğuna alınması engellendi. Videonun durumu `Süre Analizi` (waiting_duration) olarak güncellenip arka plan servisi süreyi netleştirene kadar bekletilmesi sağlandı.
+
+- **waiting_duration Status Rendering / "Süre Analizi" Durum Gösterimi:**
+  - Added support for displaying "Süre Analizi" (Duration Check) status badge and cancelling these videos in the library/history tabs.
+  - Arayüze "Süre Analizi" (waiting_duration) durum rozetinin gösterimi entegre edilerek, bu durumdaki videoların iptal edilebilmesi sağlandı.
+
+## [7.9.13] - 2026-07-16
+
+### Bug Fixes & Refactoring / Hata Düzeltmeleri & Düzenlemeler
+
+- **Long Title Wrapping & Dynamic FontSize Fix / Uzun Başlık Taşıma & Dinamik Yazı Boyutu Düzeltmesi:**
+  - Added `white-space: nowrap; overflow: hidden; text-overflow: ellipsis;` to `.inline-player-title` in `style.css` to guarantee the header row never wraps into two lines.
+  - Implemented dynamic font size calculations based on title character length in `app.js` (scaling down from 1.25rem to 0.85rem for longer titles).
+  - Attached the full title as a tooltip (`title` attribute) on the element so users can hover to read the complete text.
+  - `style.css` içindeki `.inline-player-title` sınıfına `white-space: nowrap; overflow: hidden; text-overflow: ellipsis;` kuralları eklenerek uzun başlıkların 2. satıra taşması ve tasarımı bozması kesin olarak engellendi.
+  - `app.js` üzerinde başlık karakter uzunluğuna göre dinamik yazı boyutu hesaplaması (1.25rem'den 0.85rem'e kadar otomatik küçülme) eklendi.
+  - Başlığa hover (üzerine gelme) yapıldığında tam sürümünü gösteren bir tooltip (`title` özniteliği) entegre edildi.
+
+## [7.9.12] - 2026-07-16
+
+### Bug Fixes & Refactoring / Hata Düzeltmeleri & Düzenlemeler
+
+- **Inline Video Player Details Card Redesign / Gömülü Video Oynatıcı Detay Kartı Yeniden Tasarımı:**
+  - Redesigned `.inline-player-info` layout under the player in the Downloads tab for a cleaner, more intuitive structure.
+  - Positioned Channel name and logo (`.inline-player-channel`) and Video Title (`.inline-player-title`) side-by-side in a new header row (`.inline-player-header-row`) at the very top.
+  - Placed Action buttons (`.inline-player-actions`) directly under the header row.
+  - Placed SponsorBlock status messages (`.inline-player-sponsorblock-status`) dynamically below the action buttons.
+  - Shifted Metadata stats (`.inline-player-meta-row` containing publish date, download date, file size, and SponsorBlock color legend) to the bottom of the card, separated by a top border partition.
+  - İndirilenler sekmesindeki gömülü oynatıcının altındaki `.inline-player-info` bilgi kartı düzeni daha temiz ve sezgisel bir yapıya kavuşturuldu.
+  - Kanal logosu ve ismi (`.inline-player-channel`) ile video başlığı (`.inline-player-title`) en üstte yan yana konumlanacak şekilde yeni bir başlık satırı (`.inline-player-header-row`) olarak tasarlandı.
+  - Araç ve eylem butonları (`.inline-player-actions`) başlık satırının hemen altına alındı.
+  - SponsorBlock bilgi/atlama mesajları (`.inline-player-sponsorblock-status`) aksiyon butonlarının altında dinamik olarak görüntülenecek şekilde konumlandırıldı.
+  - Yüklenme tarihi, boyutu ve SponsorBlock renk lejantını barındıran istatistik satırı (`.inline-player-meta-row`) kartın en altına taşındı ve üst çizgisiyle (`border-top`) butonlardan temiz bir biçimde ayrıldı.
+
+## [7.9.11] - 2026-07-15
+
+### Features & Enhancements / Özellikler & Geliştirmeler
+
+- **Player Single Instance Activation & Tray Startup Check / Tekil Oynatıcı Aktivasyonu & Tepsi Başlangıç Denetimi:**
+  - Implemented single-instance prevention in `player_launcher.cs` (compiled to `HaYTooL-Player Beta.exe`) using Windows APIs `SetForegroundWindow` and `ShowWindow` to restore and activate the existing WPF Player process window.
+  - Implemented cross-process IPC path forwarding using `WM_COPYDATA` messages, allowing newly launched instances to relay target navigation path arguments (e.g. `/settings` or `/downlist`) directly to the active running instance.
+  - Added startup check in the player launcher to automatically launch the background tray app `HaYTooL YT Downloader.exe` if not already running.
+  - `player_launcher.cs` dosyası güncellenerek `SetForegroundWindow` ve `ShowWindow` Windows API'leri aracılığıyla çalışan mevcut oynatıcıyı öne getirme desteği eklenmiştir.
+  - `WM_COPYDATA` mesaj iletim altyapısı kurularak, ikinci kez açılmaya çalışılan sayfa yönlendirme parametrelerinin (örn: `/settings`) arka planda çalışan ana oynatıcı penceresine iletilmesi ve onun üzerinde gösterilmesi sağlanmıştır.
+  - Oynatıcı başlatılırken `HaYTooL YT Downloader.exe` arka plan servis uygulamasının açık olup olmadığı denetlenerek, açık değilse otomatik olarak arka planda çalıştırılması sağlanmıştır.
+
+## [7.9.10] - 2026-07-15
+
+### Bug Fixes & Refactoring / Hata Düzeltmeleri & Düzenlemeler
+
+- **WPF Player External Navigation Interception / WPF Oynatıcı Dış Bağlantı Yönlendirmesi:**
+  - Registered `NavigationStarting` and `NewWindowRequested` event handlers in CoreWebView2 inside `MainWindow.xaml.cs` to intercept and cancel external domain navigations.
+  - Redirected all external URL link clicks (such as GitHub project and developer profile links) to launch directly inside the OS default browser (`Process.Start` with `UseShellExecute = true`), keeping only local backend services inside the WPF container.
+  - `MainWindow.xaml.cs` içindeki CoreWebView2 üzerinde `NavigationStarting` ve `NewWindowRequested` olay dinleyicileri kaydedilerek dış etki alanı yönlendirmeleri yakalandı ve iptal edildi.
+  - Sürüm bilgisi ve yapımcı profili gibi tüm dış bağlantı tıklamalarının (HTTP/HTTPS) gömülü WPF tarayıcı penceresi yerine işletim sisteminin varsayılan internet tarayıcısında (Chrome, Opera, Edge vb.) harici sekme olarak açılması sağlanmıştır.
+
+## [7.9.9] - 2026-07-15
+
+### Bug Fixes & Refactoring / Hata Düzeltmeleri & Düzenlemeler
+
+- **Tray Double-Click Selection Binding Fix / Tepsi Çift Tıklama Seçim Bağlantı Hatası Düzeltmesi:**
+  - Fixed a syntax error in `index.html` where the opening `<select>` tag for `settings-doubleclickaction` was accidentally overwritten.
+  - Linked the dropdown input inside `public/app.js` to correctly load its value from the settings JSON database (`db.settings.doubleClickAction`) on page initialization, and save changes automatically via the auto-save form mechanism.
+  - `index.html` üzerinde `settings-doubleclickaction` açılış etiketindeki sözdizim hatası düzeltildi.
+  - `public/app.js` içerisinde form açıldığında ilgili ayarın veritabanından okunarak (`db.settings.doubleClickAction`) kutuya yüklenmesi ve her değişiklik yapıldığında otomatik olarak veritabanına kaydedilmesi sağlanmıştır.
+
+## [7.9.8] - 2026-07-15
+
+### Features & Enhancements / Özellikler & Geliştirmeler
+
+- **Tray Double-Click Player Action & Launcher Fixes / Tepsi Çift Tıklama Oynatıcı Eylemi ve Başlatıcı Düzeltmeleri:**
+  - Added "HaYTooL-Player Beta.exe" option to the "Tray Double-Click Action" settings list, allowing the standalone C# player app to be launched directly on tray double-click.
+  - Localized the new option (`opt_doubleclick_player`) across all 7 supported language files (`tr`, `en`, `de`, `es`, `pt`, `ar`, `ru`).
+  - Updated `tray.cs` (compiled to `HaYTooL YT Downloader.exe`) to execute the new option by launching the player executable with dynamic arguments.
+  - Resolved launcher load crash by modifying `0nogithub/player_launcher.cs` to set the target working directory to the target binary folder (`bin\`) and passing command-line routing arguments (`/settings` or `/downlist`).
+  - "Tepsi Çift Tıklama Eylemi" ayarlarına "HaYTooL-Player Beta.exe" seçeneği eklenerek tepsi simgesine çift tıklandığında doğrudan oynatıcı uygulamasının açılması sağlanmıştır.
+  - Bu seçenek (`opt_doubleclick_player`) desteklenen 7 dil dosyasına (`tr`, `en`, `de`, `es`, `pt`, `ar`, `ru`) yerelleştirilmiştir.
+  - `tray.cs` (derlenen `HaYTooL YT Downloader.exe`) dosyası güncellenerek bu seçenek seçildiğinde oynatıcı başlatıcısının dinamik sayfa argümanlarıyla çalıştırılması sağlanmıştır.
+  - `0nogithub/player_launcher.cs` başlatıcı dosyasında çalışma dizini hedef `bin\` dizini olarak set edilerek ve gelen sayfa parametrelerini (/settings vb.) hedefe aktaracak şekilde güncellenerek başlatıcının çalışma zamanında çökmesi engellenmiştir.
+
+## [7.9.7] - 2026-07-15
+
+### Features & Enhancements / Özellikler & Geliştirmeler
+
+- **CSS Layout Spacing Optimization / Arayüz Boşluk Optimizasyonu:**
+  - Reduced the top padding of the main content container (`.main-content` in `style.css`) from `40px` to `15px` to eliminate the unnecessary gap between the top tab headers and the main tab contents (filters, embedded video details, and IPTV controls).
+  - Üst bar sekme başlıkları ile ana içerik alanları (kütüphane filtreleri, gömülü video oynatıcı ve IPTV kontrolleri) arasındaki gereksiz boşluğu kaldırmak amacıyla `.main-content` alanının üst iç boşluğu (`padding-top`) `40px` değerinden `15px` değerine düşürülmüştür. Böylece arayüz daha kompakt ve bütünleşik hale getirilmiştir.
+
+## [7.9.6] - 2026-07-15
+
+### Bug Fixes & Refactoring / Hata Düzeltmeleri & Düzenlemeler
+
+- **Turkish Encoding & Default Browser Redirections / Türkçe Karakter & Varsayılan Tarayıcı Düzeltmeleri:**
+  - Added `--encoding utf-8` parameter to `yt-dlp` description fetch execution in `streams.js` to force correct Turkish character output.
+  - Refactored `window.openYouTube` in `public/app.js` to dispatch a POST request to `/api/open-youtube` to open YouTube links using the host OS's default web browser instead of inside the WPF WebView2 container.
+  - `streams.js` dosyasındaki `yt-dlp` video açıklaması çekme işlemine `--encoding utf-8` parametresi eklenerek Türkçe karakterlerin (ı, ş, ğ, ç vb.) bozulması engellenmiştir.
+  - `public/app.js` içindeki `window.openYouTube` fonksiyonu güncellenerek `/api/open-youtube` API rotasını tetikleyecek şekilde değiştirilmiştir. Bu sayede "YouTube'da Aç" butonuna basıldığında link WebView2 içerisinde değil, bilgisayarın varsayılan varsayılan internet tarayıcısında (Chrome, Edge vb.) harici pencerede açılır.
+
+## [7.9.5] - 2026-07-15
+
+### Features & Enhancements / Özellikler & Geliştirmeler
+
+- **Video Details & Comments Refresh / Video Detaylarını ve Yorumları Güncelleme:**
+  - Added an inline button next to the autoplay toggle (`inline-btn-refresh-details`) to trigger scraping/updating the description and comments for the currently playing video.
+  - Implemented the `/api/video/:videoId/refresh-details` POST route, utilizing `yt-dlp` to fetch fresh description text from YouTube and write it back onto the `.description` file on disk.
+  - Connected the client button to trigger both description updates and dynamically reload YouTube comments, accompanied by sleek loading, success, and error overlay notifications.
+  - Gömülü oynatıcının altındaki kontrol alanına yeni bir detayları güncelleme butonu (`inline-btn-refresh-details`) eklenmiştir. Bu buton tıklandığında oynatılan videonun açıklamaları ve yorumları güncellenir.
+  - Arka planda `/api/video/:videoId/refresh-details` API rotası oluşturulmuştur. Bu rota, `yt-dlp` üzerinden güncel açıklamayı çekerek disk üzerindeki yerel `.description` dosyasını günceller.
+  - Butona tıklandığında hem yerel açıklama dosyası güncellenip ekrana basılmakta hem de YouTube yorumları canlı olarak yeniden sorgulanarak yüklenmektedir. Tüm bu süreç yüklenme, başarı ve hata animasyonlu bildirim kartlarıyla arayüzde gösterilmektedir.
+
+## [7.9.4] - 2026-07-15
+
+### Bug Fixes & Refactoring / Hata Düzeltmeleri & Düzenlemeler
+
+- **Unified Single Window Playback / Birleştirilmiş Tek Pencere Oynatım Mimarisi:**
+  - Configured the main dashboard WebView2 environment with `--disable-web-security` in `MainWindow.xaml.cs` to allow loading local file system resources (`file:///` protocol) inside the dashboard.
+  - Disabled the launch redirect for the separate `PlayerWindow` inside `public/app.js`, routing all normal video playbacks to the embedded HTML5 (Plyr/Artplayer) player layout.
+  - Resolved `streamUrl` assignment in `public/app.js` to map directly to `file:///` local paths instead of the Node.js `/api/video-stream` backend proxy when running inside the wrapper window, resulting in native zero-latency direct disk playback.
+  - Ana kontrol paneli WebView2 motoru (`MainWindow.xaml.cs`) `--disable-web-security` parametresi ile başlatılarak yerel dosya sistemindeki dosyalara (`file:///` protokolü) doğrudan erişim izni verilmiştir.
+  - Harici `PlayerWindow` oynatıcı penceresinin açılması `public/app.js` içinde devre dışı bırakılmış, tüm normal videoların doğrudan ana penceredeki indirilenler sekmesindeki gömülü oynatıcı (HTML5 Plyr/Artplayer) alanında açılması sağlanmıştır.
+  - Oynatıcı video kaynağı (`streamUrl`), yerel dosya varsa doğrudan `file:///` formatına çevrilerek Node.js sunucusundan akış yapılmadan sıfır gecikmeyle doğrudan diskten okunacak şekilde güncellenmiştir. Böylece yorumlar, açıklamalar ve oynatıcı tek bir pencerede kusursuz bir şekilde birleştirilmiştir.
+
+## [7.9.3] - 2026-07-15
+
+### Bug Fixes & Refactoring / Hata Düzeltmeleri & Düzenlemeler
+
+- **Native Dashboard Wrapper / Yerel Kontrol Paneli Arayüzü (HaYTooL YT Downloader.exe):**
+  - Enabled HTML5 fullscreen support for IPTV streams and embedded web players inside the primary Dashboard window by handling the `ContainsFullScreenElementChanged` event in `MainWindow.xaml.cs`. Toggling fullscreen on IPTV channels now maximizes the wrapper window to cover the screen seamlessly.
+  - Ana Dashboard arayüzü (`MainWindow.xaml.cs`) üzerinde WebView2 için `ContainsFullScreenElementChanged` olayı dinlenerek IPTV kanalları ve diğer tüm gömülü oynatıcılar için tam ekran desteği etkinleştirildi. IPTV kanallarında tam ekrana tıklandığında program penceresi monitörü kaplayacak şekilde tam ekrana geçmektedir.
+
+## [7.9.2] - 2026-07-15
+
+### Bug Fixes & Refactoring / Hata Düzeltmeleri & Düzenlemeler
+
+- **Native Desktop Player Wrapper / Yerel Masaüstü Oynatıcı Uygulaması (HaYTooL-Player Beta.exe):**
+  - Resolved media autoplay and resume (playback location) race conditions by moving initialization tasks from Plyr `ready` event to `canplay` event (handling DOM elements check and synchronization on media load).
+  - Bypassed Chromium autoplay gesture restrictions in WebView2 by adding the `--autoplay-policy=no-user-gesture-required` command line option.
+  - Decoupled `PlayerWindow` taskbar grouping from `MainWindow` on the Windows taskbar by calling COM shell `SHGetPropertyStoreForWindow` and assigning distinct `AppUserModelID` strings (`HaYTooL.MainWindow` and `HaYTooL.PlayerWindow`).
+  - Added click-to-seek support for video description timestamps (e.g. `01:00`, `12:34`, `01:23:45`) that parses, linkifies, and jumps to specific chapters natively.
+  - Redesigned the sidebar width from `380px` to `320px` and replaced comment list elements with modern, dark rounded cards (bubbles) for a sleeker visual appearance.
+  - Video oynatıcının `ready` olayında video süresi bilinmeden konum değiştirme hatası giderildi, otomatik oynatma ve resume (kaldığı yerden devam etme) işlemleri videonun oynatılabilirliğini garanti eden `canplay` olayına bağlanarak stabilize edildi.
+  - WebView2 tarayıcı motorunun kullanıcı tıklaması olmadan sesli video oynatma engeli `--autoplay-policy=no-user-gesture-required` parametresiyle kaldırıldı.
+  - Oynatıcı penceresinin Windows görev çubuğunda ana yazılım penceresiyle üst üste gruplanması, `SHGetPropertyStoreForWindow` Windows COM arabirimi üzerinden pencerelere farklı `AppUserModelID` (`HaYTooL.MainWindow` ve `HaYTooL.PlayerWindow`) değerleri verilerek engellendi.
+  - Video açıklama metnindeki zaman damgaları (01:00, 1:23:45 vb.) tıklanabilir yapıldı ve tıklandığında videonun o saniyeye atlaması sağlandı.
+  - Bilgi yan paneli genişliği 380px'den 320px'e düşürülerek video alanı genişletildi, yorumlar listesine modern koyu yuvarlatılmış kart (bubble) görünümü uygulandı.
+
+## [7.9.1] - 2026-07-12
+
+### Bug Fixes & Refactoring / Hata Düzeltmeleri & Düzenlemeler
+
+- **Native Desktop Player Wrapper / Yerel Masaüstü Oynatıcı Uygulaması (HaYTooL-Player Beta.exe):**
+  - Designed and compiled a standalone C# WPF application hosting Microsoft Edge WebView2 and an integrated high-performance Plyr player.
+  - Implemented automatic local subtitle scanner that reads and packages VTT and SRT files into base64 Data URIs to completely bypass Chromium CORS restrictions on local track tags.
+  - Bound full keyboard shortcuts (Space/K, F, C, M, Home, End, <, >, 0-9 digits) and mouse scroll wheel volume adjustments.
+  - Set dynamic window title formatted as: `Video Title - Channel Name - Upload Date`.
+  - Added playback resume functionality that remembers and resumes video play from the last watched position, fully synced with the main web app localStorage.
+  - C# WPF tabanlı, Edge WebView2 gömülü bir masaüstü uygulaması ve yerel video oynatıcı geliştirildi.
+  - Yerel altyazı yüklemedeki tarayıcı (CORS) kısıtlamalarını aşmak için videonun bulunduğu klasördeki `.vtt` ve `.srt` altyazı dosyalarını otomatik olarak okuyup dinamik base64 Data URI'ye çeviren sistem kuruldu (Türkçe ve İngilizce altyazılar otomatik çözülür).
+  - Oynatıcıya mouse scroll tekerleğiyle ses kontrolü ve klavye kısayollarının tamamı (Space/K, F, C altyazı aç/kapat, M sessize al, Home/End, <, >, 0-9 süre yüzdesi kısayolları) eklendi.
+  - Pencere başlığı dinamik olarak `"Video Başlığı - Kanal Adı - Yüklenme Tarihi"` şeklinde güncellendi.
+  - Videoları son kapatılan veya duraklatılan saniyeden başlatacak "Kaldığı Yerden Devam Et" (playback resume) hafızası entegre edildi.
+
+- **Paste & Download Database Persistence / Yapıştır & İndir Veritabanı Kalıcılığı:**
+  - Removed the restriction in `writeDb` that filtered out manual or standalone downloads during disk persistence. Manual/standalone downloads now persist across database reads and server restarts, showing up correctly in the Downloaded tab.
+  - Veritabanını diske yazan `writeDb` metodundaki manuel veya bağımsız indirme kayıtlarını temizleyen kısıtlama kaldırıldı. Artık PD üzerinden indirilen tüm videolar veritabanında kalıcı olarak saklanmakta ve İndirilenler sekmesinde sorunsuzca listelenmektedir.
+
+- **PD Download Title Scraping Fallback / PD İndirmelerinde Başlık Çözümleme Yedek Kontrolü:**
+  - Implemented a yt-dlp metadata scraping fallback for Paste & Download links. If HTTP scraping fails due to YouTube consent redirection, the system uses yt-dlp to resolve the actual video title and channel details instantly during download initialization.
+  - Yapıştır & İndir sayfasından tetiklenen indirmeler için yt-dlp tabanlı yedek detay çözümleyici eklendi. YouTube HTTP kazıma engelleri/yönlendirmeleri nedeniyle başlık boş kaldığında yt-dlp devreye girerek gerçek video adını ve kanal bilgisini çözüp indirme kuyruğuna aktarır.
+
+- **Double Notification Sound Prevention / Çift Bildirim Sesi Önleme:**
+  - Prevented duplicate beep sounds on download completion by disabling the PowerShell console beep when the backend server is running under the C# Tray Launcher. The tray launcher already plays the notification beep natively.
+  - İndirme tamamlandığında C# Tray uygulaması ve PowerShell'in aynı anda ses çalmasından kaynaklanan çift bip sesi engellendi. Sunucunun Tray Launcher altında çalışıp çalışmadığı otomatik kontrol edilerek mükerrer PowerShell ses çalma işlemi devre dışı bırakıldı.
+
+- **Upcoming & Live Stream Auto-Download Sync / Yaklaşan & Canlı Yayın Otomatik İndirme Senkronizasyonu:**
+  - Added upcoming/live stream completion check to the parallel RSS scanner `checkAllChannelsRssParallel`. Background checks and manual RSS refreshes now correctly detect ended live streams and auto-enqueue them for downloading.
+  - Toplu/paralel RSS tarayıcısına (`checkAllChannelsRssParallel`) yaklaşan/canlı yayınların bitiş durumunu denetleme ve indirme kuyruğuna ekleme mantığı entegre edildi. Artık yayın bittiğinde otomatik indirme süreci hemen başlatılmaktadır.
+
+
+## [7.9.0] - 2026-07-11
+
+### Bug Fixes & Refactoring / Hata Düzeltmeleri & Düzenlemeler
+
+
+- **yt-dlp Duration Scraper Stability / yt-dlp Süre Çözümleyici Kararlılığı:**
+  - Removed `--js-runtimes` parameter from the yt-dlp scraper to avoid crashes caused by whitespace in Node executable path. Also integrated the yt-dlp backup duration logic into the background `resolveMissingDurations` service.
+  - yt-dlp süre sorgulama komutundan `--js-runtimes` kaldırıldı; böylece Node.exe dosya yolundaki boşlukların sebep olduğu çökmeler giderildi. Ayrıca yt-dlp yedek süre tespiti arka plandaki `resolveMissingDurations` (eksik süreleri çözme) servisine de entegre edildi.
+
+- **Bulk Delete API Fix & View Modes / Toplu Silme API Düzeltmesi ve Görünüm Modu:**
+  - Resolved the empty page issue in the bulk delete tab by replacing the non-existent `/api/data` endpoint with direct reading from `localDb.history`. The list now renders instantly and is updated in real-time when the database changes.
+  - Toplu silme sekmesinin boş kalmasına sebep olan sunucuda mevcut olmayan `/api/data` API isteği, doğrudan yerel veritabanı belleğinden (`localDb.history`) anında ve hatasız okuma ile değiştirilerek sorun çözüldü. Ayrıca liste artık veritabanı güncellemelerinde anlık olarak canlı güncellenmektedir.
+
+
+## [7.8.0] - 2026-07-10
+
+### New Features & Improvements / Yeni Özellikler & Geliştirmeler
+
+- **RSS Shorts Duration Fallback via yt-dlp / RSS Eşitlemesinde Shorts Süresi İçin yt-dlp Yedek Kontrolü:**
+  - When a newly discovered video's duration cannot be resolved via the HTTP `fetchVideoDuration` method, the system now falls back to a direct yt-dlp `--print %(duration_string)s` check before adding the video to the queue. This ensures `downloadShorts = false` channel settings are applied correctly even when the HTTP scrape fails.
+  - Yeni keşfedilen bir videonun süresi HTTP tabanlı `fetchVideoDuration` ile çözülemezse, video kuyruğa alınmadan önce yt-dlp ile `--print %(duration_string)s` yedek kontrolü yapılır. Bu sayede `downloadShorts = false` ayarlı kanallarda Shorts videoların hatalı kuyruğa alınması engellenir.
+
+- **Bulk Delete Card Grid UI / Toplu Silme Zengin Kart Grid Arayüzü:**
+  - The bulk delete list in the Tools tab has been completely redesigned from a plain table into a rich card grid matching the Downloads tab style. Each card shows a thumbnail, duration badge, title, channel name, file size, download date, and an absolute-positioned checkbox. Clicking anywhere on the card body also toggles selection. Full dark/light theme support.
+  - Araçlar sekmesindeki Toplu Silme listesi düz tablodan, İndirilenler sekmesiyle eşleşen zengin kart grid sistemine dönüştürüldü. Her kart: kapak resmi, süre rozeti, başlık, kanal adı, dosya boyutu, indirme tarihi ve absolute konumlu checkbox içerir. Kart gövdesine tıklayarak da seçim yapılabilir. Koyu/açık tema tam uyumlu.
+
+## [7.7.0] - 2026-07-10
+
+### New Features & Improvements / Yeni Özellikler & Geliştirmeler
+- **Discord Rich Presence Pause Overhaul / Discord RPC Duraklatma İyileştirmesi:**
+  - Kept the Discord RPC "Watching" presence active during video pauses instead of clearing it immediately. The presence is now only cleared when the player is fully closed or the video reaches the end.
+  - Video duraklatıldığında Discord'daki "izliyor" durumu kaybolmayacak şekilde güncellendi. Duraklatma durumunda da video bilgileri aktif kalır, yalnızca oynatıcı kapatıldığında veya video bittiğinde durum temizlenir.
+- **Library Duration Filter / Kütüphane Süre Filtresi:**
+  - Added a dropdown selector (1-30 mins) to the library tab to filter out videos shorter than the selected threshold. This filter value is saved in the database settings (`historyDurationFilter`) and persistent across reboots.
+  - Kütüphane sekmesine 1-30 dakika arasında süre filtresi (açılır menü) eklendi. Seçilen sürenin altında kalan videolar listeden gizlenir. Bu ayar veri tabanına (`historyDurationFilter`) kaydedilir ve uygulama açılışında kalıcı olarak yüklenir.
+- **Bulk Video Deletion / Toplu Video Silme:**
+  - Added a "Bulk Delete" card in the Tools tab. Users can select multiple downloaded videos via checkboxes and delete them from both the database and the physical disk.
+  - Araçlar sekmesine "Toplu Video Silme" alanı eklendi. Kullanıcılar indirilen videoları checkbox ile çoklu seçerek tek tıkla veritabanından ve diskten topluca silebilirler.
+- **Filter Reset Icon Enhancements / Süzgeç İkon İyileştirmeleri:**
+  - Standardized `.filter-icon` element with cursor pointer, hover scaling, and primary color transitions for better click visibility.
+  - Kütüphane ve İndirilenler sekmelerindeki filtre sıfırlama ikonunun (`.filter-icon`) tıklanabilir olduğu hover efektleri, imleç ve opaklık düzenlemeleriyle belirginleştirildi.
+
+## [7.6.3] - 2026-07-09
+
+
+### Performance Optimizations / Performans Optimizasyonları
+- **Skip Duration Lookup for Ignored Videos / Göz Ardı Edilen Videoların Süre Çözümlemesi Atlattırıldı:**
+  - Optimized the background `resolveMissingDurations` service to completely skip duration and metadata resolution for videos with an `ignored` status. This prevents massive console log spam and unnecessary network requests to YouTube watch pages when bulk scanning.
+  - Arka planda çalışan `resolveMissingDurations` servisi, durumu `ignored` (göz ardı edilmiş) olan videoların sürelerini veya diğer bilgilerini çözmeye çalışmayacak şekilde optimize edildi. Böylece toplu kanal kontrollerinde konsolun spam loglarla dolması ve gereksiz ağ trafiği tamamen engellendi.
+
+## [7.6.2] - 2026-07-09
+
+### Improvements / Geliştirmeler
+- **Dynamic History-Referenced RSS Filtering / Geçmiş Referanslı Dinamik RSS Filtreleme:**
+  - Replaced the hardcoded 48-hour threshold with a dynamic history-referenced filter. If a channel has history items, the system compares incoming video dates with the latest published video in history (`latestHistoryTime`). Videos older than `latestHistoryTime` are ignored, while newer ones are downloaded, allowing the system to correctly handle offline periods of any duration (e.g. PC closed for 4 days) without downloading old backlogs.
+  - Sabit 48 saatlik sınır yerine geçmiş referanslı dinamik filtre yapısına geçildi. Eğer kanala ait geçmiş kaydı varsa, yeni videolar geçmişteki en son videonun yayınlanma tarihiyle kıyaslanır. Bu tarihten yeni olan videolar (örn. bilgisayarın 4 gün kapalı kalması senaryosu) başarıyla yakalanıp indirilirken, eski videolar göz ardı edilir.
+
+## [7.6.1] - 2026-07-09
+
+### Bug Fixes / Hata Düzeltmeleri
+- **Prevent Downloading Old Videos in Parallel Sync / Eski Videoların Kuyruğa Alınması Engellendi:**
+  - Added a 48-hour age threshold for newly discovered videos during RSS scanning. Videos older than 48 hours will be marked as `ignored` rather than `waiting`, preventing accidental mass downloads of historical videos.
+  - RSS taramalarında keşfedilen yeni videolar için 48 saatlik (2 günlük) bir yayın tarihi sınırı eklendi. 48 saatten eski videolar `waiting` yerine `ignored` olarak işaretlenerek geçmişteki eski videoların kazara topluca indirilmesi engellendi.
+
+## [7.6.0] - 2026-07-09
+
+### Performance Improvements / Performans İyileştirmeleri
+- **Parallel RSS Scanning for Manual Sync / Manuel Eşitlemede Paralel RSS Taraması:**
+  - Implemented concurrent RSS fetching using `Promise.allSettled` when checking channels via the "Check channels now" button, reducing manual check times from up to a minute down to 1-2 seconds.
+  - "Şimdi Kanalları Denetle" butonu tetiklendiğinde tüm kanalların RSS akışlarının eşzamanlı (`Promise.allSettled`) olarak taranması sağlandı; böylece manuel kontrol süresi 1-2 saniyeye düşürüldü.
+  - Centralized database locking to prevent deadlocks and race conditions during mass updates.
+  - Toplu güncellemeler sırasında kilit çakışmalarını (deadlock) önlemek için veritabanı kilit yönetimi tek çatı altında optimize edildi.
+
+## [7.5.9] - 2026-07-09
+
+### Code Quality & i18n Fixes / Kod Kalitesi & Dil Düzeltmeleri
+- **Turkish JSDocs / Türkçe JSDoc Yorumları:**
+  - Added comprehensive JSDoc blocks and comments in Turkish across all API route files for developer guidance.
+  - Geliştirici rehberliği için tüm API yönlendirici dosyalarına Türkçe JSDoc açıklamaları ve tipler eklendi.
+- **i18n & Status Badges Localization / Dil Dosyaları & Üst Bar Durum Çevirileri:**
+  - Fixed issue where "Tray Double Click Action" settings labels, "Cookies: Disabled", and "Quality: Best Quality" text remained in Turkish on non-Turkish languages (like German/Spanish).
+  - "Tepsi Çift Tıklama Eylemi", "Cookies: Devre Dışı" ve "Kalite: En Yüksek" durum etiketlerinin Almanca/İspanyolca gibi dillerde Türkçe kalması hatası düzeltildi; dile duyarlı dinamik i18n çevirisi sağlandı.
+  - Synchronized and filled missing keys in ES, DE, PT, AR, and RU language files.
+  - İspanyolca, Almanca, Portekizce, Arapça ve Rusça dil dosyalarındaki eksik çeviri anahtarları eşitlendi.
+- **Dynamic ASCII Banner / Dinamik ASCII Sürüm Bilgisi:**
+  - Dynamic app version dynamically integrated into the startup terminal ASCII banner.
+  - Başlangıç terminalinde basılan ASCII logodaki statik sürüm numarası `server/version.js`'den okunacak şekilde dinamikleştirildi.
+
+## [7.5.8] - 2026-07-09
+
+### New Features & Improvements / Yeni Özellikler & Geliştirmeler
+- **Video Card Status Dot Overhaul / Video Kartı Durum Noktaları Yenilendi:**
+  - `failed` (hata) durumunda artık "Hata" yazısı gösterilmiyor; sadece **kırmızı nokta** var. Hata mesajı noktanın üzerine gelindiğinde tooltip olarak görünüyor.
+  - `ignored` (göz ardı edildi) durumu artık **mavi nokta** ile gösteriliyor (önceden yanlışlıkla kırmızıydı).
+  - `completed missing` (dosya eksik) durumu **sarı uyarı noktası** ile gösteriliyor.
+  - `completed` (indirildi) durumu **yeşil nokta** ile korunuyor.
+- **Video Card Action Buttons Redesign / Aksiyon Butonları Yeniden Tasarlandı:**
+  - Her buton tipi için semantik CSS sınıfları (`btn-action-yt`, `btn-action-play`, `btn-action-folder`, `btn-action-cancel`, `btn-action-retry`, `btn-action-download`) tanımlandı.
+  - Inline style karmaşası kaldırıldı; butonlar artık renk kodlu, kenarlıklı ve hover animasyonlu hale getirildi.
+  - YouTube butonu kırmızı, oynat butonu cyan, klasör butonu sarı, iptal butonu kırmızı, retry butonu sarı, indir butonu yeşil renk temasına sahip.
+  - `tv` ikonları daha anlamlı `monitor-play` ikonlarıyla değiştirildi.
+  - Hem koyu hem açık tema için tam renk uyumluluğu sağlandı.
+
+## [7.5.7] - 2026-07-08
+
+### New Features & Improvements / Yeni Özellikler & Geliştirmeler
+- **Removed Download Start Sound / İndirme Başlama Sesi Kaldırıldı:**
+  - Disabled the notification sound on download start (`start` event) as requested to avoid unnecessary noise.
+  - İstek üzerine indirme başladığı anda çalan başlangıç bildirim sesi tamamen kaldırıldı.
+- **Shortened Success and Error Sound Beeps / İndirme Bildirim Sesleri Kısaltıldı:**
+  - Shortened the success sound to a single short, high-pitched native beep (C6, 1046Hz, 120ms) and the error sound to a single warning beep (E4, 330Hz, 200ms) to make them extremely quick, clean, and non-repetitive.
+  - İndirme tamamlandığında çalan başarı sesi tek bir temiz ve kısa bibe (C6 - 1046Hz, 120ms) ve indirme hatası sesi tek bir uyarı tonuna (E4 - 330Hz, 200ms) indirgendi. Sesler son derece kısa, net ve sade hale getirildi.
+
+## [7.5.6] - 2026-07-08
+
+### New Features & Improvements / Yeni Özellikler & Geliştirmeler
+- **Automatic Port Conflict Resolver in Launcher / Başlangıçta Otomatik Port Çakışması Çözücü:**
+  - Integrated a Dialog prompt when the target port (default 4141) is already in use. It notifies the user via screen dialog and asks whether they want to automatically terminate the process using the port and restart the application.
+  - Port 4141 doluluğunda kullanıcıya ekran üstü uyarı penceresi (MessageBox) gösterilmesi sağlandı. Kullanıcının onay vermesi durumunda portu işgal eden süreç otomatik sonlandırılarak uygulama temiz bir şekilde yeniden başlatılır.
+- **Native Tray Sound Chimes / Arayüz Üzerinden Gecikmesiz Native Ses Çalımı:**
+  - Routed sound playing commands from Node.js backend to the C# Tray Launcher using stdout piping (`[TRAY_CMD] play_sound=`). The Tray Launcher plays custom beep melodies natively inside the user's interactive session, resolving silent background sessions and eliminating PowerShell startup delays.
+  - Bildirim seslerinin yavaş powershell komutu yerine C# Tray Launcher üzerinden gecikmesiz ve native olarak çalınması sağlandı. `[TRAY_CMD] play_sound=` boru hattıyla sunucudan gelen komutlar tray tarafından arka plan thread'inde anında çalınır.
+
+## [7.5.5] - 2026-07-08
+
+### New Features & Improvements / Yeni Özellikler & Geliştirmeler
+- **Custom Melodious Notification Chimes / Uygulamaya Özel Melodik Bildirim Sesleri:**
+  - Replaced standard Windows notification sounds with custom melodious beep chords (chimes) using PowerShell `[System.Console]::Beep`.
+  - Windows'un varsayılan sistem sesleri (Asterisk, Question, Hand) yerine uygulamanın kendine özel, melodik ve ayırt edilebilir özel bip melodileri entegre edildi.
+  - Added distinct tones for download start (quick ascending), download success (cheerful arpeggio), and download error (warning low double-chime).
+  - İndirme başlangıcı (hızlı yükselen çift bip), indirme başarısı (neşe verici arpej melodisi) ve indirme hatası (kalın tonda uyarı tonu) için farklı melodiler oluşturuldu.
+
+## [7.5.4] - 2026-07-07
+
+### Bug Fixes / Hata Düzeltmeleri
+- **Dynamic Localization in Metadata and Video Titles / Video Başlıklarında ve Metadata Çekiminde Dil Uyumsuzluğu Düzeltmesi:**
+  - Resolved an issue where video titles in the library tab were fetched in English despite the application being set to Turkish. Passed the `--extractor-args "youtube:lang=LANG"` option to `yt-dlp` to ensure metadata matches the user's selected language.
+  - Uygulama dili Türkçe olmasına rağmen kütüphane sekmesinde video başlıklarının İngilizce gösterilmesi sorunu düzeltildi. `yt-dlp` komutlarına `--extractor-args "youtube:lang=LANG"` argümanı eklenerek YouTube'dan başlık ve diğer bilgilerin seçili dilde çekilmesi sağlandı.
+  - Dynamically configured `Accept-Language` headers and `hl` URL parameters across all 7 supported languages during manual RSS check, video duration parsing, and YouTube searches.
+  - Manuel RSS denetimi, video süresi çözme ve YouTube aramaları sırasında `Accept-Language` başlıkları ve `hl` URL parametreleri desteklenen 7 dile göre dinamik hale getirildi.
+  - Automatically update the titles of already-processed library videos to the localized language during RSS feed sync if they differ from the stored titles.
+  - RSS akışı eşitlemesi sırasında, veritabanında daha önceden İngilizce kaydedilmiş olan başlıkların yeni çekilen yerelleştirilmiş dildeki başlıkla otomatik olarak güncellenmesi sağlandı.
+
+## [7.5.3] - 2026-07-07
+
+### Bug Fixes / Hata Düzeltmeleri
+- **Truncated Error Tooltip in Video Cards / Hata Durumunda Uzayan Tooltip Düzeltmesi:**
+  - Shortened the download error log output shown in the failed status pill tooltip. It now filters and displays only the last relevant `ERROR:` output or a truncated summary instead of spawning massive multiple-line logs that block the browser view.
+  - İndirme hatası alan videoların ("Hata" durumundaki) üzerine gelindiğinde tarayıcıda beliren devasa, yüzlerce satırlık hata logu tooltip'i kısaltıldı. Artık sadece en son ve anlamlı `ERROR:` satırı veya ilk 150 karakterlik bir özet gösterilerek ekran kaplama sorunu çözüldü.
+
+## [7.5.2] - 2026-07-07
+
+### Bug Fixes / Hata Düzeltmeleri
+- **Library Channel Limit Order Fix / Kütüphane Kanal Başına Geçmiş Limiti Sıralama Düzeltmesi:**
+  - Fixed an issue where deleting/hiding a video caused older videos to snoop into the channel list to fill the count. Now, the `hideOnDelete` filter is applied *after* the channel limits are processed, ensuring the channel shows fewer videos instead of backfilling with older history.
+  - Bir video silindiğinde veya gizlendiğinde, kanal başına belirlenmiş olan maksimum video sayısı limitinin altına düşüldüğü için daha eski videoların listeye sızması sorunu giderildi. Artık gizleme filtresi kanal bazlı limit uygulandıktan sonra çalıştırılır; böylece eski videolar listeye sızmaz.
+
+## [7.5.1] - 2026-07-07
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **Hide Video from Library on Delete / Silinen Videoları Kütüphaneden Gizleme Desteği:**
+  - Added a configuration setting `hideOnDelete` to toggle whether deleting a video automatically hides it from the Library tab.
+  - Bir video geçmişten veya bilgisayardan silindiğinde Kütüphane sekmesinde de otomatik olarak gizlenmesini sağlayan `hideOnDelete` ayarı ve kontrol kutusu entegre edildi.
+  - Handled translation mappings across 7 supported languages (`tr`, `en`, `es`, `de`, `pt`, `ar`, `ru`) and updated deletion responses with custom status logs accordingly.
+  - 7 farklı dil dosyası güncellendi ve silme/gizleme bildirimleri dinamikleştirildi.
+
+## [7.5.0] - 2026-07-06
+
+### New Features & Improvements / Yeni Özellikler & İyileştirmeler
+- **Dynamic Concurrent Downloads / Dinamik Eşzamanlı İndirme Limiti:**
+  - Added a dropdown selector to the Queue tab, allowing users to dynamically set the concurrent download limit (1 to 5).
+  - Kuyruk sekmesine kullanıcıların eşzamanlı indirme limitini (1 ila 5) dinamik olarak değiştirebilmesini sağlayan bir seçim kutusu eklendi.
+- **Downloading Reordering & Drag-Drop / İndirilenlerin Kuyrukta Sıralanabilmesi:**
+  - Integrated downloading items directly into the draggable queue. Moving an active download out of the concurrency limit will stop (kill) the process, put it back to 'waiting', and start the next item automatically.
+  - İndirilmekte olan videolar kuyruk listesine entegre edilerek sürüklenebilir yapıldı. Aktif bir indirme limit dışına sürüklendiğinde işlem durdurulup 'bekliyor' durumuna alınır ve sıradaki video otomatik olarak başlatılır.
+- **Pre-download Duration & Size Info / İndirme Öncesi Süre ve Boyut Bilgisi:**
+  - Added asynchronous metadata scraping (`--simulate`) after adding a video to the queue. Displays approx. file size and duration on the queue card before starting the download.
+  - Videolar kuyruğa eklendiğinde arka planda asenkron yt-dlp sorgusu çalıştırılarak video süresi ve tahmini dosya boyutu bilgileri çekilir ve kuyruk kartında gösterilir.
+- **Delete Button on Completed Downloads / Tamamlanan İndirmelere Silme Desteği:**
+  - Added a trash/delete button next to the play button in the completed downloads history. Clicking it opens the standard deletion confirmation modal to clean up DB records and local files.
+  - Kuyruk altındaki tamamlanan son indirilenler listesine sil butonu eklendi. Butona tıklandığında silme onay penceresi açılarak hem veritabanı kaydının hem de yerel dosyanın silinmesi sağlanır.
+
 ## [7.4.1] - 2026-07-04
 
 ### Bug Fixes / Hata Düzeltmeleri
 - **Atomic Database Writes / Atomik Veritabanı Yazımı:**
+  - Implemented secure atomic file writing for `db.json` using temporary files (`db.json.tmp`) and atomic rename methods (`fs.renameSync`). This prevents data corruption and settings resets (factory resets) in case of sudden power outages.
   - Implemented secure atomic file writing for `db.json` using temporary files (`db.json.tmp`) and atomic rename methods (`fs.renameSync`). This prevents data corruption and settings resets (factory resets) in case of sudden power outages.
   - Ani elektrik kesintilerinde `db.json` dosyasının bozulmasını ve ayarların sıfırlanmasını önlemek amacıyla geçici dosya kullanılarak atomik dosya yazma yapısı (`fs.renameSync`) entegre edildi.
 - **FFmpeg & yt-dlp Queue Timeout / FFmpeg ve yt-dlp Zaman Aşımı Koruması:**

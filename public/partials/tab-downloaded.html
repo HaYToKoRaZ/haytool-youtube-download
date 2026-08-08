@@ -1,0 +1,311 @@
+      <section id="tab-downloaded" class="tab-content">
+        <!-- Yerleşik Video Oynatıcı (YouTube tarzı split layout) -->
+        <div id="downloaded-inline-player-container" class="downloaded-inline-player-container hidden">
+          <div class="inline-player-main">
+            <div class="inline-player-wrapper">
+              <div id="inline-player-body" class="inline-player-body">
+                <!-- Video / Player Instance yerleşimi -->
+              </div>
+            </div>
+            <div class="inline-player-info card">
+              <!-- 1. Satır: Kanal Logosu/İsmi ve Video Başlığı -->
+              <div class="inline-player-header-row">
+                <div class="inline-player-channel" style="display: flex; align-items: center; gap: 6px;">
+                  <img id="inline-player-channel-avatar" class="inline-channel-avatar" src="" onerror="this.style.display='none';" />
+                  <span id="inline-player-logo-divider" style="color: rgba(255, 255, 255, 0.15); display: none;">/</span>
+                  <span id="inline-player-channel-name">Kanal Adı</span>
+                  <span id="inline-player-channel-divider" style="color: rgba(255, 255, 255, 0.15); display: none;">/</span>
+                  <span id="inline-player-channel-subs" style="font-size: 0.72rem; color: var(--accent-primary); background: rgba(168, 85, 247, 0.08); padding: 2px 8px; border-radius: 20px; font-weight: 600; border: 1px solid rgba(168, 85, 247, 0.15); display: none; align-items: center; gap: 4px;"><i data-lucide="users" style="width:10px; height:10px;"></i><span id="inline-player-channel-subs-text">--</span></span>
+                </div>
+                <h3 id="inline-player-title" class="inline-player-title">Video Başlığı</h3>
+              </div>
+
+              <!-- 2. Satır: Aksiyon Butonları -->
+              <div class="inline-player-actions">
+                <button class="btn btn-secondary btn-sm" id="inline-btn-youtube" title="YouTube'da Aç" aria-label="YouTube'da Aç" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" style="fill:#ff0000; display:inline-block; vertical-align:middle;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                </button>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-system" title="Sistem Oynatıcısında Aç" aria-label="Sistem Oynatıcısında Aç" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                  <i data-lucide="tv" style="width: 16px; height: 16px;"></i>
+                </button>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-folder" title="Klasör Aç" aria-label="Klasör Aç" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                  <i data-lucide="folder-open" style="width: 16px; height: 16px;"></i>
+                </button>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-description" title="Açıklamayı Göster" aria-label="Açıklamayı Göster" onclick="toggleDescriptionPanel()" style="width: 32px; height: 32px; display: none; align-items: center; justify-content: center; padding: 0;">
+                  <i data-lucide="align-left" style="width: 16px; height: 16px;"></i>
+                </button>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-comments" title="Yorumları Göster" aria-label="Yorumları Göster" onclick="toggleCommentsPanel()" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                  <i data-lucide="message-square" style="width: 16px; height: 16px;"></i>
+                </button>
+                <!-- Altyazı Çevir Butonu (Altyazıyı istenen dile çevirmek için) -->
+                <button class="btn btn-secondary btn-sm" id="inline-btn-translate-sub" title="Altyazı Çevir" data-i18n-title="inline_btn_translate_sub" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #10b981; font-weight: 600; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                  <i data-lucide="languages" style="width:16px; height:16px;"></i>
+                </button>
+
+                <!-- SponsorBlock Geçici Aç/Kapat Butonu -->
+                <button class="btn btn-secondary btn-sm" id="inline-btn-sponsorblock-toggle" title="SponsorBlock Aktif" style="width: 32px; height: 32px; display: none; align-items: center; justify-content: center; padding: 0; color: #4ade80; background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.2);">
+                  <i data-lucide="shield" style="width: 16px; height: 16px;"></i>
+                </button>
+
+                <!-- Otomatik Geçiş (Autoplay) Aç/Kapat Butonu -->
+                <button class="btn btn-secondary btn-sm" id="inline-btn-autoplay-toggle" title="Sonraki Videoya Otomatik Geç" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--text-muted); background: rgba(255, 255, 255, 0.03); border-color: var(--border-color);">
+                  <i data-lucide="play-circle" style="width: 16px; height: 16px;"></i>
+                </button>
+
+                <!-- Açıklama ve Yorumları Güncelleme Butonu -->
+                <button class="btn btn-secondary btn-sm" id="inline-btn-refresh-details" title="Yorum ve Açıklamaları Güncelle" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--text-muted); background: rgba(255, 255, 255, 0.03); border-color: var(--border-color);">
+                  <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+                </button>
+
+                <!-- Altyazı Rengi Seçici -->
+                <select id="inline-subtitle-color" class="btn btn-secondary btn-sm" style="margin-left: auto; padding: 2px 8px; font-size: 0.8rem; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; border-radius: 6px; outline: none; height: 32px;" title="Altyazı Rengi">
+                  <option value="#ffffff">Beyaz</option>
+                  <option value="#ffff00">Sarı</option>
+                  <option value="#00ff00">Yeşil</option>
+                  <option value="#00ffff">Turkuaz</option>
+                  <option value="#ff00ff">Pembe</option>
+                  <option value="#ff0000">Kırmızı</option>
+                  <option value="#0000ff">Mavi</option>
+                  <option value="#ffa500">Turuncu</option>
+                  <option value="#800080">Mor</option>
+                  <option value="#000000">Siyah</option>
+                  <option value="#808080">Gri</option>
+                  <option value="#ffffe0">Açık Sarı</option>
+                </select>
+
+                <!-- Arka Plan Saydamlığı Seçici -->
+                <select id="inline-subtitle-opacity" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.8rem; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; border-radius: 6px; outline: none; height: 32px;" title="Altyazı Saydamlığı">
+                  <option value="0.0">Saydam (%0)</option>
+                  <option value="0.1">Saydamlık (%10)</option>
+                  <option value="0.2">Saydamlık (%20)</option>
+                  <option value="0.3">Saydamlık (%30)</option>
+                  <option value="0.4">Saydamlık (%40)</option>
+                  <option value="0.5">Saydamlık (%50)</option>
+                  <option value="0.6">Saydamlık (%60)</option>
+                  <option value="0.7">Saydamlık (%70)</option>
+                  <option value="0.8">Saydamlık (%80)</option>
+                  <option value="0.9">Saydamlık (%90)</option>
+                  <option value="0.95">Saydamlık (%95)</option>
+                  <option value="1.0">Mat (%100)</option>
+                </select>
+
+                <select id="inline-subtitle-size" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.8rem; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; border-radius: 6px; outline: none; height: 32px;" title="Altyazı Boyutu">
+                  <option value="26px">26px</option>
+                  <option value="28px">28px</option>
+                  <option value="30px">30px</option>
+                  <option value="32px">32px</option>
+                  <option value="34px">34px</option>
+                  <option value="36px">36px</option>
+                  <option value="38px">38px</option>
+                  <option value="40px">40px</option>
+                  <option value="42px">42px</option>
+                  <option value="44px">44px</option>
+                  <option value="46px">46px</option>
+                  <option value="48px">48px</option>
+                  <option value="50px">50px</option>
+                </select>
+
+                <!-- Tekrar İndir Butonu -->
+                <button class="btn btn-secondary btn-sm" id="inline-btn-redownload" title="Videoyu Sil ve Tekrar İndir" style="background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.2); color: orange; font-weight: 600; height: 32px; display: inline-flex; align-items: center; gap: 4px;">
+                  <i data-lucide="refresh-cw" style="width:14px; height:14px;"></i>
+                  <span>Tekrar İndir</span>
+                </button>
+
+                <button class="btn btn-danger btn-sm" id="inline-btn-delete" title="Sil" aria-label="Sil">
+                  <i data-lucide="trash-2"></i>
+                  <span>Sil</span>
+                </button>
+                <button class="btn btn-secondary btn-sm" id="inline-btn-close" title="Kapat" aria-label="Kapat">
+                  <i data-lucide="x"></i>
+                  <span>Kapat</span>
+                </button>
+              </div>
+
+              <!-- SponsorBlock Durum Alanı -->
+              <div class="inline-player-sponsorblock-status" id="inline-player-sponsorblock-status" style="display: none;"></div>
+
+              <!-- 3. Satır: İstatistikler ve Lejant -->
+              <div class="inline-player-meta-row">
+                <div class="inline-player-stats" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.72rem; color: var(--text-muted); align-items: center; margin-top: 4px;">
+                  <span id="inline-player-publish-date">Yüklenme: --</span>
+                  <span class="meta-sep" style="color: rgba(255, 255, 255, 0.15);">•</span>
+                  <span id="inline-player-download-date">İndirilme: --</span>
+                  <span class="meta-sep" style="color: rgba(255, 255, 255, 0.15);">•</span>
+                  <span id="inline-player-file-size">Boyut: --</span>
+                  <span id="inline-player-sb-sep" class="meta-sep" style="color: rgba(255, 255, 255, 0.15); display: none;">•</span>
+                  <div class="inline-player-sponsorblock-legend" id="inline-player-sponsorblock-legend" style="display: none; flex-wrap: wrap; gap: 8px; font-size: 0.72rem; color: var(--text-muted); align-items: center;">
+                    <span style="font-weight: 600; margin-right: 4px;">SponsorBlock:</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #4ade80; display: inline-block;"></span> Sponsor</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #facc15; display: inline-block;"></span> Kendi Reklamı</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #38bdf8; display: inline-block;"></span> Etkileşim</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #2dd4bf; display: inline-block;"></span> Giriş (Intro)</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #c084fc; display: inline-block;"></span> Bitiş (Outro)</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background-color: #f43f5e; display: inline-block;"></span> Önizleme/Müzik</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Açıklama Paneli -->
+            <div id="inline-player-description-container" class="inline-player-description-container card hidden" style="margin-top: 15px; padding: 20px; max-height: 400px; overflow-y: auto;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;">
+                <h4 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                  <i data-lucide="align-left" style="color: var(--accent-primary);"></i>
+                  <span id="description-title-text">Açıklama</span>
+                </h4>
+                <button class="btn btn-secondary btn-xs" onclick="toggleDescriptionPanel()" style="padding: 4px 10px; font-size: 0.8rem; height: 26px;">Kapat</button>
+              </div>
+              <div id="description-content" style="white-space: pre-wrap; font-size: 0.85rem; line-height: 1.6; color: var(--text-muted); font-family: inherit;">
+                <!-- Açıklama içeriği ve zaman damgaları buraya gelecek -->
+              </div>
+            </div>
+
+            <!-- Yorumlar Paneli -->
+            <div id="inline-player-comments-container" class="inline-player-comments-container card hidden" style="margin-top: 15px; padding: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                <h4 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                  <i data-lucide="message-square" style="color: var(--accent-primary);"></i>
+                  <span id="comments-title-text">Yorumlar</span>
+                </h4>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <select id="comments-sort" onchange="sortAndRenderComments()" style="font-size: 0.75rem; padding: 4px 8px; background-color: var(--bg-sidebar); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 6px; outline: none; cursor: pointer; transition: border-color 0.2s;">
+                    <option value="default">Varsayılan</option>
+                    <option value="likes-desc">Beğeni (Çoktan Aza)</option>
+                    <option value="date-new">En Yeni</option>
+                    <option value="date-old">En Eski</option>
+                  </select>
+                  <button class="btn btn-secondary btn-xs" onclick="toggleCommentsPanel()" style="padding: 4px 10px; font-size: 0.8rem; height: 26px;">Kapat</button>
+                </div>
+              </div>
+              <div id="comments-loading" class="text-center text-muted" style="padding: 20px; display: none;">
+                <i data-lucide="loader" class="spin-animation" style="width: 20px; height: 20px; margin-bottom: 8px; display: inline-block;"></i>
+                <div>Yorumlar yükleniyor...</div>
+              </div>
+              <div id="comments-list-empty" class="text-center text-muted" style="padding: 20px; display: none;">
+                Yorum bulunamadı veya yüklenirken bir sorun oluştu.
+              </div>
+              <div id="comments-list" style="display: flex; flex-direction: column; gap: 15px; max-height: 1300px; overflow-y: auto; padding-right: 5px;">
+                <!-- Yorumlar buraya eklenecek -->
+              </div>
+              <div id="comments-more-container" style="display: none; text-align: center; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+                <button class="btn btn-secondary btn-sm" id="btn-load-more-comments" onclick="loadMoreComments()" style="padding: 6px 20px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 8px;">
+                  <i data-lucide="plus"></i>
+                  <span id="btn-load-more-comments-text">Daha Fazla Göster</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="inline-player-sidebar card">
+            <div class="sidebar-header" style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+              <h4 id="inline-sidebar-title" style="margin:0; font-size:1rem; font-weight:700;">İndirilenler</h4>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <!-- Hızlı Sıralama Butonları -->
+                <button type="button" class="sort-btn" id="inline-btn-sort-date" style="padding: 4px 8px; font-size: 0.72rem; display: flex; align-items: center; gap: 4px; height: 26px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" title="Tarihe Göre Sırala">
+                  <i data-lucide="calendar" style="width:12px; height:12px;"></i>
+                  <span id="inline-btn-sort-date-text">Tarih ▼</span>
+                </button>
+                <button type="button" class="sort-btn" id="inline-btn-sort-size" style="padding: 4px 8px; font-size: 0.72rem; display: flex; align-items: center; gap: 4px; height: 26px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" title="Boyuta Göre Sırala">
+                  <i data-lucide="hard-drive" style="width:12px; height:12px;"></i>
+                  <span id="inline-btn-sort-size-text">Boyut ▼</span>
+                </button>
+                <button type="button" class="sort-btn" id="inline-btn-sort-user" style="padding: 4px 8px; font-size: 0.72rem; display: flex; align-items: center; gap: 4px; height: 26px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" title="Kullanıcı Tanımlı Sıralama">
+                  <i data-lucide="user" style="width:12px; height:12px;"></i>
+                  <span id="inline-btn-sort-user-text">Kullanıcı</span>
+                </button>
+                
+                <!-- Shorts Göster Seçeneği -->
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 0.72rem; color: var(--text-main); cursor: pointer; user-select: none; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 6px; height: 26px; margin: 0;">
+                  <input type="checkbox" id="inline-playlist-show-shorts" style="cursor: pointer; margin: 0; width: 12px; height: 12px;">
+                  <span id="inline-label-shorts-text">Shorts</span>
+                </label>
+              </div>
+            </div>
+            <div id="downloaded-playlist-grid" class="downloaded-playlist-grid">
+              <!-- Diğer indirilen videolar buraya render edilecek -->
+            </div>
+          </div>
+        </div>
+
+        <div id="downloaded-list-container">
+          <div class="history-toolbar">
+            <div class="filter-group">
+              <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);cursor:pointer;" onclick="resetDownloadedChannelFilter()" title="Filtreyi Sıfırla"></i>
+              <div class="custom-channel-dropdown" id="downloaded-custom-dropdown">
+                <button type="button" class="custom-dropdown-trigger" id="downloaded-channel-trigger" onclick="toggleCustomChannelPicker('downloaded', event)">
+                  <span class="custom-dropdown-selected-content" id="downloaded-channel-trigger-content">
+                    <i data-lucide="globe" style="width:14px;height:14px;color:var(--accent-color);"></i>
+                    <span>Tüm Kanallar</span>
+                  </span>
+                  <i data-lucide="chevron-down" style="width:14px;height:14px;color:var(--text-muted);margin-left:8px;"></i>
+                </button>
+                <div class="custom-dropdown-menu" id="downloaded-channel-options-panel">
+                  <!-- JS ile logolu kanallar yüklenecek -->
+                </div>
+              </div>
+              <select id="downloaded-channel-filter" style="display:none;" onchange="onDownloadedChannelFilterChange()">
+                <option value="all">Tüm Kanallar</option>
+              </select>
+            </div>
+            <div class="filter-group" style="margin-left: auto; display: flex; gap: 8px;">
+              <button class="btn btn-secondary" id="dl-refresh-metadata-btn" onclick="executeRefreshMetadata()" title="Videoların Süre ve Boyut Bilgilerini Güncelle" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8rem;">
+                <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
+                <span id="btn-update-metadata-dl">Metadata Güncelle</span>
+              </button>
+              <button class="btn btn-secondary" id="downloaded-bulk-delete-toggle-btn" onclick="toggleDownloadedBulkDeleteMode()" title="Toplu Silme Modunu Aç/Kapat" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8rem;">
+                <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                <span id="btn-bulk-delete-dl-toggle">Toplu Silme</span>
+              </button>
+            </div>
+            <div class="filter-group sort-button-group" style="margin-left: 15px; display: flex; gap: 6px;" id="downloaded-sort-group">
+              <i data-lucide="arrow-up-down" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);margin-right:6px;align-self:center;"></i>
+              <button type="button" class="sort-btn active" data-sort="date-desc" id="sort-btn-date-desc" title="Tarih: Yeniden Eskiye">Tarih ▼</button>
+              <button type="button" class="sort-btn" data-sort="date-asc" id="sort-btn-date-asc" title="Tarih: Eskiden Yeniye">Tarih ▲</button>
+              <button type="button" class="sort-btn" data-sort="size-desc" id="sort-btn-size-desc" title="Boyut: Büyükten Küçüğe">Boyut ▼</button>
+              <button type="button" class="sort-btn" data-sort="size-asc" id="sort-btn-size-asc" title="Boyut: Küçükten Büyüğe">Boyut ▲</button>
+              <button type="button" class="sort-btn" data-sort="user" id="sort-btn-user" title="Kullanıcı Tanımlı Sıralama">Kullanıcı</button>
+            </div>
+            <div class="filter-group" style="display: flex; align-items: center; gap: 8px; margin-left: 15px;">
+              <input type="checkbox" id="downloaded-show-shorts" class="toggle-input">
+              <label for="downloaded-show-shorts" class="toggle-label"></label>
+              <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none;" onclick="document.getElementById('downloaded-show-shorts').click()">Shorts Videolarını Göster</span>
+            </div>
+            <div class="view-toggle-container">
+              <button id="downloaded-view-grid-btn" class="view-btn active" title="Kart Görünümü">
+                <i data-lucide="layout-grid"></i>
+                <span>Kartlar</span>
+              </button>
+              <button id="downloaded-view-list-btn" class="view-btn" title="Sade Liste Görünümü">
+                <i data-lucide="list"></i>
+                <span>Sade Liste</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Toplu Silme Barı -->
+          <div id="downloaded-bulk-delete-bar" class="hidden card" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; margin-bottom: 16px; background: rgba(22, 20, 42, 0.95); border: 1px solid var(--primary); border-radius: 12px; box-shadow: 0 4px 20px rgba(138, 43, 226, 0.2); backdrop-filter: blur(10px);">
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-main); cursor: pointer; user-select: none; margin: 0;">
+                <input type="checkbox" id="downloaded-bulk-delete-select-all" onchange="toggleSelectAllDownloadedBulkDelete(this)" style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--primary);">
+                <span id="lbl-dl-select-all">Tümünü Seç</span>
+              </label>
+              <span style="color: rgba(255,255,255,0.15); font-size: 0.9rem;">|</span>
+              <span style="font-size: 0.9rem; color: var(--text-main);">
+                <span id="lbl-dl-selected-count">Seçilen:</span> 
+                <strong id="downloaded-bulk-delete-selected-count" style="color: var(--secondary); font-size: 1rem; font-family: var(--font-title);">0</strong>
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none; margin: 0; padding-right: 10px;">
+                <input type="checkbox" id="downloaded-bulk-delete-files-checkbox" checked style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--primary);">
+                <span id="lbl-dl-also-delete-files">Diskteki Dosyaları da Sil</span>
+              </label>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="cancelDownloadedBulkDeleteMode()" style="padding: 6px 14px; font-size: 0.8rem; border-radius: 8px;">İptal</button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="executeDownloadedBulkDelete()" style="background: var(--accent-red); border-color: var(--accent-red); padding: 6px 14px; font-size: 0.8rem; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 12px rgba(255, 0, 85, 0.2);">Seçilenleri Sil</button>
+            </div>
+          </div>
+
+          <div class="history-grid" id="downloaded-grid">
+            <!-- İndirilmiş video kartları JS ile buraya yüklenecek -->
+          </div>
+        </div>
+      </section>

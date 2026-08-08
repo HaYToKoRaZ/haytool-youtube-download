@@ -2,7 +2,7 @@
   <img src="public/logo.png" alt="HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 HaYTooL - Personal YouTube Library & Automation System (v7.4.1)</p>
+# <p align="center">📥 HaYTooL - Personal YouTube Library & Automation System (v8.2.0)</p>
 
 <p align="center">
   <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System</b><br/>
@@ -15,7 +15,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=for-the-badge&logo=windows" alt="Platform Support" />
-  <img src="https://img.shields.io/badge/Version-v7.4.1-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v8.2.0-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&color=blueviolet" alt="GitHub Downloads (latest release)" />
 </p>
@@ -78,6 +78,8 @@ Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-pac
 ### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
 * **Double-click Launch:**
   Double-click `HaYTooL YT Downloader.exe` in the root folder to start the application silently in the system tray and open the dashboard in your browser.
+* **Native Desktop & Media Player Window:**
+  Double-click `HaYTooL-Player Beta.exe` to open the application in a dedicated native window (bypassing Chrome/Edge). Playing any downloaded video inside this window opens our integrated high-performance Plyr player to watch files directly from disk (zero-stream lag) with local subtitle base64 auto-loading, double-click fullscreen, mouse wheel volume control, and resume-playback memory.
 * **Command Line Launch:**
   ```cmd
   "HaYTooL YT Downloader.exe"

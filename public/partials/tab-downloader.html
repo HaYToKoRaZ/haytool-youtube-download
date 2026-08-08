@@ -1,0 +1,88 @@
+      <!-- Tab: Downloader -->
+      <section id="tab-downloader" class="tab-content">
+        <header class="content-header">
+          <div>
+            <h2 id="downloader-header-title">Downloader</h2>
+            <p id="downloader-header-desc">YouTube video veya playlist linklerini yapıştırarak istediğiniz formatta indirin.</p>
+          </div>
+        </header>
+
+        <div class="card downloader-card">
+          <!-- URL Giriş Alanı -->
+          <div class="downloader-input-group">
+            <div class="input-group">
+              <i data-lucide="link"></i>
+              <input type="text" id="downloader-url-input" placeholder="YouTube video veya playlist linkini buraya yapıştırın...">
+            </div>
+          </div>
+
+          <!-- Format Seçimi -->
+          <div class="downloader-options">
+            <div class="downloader-option-group">
+              <label id="downloader-format-label">Format</label>
+              <select id="downloader-format-select">
+                <optgroup label="🎬 Video" id="downloader-optgroup-video">
+                  <option value="video-best">En İyi Kalite (Best)</option>
+                  <option value="video-1080p">1080p FHD</option>
+                  <option value="video-720p">720p HD</option>
+                  <option value="video-480p">480p</option>
+                  <option value="video-360p">360p</option>
+                  <option value="video-240p">240p</option>
+                  <option value="video-144p">144p</option>
+                </optgroup>
+                <optgroup label="🎵 Ses" id="downloader-optgroup-audio">
+                  <option value="audio-mp3">MP3</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Ses Bit Hızı (Sadece MP3 seçilince görünür) -->
+            <div class="downloader-option-group" id="downloader-bitrate-group" style="display:none;">
+              <label id="downloader-bitrate-label-text">Ses Bit Hızı</label>
+              <select id="downloader-bitrate-select">
+                <option value="320">320 kbps (En Yüksek)</option>
+                <option value="192" selected>192 kbps (Önerilen)</option>
+                <option value="128">128 kbps</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Klasör Muafiyeti Bilgilendirmesi -->
+          <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="info" style="width: 14px; height: 14px;"></i>
+            <span id="downloader-info-text">Tüm indirmeler doğrudan ana indirme dizinine kaydedilecek (Kanal klasörü oluşturulmayacak).</span>
+          </div>
+
+          <!-- İndirme Butonu -->
+          <button type="button" class="btn btn-primary" id="downloader-start-btn" onclick="handleDownloaderStart()">
+            <i data-lucide="download"></i>
+            <span id="downloader-start-btn-text">İndirmeyi Başlat</span>
+          </button>
+
+          <!-- Playlist Çözümleme Sonuçları -->
+          <div id="downloader-playlist-results" class="downloader-playlist-results hidden">
+            <div class="downloader-playlist-header">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="downloader-toggle-all-checkbox" checked style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;" />
+                <h4 id="downloader-playlist-title-text">Playlist İçeriği</h4>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="downloader-download-all-btn">
+                <i data-lucide="download"></i>
+                <span id="downloader-download-all-text">Tümünü İndir</span>
+              </button>
+            </div>
+            <div id="downloader-playlist-list" class="downloader-playlist-list"></div>
+          </div>
+
+          <!-- İndirme İlerleme -->
+          <div id="downloader-progress" class="downloader-progress-container hidden">
+            <div class="downloader-progress-info">
+              <span id="downloader-progress-text">Hazırlanıyor...</span>
+              <span id="downloader-progress-percent">0%</span>
+            </div>
+            <div class="downloader-progress-bar">
+              <div class="downloader-progress-fill" id="downloader-progress-fill"></div>
+            </div>
+          </div>
+        </div>
+      </section>

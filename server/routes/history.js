@@ -12,12 +12,17 @@ import {
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
 import { downloadQueue } from '../services/downloader.js';
-import { resolveMissingDurations, fetchVideoDuration, checkSingleChannelRss } from '../services/rss.js';
+import { resolveMissingDurations, fetchVideoDuration, checkSingleChannelRss, triggerChannelCheck, fetchDurationViaYtdlp } from '../services/rss.js';
 import { broadcast, addTerminalLog } from '../services/sse.js';
 
 export const router = express.Router();
 
-// Helper function to get files recursively
+/**
+ * Belirtilen dizin içerisindeki tüm dosyaları alt klasörleriyle birlikte özyinelemeli (recursive) olarak tarar.
+ * 
+ * @param {string} dir - Taranacak klasörün mutlak yolu
+ * @returns {Array<string>} Bulunan tüm dosyaların yollarını içeren dizi
+ */
 function getFilesRecursively(dir) {
   let results = [];
   if (!fs.existsSync(dir)) return results;
@@ -38,13 +43,36 @@ function getFilesRecursively(dir) {
   return results;
 }
 
-// Veritabanını Dışarıya Ver
+/**
+ * db.json veritabanı dosyasının tüm içeriğini JSON olarak istemciye döner.
+ * 
+ * @name GET /api/db
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/db', (req, res) => {
   res.json(readDb());
 });
 
-// Manuel Video İndirmeyi Başlat (Kuyruğa yeni video ekler ve eksik süre/tarih çözücüyü tetikler)
-router.post('/download-video', async (req, res) => {
+/**
+ * Belirtilen YouTube videosunu doğrudan kuyruğa ekleyerek manuel indirmeyi başlatır.
+ * 
+ * @name POST /api/download-video
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} [req.body.videoId] - YouTube video ID'si (11 karakter)
+ * @param {string} [req.body.url] - YouTube video bağlantı adresi (ID ayıklamak için)
+ * @param {string} [req.body.title] - Özel video başlığı
+ * @param {string} [req.body.channelName] - Kanal adı
+ * @param {string} [req.body.channelId] - Kanal ID'si
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.post('/download-video', localhostOnly, async (req, res) => {
   const { videoId, url } = req.body;
   let { title, channelName, channelId } = req.body;
 
@@ -77,6 +105,17 @@ router.post('/download-video', async (req, res) => {
     }
   }
 
+  if (downloadQueue.isPaused) {
+    downloadQueue.isPaused = false;
+    try {
+      const db = readDb();
+      if (db && db.settings) {
+        db.settings.isPaused = false;
+        writeDb(db);
+      }
+    } catch (e) {}
+  }
+
   downloadQueue.add({
     id: targetVideoId,
     title: title || 'Bilinmeyen Video',
@@ -91,7 +130,17 @@ router.post('/download-video', async (req, res) => {
   res.json({ success: true, message: 'İndirme kuyruğuna eklendi.', videoId: targetVideoId });
 });
 
-// Metadataları (süre, boyut vb.) toplu güncelle/onar
+/**
+ * Kütüphane geçmişindeki videoların eksik kalan metadata detaylarını (süre, tarih vb.) onarır / günceller.
+ * 
+ * @name POST /api/library/update-metadata
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.body.type - Güncelleme türü ('downloaded' vb.)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/library/update-metadata', localhostOnly, (req, res) => {
   try {
     const db = readDb();
@@ -132,42 +181,55 @@ router.post('/library/update-metadata', localhostOnly, (req, res) => {
 });
 
 // Tüm İndirmeleri İptal Et / Sıfırla
-router.post('/sync', (req, res) => {
+/**
+ * Tüm kayıtlı kanalların RSS akışlarını sırayla arka planda denetler (Manuel senkronizasyon tetiklemesi).
+ * 
+ * @name POST /api/sync
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post(['/sync', '/history/sync'], localhostOnly, async (req, res) => {
   try {
     const db = readDb();
-    if (db.channels.length === 0) {
+    if (!db.channels || db.channels.length === 0) {
       return res.json({ success: true, message: 'İzlenen kanal bulunmuyor.' });
     }
     
-    addTerminalLog('[RSS] Manuel tetikleme: Tüm kanallar sırayla denetleniyor...', 'info');
+    const source = req.body?.source || 'ui';
+    const result = await triggerChannelCheck(source);
+
+    if (result.inProgress) {
+      return res.json({ success: true, message: 'Tarama zaten devam ediyor.' });
+    }
+
+    const successMsg = `Tüm kanalların denetimi ${result.duration || 0} saniyede tamamlandı. ${result.newVideos || 0} yeni video bulundu.`;
+    broadcast('status_log', { message: successMsg, type: 'success' });
     
-    // Arka planda kanalları sırayla denetle
-    (async () => {
-      try {
-        let count = 0;
-        const total = db.channels.length;
-        for (const channel of db.channels) {
-          count++;
-          broadcast('status_log', { message: `Kanal denetleniyor: ${channel.name} (${count}/${total})`, type: 'info' });
-          await checkSingleChannelRss(channel, false);
-          await new Promise(r => setTimeout(r, 1000));
-        }
-        
-        resolveMissingDurations();
-        addTerminalLog('[RSS] Manuel tetikleme: Tüm kanalların denetimi tamamlandı.', 'success');
-        broadcast('status_log', { message: 'Tüm kanalların denetimi tamamlandı.', type: 'success' });
-      } catch (err) {
-        addTerminalLog(`[RSS] [HATA] Manuel tetikleme sırasında hata oluştu: ${err.message}`, 'error');
-      }
-    })();
-    
-    res.json({ success: true, message: 'Kanal denetimi arka planda başlatıldı.' });
+    res.json({ 
+      success: true, 
+      message: successMsg, 
+      duration: result.duration, 
+      newVideos: result.newVideos 
+    });
   } catch (err) {
+    console.error('[History Sync Error]:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Dosya Karşılaştırma API'si
+/**
+ * İndirme dizinindeki fiziksel dosyaları veritabanı kayıtları ile karşılaştırarak tutarsızlıkları (kayıtlı olup fiziksel bulunamayanlar, fiziksel bulunup veritabanında olmayanlar vb.) listeler.
+ * 
+ * @name GET /api/tools/compare-files
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/tools/compare-files', localhostOnly, (req, res) => {
   const db = readDb();
   const folder = db.settings.downloadPath;
@@ -281,7 +343,17 @@ router.get('/tools/compare-files', localhostOnly, (req, res) => {
   });
 });
 
-// Dosya Konumunu Aç API'si
+/**
+ * Belirtilen dosyanın disk üzerindeki klasör konumunu Windows Gezgini'nde (Explorer) açar ve dosyayı seçili gösterir.
+ * 
+ * @name POST /api/tools/open-file-location
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.body.filePath - Konumu açılacak dosyanın mutlak yolu
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/tools/open-file-location', localhostOnly, (req, res) => {
   const { filePath } = req.body;
   if (!filePath) return res.status(400).json({ error: 'filePath parametresi gereklidir.' });
@@ -306,8 +378,14 @@ router.post('/tools/open-file-location', localhostOnly, (req, res) => {
       setTimeout(() => {
         exec(`powershell -Command "(New-Object -ComObject wscript.shell).AppActivate('${folderNameSafe}')"`, (err) => {});
       }, 500);
+    } else if (process.platform === 'darwin') {
+      exec(`open -R "${resolvedFile}"`);
     } else {
-      exec(`open "${path.dirname(resolvedFile)}"`);
+      exec(`dolphin --select "${resolvedFile}"`, (err) => {
+        if (err) {
+          exec(`xdg-open "${path.dirname(resolvedFile)}"`);
+        }
+      });
     }
     return res.json({ success: true });
   } catch (err) {
@@ -315,7 +393,20 @@ router.post('/tools/open-file-location', localhostOnly, (req, res) => {
   }
 });
 
-// Dosya Düzeltme / Onarma İşlemleri
+/**
+ * Veritabanında ve disk üzerinde bulunan dosyaları eşitlemek için toplu düzeltme / onarma işlemleri yapar.
+ * 
+ * @name POST /api/tools/fix-files
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.body.action - Yapılacak eylem ('delete-untracked', 'import-untracked', 'clean-missing', 'delete-history-item', 'mark-missing-as-not-downloaded')
+ * @param {Array<string>} [req.body.videoIds] - Eylem kapsamındaki video ID listesi
+ * @param {Array<string>} [req.body.filePaths] - Eylem kapsamındaki dosya yolu listesi
+ * @param {Array<object>} [req.body.filesToImport] - İçe aktarılacak dosyaların bilgileri
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
 router.post('/tools/fix-files', localhostOnly, async (req, res) => {
   const { action, videoIds, filePaths, filesToImport } = req.body;
   const release = await acquireDbLock();
@@ -501,7 +592,16 @@ router.post('/tools/fix-files', localhostOnly, async (req, res) => {
   }
 });
 
-// Klasör Seçim Diyaloğu (Windows Native)
+/**
+ * Windows işletim sistemine özel yerel klasör seçim diyaloğunu (FolderBrowserDialog) başlatarak seçilen yolu döner.
+ * 
+ * @name POST /api/select-folder
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/select-folder', localhostOnly, (req, res) => {
   const db = readDb();
   const currentPath = db.settings.downloadPath || '';
@@ -523,7 +623,17 @@ router.post('/select-folder', localhostOnly, (req, res) => {
   });
 });
 
-// İndirme Klasörünü Aç
+/**
+ * Belirtilen kanalın veya genel indirme klasörünü yerel işletim sisteminin dosya yöneticisinde (Explorer/Finder) açar.
+ * 
+ * @name POST /api/open-folder
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} [req.body.channelName] - Açılacak kanala özel alt klasörün adı
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/open-folder', localhostOnly, (req, res) => {
   const db = readDb();
   let folder = db.settings.downloadPath;
@@ -556,13 +666,26 @@ router.post('/open-folder', localhostOnly, (req, res) => {
     setTimeout(() => {
       exec(`powershell -Command "(New-Object -ComObject wscript.shell).AppActivate('${folderNameSafe}')"`, (err) => {});
     }, 500);
-  } else {
+  } else if (process.platform === 'darwin') {
     open(folder);
+  } else {
+    exec(`xdg-open "${path.resolve(folder)}"`);
   }
   res.json({ success: true });
 });
 
-// Kütüphane / Geçmiş Elemanı Sil
+/**
+ * Kütüphane / geçmiş listesinden bir videoyu siler ve isteğe bağlı olarak diski de temizler.
+ * 
+ * @name DELETE /api/history/:id
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.id - Silinecek videonon YouTube ID'si (11 karakter)
+ * @param {boolean} [req.query.deleteFile] - Disk üzerindeki video dosyasının da silinip silinmeyeceği
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
 router.delete('/history/:id', localhostOnly, async (req, res) => {
   const { id } = req.params;
   if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
@@ -676,6 +799,8 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
 
     db.history.splice(itemIndex, 1);
 
+    const hideOnDelete = db.settings && db.settings.hideOnDelete !== false;
+
     db.history.push({
       id: item.id,
       title: item.title,
@@ -689,13 +814,23 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
       filePath: '',
       speed: '',
       eta: '',
-      duration: item.duration || ''
+      duration: item.duration || '',
+      hidden: hideOnDelete
     });
-    console.log(`BİLGİ: Video '${item.title}' RSS'in tekrar indirmemesi için 'ignored' olarak işaretlendi.`);
+    console.log(`BİLGİ: Video '${item.title}' RSS'in tekrar indirmemesi için 'ignored' olarak işaretlendi (Gizleme: ${hideOnDelete}).`);
 
     writeDb(db);
     broadcast('db_update', db);
-    broadcast('status_log', { message: `Video geçmişten temizlendi: ${item.title}`, type: 'success' });
+    
+    const isEn = db.settings && db.settings.lang === 'en';
+    let statusMsg = '';
+    if (hideOnDelete) {
+      statusMsg = isEn ? `Video deleted and hidden from library: ${item.title}` : `Video silindi ve kütüphaneden gizlendi: ${item.title}`;
+    } else {
+      statusMsg = isEn ? `Video removed from history: ${item.title}` : `Video geçmişten temizlendi: ${item.title}`;
+    }
+    broadcast('status_log', { message: statusMsg, type: 'success' });
+    
     console.log(`BAŞARI: Video geçmiş kaydı veri tabanından silindi.`);
     console.log(`--- SİLME İŞLEMİ TAMAMLANDI ---\n`);
     res.json({ success: true });
@@ -706,7 +841,17 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
   }
 });
 
-// Videoyu sil ve tekrar kuyruğa ekle (Tekrar İndir)
+/**
+ * Belirtilen videonun disk üzerindeki dosyalarını siler ve indirme kuyruğuna tekrar ekler (Yeniden İndirme).
+ * 
+ * @name POST /api/history/:id/redownload
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.id - Yeniden indirilecek videonun YouTube ID'si (11 karakter)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
 router.post('/history/:id/redownload', localhostOnly, async (req, res) => {
   const { id } = req.params;
   if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
@@ -784,7 +929,17 @@ router.post('/history/:id/redownload', localhostOnly, async (req, res) => {
   res.json({ success: true, message: 'Video silindi ve tekrar indirilmek üzere kuyruğa eklendi.' });
 });
 
-// Videoyu geçmişte gizle (Kütüphaneden gizleme)
+/**
+ * Belirtilen videoyu geçmiş/kütüphane arayüz görünümünde gizler.
+ * 
+ * @name POST /api/history/:id/hide
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.id - Gizlenecek videonun YouTube ID'si (11 karakter)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
 router.post('/history/:id/hide', localhostOnly, async (req, res) => {
   const { id } = req.params;
   if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
@@ -794,12 +949,12 @@ router.post('/history/:id/hide', localhostOnly, async (req, res) => {
   const release = await acquireDbLock();
   try {
     const db = readDb();
-    const item = db.history.find(h => h.id === id);
-    if (!item) {
+    const items = db.history.filter(h => h.id === id);
+    if (items.length === 0) {
       return res.status(404).json({ error: 'Video geçmişte bulunamadı.' });
     }
 
-    item.hidden = true;
+    items.forEach(item => { item.hidden = true; });
     writeDb(db);
     
     broadcast('db_update', readDb());
@@ -811,7 +966,67 @@ router.post('/history/:id/hide', localhostOnly, async (req, res) => {
   }
 });
 
-// Videoyu geçmişte tekrar görünür kıl
+/**
+ * Birden fazla videoyu geçmiş/kütüphane arayüz görünümünde toplu olarak gizler.
+ * 
+ * @name POST /api/history/bulk-hide
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string[]} req.body.ids - Gizlenecek videoların YouTube ID listesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.post('/history/bulk-hide', localhostOnly, async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'Geçersiz veya boş video ID listesi.' });
+  }
+
+  // Validate all IDs
+  for (const id of ids) {
+    if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
+      return res.status(400).json({ error: `Geçersiz Video ID formatı: ${id}` });
+    }
+  }
+
+  const release = await acquireDbLock();
+  try {
+    const db = readDb();
+    let hiddenCount = 0;
+
+    for (const id of ids) {
+      const items = db.history.filter(h => h.id === id);
+      if (items.length > 0) {
+        items.forEach(item => { item.hidden = true; });
+        hiddenCount++;
+      }
+    }
+
+    if (hiddenCount > 0) {
+      writeDb(db);
+      broadcast('db_update', readDb());
+    }
+
+    res.json({ success: true, message: `${hiddenCount} video kütüphaneden gizlendi.`, count: hiddenCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    release();
+  }
+});
+
+/**
+ * Gizlenmiş olan bir videoyu geçmiş/kütüphane arayüzünde tekrar görünür kılar.
+ * 
+ * @name POST /api/history/:id/unhide
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.id - Görünür yapılacak videonun YouTube ID'si (11 karakter)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
 router.post('/history/:id/unhide', localhostOnly, async (req, res) => {
   const { id } = req.params;
   if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
@@ -821,12 +1036,12 @@ router.post('/history/:id/unhide', localhostOnly, async (req, res) => {
   const release = await acquireDbLock();
   try {
     const db = readDb();
-    const item = db.history.find(h => h.id === id);
-    if (!item) {
+    const items = db.history.filter(h => h.id === id);
+    if (items.length === 0) {
       return res.status(404).json({ error: 'Video geçmişte bulunamadı.' });
     }
 
-    item.hidden = false;
+    items.forEach(item => { item.hidden = false; });
     writeDb(db);
     
     broadcast('db_update', readDb());
@@ -837,3 +1052,246 @@ router.post('/history/:id/unhide', localhostOnly, async (req, res) => {
     release();
   }
 });
+
+/**
+ * Türkçe Açıklama: Seçilen birden fazla videoyu diskteki dosyalarıyla birlikte veritabanından toplu olarak siler ve durumlarını 'ignored' yapar.
+ * 
+ * @name POST /api/history/bulk-delete
+ * @path {POST} /api/history/bulk-delete
+ * @auth localhostOnly
+ * @body {Array<string>} ids Silinecek video ID'lerinin listesi
+ * @body {boolean} deleteFiles Bilgisayardaki fiziksel dosyaların da silinip silinmeyeceği
+ * @returns {Promise<void>}
+ */
+router.post('/history/bulk-delete', localhostOnly, async (req, res) => {
+  const { ids, deleteFiles } = req.body;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'Silinecek video ID listesi geçersiz.' });
+  }
+
+  const release = await acquireDbLock();
+  try {
+    const db = readDb();
+    let deletedCount = 0;
+    const hideOnDelete = db.settings && db.settings.hideOnDelete !== false;
+
+    for (const id of ids) {
+      const itemIndex = db.history.findIndex(h => h.id === id);
+      if (itemIndex === -1) continue;
+
+      const item = db.history[itemIndex];
+
+      if (deleteFiles) {
+        // Yol tabanlı akıllı silme
+        if (item.filePath) {
+          try {
+            const ext = path.extname(item.filePath);
+            const baseName = path.basename(item.filePath, ext);
+            const dirName = path.dirname(item.filePath);
+            if (fs.existsSync(dirName)) {
+              const files = fs.readdirSync(dirName);
+              for (const file of files) {
+                if (file === path.basename(item.filePath) || file.startsWith(baseName + '.')) {
+                  const fullPath = path.join(dirName, file);
+                  if (fs.existsSync(fullPath)) {
+                    fs.unlinkSync(fullPath);
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.error(`[Bulk Delete File Error]: ${e.message}`);
+          }
+        }
+
+        // Pattern tabanlı yedek silme
+        try {
+          const folder = db.settings.downloadPath;
+          const targetPattern = `[${id}]`;
+          const foldersToSearch = [folder];
+          if (item.channelName) {
+            foldersToSearch.push(path.join(folder, item.channelName));
+          }
+          for (const fld of foldersToSearch) {
+            if (fs.existsSync(fld)) {
+              const files = fs.readdirSync(fld);
+              for (const file of files) {
+                if (file.includes(targetPattern)) {
+                  const fullPath = path.join(fld, file);
+                  if (fs.existsSync(fullPath)) {
+                    fs.unlinkSync(fullPath);
+                  }
+                }
+              }
+            }
+          }
+        } catch (patternErr) {
+          console.error(`[Bulk Delete Pattern Error]: ${patternErr.message}`);
+        }
+      }
+
+      // Geçmiş kaydını kaldır ve 'ignored' olarak geri ekle (RSS tekrar indirmesin diye)
+      db.history.splice(itemIndex, 1);
+      db.history.push({
+        id: item.id,
+        title: item.title,
+        channelId: item.channelId,
+        channelName: item.channelName,
+        downloadedAt: new Date().toISOString(),
+        publishedAt: item.publishedAt || '',
+        status: 'ignored',
+        progress: 0,
+        fileSize: '',
+        filePath: '',
+        speed: '',
+        eta: '',
+        duration: item.duration || '',
+        hidden: hideOnDelete
+      });
+      deletedCount++;
+    }
+
+    if (deletedCount > 0) {
+      writeDb(db);
+      broadcast('db_update', db);
+      const isEn = db.settings && db.settings.lang === 'en';
+      const statusMsg = isEn 
+        ? `Successfully deleted ${deletedCount} videos.` 
+        : `${deletedCount} adet video başarıyla silindi.`;
+      broadcast('status_log', { message: statusMsg, type: 'success' });
+    }
+
+    res.json({ success: true, deletedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    release();
+  }
+});
+
+let isMetadataRefreshing = false;
+
+/**
+ * Veritabanındaki tüm videoların eksik olan süre ve dosya boyutu bilgilerini yeniler.
+ */
+router.post('/tools/refresh-metadata', localhostOnly, async (req, res) => {
+  if (isMetadataRefreshing) {
+    return res.status(400).json({ error: 'Metadata yenileme işlemi zaten arka planda çalışıyor.' });
+  }
+
+  isMetadataRefreshing = true;
+
+  // Arka planda çalışacak asenkron fonksiyon
+  (async () => {
+    try {
+      addTerminalLog('[Metadata] İndirilen videolar için metadata güncelleme taraması başlatılıyor...', 'info');
+      broadcast('status_log', { message: 'İndirilen videolar için metadata güncelleme başlatıldı...', type: 'info' });
+
+      // 1. Veritabanını oku (Sadece tamamlanmış/indirilmiş videolar)
+      const db = readDb();
+      const downloadedItems = (db.history || []).filter(item => item.status === 'completed');
+      let updatedCount = 0;
+      let totalToProcess = downloadedItems.length;
+
+      addTerminalLog(`[Metadata] İndirilenler sekmesinde taranacak toplam video sayısı: ${totalToProcess}`, 'info');
+
+      let processedCount = 0;
+
+      // 2. Sadece indirilmiş videoları sırayla tara ve güncelle
+      for (const item of downloadedItems) {
+        processedCount++;
+        let itemUpdated = false;
+        const needsDuration = !item.duration || item.duration === '-' || item.duration === 'unknown';
+
+        // Dosya Boyutu Kontrolü (Diskteki fiziki dosyadan boyutu oku ve karşılaştır)
+        if (item.filePath) {
+          try {
+            if (fs.existsSync(item.filePath)) {
+              const stats = fs.statSync(item.filePath);
+              const sizeInBytes = stats.size;
+              let calculatedSize = '';
+              if (sizeInBytes >= 1024 * 1024 * 1024) {
+                calculatedSize = (sizeInBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+              } else {
+                calculatedSize = Math.round(sizeInBytes / (1024 * 1024)) + ' MB';
+              }
+              if (item.fileSize !== calculatedSize) {
+                item.fileSize = calculatedSize;
+                itemUpdated = true;
+              }
+              if (item.fileMissing === true) {
+                item.fileMissing = false;
+                itemUpdated = true;
+              }
+            } else if (item.fileMissing !== true) {
+              item.fileMissing = true;
+              itemUpdated = true;
+            }
+          } catch (err) {
+            console.error(`[Metadata] Boyut okunurken hata (${item.title}):`, err.message);
+          }
+        }
+
+        // Süre Kontrolü (Eksik veya '-' / 'unknown' olan süresiz videoları tamamla)
+        if (needsDuration) {
+          try {
+            if (item.resolveAttempts) {
+              item.resolveAttempts = 0;
+            }
+            const result = await fetchVideoDuration(item.id);
+            let duration = result ? result.duration : '';
+            
+            if (!duration) {
+              duration = await fetchDurationViaYtdlp(item.id);
+            }
+
+            if (duration && duration !== 'upcoming' && duration !== 'live') {
+              item.duration = duration;
+              itemUpdated = true;
+            }
+          } catch (err) {
+            console.error(`[Metadata] Süre yenilenirken hata (${item.title}):`, err.message);
+          }
+        }
+
+        if (itemUpdated) {
+          updatedCount++;
+          
+          // Değişikliği veritabanına kaydet ve bildir
+          const releaseWrite = await acquireDbLock();
+          try {
+            const finalDb = readDb();
+            const originalItem = finalDb.history.find(h => h.id === item.id);
+            if (originalItem) {
+              originalItem.duration = item.duration;
+              originalItem.fileSize = item.fileSize;
+              originalItem.fileMissing = item.fileMissing;
+            }
+            writeDb(finalDb);
+            broadcast('db_update', finalDb);
+          } finally {
+            releaseWrite();
+          }
+
+          addTerminalLog(`[Metadata] Güncellendi: "${item.title}" -> Süre: ${item.duration || '-'}, Boyut: ${item.fileSize || '-'}`, 'success');
+        }
+
+        if (processedCount % 5 === 0 || processedCount === totalToProcess) {
+          addTerminalLog(`[Metadata] İndirilen videolar taranıyor (${processedCount}/${totalToProcess}): "${(item.title || '-').substring(0, 50)}"`, 'info');
+          broadcast('status_log', { message: `Metadata güncelleme: ${processedCount}/${totalToProcess} indirilen video tarandı.`, type: 'info' });
+        }
+      }
+
+      const successMsg = `Metadata taraması tamamlandı. Toplam ${totalToProcess} indirilen video tarandı, ${updatedCount} adet güncelleme yapıldı.`;
+      addTerminalLog(`[Metadata] ${successMsg}`, 'success');
+      broadcast('status_log', { message: successMsg, type: 'success' });
+    } catch (bgErr) {
+      addTerminalLog(`[Metadata] [HATA] Arka plan yenileme başarısız: ${bgErr.message}`, 'error');
+    } finally {
+      isMetadataRefreshing = false;
+    }
+  })();
+
+  res.json({ success: true, message: 'İndirilen videoların metadata taraması arka planda başlatıldı.' });
+});
+

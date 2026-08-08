@@ -12,7 +12,16 @@ import { broadcast, addTerminalLog, addClient, removeClient } from '../services/
 
 export const router = express.Router();
 
-// Real-time Event Stream (SSE) bağlantı kaydı
+/**
+ * İstemcilere gerçek zamanlı durum ve güncellemeleri göndermek için SSE (Server-Sent Events) bağlantısı açar.
+ * 
+ * @name GET /api/events
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -28,7 +37,16 @@ router.get('/events', (req, res) => {
   });
 });
 
-// Kuyruğu Duraklat
+/**
+ * İndirme kuyruğunu duraklatır ve çalışan aktif indirmeleri sonlandırarak kuyruğa iade eder.
+ * 
+ * @name POST /api/queue/pause
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/queue/pause', localhostOnly, (req, res) => {
   downloadQueue.isPaused = true;
   
@@ -88,7 +106,16 @@ router.post('/queue/pause', localhostOnly, (req, res) => {
   res.json({ success: true, isPaused: true });
 });
 
-// Duraklatılmış kuyruğu sürdür
+/**
+ * Duraklatılmış indirme kuyruğunu sürdürür ve işlemleri başlatır.
+ * 
+ * @name POST /api/queue/resume
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/queue/resume', localhostOnly, (req, res) => {
   downloadQueue.isPaused = false;
   
@@ -104,7 +131,18 @@ router.post('/queue/resume', localhostOnly, (req, res) => {
   res.json({ success: true, isPaused: false });
 });
 
-// İndirme kuyruğunu sürükle-bırak sıralamasına göre yeniden sıralar
+/**
+ * Drag-and-drop (sürükle-bırak) eylemi sonrası indirme kuyruğundaki videoların sırasını yeniden yapılandırır.
+ * Sıralama sonrasında aktif indirme sınırına göre gerekiyorsa bazı indirmeleri duraklatıp beklemeye alır veya bekleyenleri başlatır.
+ * 
+ * @name POST /api/queue/reorder
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {Array<string>} req.body.ids - Yeniden sıralanmış video ID'lerinin sıralı dizisi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/queue/reorder', localhostOnly, (req, res) => {
   const { ids } = req.body;
   if (!ids || !Array.isArray(ids)) {
@@ -113,41 +151,126 @@ router.post('/queue/reorder', localhostOnly, (req, res) => {
   
   console.log('[Kuyruk] Drag-and-drop kuyruk yeniden sıralama isteği alındı.');
   
-  const reorderedQueue = [];
-  for (const id of ids) {
-    const item = downloadQueue.queue.find(x => x.id === id);
-    if (item) {
-      reorderedQueue.push(item);
-    }
-  }
-  for (const item of downloadQueue.queue) {
-    if (!reorderedQueue.some(x => x.id === item.id)) {
-      reorderedQueue.push(item);
-    }
-  }
-  downloadQueue.queue = reorderedQueue;
-  
   const db = readDb();
-  const waitingItems = db.history.filter(h => h.status === 'waiting');
-  const otherItems = db.history.filter(h => h.status !== 'waiting');
+  const maxConcurrent = parseInt(db.settings.maxConcurrentDownloads) || 1;
+
+  // 1. O an aktif olan indirmeler ile kuyruktaki bekleyen videoların listesini topla
+  const activeDownloadingIds = [];
+  for (const [vid, procInfo] of downloadQueue.activeProcesses.entries()) {
+    if (procInfo.status === 'downloading' || procInfo.status === 'merging') {
+      activeDownloadingIds.push(vid);
+    }
+  }
+
+  // Hem downloading, merging hem waiting videoları db.history'den çekelim
+  const activeAndWaitingItems = db.history.filter(h => h.status === 'downloading' || h.status === 'merging' || h.status === 'waiting');
   
-  waitingItems.sort((a, b) => {
-    const indexA = downloadQueue.queue.findIndex(x => x.id === a.id);
-    const indexB = downloadQueue.queue.findIndex(x => x.id === b.id);
-    const valA = indexA === -1 ? 999999 : indexA;
-    const valB = indexB === -1 ? 999999 : indexB;
+  // Gelen 'ids' sırasına göre sıralayalım
+  activeAndWaitingItems.sort((a, b) => {
+    const idxA = ids.indexOf(a.id);
+    const idxB = ids.indexOf(b.id);
+    const valA = idxA === -1 ? 999999 : idxA;
+    const valB = idxB === -1 ? 999999 : idxB;
     return valA - valB;
   });
+
+  // İlk 'maxConcurrent' kadar olan videolar çalışmalı, kalanlar beklemeli
+  const shouldBeDownloading = activeAndWaitingItems.slice(0, maxConcurrent);
+  const shouldBeWaiting = activeAndWaitingItems.slice(maxConcurrent);
+
+  // 2. Şu an aktif indirilmekte olup da 'shouldBeWaiting' listesinde yer alanları durdurup sıraya iade edelim
+  shouldBeWaiting.forEach(item => {
+    if (item.status === 'downloading' || item.status === 'merging') {
+      console.log(`[Kuyruk] Sırası geriye kayan aktif indirme/birleştirme durduruluyor: ${item.title}`);
+      addTerminalLog(`[Kuyruk] Sırası geriye kayan aktif işlem durduruldu ve kuyruğa iade edildi: "${item.title}"`, 'info');
+      
+      const procInfo = downloadQueue.activeProcesses.get(item.id);
+      if (procInfo) {
+        const proc = procInfo.process;
+        const pid = proc.pid;
+        
+        if (procInfo.timeoutTimer) {
+          clearTimeout(procInfo.timeoutTimer);
+        }
+        
+        downloadQueue.activeProcesses.delete(item.id);
+        if (downloadQueue.activeDownloads > 0) {
+          downloadQueue.activeDownloads--;
+        }
+        
+        if (pid) {
+          if (process.platform === 'win32') {
+            exec(`taskkill /F /T /PID ${pid}`, () => { try { proc.kill('SIGKILL'); } catch(e){} });
+          } else {
+            try { process.kill(-pid, 'SIGKILL'); } catch(e) { try { proc.kill('SIGKILL'); } catch(err){} }
+          }
+        }
+      }
+      item.status = 'waiting';
+      item.progress = item.progress || 0;
+      item.speed = '';
+      item.eta = '';
+    }
+  });
+
+  // 3. 'shouldBeDownloading' listesinde olup da şu an 'waiting' olanları indirmeye hazırlayalım
+  // Bunları activeProcesses'e değil, downloadQueue.queue'nun en önüne yerleştirelim ki process() çağrıldığında çalışsınlar
+  const startList = [];
+  shouldBeDownloading.forEach(item => {
+    if (item.status === 'waiting') {
+      startList.push({
+        id: item.id,
+        title: item.title,
+        channelId: item.channelId,
+        channelName: item.channelName,
+        url: `https://www.youtube.com/watch?v=${item.id}`,
+        publishedAt: item.publishedAt || ''
+      });
+    }
+  });
+
+  // Kalan tüm waiting öğeleri de olmaları gereken sırayla downloadQueue.queue'ya dolduralım
+  const remainingWaitingList = [];
+  shouldBeWaiting.forEach(item => {
+    remainingWaitingList.push({
+      id: item.id,
+      title: item.title,
+      channelId: item.channelId,
+      channelName: item.channelName,
+      url: `https://www.youtube.com/watch?v=${item.id}`,
+      publishedAt: item.publishedAt || ''
+    });
+  });
+
+  // downloadQueue'yu sıfırlayıp yeni sırasına göre dolduruyoruz
+  downloadQueue.queue = [...startList, ...remainingWaitingList];
+
+  // db.history listesindeki sıralamayı da güncelleyelim
+  const otherItems = db.history.filter(h => h.status !== 'waiting' && h.status !== 'downloading' && h.status !== 'merging');
   
-  db.history = [...otherItems, ...waitingItems];
+  // downloading ve waiting olanların güncel durumlarıyla db.history'e yerleşmesi
+  db.history = [...otherItems, ...shouldBeDownloading, ...shouldBeWaiting];
   writeDb(db);
   
   addTerminalLog('[Kuyruk] İndirme sırası yeniden yapılandırıldı.', 'info');
   broadcast('db_update', db);
+  
+  // Kuyruğu tetikle
+  downloadQueue.process();
+  
   res.json({ success: true });
 });
 
-// Kuyruktaki tüm bekleyen videoları iptal et
+/**
+ * İndirme kuyruğunda bekleyen tüm videoları iptal eder ve kuyruğu boşaltır.
+ * 
+ * @name POST /api/cancel-all-queued
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/cancel-all-queued', localhostOnly, (req, res) => {
   const db = readDb();
   let cancelledCount = 0;
@@ -174,7 +297,17 @@ router.post('/cancel-all-queued', localhostOnly, (req, res) => {
   res.json({ success: true, count: cancelledCount });
 });
 
-// Belirli bir videonun indirilmesini/işlemini iptal et
+/**
+ * Belirli bir videonun indirilmesini/işlemini (aktif indirme, birleştirme veya bekleme) iptal eder.
+ * 
+ * @name POST /api/cancel-download
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.body.videoId - İptal edilecek videonun YouTube ID'si (11 karakter)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/cancel-download', localhostOnly, (req, res) => {
   const { videoId } = req.body;
   if (!videoId) return res.status(400).json({ error: 'Video ID gereklidir.' });
@@ -198,7 +331,7 @@ router.post('/cancel-download', localhostOnly, (req, res) => {
     const pid = proc.pid;
 
     downloadQueue.activeProcesses.delete(videoId);
-    if (procInfo.status === 'downloading' && downloadQueue.activeDownloads > 0) {
+    if ((procInfo.status === 'downloading' || procInfo.status === 'merging') && downloadQueue.activeDownloads > 0) {
       downloadQueue.activeDownloads = Math.max(0, downloadQueue.activeDownloads - 1);
     }
 
@@ -263,7 +396,7 @@ router.post('/cancel-download', localhostOnly, (req, res) => {
     if (downloadQueue.activeProcesses.has(videoId)) {
       const procInfo = downloadQueue.activeProcesses.get(videoId);
       downloadQueue.activeProcesses.delete(videoId);
-      if (procInfo.status === 'downloading' && downloadQueue.activeDownloads > 0) {
+      if ((procInfo.status === 'downloading' || procInfo.status === 'merging') && downloadQueue.activeDownloads > 0) {
         downloadQueue.activeDownloads = Math.max(0, downloadQueue.activeDownloads - 1);
       }
     }
@@ -277,7 +410,16 @@ router.post('/cancel-download', localhostOnly, (req, res) => {
   res.status(400).json({ error: 'İptal edilebilecek aktif veya bekleyen bir indirme bulunamadı.' });
 });
 
-// Tüm aktif ve bekleyen indirmeleri iptal et
+/**
+ * Aktif olarak çalışan ve kuyrukta bekleyen tüm video indirme işlemlerini iptal eder.
+ * 
+ * @name POST /api/cancel-all-downloads
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.post('/cancel-all-downloads', localhostOnly, (req, res) => {
   const videosInQueue = downloadQueue.queue.map(item => item.id);
   downloadQueue.queue = [];
@@ -320,4 +462,34 @@ router.post('/cancel-all-downloads', localhostOnly, (req, res) => {
   broadcast('status_log', { message: 'Tüm indirmeler iptal edildi.', type: 'info' });
   broadcast('db_update', readDb());
   res.json({ success: true });
+});
+
+/**
+ * Eşzamanlı maksimum video indirme limitini ayarlar.
+ * 
+ * @name POST /api/settings/concurrent
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {number} req.body.limit - Eşzamanlı indirilecek maksimum video sayısı (1 ile 5 arası)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/settings/concurrent', localhostOnly, (req, res) => {
+  const { limit } = req.body;
+  const intLimit = parseInt(limit, 10);
+  if (isNaN(intLimit) || intLimit < 1 || intLimit > 5) {
+    return res.status(400).json({ error: 'Geçersiz limit değeri. 1 ile 5 arasında olmalıdır.' });
+  }
+
+  const db = readDb();
+  db.settings.maxConcurrentDownloads = intLimit;
+  writeDb(db);
+
+  downloadQueue.maxConcurrent = intLimit;
+  downloadQueue.process();
+
+  addTerminalLog(`[Kuyruk] Eşzamanlı indirme limiti ${intLimit} olarak güncellendi.`, 'success');
+  broadcast('db_update', db);
+  res.json({ success: true, limit: intLimit });
 });

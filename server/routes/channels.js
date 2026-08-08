@@ -17,23 +17,40 @@ import {
   fetchWithProxyWaterfall, 
   downloadChannelAvatar, 
   checkSingleChannelRss, 
-  resolveMissingDurations 
+  resolveMissingDurations,
+  fetchVideoDuration,
+  fetchDurationViaYtdlp
 } from '../services/rss.js';
 import { broadcast, addTerminalLog } from '../services/sse.js';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '..', '..');
-const ytdlpPath = path.join(rootDir, 'yt-dlp', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+import { getLocalTempDir, cleanMeiForPid, spawnYtdlp, ytdlpPath } from '../services/paths.js';
 
 export const router = express.Router();
 
-// Kanal Listesini Getir
+/**
+ * Takip edilen YouTube kanallarının listesini veritabanından çeker.
+ * 
+ * @name GET /api/channels
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/', (req, res) => {
   const db = readDb();
   res.json(db.channels || []);
 });
 
-// Kanalları dışa aktar (Parametreli rotalardan önce olmalı)
+/**
+ * channels.ini yapılandırma dosyasını istemciye indirilebilir olarak gönderir.
+ * 
+ * @name GET /api/channels/export
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/export', (req, res) => {
   if (!fs.existsSync(channelsIniPath)) {
     return res.status(404).send('channels.ini bulunamadı.');
@@ -43,8 +60,17 @@ router.get('/export', (req, res) => {
   res.sendFile(channelsIniPath);
 });
 
-// Kanalları içe aktar (Parametreli rotalardan önce olmalı)
-router.post('/import', (req, res) => {
+/**
+ * Gönderilen raw ini verisini channels.ini olarak kaydeder ve veritabanı ile eşitler.
+ * 
+ * @name POST /api/channels/import
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/import', localhostOnly, (req, res) => {
   let data = '';
   req.on('data', chunk => { data += chunk; });
   req.on('end', async () => {
@@ -67,7 +93,17 @@ router.post('/import', (req, res) => {
   });
 });
 
-// YouTube Üzerinden Kanal Arama (Parametreli rotalardan önce olmalı)
+/**
+ * YouTube üzerinde kanal araması yapar.
+ * 
+ * @name GET /api/channels/search
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.query.q - Arama sorgusu
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
 router.get('/search', async (req, res) => {
   const { q } = req.query;
   if (!q) {
@@ -83,7 +119,7 @@ router.get('/search', async (req, res) => {
 });
 
 // Kanal Ekle
-router.post('/', async (req, res) => {
+router.post('/', localhostOnly, async (req, res) => {
   const { input, name, handle, avatar, downloadShorts } = req.body;
   if (!input) return res.status(400).json({ error: 'Kanal adı veya adresi boş olamaz.' });
 
@@ -153,6 +189,9 @@ router.post('/', async (req, res) => {
       addTerminalLog(`[Kanal] "${newChannel.name}" için ilk taramada hata oluştu: ${rssErr.message}.`, 'warning');
     }
 
+    // Yeni eklenen kanalın süresi eksik videolarını çözmek için arka planda süre çözücüyü tetikle
+    resolveMissingDurations();
+
     const finalDb = readDb();
     broadcast('db_update', finalDb);
     broadcast('status_log', { message: `${channelInfo.name} kanalı başarıyla eklendi.`, type: 'success' });
@@ -186,8 +225,18 @@ router.delete('/:id', (req, res) => {
   res.json({ success: true });
 });
 
-// Tek bir kanalı manuel tara
-router.post('/:id/sync', async (req, res) => {
+/**
+ * Belirtilen kanalı manuel olarak hemen tarar / RSS akışını kontrol eder.
+ * 
+ * @name POST /api/channels/:id/sync
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.id - Kanalın YouTube kimliği (ID)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.post('/:id/sync', localhostOnly, async (req, res) => {
   const { id } = req.params;
   if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
@@ -201,20 +250,100 @@ router.post('/:id/sync', async (req, res) => {
     broadcast('channel_scan_progress', { current: 1, total: 1, channelName: channel.name, active: true });
     
     await checkSingleChannelRss(channel, false);
+    
+    // Arayüze ilerlemeyi bildir ve süresiz/boyutsuz videoların metadatalarını çöz
+    addTerminalLog(`[Metadata] "${channel.name}" kanalı için süre ve boyut bilgileri yenileniyor...`, 'info');
+    
+    const releaseWrite = await acquireDbLock();
+    try {
+      const freshDb = readDb();
+      let updatedCount = 0;
+      for (const item of freshDb.history) {
+        if (item.channelId !== id) continue;
+        
+        let itemUpdated = false;
+
+        // Dosya boyutu kontrolü
+        if (item.status === 'completed' && item.filePath) {
+          try {
+            if (fs.existsSync(item.filePath)) {
+              const stats = fs.statSync(item.filePath);
+              const sizeInBytes = stats.size;
+              let calculatedSize = '';
+              if (sizeInBytes >= 1024 * 1024 * 1024) {
+                calculatedSize = Math.round(sizeInBytes / (1024 * 1024 * 1024)) + ' GB';
+              } else {
+                calculatedSize = Math.round(sizeInBytes / (1024 * 1024)) + ' MB';
+              }
+              if (item.fileSize !== calculatedSize) {
+                item.fileSize = calculatedSize;
+                itemUpdated = true;
+              }
+            }
+          } catch (err) {
+            console.error(`[RSS Metadata] Boyut hatası (${item.title}):`, err.message);
+          }
+        }
+
+        // Süre kontrolü
+        const needsDuration = !item.duration || item.duration === '-' || item.duration === 'unknown';
+        if (needsDuration) {
+          try {
+            if (item.resolveAttempts) {
+              item.resolveAttempts = 0;
+            }
+            const result = await fetchVideoDuration(item.id);
+            let duration = result ? result.duration : '';
+            if (!duration) {
+              duration = await fetchDurationViaYtdlp(item.id);
+            }
+            if (duration && duration !== 'upcoming' && duration !== 'live') {
+              item.duration = duration;
+              itemUpdated = true;
+            }
+          } catch (err) {
+            console.error(`[RSS Metadata] Süre hatası (${item.title}):`, err.message);
+          }
+        }
+
+        if (itemUpdated) {
+          updatedCount++;
+        }
+      }
+
+      if (updatedCount > 0) {
+        writeDb(freshDb);
+        broadcast('db_update', freshDb);
+      }
+    } finally {
+      releaseWrite();
+    }
+    
     resolveMissingDurations();
     
     broadcast('channel_scan_progress', { active: false });
-    addTerminalLog(`[RSS] Tekil manuel tetikleme: "${channel.name}" denetimi tamamlandı.`, 'success');
-    broadcast('status_log', { message: `"${channel.name}" kanalı başarıyla denetlendi.`, type: 'success' });
-    res.json({ success: true, message: 'Kanal başarıyla denetlendi.' });
+    addTerminalLog(`[RSS] Tekil manuel tetikleme: "${channel.name}" denetimi ve metadata yenilemesi tamamlandı.`, 'success');
+    broadcast('status_log', { message: `"${channel.name}" kanalı başarıyla denetlendi ve güncellendi.`, type: 'success' });
+    res.json({ success: true, message: 'Kanal başarıyla denetlendi ve güncellendi.' });
   } catch (err) {
     broadcast('channel_scan_progress', { active: false });
     res.status(500).json({ error: err.message });
   }
 });
 
-// Kanala özel kalite ayarla
-router.post('/:id/quality', (req, res) => {
+/**
+ * Belirtilen kanalın indirme kalitesi tercihini günceller.
+ * 
+ * @name POST /api/channels/:id/quality
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.id - Kanalın YouTube kimliği (ID)
+ * @param {string} req.body.quality - Hedef video kalitesi (örn. 'best', '1080p')
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/:id/quality', localhostOnly, (req, res) => {
   const { id } = req.params;
   if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
@@ -230,8 +359,19 @@ router.post('/:id/quality', (req, res) => {
   res.json({ success: true });
 });
 
-// Kanala özel Shorts indirme ayarını değiştir
-router.post('/:id/shorts', (req, res) => {
+/**
+ * Belirtilen kanal için Shorts videolarının indirilip indirilmeyeceğini günceller.
+ * 
+ * @name POST /api/channels/:id/shorts
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.id - Kanalın YouTube kimliği (ID)
+ * @param {boolean} req.body.downloadShorts - Shorts indirme durumu
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/:id/shorts', localhostOnly, (req, res) => {
   const { id } = req.params;
   if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
@@ -247,8 +387,19 @@ router.post('/:id/shorts', (req, res) => {
   res.json({ success: true });
 });
 
-// Kanala özel otomatik video indirme ayarını değiştir
-router.post('/:id/auto-download', (req, res) => {
+/**
+ * Belirtilen kanal için otomatik indirme özelliğini açıp kapatır.
+ * 
+ * @name POST /api/channels/:id/auto-download
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.id - Kanalın YouTube kimliği (ID)
+ * @param {boolean} req.body.autoDownload - Otomatik indirme durumu
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/:id/auto-download', localhostOnly, (req, res) => {
   const { id } = req.params;
   if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
@@ -264,8 +415,19 @@ router.post('/:id/auto-download', (req, res) => {
   res.json({ success: true });
 });
 
-// Kanala özel Shorts limit süresini değiştir
-router.post('/:id/shorts-limit', (req, res) => {
+/**
+ * Belirtilen kanal için indirilecek Shorts videolarının maksimum süre limitini günceller.
+ * 
+ * @name POST /api/channels/:id/shorts-limit
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.id - Kanalın YouTube kimliği (ID)
+ * @param {number} req.body.limit - Saniye cinsinden Shorts süre sınırı
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/:id/shorts-limit', localhostOnly, (req, res) => {
   const { id } = req.params;
   if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
@@ -281,35 +443,254 @@ router.post('/:id/shorts-limit', (req, res) => {
   res.json({ success: true });
 });
 
-// Tüm kanalların logolarını YouTube'dan yeniden çözümle, güncelle ve yerel diske indir
+/**
+ * Belirtilen kanalın kategori kimliğini (ID) günceller.
+ */
+router.post('/:id/category', localhostOnly, (req, res) => {
+  const { id } = req.params;
+  if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
+    return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
+  }
+  const { categoryId, categoryIds } = req.body;
+  const db = readDb();
+  const channel = db.channels.find(c => c.id === id);
+  if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
+
+  if (categoryIds && Array.isArray(categoryIds)) {
+    channel.categoryIds = categoryIds.map(x => parseInt(x, 10) || 1);
+    channel.categoryId = channel.categoryIds[0] || 1;
+  } else if (categoryId !== undefined) {
+    channel.categoryId = parseInt(categoryId, 10) || 1;
+    channel.categoryIds = [channel.categoryId];
+  }
+  writeDb(db);
+  broadcast('db_update', db);
+  res.json({ success: true });
+});
+
+/**
+ * Kategorilerin listesini döner.
+ */
+router.get('/categories', (req, res) => {
+  const db = readDb();
+  res.json(db.categories || []);
+});
+
+/**
+ * Yeni kategori ekler.
+ */
+router.post('/categories', localhostOnly, (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Kategori adı boş olamaz.' });
+  }
+  const db = readDb();
+  db.categories = db.categories || [];
+  
+  const maxId = db.categories.reduce((max, cat) => cat.id > max ? cat.id : max, 0);
+  const newCat = {
+    id: maxId + 1,
+    name: name.trim()
+  };
+  
+  db.categories.push(newCat);
+  writeDb(db);
+  broadcast('db_update', db);
+  res.json({ success: true, category: newCat });
+});
+
+/**
+ * Kategori günceller (adını değiştirir).
+ */
+router.put('/categories/:id', localhostOnly, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { name } = req.body;
+  if (isNaN(id) || !name || !name.trim()) {
+    return res.status(400).json({ error: 'Geçersiz parametreler.' });
+  }
+  const db = readDb();
+  db.categories = db.categories || [];
+  const cat = db.categories.find(c => c.id === id);
+  if (!cat) return res.status(404).json({ error: 'Kategori bulunamadı.' });
+  
+  cat.name = name.trim();
+  writeDb(db);
+  broadcast('db_update', db);
+  res.json({ success: true });
+});
+
+/**
+ * Kategori siler. Kategori silindiğinde o kategoriye ait kanalların kategorisi 1 (Genel) yapılır.
+ */
+router.delete('/categories/:id', localhostOnly, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    return res.status(400).json({ error: 'Geçersiz Kategori ID.' });
+  }
+  if (id === 1) {
+    return res.status(400).json({ error: 'Varsayılan kategori silinemez.' });
+  }
+  const db = readDb();
+  db.categories = db.categories || [];
+  db.categories = db.categories.filter(c => c.id !== id);
+  
+  if (db.channels) {
+    db.channels.forEach(c => {
+      if (c.categoryIds && Array.isArray(c.categoryIds)) {
+        c.categoryIds = c.categoryIds.filter(cid => cid !== id);
+        if (c.categoryIds.length === 0) {
+          c.categoryIds = [1];
+        }
+        c.categoryId = c.categoryIds[0] || 1;
+      } else {
+        if (c.categoryId === id) {
+          c.categoryId = 1;
+        }
+        c.categoryIds = [c.categoryId || 1];
+      }
+    });
+  }
+  
+  writeDb(db);
+  broadcast('db_update', db);
+  res.json({ success: true });
+});
+
+/**
+ * Takip edilen tüm kanalların logolarını YouTube'dan çekip günceller.
+ * 
+ * @name POST /api/channels/update-all-avatars
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+async function updateChannelFullInfo(channel) {
+  const handleUrl = channel.handle && channel.handle.startsWith('http') 
+    ? channel.handle 
+    : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
+    
+  let info = await resolveChannelId(handleUrl, channel.id);
+  if (!info || !info.subscriberCount || info.subscriberCount === '?') {
+    const channelIdUrl = `https://www.youtube.com/channel/${channel.id}`;
+    const fallbackInfo = await resolveChannelId(channelIdUrl, channel.id);
+    if (fallbackInfo) {
+      if (fallbackInfo.subscriberCount && fallbackInfo.subscriberCount !== '?') {
+        if (!info) info = {};
+        info.subscriberCount = fallbackInfo.subscriberCount;
+      }
+      if (fallbackInfo.avatar && (!info || !info.avatar)) {
+        if (!info) info = {};
+        info.avatar = fallbackInfo.avatar;
+      }
+    }
+  }
+
+  if (info) {
+    if (info.subscriberCount && info.subscriberCount !== '?') {
+      channel.subscriberCount = info.subscriberCount;
+    }
+    if (info.avatar && typeof info.avatar === 'string' && info.avatar.startsWith('http')) {
+      channel.avatar = info.avatar;
+      try {
+        await downloadChannelAvatar(info.avatar, channel.name);
+      } catch (e) {}
+    }
+  }
+  return channel;
+}
+
+router.post('/update-all-info', localhostOnly, async (req, res) => {
+  const db = readDb();
+  if (db.channels.length === 0) {
+    return res.json({ success: true, message: 'İzlenen kanal bulunmuyor.' });
+  }
+
+  addTerminalLog('[Kanal] Toplu abone ve avatar güncellemesi başlatıldı...', 'info');
+  console.log('[Kanal] Toplu abone ve avatar güncellemesi başlatıldı...');
+  
+  let updatedCount = 0;
+  let failedCount = 0;
+  const totalChannels = db.channels.length;
+  let currentIndex = 0;
+
+  for (const channel of db.channels) {
+    currentIndex++;
+    try {
+      const statusMsg = `[Abone & Avatar ${currentIndex}/${totalChannels}] Güncelleniyor: "${channel.name}"`;
+      console.log(statusMsg);
+      broadcast('status_log', { message: statusMsg, type: 'info' });
+      addTerminalLog(statusMsg, 'info');
+
+      await updateChannelFullInfo(channel);
+      writeDb(db);
+      broadcast('db_update', db);
+      updatedCount++;
+      await new Promise(r => setTimeout(r, 600));
+    } catch (e) {
+      console.error(`[Kanal] Abone ve avatar güncelleme hatası (${channel.name}):`, e.message);
+      failedCount++;
+    }
+  }
+
+  writeDb(db);
+  broadcast('db_update', db);
+  const doneMsg = `[Abone & Avatar ${totalChannels}/${totalChannels}] Toplu kanal güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`;
+  broadcast('status_log', { message: doneMsg, type: 'success' });
+  addTerminalLog(doneMsg, 'success');
+
+  res.json({ success: true, updatedCount, failedCount });
+});
+
+router.post('/:id/update-info', localhostOnly, async (req, res) => {
+  const { id } = req.params;
+  if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
+    return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
+  }
+  
+  try {
+    const db = readDb();
+    const channel = db.channels.find(c => c.id === id);
+    if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
+    
+    addTerminalLog(`[Kanal] Kanal abone sayısı ve avatarı güncelleniyor: "${channel.name}"`, 'info');
+    await updateChannelFullInfo(channel);
+    
+    writeDb(db);
+    broadcast('db_update', db);
+    
+    const displayMsg = `${channel.name} kanal bilgileri (abone sayısı & avatar) güncellendi.`;
+    broadcast('status_log', { message: displayMsg, type: 'success' });
+    addTerminalLog(`[Kanal] Kanal bilgileri güncellendi: "${channel.name}"`, 'success');
+    
+    return res.json({ success: true, subscriberCount: channel.subscriberCount, avatar: channel.avatar });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/update-all-avatars', localhostOnly, async (req, res) => {
   const db = readDb();
   if (db.channels.length === 0) {
     return res.json({ success: true, message: 'İzlenen kanal bulunmuyor.' });
   }
 
-  addTerminalLog('[Kanal] Toplu kanal logosu güncellemesi başlatıldı...', 'info');
-  console.log('[Kanal] Toplu kanal logosu güncellemesi başlatıldı...');
-  
   let updatedCount = 0;
   let failedCount = 0;
+  const totalChannels = db.channels.length;
+  let currentIndex = 0;
 
   for (const channel of db.channels) {
+    currentIndex++;
     try {
-      const channelUrl = channel.handle && channel.handle.startsWith('http') 
-        ? channel.handle 
-        : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
-        
-      console.log(`[Kanal] Logo güncelleniyor: ${channel.name}`);
-      const info = await resolveChannelId(channelUrl);
-      if (info && info.avatar) {
-        channel.avatar = info.avatar;
-        await downloadChannelAvatar(info.avatar, channel.name);
-        updatedCount++;
-      } else {
-        failedCount++;
-      }
-      // Bot engellemesini önlemek için 500ms bekletiyoruz
+      const statusMsg = `[Kanal Logosu ${currentIndex}/${totalChannels}] Güncelleniyor: "${channel.name}"`;
+      console.log(statusMsg);
+      broadcast('status_log', { message: statusMsg, type: 'info' });
+      addTerminalLog(statusMsg, 'info');
+
+      await updateChannelFullInfo(channel);
+      updatedCount++;
       await new Promise(r => setTimeout(r, 500));
     } catch (e) {
       console.error(`[Kanal] Logo güncelleme hatası (${channel.name}):`, e.message);
@@ -319,14 +700,13 @@ router.post('/update-all-avatars', localhostOnly, async (req, res) => {
 
   writeDb(db);
   broadcast('db_update', db);
-  broadcast('status_log', { message: `Toplu logo güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`, type: 'success' });
-  addTerminalLog(`[Kanal] Toplu logo güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`, 'success');
+  broadcast('status_log', { message: `[Kanal Logosu ${totalChannels}/${totalChannels}] Toplu logo güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`, type: 'success' });
+  addTerminalLog(`[Kanal Logosu ${totalChannels}/${totalChannels}] Toplu logo güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`, 'success');
 
   res.json({ success: true, updatedCount, failedCount });
 });
 
-// Kanala özel profil resmi güncelle
-router.post('/:id/update-avatar', async (req, res) => {
+router.post('/:id/update-avatar', localhostOnly, async (req, res) => {
   const { id } = req.params;
   if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
@@ -337,72 +717,61 @@ router.post('/:id/update-avatar', async (req, res) => {
     const channel = db.channels.find(c => c.id === id);
     if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
     
-    const channelUrl = channel.handle && channel.handle.startsWith('http') 
-      ? channel.handle 
-      : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
-      
-    addTerminalLog(`[Kanal] Kanal logosu güncelleniyor: "${channel.name}"`, 'info');
-    const info = await resolveChannelId(channelUrl);
-    if (info && info.avatar) {
-      channel.avatar = info.avatar;
-      
-      // Logo güncellendiğinde yerel avatar dosyasını ve klasör simgesini güncelleriz.
-      await downloadChannelAvatar(info.avatar, channel.name);
-      
-      writeDb(db);
-      broadcast('db_update', db);
-      broadcast('status_log', { message: `${channel.name} kanal logosu güncellendi.`, type: 'success' });
-      addTerminalLog(`[Kanal] Kanal logosu başarıyla güncellendi: "${channel.name}"`, 'success');
-      return res.json({ success: true, avatar: channel.avatar });
-    }
-    res.status(400).json({ error: 'Avatar güncellenemedi.' });
+    await updateChannelFullInfo(channel);
+    writeDb(db);
+    broadcast('db_update', db);
+    return res.json({ success: true, avatar: channel.avatar });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Tüm kanalların abone sayılarını güncelle
+async function fetchChannelSubscriberCount(channel) {
+  const channelUrl = channel.handle && channel.handle.startsWith('http') 
+    ? channel.handle 
+    : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
+    
+  const info = await resolveChannelId(channelUrl, channel.id);
+  return (info && info.subscriberCount) ? info.subscriberCount : (channel.subscriberCount || '?');
+}
+
 router.post('/update-all-subscribers', localhostOnly, async (req, res) => {
   const db = readDb();
   if (db.channels.length === 0) {
     return res.json({ success: true, message: 'İzlenen kanal bulunmuyor.' });
   }
 
-  addTerminalLog('[Kanal] Toplu abone sayısı güncellemesi başlatıldı...', 'info');
-  console.log('[Kanal] Toplu abone sayısı güncellemesi başlatıldı...');
-  
   let updatedCount = 0;
   let failedCount = 0;
+  const totalChannels = db.channels.length;
+  let currentIndex = 0;
 
   for (const channel of db.channels) {
+    currentIndex++;
     try {
-      const channelUrl = channel.handle && channel.handle.startsWith('http') 
-        ? channel.handle 
-        : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
-        
-      console.log(`[Kanal] Abone sayısı güncelleniyor: ${channel.name}`);
-      const info = await resolveChannelId(channelUrl, channel.id);
-      channel.subscriberCount = info && info.subscriberCount ? info.subscriberCount : (channel.subscriberCount || '?');
+      const statusMsg = `[Abone Sayısı ${currentIndex}/${totalChannels}] Güncelleniyor: "${channel.name}"`;
+      console.log(statusMsg);
+      broadcast('status_log', { message: statusMsg, type: 'info' });
+      addTerminalLog(statusMsg, 'info');
+
+      await updateChannelFullInfo(channel);
       updatedCount++;
-      // Bot engellemesini önlemek için 500ms bekletiyoruz
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 400));
     } catch (e) {
       console.error(`[Kanal] Abone sayısı güncelleme hatası (${channel.name}):`, e.message);
-      channel.subscriberCount = channel.subscriberCount || '?';
       failedCount++;
     }
   }
 
   writeDb(db);
   broadcast('db_update', db);
-  broadcast('status_log', { message: `Toplu abone sayısı güncelleme tamamlandı. Güncellenen: ${updatedCount}, Alınamayan: ${failedCount}`, type: 'success' });
-  addTerminalLog(`[Kanal] Toplu abone sayısı güncelleme tamamlandı. Güncellenen: ${updatedCount}, Alınamayan: ${failedCount}`, 'success');
+  broadcast('status_log', { message: `[Abone Sayısı ${totalChannels}/${totalChannels}] Toplu abone sayısı güncelleme tamamlandı. Güncellenen: ${updatedCount}, Alınamayan: ${failedCount}`, type: 'success' });
+  addTerminalLog(`[Abone Sayısı ${totalChannels}/${totalChannels}] Toplu abone sayısı güncelleme tamamlandı. Güncellenen: ${updatedCount}, Alınamayan: ${failedCount}`, 'success');
 
   res.json({ success: true, updatedCount, failedCount });
 });
 
-// Kanala özel abone sayısı güncelle
-router.post('/:id/update-subscribers', async (req, res) => {
+router.post('/:id/update-subscribers', localhostOnly, async (req, res) => {
   const { id } = req.params;
   if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
@@ -413,33 +782,27 @@ router.post('/:id/update-subscribers', async (req, res) => {
     const channel = db.channels.find(c => c.id === id);
     if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
     
-    const channelUrl = channel.handle && channel.handle.startsWith('http') 
-      ? channel.handle 
-      : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
-      
-    addTerminalLog(`[Kanal] Kanal abone sayısı güncelleniyor: "${channel.name}"`, 'info');
-    const info = await resolveChannelId(channelUrl, id);
-    
-    const subCount = info && info.subscriberCount ? info.subscriberCount : (channel.subscriberCount || '?');
-    channel.subscriberCount = subCount;
-    
+    await updateChannelFullInfo(channel);
     writeDb(db);
     broadcast('db_update', db);
-    
-    const displayMsg = subCount === '?'
-      ? `${channel.name} kanal abone sayısı alınamadı, "?" olarak belirlendi.`
-      : `${channel.name} kanal abone sayısı güncellendi: ${subCount}`;
-      
-    broadcast('status_log', { message: displayMsg, type: subCount === '?' ? 'warning' : 'success' });
-    addTerminalLog(`[Kanal] Kanal abone sayısı güncellendi: "${channel.name}" (${subCount})`, subCount === '?' ? 'warning' : 'success');
-    
-    return res.json({ success: true, subscriberCount: subCount });
+    return res.json({ success: true, subscriberCount: channel.subscriberCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Kanal Profil Resmi Sunumu (ID ile)
+/**
+ * Belirtilen kanalın yerel avatar/profil resmi dosyasını sunar.
+ * Yerelde dosya yoksa orijinal YouTube avatar URL'sine yönlendirir.
+ * 
+ * @name GET /api/channels/:id/avatar
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.id - Kanalın YouTube kimliği (ID)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
 router.get('/:id/avatar', (req, res) => {
   const { id } = req.params;
   const db = readDb();
@@ -459,6 +822,14 @@ router.get('/:id/avatar', (req, res) => {
 });
 
 // YouTube Arama Fonksiyonu
+/**
+ * Verilen arama sorgusunu YouTube kanal arama sayfasına göndererek
+ * bulunan kanalların listesini döner. HTML parse ederek çalışır.
+ *
+ * @param {string} query - Aranacak kanal adı veya anahtar kelime
+ * @returns {Promise<Array<{id: string, name: string, handle: string, avatar: string, subscribers: string}>>}
+ *   Bulunan kanalların listesi; her eleman id, name, handle, avatar ve subscribers içerir
+ */
 export function searchChannelsOnYoutube(query) {
   const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&sp=EgIQAg%3D%3D`;
   return new Promise((resolve, reject) => {
@@ -522,6 +893,17 @@ export function searchChannelsOnYoutube(query) {
 }
 
 // YouTube Kanal ID'sini ve Bilgilerini Çözümleme Fonksiyonu
+/**
+ * YouTube kanal URL'si, @handle, kanal ismi veya video URL'si gibi farklı giriş
+ * biçimlerini alıp kanal ID'sini ve temel bilgilerini çözümler.
+ * Önce yt-dlp, bulamazsa RSS ve API yedekleme zinciri denenir.
+ *
+ * @param {string} input - Kanal URL'si, @handle, isim veya video URL'si
+ * @param {string|null} [existingChannelId=null] - Daha önce çözülmüş kanal ID'si (yeniden çözüm atlama için)
+ * @returns {Promise<{id: string, name: string, handle: string, avatar: string, subscriberCount: string}>}
+ *   Kanalın temel bilgilerini içeren nesne
+ * @throws {Error} Kanal bulunamazsa hata fırlatir
+ */
 export async function resolveChannelId(input, existingChannelId = null) {
   const decodedInput = decodeURIComponent(input.trim());
   let targetUrl = decodedInput;
@@ -543,6 +925,10 @@ export async function resolveChannelId(input, existingChannelId = null) {
         targetUrl = `https://www.youtube.com/@${decodedInput}`;
       }
     }
+  }
+
+  if (!targetUrl.includes('hl=')) {
+    targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'hl=tr';
   }
 
   console.log(`Çözümlenecek adres: ${targetUrl}`);
@@ -580,15 +966,20 @@ export async function resolveChannelId(input, existingChannelId = null) {
         }
         args.push('--dump-json', '--playlist-items', '0', `https://www.youtube.com/channel/${channelId}`);
         
-        const spawnOptions = process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {};
+        const localTemp = getLocalTempDir();
+        const spawnOptions = {
+          env: { ...process.env, TEMP: localTemp, TMP: localTemp },
+          ...(process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {})
+        };
         
         const ytdlpOutput = await new Promise((resDl, rejDl) => {
-          const proc = spawn(ytdlpPath, args, spawnOptions);
+          const proc = spawnYtdlp(args, spawnOptions);
           let out = '';
           let err = '';
           proc.stdout.on('data', (d) => { out += d.toString(); });
           proc.stderr.on('data', (d) => { err += d.toString(); });
           proc.on('close', (code) => {
+            cleanMeiForPid(proc.pid);
             if (code !== 0) return rejDl(new Error(`Exit code ${code}. Stderr: ${err}`));
             resDl(out);
           });
@@ -617,7 +1008,20 @@ export async function resolveChannelId(input, existingChannelId = null) {
           subscriberCount: subCount
         };
       } catch (avatarErr) {
-        console.log(`[RSS Fallback] yt-dlp ile logo çekilemedi: ${avatarErr.message}`);
+        console.log(`[RSS Fallback] yt-dlp ile logo çekilemedi: ${avatarErr.message}. Proxy yedek görseli deneniyor...`);
+      }
+
+      if (!avatarUrl) {
+        try {
+          const unavatarRes = await fetchWithProxyWaterfall(`https://unavatar.io/youtube/${channelId}?json=true`);
+          const parsedUnavatar = JSON.parse(unavatarRes);
+          if (parsedUnavatar && parsedUnavatar.url) {
+            avatarUrl = parsedUnavatar.url;
+            console.log(`[RSS Fallback] unavatar.io ile orijinal kanal logosu çekildi: ${avatarUrl}`);
+          }
+        } catch (unavatarErr) {
+          console.log(`[RSS Fallback] unavatar.io logo sorgusu başarısız: ${unavatarErr.message}`);
+        }
       }
 
       return {
@@ -784,6 +1188,14 @@ export async function resolveChannelId(input, existingChannelId = null) {
 }
 
 // yt-dlp ile kanal abone sayısını çekme yedek fonksiyonu
+/**
+ * yt-dlp kullanarak belirtilen YouTube kanalının abone sayısını çeker.
+ * Sayıyı okunaklı kısaltılmış biçime dönüştürür (1500 → '1.5K', 2000000 → '2.0M').
+ * Başarısız olursa boş string döner, hata fırlatmaz.
+ *
+ * @param {string} channelUrl - Kanalın tam YouTube URL'si
+ * @returns {Promise<string>} Kısaltılmış abone sayısı ('1.5K', '2.0M' vb.) veya boş string
+ */
 export function getChannelSubscribersViaYtdlp(channelUrl) {
   return new Promise((resolve) => {
     const db = readDb();
@@ -797,14 +1209,19 @@ export function getChannelSubscribersViaYtdlp(channelUrl) {
     }
     args.push(channelUrl);
 
-    const spawnOptions = process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {};
-    const proc = spawn(ytdlpPath, args, spawnOptions);
+    const localTemp = getLocalTempDir();
+    const spawnOptions = {
+      env: { ...process.env, TEMP: localTemp, TMP: localTemp },
+      ...(process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {})
+    };
+    const proc = spawnYtdlp(args, spawnOptions);
     
     let stdout = '';
     let stderr = '';
     proc.stdout.on('data', (d) => { stdout += d.toString(); });
     proc.stderr.on('data', (d) => { stderr += d.toString(); });
     proc.on('close', (code) => {
+      cleanMeiForPid(proc.pid);
       if (code === 0) {
         const subs = parseInt(stdout.trim(), 10);
         if (!isNaN(subs)) {

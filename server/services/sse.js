@@ -37,6 +37,9 @@ export function broadcast(event, data) {
 export function addTerminalLog(message, type = 'info') {
   const trimmed = message.trim();
   if (!trimmed) return;
+
+  // Process stdout'a yazarak Tray "Konsol Çıktısını Göster" penceresine iletilmesini sağla
+  console.log(`[${type.toUpperCase()}] ${trimmed}`);
   
   const timestamp = new Date().toISOString();
   const logItem = { timestamp, message: trimmed, type };
