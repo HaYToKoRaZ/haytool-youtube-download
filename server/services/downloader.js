@@ -841,7 +841,6 @@ export class DownloadQueue {
           }
         } catch (e) {}
       }
-      }
 
       broadcast('db_update', readDb());
       
