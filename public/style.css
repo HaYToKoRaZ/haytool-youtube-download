@@ -968,10 +968,24 @@ body.light-theme .nav-item[data-tab="queue"].active .queue-nav-badge {
   flex-direction: row !important;
   align-items: center !important;
   gap: 8px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
   margin-left: auto;
   height: 100%;
   flex-wrap: nowrap !important;
+}
+
+.topbar-status-badges::-webkit-scrollbar {
+  display: none;
+}
+
+.topbar-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px;
+  flex-shrink: 0 !important;
+  margin-left: 8px;
 }
 
 .status-badge {
@@ -3265,6 +3279,7 @@ body.light-theme .nav-item.pd-btn {
 
 /* Gömülü Oynatıcı Modalı (Floating Layout) */
 #player-modal {
+  z-index: 999999999 !important;
   background-color: transparent !important;
   backdrop-filter: none !important;
   pointer-events: none !important;
@@ -3274,6 +3289,7 @@ body.light-theme .nav-item.pd-btn {
 }
 
 #player-modal .player-modal-content {
+  z-index: 999999999 !important;
   pointer-events: auto !important;
   position: fixed !important;
   bottom: 20px;

@@ -2,6 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import { 
@@ -20,6 +21,45 @@ const rootDir = path.resolve(__dirname, '..');
 
 export const dbPath = path.join(rootDir, 'db.json');
 export const defaultDownloadDir = path.join(os.homedir(), 'Downloads', 'HaYTooLYouTubeAutoDownloads');
+
+// Makineye özel AES-256 şifreleme tohumu ve anahtarı
+const machineSeed = `${os.hostname()}|${os.userInfo().username}|${os.homedir()}`;
+const machineSecretKey = crypto.createHash('sha256').update(machineSeed).digest();
+
+/**
+ * Hassas metin verilerini (ör. GitHub Token) AES-256-CBC ile makineye bağlı şifreler.
+ */
+export function encryptSecret(text) {
+  if (!text || typeof text !== 'string' || text.startsWith('enc:v1:')) return text;
+  try {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', machineSecretKey, iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return 'enc:v1:' + iv.toString('hex') + ':' + encrypted;
+  } catch (e) {
+    return text;
+  }
+}
+
+/**
+ * Şifrelenmiş hassas metin verilerini makine anahtarı ile çözer.
+ */
+export function decryptSecret(text) {
+  if (!text || typeof text !== 'string' || !text.startsWith('enc:v1:')) return text;
+  try {
+    const parts = text.split(':');
+    if (parts.length < 4) return '';
+    const iv = Buffer.from(parts[2], 'hex');
+    const encryptedText = parts[3];
+    const decipher = crypto.createDecipheriv('aes-256-cbc', machineSecretKey, iv);
+    let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (e) {
+    return '';
+  }
+}
 
 export const defaultDb = {
   channels: [
@@ -93,6 +133,8 @@ export const defaultDb = {
     tempDirType: 'system',
     durationFetchMethod: 'auto',
     ytdlpRunMode: 'exe',
+    liveStreamHandling: 'instant_retry',
+    liveStreamRetryInterval: 30,
     pythonCmd: os.platform() === 'win32' ? 'python' : 'python3',
     maxConcurrentDownloads: 1,
     hideOnDelete: true,
@@ -228,6 +270,11 @@ export function readDb() {
       if (db.settings.rssDelay !== undefined) {
         delete db.settings.rssDelay;
       }
+
+      // Şifrelenmiş githubToken varsa RAM'e yüklerken çöz
+      if (db.settings && db.settings.githubToken) {
+        db.settings.githubToken = decryptSecret(db.settings.githubToken);
+      }
     } else {
       fs.writeFileSync(dbPath, JSON.stringify(defaultDb, null, 2), 'utf8');
       dbJsonMtime = fs.statSync(dbPath).mtimeMs;
@@ -299,7 +346,13 @@ export function writeDb(data) {
       }
     }
 
-    const dbString = JSON.stringify(data, null, 2);
+    // Disk için kopyasını al ve hassas verileri (githubToken) AES-256 ile şifrele
+    const dataToSave = JSON.parse(JSON.stringify(data));
+    if (dataToSave.settings && dataToSave.settings.githubToken) {
+      dataToSave.settings.githubToken = encryptSecret(dataToSave.settings.githubToken);
+    }
+
+    const dbString = JSON.stringify(dataToSave, null, 2);
     const tempDbPath = dbPath + '.tmp';
     fs.writeFileSync(tempDbPath, dbString, 'utf8');
     fs.renameSync(tempDbPath, dbPath);

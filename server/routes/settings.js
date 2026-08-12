@@ -4,7 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import https from 'https';
-import { spawn, exec } from 'child_process';
+import http from 'http';
+import zlib from 'zlib';
+import { spawn, exec, execSync, execFileSync } from 'child_process';
 import { Readable } from 'stream';
 import open from 'open';
 import { 
@@ -20,7 +22,15 @@ import { ytdlpPath, getFfmpegPath, testFfmpegSync, setFfmpegWorkingCached, getLo
 import { downloadQueue, getEffectiveSpeedLimit } from '../services/downloader.js';
 import { broadcast, addTerminalLog, terminalLogs } from '../services/sse.js';
 import { categoriesIniPath } from '../config.js';
-import { appVersion } from '../version.js';
+export function formatBackupDateStr(now = new Date()) {
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = String(now.getFullYear()).slice(-2);
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  return `${day}-${month}-${year}_${hours}-${minutes}-${seconds}`;
+}
 
 export const router = express.Router();
 
@@ -249,41 +259,108 @@ export async function downloadFfmpegAsync() {
   
   const ffmpegZip = path.join(ffmpegDir, 'ffmpeg_temp.zip');
   const ffprobeZip = path.join(ffmpegDir, 'ffprobe_temp.zip');
+
+  const ffmpegMirrors = [
+    urls.ffmpeg,
+    `https://ffbinaries.com/downloads/ffmpeg-6.1-${platformKey === 'windows-64' ? 'win' : platformKey === 'linux-64' ? 'linux' : 'macos'}-64.zip`
+  ];
+  const ffprobeMirrors = [
+    urls.ffprobe,
+    `https://ffbinaries.com/downloads/ffprobe-6.1-${platformKey === 'windows-64' ? 'win' : platformKey === 'linux-64' ? 'linux' : 'macos'}-64.zip`
+  ];
   
-  const downloadHelper = async (url, dest, startPercent, endPercent) => {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    const totalBytes = parseInt(res.headers.get('content-length'), 10) || 0;
-    
-    const fileStream = fs.createWriteStream(dest);
-    const nodeStream = Readable.fromWeb(res.body);
-    let downloadedBytes = 0;
-    
-    nodeStream.on('data', (chunk) => {
-      downloadedBytes += chunk.length;
-      if (totalBytes > 0) {
-        const fileProgress = downloadedBytes / totalBytes;
-        const totalProgress = startPercent + fileProgress * (endPercent - startPercent);
-        ffmpegDownloadState.progress = Math.round(totalProgress);
-        broadcast('ffmpeg_download', ffmpegDownloadState);
+  const downloadHelper = async (urlCandidates, dest, startPercent, endPercent) => {
+    const list = Array.isArray(urlCandidates) ? urlCandidates : [urlCandidates];
+    let lastError = null;
+
+    for (const targetUrl of list) {
+      try {
+        console.log(`[FFmpeg] Downloading from: ${targetUrl}`);
+        await new Promise((resolve, reject) => {
+          const request = (currentUrl, redirectCount = 0) => {
+            if (redirectCount > 8) {
+              return reject(new Error('Too many redirects'));
+            }
+            const isHttps = currentUrl.startsWith('https');
+            const client = isHttps ? https : http;
+            
+            const req = client.get(currentUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': '*/*'
+              }
+            }, (res) => {
+              if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                const nextUrl = new URL(res.headers.location, currentUrl).href;
+                return request(nextUrl, redirectCount + 1);
+              }
+              if (res.statusCode !== 200) {
+                return reject(new Error(`HTTP status ${res.statusCode}`));
+              }
+
+              const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+              let downloadedBytes = 0;
+              const fileStream = fs.createWriteStream(dest);
+
+              res.on('data', (chunk) => {
+                downloadedBytes += chunk.length;
+                if (totalBytes > 0) {
+                  const fileProgress = downloadedBytes / totalBytes;
+                  const totalProgress = startPercent + fileProgress * (endPercent - startPercent);
+                  ffmpegDownloadState.progress = Math.round(totalProgress);
+                  broadcast('ffmpeg_download', ffmpegDownloadState);
+                }
+              });
+
+              res.pipe(fileStream);
+
+              fileStream.on('finish', () => {
+                fileStream.close();
+                resolve();
+              });
+
+              fileStream.on('error', (err) => {
+                try { fs.unlinkSync(dest); } catch(e) {}
+                reject(err);
+              });
+
+              res.on('error', (err) => {
+                try { fs.unlinkSync(dest); } catch(e) {}
+                reject(err);
+              });
+            });
+
+            req.on('error', (err) => {
+              try { fs.unlinkSync(dest); } catch(e) {}
+              reject(err);
+            });
+
+            req.setTimeout(30000, () => {
+              req.destroy(new Error('Download request timeout'));
+            });
+          };
+
+          request(targetUrl);
+        });
+
+        if (fs.existsSync(dest) && fs.statSync(dest).size > 1024 * 1024) {
+          return;
+        }
+      } catch (err) {
+        console.warn(`[FFmpeg] Mirror failed (${targetUrl}):`, err.message);
+        lastError = err;
       }
-    });
-    
-    nodeStream.pipe(fileStream);
-    
-    await new Promise((resolve, reject) => {
-      fileStream.on('finish', resolve);
-      fileStream.on('error', reject);
-      nodeStream.on('error', reject);
-    });
+    }
+
+    throw lastError || new Error('FFmpeg download failed from all mirrors');
   };
   
   try {
-    console.log(`[FFmpeg] Downloading FFmpeg from ${urls.ffmpeg}...`);
-    await downloadHelper(urls.ffmpeg, ffmpegZip, 0, 45);
+    console.log(`[FFmpeg] Downloading FFmpeg...`);
+    await downloadHelper(ffmpegMirrors, ffmpegZip, 0, 45);
     
-    console.log(`[FFmpeg] Downloading FFprobe from ${urls.ffprobe}...`);
-    await downloadHelper(urls.ffprobe, ffprobeZip, 45, 90);
+    console.log(`[FFmpeg] Downloading FFprobe...`);
+    await downloadHelper(ffprobeMirrors, ffprobeZip, 45, 90);
     
     ffmpegDownloadState.status = 'extracting';
     ffmpegDownloadState.progress = 90;
@@ -470,10 +547,41 @@ export function testCookiesValidity(browser) {
   });
 }
 
+function getLocalFfmpegInfo() {
+  const isWin = os.platform() === 'win32';
+  const ext = isWin ? '.exe' : '';
+  const rootDir = path.resolve(process.cwd());
+  const pathInSubfolder = path.join(rootDir, 'ffmpeg', `ffmpeg${ext}`);
+  const pathInRoot = path.join(rootDir, `ffmpeg${ext}`);
+
+  let targetPath = null;
+
+  if (fs.existsSync(pathInSubfolder)) {
+    targetPath = pathInSubfolder;
+  } else if (fs.existsSync(pathInRoot)) {
+    targetPath = pathInRoot;
+  }
+
+  if (!targetPath) {
+    return { installed: false, version: null };
+  }
+
+  try {
+    const output = execFileSync(targetPath, ['-version'], { encoding: 'utf-8', timeout: 5000 });
+    const match = output.match(/ffmpeg version ([^\s]+)/i);
+    const ver = match ? match[1] : '6.1';
+    return { installed: true, version: ver };
+  } catch (e) {
+    return { installed: false, version: null };
+  }
+}
+
 router.get('/ffmpeg/status', (req, res) => {
-  const isFfmpegWorking = testFfmpegSync();
+  const info = getLocalFfmpegInfo();
   res.json({
-    installed: isFfmpegWorking,
+    installed: info.installed,
+    localVersion: info.version,
+    remoteVersion: 'v6.1',
     status: ffmpegDownloadState.status,
     progress: ffmpegDownloadState.progress,
     error: ffmpegDownloadState.error
@@ -603,7 +711,278 @@ router.get('/disk-space', (req, res) => {
 });
 
 /**
- * Oluşturulmuş olan tüm manuel sistem yedek paketlerini (backup/*.json) listeler.
+ * backup/ dizinindeki yedekleri denetler.
+ * En son 7 takvim gününün her birinden 1 adet yedeği "Günlük Korunan" (Daily Protected - maks 7 gün) olarak saklar.
+ * Bunun haricindeki normal/dönerli yedek sayısı 10'u aştığında en eskileri temizler.
+ * Böylece klasörde en fazla 10 Normal + 7 Günlük Korunan = Toplam 17 Yedek barındırılır.
+ */
+function cleanupOldBackups(backupsDir, maxRegular = 10, maxDailyProtectedDays = 7) {
+  if (!fs.existsSync(backupsDir)) return;
+  const files = fs.readdirSync(backupsDir);
+  const backupFiles = files.filter(f => f.startsWith('manual_backup_') || f.startsWith('auto_backup_') || f.startsWith('daily_backup_'));
+
+  if (backupFiles.length === 0) return;
+
+  const items = backupFiles.map(filename => {
+    const fullPath = path.join(backupsDir, filename);
+    const stats = fs.statSync(fullPath);
+    const mtime = stats.mtime;
+    const dateKey = mtime.toISOString().split('T')[0];
+    return {
+      filename,
+      fullPath,
+      size: stats.size,
+      mtime: mtime.getTime(),
+      dateKey,
+      isDailyProtected: false
+    };
+  }).sort((a, b) => a.mtime - b.mtime); // Eskiden yeniye
+
+  // Günlere göre grupla
+  const dayGroups = {};
+  items.forEach(item => {
+    if (!dayGroups[item.dateKey]) dayGroups[item.dateKey] = [];
+    dayGroups[item.dateKey].push(item);
+  });
+
+  // En son 7 güne ait günlerin ilk yedeğini korumaya al (En fazla 7 Günlük Korunan)
+  const sortedDays = Object.keys(dayGroups).sort();
+  const protectedDays = new Set(sortedDays.slice(-maxDailyProtectedDays));
+
+  protectedDays.forEach(day => {
+    if (dayGroups[day] && dayGroups[day].length > 0) {
+      dayGroups[day][0].isDailyProtected = true;
+    }
+  });
+
+  // Korumalı olmayan normal yedekleri ayır
+  const nonProtectedItems = items.filter(item => !item.isDailyProtected);
+
+  // Normal yedek sayısı 10'u aşarsa en eskilerini sil
+  if (nonProtectedItems.length > maxRegular) {
+    let excessCount = nonProtectedItems.length - maxRegular;
+    for (const item of nonProtectedItems) {
+      if (excessCount <= 0) break;
+      try {
+        if (fs.existsSync(item.fullPath)) {
+          fs.unlinkSync(item.fullPath);
+          console.log(`[Yedek Temizliği] Dönerli yedek sınırı (max ${maxRegular}) aşıldı, silindi: ${item.filename}`);
+          excessCount--;
+        }
+      } catch (e) {
+        console.error(`[Yedek Temizliği Hatası]: ${item.filename} silinemedi:`, e.message);
+      }
+    }
+  }
+}
+
+/**
+ * Sunucu başlatıldığında veya periyodik kontrolde bugüne ait otomatik sistem yedeği yoksa otomatik ZIP yedeği alır.
+ */
+export function ensureDailySystemBackup() {
+  try {
+    const backupsDir = path.resolve(process.cwd(), 'backup');
+    if (!fs.existsSync(backupsDir)) {
+      fs.mkdirSync(backupsDir, { recursive: true });
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const files = fs.readdirSync(backupsDir);
+    const backupFiles = files.filter(f => f.startsWith('manual_backup_') || f.startsWith('auto_backup_') || f.startsWith('daily_backup_'));
+
+    // Bugün oluşturulmuş herhangi bir yedek var mı?
+    const hasTodayBackup = backupFiles.some(filename => {
+      const fullPath = path.join(backupsDir, filename);
+      const mtime = fs.statSync(fullPath).mtime;
+      return mtime.toISOString().split('T')[0] === todayStr;
+    });
+
+    if (!hasTodayBackup) {
+      const rootDir = path.resolve(process.cwd());
+      const dbFilePath = path.join(rootDir, 'db.json');
+      const channelsIniFilePath = path.join(rootDir, 'channels.ini');
+      const catIniFilePath = path.join(rootDir, 'categories.ini');
+      const configWinPath = path.join(rootDir, 'configwin.ini');
+      const configUnixPath = path.join(rootDir, 'configunix.ini');
+      const configPath = fs.existsSync(configWinPath) ? configWinPath : configUnixPath;
+
+      const currentDb = readDb();
+      const dbSanitized = JSON.parse(JSON.stringify(currentDb));
+      if (dbSanitized.settings) {
+        delete dbSanitized.settings.githubToken;
+      }
+      const dbJsonContent = JSON.stringify(dbSanitized, null, 2).replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '');
+
+      const channelsIniContent = fs.existsSync(channelsIniFilePath) ? fs.readFileSync(channelsIniFilePath, 'utf8') : '';
+      const categoriesIniContent = fs.existsSync(catIniFilePath) ? fs.readFileSync(catIniFilePath, 'utf8') : '';
+      const configIniContent = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : '';
+      const configFileName = path.basename(configPath);
+
+      const zipFiles = [
+        { name: 'db.json', content: dbJsonContent },
+        { name: 'channels.ini', content: channelsIniContent },
+        { name: 'categories.ini', content: categoriesIniContent },
+        { name: configFileName, content: configIniContent }
+      ];
+
+      const compressedBuffer = createZipArchive(zipFiles);
+      const backupFilename = `auto_backup_${formatBackupDateStr()}.zip`;
+      const backupFilePath = path.join(backupsDir, backupFilename);
+      fs.writeFileSync(backupFilePath, compressedBuffer);
+
+      cleanupOldBackups(backupsDir, 10, 7);
+      console.log(`[Otomatik Günlük Sistem Yedeği] Bugüne ait ilk otomatik yedek alındı: ${backupFilename}`);
+    }
+  } catch (err) {
+    console.error('[Otomatik Günlük Yedek Hatası]:', err.message);
+  }
+}
+
+function crc32(buf) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) {
+    crc ^= buf[i];
+    for (let j = 0; j < 8; j++) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+    }
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+/**
+ * Saf Node.js zlib kullanarak ayrı ayrı dosyaları kapsayan standart bir ZIP arşivi üretir.
+ */
+function createZipArchive(files) {
+  const localHeaders = [];
+  const centralHeaders = [];
+  let offset = 0;
+
+  files.forEach(file => {
+    const nameBuf = Buffer.from(file.name, 'utf8');
+    const contentBuf = Buffer.isBuffer(file.content) ? file.content : Buffer.from(file.content, 'utf8');
+    const compressedBuf = zlib.deflateRawSync(contentBuf);
+    const crc = crc32(contentBuf);
+
+    const lHeader = Buffer.alloc(30 + nameBuf.length);
+    lHeader.writeUInt32LE(0x04034b50, 0);
+    lHeader.writeUInt16LE(20, 4);
+    lHeader.writeUInt16LE(0, 6);
+    lHeader.writeUInt16LE(8, 8);
+    lHeader.writeUInt16LE(0, 10);
+    lHeader.writeUInt32LE(crc, 14);
+    lHeader.writeUInt32LE(compressedBuf.length, 18);
+    lHeader.writeUInt32LE(contentBuf.length, 22);
+    lHeader.writeUInt16LE(nameBuf.length, 26);
+    lHeader.writeUInt16LE(0, 28);
+    nameBuf.copy(lHeader, 30);
+
+    const cHeader = Buffer.alloc(46 + nameBuf.length);
+    cHeader.writeUInt32LE(0x02014b50, 0);
+    cHeader.writeUInt16LE(20, 4);
+    cHeader.writeUInt16LE(20, 6);
+    cHeader.writeUInt16LE(0, 8);
+    cHeader.writeUInt16LE(8, 10);
+    cHeader.writeUInt16LE(0, 12);
+    cHeader.writeUInt32LE(crc, 16);
+    cHeader.writeUInt32LE(compressedBuf.length, 20);
+    cHeader.writeUInt32LE(contentBuf.length, 24);
+    cHeader.writeUInt16LE(nameBuf.length, 28);
+    cHeader.writeUInt16LE(0, 30);
+    cHeader.writeUInt16LE(0, 32);
+    cHeader.writeUInt16LE(0, 34);
+    cHeader.writeUInt32LE(0, 36);
+    cHeader.writeUInt32LE(offset, 42);
+    nameBuf.copy(cHeader, 46);
+
+    localHeaders.push(lHeader, compressedBuf);
+    centralHeaders.push(cHeader);
+
+    offset += lHeader.length + compressedBuf.length;
+  });
+
+  const centralStart = offset;
+  const centralBuf = Buffer.concat(centralHeaders);
+
+  const endRecord = Buffer.alloc(22);
+  endRecord.writeUInt32LE(0x06054b50, 0);
+  endRecord.writeUInt16LE(0, 4);
+  endRecord.writeUInt16LE(0, 6);
+  endRecord.writeUInt16LE(files.length, 8);
+  endRecord.writeUInt16LE(files.length, 10);
+  endRecord.writeUInt32LE(centralBuf.length, 12);
+  endRecord.writeUInt32LE(centralStart, 16);
+  endRecord.writeUInt16LE(0, 20);
+
+  return Buffer.concat([...localHeaders, centralBuf, endRecord]);
+}
+
+/**
+ * Saf Node.js zlib kullanarak ZIP arşivinden ayrı ayrı dosyaları çıkarır.
+ */
+function parseZipArchive(buf) {
+  const files = {};
+  let pos = 0;
+  while (pos < buf.length - 30) {
+    const sig = buf.readUInt32LE(pos);
+    if (sig !== 0x04034b50) break;
+
+    const compMethod = buf.readUInt16LE(pos + 8);
+    const compSize = buf.readUInt32LE(pos + 18);
+    const uncompSize = buf.readUInt32LE(pos + 22);
+    const nameLen = buf.readUInt16LE(pos + 26);
+    const extraLen = buf.readUInt16LE(pos + 28);
+
+    const filename = buf.toString('utf8', pos + 30, pos + 30 + nameLen);
+    const dataStart = pos + 30 + nameLen + extraLen;
+    const compData = buf.subarray(dataStart, dataStart + compSize);
+
+    let contentBuf;
+    if (compMethod === 8) {
+      contentBuf = zlib.inflateRawSync(compData);
+    } else {
+      contentBuf = compData;
+    }
+
+    files[filename] = contentBuf.toString('utf8');
+    pos = dataStart + compSize;
+  }
+  return files;
+}
+
+/**
+ * Sıkıştırılmış (.zip, .json.gz) veya düz JSON biçimindeki yedek arabelleğini okur ve ayrı ayrı dosyalarına ayrıştırır.
+ */
+function parseBackupBuffer(buffer, filename = '') {
+  // ZIP formatı tespiti (PK\x03\x04 signature)
+  if (filename.endsWith('.zip') || (buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04)) {
+    const zipFiles = parseZipArchive(buffer);
+    const res = {};
+    if (zipFiles['db.json']) {
+      try { res.db = JSON.parse(zipFiles['db.json']); } catch (e) {}
+    }
+    if (zipFiles['channels.ini']) res.channelsIni = zipFiles['channels.ini'];
+    if (zipFiles['categories.ini']) res.categoriesIni = zipFiles['categories.ini'];
+    
+    const configKey = Object.keys(zipFiles).find(k => k.startsWith('config'));
+    if (configKey) {
+      res.configIni = zipFiles[configKey];
+      res.configIniName = configKey;
+    }
+    return res;
+  }
+  
+  // GZIP formatı tespiti (.json.gz)
+  if (filename.endsWith('.gz') || (buffer[0] === 0x1f && buffer[1] === 0x8b)) {
+    const decompressed = zlib.gunzipSync(buffer).toString('utf8');
+    return JSON.parse(decompressed);
+  }
+  
+  // Düz JSON formatı
+  return JSON.parse(buffer.toString('utf8'));
+}
+
+/**
+ * Oluşturulmuş olan tüm manuel ve otomatik sistem yedek paketlerini (backup/*.zip, .json.gz veya .json) listeler.
  * 
  * @name GET /api/settings/backups
  * @function
@@ -618,19 +997,53 @@ router.get('/backups', localhostOnly, (req, res) => {
     if (!fs.existsSync(backupsDir)) {
       return res.json({ success: true, backups: [] });
     }
+    
+    // Temizlik ve rotasyonu çalıştır
+    cleanupOldBackups(backupsDir, 10, 7);
+
     const files = fs.readdirSync(backupsDir);
-    const backups = files
-      .filter(f => f.startsWith('manual_backup_') && f.endsWith('.json'))
-      .map(filename => {
-        const fullPath = path.join(backupsDir, filename);
-        const stats = fs.statSync(fullPath);
-        return {
-          filename,
-          size: (stats.size / 1024).toFixed(1) + ' KB',
-          createdAt: stats.birthtime.toISOString()
-        };
-      })
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const backupFiles = files.filter(f => f.startsWith('manual_backup_') || f.startsWith('auto_backup_') || f.startsWith('daily_backup_'));
+
+    const items = backupFiles.map(filename => {
+      const fullPath = path.join(backupsDir, filename);
+      const stats = fs.statSync(fullPath);
+      const mtime = stats.mtime;
+      const dateKey = mtime.toISOString().split('T')[0];
+      return {
+        filename,
+        fullPath,
+        sizeBytes: stats.size,
+        size: stats.size < 1024 * 1024 
+          ? (stats.size / 1024).toFixed(1) + ' KB' 
+          : (stats.size / (1024 * 1024)).toFixed(2) + ' MB',
+        mtime: mtime.getTime(),
+        dateKey,
+        createdAt: mtime.toISOString(),
+        isAuto: filename.startsWith('auto_') || filename.startsWith('daily_')
+      };
+    }).sort((a, b) => a.mtime - b.mtime);
+
+    // Günlük korumalı olanları tespit et
+    const dailyProtectedMap = new Set();
+    for (const item of items) {
+      if (!dailyProtectedMap.has(item.dateKey)) {
+        dailyProtectedMap.add(item.dateKey);
+        item.isDailyProtected = true;
+      } else {
+        item.isDailyProtected = false;
+      }
+    }
+
+    // Yeniden eskiye doğru sıralayıp yanıt dön
+    const backups = items
+      .sort((a, b) => b.mtime - a.mtime)
+      .map(({ filename, size, createdAt, isDailyProtected, isAuto }) => ({
+        filename,
+        size,
+        createdAt,
+        isDailyProtected,
+        isAuto
+      }));
       
     res.json({ success: true, backups });
   } catch (err) {
@@ -639,7 +1052,7 @@ router.get('/backups', localhostOnly, (req, res) => {
 });
 
 /**
- * db.json, channels.ini ve config dosyalarını paketleyerek backup/ klasörüne yeni bir yedek kaydeder.
+ * db.json, channels.ini, categories.ini ve config ini dosyalarını ayrı ayrı dosyalar halinde ZIP arşiviyle sıkıştırarak backup/ klasörüne manuel kaydeder.
  * 
  * @name POST /api/settings/backup
  * @function
@@ -655,47 +1068,51 @@ router.post('/backup', localhostOnly, (req, res) => {
     const channelsIniFilePath = path.join(rootDir, 'channels.ini');
     const catIniFilePath = path.join(rootDir, 'categories.ini');
     
-    // configwin.ini veya configunix.ini hangisi varsa onu yedekle
     const configWinPath = path.join(rootDir, 'configwin.ini');
     const configUnixPath = path.join(rootDir, 'configunix.ini');
     const configPath = fs.existsSync(configWinPath) ? configWinPath : configUnixPath;
     
-    const dbContent = fs.existsSync(dbFilePath) ? JSON.parse(fs.readFileSync(dbFilePath, 'utf8')) : null;
+    const currentDb = readDb();
+    const dbSanitized = JSON.parse(JSON.stringify(currentDb));
+    if (dbSanitized.settings) {
+      delete dbSanitized.settings.githubToken;
+    }
+    const dbJsonContent = JSON.stringify(dbSanitized, null, 2).replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '');
+
     const channelsIniContent = fs.existsSync(channelsIniFilePath) ? fs.readFileSync(channelsIniFilePath, 'utf8') : '';
     const categoriesIniContent = fs.existsSync(catIniFilePath) ? fs.readFileSync(catIniFilePath, 'utf8') : '';
     const configIniContent = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : '';
+    const configFileName = path.basename(configPath);
     
-    const backupData = {
-      timestamp: new Date().toISOString(),
-      version: appVersion || '8.0.0',
-      db: dbContent,
-      channelsIni: channelsIniContent,
-      categoriesIni: categoriesIniContent,
-      configIni: configIniContent,
-      configIniName: path.basename(configPath)
-    };
+    // Ayrı ayrı bağımsız dosyaları kapsayan ZIP arşiv paketini oluştur
+    const zipFiles = [
+      { name: 'db.json', content: dbJsonContent },
+      { name: 'channels.ini', content: channelsIniContent },
+      { name: 'categories.ini', content: categoriesIniContent },
+      { name: configFileName, content: configIniContent }
+    ];
+
+    const compressedBuffer = createZipArchive(zipFiles);
     
     const backupsDir = path.resolve(process.cwd(), 'backup');
     if (!fs.existsSync(backupsDir)) {
       fs.mkdirSync(backupsDir, { recursive: true });
     }
     
-    // Tarih damgalı dosya adı oluştur
-    const now = new Date();
-    const dateStr = now.getFullYear() +
-      String(now.getMonth() + 1).padStart(2, '0') +
-      String(now.getDate()).padStart(2, '0') + '_' +
-      String(now.getHours()).padStart(2, '0') +
-      String(now.getMinutes()).padStart(2, '0') +
-      String(now.getSeconds()).padStart(2, '0');
-      
-    const backupFilename = `manual_backup_${dateStr}.json`;
+    const backupFilename = `manual_backup_${formatBackupDateStr()}.zip`;
     const backupFilePath = path.join(backupsDir, backupFilename);
     
-    fs.writeFileSync(backupFilePath, JSON.stringify(backupData, null, 2), 'utf8');
+    fs.writeFileSync(backupFilePath, compressedBuffer);
     
-    addTerminalLog(`[Sistem] Manuel yedek başarıyla oluşturuldu: ${backupFilename}`, 'success');
-    res.json({ success: true, message: 'Yedek başarıyla oluşturuldu.', filename: backupFilename });
+    // Rotasyonu çalıştır (Max 10 regular + 7 daily protected)
+    cleanupOldBackups(backupsDir, 10, 7);
+
+    const sizeFormatted = compressedBuffer.length < 1024 * 1024 
+      ? (compressedBuffer.length / 1024).toFixed(1) + ' KB' 
+      : (compressedBuffer.length / (1024 * 1024)).toFixed(2) + ' MB';
+    
+    addTerminalLog(`[Sistem] Ayrı dosyalı Manuel ZIP yedek oluşturuldu: ${backupFilename} (${sizeFormatted})`, 'success');
+    res.json({ success: true, message: 'ZIP manuel yedek arşivi başarıyla oluşturuldu.', filename: backupFilename, size: sizeFormatted });
   } catch (err) {
     console.error('[Backup Error]:', err.message);
     res.status(500).json({ error: err.message });
@@ -703,7 +1120,7 @@ router.post('/backup', localhostOnly, (req, res) => {
 });
 
 /**
- * Belirtilen yedek paketini (JSON) okuyarak sistem veritabanını, kanalları, kategorileri ve yapılandırmaları geri yükler.
+ * Belirtilen yedek paketini (JSON veya JSON.GZ) okuyarak sistem veritabanını, kanalları, kategorileri ve yapılandırmaları geri yükler.
  * 
  * @name POST /api/settings/restore
  * @function
@@ -725,46 +1142,146 @@ router.post('/restore', localhostOnly, async (req, res) => {
   }
   
   try {
-    const backupContent = JSON.parse(fs.readFileSync(backupFilePath, 'utf8'));
+    const rawBuffer = fs.readFileSync(backupFilePath);
+    const backupContent = parseBackupBuffer(rawBuffer, filename);
     const rootDir = path.resolve(process.cwd());
     
-    // 1. db.json'ı yaz
     if (backupContent.db) {
       const dbFilePath = path.join(rootDir, 'db.json');
       fs.writeFileSync(dbFilePath, JSON.stringify(backupContent.db, null, 2), 'utf8');
     }
     
-    // 2. channels.ini'yi yaz
     if (backupContent.channelsIni) {
       const channelsIniFilePath = path.join(rootDir, 'channels.ini');
       fs.writeFileSync(channelsIniFilePath, backupContent.channelsIni, 'utf8');
     }
     
-    // 3. categories.ini'yi yaz
     const catIniFilePath = path.join(rootDir, 'categories.ini');
     if (backupContent.categoriesIni) {
       fs.writeFileSync(catIniFilePath, backupContent.categoriesIni, 'utf8');
     } else if (backupContent.db && backupContent.db.categories) {
-      // Eski yedek paketleri için: db.json içindeki kategorilerden categories.ini oluştur
       saveCategoriesToIni(backupContent.db);
     }
     
-    // 4. config ini dosyasını yaz
     if (backupContent.configIni) {
       const configIniName = backupContent.configIniName || (os.platform() === 'win32' ? 'configwin.ini' : 'configunix.ini');
       const configPath = path.join(rootDir, configIniName);
       fs.writeFileSync(configPath, backupContent.configIni, 'utf8');
     }
     
-    // Veritabanını bellekten disktekiyle senkronize et
     syncDbWithDisk();
     
     addTerminalLog(`[Sistem] Yedek başarıyla geri yüklendi: ${filename}`, 'success');
     res.json({ success: true, message: 'Yedek başarıyla geri yüklendi. Sunucu verileri ve kategoriler güncellendi.' });
   } catch (err) {
     console.error('[Restore Error]:', err.message);
+    res.status(500).json({ error: 'Yedek geri yüklenirken hata oluştu: ' + err.message });
+  }
+});
+
+/**
+ * Kullanıcının yüklediği ham yedek dosyasını (Base64 veya metin) geri yükler.
+ * 
+ * @name POST /api/settings/restore-upload
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.body.fileData - Base64 veya Metin formatında dosya içeriği
+ * @param {string} req.body.filename - Orijinal dosya adı
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.post('/restore-upload', localhostOnly, async (req, res) => {
+  const { fileData, filename } = req.body;
+  if (!fileData) return res.status(400).json({ error: 'Yedek dosya verisi gereklidir.' });
+
+  try {
+    let buffer;
+    if (fileData.startsWith('data:') && fileData.includes(';base64,')) {
+      const base64Str = fileData.split(';base64,')[1];
+      buffer = Buffer.from(base64Str, 'base64');
+    } else {
+      buffer = Buffer.from(fileData, 'utf8');
+    }
+
+    const backupContent = parseBackupBuffer(buffer, filename || 'uploaded_backup.json');
+    const rootDir = path.resolve(process.cwd());
+
+    if (backupContent.db) {
+      const dbFilePath = path.join(rootDir, 'db.json');
+      fs.writeFileSync(dbFilePath, JSON.stringify(backupContent.db, null, 2), 'utf8');
+    }
+
+    if (backupContent.channelsIni) {
+      const channelsIniFilePath = path.join(rootDir, 'channels.ini');
+      fs.writeFileSync(channelsIniFilePath, backupContent.channelsIni, 'utf8');
+    }
+
+    const catIniFilePath = path.join(rootDir, 'categories.ini');
+    if (backupContent.categoriesIni) {
+      fs.writeFileSync(catIniFilePath, backupContent.categoriesIni, 'utf8');
+    } else if (backupContent.db && backupContent.db.categories) {
+      saveCategoriesToIni(backupContent.db);
+    }
+
+    if (backupContent.configIni) {
+      const configIniName = backupContent.configIniName || (os.platform() === 'win32' ? 'configwin.ini' : 'configunix.ini');
+      const configPath = path.join(rootDir, configIniName);
+      fs.writeFileSync(configPath, backupContent.configIni, 'utf8');
+    }
+
+    syncDbWithDisk();
+
+    addTerminalLog(`[Sistem] Karşıdan yüklenen yedek başarıyla sisteme aktarıldı.`, 'success');
+    res.json({ success: true, message: 'Yüklenen yedek başarıyla sisteme aktarıldı ve geri yüklendi.' });
+  } catch (err) {
+    console.error('[Upload Restore Error]:', err.message);
+    res.status(500).json({ error: 'Yüklenen yedek dosyası geçersiz veya bozuk: ' + err.message });
+  }
+});
+
+/**
+ * backup/ dizininden belirli bir yedek dosyasını siler.
+ * 
+ * @name DELETE /api/settings/backup/:filename
+ * @function
+ * @inner
+ */
+router.delete('/backup/:filename', localhostOnly, (req, res) => {
+  const { filename } = req.params;
+  const backupsDir = path.resolve(process.cwd(), 'backup');
+  const backupFilePath = path.join(backupsDir, filename);
+
+  if (!fs.existsSync(backupFilePath)) {
+    return res.status(404).json({ error: 'Yedek dosyası bulunamadı.' });
+  }
+
+  try {
+    fs.unlinkSync(backupFilePath);
+    addTerminalLog(`[Sistem] Manuel yedek silindi: ${filename}`, 'warning');
+    res.json({ success: true, message: 'Yedek dosyası silindi.' });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+/**
+ * backup/ dizininden belirli bir yedek dosyasını indirmek üzere sunar.
+ * 
+ * @name GET /api/settings/backup/download/:filename
+ * @function
+ * @inner
+ */
+router.get('/backup/download/:filename', localhostOnly, (req, res) => {
+  const { filename } = req.params;
+  const backupsDir = path.resolve(process.cwd(), 'backup');
+  const backupFilePath = path.join(backupsDir, filename);
+
+  if (!fs.existsSync(backupFilePath)) {
+    return res.status(404).json({ error: 'Yedek dosyası bulunamadı.' });
+  }
+
+  res.download(backupFilePath, filename);
 });
 
 /**

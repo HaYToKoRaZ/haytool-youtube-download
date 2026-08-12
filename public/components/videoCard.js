@@ -144,6 +144,14 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           ${youtubeSvgIcon}
         </button>
       `;
+    } else if (item.status === 'waiting_live_processing' || item.status === 'live_processing') {
+      const tooltipMsg = t.tooltip_waiting_live_processing || 'Canlı Yayın İşleniyor (Otomatik Yeniden Deneniyor)';
+      statusHtml = `<span class="status-pill live-processing-badge" title="${escapeHtml(tooltipMsg)}" style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.3); color: #eab308; padding: 4px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: help;"><i data-lucide="radio" class="pulse-animation" style="width: 14px; height: 14px;"></i></span>`;
+      actionsHtml = `
+        <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+          ${youtubeSvgIcon}
+        </button>
+      `;
     } else if (item.status === 'failed') {
       let shortError = '';
       if (item.error) {

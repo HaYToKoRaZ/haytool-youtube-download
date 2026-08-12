@@ -792,21 +792,35 @@ export class DownloadQueue {
             : `Bu video Katıl (Üyelere Özel) içeriğidir. İndirebilmek için kanala Katıl üyesi olmanız ve Ayarlar sekmesinden "Premium Çerez Tarayıcısı" seçeneğini aktif yapmanız gerekmektedir.`;
         }
 
-        updateHistoryItem(video.id, {
-          status: 'failed',
-          progress: 0,
-          speed: '',
-          eta: '',
-          error: userFriendlyError || `Hata Kodu: ${code}`
-        });
-        console.error(`İndirme Başarısız: ${video.title} - Kod: ${code}`);
-        broadcast('status_log', { message: `İndirme başarısız: ${video.title}`, type: 'error', thumbnail: `/api/video/${video.id}/thumbnail` });
-        addTerminalLog(`[Kuyruk] İndirme FAILED: "${video.title}" - Hata: ${userFriendlyError || `Hata Kodu: ${code}`}`, 'error');
-        playSystemSound('error');
-        showWindowsNotification(
-          settings.lang === 'en' ? 'Download Failed' : 'İndirme Başarısız',
-          settings.lang === 'en' ? `"${video.title}" download failed.` : `"${video.title}" videosunun indirilmesi başarısız oldu.`
-        );
+        let isLiveProcessingError = /live stream (has ended|recording is still processing|is currently live)|this live event will begin|this video is a live stream|processing stream/i.test(userFriendlyError);
+
+        if (isLiveProcessingError) {
+          updateHistoryItem(video.id, {
+            status: 'waiting_live_processing',
+            progress: 0,
+            speed: '',
+            eta: '',
+            error: 'YouTube Canlı Yayın İşleniyor'
+          });
+          console.log(`[Downloader] Live stream is processing on YouTube. Deferred to waiting_live_processing: ${video.title}`);
+          addTerminalLog(`[Kuyruk] Canlı yayın henüz işleniyor: "${video.title}" - YouTube VOD dönüştürmesi tamamlandığında otomatik indirilecek.`, 'info');
+        } else {
+          updateHistoryItem(video.id, {
+            status: 'failed',
+            progress: 0,
+            speed: '',
+            eta: '',
+            error: userFriendlyError || `Hata Kodu: ${code}`
+          });
+          console.error(`İndirme Başarısız: ${video.title} - Kod: ${code}`);
+          broadcast('status_log', { message: `İndirme başarısız: ${video.title}`, type: 'error', thumbnail: `/api/video/${video.id}/thumbnail` });
+          addTerminalLog(`[Kuyruk] İndirme FAILED: "${video.title}" - Hata: ${userFriendlyError || `Hata Kodu: ${code}`}`, 'error');
+          playSystemSound('error');
+          showWindowsNotification(
+            settings.lang === 'en' ? 'Download Failed' : 'İndirme Başarısız',
+            settings.lang === 'en' ? `"${video.title}" download failed.` : `"${video.title}" videosunun indirilmesi başarısız oldu.`
+          );
+        }
       }
 
       broadcast('db_update', readDb());

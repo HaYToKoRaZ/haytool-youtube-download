@@ -130,7 +130,8 @@ import { downloadQueue, getEffectiveSpeedLimit } from './server/services/downloa
 import { 
   triggerChannelCheck,
   resolveMissingDurations, 
-  fetchVideoDuration 
+  fetchVideoDuration,
+  checkPendingLiveStreams
 } from './server/services/rss.js';
 import { addTerminalLog, broadcast } from './server/services/sse.js';
 import { discordRpc } from './server/services/discord.js';
@@ -139,7 +140,7 @@ import { configIniPath, parseIni } from './server/config.js';
 import { appVersion } from './server/version.js';
 
 // API Rotası Modülleri
-import { router as settingsRouter } from './server/routes/settings.js';
+import { router as settingsRouter, ensureDailySystemBackup } from './server/routes/settings.js';
 import { router as channelsRouter } from './server/routes/channels.js';
 import { router as historyRouter } from './server/routes/history.js';
 import { router as iptvRouter } from './server/routes/iptv.js';
@@ -260,6 +261,26 @@ if (fs.existsSync(iptvCachePath)) {
 
 // Zamanlayıcı Taraması (Settings rotası tarafından da kontrol edilebilir)
 let checkIntervalTimer = null;
+let liveStreamTimer = null;
+
+function startLiveStreamTimer() {
+  const db = readDb();
+  if (liveStreamTimer) {
+    clearInterval(liveStreamTimer);
+    liveStreamTimer = null;
+  }
+  if (db.settings.isPaused) return;
+
+  const mins = parseInt(db.settings.liveStreamRetryInterval, 10) || 30;
+  liveStreamTimer = setInterval(async () => {
+    try {
+      await checkPendingLiveStreams();
+    } catch (err) {
+      console.error('[Canlı Yayın Zamanlayıcı] Kontrol hatası:', err.message);
+    }
+  }, mins * 60 * 1000);
+}
+
 function startIntervalTimer() {
   const db = readDb();
   if (checkIntervalTimer) {
@@ -278,6 +299,8 @@ function startIntervalTimer() {
       console.error('[Zamanlayıcı] RSS kontrolü çalıştırılamadı:', err.message);
     }
   }, seconds * 1000);
+
+  startLiveStreamTimer();
 }
 
 // GitHub Otomatik Güncelleme Kontrolü Durumu
@@ -721,9 +744,10 @@ if (process.argv.length <= 2) {
       } catch (err) {}
     }
 
-    // Disk senkronizasyonunu başlat
+    // Disk senkronizasyonunu ve otomatik günlük sistem yedeğini başlat
     setTimeout(() => {
       syncDbWithDisk();
+      ensureDailySystemBackup();
     }, 1000);
     setInterval(syncDbWithDisk, 5 * 60 * 1000);
     

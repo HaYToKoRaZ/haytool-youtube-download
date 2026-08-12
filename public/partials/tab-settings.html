@@ -89,11 +89,11 @@
                     <div class="form-group">
                       <label for="settings-theme" id="label-theme">Görünüm Teması</label>
                       <select id="settings-theme">
-                        <option value="dark" id="opt-theme-dark">Koyu Tema (Karanlık)</option>
-                        <option value="light" id="opt-theme-light">Açık Tema (Aydınlık)</option>
-                        <option value="matrix" id="opt-theme-matrix">Matrix Teması (Siber Yeşil)</option>
-                        <option value="discord" id="opt-theme-discord">Discord Teması (Koyu Blurple)</option>
-                        <option value="youtube" id="opt-theme-youtube">YouTube Teması (Koyu Kırmızı)</option>
+                        <option value="dark" id="opt-theme-dark">Koyu Tema</option>
+                        <option value="light" id="opt-theme-light">Açık Tema</option>
+                        <option value="matrix" id="opt-theme-matrix">Matrix Teması</option>
+                        <option value="discord" id="opt-theme-discord">Discord Teması</option>
+                        <option value="youtube" id="opt-theme-youtube">YouTube Teması</option>
                       </select>
                       <small class="form-text" id="desc-theme">Arayüzün renk temasını seçin.</small>
                     </div>
@@ -121,6 +121,165 @@
                         <input type="checkbox" id="settings-autoopenbrowser" class="toggle-input" checked>
                         <label for="settings-autoopenbrowser" class="toggle-label"></label>
                         <span id="desc-auto-open-browser">Açılışta localhost sayfasını otomatik aç</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Kart 4: Sistem Veritabanı & Ayar Yedekleme -->
+                <div class="settings-card" id="subtab-backup">
+                  <h3 class="settings-section-title"><i data-lucide="database"></i> <span id="settings-title-backup-text">Sistem Veritabanı & Ayar Yedekleme</span></h3>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;" id="desc-system-backup-info">
+                    Veritabanınız (db.json), takip ettiğiniz kanallar (channels.ini), kategorileriniz (categories.ini) ve sistem yapılandırmalarınız tıpkı Gist'teki gibi bağımsız ayrı dosyalar halinde ZIP arşivi (.zip) olarak saklanır.
+                  </p>
+
+                  <!-- Otomatik Günlük Yedek Bilgilendirme Kutusu -->
+                  <div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 15px; font-size: 0.8rem; line-height: 1.5; color: var(--text-main); display: flex; align-items: flex-start; gap: 10px;">
+                    <i data-lucide="info" style="width: 18px; height: 18px; color: #a855f7; flex-shrink: 0; margin-top: 2px;"></i>
+                    <div>
+                      <strong id="backup-auto-info-title" style="color: #a855f7; display: block; margin-bottom: 2px;">🤖 Otomatik Günlük Sistem Yedeği & Rotasyon Politikası</strong>
+                      <span id="backup-auto-info-desc">Her gün uygulama başlatıldığında bugünün ilk yedeği otomatik olarak ZIP arşivi (.zip) formatında alınır. Klasörde 10 Normal + 7 Günlük Korunan (Toplam Maksimum 17 Yedek) saklanır.</span>
+                    </div>
+                  </div>
+
+                  <!-- Alt Başlık 1: Çevrimdışı / Yerel Sıkıştırılmış Yedekleme -->
+                  <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
+                      <label style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="archive" style="width:16px;height:16px;color:var(--accent-primary);"></i>
+                        <span id="label-local-backup-title">1. Yerel Sıkıştırılmış Sistem Yedeği & Geri Yükleme (.zip)</span>
+                      </label>
+                      <div style="font-size: 0.75rem; color: var(--text-muted);">
+                        <i data-lucide="shield-check" style="width:13px;height:13px;color:#10b981;display:inline;vertical-align:middle;"></i>
+                        <span id="label-backup-policy-badge">Max 10 Normal + 7 Günlük Korunan (Maks 17 Yedek)</span>
+                      </div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px;">
+                      <button type="button" onclick="createSystemBackup()" class="btn btn-primary" style="height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 12px;">
+                        <i data-lucide="save" style="width:14px;height:14px;"></i>
+                        <span id="btn-create-backup-text">Şimdi Sıkıştırılmış Yedek Al</span>
+                      </button>
+                      <button type="button" onclick="triggerUploadBackupFile()" class="btn btn-secondary" style="background: rgba(40, 180, 99, 0.1); border-color: rgba(40, 180, 99, 0.3); color: #28b463; height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 12px;">
+                        <i data-lucide="upload" style="width:14px;height:14px;"></i>
+                        <span id="btn-upload-backup-text">Dosyadan Yedeği İçeri Aktar</span>
+                      </button>
+                      <input type="file" id="backup-file-upload-input" onchange="uploadBackupFile(event)" accept=".gz,.json,.zip,.7z" style="display: none;">
+                      <button type="button" onclick="loadSystemBackupsList()" class="btn btn-secondary" style="height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 12px;">
+                        <i data-lucide="list-video" style="width:14px;height:14px;"></i>
+                        <span id="btn-list-backups-text">Yedek Listesini Gör & Yönet</span>
+                      </button>
+                    </div>
+
+                    <!-- Yedek Listesi Tablosu -->
+                    <div id="system-backups-container" class="hidden" style="margin-top: 12px; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; background: rgba(0,0,0,0.15); max-height: 220px; overflow-y: auto;">
+                      <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem; text-align: left;">
+                        <thead>
+                          <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted);">
+                            <th style="padding: 4px 6px;">Yedek Adı</th>
+                            <th style="padding: 4px 6px;">Boyut</th>
+                            <th style="padding: 4px 6px;">Durum</th>
+                            <th style="padding: 4px 6px; text-align: right;">İşlem</th>
+                          </tr>
+                        </thead>
+                        <tbody id="system-backups-list">
+                          <!-- JS ile doldurulacak -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <!-- Alt Başlık 2: GitHub Gist Çevrimiçi Senkronizasyonu -->
+                  <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
+                    <label id="label-gist-sync-title" style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                      <i data-lucide="github" style="width:16px;height:16px;color:#a855f7;"></i>
+                      <span id="text-gist-sync-title">2. GitHub Gist Çevrimiçi (Online) Senkronizasyonu</span>
+                    </label>
+                    <small id="desc-gist-sync-info" class="form-text" style="margin-bottom: 10px; margin-top: 2px;">
+                      Tüm sistem verilerinizi (db.json, kanallar, kategoriler ve ayarlar) GitHub hesabınızda gizli bir Gist olarak online yedekleyin veya istediğiniz bilgisayardan tek tıkla geri yükleyin.
+                    </small>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                      <!-- STATE 1: Token Kayıtlı Değilse -->
+                      <div id="gist-unregistered-state">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                          <div style="flex: 1; min-width: 200px;">
+                            <label id="label-gist-token" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 3px; display: block;">GitHub Token (PAT)</label>
+                            <div style="position: relative;">
+                              <input type="password" id="gist-token-input" placeholder="ghp_xxxxxxxxxxxx" style="width: 100%; padding: 6px 30px 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 32px;">
+                              <button type="button" onclick="toggleGistTokenVisibility()" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px;">
+                                <i id="gist-token-eye-icon" data-lucide="eye" style="width:14px;height:14px;"></i>
+                              </button>
+                            </div>
+                          </div>
+                          <div style="flex: 1; min-width: 180px;">
+                            <label id="label-gist-id" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 3px; display: block;">Gist ID (İsteğe Bağlı)</label>
+                            <input type="text" id="gist-id-input" placeholder="Otomatik oluşturulur" style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 32px;">
+                          </div>
+                        </div>
+
+                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px;">
+                          <a href="https://github.com/settings/tokens/new?scopes=gist&description=HaYTooL-YT-Downloader" target="_blank" class="btn btn-secondary" style="height: 30px; display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px; background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.35); color: #a855f7; text-decoration: none; border-radius: 6px;">
+                            <i data-lucide="key" style="width:13px;height:13px;"></i>
+                            <span id="btn-gist-get-token-text">Token Al</span>
+                          </a>
+                          <button type="button" onclick="saveGistToken()" class="btn btn-primary" style="background: #10b981; border-color: #059669; height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                            <i data-lucide="save" style="width:13px;height:13px;"></i>
+                            <span id="btn-gist-save-text">Token'ı Kaydet</span>
+                          </button>
+                          <button type="button" onclick="testGistToken()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                            <i data-lucide="shield-check" style="width:13px;height:13px;"></i>
+                            <span id="btn-gist-test-text">Token'ı Test Et</span>
+                          </button>
+                          <button type="button" onclick="pushGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                            <i data-lucide="cloud-upload" style="width:13px;height:13px;"></i>
+                            <span id="btn-gist-push-text">Gist'e Yükle (Push)</span>
+                          </button>
+                          <button type="button" onclick="pullGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                            <i data-lucide="cloud-download" style="width:13px;height:13px;"></i>
+                            <span id="btn-gist-pull-text">Gist'ten Çek & Geri Yükle (Pull)</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- STATE 2: Token Kayıtlıysa -->
+                      <div id="gist-registered-state" style="display: none; background: rgba(168, 85, 247, 0.06); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 8px; padding: 10px 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                          <div>
+                            <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.82rem; color: #10b981;">
+                              <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i>
+                              <span id="gist-status-connected-text">GitHub Hesabı Bağlı (PAT Saklandı)</span>
+                            </div>
+                            <div id="gist-online-link-container" style="margin-top: 4px; font-size: 0.75rem; display: none;">
+                              <a id="gist-online-link" href="#" target="_blank" style="color: #a855f7; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+                                <i data-lucide="external-link" style="width: 12px; height: 12px;"></i>
+                                <span id="text-gist-online-link">🌐 Gist Yedeğinizi GitHub'da Görüntüleyin</span>
+                              </a>
+                            </div>
+                          </div>
+                          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                            <button type="button" onclick="pushGistChannels()" class="btn btn-primary" style="background: #8b5cf6; border-color: #7c3aed; height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                              <i data-lucide="cloud-upload" style="width:13px;height:13px;"></i>
+                              <span id="btn-gist-push-registered-text">Gist'e Yükle (Push)</span>
+                            </button>
+                            <button type="button" onclick="pullGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                              <i data-lucide="cloud-download" style="width:13px;height:13px;"></i>
+                              <span id="btn-gist-pull-registered-text">Gist'ten Çek & Geri Yükle (Pull)</span>
+                            </button>
+                            <button type="button" onclick="deleteGistToken()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px; border-color: rgba(239, 68, 68, 0.4); color: #ef4444; background: rgba(239, 68, 68, 0.08);">
+                              <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
+                              <span id="btn-gist-delete-text">Token'ı Sil</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                        <label class="switch" style="position: relative; display: inline-block; width: 34px; height: 18px;">
+                          <input type="checkbox" id="gist-auto-sync-checkbox" onchange="toggleAutoSyncGist(this.checked)">
+                          <span class="slider round"></span>
+                        </label>
+                        <span id="label-gist-auto-sync" style="font-size: 0.78rem; color: var(--text-main);">Kanal ve ayar değişikliklerinde otomatik Gist'e yedekle</span>
                       </div>
                     </div>
                   </div>
@@ -298,10 +457,11 @@
                         <option value="merge" id="opt-merge-merge">Otomatik Birleştir (1080p+ ffmpeg)</option>
                         <option value="separate" id="opt-merge-separate">Ses ve Videoyu Ayrı İndir</option>
                       </select>
-                      <div class="settings-ffmpeg-row" style="margin-top: 6px;">
-                        <span style="font-size: 0.78rem; color: var(--text-muted);">Sistem FFmpeg Durumu:</span>
+                      <div class="settings-ffmpeg-row" style="margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span id="label-ffmpeg-status-text" style="font-size: 0.78rem; color: var(--text-muted);">Sistem FFmpeg Durumu:</span>
                         <span id="settings-ffmpeg-status" class="ffmpeg-status-indicator not-installed">Kontrol ediliyor...</span>
-                        <button type="button" class="btn btn-secondary btn-xs" id="settings-ffmpeg-btn" style="margin-left: 6px;">Kur</button>
+                        <span id="settings-ffmpeg-version-info" style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border-color); display: none;"></span>
+                        <button type="button" class="btn btn-secondary btn-xs" id="settings-ffmpeg-btn" style="margin-left: 4px;">Kur</button>
                       </div>
                     </div>
                   </div>
@@ -313,7 +473,7 @@
                       <small class="form-text" id="desc-speed-limit">Hız sınırı (Sınırsız için 0).</small>
                     </div>
                     <div class="form-group">
-                      <label for="settings-altspeedlimit" id="label-settings-alt-speed-limit">Alternatif İndirme Hızı (KB/s) <i data-lucide="turtle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-left:4px;"></i></label>
+                      <label for="settings-altspeedlimit" id="label-settings-alt-speed-limit"><span id="label-settings-alt-speed-limit-text">Alternatif İndirme Hızı (KB/s)</span> <i data-lucide="turtle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-left:4px;"></i></label>
                       <input type="number" id="settings-altspeedlimit" min="0" max="100000" required>
                       <small class="form-text" id="desc-alt-speed-limit">Turtle modu hızı.</small>
                     </div>
@@ -429,6 +589,27 @@
 
                   <div class="form-grid">
                     <div class="form-group">
+                      <label for="settings-livestreamhandling" id="label-live-stream-handling">Canlı Yayın & Prömiyer Yönetimi</label>
+                      <select id="settings-livestreamhandling">
+                        <option value="instant_retry" id="opt-live-instant-retry">Anında İndir & Otomatik Tekrar Dene (Önerilen)</option>
+                        <option value="vod_only" id="opt-live-vod-only">Sadece İşlenmiş VOD Videoları İndir</option>
+                        <option value="ignore_live" id="opt-live-ignore">Canlı Yayınları İndirme / Gösterme</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="settings-livestreamretryinterval" id="label-live-stream-retry-interval">Canlı Yayın Tekrar Deneme Aralığı</label>
+                      <select id="settings-livestreamretryinterval">
+                        <option value="15">15 Dakika</option>
+                        <option value="30">30 Dakika (Varsayılan)</option>
+                        <option value="45">45 Dakika</option>
+                        <option value="60">60 Dakika (1 Saat)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="form-grid">
+                    <div class="form-group">
                       <label for="settings-checkonstartup" id="label-check-on-startup">Başlangıç Taraması</label>
                       <div class="toggle-container" style="margin-top: 8px;">
                         <input type="checkbox" id="settings-checkonstartup" class="toggle-input">
@@ -452,165 +633,9 @@
                     <div class="toggle-container" style="margin-top: 8px;">
                       <input type="checkbox" id="settings-showshorts" class="toggle-input">
                       <label for="settings-showshorts" class="toggle-label"></label>
-                      <span id="desc-show-shorts">Geçmiş video listesinde Shorts göster</span>
+                      <span id="desc-show-shorts">Kanal taramalarında Shorts videolarını dahil et</span>
                     </div>
                   </div>
-                </div>
-
-                <!-- Kart 4: Sistem Veritabanı & Ayar Yedekleme -->
-                <div class="settings-card" id="subtab-backup">
-                  <h3 class="settings-section-title"><i data-lucide="database"></i> <span id="settings-title-backup-text">Sistem Veritabanı & Ayar Yedekleme</span></h3>
-                  
-                  <!-- Blok 1: Yerel Kanal Listesi Yedekleme -->
-                  <div class="form-group" style="margin-bottom: 12px;">
-                    <label id="label-data-management" style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);">1. Yerel Kanal Listesi Yedeği (JSON)</label>
-                    <small id="desc-data-management" class="form-text" style="margin-bottom: 8px;">Takip ettiğiniz kanalları bilgisayarınıza dışarı/içeri aktarın.</small>
-                    <div class="input-action-row" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center;">
-                      <button type="button" onclick="exportChannels()" class="btn btn-secondary" id="btn-export-backup" style="background: rgba(138, 43, 226, 0.1); border-color: rgba(138, 43, 226, 0.3); color: var(--accent-primary); height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 10px;">
-                        <i data-lucide="download" style="width:14px;height:14px;"></i>
-                        <span id="btn-export-text">Yedeği Dışarı Aktar</span>
-                      </button>
-                      <button type="button" onclick="triggerImportFile()" class="btn btn-secondary" id="btn-import-backup" style="background: rgba(40, 180, 99, 0.1); border-color: rgba(40, 180, 99, 0.3); color: #28b463; height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 10px;">
-                        <i data-lucide="upload" style="width:14px;height:14px;"></i>
-                        <span id="btn-import-text">Yedeği İçeri Aktar</span>
-                      </button>
-                      <select id="import-mode" style="max-width: 170px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 32px;">
-                        <option value="append" id="opt-import-append">Üzerine Ekle</option>
-                        <option value="overwrite" id="opt-import-overwrite">Tamamen Üzerine Yaz</option>
-                      </select>
-                      <input type="file" id="import-file-input" onchange="importChannels(event)" accept=".json" style="display: none;">
-                    </div>
-                  </div>
-                  
-                  <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 12px 0;">
-                  
-                  <!-- Blok 2: Manuel Sistem Yedeği -->
-                  <div class="form-group" style="margin-bottom: 12px;">
-                    <label style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);">2. Manuel Sistem Yedeği & Geri Yükleme (.7z / .bak)</label>
-                    <small class="form-text" style="margin-bottom: 8px;">Tüm db.json, channels.ini ve ayarlarınızın yerel yedeğini alın.</small>
-                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px;">
-                      <button type="button" onclick="createSystemBackup()" class="btn btn-primary" style="height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 12px;">
-                        <i data-lucide="save" style="width:14px;height:14px;"></i>
-                        <span>Şimdi Manuel Yedek Al</span>
-                      </button>
-                      <button type="button" onclick="loadSystemBackupsList()" class="btn btn-secondary" style="height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 12px;">
-                        <i data-lucide="list-video" style="width:14px;height:14px;"></i>
-                        <span>Yedekleri Listele & Geri Yükle</span>
-                      </button>
-                    </div>
-                    <div id="system-backups-container" class="hidden" style="margin-top: 10px; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; background: rgba(0,0,0,0.15); max-height: 180px; overflow-y: auto;">
-                      <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem; text-align: left;">
-                        <thead>
-                          <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted);">
-                            <th style="padding: 4px 6px;">Yedek Adı</th>
-                            <th style="padding: 4px 6px;">Boyut</th>
-                            <th style="padding: 4px 6px; text-align: right;">İşlem</th>
-                          </tr>
-                        </thead>
-                        <tbody id="system-backups-list">
-                          <!-- JS ile doldurulacak -->
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 12px 0;">
-
-                  <!-- Blok 3: GitHub Gist Senkronizasyonu -->
-                  <div class="form-group" style="margin-bottom: 5px;">
-                    <label id="label-gist-sync-title" style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                      <i data-lucide="github" style="width:15px;height:15px;color:#a855f7;"></i>
-                      <span id="text-gist-sync-title">3. GitHub Gist Online Senkronizasyonu</span>
-                    </label>
-                    <small id="desc-gist-sync-info" class="form-text" style="margin-bottom: 8px; margin-top: 4px;">
-                      Kanal listenizi (channels.ini) kişisel GitHub hesabınızda bir Gist olarak yedekleyin. Token yalnızca yerel db.json'da tutulur.
-                    </small>
-                    
-                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
-                      <!-- STATE 1: Token Kayıtlı Değilse -->
-                      <div id="gist-unregistered-state">
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                          <div style="flex: 1; min-width: 200px;">
-                            <label id="label-gist-token" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 3px; display: block;">GitHub Token (PAT)</label>
-                            <div style="position: relative;">
-                              <input type="password" id="gist-token-input" placeholder="ghp_xxxxxxxxxxxx" style="width: 100%; padding: 6px 30px 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 32px;">
-                              <button type="button" onclick="toggleGistTokenVisibility()" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px;">
-                                <i id="gist-token-eye-icon" data-lucide="eye" style="width:14px;height:14px;"></i>
-                              </button>
-                            </div>
-                          </div>
-                          <div style="flex: 1; min-width: 180px;">
-                            <label id="label-gist-id" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 3px; display: block;">Gist ID (İsteğe Bağlı)</label>
-                            <input type="text" id="gist-id-input" placeholder="Otomatik oluşturulur" style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 32px;">
-                          </div>
-                        </div>
-
-                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px;">
-                          <a href="https://github.com/settings/tokens/new?scopes=gist&description=HaYTooL-YT-Downloader" target="_blank" class="btn btn-secondary" style="height: 30px; display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px; background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.35); color: #a855f7; text-decoration: none; border-radius: 6px;">
-                            <i data-lucide="key" style="width:13px;height:13px;"></i>
-                            <span id="btn-gist-get-token-text">Token Al</span>
-                          </a>
-                          <button type="button" onclick="saveGistToken()" class="btn btn-primary" style="background: #10b981; border-color: #059669; height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                            <i data-lucide="save" style="width:13px;height:13px;"></i>
-                            <span id="btn-gist-save-text">Token'ı Kaydet</span>
-                          </button>
-                          <button type="button" onclick="testGistToken()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                            <i data-lucide="shield-check" style="width:13px;height:13px;"></i>
-                            <span id="btn-gist-test-text">Token'ı Test Et</span>
-                          </button>
-                          <button type="button" onclick="pushGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                            <i data-lucide="cloud-upload" style="width:13px;height:13px;"></i>
-                            <span id="btn-gist-push-text">Gist'e Yükle (Push)</span>
-                          </button>
-                          <button type="button" onclick="pullGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                            <i data-lucide="cloud-download" style="width:13px;height:13px;"></i>
-                            <span id="btn-gist-pull-text">Gist'ten Çek (Pull)</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <!-- STATE 2: Token Kayıtlıysa -->
-                      <div id="gist-registered-state" style="display: none; background: rgba(168, 85, 247, 0.06); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 8px; padding: 10px 14px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                          <div>
-                            <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.82rem; color: #10b981;">
-                              <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i>
-                              <span id="gist-status-connected-text">GitHub Hesabı Bağlı (PAT Saklandı)</span>
-                            </div>
-                            <div id="gist-online-link-container" style="margin-top: 4px; font-size: 0.75rem; display: none;">
-                              <a id="gist-online-link" href="#" target="_blank" style="color: #a855f7; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
-                                <i data-lucide="external-link" style="width: 12px; height: 12px;"></i>
-                                <span id="text-gist-online-link">🌐 Gist Yedeğinizi GitHub'da Görüntüleyin</span>
-                              </a>
-                            </div>
-                          </div>
-                          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                            <button type="button" onclick="pushGistChannels()" class="btn btn-primary" style="background: #8b5cf6; border-color: #7c3aed; height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                              <i data-lucide="cloud-upload" style="width:13px;height:13px;"></i>
-                              <span>Gist'e Yükle (Push)</span>
-                            </button>
-                            <button type="button" onclick="pullGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                              <i data-lucide="cloud-download" style="width:13px;height:13px;"></i>
-                              <span>Gist'ten Çek (Pull)</span>
-                            </button>
-                            <button type="button" onclick="deleteGistToken()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px; border-color: rgba(239, 68, 68, 0.4); color: #ef4444; background: rgba(239, 68, 68, 0.08);">
-                              <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
-                              <span id="btn-gist-delete-text">Token'ı Sil</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-                        <label class="switch" style="position: relative; display: inline-block; width: 34px; height: 18px;">
-                          <input type="checkbox" id="gist-auto-sync-checkbox" onchange="toggleAutoSyncGist(this.checked)">
-                          <span class="slider round"></span>
-                        </label>
-                        <span id="label-gist-auto-sync" style="font-size: 0.78rem; color: var(--text-main);">Kanal değişikliklerinde otomatik Gist'e yedekle</span>
-                      </div>
-                    </div>
-                  </div>
-
                 </div>
 
               </div>

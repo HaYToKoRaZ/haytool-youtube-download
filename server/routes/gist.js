@@ -45,25 +45,42 @@ export async function triggerAutoGistSync() {
     if (!autoSyncGist || !githubToken || !githubGistId) return;
     if (!fs.existsSync(channelsIniPath)) return;
 
+    const rootDir = process.cwd();
+    const catIniPath = `${rootDir}/categories.ini`;
+    const configWinPath = `${rootDir}/configwin.ini`;
+    const configUnixPath = `${rootDir}/configunix.ini`;
+    const configPath = fs.existsSync(configWinPath) ? configWinPath : configUnixPath;
+
     const channelsContent = fs.readFileSync(channelsIniPath, 'utf-8');
+    const catContent = fs.existsSync(catIniPath) ? fs.readFileSync(catIniPath, 'utf-8') : '';
+    const configContent = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf-8') : '';
+
+    // db.json içeriğindeki githubToken alanını temizle (GitHub secret scanner iptalini önler)
+    const dbSanitized = JSON.parse(JSON.stringify(db));
+    if (dbSanitized.settings) {
+      delete dbSanitized.settings.githubToken;
+    }
+    const dbContent = JSON.stringify(dbSanitized, null, 2).replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '');
+
     const url = `https://api.github.com/gists/${githubGistId}`;
     
     const response = await fetch(url, {
       method: 'PATCH',
       headers: getGithubHeaders(githubToken),
       body: JSON.stringify({
-        description: 'HaYTooL YT Downloader - channels.ini Yedeği',
+        description: 'HaYTooL YT Downloader - Tam Sistem Veritabanı & Ayar Yedeği',
         files: {
-          'channels.ini': {
-            content: channelsContent
-          }
+          'channels.ini': { content: channelsContent || '; empty' },
+          'db.json': { content: dbContent },
+          'categories.ini': { content: catContent || '; empty' },
+          [fs.existsSync(configWinPath) ? 'configwin.ini' : 'configunix.ini']: { content: configContent || '; empty' }
         }
       })
     });
 
     if (response.ok) {
-      console.log('[Gist] Otomatik kanal yedeği GitHub Gist üzerine aktarıldı.');
-      addTerminalLog('[Gist] Otomatik kanal yedeği GitHub Gist üzerine aktarıldı.', 'success');
+      console.log('[Gist] Otomatik sistem yedeği GitHub Gist üzerine aktarıldı.');
+      addTerminalLog('[Gist] Otomatik sistem yedeği GitHub Gist üzerine aktarıldı.', 'success');
     } else {
       const now = Date.now();
       // Her 60 saniyede bir en fazla 1 defa hata uyarısı günlüğe yazılarak konsol kirliliği önlenir
@@ -143,8 +160,8 @@ router.post('/test', localhostOnly, async (req, res) => {
 });
 
 /**
- * Yerel channels.ini dosyasını GitHub Gist üzerine yükler (Push).
- * Gist ID yoksa yeni bir gizli (private) Gist oluşturur.
+ * Tüm sistem veritabanı ve ayarlarını GitHub Gist üzerine yükler (Push).
+ * db.json Gist'e gönderilmeden önce içindeki githubToken temizlenerek GitHub botunun token'ı iptal etmesi engellenir.
  * 
  * @name POST /api/gist/push
  * @function
@@ -162,34 +179,46 @@ router.post('/push', localhostOnly, async (req, res) => {
     return res.status(400).json({ error: 'GitHub Token alanı zorunludur.' });
   }
 
-  if (!fs.existsSync(channelsIniPath)) {
-    return res.status(404).json({ error: 'Yerel channels.ini dosyası bulunamadı.' });
-  }
-
   try {
-    const channelsContent = fs.readFileSync(channelsIniPath, 'utf-8');
-    const targetGistId = gistId || (readDb().settings || {}).githubGistId;
+    const rootDir = process.cwd();
+    const catIniPath = `${rootDir}/categories.ini`;
+    const configWinPath = `${rootDir}/configwin.ini`;
+    const configUnixPath = `${rootDir}/configunix.ini`;
+    const configPath = fs.existsSync(configWinPath) ? configWinPath : configUnixPath;
+
+    const channelsContent = fs.existsSync(channelsIniPath) ? fs.readFileSync(channelsIniPath, 'utf-8') : '';
+    const catContent = fs.existsSync(catIniPath) ? fs.readFileSync(catIniPath, 'utf-8') : '';
+    const configContent = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf-8') : '';
+
+    // Gist'e atılan db.json içerisinden githubToken bilgisini kaldır ve görünmez bidi unicode karakterlerini temizle
+    const currentDb = readDb();
+    const dbSanitized = JSON.parse(JSON.stringify(currentDb));
+    if (dbSanitized.settings) {
+      delete dbSanitized.settings.githubToken;
+    }
+    const dbContent = JSON.stringify(dbSanitized, null, 2).replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '');
+
+    const targetGistId = gistId || (currentDb.settings || {}).githubGistId;
 
     let response;
     let payload = {
-      description: 'HaYTooL YT Downloader - channels.ini Yedeği',
+      description: 'HaYTooL YT Downloader - Tam Sistem Veritabanı & Ayar Yedeği',
       files: {
-        'channels.ini': {
-          content: channelsContent
-        }
+        'channels.ini': { content: channelsContent || '; empty' },
+        'db.json': { content: dbContent },
+        'categories.ini': { content: catContent || '; empty' },
+        [fs.existsSync(configWinPath) ? 'configwin.ini' : 'configunix.ini']: { content: configContent || '; empty' }
       }
     };
 
     if (targetGistId) {
-      // Güncelle (PATCH)
       response = await fetch(`https://api.github.com/gists/${targetGistId}`, {
         method: 'PATCH',
         headers: getGithubHeaders(token),
         body: JSON.stringify(payload)
       });
     } else {
-      // Yeni Oluştur (POST)
-      payload.public = false; // Gizli (Private) Gist
+      payload.public = false;
       response = await fetch('https://api.github.com/gists', {
         method: 'POST',
         headers: getGithubHeaders(token),
@@ -208,7 +237,6 @@ router.post('/push', localhostOnly, async (req, res) => {
     const gistData = await response.json();
     const finalGistId = gistData.id;
 
-    // Ayarları db.json içine güvenle kaydet (configwin.ini'ye yansıtılmayacak)
     const db = readDb();
     db.settings.githubToken = token;
     db.settings.githubGistId = finalGistId;
@@ -217,13 +245,13 @@ router.post('/push', localhostOnly, async (req, res) => {
     }
     writeDb(db);
 
-    console.log('[Gist] Kanallar başarıyla GitHub Gist üzerine kaydedildi.');
-    addTerminalLog('[Gist] Kanallar başarıyla GitHub Gist üzerine aktarıldı.', 'success');
+    console.log('[Gist] Tam sistem yedeği başarıyla GitHub Gist üzerine kaydedildi (Token gizlendi).');
+    addTerminalLog('[Gist] Tam sistem yedeği başarıyla GitHub Gist üzerine aktarıldı.', 'success');
     res.json({ 
       success: true, 
       gistId: finalGistId, 
       gistUrl: gistData.html_url,
-      message: 'Kanallar başarıyla GitHub Gist üzerine kaydedildi.' 
+      message: 'Tam sistem yedeği başarıyla GitHub Gist üzerine kaydedildi.' 
     });
   } catch (err) {
     console.error('[Gist Hata]: Push istisnası:', err.message);
@@ -232,7 +260,7 @@ router.post('/push', localhostOnly, async (req, res) => {
 });
 
 /**
- * GitHub Gist üzerindeki channels.ini dosyasını indirir ve yerel kanallarla eşitler (Pull).
+ * GitHub Gist üzerindeki sistem dosyalarını (db.json, channels.ini, vb.) indirir ve yerel veritabanıyla eşitler (Pull).
  * 
  * @name POST /api/gist/pull
  * @function
@@ -263,17 +291,42 @@ router.post('/pull', localhostOnly, async (req, res) => {
     }
 
     const gistData = await response.json();
-    const fileObj = gistData.files && (gistData.files['channels.ini'] || Object.values(gistData.files)[0]);
+    const files = gistData.files || {};
+    const rootDir = process.cwd();
 
-    if (!fileObj || !fileObj.content) {
-      console.error('[Gist Hata]: Gist içerisinde channels.ini dosyası bulunamadı.');
-      return res.status(400).json({ error: 'Gist içerisinde channels.ini dosyası bulunamadı.' });
+    // 1. db.json (Yerel aktif token'ı koru)
+    if (files['db.json'] && files['db.json'].content) {
+      try {
+        const parsedDb = JSON.parse(files['db.json'].content);
+        const currentDb = readDb();
+        if (parsedDb.settings) {
+          parsedDb.settings.githubToken = token || (currentDb.settings || {}).githubToken;
+          parsedDb.settings.githubGistId = gistId || (currentDb.settings || {}).githubGistId;
+        }
+        fs.writeFileSync(`${rootDir}/db.json`, JSON.stringify(parsedDb, null, 2), 'utf-8');
+      } catch (e) {
+        console.error('[Gist Pull Error] db.json ayrıştırılamadı:', e.message);
+      }
     }
 
-    // Yerel channels.ini dosyasına yaz
-    fs.writeFileSync(channelsIniPath, fileObj.content, 'utf-8');
+    // 2. channels.ini
+    const chanFile = files['channels.ini'] || Object.values(files).find(f => f.filename && f.filename.endsWith('.ini'));
+    if (chanFile && chanFile.content) {
+      fs.writeFileSync(channelsIniPath, chanFile.content, 'utf-8');
+    }
 
-    // Veritabanını eşitle
+    // 3. categories.ini
+    if (files['categories.ini'] && files['categories.ini'].content) {
+      fs.writeFileSync(`${rootDir}/categories.ini`, files['categories.ini'].content, 'utf-8');
+    }
+
+    // 4. config ini
+    const configFile = files['configwin.ini'] || files['configunix.ini'];
+    if (configFile && configFile.content) {
+      const cfgPath = `${rootDir}/${configFile.filename}`;
+      fs.writeFileSync(cfgPath, configFile.content, 'utf-8');
+    }
+
     const db = readDb();
     db.settings.githubToken = token;
     db.settings.githubGistId = gistId;
@@ -281,11 +334,11 @@ router.post('/pull', localhostOnly, async (req, res) => {
     writeDb(db);
 
     broadcast('db_update', db);
-    broadcast('status_log', { message: 'Kanallar GitHub Gist üzerinden başarıyla güncellendi.', type: 'success' });
-    console.log('[Gist] Kanallar GitHub Gist üzerinden başarıyla çekildi ve yerel veritabanı güncellendi.');
-    addTerminalLog('[Gist] Kanallar GitHub Gist üzerinden başarıyla içe aktarıldı.', 'success');
+    broadcast('status_log', { message: 'Sistem yedeği GitHub Gist üzerinden başarıyla güncellendi.', type: 'success' });
+    console.log('[Gist] Tam sistem yedeği GitHub Gist üzerinden başarıyla çekildi.');
+    addTerminalLog('[Gist] Tam sistem yedeği GitHub Gist üzerinden başarıyla içe aktarıldı.', 'success');
 
-    res.json({ success: true, message: 'Kanallar Gist üzerinden çekildi ve veritabanı güncellendi.' });
+    res.json({ success: true, message: 'Sistem yedeği Gist üzerinden çekildi ve veriler güncellendi.' });
   } catch (err) {
     console.error('[Gist Hata]: Pull istisnası:', err.message);
     res.status(500).json({ error: err.message });

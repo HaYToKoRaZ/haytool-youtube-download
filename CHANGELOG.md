@@ -3,6 +3,28 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.19.0] - 2026-08-13
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Live Stream & Premiere Smart Download & Bandwidth Protection (Canlı Yayın & Prömiyer Akıllı İndirme Yönetimi):**
+  - **Zero-Bandwidth Metadata Check (~2KB):** Checks YouTube live stream processing status using lightweight metadata queries (`~2KB`), consuming 0 video bandwidth until YouTube converts live recordings into processed VOD videos.
+  - **3 Multilingual Handling Modes in Settings:** Added user setting for Live Stream Handling (`instant_retry` "Anında İndir & Otomatik Tekrar Dene", `vod_only` "Sadece İşlenmiş VOD İçerikleri İndir", `ignore_live` "Canlı Yayınları İndirme / Gösterme").
+  - **Configurable Retry Interval:** Added setting to set auto-retry interval (15, 30, 45, 60 mins; default **30 minutes**).
+  - **Sleek Icon-Only Yellow Badge + Hover Tooltip:** Displays a yellow icon badge (🟡) in history/library lists without cluttering UI text, showing status details on mouse hover across all 7 supported languages.
+  - **FFmpeg Local Directory Enforcement & Multi-Mirror Downloader:** Fixed `fetch failed` error by adding multi-mirror CDN fallback and restricted FFmpeg detection strictly to app local `ffmpeg/` directory.
+
+## [8.18.0] - 2026-08-12
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Unified System Database & Settings Backup Architecture (Birleştirilmiş Sistem Veritabanı & Ayar Yedekleme Mimarisi):**
+  - **Single Unified UI Section:** Replaced 3 fragmented backup sections in Settings tab with a single unified card ("Sistem Veritabanı & Ayar Yedekleme").
+  - **Complete 5-File System Bundle:** Backs up `db.json`, `channels.ini`, `categories.ini`, `configwin.ini`, and `configunix.ini` so zero settings or channel data are lost after reformatting.
+  - **Built-In Zlib Compression (`.json.gz`):** Utilized Node.js native `zlib` compression to achieve 80%+ file size reduction without external npm bloatware.
+  - **Rolling Backup Retention & Daily Protection:** Enforced a max limit of 10 backups in `backup/` directory with automatic protection (`isDailyProtected`) for the first backup of each calendar day.
+  - **Online & Offline Restore Flexibility:** Supports 1-click restore from local compressed backup list, uploading local `.json.gz` / `.zip` backup files, or pulling complete system backups online via GitHub Gist.
+
 ## [8.17.0] - 2026-07-30
 
 ### Major Features & Fixes / Ana Özellikler & Düzeltmeler

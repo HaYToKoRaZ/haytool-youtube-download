@@ -78,6 +78,13 @@
             </button>
           </div>
           <div class="filter-group">
+            <input type="checkbox" id="history-only-live-processing" style="display:none;">
+            <button type="button" class="filter-chip-btn" id="btn-filter-live-processing" onclick="toggleFilterChip('history-only-live-processing')" title="Sadece İşlenmesi Beklenen Canlı Yayınları Göster">
+              <i data-lucide="radio" style="color:#eab308;"></i>
+              <span id="lbl-history-only-live-processing">Canlı İşlenenler</span>
+            </button>
+          </div>
+          <div class="filter-group">
             <input type="checkbox" id="history-show-hidden" style="display:none;">
             <button type="button" class="filter-chip-btn" id="btn-filter-show-hidden" onclick="toggleFilterChip('history-show-hidden')" title="Gizlenen Videoları Göster/Gizle">
               <i data-lucide="eye-off"></i>

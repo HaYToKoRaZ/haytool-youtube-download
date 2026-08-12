@@ -846,15 +846,20 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
               const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
               const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
 
-              let shouldDownload = true;
-              if (duration === 'upcoming') {
+              const liveHandling = freshDb.settings.liveStreamHandling || 'instant_retry';
+
+              if (liveHandling === 'ignore_live' && (duration === 'upcoming' || duration === 'live')) {
                 shouldDownload = false;
-                historyItem.status = 'upcoming';
-                console.log(`Upcoming video detected. Adding to database but skipping download: ${item.title}`);
-              } else if (duration === 'live') {
+                historyItem.status = 'ignored';
+                console.log(`Live stream / premiere ignored per user settings: ${item.title}`);
+              } else if (liveHandling === 'vod_only' && (duration === 'upcoming' || duration === 'live')) {
                 shouldDownload = false;
-                historyItem.status = 'live';
-                console.log(`Live stream detected. Adding to database but skipping download: ${item.title}`);
+                historyItem.status = 'waiting_live_processing';
+                console.log(`Live stream detected. Deferring download until VOD conversion: ${item.title}`);
+              } else if (duration === 'upcoming' || duration === 'live') {
+                shouldDownload = true;
+                historyItem.status = 'waiting';
+                console.log(`Live stream / premiere detected. Queueing for instant download attempt: ${item.title}`);
               } else if (!downloadShorts && !duration) {
                 shouldDownload = false;
                 historyItem.status = 'waiting_duration';
@@ -1482,6 +1487,7 @@ export async function triggerChannelCheck(source = 'manual') {
     
     // Eksik video sürelerini ve beklemedeki videoları çözümle
     resolveMissingDurations();
+    checkPendingLiveStreams();
 
     return result;
   } catch (err) {
@@ -1490,6 +1496,65 @@ export async function triggerChannelCheck(source = 'manual') {
     return { success: false, error: err.message };
   } finally {
     isRssChecking = false;
+  }
+}
+
+/**
+ * Türkçe Açıklama: Canlı yayın işlenmesi beklenen (waiting_live_processing) videoların 
+ * YouTube tarafında VOD videoya dönüşüp dönüşmediğini sadece 2KB boyutunda hafif 
+ * metadata sorgusuyla (0 kotayla) denetler. İşlenen videoları indirme kuyruğuna aktarır.
+ * 
+ * @returns {Promise<void>}
+ */
+export async function checkPendingLiveStreams() {
+  try {
+    const db = readDb();
+    const pendingItems = (db.history || []).filter(h => 
+      h.status === 'waiting_live_processing' || h.status === 'live' || h.duration === 'live' || (h.error && h.error.includes('Canlı Yayın'))
+    );
+
+    if (pendingItems.length === 0) return;
+
+    console.log(`[Canlı Yayın Denetleyici] ${pendingItems.length} beklemedeki canlı yayın hafif metadata ile kontrol ediliyor...`);
+
+    for (const item of pendingItems) {
+      try {
+        const result = await fetchVideoDuration(item.id);
+        if (result && result.duration && result.duration !== 'live' && result.duration !== 'upcoming') {
+          console.log(`[Canlı Yayın Denetleyici] Canlı yayın VOD videoya dönüştü: ${item.title} (${result.duration})`);
+          addTerminalLog(`[Canlı Yayın Denetleyici] "${item.title}" yayını işlendi (${result.duration}), indirme kuyruğuna alındı.`, 'success');
+
+          const release = await acquireDbLock();
+          try {
+            const freshDb = readDb();
+            const target = freshDb.history.find(h => h.id === item.id);
+            if (target) {
+              target.duration = result.duration;
+              if (result.publishedAt) target.publishedAt = result.publishedAt;
+              target.status = 'waiting';
+              writeDb(freshDb);
+              broadcast('db_update', freshDb);
+
+              await downloadQueue.add({
+                id: item.id,
+                title: target.title,
+                channelId: target.channelId,
+                channelName: target.channelName,
+                url: `https://www.youtube.com/watch?v=${item.id}`,
+                publishedAt: target.publishedAt,
+                duration: result.duration || ''
+              });
+            }
+          } finally {
+            release();
+          }
+        }
+      } catch (err) {
+        console.warn(`[Canlı Yayın Denetleyici] ${item.id} metadata kontrol hatası:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[Canlı Yayın Denetleyici] Hata:', err.message);
   }
 }
 

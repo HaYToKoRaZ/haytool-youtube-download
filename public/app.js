@@ -69,20 +69,23 @@ const youtubeSvgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 
  * @param {string} lang Seçilen dil kodu ('tr' veya 'en')
  */
 function applyLanguage(lang) {
-  currentLang = lang || 'tr';
+  currentLang = lang || localStorage.getItem('haytool_user_lang') || 'tr';
+  try { localStorage.setItem('haytool_user_lang', currentLang); } catch (e) {}
   const t = translations[currentLang] || translations.tr;
   
   const el = (id, key, prop = 'textContent') => {
     const element = document.getElementById(id);
-    if (element && t[key]) {
-      element[prop] = t[key];
+    const val = t[key] || (translations.tr && translations.tr[key]);
+    if (element && val) {
+      element[prop] = val;
     }
   };
   
   const elQuery = (selector, key, prop = 'textContent') => {
     const element = document.querySelector(selector);
-    if (element && t[key]) {
-      element[prop] = t[key];
+    const val = t[key] || (translations.tr && translations.tr[key]);
+    if (element && val) {
+      element[prop] = val;
     }
   };
 
@@ -151,8 +154,17 @@ function applyLanguage(lang) {
   elQuery('#downloaded-view-list-btn span', 'view_list');
   elQuery('#inline-btn-description', 'inline_btn_description', 'title');
   elQuery('#description-title-text', 'inline_description_title');
+  el('btn-update-metadata-dl', 'btn_update_metadata_dl');
+  el('btn-bulk-delete-dl-toggle', 'btn_bulk_delete_dl_toggle');
 
-  // Ayarlar Sekmesi
+  // Ayarlar Sekmesi Kart Başlıkları
+  el('settings-title-general-text', 'settings_title_general_text');
+  el('settings-title-media-text', 'settings_title_media_text');
+  el('settings-title-system-text', 'settings_title_system_text');
+  el('settings-title-download-text', 'settings_title_download_text');
+  el('settings-title-notifications-text', 'settings_title_notifications_text');
+  el('settings-title-automation-text', 'settings_title_automation_text');
+
   elQuery('#tab-settings .content-header h2', 'settings_title');
   elQuery('#tab-settings .content-header p', 'settings_desc');
   elQuery('label[for="settings-download-path"]', 'label_download_path');
@@ -162,6 +174,11 @@ function applyLanguage(lang) {
   elQuery('label[for="settings-quality"]', 'label_quality');
   elQuery('label[for="settings-mergetype"]', 'label_merge_type');
   elQuery('label[for="settings-channelcheckinterval"]', 'label_interval');
+  el('label-live-stream-handling', 'label_live_stream_handling');
+  el('label-live-stream-retry-interval', 'label_live_stream_retry_interval');
+  el('opt-live-instant-retry', 'opt_live_instant_retry');
+  el('opt-live-vod-only', 'opt_live_vod_only');
+  el('opt-live-ignore', 'opt_live_ignore');
   elQuery('label[for="settings-autodownload"]:not(.toggle-label)', 'label_auto_download');
   elQuery('label[for="settings-autodownload"] + span', 'desc_auto_download');
   elQuery('label[for="settings-writethumbnail"]:not(.toggle-label)', 'label_write_thumbnail');
@@ -171,12 +188,80 @@ function applyLanguage(lang) {
   elQuery('label[for="settings-hideondelete"]:not(.toggle-label)', 'label_hide_on_delete');
   elQuery('label[for="settings-hideondelete"] + span', 'desc_hide_on_delete');
   elQuery('label[for="settings-theme"]', 'label_theme');
+  el('opt-theme-dark', 'opt_theme_dark');
+  el('opt-theme-light', 'opt_theme_light');
+  el('opt-theme-matrix', 'opt_theme_matrix');
+  el('opt-theme-discord', 'opt_theme_discord');
+  el('opt-theme-youtube', 'opt_theme_youtube');
+
   elQuery('label[for="settings-autodelete"]', 'label_auto_delete');
   elQuery('label[for="settings-rsslimit"]', 'label_rss_limit');
-  // Türkçe Açıklama: Ayarlar sekmesindeki hız sınırı etiketi yeni dil anahtarına bağlandı.
   elQuery('label[for="settings-speedlimit"]', 'label_settings_speed_limit');
+  el('label-settings-alt-speed-limit-text', 'label_settings_alt_speed_limit');
   elQuery('label[for="settings-port"]', 'label_port');
   elQuery('label[for="settings-playsounds"]:not(.toggle-label)', 'label_play_sounds');
+  elQuery('label[for="settings-playsounds"] + span', 'desc_play_sounds');
+  elQuery('label[for="settings-shownotifications"]:not(.toggle-label)', 'label_show_notifications');
+  elQuery('label[for="settings-shownotifications"] + span', 'desc_show_notifications');
+  elQuery('label[for="settings-autoopenbrowser"]:not(.toggle-label)', 'label_auto_open_browser');
+  elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
+  elQuery('label[for="settings-checkonstartup"]', 'label_check_on_startup');
+  elQuery('label[for="settings-checkonstartup"] + span', 'desc_check_on_startup');
+  elQuery('label[for="settings-discordrpc"]:not(.toggle-label)', 'label_discord_rpc');
+  elQuery('label[for="settings-discordrpc"] + span', 'desc_discord_rpc');
+  elQuery('#btn-search-channel-text', 'btn_search_channel');
+  elQuery('#btn-add-channel-text', 'btn_add_channel');
+  elQuery('label[for="settings-lang"]', 'label_lang');
+  el('label-temp-dir-type', 'label_temp_dir_type');
+  el('desc-temp-dir-type', 'desc_temp_dir_type');
+  el('opt-temp-local', 'opt_temp_local');
+  el('opt-temp-system', 'opt_temp_system');
+  el('btn-open-temp-text', 'btn_open_temp_text');
+  el('label-duration-fetch-method', 'label_duration_fetch_method');
+  el('opt-duration-auto', 'opt_duration_auto');
+  el('opt-duration-waterfall', 'opt_duration_waterfall');
+  el('opt-duration-ytdlp', 'opt_duration_ytdlp');
+  el('desc-duration-method-info', 'desc_duration_method_info', 'innerHTML');
+  el('label-ytdlp-run-mode', 'label_ytdlp_run_mode');
+  el('opt-ytdlp-exe', 'opt_ytdlp_exe');
+  el('opt-ytdlp-python', 'opt_ytdlp_python');
+  el('desc-ytdlp-mode-info', 'desc_ytdlp_mode_info', 'innerHTML');
+  el('label-python-cmd', 'label_python_cmd');
+  el('desc-python-cmd', 'desc_python_cmd', 'innerHTML');
+  el('btn-download-python-text', 'btn_download_python_text');
+  el('btn-install-pip-text', 'btn_install_pip_text');
+  el('label-preferred-audio-lang', 'label_preferred_audio_lang');
+  el('desc-preferred-audio-lang', 'desc_preferred_audio_lang');
+
+  // Sistem Veritabanı & Ayar Yedekleme Kartı Çevirileri
+  el('settings-title-backup-text', 'settings_title_backup_text');
+  el('desc-system-backup-info', 'desc_system_backup_info');
+  el('backup-auto-info-title', 'backup_auto_info_title');
+  el('backup-auto-info-desc', 'backup_auto_info_desc');
+  el('label-local-backup-title', 'label_local_backup_title');
+  el('label-backup-policy-badge', 'label_backup_policy_badge');
+  el('btn-create-backup-text', 'btn_create_backup_text');
+  el('btn-upload-backup-text', 'btn_upload_backup_text');
+  el('btn-list-backups-text', 'btn_list_backups_text');
+  el('text-gist-sync-title', 'text_gist_sync_title');
+  el('desc-gist-sync-info', 'desc_gist_sync_info');
+  el('label-gist-token', 'label_gist_token');
+  el('label-gist-id', 'label_gist_id');
+  el('btn-gist-get-token-text', 'btn_gist_get_token_text');
+  el('btn-gist-save-text', 'btn_gist_save_text');
+  el('btn-gist-test-text', 'btn_gist_test_text');
+  el('btn-gist-push-text', 'btn_gist_push_text');
+  el('btn-gist-pull-text', 'btn_gist_pull_text');
+  el('btn-gist-push-registered-text', 'btn_gist_push_text');
+  el('btn-gist-pull-registered-text', 'btn_gist_pull_text');
+  el('gist-status-connected-text', 'gist_status_connected_text');
+  el('text-gist-online-link', 'text_gist_online_link');
+  el('btn-gist-delete-text', 'btn_gist_delete_text');
+  el('label-gist-auto-sync', 'label_gist_auto_sync');
+  el('label-ffmpeg-status-text', 'label_ffmpeg_status_text');
+  if (typeof checkFfmpegStatus === 'function') {
+    checkFfmpegStatus();
+  }
   elQuery('label[for="settings-playsounds"] + span', 'desc_play_sounds');
   elQuery('label[for="settings-shownotifications"]:not(.toggle-label)', 'label_show_notifications');
   elQuery('label[for="settings-shownotifications"] + span', 'desc_show_notifications');
@@ -414,6 +499,10 @@ function applyLanguage(lang) {
   el('opt-limit-200', 'opt_limit_200');
   el('label-data-management', 'label_data_management');
   el('desc-data-management', 'desc_data_management');
+  el('desc-system-backup-info', 'desc_system_backup_info');
+  el('backup-auto-info-title', 'backup_auto_info_title');
+  el('backup-auto-info-desc', 'backup_auto_info_desc');
+  el('label-backup-policy-badge', 'label_backup_policy_badge');
   el('btn-export-text', 'btn_export_backup');
   el('btn-import-text', 'btn_import_backup');
   el('opt-import-append', 'opt_import_append');
@@ -1513,6 +1602,10 @@ function updateUI(db) {
     if (window.historyOnlyNotDownloaded) {
       filteredHistory = filteredHistory.filter(item => item.status !== 'completed');
     }
+
+    if (window.historyOnlyLiveProcessing) {
+      filteredHistory = filteredHistory.filter(item => item.status === 'waiting_live_processing' || item.status === 'live_processing');
+    }
     
     if (historyFilterDays !== 'all') {
       filteredHistory = filteredHistory.filter(item => {
@@ -1702,6 +1795,12 @@ function updateUI(db) {
     if (settingsSpeedLimit && document.activeElement !== settingsSpeedLimit) settingsSpeedLimit.value = db.settings.downloadSpeedLimit || 0;
     if (settingsAltSpeedLimit && document.activeElement !== settingsAltSpeedLimit) settingsAltSpeedLimit.value = db.settings.alternativeSpeedLimit || 500;
 
+    const settingsLiveStreamHandling = document.getElementById('settings-livestreamhandling');
+    if (settingsLiveStreamHandling && document.activeElement !== settingsLiveStreamHandling) settingsLiveStreamHandling.value = db.settings.liveStreamHandling || 'instant_retry';
+
+    const settingsLiveStreamRetryInterval = document.getElementById('settings-livestreamretryinterval');
+    if (settingsLiveStreamRetryInterval && document.activeElement !== settingsLiveStreamRetryInterval) settingsLiveStreamRetryInterval.value = String(db.settings.liveStreamRetryInterval || 30);
+
     const settingsPort = document.getElementById('settings-port');
     if (settingsPort && document.activeElement !== settingsPort) settingsPort.value = db.settings.port || 4141;
 
@@ -1721,9 +1820,10 @@ function updateUI(db) {
     if (settingsAutoOpenBrowser && document.activeElement !== settingsAutoOpenBrowser) settingsAutoOpenBrowser.checked = db.settings.autoOpenBrowser !== false;
 
     const settingsLang = document.getElementById('settings-lang');
+    const effectiveLang = db.settings.lang || localStorage.getItem('haytool_user_lang') || 'tr';
     if (settingsLang && document.activeElement !== settingsLang) {
-      settingsLang.value = db.settings.lang || 'tr';
-      setCustomSelectValue(db.settings.lang || 'tr');
+      settingsLang.value = effectiveLang;
+      setCustomSelectValue(effectiveLang);
     }
 
     const settingsPrefAudioLang = document.getElementById('settings-preferredaudiolang');
@@ -2130,6 +2230,8 @@ async function performAutoSave() {
     theme: document.getElementById('settings-theme').value,
     autoDeleteDays: parseInt(document.getElementById('settings-autodelete').value, 10) || 0,
     rssLimit: parseInt(document.getElementById('settings-rsslimit').value, 10) || 5,
+    liveStreamHandling: document.getElementById('settings-livestreamhandling') ? document.getElementById('settings-livestreamhandling').value : 'instant_retry',
+    liveStreamRetryInterval: document.getElementById('settings-livestreamretryinterval') ? (parseInt(document.getElementById('settings-livestreamretryinterval').value, 10) || 30) : 30,
     downloadSpeedLimit: parseInt(document.getElementById('settings-speedlimit').value, 10) || 0,
     alternativeSpeedLimit: parseInt(document.getElementById('settings-altspeedlimit').value, 10) || 500,
      port: port,
@@ -2148,9 +2250,8 @@ async function performAutoSave() {
     doubleClickAction: document.getElementById('settings-doubleclickaction').value,
     historyLimitPerChannel: parseInt(document.getElementById('settings-history-limit').value, 10) || 30,
     shortsDurationLimit: settingsShortsDurationLimit ? (parseInt(settingsShortsDurationLimit.value, 10) || 180) : (localDb.settings.shortsDurationLimit || 180),
-    enableAltThumbnailsHover: document.getElementById('settings-alt-thumbnails-hover') ? document.getElementById('settings-alt-thumbnails-hover').checked : true,
-    githubToken: document.getElementById('gist-token-input') ? document.getElementById('gist-token-input').value.trim() : (localDb.settings.githubToken || ''),
-    githubGistId: document.getElementById('gist-id-input') ? document.getElementById('gist-id-input').value.trim() : (localDb.settings.githubGistId || ''),
+    githubToken: (document.getElementById('gist-token-input') && document.getElementById('gist-token-input').value.trim()) || (localDb.settings && localDb.settings.githubToken) || '',
+    githubGistId: (document.getElementById('gist-id-input') && document.getElementById('gist-id-input').value.trim()) || (localDb.settings && localDb.settings.githubGistId) || '',
     autoSyncGist: document.getElementById('gist-auto-sync-checkbox') ? document.getElementById('gist-auto-sync-checkbox').checked : (localDb.settings.autoSyncGist || false)
   };
 
@@ -2170,13 +2271,14 @@ async function performAutoSave() {
     });
     const data = await res.json();
     if (data.success) {
+      const isEn = localDb.settings && localDb.settings.lang === 'en';
       if (statusSpan) {
-        const isEn = localDb.settings && localDb.settings.lang === 'en';
         statusSpan.innerHTML = `<i data-lucide="check-circle" style="width:16px; height:16px; margin-right:4px; color:var(--success-color);"></i><span style="color:var(--success-color);">${isEn ? 'All changes saved.' : 'Tüm değişiklikler kaydedildi.'}</span>`;
         lucide.createIcons();
       }
+      showToast(isEn ? 'Settings saved successfully' : 'Ayarlar başarıyla kaydedildi', 'success');
       if (port !== oldPort) {
-        showToast(localDb.settings.lang === 'en' ? 'Port changed. Please restart the app to apply.' : 'Port değiştirildi. Yeni portun aktif olması için uygulamayı yeniden başlatın.', 'warning');
+        showToast(isEn ? 'Port changed. Please restart the app to apply.' : 'Port değiştirildi. Yeni portun aktif olması için uygulamayı yeniden başlatın.', 'warning');
       }
       updateDiskSpace();
     }
@@ -5228,6 +5330,10 @@ document.addEventListener('click', (e) => {
 
 // Shorts Göster/Gizle Değiştiğinde Sunucuya Kaydet
 document.addEventListener('DOMContentLoaded', () => {
+  const savedLang = localStorage.getItem('haytool_user_lang');
+  if (savedLang) {
+    applyLanguage(savedLang);
+  }
   restoreHistoryFilterState();
   restoreDownloadedFilterState();
 
@@ -5246,6 +5352,16 @@ document.addEventListener('DOMContentLoaded', () => {
     historyOnlyNotDownloadedCheck.addEventListener('change', () => {
       historyOnlyNotDownloaded = historyOnlyNotDownloadedCheck.checked;
       syncFilterChipUI('history-only-not-downloaded');
+      saveHistoryFilterState();
+      updateUI(localDb);
+    });
+  }
+
+  const historyOnlyLiveProcessingCheck = document.getElementById('history-only-live-processing');
+  if (historyOnlyLiveProcessingCheck) {
+    historyOnlyLiveProcessingCheck.addEventListener('change', () => {
+      window.historyOnlyLiveProcessing = historyOnlyLiveProcessingCheck.checked;
+      syncFilterChipUI('history-only-live-processing');
       saveHistoryFilterState();
       updateUI(localDb);
     });
@@ -5277,6 +5393,7 @@ function syncFilterChipUI(checkboxId) {
   const chipMap = {
     'history-show-hidden': 'btn-filter-show-hidden',
     'history-only-not-downloaded': 'btn-filter-not-downloaded',
+    'history-only-live-processing': 'btn-filter-live-processing',
     'history-show-shorts': 'btn-filter-show-shorts',
     'history-show-live': 'btn-filter-show-live',
     'history-only-no-auto-download': 'btn-filter-no-auto-download'
@@ -6075,8 +6192,22 @@ function initCustomSelect() {
       // Close options
       optionsContainer.classList.remove('open');
 
-      // Trigger auto save
+      // Dil değişikliğini anında tüm arayüze canlı olarak uygula
+      if (window.localDb && window.localDb.settings) {
+        window.localDb.settings.lang = val;
+      }
+      if (typeof applyLanguage === 'function') {
+        applyLanguage(val);
+      }
+
+      // Otomatik kaydetmeyi tetikle
       performAutoSave();
+
+      // Üst bildirim mesajı göster
+      const langNames = { tr: 'Türkçe', en: 'English', es: 'Español', de: 'Deutsch', pt: 'Português', ar: 'العربية', ru: 'Русский' };
+      const chosenLangName = langNames[val] || val;
+      const toastMsg = val === 'en' ? `App language updated: ${chosenLangName}` : `Uygulama dili güncellendi: ${chosenLangName}`;
+      showToast(toastMsg, 'success');
     });
   });
 }
@@ -6101,38 +6232,72 @@ function setCustomSelectValue(val) {
   }
 }
 
-// Global scope'a bağla
-window.exportChannels = exportChannels;
-window.triggerImportFile = triggerImportFile;
-window.importChannels = importChannels;
-
-async function openTempFolder() {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  showToast(isEn ? 'Opening temp folder...' : 'Temp klasörü açılıyor...', 'info');
+async function checkFfmpegStatus() {
+  const langKey = currentLang || (localDb.settings && localDb.settings.lang) || 'tr';
+  const t = translations[langKey] || translations.tr;
   try {
-    const res = await fetch('/api/settings/open-temp', { method: 'POST' });
+    const res = await fetch('/api/ffmpeg/status');
     const data = await res.json();
-    if (!data.success) {
-      showToast(data.error || (isEn ? 'Could not open temp folder.' : 'Temp klasörü açılamadı.'), 'error');
+    
+    const banner = document.getElementById('ffmpeg-info-banner');
+    const statusIndicator = document.getElementById('settings-ffmpeg-status');
+    const settingsBtn = document.getElementById('settings-ffmpeg-btn');
+    const versionBadge = document.getElementById('settings-ffmpeg-version-info');
+    
+    const isEn = langKey === 'en';
+    const isAr = langKey === 'ar';
+    const isEs = langKey === 'es';
+    const isDe = langKey === 'de';
+    const isPt = langKey === 'pt';
+    const isRu = langKey === 'ru';
+
+    let localPrefix = 'Yerel:';
+    let remotePrefix = 'Uzak:';
+    if (isEn) { localPrefix = 'Local:'; remotePrefix = 'Remote:'; }
+    else if (isEs) { localPrefix = 'Local:'; remotePrefix = 'Remoto:'; }
+    else if (isDe) { localPrefix = 'Lokal:'; remotePrefix = 'Remote:'; }
+    else if (isPt) { localPrefix = 'Local:'; remotePrefix = 'Remoto:'; }
+    else if (isAr) { localPrefix = 'المحلي:'; remotePrefix = 'البعيد:'; }
+    else if (isRu) { localPrefix = 'Локально:'; remotePrefix = 'Удаленно:'; }
+
+    if (versionBadge) {
+      if (data.installed && data.localVersion) {
+        versionBadge.style.display = 'inline-block';
+        versionBadge.innerText = `${localPrefix} ${data.localVersion} | ${remotePrefix} ${data.remoteVersion || 'v6.1'}`;
+      } else if (data.remoteVersion) {
+        versionBadge.style.display = 'inline-block';
+        versionBadge.innerText = `${remotePrefix} ${data.remoteVersion}`;
+      } else {
+        versionBadge.style.display = 'none';
+      }
+    }
+
+    if (data.installed) {
+      if (banner) banner.classList.add('hidden');
+      if (statusIndicator) {
+        statusIndicator.innerText = t.ffmpeg_status_installed || 'Kurulu';
+        statusIndicator.className = 'ffmpeg-status-indicator installed';
+      }
+      if (settingsBtn) {
+        settingsBtn.innerText = t.ffmpeg_btn_reinstall || 'Yeniden Kur';
+      }
+    } else {
+      if (banner && localStorage.getItem('ffmpeg_banner_dismissed') !== 'true') {
+        banner.classList.remove('hidden');
+      }
+      if (statusIndicator) {
+        statusIndicator.innerText = t.ffmpeg_status_not_installed || 'Kurulu Değil';
+        statusIndicator.className = 'ffmpeg-status-indicator not-installed';
+      }
+      if (settingsBtn) {
+        settingsBtn.innerText = t.ffmpeg_btn_install || 'Kur';
+      }
     }
   } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+    console.error('Error checking FFmpeg status:', err);
   }
 }
-window.openTempFolder = openTempFolder;
-
-function togglePythonSettingsVisibility() {
-  const runModeSelect = document.getElementById('settings-ytdlp-run-mode');
-  const pythonContainer = document.getElementById('python-settings-container');
-  if (!runModeSelect || !pythonContainer) return;
-  
-  if (runModeSelect.value === 'python') {
-    pythonContainer.classList.remove('hidden');
-  } else {
-    pythonContainer.classList.add('hidden');
-  }
-}
-window.togglePythonSettingsVisibility = togglePythonSettingsVisibility;
+window.checkFfmpegStatus = checkFfmpegStatus;
 
 async function installPythonDependencies() {
   const isEn = localDb.settings && localDb.settings.lang === 'en';
@@ -6155,51 +6320,7 @@ async function installPythonDependencies() {
     if (btn) btn.disabled = false;
   }
 }
-window.installPythonDependencies = installPythonDependencies;
-
 // FFmpeg Installer Logic
-async function checkFfmpegStatus() {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  try {
-    const res = await fetch('/api/ffmpeg/status');
-    const data = await res.json();
-    
-    const banner = document.getElementById('ffmpeg-info-banner');
-    const statusIndicator = document.getElementById('settings-ffmpeg-status');
-    const settingsBtn = document.getElementById('settings-ffmpeg-btn');
-    
-    if (data.installed) {
-      if (banner) banner.classList.add('hidden');
-      if (statusIndicator) {
-        statusIndicator.innerText = isEn ? 'Installed' : 'Kurulu';
-        statusIndicator.className = 'ffmpeg-status-indicator installed';
-      }
-      if (settingsBtn) {
-        settingsBtn.innerText = isEn ? 'Reinstall' : 'Yeniden Kur';
-      }
-    } else {
-      if (banner && localStorage.getItem('ffmpeg_banner_dismissed') !== 'true') {
-        banner.classList.remove('hidden');
-      }
-      if (statusIndicator) {
-        statusIndicator.innerText = isEn ? 'Not Installed' : 'Kurulu Değil';
-        statusIndicator.className = 'ffmpeg-status-indicator not-installed';
-      }
-      if (settingsBtn) {
-        settingsBtn.innerText = isEn ? 'Install' : 'Kur';
-      }
-      
-      // If currently downloading/extracting on reload, show modal
-      if (data.status === 'downloading' || data.status === 'extracting') {
-        openFfmpegModal();
-        updateFfmpegInstallUI(data);
-      }
-    }
-  } catch (err) {
-    console.error('Error checking FFmpeg status:', err);
-  }
-}
-
 function openFfmpegModal() {
   const modal = document.getElementById('ffmpeg-installer-modal');
   if (modal) {
@@ -9035,12 +9156,11 @@ window.downloadMissingVideo = downloadMissingVideo;
 async function createSystemBackup() {
   const isEn = localDb.settings && localDb.settings.lang === 'en';
   try {
-    showToast(isEn ? 'Creating manual system backup...' : 'Manuel sistem yedeği oluşturuluyor...', 'info');
+    showToast(isEn ? 'Creating compressed system backup...' : 'Sıkıştırılmış sistem yedeği oluşturuluyor...', 'info');
     const res = await fetch('/api/backup', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
-      showToast(isEn ? 'Backup created successfully.' : 'Yedek başarıyla oluşturuldu.', 'success');
-      // Eğer yedekler listesi açıksa güncelle
+      showToast(isEn ? `Backup created successfully (${data.size}).` : `Sıkıştırılmış yedek oluşturuldu (${data.size}).`, 'success');
       const container = document.getElementById('system-backups-container');
       if (container && !container.classList.contains('hidden')) {
         loadSystemBackupsList(true);
@@ -9059,7 +9179,6 @@ async function loadSystemBackupsList(forceOpen = false) {
   const tbody = document.getElementById('system-backups-list');
   if (!container || !tbody) return;
 
-  // Toggle container visibility
   if (!forceOpen && !container.classList.contains('hidden')) {
     container.classList.add('hidden');
     return;
@@ -9071,23 +9190,40 @@ async function loadSystemBackupsList(forceOpen = false) {
     if (data.success) {
       tbody.innerHTML = '';
       if (data.backups.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" style="padding: 10px; text-align: center; color: var(--text-muted);">${isEn ? 'No manual backups found.' : 'Henüz manuel yedek bulunmuyor.'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="padding: 10px; text-align: center; color: var(--text-muted);">${isEn ? 'No backups found.' : 'Henüz saklanan yedek bulunmuyor.'}</td></tr>`;
       } else {
         data.backups.forEach(backup => {
           const tr = document.createElement('tr');
           tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-          const date = new Date(backup.createdAt).toLocaleString(isEn ? 'en-US' : 'tr-TR');
+          const isAutoBackup = backup.isAuto || backup.filename.startsWith('auto_') || backup.filename.startsWith('daily_');
+          let badgeHtml = '';
+          if (backup.isDailyProtected) {
+            badgeHtml = `<span style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">🛡️ ${isEn ? 'Daily Protected' : 'Günlük Korunan'}</span>`;
+          } else if (isAutoBackup) {
+            badgeHtml = `<span style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #a855f7; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">🤖 ${isEn ? 'Automatic' : 'Otomatik'}</span>`;
+          } else {
+            badgeHtml = `<span style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">🖐️ ${isEn ? 'Manual' : 'Manuel'}</span>`;
+          }
+
           tr.innerHTML = `
             <td style="padding: 6px 8px;" title="${backup.filename}">${backup.filename}</td>
             <td style="padding: 6px 8px; color: var(--text-muted);">${backup.size}</td>
-            <td style="padding: 6px 8px; text-align: right;">
-              <button type="button" class="btn btn-secondary btn-xs" onclick="restoreSystemBackup('${backup.filename}')" style="padding: 2px 6px; font-size: 0.75rem; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.2); color: var(--accent-color);">
+            <td style="padding: 6px 8px;">${badgeHtml}</td>
+            <td style="padding: 6px 8px; text-align: right; display: flex; gap: 4px; justify-content: flex-end;">
+              <button type="button" class="btn btn-secondary btn-xs" onclick="downloadSystemBackup('${backup.filename}')" title="${isEn ? 'Download' : 'İndir'}" style="padding: 2px 6px; font-size: 0.75rem;">
+                <i data-lucide="download" style="width:12px;height:12px;"></i>
+              </button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="restoreSystemBackup('${backup.filename}')" title="${isEn ? 'Restore' : 'Geri Yükle'}" style="padding: 2px 6px; font-size: 0.75rem; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.2); color: var(--accent-color);">
                 ${isEn ? 'Geri Yükle' : 'Geri Yükle'}
+              </button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="deleteSystemBackup('${backup.filename}')" title="${isEn ? 'Delete' : 'Sil'}" style="padding: 2px 6px; font-size: 0.75rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
+                <i data-lucide="trash-2" style="width:12px;height:12px;"></i>
               </button>
             </td>
           `;
           tbody.appendChild(tr);
         });
+        if (window.lucide) window.lucide.createIcons();
       }
       container.classList.remove('hidden');
     } else {
@@ -9096,6 +9232,71 @@ async function loadSystemBackupsList(forceOpen = false) {
   } catch (err) {
     showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
   }
+}
+
+function downloadSystemBackup(filename) {
+  window.open(`/api/backup/download/${encodeURIComponent(filename)}`, '_blank');
+}
+
+async function deleteSystemBackup(filename) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (!confirm(isEn ? `Are you sure you want to delete the backup file "${filename}"?` : `"${filename}" yedek dosyasını silmek istediğinize emin misiniz?`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/backup/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Backup file deleted.' : 'Yedek dosyası silindi.', 'success');
+      loadSystemBackupsList(true);
+    } else {
+      showToast(data.error || (isEn ? 'Failed to delete backup.' : 'Yedek dosyası silinemedi.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+function triggerUploadBackupFile() {
+  const input = document.getElementById('backup-file-upload-input');
+  if (input) input.click();
+}
+
+async function uploadBackupFile(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+
+  if (!confirm(isEn ? `Are you sure you want to restore from "${file.name}"? Current settings and database will be replaced.` : `"${file.name}" dosyasındaki yedeği geri yüklemek istediğinize emin misiniz? Mevcut verilerin üzerine yazılacaktır.`)) {
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      showToast(isEn ? 'Uploading and restoring backup...' : 'Yedek dosyası aktarılıyor ve geri yükleniyor...', 'info');
+      const fileData = e.target.result;
+      const res = await fetch('/api/restore-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileData, filename: file.name })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(isEn ? 'Backup restored successfully! Reloading...' : 'Yedek başarıyla yüklendi ve geri yüklendi! Sayfa yenileniyor...', 'success');
+        setTimeout(() => { window.location.reload(); }, 1500);
+      } else {
+        showToast(data.error || (isEn ? 'Failed to restore backup file.' : 'Yedek dosyası geri yüklenemedi.'), 'error');
+      }
+    } catch (err) {
+      showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+    } finally {
+      event.target.value = '';
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 async function restoreSystemBackup(filename) {
@@ -9128,6 +9329,10 @@ async function restoreSystemBackup(filename) {
 window.createSystemBackup = createSystemBackup;
 window.loadSystemBackupsList = loadSystemBackupsList;
 window.restoreSystemBackup = restoreSystemBackup;
+window.downloadSystemBackup = downloadSystemBackup;
+window.deleteSystemBackup = deleteSystemBackup;
+window.triggerUploadBackupFile = triggerUploadBackupFile;
+window.uploadBackupFile = uploadBackupFile;
 
 async function updateConcurrentLimit() {
   const select = document.getElementById('queue-concurrent-limit');
@@ -9906,18 +10111,24 @@ async function pushGistChannels() {
   const idInput = document.getElementById('gist-id-input');
   const autoSyncCheckbox = document.getElementById('gist-auto-sync-checkbox');
 
-  const token = tokenInput ? tokenInput.value.trim() : '';
-  const gistId = idInput ? idInput.value.trim() : '';
+  let token = tokenInput && tokenInput.value ? tokenInput.value.trim() : '';
+  if (!token && window.localDb && window.localDb.settings && window.localDb.settings.githubToken) {
+    token = window.localDb.settings.githubToken;
+  }
+  let gistId = idInput && idInput.value ? idInput.value.trim() : '';
+  if (!gistId && window.localDb && window.localDb.settings && window.localDb.settings.githubGistId) {
+    gistId = window.localDb.settings.githubGistId;
+  }
   const autoSync = autoSyncCheckbox ? autoSyncCheckbox.checked : false;
   const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
 
   if (!token) {
-    showToast(isEn ? 'Please enter a GitHub Token.' : 'Lütfen bir GitHub Token girin.', 'error');
+    showToast(isEn ? 'GitHub Token missing. Please enter a new token.' : 'GitHub Token bulunamadı. Lütfen yeni bir token girin veya Token\'ı Sil\'e basıp tekrar kaydedin.', 'error');
     return;
   }
 
   try {
-    showToast(isEn ? 'Uploading channels to GitHub Gist...' : 'Kanallar GitHub Gist üzerine aktarılıyor...', 'info');
+    showToast(isEn ? 'Uploading system data to GitHub Gist...' : 'Sistem verileri GitHub Gist üzerine aktarılıyor...', 'info');
     const res = await fetch('/api/gist/push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -9938,9 +10149,13 @@ async function pushGistChannels() {
       if (typeof triggerAutoSave === 'function') {
         await triggerAutoSave(true);
       }
-      showToast(isEn ? 'Channels uploaded to GitHub Gist successfully!' : 'Kanallar başarıyla GitHub Gist üzerine yüklendi!', 'success');
+      showToast(isEn ? 'System data uploaded to GitHub Gist successfully!' : 'Sistem verileri başarıyla GitHub Gist üzerine yüklendi!', 'success');
     } else {
-      showToast(data.error || (isEn ? 'Push failed.' : 'Gist yüklemesi başarısız.'), 'error');
+      let errMsg = data.error || (isEn ? 'Push failed.' : 'Gist yüklemesi başarısız.');
+      if (errMsg.toLowerCase().includes('bad credentials') || errMsg.includes('401')) {
+        errMsg = isEn ? 'Invalid or revoked GitHub Token. Please delete and save a new token.' : 'GitHub Token\'ı geçersiz veya iptal edilmiş. Lütfen "Token\'ı Sil"e basıp yeni bir token kaydedin.';
+      }
+      showToast(errMsg, 'error');
     }
   } catch (err) {
     showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
@@ -9955,8 +10170,14 @@ async function pullGistChannels() {
   const tokenInput = document.getElementById('gist-token-input');
   const idInput = document.getElementById('gist-id-input');
 
-  const token = tokenInput ? tokenInput.value.trim() : '';
-  const gistId = idInput ? idInput.value.trim() : '';
+  let token = tokenInput && tokenInput.value ? tokenInput.value.trim() : '';
+  if (!token && window.localDb && window.localDb.settings && window.localDb.settings.githubToken) {
+    token = window.localDb.settings.githubToken;
+  }
+  let gistId = idInput && idInput.value ? idInput.value.trim() : '';
+  if (!gistId && window.localDb && window.localDb.settings && window.localDb.settings.githubGistId) {
+    gistId = window.localDb.settings.githubGistId;
+  }
   const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
 
   if (!token || !gistId) {
@@ -9965,7 +10186,7 @@ async function pullGistChannels() {
   }
 
   try {
-    showToast(isEn ? 'Downloading channels from GitHub Gist...' : 'Kanallar GitHub Gist üzerinden indiriliyor...', 'info');
+    showToast(isEn ? 'Downloading system data from GitHub Gist...' : 'Sistem verileri GitHub Gist üzerinden indiriliyor...', 'info');
     const res = await fetch('/api/gist/pull', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -9982,12 +10203,16 @@ async function pullGistChannels() {
       if (typeof triggerAutoSave === 'function') {
         await triggerAutoSave(true);
       }
-      showToast(isEn ? 'Channels pulled from Gist successfully!' : 'Kanallar Gist üzerinden başarıyla yüklendi!', 'success');
+      showToast(isEn ? 'System data pulled from Gist successfully!' : 'Sistem verileri Gist üzerinden başarıyla yüklendi!', 'success');
       setTimeout(() => {
         window.location.reload();
       }, 1200);
     } else {
-      showToast(data.error || (isEn ? 'Pull failed.' : 'Gist indirmesi başarısız.'), 'error');
+      let errMsg = data.error || (isEn ? 'Pull failed.' : 'Gist indirmesi başarısız.');
+      if (errMsg.toLowerCase().includes('bad credentials') || errMsg.includes('401')) {
+        errMsg = isEn ? 'Invalid or revoked GitHub Token. Please delete and save a new token.' : 'GitHub Token\'ı geçersiz veya iptal edilmiş. Lütfen "Token\'ı Sil"e basıp yeni bir token kaydedin.';
+      }
+      showToast(errMsg, 'error');
     }
   } catch (err) {
     showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
@@ -10121,7 +10346,8 @@ async function saveGistToken() {
       if (typeof triggerAutoSave === 'function') {
         await triggerAutoSave(true);
       }
-      showToast(isEn ? `Token verified and saved! Account: @${data.user}` : `Token başarıyla doğrulandı ve kaydedildi! Kullanıcı: @${data.user}`, 'success');
+      const username = data.username || data.user || '';
+      showToast(isEn ? `Token verified and saved! Account: @${username}` : `Token başarıyla doğrulandı ve kaydedildi! Kullanıcı: @${username}`, 'success');
     } else {
       showToast(data.error || (isEn ? 'Token is invalid.' : 'Token geçersiz.'), 'error');
     }
