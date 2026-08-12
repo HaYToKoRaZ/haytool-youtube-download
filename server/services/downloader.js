@@ -509,7 +509,8 @@ export class DownloadQueue {
         const trimmed = line.trim();
         if (trimmed) {
           const isProgressSpam = trimmed.includes('[download]') && trimmed.includes('%') && (trimmed.includes('at') || trimmed.includes('ETA'));
-          if (!isProgressSpam) {
+          const isFragmentRetrySpam = trimmed.includes('Got error: HTTP Error 403') || trimmed.includes('Retrying fragment');
+          if (!isProgressSpam && !isFragmentRetrySpam) {
             let logType = 'info';
             if (trimmed.startsWith('[download]')) logType = 'success';
             else if (trimmed.startsWith('[ffmpeg]') || trimmed.startsWith('[Merger]')) logType = 'warning';
