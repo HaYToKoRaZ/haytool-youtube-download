@@ -451,7 +451,8 @@ export class DownloadQueue {
     if (hasWorkingFfmpeg) {
       args.push('--ffmpeg-location', path.dirname(getFfmpegPath()));
     }
-    args.push('--fragment-retries', '10', '--hls-use-mpegts');
+    // Kota ve Disk Sömürüsünü Önleme: Hatalı/Erişilemeyen parçalarda arka planda döngüye girmeden anında dur (fast-fail)
+    args.push('--fragment-retries', '0', '--retries', '2');
 
     const startLogMsg = `[İNDİRME] İndirme başlatılıyor: "${video.title}"`;
     const cmdLogMsg = `[KOMUT] yt-dlp ${args.join(' ')}`;
@@ -823,6 +824,23 @@ export class DownloadQueue {
             settings.lang === 'en' ? `"${video.title}" download failed.` : `"${video.title}" videosunun indirilmesi başarısız oldu.`
           );
         }
+
+        // Başarısız veya Ertelenmiş İndirmelerde Disk Temizliği: Artık kalan tüm .part/.ytdl geçici dosyalarını sil
+        try {
+          const skipChannelFolder = video.skipChannelFolder === true;
+          const targetDir = skipChannelFolder
+            ? settings.downloadPath
+            : path.join(settings.downloadPath, video.channelName);
+          if (fs.existsSync(targetDir)) {
+            const files = fs.readdirSync(targetDir);
+            for (const file of files) {
+              if (file.includes(`[${video.id}]`) && (file.endsWith('.part') || file.endsWith('.ytdl') || file.includes('.part-Frag'))) {
+                try { fs.unlinkSync(path.join(targetDir, file)); } catch (e) {}
+              }
+            }
+          }
+        } catch (e) {}
+      }
       }
 
       broadcast('db_update', readDb());
