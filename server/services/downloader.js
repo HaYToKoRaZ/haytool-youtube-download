@@ -451,6 +451,7 @@ export class DownloadQueue {
     if (hasWorkingFfmpeg) {
       args.push('--ffmpeg-location', path.dirname(getFfmpegPath()));
     }
+    args.push('--fragment-retries', '10', '--hls-use-mpegts');
 
     const startLogMsg = `[İNDİRME] İndirme başlatılıyor: "${video.title}"`;
     const cmdLogMsg = `[KOMUT] yt-dlp ${args.join(' ')}`;
@@ -792,7 +793,7 @@ export class DownloadQueue {
             : `Bu video Katıl (Üyelere Özel) içeriğidir. İndirebilmek için kanala Katıl üyesi olmanız ve Ayarlar sekmesinden "Premium Çerez Tarayıcısı" seçeneğini aktif yapmanız gerekmektedir.`;
         }
 
-        let isLiveProcessingError = /live stream (has ended|recording is still processing|is currently live)|this live event will begin|this video is a live stream|processing stream/i.test(userFriendlyError);
+        let isLiveProcessingError = /live stream (has ended|recording is still processing|is currently live)|this live event will begin|this video is a live stream|processing stream|The downloaded file is empty|Post-Live Manifestless mode|No such file or directory.*\.part-Frag/i.test(userFriendlyError);
 
         if (isLiveProcessingError) {
           updateHistoryItem(video.id, {

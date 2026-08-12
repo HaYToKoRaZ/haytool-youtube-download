@@ -13,6 +13,7 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
   - **Configurable Retry Interval:** Added setting to set auto-retry interval (15, 30, 45, 60 mins; default **30 minutes**).
   - **Sleek Icon-Only Yellow Badge + Hover Tooltip:** Displays a yellow icon badge (🟡) in history/library lists without cluttering UI text, showing status details on mouse hover across all 7 supported languages.
   - **FFmpeg Local Directory Enforcement & Multi-Mirror Downloader:** Fixed `fetch failed` error by adding multi-mirror CDN fallback and restricted FFmpeg detection strictly to app local `ffmpeg/` directory.
+  - **"The downloaded file is empty" Post-Live Protection:** Added auto-detection for YouTube Post-Live Manifestless `0-byte` empty file errors, automatically placing pending YouTube VOD streams into `waiting_live_processing` mode with zero-bandwidth smart background retries.
 
 ## [8.18.0] - 2026-08-12
 
