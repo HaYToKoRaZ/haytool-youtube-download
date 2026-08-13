@@ -3050,7 +3050,6 @@ function makeElementResizable(modalContent) {
 
 function drawSponsorSegmentsOnTimeline(duration, playerType) {
   if (!duration || !currentVideoSponsorSegments || currentVideoSponsorSegments.length === 0) return;
-  if (!localDb.settings || localDb.settings.sponsorBlockEnabled !== true) return;
 
   let container = null;
   if (playerType === 'artplayer') {
@@ -3163,10 +3162,6 @@ function adjustPlayerOrientation(videoElement) {
 async function fetchSponsorSegments(videoId) {
   currentVideoSponsorSegments = [];
   lastSkippedSegmentStart = -1;
-  
-  if (!localDb.settings || localDb.settings.sponsorBlockEnabled !== true) {
-    return;
-  }
   
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 1500);

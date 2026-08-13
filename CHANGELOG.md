@@ -3,7 +3,16 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.20.1] - 2026-08-13
+
+### Bug Fixes / Hata Düzeltmeleri
+
+- **SponsorBlock: Markers Always Visible, Auto-Skip Respects Setting (İşaretler Her Zaman Görünür, Otomatik Atlama Ayara Bağlı):**
+  - Previously, disabling SponsorBlock in Settings caused both the timeline markers and auto-skip to disappear. Now `fetchSponsorSegments` and `drawSponsorSegmentsOnTimeline` always run regardless of the setting — yellow/green/colored segment markers are always drawn on the progress bar. Only `checkAndSkipSponsor` checks the `sponsorBlockEnabled` flag, so auto-skipping is disabled when toggled off but visual markers remain.
+  - Daha önce Ayarlar'dan SponsorBlock kapatıldığında ilerleme çubuğundaki renkli işaretler de kayboluyor ve veriler hiç çekilmiyordu. Artık segment verileri ve çizgiler her zaman yükleniyor; sadece otomatik atlama (`checkAndSkipSponsor`) ayarı kontrol ediyor. Ayar kapalıyken işaretler görünmeye devam eder, yalnızca otomatik atlama devre dışı kalır.
+
 ## [8.20.0] - 2026-08-13
+
 
 ### Bug Fixes & UI Improvements / Hata Düzeltmeleri & Arayüz İyileştirmeleri
 
