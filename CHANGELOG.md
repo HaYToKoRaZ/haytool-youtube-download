@@ -3,7 +3,17 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.20.2] - 2026-08-13
+
+### Bug Fixes / Hata Düzeltmeleri
+
+- **SponsorBlock: Markers Now Always Full Opacity (İşaretler Artık Hep Tam Opaklıkta):**
+  - Fixed an issue where, if the user had previously toggled the in-player SB button (`sponsorBlockTemporarilyDisabled = true`) and then disabled SponsorBlock globally, the `sponsorBlockTemporarilyDisabled` state was never reset. When a new video was opened, `updateSBToggleButtonUI` saw the stale `true` value and applied `opacity: 0.15` to all marker wrappers.
+  - Added an `else` branch in the player initialization block: when `sponsorBlockEnabled` is `false`, `sponsorBlockTemporarilyDisabled` is now explicitly reset to `false` and `updateSBToggleButtonUI` is called, ensuring markers always render at full opacity regardless of the global toggle state.
+  - Önceki videoda geçici devre dışı bırakma (`sponsorBlockTemporarilyDisabled = true`) yapıldıktan sonra global ayar kapatılırsa, yeni video açılışında state sıfırlanmıyordu ve işaretler `opacity: 0.15` ile silik görünüyordu. `else` bloğu eklenerek her video açılışında state sıfırlanır hale getirildi; işaretler artık her zaman tam opaklıkta görünür.
+
 ## [8.20.1] - 2026-08-13
+
 
 ### Bug Fixes / Hata Düzeltmeleri
 

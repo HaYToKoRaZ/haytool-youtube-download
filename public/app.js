@@ -3879,6 +3879,13 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
         if (typeof updateSBToggleButtonUI === 'function') {
           updateSBToggleButtonUI();
         }
+      } else {
+        // Global ayar kapalı: butonu gizle, ama işaretlerin tam opaklıkta görünmesi için state'i resetle
+        btnSBToggle.style.display = 'none';
+        window.sponsorBlockTemporarilyDisabled = false;
+        if (typeof updateSBToggleButtonUI === 'function') {
+          updateSBToggleButtonUI();
+        }
 
         btnSBToggle.onclick = () => {
           window.sponsorBlockTemporarilyDisabled = !window.sponsorBlockTemporarilyDisabled;
