@@ -2245,6 +2245,7 @@ async function performAutoSave() {
     autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
     checkChannelsOnStartup: document.getElementById('settings-checkonstartup') ? document.getElementById('settings-checkonstartup').checked : false,
     discordRpcEnabled: document.getElementById('settings-discordrpc').checked,
+    enableAltThumbnailsHover: document.getElementById('settings-alt-thumbnails-hover') ? document.getElementById('settings-alt-thumbnails-hover').checked : true,
     lang: document.getElementById('settings-lang').value,
     preferredAudioLang: document.getElementById('settings-preferredaudiolang') ? document.getElementById('settings-preferredaudiolang').value : 'auto',
     doubleClickAction: document.getElementById('settings-doubleclickaction').value,

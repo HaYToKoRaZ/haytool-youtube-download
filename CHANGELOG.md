@@ -3,7 +3,24 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.20.0] - 2026-08-13
+
+### Bug Fixes & UI Improvements / Hata Düzeltmeleri & Arayüz İyileştirmeleri
+
+- **Settings: Alt Thumbnail Hover Toggle Fix (Alternatif Kapak Döngüsü Düzeltmesi):**
+  - Fixed a bug where toggling "Alternatif Kapak Döngüsü" in Settings had no effect. The `enableAltThumbnailsHover` value was never included in the `saveSettings()` payload sent to the backend, causing the setting to always reset to its default value.
+  - Ayarlar sekmesindeki "Alternatif Kapak Döngüsü" toggle'ının hiçbir etkisinin olmadığı hata giderildi. `enableAltThumbnailsHover` değeri `saveSettings()` objesinde eksikti, bu nedenle değişiklik backend'e hiç gönderilmiyordu.
+
+- **Settings: Global Shorts Duration Limit UI Added (Global Shorts Süresi Sınırı Arayüzü Eklendi):**
+  - Added a visible input field `#settings-shortsdurationlimit` to the Settings tab under "Otomasyon & RSS". Previously, the `shortsDurationLimit` value was used in backend RSS scanning logic but had no UI input—it was always silently fixed at 180 seconds. Now users can configure the global Shorts threshold directly.
+  - Ayarlar sekmesi "Otomasyon & RSS" bölümüne `shortsDurationLimit` (Shorts Süresi Sınırı) giriş alanı eklendi. Bu değer backend RSS tarama mantığında kullanılıyordu ancak UI'da görünmüyordu ve her zaman 180 saniye olarak sabit kalıyordu. Artık kullanıcılar global Shorts eşiğini doğrudan ayarlayabilir.
+
+- **Settings: History Limit Label Clarified (Geçmiş Videosu Sınırı Etiketi Düzeltildi):**
+  - Renamed "Geçmiş Videosu Sınırı" → "Kütüphane Görüntüleme Sınırı" with updated description clarifying this is a UI display cap, not a database record limit.
+  - "Geçmiş Videosu Sınırı" etiketi, "Kütüphane Görüntüleme Sınırı" olarak yeniden adlandırıldı ve açıklama metni güncellendi.
+
 ## [8.19.0] - 2026-08-13
+
 
 ### Major Features & Fixes / Ana Özellikler & Düzeltmeler
 
