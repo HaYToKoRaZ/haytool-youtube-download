@@ -75,7 +75,8 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         : '';
 
     if (item.duration === 'live') {
-      statusHtml = `<span class="status-pill live"><span class="live-dot animate-pulse"></span>${t.card_live || 'CANLI'}</span>`;
+      const liveTooltip = t.card_live_stream_desc || t.card_watch_live || 'Canlı Yayın';
+      statusHtml = `<span class="status-dot-live animate-pulse" title="${escapeHtml(liveTooltip)}"></span>`;
       actionsHtml = `
         <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
           ${youtubeSvgIcon}

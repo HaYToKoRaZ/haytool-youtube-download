@@ -74,6 +74,18 @@ export const defaultDb = {
       shortsDurationLimit: 180,
       autoDownload: false,
       categoryId: 1
+    },
+    {
+      id: "UCVdO0zhBHfXrySANXptVfmg",
+      name: "HaYTo KoRaZ",
+      handle: "https://www.youtube.com/@HaYToKoRaZ",
+      addedAt: "2026-08-14T10:40:00.000Z",
+      quality: "default",
+      downloadShorts: false,
+      avatar: "https://yt3.googleusercontent.com/ytc/AIdro_mLZttJRj6uGybFVyHjGTaeXnEuY8-Q3RDkLDuwXneJ5dqc=s900-c-k-c0x00ffffff-no-rj",
+      shortsDurationLimit: 180,
+      autoDownload: false,
+      categoryId: 1
     }
   ],
   history: [],
@@ -142,7 +154,8 @@ export const defaultDb = {
     enableAltThumbnailsHover: true,
     githubToken: '',
     githubGistId: '',
-    autoSyncGist: false
+    autoSyncGist: false,
+    channelScanMode: 'fast'
   }
 };
 

@@ -42,7 +42,6 @@ export function fetchWithProxyWaterfall(targetUrl) {
   const proxies = [
     url => url,
     url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
     url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
   ];
 
@@ -55,15 +54,11 @@ export function fetchWithProxyWaterfall(targetUrl) {
       }
 
       const activeUrl = proxies[index](targetUrl);
-      const isDirect = index === 0;
-
-      console.log(`[Waterfall] Istek gonderiliyor (Index: ${index}, Direct: ${isDirect}): ${activeUrl}`);
       
       let urlObj;
       try {
         urlObj = new URL(activeUrl);
       } catch (e) {
-        console.log(`[Waterfall] Gecersiz URL formati (Index: ${index}): ${activeUrl}`);
         index++;
         tryNext();
         return;
@@ -71,7 +66,6 @@ export function fetchWithProxyWaterfall(targetUrl) {
 
       function performRequest(requestUrl, redirectCount = 0) {
         if (redirectCount > 5) {
-          console.log(`[Waterfall] Cok fazla yonlendirme (Index: ${index})`);
           index++;
           tryNext();
           return;
@@ -79,15 +73,18 @@ export function fetchWithProxyWaterfall(targetUrl) {
 
         const reqOptions = {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Cache-Control': 'no-cache'
           }
         };
 
         const currentUrlObj = new URL(requestUrl);
         const currentGetter = currentUrlObj.protocol === 'https:' ? https : http;
 
-        currentGetter.get(currentUrlObj, reqOptions, (res) => {
+        let reqEnded = false;
+        const req = currentGetter.get(currentUrlObj, reqOptions, (res) => {
           if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
             let location = res.headers.location;
             if (location) {
@@ -100,21 +97,39 @@ export function fetchWithProxyWaterfall(targetUrl) {
           }
 
           if (res.statusCode !== 200) {
-            console.log(`[Waterfall] Hata kodu (Index: ${index}): HTTP ${res.statusCode}`);
-            index++;
-            tryNext();
+            if (!reqEnded) {
+              reqEnded = true;
+              index++;
+              tryNext();
+            }
             return;
           }
 
           let data = '';
           res.on('data', chunk => { data += chunk; });
           res.on('end', () => {
-            resolve(data);
+            if (!reqEnded) {
+              reqEnded = true;
+              resolve(data);
+            }
           });
-        }).on('error', (err) => {
-          console.log(`[Waterfall] Istek hatasi (Index: ${index}): ${err.message}`);
-          index++;
-          tryNext();
+        });
+
+        req.on('error', () => {
+          if (!reqEnded) {
+            reqEnded = true;
+            index++;
+            tryNext();
+          }
+        });
+
+        req.setTimeout(4000, () => {
+          if (!reqEnded) {
+            reqEnded = true;
+            try { req.destroy(); } catch (e) {}
+            index++;
+            tryNext();
+          }
         });
       }
 
@@ -225,6 +240,12 @@ function parseDurationFromHtml(html, isShortFallback = false) {
   let publishedAt = '';
   let title = '';
   let channelName = '';
+  let isUnavailable = false;
+  let reason = '';
+  let endTimestamp = null;
+  let startTimestamp = null;
+  let isLiveNow = false;
+  let isUpcoming = false;
 
   if (isShortFallback) {
     duration = '0:30';
@@ -234,26 +255,46 @@ function parseDurationFromHtml(html, isShortFallback = false) {
   if (playerResponseMatch) {
     try {
       const playerResponse = JSON.parse(playerResponseMatch[1]);
+      const playability = playerResponse.playabilityStatus;
+      if (playability) {
+        const pStatus = playability.status;
+        if (pStatus === 'UNPLAYABLE' || pStatus === 'LOGIN_REQUIRED' || pStatus === 'ERROR') {
+          isUnavailable = true;
+          reason = playability.reason || playability.errorScreen?.playerErrorMessageRenderer?.subreason?.simpleText || 'Video gizli, üyelere özel veya erişilemez.';
+        }
+      }
+
       const videoDetails = playerResponse.videoDetails;
       if (videoDetails) {
-        if (videoDetails.lengthSeconds) {
-          const seconds = parseInt(videoDetails.lengthSeconds, 10);
-          const isCurrentlyLive = (videoDetails.isLive === true) || 
-                                  (playerResponse.microformat?.playerMicroformatRenderer?.liveBroadcastDetails?.isLiveNow === true) ||
-                                  (seconds === 0 && playerResponse.microformat?.playerMicroformatRenderer?.isLiveContent === true);
-          if (isCurrentlyLive && seconds === 0) {
-            duration = 'live';
-          } else if (seconds === 0 && playerResponse.microformat?.playerMicroformatRenderer?.liveBroadcastDetails) {
-            duration = 'upcoming';
+        const seconds = videoDetails.lengthSeconds ? parseInt(videoDetails.lengthSeconds, 10) : 0;
+        const microformat = playerResponse.microformat?.playerMicroformatRenderer;
+        const liveBroadcastDetails = microformat?.liveBroadcastDetails;
+        const upcomingEventData = microformat?.upcomingEventData;
+
+        if (liveBroadcastDetails) {
+          if (liveBroadcastDetails.startTimestamp) startTimestamp = liveBroadcastDetails.startTimestamp;
+          if (liveBroadcastDetails.endTimestamp) endTimestamp = liveBroadcastDetails.endTimestamp;
+        }
+
+        isLiveNow = (videoDetails.isLive === true) || 
+                    (liveBroadcastDetails?.isLiveNow === true);
+
+        isUpcoming = (upcomingEventData !== undefined) ||
+                     (liveBroadcastDetails && liveBroadcastDetails.isLiveNow === false && !liveBroadcastDetails.endTimestamp) ||
+                     (videoDetails.isUpcoming === true);
+
+        if (isLiveNow) {
+          duration = 'live';
+        } else if (isUpcoming || (seconds === 0 && liveBroadcastDetails && !liveBroadcastDetails.endTimestamp)) {
+          duration = 'upcoming';
+        } else if (seconds > 0) {
+          const hrs = Math.floor(seconds / 3600);
+          const mins = Math.floor((seconds % 3600) / 60);
+          const secs = seconds % 60;
+          if (hrs > 0) {
+            duration = `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
           } else {
-            const hrs = Math.floor(seconds / 3600);
-            const mins = Math.floor((seconds % 3600) / 60);
-            const secs = seconds % 60;
-            if (hrs > 0) {
-              duration = `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            } else {
-              duration = `${mins}:${secs.toString().padStart(2, '0')}`;
-            }
+            duration = `${mins}:${secs.toString().padStart(2, '0')}`;
           }
         }
         if (videoDetails.title) {
@@ -279,7 +320,14 @@ function parseDurationFromHtml(html, isShortFallback = false) {
     }
   }
 
-  if (!duration) {
+  if (!isUnavailable && html) {
+    if (/This video is private|Bu video gizli|members-only|uyelere-ozel|Üyelere özel|Video unavailable|Bu video kaldırıldı|removed by the uploader|This live stream has ended|Canlı yayın sona erdi|Yayının süresi doldu|Bu içerik kullanılamıyor|Özel video|Private video|Stream offline/i.test(html)) {
+      isUnavailable = true;
+      reason = 'Video gizli, üyelere özel, sonlanmış veya kaldırılmış.';
+    }
+  }
+
+  if (!duration && !isUnavailable) {
     const lengthMatch = html.match(/"lengthSeconds"\s*:\s*"(\d+)"/);
     if (lengthMatch) {
       const seconds = parseInt(lengthMatch[1], 10);
@@ -315,7 +363,7 @@ function parseDurationFromHtml(html, isShortFallback = false) {
     }
   }
 
-  return { duration, publishedAt, title, channelName };
+  return { duration, publishedAt, title, channelName, isUnavailable, reason, endTimestamp, startTimestamp, isLiveNow, isUpcoming };
 }
 
 export function fetchVideoDuration(videoId) {
@@ -338,31 +386,27 @@ export function fetchVideoDuration(videoId) {
     let isShortRedirect = false;
 
     async function tryWaterfall() {
-      console.log(`[fetchVideoDuration] Dogrudan istek basarisiz veya engellendi, vekil sunucu (Proxy Waterfall) denetimi baslatiliyor: ${videoId}`);
       try {
         const proxyHtml = await fetchWithProxyWaterfall(startUrl);
         const parsed = parseDurationFromHtml(proxyHtml, false);
         resolve(parsed);
       } catch (err) {
-        console.error(`[fetchVideoDuration] Proxy waterfall sorgusu da basarisiz oldu: ${err.message}`);
         resolve({ duration: '', publishedAt: '' });
       }
     }
 
     function getRequest(url) {
       if (redirectCount > maxRedirects) {
-        console.log(`[fetchVideoDuration] Too many redirects for ${videoId}`);
         return tryWaterfall();
       }
 
       https.get(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           'Accept-Language': langHeader
         }
       }, (res) => {
         if (res.statusCode >= 400) {
-          console.log(`[fetchVideoDuration] Dogrudan istek HTTP ${res.statusCode} hatasi aldi: ${videoId}`);
           return tryWaterfall();
         }
 
@@ -387,13 +431,9 @@ export function fetchVideoDuration(videoId) {
         res.on('data', chunk => { html += chunk; });
         res.on('end', () => {
           const parsed = parseDurationFromHtml(html, isShortRedirect);
-          if (!parsed.duration && !parsed.publishedAt) {
-            return tryWaterfall();
-          }
           resolve(parsed);
         });
-      }).on('error', (e) => {
-        console.log(`[fetchVideoDuration] Dogrudan baglanti hatasi: ${e.message}`);
+      }).on('error', () => {
         tryWaterfall();
       });
     }
@@ -458,6 +498,20 @@ export function fetchDurationViaYtdlp(videoId) {
 
 
 /**
+ * YouTube kanalının en son videolarını XML RSS akışından hızlıca çeker.
+ * 
+ * @param {string} channelId YouTube kanal kimliği (ID)
+ * @returns {Promise<object>} Video listesini içeren nesne
+ */
+export async function fetchChannelVideosXml(channelId) {
+  const db = readDb();
+  const hl = db.settings?.lang || 'tr';
+  const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}&hl=${hl}`;
+  const xmlData = await fetchWithProxyWaterfall(feedUrl);
+  return await parser.parseString(xmlData);
+}
+
+/**
  * YouTube kanalının en son videolarını flat-playlist modunda json olarak çeker.
  * 
  * @param {string} channelId YouTube kanal kimliği (ID)
@@ -471,10 +525,7 @@ export function fetchChannelVideosYtdlp(channelId, limit) {
     
     const dateMap = new Map();
     try {
-      const hl = db.settings?.lang || 'tr';
-      const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}&hl=${hl}`;
-      const xmlData = await fetchWithProxyWaterfall(feedUrl);
-      const xmlFeed = await parser.parseString(xmlData);
+      const xmlFeed = await fetchChannelVideosXml(channelId);
       if (xmlFeed && xmlFeed.items) {
         for (const item of xmlFeed.items) {
           const videoId = item.link?.match(/v=([^&]+)/)?.[1] || item.id?.replace('yt:video:', '');
@@ -485,7 +536,7 @@ export function fetchChannelVideosYtdlp(channelId, limit) {
         }
       }
     } catch (rssErr) {
-      console.log(`[RSS] [XML Tarih Eşleme] ${channelId} için XML RSS tarihleri okunamadı:`, rssErr.message);
+      // XML RSS tarih eşleme isteğe bağlıdır, hata durumunda sessizce devam edilir
     }
 
     const args = [];
@@ -507,10 +558,16 @@ export function fetchChannelVideosYtdlp(channelId, limit) {
     if (settings.lang) {
       args.push('--extractor-args', `youtube:lang=${settings.lang}`);
     }
-    args.push(
-      `https://www.youtube.com/channel/${channelId}/videos`,
-      `https://www.youtube.com/channel/${channelId}/streams`
-    );
+    let targetUrl;
+    if (channelId.startsWith('http://') || channelId.startsWith('https://')) {
+      targetUrl = channelId;
+    } else if (channelId.startsWith('@')) {
+      targetUrl = `https://www.youtube.com/${channelId}`;
+    } else {
+      targetUrl = `https://www.youtube.com/channel/${channelId}`;
+    }
+    
+    args.push(targetUrl);
     
     const localTemp = getLocalTempDir();
     const spawnOptions = {
@@ -526,7 +583,7 @@ export function fetchChannelVideosYtdlp(channelId, limit) {
         try { proc.kill(); } catch (e) {}
         reject(new Error('bölge kısıtlaması/zaman aşımı (Geo-blocked)'));
       }
-    }, 10000);
+    }, 5000);
     
     let stdout = '';
     let stderr = '';
@@ -586,7 +643,7 @@ export function fetchChannelVideosYtdlp(channelId, limit) {
         }
       }
 
-      if (code !== 0 && items.length === 0) {
+      if (items.length === 0 && code !== 0) {
         const isGeoBlocked = /Bu kanal kullan|This channel is not available|Geo-blocked|Private video|Sign in/i.test(stderr);
         const cleanMsg = isGeoBlocked 
           ? 'Bölgesel erişim kısıtlaması (Geo-blocked)'
@@ -598,6 +655,158 @@ export function fetchChannelVideosYtdlp(channelId, limit) {
       resolve({ items });
     });
   });
+}
+
+
+/**
+ * Bölgesel kısıtlamalı, yaş engelli veya doğrudan erişilemeyen kanallar için otomatik Bypass ve Alternatif Tarama Motoru.
+ * 
+ * 1. Aşama: yt-dlp Geo-Bypass & Multi-Client (US/DE lokasyon taklidi & Android/TV Client)
+ * 2. Aşama: Alternatif Invidious / Piped Mirror RSS beslemeleri (yewtu.be, invidious.nerqv.ps vb.)
+ * 3. Aşama: Proxy Waterfall üzerinden YouTube HTML Scraping (ytInitialData parser)
+ * 
+ * @param {object} channel Kanal nesnesi ({ id, name })
+ * @param {number} limit Alınacak maksimum video sayısı
+ * @returns {Promise<object>} Video listesini içeren nesne
+ */
+export async function fetchRestrictedChannelVideos(channel, limit = 5) {
+  const channelName = channel.name || channel.id;
+  const channelId = channel.id;
+  addTerminalLog(`[YASAKLI KANAL] "${channelName}" kısıtlamalı kanal tespit edildi, özel bypass motoru devreye giriyor...`, 'warn');
+  console.log(`[YASAKLI KANAL] "${channelName}" kısıtlamalı kanal tespit edildi, özel bypass motoru devreye giriyor...`);
+
+  const db = readDb();
+  const settings = db.settings || {};
+
+  // 1. Aşama: yt-dlp Geo-Bypass & TV/Android Client
+  try {
+    addTerminalLog(`[YASAKLI KANAL] "${channelName}" için Geo-Bypass & TV Client deneniyor...`, 'info');
+    const geoItems = await new Promise((resolve, reject) => {
+      const args = [
+        '--js-runtimes', `node:${process.execPath}`,
+        '--ignore-errors',
+        '--flat-playlist',
+        '--playlist-end', limit.toString(),
+        '--dump-json',
+        '--geo-bypass',
+        '--geo-bypass-country', 'US',
+        '--extractor-args', `youtube:player_client=android,tv_embedded;lang=${settings.lang || 'tr'}`,
+        '--socket-timeout', '10',
+        '--retries', '2'
+      ];
+
+      if (settings.browser && settings.browser !== 'none') {
+        const browserName = settings.browser === 'msedge' ? 'edge' : settings.browser;
+        args.push('--cookies-from-browser', browserName);
+      }
+
+      let targetUrl = channelId.startsWith('http') ? channelId : (channelId.startsWith('@') ? `https://www.youtube.com/${channelId}` : `https://www.youtube.com/channel/${channelId}`);
+      args.push(targetUrl);
+
+      const localTemp = getLocalTempDir();
+      const spawnOptions = {
+        env: { ...process.env, TEMP: localTemp, TMP: localTemp },
+        ...(process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {})
+      };
+
+      const proc = spawnYtdlp(args, spawnOptions);
+      let stdout = '';
+      let isSettled = false;
+      const timer = setTimeout(() => {
+        if (!isSettled) {
+          isSettled = true;
+          try { proc.kill(); } catch (e) {}
+          reject(new Error('Geo-Bypass zaman aşımı'));
+        }
+      }, 12000);
+
+      proc.stdout.on('data', (d) => stdout += d.toString());
+      proc.on('close', (code) => {
+        cleanMeiForPid(proc.pid);
+        clearTimeout(timer);
+        if (isSettled) return;
+        isSettled = true;
+        const items = [];
+        const lines = stdout.split('\n');
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const v = JSON.parse(line.trim());
+            if (v && v.id) {
+              items.push({
+                title: v.title || 'Video',
+                link: `https://www.youtube.com/watch?v=${v.id}`,
+                id: `yt:video:${v.id}`,
+                isoDate: v.timestamp ? new Date(v.timestamp * 1000).toISOString() : new Date().toISOString()
+              });
+            }
+          } catch (e) {}
+        }
+        if (items.length > 0) resolve({ items });
+        else reject(new Error('yt-dlp Geo-Bypass boş döndü'));
+      });
+    });
+
+    if (geoItems && geoItems.items && geoItems.items.length > 0) {
+      addTerminalLog(`[YASAKLI KANAL] "${channelName}" Geo-Bypass ile başarıyla taranarak ${geoItems.items.length} video çekildi!`, 'success');
+      return geoItems;
+    }
+  } catch (geoErr) {
+    console.log(`[YASAKLI KANAL] Geo-Bypass başarısız (${geoErr.message}), alternatif Invidious/Piped aynalarına geçiliyor...`);
+  }
+
+  // 2. Aşama: Alternatif Invidious / Piped Mirror RSS beslemeleri
+  const cleanId = channelId.replace(/^@/, '');
+  const mirrorHosts = [
+    `https://yewtu.be/feed/channel/${cleanId}`,
+    `https://invidious.nerqv.ps/feed/channel/${cleanId}`,
+    `https://inv.tux.pizza/feed/channel/${cleanId}`,
+    `https://vid.puffyan.us/feed/channel/${cleanId}`
+  ];
+
+  for (const mirrorUrl of mirrorHosts) {
+    try {
+      addTerminalLog(`[YASAKLI KANAL] "${channelName}" için alternatif ayna besleme taranıyor (${new URL(mirrorUrl).hostname})...`, 'info');
+      const xmlData = await fetchWithProxyWaterfall(mirrorUrl);
+      const parsed = await parser.parseString(xmlData);
+      if (parsed && parsed.items && parsed.items.length > 0) {
+        addTerminalLog(`[YASAKLI KANAL] "${channelName}" alternatif ayna (${new URL(mirrorUrl).hostname}) üzerinden ${parsed.items.length} video ile çözüldü!`, 'success');
+        return parsed;
+      }
+    } catch (mirrorErr) {
+      // Bir sonraki aynaya geç
+    }
+  }
+
+  // 3. Aşama: Proxy Waterfall HTML Scraper (ytInitialData)
+  try {
+    addTerminalLog(`[YASAKLI KANAL] "${channelName}" için Proxy Waterfall HTML tarayıcısı devreye giriyor...`, 'info');
+    let targetUrl = channelId.startsWith('http') ? channelId : (channelId.startsWith('@') ? `https://www.youtube.com/${channelId}/videos` : `https://www.youtube.com/channel/${channelId}/videos`);
+    const htmlData = await fetchWithProxyWaterfall(targetUrl);
+    
+    const items = [];
+    const videoMatches = htmlData.match(/\"videoId\":\"([a-zA-Z0-9_-]{11})\"/g);
+    if (videoMatches) {
+      const uniqueVideoIds = [...new Set(videoMatches.map(m => m.match(/\"videoId\":\"([a-zA-Z0-9_-]{11})\"/)[1]))].slice(0, limit);
+      for (const vId of uniqueVideoIds) {
+        items.push({
+          title: `Video (${vId})`,
+          link: `https://www.youtube.com/watch?v=${vId}`,
+          id: `yt:video:${vId}`,
+          isoDate: new Date().toISOString()
+        });
+      }
+    }
+
+    if (items.length > 0) {
+      addTerminalLog(`[YASAKLI KANAL] "${channelName}" Proxy HTML tarayıcı üzerinden ${items.length} video ile çözüldü!`, 'success');
+      return { items };
+    }
+  } catch (htmlErr) {
+    console.log(`[YASAKLI KANAL] Proxy HTML Scraper başarısız: ${htmlErr.message}`);
+  }
+
+  throw new Error('Tüm yasaklı kanal bypass yöntemleri (Geo-Bypass, Ayna RSS, HTML Scraper) denendi ancak kanala erişilemedi.');
 }
 
 /**
@@ -613,20 +822,39 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
     const rssLimit = db.settings.rssLimit || 5;
     let feed = null;
 
-    console.log(`[RSS] ${channel.name} denetleniyor (yt-dlp)...`);
-    addTerminalLog(`[RSS] ${channel.name} yt-dlp ile denetleniyor...`, 'info');
-    try {
-      feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
-    } catch (ytdlpErr) {
-      console.log(`[RSS] "${channel.name}" için yedek Proxy köprüsü devreye giriyor (${ytdlpErr.message})...`);
-      addTerminalLog(`[RSS] "${channel.name}" bölge kısıtlaması/engeli nedeniyle Proxy yedeğine yönlendirildi.`, 'info');
+    const scanMode = db.settings.channelScanMode || 'fast';
+    if (scanMode === 'fast') {
       try {
-        const hl = db.settings?.lang || 'tr';
-        const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.id}&hl=${hl}`;
-        const xmlData = await fetchWithProxyWaterfall(feedUrl);
-        feed = await parser.parseString(xmlData);
-      } catch (rssErr) {
-        console.error(`[RSS] [HATA] ${channel.name} RSS XML ile de denetlenemedi:`, rssErr.message);
+        feed = await fetchChannelVideosXml(channel.id);
+      } catch (xmlErr) {
+        console.log(`[RSS Hızlı] "${channel.name}" için XML denemesi başarısız, yt-dlp yedeğine geçiliyor (${xmlErr.message})...`);
+        try {
+          feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
+        } catch (ytdlpErr) {
+          try {
+            feed = await fetchRestrictedChannelVideos(channel, rssLimit);
+          } catch (restrictedErr) {
+            console.error(`[RSS] [HATA] ${channel.name} tüm yasaklı kanal bypass yöntemleriyle de denetlenemedi:`, restrictedErr.message);
+          }
+        }
+      }
+    } else {
+      console.log(`[RSS] ${channel.name} denetleniyor (yt-dlp Klasik)...`);
+      addTerminalLog(`[RSS] ${channel.name} yt-dlp ile denetleniyor...`, 'info');
+      try {
+        feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
+      } catch (ytdlpErr) {
+        console.log(`[RSS] "${channel.name}" için yedek Proxy köprüsü devreye giriyor (${ytdlpErr.message})...`);
+        addTerminalLog(`[RSS] "${channel.name}" bölge kısıtlaması/engeli nedeniyle Proxy yedeğine yönlendirildi.`, 'info');
+        try {
+          feed = await fetchChannelVideosXml(channel.id);
+        } catch (rssErr) {
+          try {
+            feed = await fetchRestrictedChannelVideos(channel, rssLimit);
+          } catch (restrictedErr) {
+            console.error(`[RSS] [HATA] ${channel.name} tüm yasaklı kanal bypass yöntemleriyle de denetlenemedi:`, restrictedErr.message);
+          }
+        }
       }
     }
 
@@ -676,60 +904,78 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
           if (existingHistory.status === 'upcoming' || existingHistory.duration === 'upcoming' || existingHistory.status === 'live' || existingHistory.duration === 'live') {
             try {
               const result = await fetchVideoDuration(videoId);
-              if (result && result.duration && result.duration !== 'upcoming' && result.duration !== 'live') {
-                console.log(`[RSS] Upcoming/live video is now published/completed: ${item.title}`);
-                addTerminalLog(`[RSS] Yaklaşan/Canlı yayın artık normal video halinde yayında: "${item.title}" (${channel.name})`, 'info');
-                
-                let lockReleased = false;
-                const release = await acquireDbLock();
-                try {
-                  const freshDb = readDb();
-                  const freshHistory = freshDb.history.find(h => h.id === videoId);
-                  if (freshHistory && (freshHistory.status === 'upcoming' || freshHistory.duration === 'upcoming' || freshHistory.status === 'live' || freshHistory.duration === 'live')) {
-                    freshHistory.duration = result.duration;
-                    if (result.publishedAt) {
-                      freshHistory.publishedAt = result.publishedAt;
-                    }
-                    
-                    const channelConfig = freshDb.channels.find(c => c.id === channel.id);
-                    if (freshDb.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true)) {
-                      const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
-                      const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
-                      
-                      let shouldDownload = true;
-                      if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
-                        shouldDownload = false;
-                        freshHistory.status = 'ignored';
-                        console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
-                      }
-                      
-                      if (shouldDownload) {
-                        freshHistory.status = 'waiting';
-                        writeDb(freshDb);
-                        
-                        lockReleased = true;
-                        release();
-                        
-                        await downloadQueue.add({
-                          id: videoId,
-                          title: item.title,
-                          channelId: channel.id,
-                          channelName: channel.name,
-                          url: item.link,
-                          publishedAt: freshHistory.publishedAt,
-                          duration: result.duration || ''
-                        });
-                      } else {
-                        writeDb(freshDb);
-                      }
-                    } else {
-                      freshHistory.status = 'ignored';
+              if (result && result.duration) {
+                if (result.duration === 'live' && (existingHistory.duration !== 'live' || existingHistory.status !== 'live')) {
+                  console.log(`[RSS] Upcoming video is now LIVE: ${item.title}`);
+                  addTerminalLog(`[RSS] "${item.title}" yayını CANLI olarak başladı! (${channel.name})`, 'info');
+                  const release = await acquireDbLock();
+                  try {
+                    const freshDb = readDb();
+                    const freshHistory = freshDb.history.find(h => h.id === videoId);
+                    if (freshHistory) {
+                      freshHistory.duration = 'live';
+                      freshHistory.status = 'live';
                       writeDb(freshDb);
+                      broadcast('db_update', freshDb);
                     }
-                  }
-                } finally {
-                  if (!lockReleased) {
+                  } finally {
                     release();
+                  }
+                } else if (result.duration !== 'upcoming' && result.duration !== 'live') {
+                  console.log(`[RSS] Upcoming/live video is now published/completed: ${item.title}`);
+                  addTerminalLog(`[RSS] Yaklaşan/Canlı yayın artık normal video halinde yayında: "${item.title}" (${channel.name})`, 'info');
+                  
+                  let lockReleased = false;
+                  const release = await acquireDbLock();
+                  try {
+                    const freshDb = readDb();
+                    const freshHistory = freshDb.history.find(h => h.id === videoId);
+                    if (freshHistory && (freshHistory.status === 'upcoming' || freshHistory.duration === 'upcoming' || freshHistory.status === 'live' || freshHistory.duration === 'live')) {
+                      freshHistory.duration = result.duration;
+                      if (result.publishedAt) {
+                        freshHistory.publishedAt = result.publishedAt;
+                      }
+                      
+                      const channelConfig = freshDb.channels.find(c => c.id === channel.id);
+                      if (freshDb.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true)) {
+                        const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
+                        const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
+                        
+                        let shouldDownload = true;
+                        if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
+                          shouldDownload = false;
+                          freshHistory.status = 'ignored';
+                          console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
+                        }
+                        
+                        if (shouldDownload) {
+                          freshHistory.status = 'waiting';
+                          writeDb(freshDb);
+                          
+                          lockReleased = true;
+                          release();
+                          
+                          await downloadQueue.add({
+                            id: videoId,
+                            title: item.title,
+                            channelId: channel.id,
+                            channelName: channel.name,
+                            url: item.link,
+                            publishedAt: freshHistory.publishedAt,
+                            duration: result.duration || ''
+                          });
+                        } else {
+                          writeDb(freshDb);
+                        }
+                      } else {
+                        freshHistory.status = 'ignored';
+                        writeDb(freshDb);
+                      }
+                    }
+                  } finally {
+                    if (!lockReleased) {
+                      release();
+                    }
                   }
                 }
               }
@@ -1140,31 +1386,66 @@ export async function checkAllChannelsRssParallel() {
   }
 
   const total = db.channels.length;
-  addTerminalLog(`[RSS] ${total} kanal için paralel RSS taraması başlatılıyor...`, 'info');
-  console.log(`[RSS] ${total} kanal için paralel RSS taraması başlatılıyor...`);
+  const scanMode = db.settings.channelScanMode || 'fast';
+  const modeLabel = (scanMode === 'classic' || scanMode === 'slow') ? '🐢 Klasik Tarama (yt-dlp)' : '⚡ Hızlı Tarama (XML RSS)';
+  
+  addTerminalLog(`[RSS] ${total} kanal için ${modeLabel} başlatılıyor...`, 'info');
+  console.log(`[RSS] ${total} kanal için ${modeLabel} başlatılıyor...`);
 
   const rssLimit = db.settings.rssLimit || 5;
-
-  // 1. Paralel İstekler (Önce yt-dlp ile Türkçe başlıkları çek, hata durumunda XML yedekle)
-  const promises = db.channels.map(async (channel) => {
+  
+  const checkSingleChannel = async (channel) => {
     let feed = null;
-    try {
-      feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
-    } catch (ytdlpErr) {
-      console.log(`[RSS Paralel] "${channel.name}" için yedek Proxy köprüsü devreye giriyor (${ytdlpErr.message})...`);
+    if (scanMode === 'fast') {
       try {
-        const hl = db.settings?.lang || 'tr';
-        const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.id}&hl=${hl}`;
-        const xmlData = await fetchWithProxyWaterfall(feedUrl);
-        feed = await parser.parseString(xmlData);
+        feed = await fetchChannelVideosXml(channel.id);
       } catch (xmlErr) {
-        console.error(`[RSS Paralel] ${channel.name} için XML çekilemedi: ${xmlErr.message}`);
+        try {
+          feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
+        } catch (ytdlpErr) {
+          try {
+            feed = await fetchRestrictedChannelVideos(channel, rssLimit);
+          } catch (restrictedErr) {
+            console.log(`[RSS] "${channel.name}" atlandı (Erişilemedi/Kısıtlamalı: ${restrictedErr.message})`);
+            addTerminalLog(`[RSS] "${channel.name}" atlandı (Erişilemedi/Kısıtlamalı).`, 'warn');
+          }
+        }
+      }
+    } else {
+      try {
+        feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
+      } catch (ytdlpErr) {
+        try {
+          feed = await fetchChannelVideosXml(channel.id);
+        } catch (xmlErr) {
+          try {
+            feed = await fetchRestrictedChannelVideos(channel, rssLimit);
+          } catch (restrictedErr) {
+            console.log(`[RSS] "${channel.name}" atlandı (Erişilemedi/Kısıtlamalı: ${restrictedErr.message})`);
+            addTerminalLog(`[RSS] "${channel.name}" atlandı (Erişilemedi/Kısıtlamalı).`, 'warn');
+          }
+        }
       }
     }
     return { channel, feed };
-  });
+  };
 
-  const results = await Promise.allSettled(promises);
+  // 15'erli gruplar halinde paralel tarama (101 kanalın aynı anda sunucuya yük bindirip engellenmesini ve kilitlenmesini önler)
+  const BATCH_SIZE = 15;
+  const results = [];
+  let processedCount = 0;
+  for (let i = 0; i < db.channels.length; i += BATCH_SIZE) {
+    const batch = db.channels.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.allSettled(batch.map(checkSingleChannel));
+    results.push(...batchResults);
+    processedCount += batch.length;
+
+    const percent = Math.min(100, Math.round((processedCount / total) * 100));
+    const logMsg = `[RSS] Kanallar kontrol ediliyor... (${processedCount}/${total} - %${percent})`;
+    addTerminalLog(logMsg, 'info');
+    console.log(logMsg);
+    broadcast('rss_progress', { processed: processedCount, total, percent });
+  }
 
   let newVideosCount = 0;
   const videosToQueue = [];
@@ -1222,48 +1503,46 @@ export async function checkAllChannelsRssParallel() {
         if (existingHistory.status === 'upcoming' || existingHistory.duration === 'upcoming' || existingHistory.status === 'live' || existingHistory.duration === 'live') {
           try {
             const result = await fetchVideoDuration(videoId);
-            if (result && result.duration && result.duration !== 'upcoming' && result.duration !== 'live') {
-              console.log(`[RSS Paralel] Yaklaşan/Canlı yayın artık normal video halinde yayında: ${item.title}`);
-              addTerminalLog(`[RSS Paralel] Yaklaşan/Canlı yayın artık normal video halinde yayında: "${item.title}" (${channel.name})`, 'info');
-              
-              let duration = result.duration;
-              let publishedAt = result.publishedAt || existingHistory.publishedAt;
-              
-              const channelConfig = freshDb.channels.find(c => c.id === channel.id);
-              const autoDownload = freshDb.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true);
-              const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
-              const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
-              
-              let shouldDownload = false;
-              let newStatus = 'ignored';
-              
-              if (autoDownload) {
-                if (!downloadShorts && isShortDuration(duration, shortsLimit)) {
-                  console.log(`[RSS Paralel] Kısa video algılandı ve kanal shorts'a izin vermiyor. Göz ardı ediliyor: ${item.title}`);
-                } else {
-                  shouldDownload = true;
-                  newStatus = 'waiting';
+            if (result && result.duration) {
+              if (result.duration === 'live' && (existingHistory.duration !== 'live' || existingHistory.status !== 'live')) {
+                addTerminalLog(`[RSS Paralel] "${item.title}" yayını CANLI olarak başladı! (${channel.name})`, 'info');
+                const release = await acquireDbLock();
+                try {
+                  const freshDb = readDb();
+                  const freshHistory = freshDb.history.find(h => h.id === videoId);
+                  if (freshHistory) {
+                    freshHistory.duration = 'live';
+                    freshHistory.status = 'live';
+                    writeDb(freshDb);
+                    broadcast('db_update', freshDb);
+                  }
+                } finally {
+                  release();
                 }
-              }
-              
-              historyToUpdate.push({
-                id: videoId,
-                duration: duration,
-                publishedAt: publishedAt,
-                status: newStatus
-              });
-              
-              if (shouldDownload) {
-                videosToQueue.push({
-                  id: videoId,
-                  title: item.title,
-                  channelId: channel.id,
-                  channelName: channel.name,
-                  url: item.link,
-                  publishedAt: publishedAt,
-                  duration: duration
-                });
-                newVideosCount++;
+              } else if (result.duration !== 'upcoming' && result.duration !== 'live') {
+                addTerminalLog(`[RSS Paralel] Yaklaşan/Canlı yayın videoya dönüştü: "${item.title}" (${channel.name})`, 'info');
+                const release = await acquireDbLock();
+                try {
+                  const freshDb = readDb();
+                  const freshHistory = freshDb.history.find(h => h.id === videoId);
+                  if (freshHistory) {
+                    freshHistory.duration = result.duration;
+                    freshHistory.status = 'waiting';
+                    writeDb(freshDb);
+                    broadcast('db_update', freshDb);
+                    await downloadQueue.add({
+                      id: videoId,
+                      title: item.title,
+                      channelId: channel.id,
+                      channelName: channel.name,
+                      url: item.link,
+                      publishedAt: freshHistory.publishedAt,
+                      duration: result.duration || ''
+                    });
+                  }
+                } finally {
+                  release();
+                }
               }
             }
           } catch (e) {
@@ -1439,8 +1718,9 @@ export async function checkAllChannelsRssParallel() {
   }
 
   const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
-  addTerminalLog(`[RSS] Paralel denetim tamamlandı: ${total} kanal ${durationSec} saniyede kontrol edildi. ${newVideosCount} yeni video bulundu.`, 'success');
-  console.log(`[RSS] Paralel denetim tamamlandı: ${total} kanal ${durationSec} saniyede kontrol edildi. ${newVideosCount} yeni video bulundu.`);
+  const modeText = (scanMode === 'classic' || scanMode === 'slow') ? 'Klasik Tarama' : 'Hızlı Tarama';
+  addTerminalLog(`[RSS] ${modeText} tamamlandı: ${total} kanal ${durationSec} saniyede kontrol edildi. ${newVideosCount} yeni video bulundu.`, 'success');
+  console.log(`[RSS] ${modeText} tamamlandı: ${total} kanal ${durationSec} saniyede kontrol edildi. ${newVideosCount} yeni video bulundu.`);
 
   return {
     success: true,
@@ -1475,6 +1755,7 @@ export async function triggerChannelCheck(source = 'manual') {
 
   isRssChecking = true;
   try {
+    const db = readDb();
     const sourceLabels = {
       timer: 'Zamanlayıcı (Arka Plan)',
       ui: 'Arayüz Butonu (Sağ Üst)',
@@ -1483,8 +1764,10 @@ export async function triggerChannelCheck(source = 'manual') {
       manual: 'Manuel Tetikleme'
     };
     const label = sourceLabels[source] || source;
-    console.log(`[Kanal Kontrolü] Tüm kanallar denetleniyor (Kaynak: ${label})...`);
-    addTerminalLog(`[Kanal Kontrolü] Tüm kanallar denetleniyor (${label})...`, 'info');
+    const scanMode = db.settings?.channelScanMode || 'fast';
+    const modeLabel = (scanMode === 'classic' || scanMode === 'slow') ? '🐢 Klasik (yt-dlp)' : '⚡ Hızlı (XML RSS)';
+    console.log(`[Kanal Kontrolü] Tüm kanallar denetleniyor (Kaynak: ${label} | Mod: ${modeLabel})...`);
+    addTerminalLog(`[Kanal Kontrolü] Tüm kanallar denetleniyor (${label} | Mod: ${modeLabel})...`, 'info');
 
     const result = await checkAllChannelsRssParallel();
     
@@ -1513,40 +1796,129 @@ export async function checkPendingLiveStreams() {
   try {
     const db = readDb();
     const pendingItems = (db.history || []).filter(h => 
-      h.status === 'waiting_live_processing' || h.status === 'live' || h.duration === 'live' || (h.error && h.error.includes('Canlı Yayın'))
+      !h.hidden &&
+      h.status !== 'ignored' &&
+      h.status !== 'downloaded' &&
+      h.status !== 'unavailable' &&
+      (h.status === 'upcoming' || h.duration === 'upcoming' || h.status === 'waiting_live_processing' || h.status === 'live' || (h.error && h.error.includes('Canlı Yayın')))
     );
 
     if (pendingItems.length === 0) return;
 
-    console.log(`[Canlı Yayın Denetleyici] ${pendingItems.length} beklemedeki canlı yayın hafif metadata ile kontrol ediliyor...`);
+    console.log(`[CANLI YAYIN] ${pendingItems.length} beklemedeki yaklaşan/canlı yayın denetleniyor...`);
 
     for (const item of pendingItems) {
       try {
         const result = await fetchVideoDuration(item.id);
-        if (result && result.duration && result.duration !== 'live' && result.duration !== 'upcoming') {
-          console.log(`[Canlı Yayın Denetleyici] Canlı yayın VOD videoya dönüştü: ${item.title} (${result.duration})`);
-          addTerminalLog(`[Canlı Yayın Denetleyici] "${item.title}" yayını işlendi (${result.duration}), indirme kuyruğuna alındı.`, 'success');
 
+        // 1. Durum: Video Gizli, Üyelere Özel, Silinmiş veya Erişilemez durumda
+        if (result && result.isUnavailable) {
+          addTerminalLog(`[CANLI YAYIN] "${item.title}" (${item.channelName || 'Kanal'}) yayını gizli/üyelere özel veya silinmiş olduğu için takipten çıkarıldı.`, 'warning');
           const release = await acquireDbLock();
           try {
             const freshDb = readDb();
             const target = freshDb.history.find(h => h.id === item.id);
             if (target) {
-              target.duration = result.duration;
-              if (result.publishedAt) target.publishedAt = result.publishedAt;
-              target.status = 'waiting';
+              target.status = 'ignored';
+              target.error = result.reason || 'Video gizli, üyelere özel veya kaldırılmış.';
               writeDb(freshDb);
               broadcast('db_update', freshDb);
+            }
+          } finally {
+            release();
+          }
+          continue;
+        }
 
-              await downloadQueue.add({
-                id: item.id,
-                title: target.title,
-                channelId: target.channelId,
-                channelName: target.channelName,
-                url: `https://www.youtube.com/watch?v=${item.id}`,
-                publishedAt: target.publishedAt,
-                duration: result.duration || ''
-              });
+        // 2. Durum: Süre veya yayın durumu başarılı çözümlendi
+        if (result && result.duration) {
+          // 6 Saatlik VOD Dönüşüm Zaman Aşımı Kontrolü (6-Hour VOD Conversion Timeout)
+          const refTime = result.endTimestamp || result.startTimestamp || item.publishedAt || item.addedAt;
+          const elapsedMs = refTime ? (Date.now() - new Date(refTime).getTime()) : 0;
+          const SIX_HOURS_MS = 6 * 60 * 60 * 1000; // 6 saat
+
+          if (refTime && elapsedMs > SIX_HOURS_MS && (result.duration === 'live' || result.duration === 'upcoming')) {
+            addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını 6 saat içinde VOD videoya dönüşmediği için takipten çıkarıldı.`, 'warning');
+            const release = await acquireDbLock();
+            try {
+              const freshDb = readDb();
+              const target = freshDb.history.find(h => h.id === item.id);
+              if (target) {
+                target.status = 'ignored';
+                target.error = 'Canlı yayın 6 saat içinde VOD videoya dönüşmedi (Takipten çıkarıldı).';
+                writeDb(freshDb);
+                broadcast('db_update', freshDb);
+              }
+            } finally {
+              release();
+            }
+            continue;
+          }
+
+          if (result.duration === 'live') {
+            if (item.duration !== 'live' || item.status !== 'live') {
+              addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını CANLI olarak başladı!`, 'info');
+              const release = await acquireDbLock();
+              try {
+                const freshDb = readDb();
+                const target = freshDb.history.find(h => h.id === item.id);
+                if (target) {
+                  target.duration = 'live';
+                  target.status = 'live';
+                  target.liveCheckFailCount = 0;
+                  writeDb(freshDb);
+                  broadcast('db_update', freshDb);
+                }
+              } finally {
+                release();
+              }
+            }
+          } else if (result.duration !== 'upcoming') {
+            addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını tamamlandı ve videoya dönüştü (${result.duration}), indirme kuyruğuna alındı.`, 'success');
+
+            const release = await acquireDbLock();
+            try {
+              const freshDb = readDb();
+              const target = freshDb.history.find(h => h.id === item.id);
+              if (target) {
+                target.duration = result.duration;
+                if (result.publishedAt) target.publishedAt = result.publishedAt;
+                target.status = 'waiting';
+                target.liveCheckFailCount = 0;
+                writeDb(freshDb);
+                broadcast('db_update', freshDb);
+
+                await downloadQueue.add({
+                  id: item.id,
+                  title: target.title,
+                  channelId: target.channelId,
+                  channelName: target.channelName,
+                  url: `https://www.youtube.com/watch?v=${item.id}`,
+                  publishedAt: target.publishedAt,
+                  duration: result.duration || ''
+                });
+              }
+            } finally {
+              release();
+            }
+          }
+        } else {
+          // 3. Durum: Süre dönmedi veya sayfa çekilemedi (Eski/Kapanmış/VOD dönüşmemiş yayınlar için Zaman Aşımı)
+          const release = await acquireDbLock();
+          try {
+            const freshDb = readDb();
+            const target = freshDb.history.find(h => h.id === item.id);
+            if (target) {
+              target.liveCheckFailCount = (target.liveCheckFailCount || 0) + 1;
+              const refTime = target.publishedAt || target.addedAt;
+              const itemAgeHours = refTime ? (Date.now() - new Date(refTime).getTime()) / (1000 * 60 * 60) : 0;
+              if (target.liveCheckFailCount >= 3 || itemAgeHours > 6) {
+                target.status = 'ignored';
+                target.error = 'Canlı yayın 6 saat içinde VOD videoya dönüşmedi veya erişilemedi (Takipten çıkarıldı).';
+                addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını 6 saat içinde VOD videoya dönüşmediği için takipten çıkarıldı.`, 'warning');
+                broadcast('db_update', freshDb);
+              }
+              writeDb(freshDb);
             }
           } finally {
             release();

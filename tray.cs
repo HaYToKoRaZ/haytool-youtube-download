@@ -1009,80 +1009,111 @@ namespace HaYTooLTray
 
         /// <summary>
         /// RichTextBox metin kutusuna, log satırındaki etiketlere göre renklendirilmiş metin ekler.
+        /// Satır başındaki [HH:mm:ss] zaman damgasını özel belirgin bir renkle basar.
         /// </summary>
         /// <param name="box">Hedef RichTextBox nesnesi</param>
         /// <param name="text">Eklenecek satır metni</param>
         private void AppendColoredText(RichTextBox box, string text)
         {
-            if (box == null || box.IsDisposed) return;
+            if (box == null || box.IsDisposed || string.IsNullOrEmpty(text)) return;
 
-            // Varsayılan açık gri
-            Color color = Color.FromArgb(220, 220, 220); 
+            string timestampPart = "";
+            string bodyPart = text;
 
-            if (text.Contains("[RSS]"))
+            var match = System.Text.RegularExpressions.Regex.Match(text, @"^(\[\d{2}:\d{2}:\d{2}\]\s*)(.*)$", System.Text.RegularExpressions.RegexOptions.Singleline);
+            if (match.Success)
             {
-                if (text.Contains("Manuel tetikleme"))
+                timestampPart = match.Groups[1].Value;
+                bodyPart = match.Groups[2].Value;
+            }
+
+            // Gövde metni için varsayılan renk (açık gri)
+            Color bodyColor = Color.FromArgb(220, 220, 220); 
+
+            if (bodyPart.Contains("[RSS]"))
+            {
+                if (bodyPart.Contains("Manuel tetikleme"))
                 {
-                    color = Color.FromArgb(255, 140, 0); // Koyu Turuncu (Orange/Gold)
+                    bodyColor = Color.FromArgb(255, 140, 0); // Koyu Turuncu (Orange/Gold)
                 }
-                else if (text.Contains("Sunucu başlangıcı"))
+                else if (bodyPart.Contains("Sunucu başlangıcı"))
                 {
-                    color = Color.FromArgb(186, 85, 211); // Açık Mor / Eflatun (Medium Orchid/Violet)
+                    bodyColor = Color.FromArgb(186, 85, 211); // Açık Mor / Eflatun (Medium Orchid/Violet)
                 }
                 else
                 {
-                    color = Color.FromArgb(255, 0, 255); // Pembe (Magenta)
+                    bodyColor = Color.FromArgb(255, 0, 255); // Pembe (Magenta)
                 }
             }
-            else if (text.Contains("[RSS Fallback]"))
+            else if (bodyPart.Contains("[RSS Fallback]"))
             {
-                color = Color.FromArgb(255, 128, 255); // Açık Pembe (Light Magenta)
+                bodyColor = Color.FromArgb(255, 128, 255); // Açık Pembe (Light Magenta)
             }
-            else if (text.Contains("[DOWNLOAD]") || text.Contains("[İNDİRME]") || text.Contains("İndirme başlatılıyor"))
+            else if (bodyPart.Contains("[CANLI]") || bodyPart.Contains("[CANLI YAYIN]") || bodyPart.Contains("[Canlı Yayın Denetleyici]"))
             {
-                color = Color.FromArgb(0, 225, 255); // Canlı Açık Mavi / Cyan
+                bodyColor = Color.FromArgb(0, 255, 200); // Parlak Camgöbeği / Neon Teal (Canlı Yayın Denetimleri)
             }
-            else if (text.Contains("[KOMUT]") || text.Contains("Komut:"))
+            else if (bodyPart.Contains("[YASAKLI KANAL]") || bodyPart.Contains("[YASAKLI]"))
             {
-                color = Color.FromArgb(245, 200, 50); // Parlak Altın Sarısı (Gold/Yellow)
+                bodyColor = Color.FromArgb(255, 150, 0); // Kehribar Turuncusu / Amber (Yasaklı Kanal Bypass Motoru)
             }
-            else if (text.Contains("[yt-dlp Uyarı]") || text.Contains("uyarı satırı") || text.Contains("WARNING") || text.Contains("Too Many Requests"))
+            else if (bodyPart.Contains("[DOWNLOAD]") || bodyPart.Contains("[İNDİRME]") || bodyPart.Contains("İndirme başlatılıyor"))
             {
-                color = Color.FromArgb(255, 160, 50); // Tatlı Turuncu (Orange/Coral)
+                bodyColor = Color.FromArgb(0, 225, 255); // Canlı Açık Mavi / Cyan
             }
-            else if (text.Contains("[yt-dlp]"))
+            else if (bodyPart.Contains("[KOMUT]") || bodyPart.Contains("Komut:"))
             {
-                color = Color.FromArgb(186, 85, 211); // Açık Mor / Eflatun (Medium Orchid)
+                bodyColor = Color.FromArgb(245, 200, 50); // Parlak Altın Sarısı (Gold/Yellow)
             }
-            else if (text.Contains("[DATABASE]"))
+            else if (bodyPart.Contains("[yt-dlp Uyarı]") || bodyPart.Contains("uyarı satırı") || bodyPart.Contains("WARNING") || bodyPart.Contains("Too Many Requests"))
             {
-                color = Color.FromArgb(255, 255, 0); // Sarı (Yellow)
+                bodyColor = Color.FromArgb(255, 160, 50); // Tatlı Turuncu (Orange/Coral)
             }
-            else if (text.Contains("[IPTV]"))
+            else if (bodyPart.Contains("[yt-dlp]"))
             {
-                color = Color.FromArgb(100, 149, 237); // Açık Mavi (Cornflower Blue)
+                bodyColor = Color.FromArgb(186, 85, 211); // Açık Mor / Eflatun (Medium Orchid)
             }
-            else if (text.Contains("[SYSTEM]") || text.Contains("[Sistem]"))
+            else if (bodyPart.Contains("[DATABASE]"))
             {
-                color = Color.FromArgb(50, 205, 50); // Yeşil (Lime Green)
+                bodyColor = Color.FromArgb(255, 255, 0); // Sarı (Yellow)
             }
-            else if (text.Contains("[API]"))
+            else if (bodyPart.Contains("[IPTV]"))
             {
-                color = Color.FromArgb(30, 144, 255); // Mavi (Dodger Blue)
+                bodyColor = Color.FromArgb(100, 149, 237); // Açık Mavi (Cornflower Blue)
             }
-            else if (text.Contains("[HATA]") || text.Contains("[ERROR]") || text.Contains("[Hata]") || text.Contains("[Error]"))
+            else if (bodyPart.Contains("[SYSTEM]") || bodyPart.Contains("[Sistem]"))
             {
-                color = Color.FromArgb(255, 60, 60); // Kırmızı (Red)
+                bodyColor = Color.FromArgb(50, 205, 50); // Yeşil (Lime Green)
+            }
+            else if (bodyPart.Contains("[API]"))
+            {
+                bodyColor = Color.FromArgb(30, 144, 255); // Mavi (Dodger Blue)
+            }
+            else if (bodyPart.Contains("[HATA]") || bodyPart.Contains("[ERROR]") || bodyPart.Contains("[Hata]") || bodyPart.Contains("[Error]"))
+            {
+                bodyColor = Color.FromArgb(255, 60, 60); // Kırmızı (Red)
             }
 
+            // 1. Zaman damgası varsa özel belirgin bir renkle (Slate Lavender) yaz
+            if (!string.IsNullOrEmpty(timestampPart))
+            {
+                Color timestampColor = Color.FromArgb(170, 175, 210); // Belirgin Özel Zaman Damgası Rengi
+                box.SelectionStart = box.TextLength;
+                box.SelectionLength = 0;
+                box.SelectionColor = timestampColor;
+                box.AppendText(timestampPart);
+            }
+
+            // 2. Mesaj gövdesini kendi kategorik renginde yaz
             box.SelectionStart = box.TextLength;
             box.SelectionLength = 0;
-            box.SelectionColor = color;
-            box.AppendText(text);
+            box.SelectionColor = bodyColor;
+            box.AppendText(bodyPart);
+
             box.SelectionColor = box.ForeColor; // Rengi varsayılana sıfırla
         }
 
-        // Türkçe Açıklama: Gelen konsol çıktılarını bellek tamponuna ekler ve arayüze tarihsiz şekilde yansıtır.
+        // Türkçe Açıklama: Gelen konsol çıktılarına saat/dakika/saniye zaman damgası ekler ve bellek tamponuna/arayüze yansıtır.
         private void AppendLog(string text)
         {
             if (text == null) return;
@@ -1090,8 +1121,11 @@ namespace HaYTooLTray
             // ANSI kodlarını temizle
             text = System.Text.RegularExpressions.Regex.Replace(text, @"\x1b\[[0-9;]*m", "");
             
-            // Satır başındaki [HH:mm:ss] zaman damgasını temizle (Örn: [01:08:03] -> "")
-            text = System.Text.RegularExpressions.Regex.Replace(text, @"^\[\d{2}:\d{2}:\d{2}\]\s*", "");
+            // Satır başında [HH:mm:ss] zaman damgası yoksa otomatik ekle
+            if (!System.Text.RegularExpressions.Regex.IsMatch(text, @"^\[\d{2}:\d{2}:\d{2}\]"))
+            {
+                text = DateTime.Now.ToString("[HH:mm:ss] ") + text;
+            }
 
             string formattedText = text + "\r\n";
             

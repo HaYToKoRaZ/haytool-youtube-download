@@ -3,7 +3,94 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.27.0] - 2026-08-14
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **YouTube HTTP 403 / 503 Anti-Bot Throttling Bypass & Multi-Client Engine (YouTube 403/503 Kısıtlama Bypass & Çoklu İstemci Motoru):**
+  - Added `--geo-bypass` and player client extractor fallback parameters (`--extractor-args "youtube:player_client=android_vr,web,tv"`) to `yt-dlp` download commands in `server/services/downloader.js`.
+  - Bypasses YouTube's regional restrictions, rate-limiting, and impersonation warning failures (`HTTP Error 403: Forbidden` and `HTTP Error 503: Service Unavailable`).
+  - Implemented automatic 2-stage retry handler for transient HTTP 403 / 503 / 429 server errors before marking downloads as `failed`.
+  - YouTube sunucularının geçici bot koruması veya oran kısıtlaması nedeniyle döndürdüğü HTTP 403 Forbidden ve HTTP 503 Service Unavailable engellerini aşmak için `--geo-bypass` ve çoklu istemci (`android_vr,web,tv`) parametreleri entegre edildi. Geçici 403/503/429 sunucu hatalarında 5 saniyelik 2 kademeli otomatik yeniden deneme motoru eklendi.
+
+- **Library Queue Re-Add & Failed State Self-Healing (Kütüphane Yeniden İndirme & Hata Temizleme Düzeltmesi):**
+  - Updated `downloadQueue.add` in `downloader.js` to automatically clear previous `error` messages, `retryCount` metrics, and `resolveAttempts` counters when re-queuing a video from the Library tab.
+  - Ensures clicking "Yeniden İndirmeyi Dene" or re-downloading a video provides a pristine queue state without carrying over stale failure metadata.
+  - Kütüphane sekmesinde "Yeniden İndirmeyi Dene" butonuna basıldığında veya bir video tekrar indirmeye alındığında eski hata mesajları, deneme sayacı ve metadata kalıntıları otomatik temizlenerek indirme sırasının takılmadan ve temiz bir şekilde sıfırdan başlatılması sağlandı.
+
+## [8.26.0] - 2026-08-14
+
+### Major Enhancements & Automation Rules / Ana Geliştirmeler & Otomasyon Kuralları
+
+- **6-Hour Live Stream VOD Conversion Timeout & Background Scanning Guard (6 Saatlik Canlı Yayın VOD Dönüşüm Zaman Aşımı):**
+  - Enhanced `checkPendingLiveStreams` and RSS background scan routines in `server/services/rss.js`.
+  - YouTube live streams that have ended, become private, are members-only, or fail to convert into playable VOD videos within 6 hours are now automatically marked as `ignored` with an explicit reason (`"Canlı yayın 6 saat içinde VOD videoya dönüşmedi (Takipten çıkarıldı)"`).
+  - Prevents ended or private live streams from lingering indefinitely in background RSS scan loops and metadata check queues.
+  - Canlı yayın bittikten veya eklenmesinden sonra 6 saat içinde VOD videoya dönüşmeyen, gizliye alınan veya üyelere özel olan yayınlar arka plan tarama döngüsünden otomatik çıkarılarak `ignored` durumuna alınır.
+
+- **0% Progress Stalling Guard & Just-Ended Live Stream Protection (%0 İndirme Takılma Koruması):**
+  - Resolved an issue where newly ended live streams caused `yt-dlp` to get stuck indefinitely at `0.0%` progress due to unconditional `--live-from-start` flag usage.
+  - `--live-from-start` is now conditionally restricted strictly to active streams (`duration === 'live'`).
+  - Added an automatic 45-second 0% stall guard in `downloader.js`. If a download remains stuck at `%0` (e.g. while YouTube processes an ended live recording into a VOD), it automatically safely terminates the stalled `yt-dlp` process, transitions the video to `waiting_live_processing` status, and advances the download queue without blocking subsequent downloads.
+  - Yeni biten canlı yayınların `--live-from-start` parametresi nedeniyle %0 seviyesinde kilitlenmesi engellendi. %0'da kalan indirmeler 45 saniye içinde otomatik tespit edilerek `waiting_live_processing` durumuna ertelenir ve kuyruğun ilerlemesi sağlanır.
+
+## [8.25.0] - 2026-08-14
+
+### Major Enhancements & UI Improvements / Ana Geliştirmeler & Arayüz İyileştirmeleri
+
+- **Live Stream Scanning & Unplayable/Private Stream Handling (Canlı Yayın Denetleyici & Silinmiş/Gizli Yayın Koruması):**
+  - Upgraded `fetchVideoDuration` and `checkPendingLiveStreams` in `server/services/rss.js` to detect deleted, private, member-only, or unavailable YouTube streams.
+  - Unavailable videos are now automatically flagged as `ignored` with an explicit reason string, preventing infinite background metadata request loops.
+  - Added a fail-counter (`liveCheckFailCount >= 3` or `age > 7 days`) for unresolvable live streams to clean up stale database entries automatically.
+  - Eliminated repetitive terminal log spam during routine background live checks while preserving important status transition alerts (`CANLI` started, converted to VOD, or auto-ignored).
+  - Canlı yayın denetim motoru geliştirildi. Silinmiş, gizli veya üyelere özel videolar otomatik tespit edilerek veritabanında `ignored` durumuna alınır ve sonsuz döngüler engellenir. Rutin tarama log kirliliği temizlendi.
+
+- **Library Video Card "CANLI" Badge Redesign (Canlı Yayın Rozet Tasarımı):**
+  - Removed explicit `"CANLI"` text label from video cards in the Library tab (`public/components/videoCard.js`).
+  - Replaced with a pulsating neon-red status dot (`.status-dot-live animate-pulse`) featuring an interactive hover tooltip ("Canlı Yayın" / "Live Stream").
+  - Kütüphane sekmesindeki video kartlarında düz "CANLI" metin etiketi kaldırılarak yerine sade, yanıp sönen neon kırmızı nokta ve üzerine gelindiğinde gözüken açıklama ipucu eklendi.
+
+- **System Tray Console Window Improvements & Terminology Alignment (Tray Konsol Penceresi İyileştirmeleri):**
+  - Enhanced `tray.cs` right-click System Tray context menu window ("Konsol Çıktısını Göster").
+  - Documented core terminology: "Sistem Tepsi Menüsü", "Konsol Çıktısını Göster", "Konsol / Log Penceresi", and "CLI Komut Satırı".
+  - Refactored `tray.cs` C# logging for live events and compiled `HaYTooL YT Downloader.exe`.
+
+## [8.24.0] - 2026-08-14
+
+### Major Enhancements & Script Fixes / Ana Geliştirmeler & Script Düzeltmeleri
+
+- **Standardized Release Package Naming (`v8.X.Y HaYTooL YouTube Downloader.zip`):**
+  - Updated `0nogithub/releases-maker.ps1` and `0nogithub/publish_release.ps1` to generate ZIP packages using the standardized version-prefixed format (`v8.X.Y HaYTooL YouTube Downloader.zip`).
+  - Sıkıştırma ve paketleme scriptleri güncellendi. Artık son kullanıcı için üretilen portable ZIP paket isimleri standart olarak sürüm numarasını en başa alarak (`v8.X.Y HaYTooL YouTube Downloader.zip`) oluşturulmaktadır.
+
+- **Multi-Version Cumulative Changelog Parser (`publish_release.ps1`):**
+  - Upgraded the release notes extraction algorithm in `publish_release.ps1` (`Get-ReleaseNotesFromChangelog`). Previously, it only extracted notes for a single version header and stopped. Now it dynamically detects the previous published Git tag and aggregates **all intermediate unreleased version sections** (e.g. 8.20, 8.21, 8.22, 8.23, 8.24) into the GitHub release description so no release notes are omitted.
+  - Release yayınlama scripti (`publish_release.ps1`) içindeki `CHANGELOG` ayrıştırma motoru geliştirildi. Artık sadece tek bir versiyon başlığını değil, son yayınlanan GitHub tag'inden bu yana yazılmış tüm ara sürümlerin değişiklik notlarını eksiksiz bir şekilde toplayarak GitHub Release açıklamasına ekler.
+
+- **Live Stream Scanning Console Log & Custom Neon Color (Canlı Yayın Denetimi Renkli Konsol Logları):**
+  - Added dedicated `[CANLI YAYIN]` terminal logging to `checkPendingLiveStreams` in `server/services/rss.js`.
+  - Updated `tray.cs` with custom **Neon Teal (`#00FFC8`)** color formatting for `[CANLI]` / `[CANLI YAYIN]` lines in the "Konsol Çıktısını Göster" window and recompiled `HaYTooL YT Downloader.exe`.
+  - Excluded hidden, ignored, and completed items from the live stream pending queue to eliminate ghost scanning.
+  - Canlı yayın denetimleri için `[CANLI YAYIN]` etiketiyle konsola anlık bilgi aktarımı eklendi. `tray.cs` içinde bu loglar için özel **Neon Camgöbeği (`#00FFC8`)** renk vurgusu tanımlandı ve C# tepsi uygulaması derlendi. Gizli, yoksayılan ve indirilmiş ögeler süzgeçten çıkarılarak hayalet taramalar engellendi.
+
+- **Automated Restricted Channel Scanner & Bypass Engine (Yasaklı/Kısıtlamalı Kanal Bypass Motoru):**
+  - Introduced a 3-tier fallback scanner (`fetchRestrictedChannelVideos`) in `server/services/rss.js` for regional/age-restricted or blocked YouTube channels:
+    1. **Geo-Bypass & TV/Android Client:** Runs `yt-dlp` with `--geo-bypass`, `--geo-bypass-country US`, and `--extractor-args "youtube:player_client=android,tv_embedded;lang=tr"`.
+    2. **Invidious/Piped Mirror RSS Gateways:** Queries independent mirror RSS XML streams (`yewtu.be`, `invidious.nerqv.ps`, `inv.tux.pizza`, `vid.puffyan.us`) via proxy waterfall.
+    3. **Proxy Waterfall HTML Scraper:** Extracts video IDs from YouTube's `ytInitialData` structure.
+  - Added custom **Kehribar Amber (`#FF9600`)** color highlight for `[YASAKLI KANAL]` terminal logs in `tray.cs`.
+  - Bölgesel engel veya kısıtlama içeren kanalların taranabilmesi için 3 katmanlı otomatik bypass motoru (`fetchRestrictedChannelVideos`) geliştirildi. Sırasıyla Geo-Bypass & Android TV client taklidi, alternatif Invidious/Piped ayna beslemeleri ve Proxy HTML ayrıştırıcısı devreye girer. `tray.cs` konsol penceresine Kehribar Turuncusu renk vurgusu eklendi.
+
+- **Scan Mode Indicator in Console Logs (Seçili Tarama Modu Konsol İfadesi):**
+  - Added explicit scan mode indication (e.g. `⚡ Hızlı Tarama (XML RSS)` vs `🐢 Klasik Tarama (yt-dlp)`) to channel scanning start, trigger source, and completion log messages in the console. Fixed a scope issue where `readDb()` was missing in `triggerChannelCheck`.
+  - Ayarlardan seçilen tarama modu (Hızlı/XML RSS veya Klasik/yt-dlp) kanal taraması başladığında, tetiklendiğinde ve tamamlandığında konsol loglarında açıkça görünür kılındı. `triggerChannelCheck` içindeki scope tanım hatası giderildi.
+
+- **Default Initial Channels Update (Varsayılan Başlangıç Kanalları Güncellemesi):**
+  - Added `@HaYToKoRaZ` (`HaYTo KoRaZ`) channel to `defaultDb` alongside `@TeknoSeyir`. Newly initialized database files will come pre-populated with both channels out of the box with `autoDownload: false`.
+  - Veritabanının sıfırdan oluşturulduğu ilk açılışta varsayılan olarak gelen kanallar listesine `@TeknoSeyir` kanalının yanına `@HaYToKoRaZ` kanalı eklendi. İlk kurulumlarda iki kanal da hazır ve tanımlı olarak gelecektir.
+
 ## [8.23.0] - 2026-08-14
+
 
 ### Bug Fixes & UI Fixes / Hata Düzeltmeleri & Arayüz İyileştirmeleri
 

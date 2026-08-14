@@ -216,6 +216,8 @@ export class DownloadQueue {
         historyItem.speed = '';
         historyItem.eta = '';
         delete historyItem.error;
+        delete historyItem.retryCount;
+        historyItem.resolveAttempts = 0;
         historyItem.downloadedAt = new Date().toISOString();
         if (video.publishedAt) {
           historyItem.publishedAt = video.publishedAt;
@@ -393,6 +395,7 @@ export class DownloadQueue {
       '--no-playlist',
       '--no-mtime',
       '--ignore-errors',
+      '--geo-bypass',
       '--windows-filenames',
       '--js-runtimes', `node:${process.execPath}`,
       '--replace-in-metadata', 'title', '[#?%]', '',
@@ -414,7 +417,7 @@ export class DownloadQueue {
       : (settings.lang || 'tr');
 
     args.push('--add-header', `Accept-Language:${prefLang}-${prefLang.toUpperCase()},${prefLang};q=0.9,en-US;q=0.8,en;q=0.7`);
-    args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()}`);
+    args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=android_vr,web,tv`);
     args.push('--format-sort', `lang:${prefLang},hasvid,res,fps,hdr,vcodec`);
 
     const effectiveSpeed = getEffectiveSpeedLimit(settings);
@@ -489,8 +492,13 @@ export class DownloadQueue {
     if (hasWorkingFfmpeg) {
       args.push('--ffmpeg-location', path.dirname(getFfmpegPath()));
     }
-    // Canlı Yayın & Canlı Yayın Tekrarları Garantili İndirme: Yayını en başından (0. parçadan) indir ve 4 paralel kanaldan hızlıca çek
-    args.push('--live-from-start', '--concurrent-fragments', '4', '--hls-use-mpegts', '--fragment-retries', '3', '--retries', '3', '--skip-unavailable-fragments');
+    // Canlı Yayın Garantili İndirme: Sadece aktif canlı yayınlarda --live-from-start kullan, normal ve sonlanmış yayınlarda kullanma
+    if (video.duration === 'live' || video.status === 'live') {
+      args.push('--live-from-start', '--concurrent-fragments', '4', '--hls-use-mpegts');
+    } else {
+      args.push('--concurrent-fragments', '4');
+    }
+    args.push('--fragment-retries', '3', '--retries', '3', '--skip-unavailable-fragments');
 
     const startLogMsg = `[İNDİRME] İndirme başlatılıyor: "${video.title}"`;
     const cmdLogMsg = `[KOMUT] yt-dlp ${args.join(' ')}`;
@@ -533,11 +541,41 @@ export class DownloadQueue {
       }
     }, timeoutDuration);
 
+    // %0 Takılma Koruması (Yeni sonlanmış VOD işleme sürecindeki canlı yayınlar için 45sn zaman aşımı)
+    const stallTimer = setTimeout(() => {
+      const procInfo = this.activeProcesses.get(video.id);
+      if (procInfo && procInfo.status === 'downloading' && (!procInfo.progress || procInfo.progress === 0)) {
+        console.warn(`[Canlı Yayın Koruması] "${video.title}" 45 saniyedir %0'da takıldı. Canlı yayın VOD işleme aşamasında olduğu için indirme ertelendi.`);
+        addTerminalLog(`[Canlı Yayın Koruması] "${video.title}" %0'da takıldı. Canlı yayın henüz yeni sonlandı, YouTube VOD işlemesi bekleniyor.`, 'warning');
+        
+        try {
+          if (process.platform === 'win32') {
+            exec(`taskkill /pid ${procInfo.process.pid} /T /F`);
+          } else {
+            procInfo.process.kill();
+          }
+        } catch (e) {}
+
+        if (procInfo.timeoutTimer) clearTimeout(procInfo.timeoutTimer);
+        this.activeProcesses.delete(video.id);
+        this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+
+        updateHistoryItem(video.id, {
+          status: 'waiting_live_processing',
+          error: 'Canlı yayın yeni sonlandı, YouTube VOD işlemesi bekleniyor.'
+        });
+        broadcast('db_update', readDb());
+        this.process();
+      }
+    }, 45000);
+
     this.activeProcesses.set(video.id, {
       process: downloadProc,
       status: 'downloading',
       video: video,
-      timeoutTimer: timeoutTimer
+      timeoutTimer: timeoutTimer,
+      stallTimer: stallTimer,
+      progress: 0
     });
 
     downloadProc.stdout.on('data', (data) => {
@@ -600,6 +638,11 @@ export class DownloadQueue {
 
         const procInfo = this.activeProcesses.get(video.id);
         if (procInfo && procInfo.status === 'downloading') {
+          procInfo.progress = percent;
+          if (percent > 0 && procInfo.stallTimer) {
+            clearTimeout(procInfo.stallTimer);
+            delete procInfo.stallTimer;
+          }
           updateHistoryItem(video.id, {
             progress: percent,
             fileSize: rawSize,
@@ -726,6 +769,9 @@ export class DownloadQueue {
 
       if (procInfo.timeoutTimer) {
         clearTimeout(procInfo.timeoutTimer);
+      }
+      if (procInfo.stallTimer) {
+        clearTimeout(procInfo.stallTimer);
       }
 
       this.activeProcesses.delete(video.id);
@@ -861,6 +907,7 @@ export class DownloadQueue {
         }
 
         let isLiveProcessingError = /live stream (has ended|recording is still processing|is currently live)|this live event will begin|this video is a live stream|processing stream|The downloaded file is empty|Post-Live Manifestless mode|No such file or directory.*\.part-Frag/i.test(userFriendlyError);
+        let isTransientHttpError = /HTTP Error 403|HTTP Error 503|HTTP Error 429|Service Unavailable|Forbidden/i.test(userFriendlyError);
 
         if (isLiveProcessingError) {
           updateHistoryItem(video.id, {
@@ -872,6 +919,14 @@ export class DownloadQueue {
           });
           console.log(`[Downloader] Live stream is processing on YouTube. Deferred to waiting_live_processing: ${video.title}`);
           addTerminalLog(`[Kuyruk] Canlı yayın henüz işleniyor: "${video.title}" - YouTube VOD dönüştürmesi tamamlandığında otomatik indirilecek.`, 'info');
+        } else if (isTransientHttpError && (!video.retryCount || video.retryCount < 2)) {
+          video.retryCount = (video.retryCount || 0) + 1;
+          console.warn(`[Kuyruk Auto-Retry] "${video.title}" için YouTube kısıtlaması algılandı. 5 saniye içinde tekrar denenecek (${video.retryCount}/2)...`);
+          addTerminalLog(`[Kuyruk Auto-Retry] "${video.title}" için geçici YouTube sunucu kısıtlaması (403/503) algılandı, 5sn sonra yeniden denenecek (${video.retryCount}/2)...`, 'warning');
+          setTimeout(() => {
+            this.add(video);
+          }, 5000);
+          return;
         } else {
           updateHistoryItem(video.id, {
             status: 'failed',

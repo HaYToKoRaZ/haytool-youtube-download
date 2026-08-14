@@ -1245,9 +1245,18 @@ router.post('/tools/refresh-metadata', localhostOnly, async (req, res) => {
               duration = await fetchDurationViaYtdlp(item.id);
             }
 
-            if (duration && duration !== 'upcoming' && duration !== 'live') {
-              item.duration = duration;
-              itemUpdated = true;
+            if (duration) {
+              if (duration === 'live' && (item.duration !== 'live' || item.status !== 'live')) {
+                item.duration = 'live';
+                item.status = 'live';
+                itemUpdated = true;
+              } else if (duration !== 'upcoming' && duration !== 'live') {
+                item.duration = duration;
+                if (item.status === 'upcoming' || item.status === 'live') {
+                  item.status = 'waiting';
+                }
+                itemUpdated = true;
+              }
             }
           } catch (err) {
             console.error(`[Metadata] Süre yenilenirken hata (${item.title}):`, err.message);

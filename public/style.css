@@ -3008,6 +3008,18 @@ body.light-theme #downloaded-channel-filter option {
   cursor: help;
 }
 
+.status-dot-live {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-red, #ff0055);
+  box-shadow: 0 0 8px rgba(255, 0, 85, 0.9);
+  margin-right: 4px;
+  flex-shrink: 0;
+  cursor: help;
+}
+
 /* Türkçe Açıklama: Göz ardı edilen videolar için mavi nokta */
 .status-dot-ignored {
   display: inline-block;

@@ -1839,6 +1839,9 @@ function updateUI(db) {
     const settingsCheckOnStartup = document.getElementById('settings-checkonstartup');
     if (settingsCheckOnStartup && document.activeElement !== settingsCheckOnStartup) settingsCheckOnStartup.checked = db.settings.checkChannelsOnStartup === true;
 
+    const settingsChannelScanMode = document.getElementById('settings-channel-scan-mode');
+    if (settingsChannelScanMode && document.activeElement !== settingsChannelScanMode) settingsChannelScanMode.value = db.settings.channelScanMode || 'fast';
+
     const settingsAutoOpenBrowser = document.getElementById('settings-autoopenbrowser');
     if (settingsAutoOpenBrowser && document.activeElement !== settingsAutoOpenBrowser) settingsAutoOpenBrowser.checked = db.settings.autoOpenBrowser !== false;
 
@@ -2276,7 +2279,8 @@ async function performAutoSave() {
     shortsDurationLimit: settingsShortsDurationLimit ? (parseInt(settingsShortsDurationLimit.value, 10) || 180) : (localDb.settings.shortsDurationLimit || 180),
     githubToken: (document.getElementById('gist-token-input') && document.getElementById('gist-token-input').value.trim()) || (localDb.settings && localDb.settings.githubToken) || '',
     githubGistId: (document.getElementById('gist-id-input') && document.getElementById('gist-id-input').value.trim()) || (localDb.settings && localDb.settings.githubGistId) || '',
-    autoSyncGist: document.getElementById('gist-auto-sync-checkbox') ? document.getElementById('gist-auto-sync-checkbox').checked : (localDb.settings.autoSyncGist || false)
+    autoSyncGist: document.getElementById('gist-auto-sync-checkbox') ? document.getElementById('gist-auto-sync-checkbox').checked : (localDb.settings.autoSyncGist || false),
+    channelScanMode: document.getElementById('settings-channel-scan-mode') ? document.getElementById('settings-channel-scan-mode').value : 'fast'
   };
 
   const oldPort = localDb.settings.port || 4141;
