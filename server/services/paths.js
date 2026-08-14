@@ -76,8 +76,8 @@ export function getFfmpegPath() {
 
 export let isFfmpegWorkingCached = null;
 
-export function testFfmpegSync() {
-  if (isFfmpegWorkingCached !== null) return isFfmpegWorkingCached;
+export function testFfmpegSync(forceRecheck = false) {
+  if (!forceRecheck && isFfmpegWorkingCached !== null) return isFfmpegWorkingCached;
   const ffmpegPath = getFfmpegPath();
   if (!fs.existsSync(ffmpegPath)) {
     isFfmpegWorkingCached = false;

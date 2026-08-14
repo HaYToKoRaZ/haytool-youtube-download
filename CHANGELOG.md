@@ -3,6 +3,46 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.23.0] - 2026-08-14
+
+### Bug Fixes & UI Fixes / Hata Düzeltmeleri & Arayüz İyileştirmeleri
+
+- **SponsorBlock Persistence Across Page Refreshes (SponsorBlock Ayarının Kalıcılığı):**
+  - Toggling SponsorBlock via the in-player shield button now saves the `sponsorBlockEnabled` setting directly to the backend database (`/api/settings`) and syncs with the Settings tab toggle. Disabling SponsorBlock now persists across page refreshes (F5) and new video loads.
+  - Oynatıcı içerisindeki kalkan butonuna basıldığında SponsorBlock ayarı doğrudan backend veritabanına kalıcı olarak kaydediliyor. Sayfa yenilendiğinde (F5) veya yeni video açıldığında ayarın sıfırlanıp tekrar açılması hatası giderildi.
+
+- **Progress Bar Marker Full Opacity (İlerleme Çubuğu İşaretçilerinde Canlı Opaklık):**
+  - Removed the `opacity: 0.15` reduction on timeline segment markers (`.player-sponsor-markers-wrapper`). SponsorBlock markers on the progress bar now remain 100% full opacity (vivid colors) at all times, even when SponsorBlock auto-skipping is toggled off.
+  - İlerleme çubuğundaki renkli SponsorBlock segment işaretçilerinde uygulanan soluklaştırma (`opacity: 0.15`) kaldırıldı. İşaretçiler SponsorBlock kapatıldığında da daima %100 opaklıkta ve canlı renklerde görünür; yalnızca otomatik atlama devre dışı kalır.
+
+## [8.22.0] - 2026-08-13
+
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Guaranteed Live Broadcast & Replay Download Enforcement (`--live-from-start` & 4x Parallel Fragment Engine):**
+  - **Live-From-Start Enforcement:** Fixed a critical issue where downloading YouTube live streams or past live broadcasts (replays like `sPXrrYLPC2M`) failed with `fragment not found` errors due to YouTube's default sliding 2-hour DVR manifest window. Enforced `--live-from-start` across all downloads, ensuring yt-dlp fetches live stream manifests starting from segment 1 (0th second of the broadcast) to the end. Safe and transparent for normal non-live videos.
+  - **4x Parallel Fragment Accelerator:** Added `--concurrent-fragments 4` and `--hls-use-mpegts` flags to yt-dlp arguments, allowing 1,600+ DASH/HLS segments to be fetched in 4 concurrent parallel streams, increasing download speeds by 4x.
+  - **Canlı Yayın Tekrarı Sıfırdan İndirme Garantisi (`--live-from-start`):** Canlı yayınların ve canlı yayın tekrarlarının (VOD) YouTube'un 2 saatlik kayan DVR penceresi yüzünden ilk parçalarda `fragment not found` hatası verip takılması engellendi. `--live-from-start` bayrağı eklenerek yayın ne kadar uzun olursa olsun en başından (0. parçadan) itibaren eksiksiz indirmesi sağlandı.
+  - **4 Kat Hızlı Paralel Parça İndirme:** `--concurrent-fragments 4` ve `--hls-use-mpegts` eklenerek 1.600+ parçalı canlı yayınların 4 paralel kanaldan çekilmesi sağlandı; indirme hızı 4 katına çıkarıldı.
+
+## [8.21.0] - 2026-08-13
+
+### Major Features & Fixes / Ana Özellikler & Düzeltmeler
+
+- **Queue Engine Self-Healing & Instant Reset (İndirme Motoru Otomatik İyileştirme & Anında Sıfırlama):**
+  - **Zero-Restart Queue Resilience:** Resolved an issue where lingering zombie download processes or stuck `activeDownloads` counters blocked subsequent downloads, previously forcing application restarts. Re-adding a video now automatically kills stale process locks for that ID, and `downloadQueue.process()` auto-heals dead process entries.
+  - **"Reset Download Engine" Action Button:** Added a new button and `POST /api/queue/reset-engine` API endpoint allowing users to forcefully reset download engine process locks, clear active process counters, and re-trigger queue processing instantly without restarting `server.js`.
+  - **Süreç Kilitlerinin ve Takılmalarının Önlenmesi:** İndirme kuyruğunda askıda kalan zombi süreçlerin ve `activeDownloads` sayacının sonraki indirmeleri kilitlediği ve uygulamaya restart atma zorunluluğu getirdiği sorun giderildi. Tekrar indirilen videolarda eski askıdaki süreçler otomatik sonlandırılır ve `process()` metodu ölmüş süreçleri haritadan otomatik temizler.
+  - **"İndirme Motorunu Sıfırla" Butonu & API:** Arayüze ve API'ye tüm süreç kilitlerini temizleyip motoru anında yeniden başlatan "Motoru Sıfırla" butonu eklendi.
+
+- **Live Stream Replay & HLS Fragment Download Recovery (Canlı Yayın Tekrarı & HLS Parça İndirme Düzeltmesi):**
+  - **Ended Live Broadcast VOD Duration Fix:** Resolved a bug in `parseDurationFromHtml()` where YouTube's `isLiveContent: true` metadata flag caused finished live stream broadcasts (replays) to be falsely categorized as `duration = 'live'`, trapping them in `waiting_live_processing` mode. Ended live replays with valid non-zero durations are now parsed correctly as standard VODs (`H:MM:SS`).
+  - **HLS/DASH Fragment Retries & Live Progress Tracking:** Updated yt-dlp `--fragment-retries` to `3` with `--skip-unavailable-fragments` and added real-time DASH fragment progress parsing (`Fragment X of Y`, `~186MB`), ensuring live stream replays show real-time percentage progress bar movements (`10.5%`, `164/1618 Parça`) instead of appearing stuck at 0%.
+  - **Orphan Fragment Cleanup:** Automatically cleans unmerged `.f137.mp4`, `.f140.m4a`, and `.part` files prior to restarting a download, ensuring FFmpeg merges clean audio and video into a single output file.
+  - **Bitmiş Canlı Yayın Tekrarı Ayrıştırma Düzeltmesi:** YouTube'un `isLiveContent: true` etiketinin bitmiş yayın tekrarlarında da gelmesi nedeniyle videoların sonsuz `live` modunda kalması düzeltildi. Bitmiş yayınlar gerçek süreleriyle (`H:MM:SS`) ayrıştırılarak indirmeye açık hale getirildi.
+  - **DASH Parça Canlı İlerleme Çubuğu:** Live stream tekrarlarındaki 1600+ parçalı indirme sürecinde arayüzde ilerlemenin %0 kalması engellendi. Gerçek zamanlı parça takibi (`%10.5`, `164/1618 Parça`) ve tilde (`~`) boyut desteği eklendi.
+
 ## [8.20.2] - 2026-08-13
 
 ### Bug Fixes / Hata Düzeltmeleri

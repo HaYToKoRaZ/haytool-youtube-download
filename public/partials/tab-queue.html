@@ -6,6 +6,10 @@
             <p id="tab-queue-desc">Aktif indirmeyi izleyin, sıradaki videoları sürükleyip bırakarak önceliklerini değiştirin.</p>
           </div>
           <div class="queue-header-actions" style="display:flex; gap:10px; align-items:center;">
+            <button id="queue-reset-engine-btn" class="btn" onclick="resetDownloadEngine()" style="background: rgba(255, 193, 7, 0.12); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.3); display: flex; align-items: center; gap: 8px; font-weight: 500;" title="İndirme motorunu ve askıdaki tüm süreçleri sıfırla">
+              <i data-lucide="rotate-ccw"></i>
+              <span id="queue-reset-engine-text">Motoru Sıfırla</span>
+            </button>
             <button id="queue-cancel-all-btn" class="btn btn-danger" onclick="cancelAllDownloads()" style="background: rgba(220, 53, 69, 0.1); color: var(--danger-color); border: 1px solid rgba(220, 53, 69, 0.2); display: flex; align-items: center; gap: 8px;">
               <i data-lucide="x-octagon"></i>
               <span id="queue-cancel-all-text">Tümünü İptal Et</span>

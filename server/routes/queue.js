@@ -8,6 +8,7 @@ import {
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
 import { downloadQueue } from '../services/downloader.js';
+import { testFfmpegSync } from '../services/paths.js';
 import { broadcast, addTerminalLog, addClient, removeClient } from '../services/sse.js';
 
 export const router = express.Router();
@@ -492,4 +493,52 @@ router.post('/settings/concurrent', localhostOnly, (req, res) => {
   addTerminalLog(`[Kuyruk] Eşzamanlı indirme limiti ${intLimit} olarak güncellendi.`, 'success');
   broadcast('db_update', db);
   res.json({ success: true, limit: intLimit });
+});
+
+/**
+ * İndirme motorunu, askıdaki tüm süreç kilitlerini ve aktif indirme sayaçlarını sıfırlar (Restart gerektirmeden).
+ * 
+ * @name POST /api/queue/reset-engine
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/queue/reset-engine', localhostOnly, (req, res) => {
+  console.log('[Kuyruk Engine] İndirme motoru sıfırlama isteği tetiklendi.');
+  addTerminalLog('[Kuyruk Engine] İndirme motoru ve süreç kilitleri manuel olarak sıfırlanıyor...', 'warning');
+
+  if (downloadQueue.activeProcesses) {
+    for (const [videoId, procInfo] of downloadQueue.activeProcesses.entries()) {
+      if (procInfo.timeoutTimer) clearTimeout(procInfo.timeoutTimer);
+      if (procInfo.process && procInfo.process.pid) {
+        try {
+          if (process.platform === 'win32') {
+            exec(`taskkill /pid ${procInfo.process.pid} /T /F`);
+          } else {
+            procInfo.process.kill();
+          }
+        } catch (e) {}
+      }
+    }
+    downloadQueue.activeProcesses.clear();
+  }
+
+  downloadQueue.activeDownloads = 0;
+  downloadQueue.isPaused = false;
+
+  testFfmpegSync(true);
+
+  const db = readDb();
+  if (db && db.settings) {
+    db.settings.isPaused = false;
+    writeDb(db);
+  }
+
+  addTerminalLog('[Kuyruk Engine] İndirme motoru sıfırlandı, kuyruk yeniden başlatıldı.', 'success');
+  broadcast('db_update', readDb());
+
+  downloadQueue.process();
+  res.json({ success: true, message: 'İndirme motoru sıfırlandı ve kuyruk yeniden başlatıldı.' });
 });

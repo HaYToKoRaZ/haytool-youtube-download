@@ -1,5 +1,8 @@
 export const en = {
   status_merging: 'Merging (FFmpeg)...',
+  btn_reset_engine: 'Reset Download Engine',
+  reset_engine_confirm: 'The download engine and lingering process locks will be reset. Do you wish to continue?',
+  reset_engine_success: 'Download engine reset successfully.',
   tab_iptv: 'IPTV',
   inline_btn_description: 'Show Description',
   inline_description_title: 'Video Description',

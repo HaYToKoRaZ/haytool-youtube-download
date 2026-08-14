@@ -158,6 +158,25 @@ export class DownloadQueue {
   async add(video) {
     if (this.queue.some(item => item.id === video.id)) return;
 
+    // Türkçe Açıklama: Eğer bu video ID'sine ait aktif süreç askıda kalmışsa, bayat süreci sonlandırıp temizleyelim
+    if (this.activeProcesses.has(video.id)) {
+      const staleProcInfo = this.activeProcesses.get(video.id);
+      if (staleProcInfo) {
+        if (staleProcInfo.timeoutTimer) clearTimeout(staleProcInfo.timeoutTimer);
+        try {
+          if (staleProcInfo.process && staleProcInfo.process.pid) {
+            if (process.platform === 'win32') {
+              exec(`taskkill /pid ${staleProcInfo.process.pid} /T /F`);
+            } else {
+              staleProcInfo.process.kill();
+            }
+          }
+        } catch (e) {}
+        this.activeProcesses.delete(video.id);
+        console.log(`[Kuyruk Auto-Healing] "${video.title}" için eski askıdaki indirme süreci sonlandırıldı ve temizlendi.`);
+      }
+    }
+
     const release = await acquireDbLock();
     try {
       const db = readDb();
@@ -287,6 +306,15 @@ export class DownloadQueue {
       this.maxConcurrent = parseInt(db.settings.maxConcurrentDownloads, 10) || 1;
     }
 
+    // Türkçe Açıklama: Auto-Healing - Kapanmış/ölmüş ancak haritada kalmış süreçleri otomatik temizle
+    for (const [vid, procInfo] of this.activeProcesses.entries()) {
+      if (!procInfo.process || procInfo.process.killed || procInfo.process.exitCode !== null) {
+        if (procInfo.timeoutTimer) clearTimeout(procInfo.timeoutTimer);
+        this.activeProcesses.delete(vid);
+        console.log(`[Kuyruk Auto-Healing] Kapanmış süreç haritadan temizlendi: ${vid}`);
+      }
+    }
+
     if (this.activeProcesses.size === 0) {
       this.activeDownloads = 0;
     } else if (!this.activeProcess && this.activeDownloads > 0) {
@@ -337,6 +365,16 @@ export class DownloadQueue {
       } catch (err) {
         console.error('İndirme klasörü oluşturulamadı:', err);
       }
+    } else {
+      // Türkçe Açıklama: Önceki başarısız/yarım kalmış indirmelerden kalan birleşmemiş parçaları (.f137.mp4, .part vb.) temizle
+      try {
+        const filesInDir = fs.readdirSync(outputDir);
+        for (const f of filesInDir) {
+          if (f.includes(`[${video.id}]`) && (f.endsWith('.part') || f.endsWith('.ytdl') || f.includes('.part-Frag') || /\.f\d+\.(mp4|m4a|webm)$/i.test(f))) {
+            try { fs.unlinkSync(path.join(outputDir, f)); } catch (e) {}
+          }
+        }
+      } catch (e) {}
     }
 
     const outputTemplate = skipChannelFolder
@@ -451,8 +489,8 @@ export class DownloadQueue {
     if (hasWorkingFfmpeg) {
       args.push('--ffmpeg-location', path.dirname(getFfmpegPath()));
     }
-    // Kota ve Disk Sömürüsünü Önleme: Hatalı/Erişilemeyen parçalarda arka planda döngüye girmeden anında dur (fast-fail)
-    args.push('--fragment-retries', '0', '--retries', '2');
+    // Canlı Yayın & Canlı Yayın Tekrarları Garantili İndirme: Yayını en başından (0. parçadan) indir ve 4 paralel kanaldan hızlıca çek
+    args.push('--live-from-start', '--concurrent-fragments', '4', '--hls-use-mpegts', '--fragment-retries', '3', '--retries', '3', '--skip-unavailable-fragments');
 
     const startLogMsg = `[İNDİRME] İndirme başlatılıyor: "${video.title}"`;
     const cmdLogMsg = `[KOMUT] yt-dlp ${args.join(' ')}`;
@@ -552,10 +590,11 @@ export class DownloadQueue {
         }
       }
 
-      const detailMatch = output.match(/\[download\]\s+(\d+\.\d+)%\s+of\s+([^\s]+)\s+at\s+([^\s]+)\s+ETA\s+([^\s]+)/);
+      // 2. Detaylı İlerleme Bilgisi (Yüzde, Boyut, Hız, Kalan Süre - tilde ~ ve DASH parçaları destekli)
+      const detailMatch = output.match(/\[download\]\s+(\d+(?:\.\d+)?)%\s+of\s+~?\s*([\d\.]+\s*[a-zA-Z]+|\d+\s*fragments)\s+at\s+([^\s]+)\s+ETA\s+([^\s]+)/i);
       if (detailMatch) {
         const percent = parseFloat(detailMatch[1]);
-        const size = detailMatch[2];
+        const rawSize = detailMatch[2];
         const speed = detailMatch[3];
         const eta = detailMatch[4];
 
@@ -563,7 +602,7 @@ export class DownloadQueue {
         if (procInfo && procInfo.status === 'downloading') {
           updateHistoryItem(video.id, {
             progress: percent,
-            fileSize: size,
+            fileSize: rawSize,
             speed: speed,
             eta: eta
           });
@@ -573,8 +612,34 @@ export class DownloadQueue {
             progress: percent,
             speed: speed,
             eta: eta,
-            fileSize: size
+            fileSize: rawSize
           });
+        }
+      } else {
+        // 3. DASH Parça İlerleme Desteği (Örn: Fragment 164 of 1618)
+        const fragMatch = output.match(/(?:fragment|chunk)\s+(\d+)\s+of\s+(\d+)/i);
+        if (fragMatch) {
+          const currentFrag = parseInt(fragMatch[1], 10);
+          const totalFrags = parseInt(fragMatch[2], 10);
+          if (totalFrags > 0) {
+            const percent = parseFloat(((currentFrag / totalFrags) * 100).toFixed(1));
+            const procInfo = this.activeProcesses.get(video.id);
+            if (procInfo && procInfo.status === 'downloading') {
+              updateHistoryItem(video.id, {
+                progress: percent,
+                speed: 'DASH Stream',
+                eta: `${currentFrag}/${totalFrags} Parça`
+              });
+
+              broadcast('progress', {
+                id: video.id,
+                progress: percent,
+                speed: 'DASH Stream',
+                eta: `${currentFrag}/${totalFrags} Parça`,
+                fileSize: `${totalFrags} Parça`
+              });
+            }
+          }
         }
       }
     });

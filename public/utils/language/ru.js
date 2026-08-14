@@ -1,5 +1,8 @@
 export const ru = {
-  status_merging: 'Слияние (FFmpeg)...',
+  status_merging: 'Объединение (FFmpeg)...',
+  btn_reset_engine: 'Сбросить движок загрузки',
+  reset_engine_confirm: 'Движок загрузки и зависшие блокировки процессов будут сброшены. Продолжить?',
+  reset_engine_success: 'Движок загрузки успешно сброшен.',
   premium_automation: 'Премиум Автоматизация',
   tab_library: 'Библиотека',
   tab_downloaded: 'Загрузки',

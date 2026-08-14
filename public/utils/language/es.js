@@ -1,5 +1,8 @@
 export const es = {
-  status_merging: 'Fusionando (FFmpeg)...',
+  status_merging: 'Combinando (FFmpeg)...',
+  btn_reset_engine: 'Restablecer motor de descarga',
+  reset_engine_confirm: 'Se restablecerán el motor de descarga y los bloqueos de procesos pendientes. ¿Deseas continuar?',
+  reset_engine_success: 'Motor de descarga restablecido con éxito.',
   tab_iptv: 'IPTV',
   inline_btn_description: 'Mostrar Descripción',
   inline_description_title: 'Descripción del Video',

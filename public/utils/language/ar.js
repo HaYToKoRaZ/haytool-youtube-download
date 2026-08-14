@@ -1,5 +1,8 @@
 export const ar = {
-  status_merging: 'دمج (FFmpeg)...',
+  status_merging: 'جاري الدمج (FFmpeg)...',
+  btn_reset_engine: 'إعادة ضبط محرك التنزيل',
+  reset_engine_confirm: 'سيتم إعادة ضبط محرك التنزيل وأقفال العمليات المعلقة. هل تريد الاستمرار؟',
+  reset_engine_success: 'تمت إعادة ضبط محرك التنزيل بنجاح.',
   premium_automation: 'التحكم التلقائي المميز',
   tab_library: 'المكتبة',
   tab_downloaded: 'التنزيلات',

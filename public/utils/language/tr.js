@@ -1,5 +1,8 @@
 export const tr = {
   status_merging: 'Birleştiriliyor (FFmpeg)...',
+  btn_reset_engine: 'İndirme Motorunu Sıfırla',
+  reset_engine_confirm: 'İndirme motoru ve askıdaki süreç kilitleri sıfırlanacak. Devam etmek istiyor musunuz?',
+  reset_engine_success: 'İndirme motoru başarıyla sıfırlandı.',
   tab_iptv: 'IPTV',
   inline_btn_description: 'Açıklamayı Göster',
   inline_description_title: 'Video Açıklaması',

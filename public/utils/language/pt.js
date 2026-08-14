@@ -1,5 +1,8 @@
 export const pt = {
   status_merging: 'Mesclando (FFmpeg)...',
+  btn_reset_engine: 'Redefinir motor de download',
+  reset_engine_confirm: 'O motor de download e os bloqueios de processos pendentes serão redefinidos. Deseja continuar?',
+  reset_engine_success: 'Motor de download redefinido com sucesso.',
   premium_automation: 'Automatização Premium',
   tab_library: 'Biblioteca',
   tab_downloaded: 'Downloads',

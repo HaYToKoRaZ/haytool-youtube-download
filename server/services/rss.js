@@ -238,7 +238,10 @@ function parseDurationFromHtml(html, isShortFallback = false) {
       if (videoDetails) {
         if (videoDetails.lengthSeconds) {
           const seconds = parseInt(videoDetails.lengthSeconds, 10);
-          if (playerResponse.microformat?.playerMicroformatRenderer?.isLiveContent) {
+          const isCurrentlyLive = (videoDetails.isLive === true) || 
+                                  (playerResponse.microformat?.playerMicroformatRenderer?.liveBroadcastDetails?.isLiveNow === true) ||
+                                  (seconds === 0 && playerResponse.microformat?.playerMicroformatRenderer?.isLiveContent === true);
+          if (isCurrentlyLive && seconds === 0) {
             duration = 'live';
           } else if (seconds === 0 && playerResponse.microformat?.playerMicroformatRenderer?.liveBroadcastDetails) {
             duration = 'upcoming';

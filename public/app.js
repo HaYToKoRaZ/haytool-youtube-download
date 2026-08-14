@@ -32,6 +32,28 @@ window.renderVideoGrid = renderVideoGrid;
 window.renderChannelsList = renderChannelsList;
 window.devLog = devLog;
 window.devWarn = devWarn;
+
+/**
+ * İndirme motorunu ve askıdaki tüm süreç kilitlerini manuel olarak sıfırlar (Restart ihtiyacını kaldırır).
+ */
+window.resetDownloadEngine = async function() {
+  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[currentLang] || translations.tr;
+  const msg = t.reset_engine_confirm || 'İndirme motoru ve askıdaki süreç kilitleri sıfırlanacak. Devam etmek istiyor musunuz?';
+  if (!confirm(msg)) return;
+
+  try {
+    const res = await fetch('/api/queue/reset-engine', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(t.reset_engine_success || 'İndirme motoru başarıyla sıfırlandı.', 'success');
+    } else {
+      showToast(data.error || 'Sıfırlama sırasında bir hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast(`Hata: ${err.message}`, 'error');
+  }
+};
 let localDb = { channels: [], history: [], settings: {} };
 window.localDb = localDb;
 let eventSource = null;
@@ -114,6 +136,7 @@ function applyLanguage(lang) {
   // İndirme Sırası Sekmesi
   elQuery('#tab-queue-title', 'tab_queue_title');
   elQuery('#tab-queue-desc', 'tab_queue_desc');
+  elQuery('#queue-reset-engine-text', 'btn_reset_engine');
   elQuery('#queue-pause-text', localDb.settings && localDb.settings.isPaused ? 'btn_resume_queue' : 'btn_pause_queue');
   // Türkçe Açıklama: Kuyruk sekmesindeki hız sınırı etiketi yeni dil anahtarına bağlandı.
   elQuery('#speed-limit-label', 'label_queue_speed_limit');
@@ -3204,7 +3227,9 @@ function updateSBToggleButtonUI() {
   const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
   const t = translations[lang] || translations.tr;
 
-  if (window.sponsorBlockTemporarilyDisabled) {
+  const isActive = localDb.settings && localDb.settings.sponsorBlockEnabled === true;
+
+  if (!isActive) {
     btnSBToggle.title = t.sponsorblock_disabled || 'SponsorBlock Devre Dışı';
     btnSBToggle.style.color = '#ef4444';
     btnSBToggle.style.background = 'rgba(239, 68, 68, 0.1)';
@@ -3223,12 +3248,11 @@ function updateSBToggleButtonUI() {
 
   const wrappers = document.querySelectorAll('.player-sponsor-markers-wrapper');
   wrappers.forEach(w => {
-    w.style.opacity = window.sponsorBlockTemporarilyDisabled ? '0.15' : '1';
+    w.style.opacity = '1';
   });
 }
 
 function checkAndSkipSponsor(currentTime, videoElementOrPlayer) {
-  if (window.sponsorBlockTemporarilyDisabled) return;
   if (!currentVideoSponsorSegments || currentVideoSponsorSegments.length === 0) return;
   if (!localDb.settings || localDb.settings.sponsorBlockEnabled !== true) return;
 
@@ -3872,56 +3896,59 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
     // SponsorBlock toggle button logic
     const btnSBToggle = document.getElementById('inline-btn-sponsorblock-toggle');
     if (btnSBToggle) {
-      if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
-        btnSBToggle.style.display = 'inline-flex';
-        // Reset state on load of new video
-        window.sponsorBlockTemporarilyDisabled = false;
-        if (typeof updateSBToggleButtonUI === 'function') {
-          updateSBToggleButtonUI();
+      btnSBToggle.style.display = 'inline-flex';
+      updateSBToggleButtonUI();
+
+      btnSBToggle.onclick = async () => {
+        const isCurrentlyActive = localDb.settings && localDb.settings.sponsorBlockEnabled === true;
+        const newStatus = !isCurrentlyActive;
+        
+        if (!localDb.settings) localDb.settings = {};
+        localDb.settings.sponsorBlockEnabled = newStatus;
+
+        const settingsSB = document.getElementById('settings-sponsorblock');
+        if (settingsSB) settingsSB.checked = newStatus;
+
+        updateSBToggleButtonUI();
+
+        try {
+          await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sponsorBlockEnabled: newStatus })
+          });
+        } catch(err) {
+          console.error('[SponsorBlock] Setting save error:', err);
         }
 
-        btnSBToggle.onclick = () => {
-          window.sponsorBlockTemporarilyDisabled = !window.sponsorBlockTemporarilyDisabled;
-          if (typeof updateSBToggleButtonUI === 'function') {
-            updateSBToggleButtonUI();
-          }
-          if (typeof updateSponsorBlockStatusUI === 'function') {
-            updateSponsorBlockStatusUI();
-          }
-          
-          const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
-          const t = translations[lang] || translations.tr;
-          const active = !window.sponsorBlockTemporarilyDisabled;
-          const icon = active ? 'shield' : 'shield-off';
-          const title = active 
-            ? (t.sponsorblock_active_toast || 'SponsorBlock Aktif') 
-            : (t.sponsorblock_disabled_toast || 'SponsorBlock Devre Dışı');
-          const desc = active 
-            ? (t.sponsorblock_active_toast_desc || 'Sponsorlu alanlar otomatik atlanacak') 
-            : (t.sponsorblock_disabled_toast_desc || 'Sponsorlu alan atlamaları geçici olarak durduruldu');
-
-          const html = `
-            <div class="player-transient-card">
-              <i data-lucide="${icon}" style="width: 36px; height: 36px; color: ${active ? '#4ade80' : '#ef4444'};"></i>
-              <div class="transient-title">${title}</div>
-              <div class="transient-desc">${desc}</div>
-            </div>
-          `;
-          if (typeof showPlayerTransientOverlay === 'function') {
-            showPlayerTransientOverlay(html, 1500);
-          }
-          try {
-            lucide.createIcons();
-          } catch(e) {}
-        };
-      } else {
-        // Global ayar kapalı: butonu gizle, işaretlerin tam opaklıkta görünmesi için state sıfırla
-        btnSBToggle.style.display = 'none';
-        window.sponsorBlockTemporarilyDisabled = false;
-        if (typeof updateSBToggleButtonUI === 'function') {
-          updateSBToggleButtonUI();
+        if (typeof updateSponsorBlockStatusUI === 'function') {
+          updateSponsorBlockStatusUI();
         }
-      }
+        
+        const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
+        const t = translations[lang] || translations.tr;
+        const icon = newStatus ? 'shield' : 'shield-off';
+        const title = newStatus 
+          ? (t.sponsorblock_active_toast || 'SponsorBlock Aktif') 
+          : (t.sponsorblock_disabled_toast || 'SponsorBlock Devre Dışı');
+        const desc = newStatus 
+          ? (t.sponsorblock_active_toast_desc || 'Sponsorlu alanlar otomatik atlanacak') 
+          : (t.sponsorblock_disabled_toast_desc || 'Sponsorlu alan atlamaları durduruldu');
+
+        const html = `
+          <div class="player-transient-card">
+            <i data-lucide="${icon}" style="width: 36px; height: 36px; color: ${newStatus ? '#4ade80' : '#ef4444'};"></i>
+            <div class="transient-title">${title}</div>
+            <div class="transient-desc">${desc}</div>
+          </div>
+        `;
+        if (typeof showPlayerTransientOverlay === 'function') {
+          showPlayerTransientOverlay(html, 1500);
+        }
+        try {
+          lucide.createIcons();
+        } catch(e) {}
+      };
     }
 
     const btnClose = document.getElementById('inline-btn-close');
