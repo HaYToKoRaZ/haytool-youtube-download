@@ -124,6 +124,62 @@
                       </div>
                     </div>
                   </div>
+
+                  <!-- Hava Durumu Yapılandırması -->
+                  <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                      <label style="font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--text-main); font-size: 0.9rem;">
+                        <i data-lucide="cloud-sun" style="width: 16px; height: 16px; color: #00f2fe;"></i>
+                        <span id="label-weather-title">Üst Bar Hava Durumu Göstergesi</span>
+                      </label>
+                      <div class="toggle-container">
+                        <input type="checkbox" id="settings-weatherenabled" class="toggle-input" checked>
+                        <label for="settings-weatherenabled" class="toggle-label"></label>
+                      </div>
+                    </div>
+
+                    <div id="weather-settings-details">
+                      <div class="form-grid">
+                        <div class="form-group" style="position: relative;">
+                          <label for="settings-weathercity" id="label-weather-city">Konum / Şehir Adı</label>
+                          <div style="display: flex; gap: 6px;">
+                            <input type="text" id="settings-weathercity" placeholder="Örn: İstanbul, Ankara, Berlin" style="flex: 1;">
+                            <button type="button" id="btn-weather-search" class="btn btn-secondary btn-sm" title="Şehir Ara & Koordinat Bul" style="white-space: nowrap; padding: 0 10px;">
+                              <i data-lucide="search" style="width: 14px; height: 14px;"></i>
+                              <span id="btn-weather-search-text">Bul</span>
+                            </button>
+                            <button type="button" id="btn-weather-gps" class="btn btn-secondary btn-sm" title="Mevcut Konumumu Al (GPS)" style="padding: 0 10px;">
+                              <i data-lucide="crosshair" style="width: 14px; height: 14px;"></i>
+                            </button>
+                          </div>
+                          <div id="weather-city-suggestions" class="hidden" style="position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 6px; z-index: 100; max-height: 160px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.5);"></div>
+                          <small class="form-text" id="desc-weather-city">Hava durumu için şehir arayın veya manuel koordinat girin.</small>
+                        </div>
+
+                        <div class="form-group">
+                          <label for="settings-weatherunit" id="label-weather-unit">Sıcaklık Birimi</label>
+                          <select id="settings-weatherunit">
+                            <option value="celsius" id="opt-weather-celsius">Santigrat (°C)</option>
+                            <option value="fahrenheit" id="opt-weather-fahrenheit">Fahrenhayt (°F)</option>
+                          </select>
+                          <small class="form-text" id="desc-weather-unit">Derece görüntüleme formatı.</small>
+                        </div>
+                      </div>
+
+                      <div class="form-grid">
+                        <div class="form-group">
+                          <label for="settings-weatherlatitude" id="label-weather-lat">Enlem (Latitude)</label>
+                          <input type="number" id="settings-weatherlatitude" step="0.0001" placeholder="41.0082">
+                          <small class="form-text" id="desc-weather-lat">Konum enlem koordinatı.</small>
+                        </div>
+                        <div class="form-group">
+                          <label for="settings-weatherlongitude" id="label-weather-lon">Boylam (Longitude)</label>
+                          <input type="number" id="settings-weatherlongitude" step="0.0001" placeholder="28.9784">
+                          <small class="form-text" id="desc-weather-lon">Konum boylam koordinatı.</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Kart 4: Sistem Veritabanı & Ayar Yedekleme -->

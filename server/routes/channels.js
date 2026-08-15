@@ -19,12 +19,25 @@ import {
   checkSingleChannelRss, 
   resolveMissingDurations,
   fetchVideoDuration,
-  fetchDurationViaYtdlp
+  fetchDurationViaYtdlp,
+  isRssChecking
 } from '../services/rss.js';
 import { broadcast, addTerminalLog } from '../services/sse.js';
 import { getLocalTempDir, cleanMeiForPid, spawnYtdlp, ytdlpPath } from '../services/paths.js';
 
 export const router = express.Router();
+
+export let isChannelScanInProgress = false;
+export let channelScanStartTime = 0;
+
+/**
+ * Kanal taraması durumunu ayarlar.
+ * @param {boolean} status 
+ */
+export function setChannelScanInProgress(status) {
+  isChannelScanInProgress = !!status;
+  channelScanStartTime = isChannelScanInProgress ? Date.now() : 0;
+}
 
 /**
  * Takip edilen YouTube kanallarının listesini veritabanından çeker.
@@ -575,15 +588,25 @@ router.delete('/categories/:id', localhostOnly, (req, res) => {
  * @param {object} res - Express yanıt nesnesi
  * @returns {Promise<void>}
  */
+/**
+ * Belirtilen kanalın abone sayısı ve avatarını YouTube üzerinden günceller.
+ * 1. Seçenek: Resmi ve kalıcı YouTube Kanal ID URL'si (Örn: https://www.youtube.com/channel/UC...)
+ * 2. Seçenek: Yedek olarak Kanal Handle veya İsim URL'si
+ * 
+ * @param {object} channel Kanal nesnesi
+ * @returns {Promise<object>} Güncellenen kanal nesnesi
+ */
 async function updateChannelFullInfo(channel) {
-  const handleUrl = channel.handle && channel.handle.startsWith('http') 
-    ? channel.handle 
-    : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
-    
-  let info = await resolveChannelId(handleUrl, channel.id);
+  // 1. Birincil ve en güvenilir kaynak: Doğrudan resmi YouTube UC Kanal ID URL'si
+  const channelIdUrl = `https://www.youtube.com/channel/${channel.id}`;
+  let info = await resolveChannelId(channelIdUrl, channel.id);
+
+  // 2. Yedek kaynak: Eğer kanal ID üzerinden abone sayısı/avatar alınamadıysa Handle veya İsim URL'sini dene
   if (!info || !info.subscriberCount || info.subscriberCount === '?') {
-    const channelIdUrl = `https://www.youtube.com/channel/${channel.id}`;
-    const fallbackInfo = await resolveChannelId(channelIdUrl, channel.id);
+    const handleUrl = channel.handle && channel.handle.startsWith('http') 
+      ? channel.handle 
+      : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
+    const fallbackInfo = await resolveChannelId(handleUrl, channel.id);
     if (fallbackInfo) {
       if (fallbackInfo.subscriberCount && fallbackInfo.subscriberCount !== '?') {
         if (!info) info = {};
@@ -611,11 +634,26 @@ async function updateChannelFullInfo(channel) {
 }
 
 router.post('/update-all-info', localhostOnly, async (req, res) => {
+  if (isChannelScanInProgress) {
+    const elapsed = channelScanStartTime > 0 ? (Date.now() - channelScanStartTime) / 1000 : 0;
+    if (channelScanStartTime > 0 && elapsed > 300) {
+      console.warn(`[Kanal Kontrolü UYARI] Önceki kanal bilgisi taraması zaman aşımına uğradı (${elapsed.toFixed(0)} sn). Kilit sıfırlandı.`);
+      setChannelScanInProgress(false);
+    } else {
+      return res.status(409).json({ success: false, inProgress: true, message: 'Zaten devam eden bir kanal bilgisi güncellemesi var.' });
+    }
+  }
+
+  if (isRssChecking) {
+    return res.status(409).json({ success: false, inProgress: true, message: 'Video RSS taraması devam ettiği için kanal güncellemesi başlatılamadı. Lütfen RSS taramasının bitmesini bekleyin.' });
+  }
+
   const db = readDb();
   if (db.channels.length === 0) {
     return res.json({ success: true, message: 'İzlenen kanal bulunmuyor.' });
   }
 
+  setChannelScanInProgress(true);
   addTerminalLog('[Kanal] Toplu abone ve avatar güncellemesi başlatıldı...', 'info');
   console.log('[Kanal] Toplu abone ve avatar güncellemesi başlatıldı...');
   
@@ -624,32 +662,36 @@ router.post('/update-all-info', localhostOnly, async (req, res) => {
   const totalChannels = db.channels.length;
   let currentIndex = 0;
 
-  for (const channel of db.channels) {
-    currentIndex++;
-    try {
-      const statusMsg = `[Abone & Avatar ${currentIndex}/${totalChannels}] Güncelleniyor: "${channel.name}"`;
-      console.log(statusMsg);
-      broadcast('status_log', { message: statusMsg, type: 'info' });
-      addTerminalLog(statusMsg, 'info');
+  try {
+    for (const channel of db.channels) {
+      currentIndex++;
+      try {
+        const statusMsg = `[Abone & Avatar ${currentIndex}/${totalChannels}] Güncelleniyor: "${channel.name}"`;
+        console.log(statusMsg);
+        broadcast('status_log', { message: statusMsg, type: 'info' });
+        addTerminalLog(statusMsg, 'info');
 
-      await updateChannelFullInfo(channel);
-      writeDb(db);
-      broadcast('db_update', db);
-      updatedCount++;
-      await new Promise(r => setTimeout(r, 600));
-    } catch (e) {
-      console.error(`[Kanal] Abone ve avatar güncelleme hatası (${channel.name}):`, e.message);
-      failedCount++;
+        await updateChannelFullInfo(channel);
+        updatedCount++;
+        await new Promise(r => setTimeout(r, 600));
+      } catch (e) {
+        console.error(`[Kanal] Abone ve avatar güncelleme hatası (${channel.name}):`, e.message);
+        failedCount++;
+      }
     }
+
+    writeDb(db);
+    broadcast('db_update', db);
+    import('./gist.js').then(m => m.triggerAutoGistSync()).catch(() => {});
+
+    const doneMsg = `[Abone & Avatar ${totalChannels}/${totalChannels}] Toplu kanal güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`;
+    broadcast('status_log', { message: doneMsg, type: 'success' });
+    addTerminalLog(doneMsg, 'success');
+
+    res.json({ success: true, updatedCount, failedCount });
+  } finally {
+    setChannelScanInProgress(false);
   }
-
-  writeDb(db);
-  broadcast('db_update', db);
-  const doneMsg = `[Abone & Avatar ${totalChannels}/${totalChannels}] Toplu kanal güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`;
-  broadcast('status_log', { message: doneMsg, type: 'success' });
-  addTerminalLog(doneMsg, 'success');
-
-  res.json({ success: true, updatedCount, failedCount });
 });
 
 router.post('/:id/update-info', localhostOnly, async (req, res) => {
@@ -680,39 +722,60 @@ router.post('/:id/update-info', localhostOnly, async (req, res) => {
 });
 
 router.post('/update-all-avatars', localhostOnly, async (req, res) => {
+  if (isChannelScanInProgress) {
+    const elapsed = channelScanStartTime > 0 ? (Date.now() - channelScanStartTime) / 1000 : 0;
+    if (channelScanStartTime > 0 && elapsed > 300) {
+      console.warn(`[Kanal Kontrolü UYARI] Önceki kanal bilgisi taraması zaman aşımına uğradı (${elapsed.toFixed(0)} sn). Kilit sıfırlandı.`);
+      setChannelScanInProgress(false);
+    } else {
+      return res.status(409).json({ success: false, inProgress: true, message: 'Zaten devam eden bir kanal bilgisi güncellemesi var.' });
+    }
+  }
+
+  if (isRssChecking) {
+    return res.status(409).json({ success: false, inProgress: true, message: 'Video RSS taraması devam ettiği için kanal güncellemesi başlatılamadı. Lütfen RSS taramasının bitmesini bekleyin.' });
+  }
+
   const db = readDb();
   if (db.channels.length === 0) {
     return res.json({ success: true, message: 'İzlenen kanal bulunmuyor.' });
   }
 
+  setChannelScanInProgress(true);
   let updatedCount = 0;
   let failedCount = 0;
   const totalChannels = db.channels.length;
   let currentIndex = 0;
 
-  for (const channel of db.channels) {
-    currentIndex++;
-    try {
-      const statusMsg = `[Kanal Logosu ${currentIndex}/${totalChannels}] Güncelleniyor: "${channel.name}"`;
-      console.log(statusMsg);
-      broadcast('status_log', { message: statusMsg, type: 'info' });
-      addTerminalLog(statusMsg, 'info');
+  try {
+    for (const channel of db.channels) {
+      currentIndex++;
+      try {
+        const statusMsg = `[Kanal Logosu ${currentIndex}/${totalChannels}] Güncelleniyor: "${channel.name}"`;
+        console.log(statusMsg);
+        broadcast('status_log', { message: statusMsg, type: 'info' });
+        addTerminalLog(statusMsg, 'info');
 
-      await updateChannelFullInfo(channel);
-      updatedCount++;
-      await new Promise(r => setTimeout(r, 500));
-    } catch (e) {
-      console.error(`[Kanal] Logo güncelleme hatası (${channel.name}):`, e.message);
-      failedCount++;
+        await updateChannelFullInfo(channel);
+        updatedCount++;
+        await new Promise(r => setTimeout(r, 500));
+      } catch (e) {
+        console.error(`[Kanal] Logo güncelleme hatası (${channel.name}):`, e.message);
+        failedCount++;
+      }
     }
+
+    writeDb(db);
+    broadcast('db_update', db);
+    import('./gist.js').then(m => m.triggerAutoGistSync()).catch(() => {});
+
+    broadcast('status_log', { message: `[Kanal Logosu ${totalChannels}/${totalChannels}] Toplu logo güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`, type: 'success' });
+    addTerminalLog(`[Kanal Logosu ${totalChannels}/${totalChannels}] Toplu logo güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`, 'success');
+
+    res.json({ success: true, updatedCount, failedCount });
+  } finally {
+    setChannelScanInProgress(false);
   }
-
-  writeDb(db);
-  broadcast('db_update', db);
-  broadcast('status_log', { message: `[Kanal Logosu ${totalChannels}/${totalChannels}] Toplu logo güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`, type: 'success' });
-  addTerminalLog(`[Kanal Logosu ${totalChannels}/${totalChannels}] Toplu logo güncelleme tamamlandı. Başarılı: ${updatedCount}, Başarısız: ${failedCount}`, 'success');
-
-  res.json({ success: true, updatedCount, failedCount });
 });
 
 router.post('/:id/update-avatar', localhostOnly, async (req, res) => {
@@ -736,48 +799,75 @@ router.post('/:id/update-avatar', localhostOnly, async (req, res) => {
 });
 
 async function fetchChannelSubscriberCount(channel) {
-  const channelUrl = channel.handle && channel.handle.startsWith('http') 
-    ? channel.handle 
-    : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
-    
-  const info = await resolveChannelId(channelUrl, channel.id);
+  const channelIdUrl = `https://www.youtube.com/channel/${channel.id}`;
+  let info = await resolveChannelId(channelIdUrl, channel.id);
+  if (!info || !info.subscriberCount || info.subscriberCount === '?') {
+    const handleUrl = channel.handle && channel.handle.startsWith('http') 
+      ? channel.handle 
+      : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
+    const fallbackInfo = await resolveChannelId(handleUrl, channel.id);
+    if (fallbackInfo && fallbackInfo.subscriberCount && fallbackInfo.subscriberCount !== '?') {
+      info = fallbackInfo;
+    }
+  }
   return (info && info.subscriberCount) ? info.subscriberCount : (channel.subscriberCount || '?');
 }
 
 router.post('/update-all-subscribers', localhostOnly, async (req, res) => {
+  if (isChannelScanInProgress) {
+    const elapsed = channelScanStartTime > 0 ? (Date.now() - channelScanStartTime) / 1000 : 0;
+    if (channelScanStartTime > 0 && elapsed > 300) {
+      console.warn(`[Kanal Kontrolü UYARI] Önceki kanal bilgisi taraması zaman aşımına uğradı (${elapsed.toFixed(0)} sn). Kilit sıfırlandı.`);
+      setChannelScanInProgress(false);
+    } else {
+      return res.status(409).json({ success: false, inProgress: true, message: 'Zaten devam eden bir kanal bilgisi güncellemesi var.' });
+    }
+  }
+
+  if (isRssChecking) {
+    return res.status(409).json({ success: false, inProgress: true, message: 'Video RSS taraması devam ettiği için kanal güncellemesi başlatılamadı. Lütfen RSS taramasının bitmesini bekleyin.' });
+  }
+
   const db = readDb();
   if (db.channels.length === 0) {
     return res.json({ success: true, message: 'İzlenen kanal bulunmuyor.' });
   }
 
+  setChannelScanInProgress(true);
   let updatedCount = 0;
   let failedCount = 0;
   const totalChannels = db.channels.length;
   let currentIndex = 0;
 
-  for (const channel of db.channels) {
-    currentIndex++;
-    try {
-      const statusMsg = `[Abone Sayısı ${currentIndex}/${totalChannels}] Güncelleniyor: "${channel.name}"`;
-      console.log(statusMsg);
-      broadcast('status_log', { message: statusMsg, type: 'info' });
-      addTerminalLog(statusMsg, 'info');
+  try {
+    for (const channel of db.channels) {
+      currentIndex++;
+      try {
+        const statusMsg = `[Abone Sayısı ${currentIndex}/${totalChannels}] Güncelleniyor: "${channel.name}"`;
+        console.log(statusMsg);
+        broadcast('status_log', { message: statusMsg, type: 'info' });
+        addTerminalLog(statusMsg, 'info');
 
-      await updateChannelFullInfo(channel);
-      updatedCount++;
-      await new Promise(r => setTimeout(r, 400));
-    } catch (e) {
-      console.error(`[Kanal] Abone sayısı güncelleme hatası (${channel.name}):`, e.message);
-      failedCount++;
+        await updateChannelFullInfo(channel);
+        updatedCount++;
+        await new Promise(r => setTimeout(r, 400));
+      } catch (e) {
+        console.error(`[Kanal] Abone sayısı güncelleme hatası (${channel.name}):`, e.message);
+        failedCount++;
+      }
     }
+
+    writeDb(db);
+    broadcast('db_update', db);
+    import('./gist.js').then(m => m.triggerAutoGistSync()).catch(() => {});
+
+    broadcast('status_log', { message: `[Abone Sayısı ${totalChannels}/${totalChannels}] Toplu abone sayısı güncelleme tamamlandı. Güncellenen: ${updatedCount}, Alınamayan: ${failedCount}`, type: 'success' });
+    addTerminalLog(`[Abone Sayısı ${totalChannels}/${totalChannels}] Toplu abone sayısı güncelleme tamamlandı. Güncellenen: ${updatedCount}, Alınamayan: ${failedCount}`, 'success');
+
+    res.json({ success: true, updatedCount, failedCount });
+  } finally {
+    setChannelScanInProgress(false);
   }
-
-  writeDb(db);
-  broadcast('db_update', db);
-  broadcast('status_log', { message: `[Abone Sayısı ${totalChannels}/${totalChannels}] Toplu abone sayısı güncelleme tamamlandı. Güncellenen: ${updatedCount}, Alınamayan: ${failedCount}`, type: 'success' });
-  addTerminalLog(`[Abone Sayısı ${totalChannels}/${totalChannels}] Toplu abone sayısı güncelleme tamamlandı. Güncellenen: ${updatedCount}, Alınamayan: ${failedCount}`, 'success');
-
-  res.json({ success: true, updatedCount, failedCount });
 });
 
 router.post('/:id/update-subscribers', localhostOnly, async (req, res) => {
@@ -973,7 +1063,7 @@ export async function resolveChannelId(input, existingChannelId = null) {
           const browserName = db.settings.browser === 'msedge' ? 'edge' : db.settings.browser;
           args.push('--cookies-from-browser', browserName);
         }
-        args.push('--dump-json', '--playlist-items', '0', `https://www.youtube.com/channel/${channelId}`);
+        args.push('--dump-single-json', '--flat-playlist', '--playlist-items', '1', `https://www.youtube.com/channel/${channelId}`);
         
         const localTemp = getLocalTempDir();
         const spawnOptions = {
@@ -990,6 +1080,7 @@ export async function resolveChannelId(input, existingChannelId = null) {
           proc.on('close', (code) => {
             cleanMeiForPid(proc.pid);
             if (code !== 0) return rejDl(new Error(`Exit code ${code}. Stderr: ${err}`));
+            if (!out || !out.trim()) return rejDl(new Error('yt-dlp boş çıktı döndürdü'));
             resDl(out);
           });
         });
@@ -1157,16 +1248,27 @@ export async function resolveChannelId(input, existingChannelId = null) {
     const handleVal = vanityMatch ? vanityMatch[1] : '';
 
     if (channelId) {
-      console.log(`[Scraper] Kanal ID bulundu: ${channelId}. Gerçek kanal adını doğrulamak için RSS beslemesi sorgulanıyor...`);
+      // Eğer HTML üzerinden kanal adı, avatar ve abone bilgisi zaten eksiksiz alındıysa doğrudan dön (ekstra yedek çalıştırma)
+      if (channelName && avatarUrl && subCount && subCount !== '?') {
+        return {
+          id: channelId,
+          name: channelName,
+          avatar: avatarUrl,
+          handle: handleVal || '',
+          subscriberCount: subCount
+        };
+      }
+
+      console.log(`[Scraper] Kanal ID bulundu: ${channelId}. Eksik bilgileri tamamlamak için RSS beslemesi sorgulanıyor...`);
       try {
         const rssInfo = await tryRssFallback(channelId);
         console.log(`[Scraper] RSS ile doğrulanan Kanal: ${rssInfo.name} (ID: ${channelId})`);
         return {
           id: channelId,
-          name: rssInfo.name || channelName || `Kanal ${channelId}`,
+          name: channelName || rssInfo.name || `Kanal ${channelId}`,
           avatar: avatarUrl || rssInfo.avatar || '',
           handle: handleVal || '',
-          subscriberCount: subCount || rssInfo.subscriberCount || ''
+          subscriberCount: (subCount && subCount !== '?') ? subCount : (rssInfo.subscriberCount || subCount || '')
         };
       } catch (err) {
         console.log(`[Scraper] RSS sorgusu başarısız oldu, kazınan verilerle devam ediliyor: ${err.message}`);

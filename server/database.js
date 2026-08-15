@@ -155,7 +155,12 @@ export const defaultDb = {
     githubToken: '',
     githubGistId: '',
     autoSyncGist: false,
-    channelScanMode: 'fast'
+    channelScanMode: 'fast',
+    weatherEnabled: true,
+    weatherCity: 'İstanbul',
+    weatherLatitude: 41.0082,
+    weatherLongitude: 28.9784,
+    weatherUnit: 'celsius'
   }
 };
 
@@ -169,6 +174,7 @@ let dbLockPromise = Promise.resolve();
 /**
  * Veritabanı yazma işlemleri için sıralı kilit (mutex) mekanizmasını yönetir.
  * Eş zamanlı birden fazla yazma isteğinin çakışmasını önler.
+ * Otomatik 30 saniyelik zaman aşımı korumasıyla kilitlenmelerin (deadlock) önüne geçer.
  * Kullanım: `const release = await acquireDbLock();` → işlem → `release()`
  *
  * @returns {Promise<Function>} Kilidi serbest bırakan `release` fonksiyonu
@@ -180,7 +186,9 @@ export async function acquireDbLock() {
   });
   const currentLock = dbLockPromise;
   dbLockPromise = nextLock;
-  await currentLock;
+
+  const timeoutPromise = new Promise(resolve => setTimeout(resolve, 30000));
+  await Promise.race([currentLock, timeoutPromise]);
   return release;
 }
 
@@ -622,6 +630,31 @@ export function syncWithIni(db) {
       if (enableAltThumbnailsHover !== undefined) {
         db.settings.enableAltThumbnailsHover = enableAltThumbnailsHover === 'true';
       }
+
+      const weatherEnabled = getCaseInsensitiveKey(settingsSection, 'weatherEnabled');
+      if (weatherEnabled !== undefined) {
+        db.settings.weatherEnabled = weatherEnabled !== 'false';
+      }
+
+      const weatherCity = getCaseInsensitiveKey(settingsSection, 'weatherCity');
+      if (weatherCity !== undefined) {
+        db.settings.weatherCity = weatherCity;
+      }
+
+      const weatherLatitude = getCaseInsensitiveKey(settingsSection, 'weatherLatitude');
+      if (weatherLatitude !== undefined) {
+        db.settings.weatherLatitude = parseFloat(weatherLatitude) || 41.0082;
+      }
+
+      const weatherLongitude = getCaseInsensitiveKey(settingsSection, 'weatherLongitude');
+      if (weatherLongitude !== undefined) {
+        db.settings.weatherLongitude = parseFloat(weatherLongitude) || 28.9784;
+      }
+
+      const weatherUnit = getCaseInsensitiveKey(settingsSection, 'weatherUnit');
+      if (weatherUnit !== undefined) {
+        db.settings.weatherUnit = weatherUnit;
+      }
     }
   }
 
@@ -853,6 +886,11 @@ export function saveSettingsToIni(db) {
   iniData.Settings.doubleClickAction = (db.settings.doubleClickAction || 'system').toString();
   iniData.Settings.historyDurationFilter = (db.settings.historyDurationFilter || 'off').toString();
   iniData.Settings.enableAltThumbnailsHover = (db.settings.enableAltThumbnailsHover !== false).toString();
+  iniData.Settings.weatherEnabled = (db.settings.weatherEnabled !== false).toString();
+  iniData.Settings.weatherCity = (db.settings.weatherCity || 'İstanbul').toString();
+  iniData.Settings.weatherLatitude = (db.settings.weatherLatitude !== undefined ? db.settings.weatherLatitude : 41.0082).toString();
+  iniData.Settings.weatherLongitude = (db.settings.weatherLongitude !== undefined ? db.settings.weatherLongitude : 28.9784).toString();
+  iniData.Settings.weatherUnit = (db.settings.weatherUnit || 'celsius').toString();
 
   writeIni(configIniPath, iniData);
 }

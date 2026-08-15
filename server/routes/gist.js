@@ -30,14 +30,34 @@ function getGithubHeaders(token) {
  * @returns {Promise<void>}
  */
 let lastAutoSyncErrorTime = 0;
+let gistDebounceTimer = null;
 
 /**
  * Otomatik Gist senkronizasyonunu arka planda tetikler.
  * Kanal eklendiğinde, silindiğinde veya güncellendiğinde çağrılır.
+ * Peş peşe gelen çağrılarda 5 saniyelik debounce uygulayarak tek bir Gist güncellemesi yapar.
  * 
+ * @param {boolean} [immediate=false] Debounce uygulamadan hemen çalıştırma bayrağı
  * @returns {Promise<void>}
  */
-export async function triggerAutoGistSync() {
+export async function triggerAutoGistSync(immediate = false) {
+  if (gistDebounceTimer) {
+    clearTimeout(gistDebounceTimer);
+    gistDebounceTimer = null;
+  }
+
+  if (!immediate) {
+    gistDebounceTimer = setTimeout(() => {
+      gistDebounceTimer = null;
+      executeAutoGistSync().catch(() => {});
+    }, 5000);
+    return;
+  }
+
+  await executeAutoGistSync();
+}
+
+async function executeAutoGistSync() {
   try {
     const db = readDb();
     const { githubToken, githubGistId, autoSyncGist } = db.settings || {};

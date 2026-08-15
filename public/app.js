@@ -256,6 +256,21 @@ function applyLanguage(lang) {
   el('label-preferred-audio-lang', 'label_preferred_audio_lang');
   el('desc-preferred-audio-lang', 'desc_preferred_audio_lang');
 
+  // Hava Durumu Çevirileri
+  el('badge-weather', 'badge_weather_title', 'title');
+  el('label-weather-title', 'label_weather_title');
+  el('label-weather-city', 'label_weather_city');
+  el('desc-weather-city', 'desc_weather_city');
+  el('btn-weather-search-text', 'btn_weather_search_text');
+  el('label-weather-unit', 'label_weather_unit');
+  el('desc-weather-unit', 'desc_weather_unit');
+  el('opt-weather-celsius', 'opt_weather_celsius');
+  el('opt-weather-fahrenheit', 'opt_weather_fahrenheit');
+  el('label-weather-lat', 'label_weather_lat');
+  el('desc-weather-lat', 'desc_weather_lat');
+  el('label-weather-lon', 'label_weather_lon');
+  el('desc-weather-lon', 'desc_weather_lon');
+
   // Sistem Veritabanı & Ayar Yedekleme Kartı Çevirileri
   el('settings-title-backup-text', 'settings_title_backup_text');
   el('desc-system-backup-info', 'desc_system_backup_info');
@@ -1879,6 +1894,34 @@ function updateUI(db) {
     const settingsDiscordRpc = document.getElementById('settings-discordrpc');
     if (settingsDiscordRpc && document.activeElement !== settingsDiscordRpc) settingsDiscordRpc.checked = db.settings.discordRpcEnabled === true;
 
+    // Hava Durumu Ayarları
+    const settingsWeatherEnabled = document.getElementById('settings-weatherenabled');
+    if (settingsWeatherEnabled && document.activeElement !== settingsWeatherEnabled) {
+      settingsWeatherEnabled.checked = db.settings.weatherEnabled !== false;
+      const details = document.getElementById('weather-settings-details');
+      if (details) details.style.display = settingsWeatherEnabled.checked ? 'block' : 'none';
+    }
+
+    const settingsWeatherCity = document.getElementById('settings-weathercity');
+    if (settingsWeatherCity && document.activeElement !== settingsWeatherCity) {
+      settingsWeatherCity.value = db.settings.weatherCity || 'İstanbul';
+    }
+
+    const settingsWeatherUnit = document.getElementById('settings-weatherunit');
+    if (settingsWeatherUnit && document.activeElement !== settingsWeatherUnit) {
+      settingsWeatherUnit.value = db.settings.weatherUnit || 'celsius';
+    }
+
+    const settingsWeatherLat = document.getElementById('settings-weatherlatitude');
+    if (settingsWeatherLat && document.activeElement !== settingsWeatherLat) {
+      settingsWeatherLat.value = db.settings.weatherLatitude !== undefined ? db.settings.weatherLatitude : 41.0082;
+    }
+
+    const settingsWeatherLon = document.getElementById('settings-weatherlongitude');
+    if (settingsWeatherLon && document.activeElement !== settingsWeatherLon) {
+      settingsWeatherLon.value = db.settings.weatherLongitude !== undefined ? db.settings.weatherLongitude : 28.9784;
+    }
+
     // Kuyruk duraklatma butonu görünümü ve ikonu
     const pauseBtn = document.getElementById('queue-pause-btn');
     if (pauseBtn) {
@@ -2280,7 +2323,12 @@ async function performAutoSave() {
     githubToken: (document.getElementById('gist-token-input') && document.getElementById('gist-token-input').value.trim()) || (localDb.settings && localDb.settings.githubToken) || '',
     githubGistId: (document.getElementById('gist-id-input') && document.getElementById('gist-id-input').value.trim()) || (localDb.settings && localDb.settings.githubGistId) || '',
     autoSyncGist: document.getElementById('gist-auto-sync-checkbox') ? document.getElementById('gist-auto-sync-checkbox').checked : (localDb.settings.autoSyncGist || false),
-    channelScanMode: document.getElementById('settings-channel-scan-mode') ? document.getElementById('settings-channel-scan-mode').value : 'fast'
+    channelScanMode: document.getElementById('settings-channel-scan-mode') ? document.getElementById('settings-channel-scan-mode').value : 'fast',
+    weatherEnabled: document.getElementById('settings-weatherenabled') ? document.getElementById('settings-weatherenabled').checked : true,
+    weatherCity: document.getElementById('settings-weathercity') ? document.getElementById('settings-weathercity').value.trim() : 'İstanbul',
+    weatherUnit: document.getElementById('settings-weatherunit') ? document.getElementById('settings-weatherunit').value : 'celsius',
+    weatherLatitude: document.getElementById('settings-weatherlatitude') ? (parseFloat(document.getElementById('settings-weatherlatitude').value) || 41.0082) : 41.0082,
+    weatherLongitude: document.getElementById('settings-weatherlongitude') ? (parseFloat(document.getElementById('settings-weatherlongitude').value) || 28.9784) : 28.9784
   };
 
   const oldPort = localDb.settings.port || 4141;
@@ -2309,6 +2357,7 @@ async function performAutoSave() {
         showToast(isEn ? 'Port changed. Please restart the app to apply.' : 'Port değiştirildi. Yeni portun aktif olması için uygulamayı yeniden başlatın.', 'warning');
       }
       updateDiskSpace();
+      updateWeatherBadge(true);
     }
   } catch (err) {
     console.error('Otomatik kaydetme hatası:', err);
@@ -5750,6 +5799,185 @@ async function updateDiskSpace() {
   }
 }
 
+// Türkçe Açıklama: Üst bardaki hava durumu rozetini API'den çekilen anlık sıcaklık ve ikon verileriyle günceller.
+/**
+ * Hava durumu bilgilerini /api/weather üzerinden sorgular ve üst bardaki rozete yansıtır.
+ * 
+ * @param {boolean} [force=false] Önbelleği atlayarak taze veri isteği
+ * @returns {Promise<void>}
+ */
+async function updateWeatherBadge(force = false) {
+  const badge = document.getElementById('badge-weather');
+  const display = document.getElementById('weather-display');
+  const iconEl = document.getElementById('weather-icon');
+  if (!badge || !display) return;
+
+  if (localDb.settings && localDb.settings.weatherEnabled === false) {
+    badge.style.display = 'none';
+    return;
+  }
+  badge.style.display = 'inline-flex';
+
+  try {
+    const res = await fetch(`/api/weather${force ? '?force=true' : ''}`);
+    const data = await res.json();
+    if (data.success && data.enabled !== false) {
+      display.textContent = `${data.temp}${data.unit}`;
+      
+      if (iconEl) {
+        iconEl.setAttribute('data-lucide', data.icon || 'sun');
+        lucide.createIcons();
+      }
+
+      const langKey = data.descKey || 'weather_partly_cloudy';
+      const desc = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t(langKey) : data.defaultDesc;
+      const feelsLikeLabel = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('weather_feels_like') : 'Hissedilen';
+      const humidityLabel = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('weather_humidity') : 'Nem';
+      const windLabel = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('weather_wind') : 'Rüzgar';
+
+      badge.title = `${data.city}: ${desc} (${data.temp}${data.unit})\n${feelsLikeLabel}: ${data.feelsLike}${data.unit} | ${humidityLabel}: %${data.humidity} | ${windLabel}: ${data.windSpeed} km/s\n(Tıklayarak Yenileyin)`;
+    } else if (data.enabled === false) {
+      badge.style.display = 'none';
+    } else {
+      display.textContent = '--°';
+    }
+  } catch (err) {
+    display.textContent = '--°';
+  }
+}
+
+// Hava Durumu Rozeti ve Ayar Butonları Dinleyicileri
+document.addEventListener('DOMContentLoaded', () => {
+  const badgeWeather = document.getElementById('badge-weather');
+  if (badgeWeather) {
+    badgeWeather.addEventListener('click', async () => {
+      showToast('Hava durumu güncelleniyor...', 'info');
+      await updateWeatherBadge(true);
+      showToast('Hava durumu güncellendi.', 'success');
+    });
+  }
+
+  const weatherToggle = document.getElementById('settings-weatherenabled');
+  if (weatherToggle) {
+    weatherToggle.addEventListener('change', () => {
+      const details = document.getElementById('weather-settings-details');
+      if (details) details.style.display = weatherToggle.checked ? 'block' : 'none';
+      const badge = document.getElementById('badge-weather');
+      if (badge) badge.style.display = weatherToggle.checked ? 'inline-flex' : 'none';
+    });
+  }
+
+  // Şehir Arama Butonu
+  const btnWeatherSearch = document.getElementById('btn-weather-search');
+  const cityInput = document.getElementById('settings-weathercity');
+  const suggestionsBox = document.getElementById('weather-city-suggestions');
+
+  async function performCitySearch() {
+    if (!cityInput || !suggestionsBox) return;
+    const query = cityInput.value.trim();
+    if (!query || query.length < 2) {
+      showToast('Lütfen en az 2 karakterli bir şehir adı girin.', 'warning');
+      return;
+    }
+
+    try {
+      suggestionsBox.innerHTML = '<div style="padding: 8px 12px; color: var(--text-muted); font-size: 0.8rem;">Aranıyor...</div>';
+      suggestionsBox.classList.remove('hidden');
+
+      const res = await fetch(`/api/weather/geocode?query=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      
+      if (!data.results || data.results.length === 0) {
+        suggestionsBox.innerHTML = '<div style="padding: 8px 12px; color: var(--text-muted); font-size: 0.8rem;">Sonuç bulunamadı.</div>';
+        return;
+      }
+
+      suggestionsBox.innerHTML = '';
+      data.results.forEach(item => {
+        const row = document.createElement('div');
+        row.style.padding = '8px 12px';
+        row.style.cursor = 'pointer';
+        row.style.fontSize = '0.85rem';
+        row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+        row.style.color = 'var(--text-main)';
+        row.style.transition = 'background 0.2s';
+        row.innerHTML = `<strong>${item.name}</strong> <span style="color: var(--text-muted); font-size: 0.75rem;">(${item.admin1 ? item.admin1 + ', ' : ''}${item.country})</span> <span style="float: right; color: #00f2fe; font-size: 0.75rem;">${item.latitude.toFixed(2)}, ${item.longitude.toFixed(2)}</span>`;
+
+        row.addEventListener('mouseenter', () => { row.style.background = 'rgba(255,255,255,0.08)'; });
+        row.addEventListener('mouseleave', () => { row.style.background = 'transparent'; });
+
+        row.addEventListener('click', () => {
+          cityInput.value = item.name;
+          const latInput = document.getElementById('settings-weatherlatitude');
+          const lonInput = document.getElementById('settings-weatherlongitude');
+          if (latInput) latInput.value = item.latitude;
+          if (lonInput) lonInput.value = item.longitude;
+          suggestionsBox.classList.add('hidden');
+
+          if (typeof triggerAutoSave === 'function') {
+            triggerAutoSave(true);
+          }
+        });
+
+        suggestionsBox.appendChild(row);
+      });
+    } catch (err) {
+      suggestionsBox.innerHTML = '<div style="padding: 8px 12px; color: var(--danger-color); font-size: 0.8rem;">Arama başarısız oldu.</div>';
+    }
+  }
+
+  if (btnWeatherSearch) {
+    btnWeatherSearch.addEventListener('click', performCitySearch);
+  }
+  if (cityInput) {
+    cityInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        performCitySearch();
+      }
+    });
+  }
+
+  // Dışarı tıklandığında öneri kutusunu kapat
+  document.addEventListener('click', (e) => {
+    if (suggestionsBox && !suggestionsBox.contains(e.target) && e.target !== btnWeatherSearch && e.target !== cityInput) {
+      suggestionsBox.classList.add('hidden');
+    }
+  });
+
+  // GPS Butonu
+  const btnWeatherGps = document.getElementById('btn-weather-gps');
+  if (btnWeatherGps) {
+    btnWeatherGps.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        showToast('Tarayıcınız konum servisini desteklemiyor.', 'warning');
+        return;
+      }
+
+      showToast('Mevcut GPS konumu alınıyor...', 'info');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = parseFloat(pos.coords.latitude.toFixed(4));
+          const lon = parseFloat(pos.coords.longitude.toFixed(4));
+          const latInput = document.getElementById('settings-weatherlatitude');
+          const lonInput = document.getElementById('settings-weatherlongitude');
+          if (latInput) latInput.value = lat;
+          if (lonInput) lonInput.value = lon;
+
+          showToast(`Konum alındı: ${lat}, ${lon}`, 'success');
+          if (typeof triggerAutoSave === 'function') {
+            triggerAutoSave(true);
+          }
+        },
+        (err) => {
+          showToast('GPS konumu alınamadı. Lütfen tarayıcı konum iznini kontrol edin veya şehir arayın.', 'error');
+        },
+        { timeout: 10000 }
+      );
+    });
+  }
+});
+
 // Türkçe Açıklama: Kanal ekleme kutusundaki arama sorgusunu alarak YouTube'da arama yapar ve sonuçları kart yapısında listeler.
 /**
  * YouTube kanal arama işlemini tetikler ve arayüzde sonuçları gösterir.
@@ -6467,9 +6695,11 @@ connectSSE();
 initCustomSelect();
 checkFfmpegStatus();
 updateDiskSpace();
+updateWeatherBadge();
 loadAppVersion();
 checkApplicationUpdates();
 setInterval(updateDiskSpace, 60 * 60 * 1000); // Her 60 dakikada bir güncelle
+setInterval(() => updateWeatherBadge(), 15 * 60 * 1000); // Her 15 dakikada bir hava durumunu güncelle
 
 // Türkçe Açıklama: Sayfa yüklendiğinde mevcut URL path'ine göre doğru sekmeyi aktif ediyoruz.
 const currentPath = window.location.pathname;

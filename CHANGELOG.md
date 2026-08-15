@@ -3,6 +3,100 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.32.0] - 2026-08-15
+
+### 🌤️ New Feature: Topbar Weather Indicator & Location Settings / Yeni Özellik: Üst Bar Hava Durumu & Konum Ayarları
+
+- **Minimalist Topbar Weather Badge (Minimalist Üst Bar Hava Durumu Rozeti):**
+  - Integrated an ultra-sleek, clean weather status badge (`#badge-weather`) in `.topbar-status-badges` displaying live temperature (e.g., `☀️ 24°C`) and dynamic Lucide weather icons.
+  - Hovering over the badge displays a detailed multi-line tooltip with location city name, weather description, perceived temperature (*Feels like*), humidity percentage, and wind speed in km/h.
+  - Clicking the weather badge triggers an instant cache-bypass refresh.
+  - Üst bar durum rozetleri alanına (`#badge-weather`) canlı derece ve dinamik hava durumu ikonu içeren minimalist bir gösterge eklendi; üzerine gelindiğinde konum, durum, hissedilen sıcaklık, nem ve rüzgar bilgilerini içeren detaylı ipucu sunar.
+
+- **Configurable Location & Geocoding in Settings (Ayarlardan Yapılandırılabilir Konum ve Koordinat Arama):**
+  - Added dedicated Weather Configuration options under **General & Appearance Settings** (`tab-settings.html`):
+    - Enable/Disable toggle for topbar weather badge.
+    - City Search with auto-completion using Open-Meteo Geocoding API (`GET /api/weather/geocode`).
+    - One-click GPS Location Finder using browser geolocation API.
+    - Editable Latitude & Longitude coordinate inputs.
+    - Temperature Unit Selector: Celsius (°C) / Fahrenheit (°F).
+  - Open-Meteo API entegrasyonu ile harici anahtara gerek kalmadan anlık hava durumu çekilir; sunucu tarafında 15 dakikalık bellek içi önbellekleme yapılarak gereksiz ağ trafiği önlenir.
+
+- **Full 7-Language i18n & Theme Compatibility (Tam 7 Dil ve Tema Uyumu):**
+  - Weather terms, units, and WMO weather condition descriptions were integrated across all 7 language dictionaries (`tr`, `en`, `de`, `es`, `pt`, `ru`, `ar`).
+  - Styled with full support for Dark, Light, Matrix, Discord, and YouTube themes.
+
+## [8.31.0] - 2026-08-15
+
+### 🛠️ Bug Fixes / Hata Düzeltmeleri
+
+- **Web UI Toast Raw HTML Fix (Web Arayüzü Toast Bildirimi Ham HTML Düzeltmesi):**
+  - Fixed a bug in `public/components/toast.js` where broken regex replacements caused raw CSS/HTML strings (e.g., `color: #c084fc; font-weight: 600;`) to be rendered as literal text inside toast notifications instead of styled content.
+  - Reverted `formatToastMessage` function and restored clean plain-text toast message output.
+  - `public/components/toast.js` dosyasındaki hatalı iç içe regex değiştirme nedeniyle bildirim balonlarında `color: #c084fc;` gibi ham CSS kodlarının görünmesi düzeltildi.
+
+- **Tray "Konsol Çıktısını Göster" Rich Color Rendering (Tepsi Konsol Penceresi Zengin Renklendirmesi):**
+  - Enhanced `AppendColoredText` in `tray.cs` with a token-based segment parser for the Windows System Tray "Konsol Çıktısını Göster" RichTextBox window.
+  - `[Abone & Avatar]`, `[Kanal Logosu]`, `[Abone Sayısı]` tags are now highlighted in **Orchid/Purple (`#DA70D6`)**.
+  - Progress counters like `70/101` are highlighted in **Bold Gold (`#FFD700`)**.
+  - Channel names and video titles inside quotes `"..."` are highlighted in **Bold Neon Cyan (`#00F0FF`)**.
+  - Recompiled `HaYTooL YT Downloader.exe` via `0nogithub/build_tray.ps1`.
+  - `tray.cs` içindeki `AppendColoredText` fonksiyonu token tabanlı segment ayrıştırıcı ile güncellendi. Kanal tarama satırlarında etiketler eflatun, sayaçlar altın sarısı kalın, kanal adları ise neon camgöbeği kalın renkte basılacak. Tepsi uygulaması yeniden derlendi.
+
+## [8.30.0] - 2026-08-15
+
+### Improvements & Terminal Aesthetics / İyileştirmeler & Terminal Estetiği
+
+- **Unnecessary RSS/yt-dlp Fallback Elimination & Empty JSON Bug Fix (Gereksiz Fallback Çağrısının Kaldırılması & Boş JSON Düzeltmesi):**
+  - Refactored `resolveChannelId` in `server/routes/channels.js` to return immediately when HTML scraping successfully extracts channel name, avatar URL, and subscriber count, eliminating redundant background fallback calls to `tryRssFallback`.
+  - Updated `tryRssFallback` arguments for yt-dlp to `--dump-single-json --flat-playlist --playlist-items 1` with empty output validation, fixing the `Unexpected end of JSON input` error caused by `--playlist-items 0` in modern yt-dlp versions.
+  - HTML üzerinden kanal bilgileri eksiksiz alındığında fazladan `tryRssFallback` çalıştırılması engellendi; `yt-dlp`'nin `--playlist-items 0` parametresinden kaynaklanan boş çıktı ve JSON parse hatası giderildi.
+
+- **Distinct Terminal Console Color Highlights (Terminal Konsolunda Belirgin Renk Vurguları):**
+  - Enhanced `colorizeText` in `server.js` with dedicated ANSI color tokens.
+  - Progress counters in channel scan logs (e.g., `70/101`) are highlighted in **bold bright yellow (`\x1b[93m\x1b[1m`)**, while channel names within quotes (e.g., `"Özlem Gürses"`) are distinctly highlighted in **bold bright cyan (`\x1b[96m\x1b[1m`)**.
+  - Kanal güncelleme çıktılarındaki ilerleme sayacı (ör. `70/101`) kalın parlak sarı, tırnak içerisindeki kanal adı (ör. `"Özlem Gürses"`) ise kalın parlak camgöbeği/turkuaz renk ile belirginleştirilerek konsol okunabilirliği artırıldı.
+
+## [8.29.0] - 2026-08-15
+
+### Major Enhancements & Concurrency Architecture / Ana Geliştirmeler & Eşzamanlılık Mimarisi
+
+- **Channel Metadata vs Video RSS Mutual Concurrency Lock (Kanal Taraması & Video RSS Taraması Çakışma Koruması):**
+  - Implemented mutual exclusion locking (`isChannelScanInProgress` and `isRssChecking`) across all scanning triggers (server startup, UI button, system tray menu, and background timer).
+  - Background RSS video checking is deferred automatically when a bulk channel subscriber/avatar scan is active, and channel metadata scans are prevented from starting while an RSS feed check is underway.
+  - Added 5-minute (300s) automatic watchdog timers to both lock mechanisms to prevent stale locking states.
+  - Kanal abone/avatar taraması ile video RSS taramasının (açılışta, zamanlayıcıda veya elle) birbirinin üstüne binmesi engellendi. Biri çalışırken diğeri güvenle ertelenir veya kullanıcıya bilgilendirme sağlanır; 5 dakikalık bekçi (watchdog) ile kilitlenmeler önlenir.
+
+- **Primary YouTube Channel ID URL Precedence (Resmi Kanal ID URL Önceliği):**
+  - Refactored `updateChannelFullInfo` and `fetchChannelSubscriberCount` in `server/routes/channels.js` to query YouTube's official, immutable `https://www.youtube.com/channel/${channel.id}` URL as primary (Option 1), falling back to `@handle` URLs only if needed (Option 2).
+  - Eliminates false-positive `"Orijinal ve proxy sunucuları üzerinden ... adresi çekilemedi"` warnings and guarantees faster metadata retrieval on first attempt.
+  - Kanal abone ve avatar çekimlerinde tahmin edilen/geçersiz olabilen handle adresleri yerine doğrudan YouTube'un resmi UC kanal ID adresi 1. birincil kaynak yapıldı; handle adresi 2. yedek seçenek konumuna getirildi.
+
+- **Optimized Single Gist Backup & 5-Second Debounce (Toplu Güncellemede Tekil Gist Senkronizasyonu & Debounce):**
+  - Removed per-iteration `writeDb(db)` calls from `update-all-info` in `server/routes/channels.js`.
+  - Added a 5-second debounce buffer to `triggerAutoGistSync` in `server/routes/gist.js` so rapid database/INI updates coalesce into a single, efficient GitHub Gist push after batch operations complete.
+  - Toplu kanal güncellemelerinde her kanalda ayrı ayrı Gist API çağrısı yapılması engellendi, tüm işlem bittiğinde tek seferde yedekleme yapılması ve 5 saniyelik debounce koruması sağlandı.
+
+## [8.28.0] - 2026-08-14
+
+### Major Bug Fixes & Concurrency Safeguards / Kritik Hata Düzeltmeleri & Eşzamanlılık Korumaları
+
+- **RSS Live/Upcoming Stream Conversion Deadlock Fix (Canlı/Yaklaşan Yayın Dönüşümü Deadlock Düzeltmesi):**
+  - Resolved a critical deadlock bug in `checkAllChannelsRssParallel` and `checkPendingLiveStreams` (`server/services/rss.js`).
+  - Previously, when an upcoming or live stream completed and converted into a playable VOD video, `downloadQueue.add` was invoked while holding the FIFO mutex lock from `acquireDbLock()`. Because `downloadQueue.add` in `downloader.js` also requests `acquireDbLock()`, the thread deadlocked indefinitely, permanently hanging the RSS scanner and rejecting all subsequent timer-based checks with `[Kanal Kontrolü] Zaten devam eden bir RSS taraması var (Kaynak: timer). Yeni istek atlandı.`
+  - Refactored DB write operations to release the mutex lock immediately before enqueuing videos to `downloadQueue.add`.
+  - Canlı veya yaklaşan bir yayın normal videoya dönüştüğünde, `acquireDbLock()` mutex kilidi tutulurken `downloadQueue.add` çağrılması nedeniyle oluşan karşılıklı kilitlenme (deadlock) giderildi. Veritabanı güncellemesi yapılıp kilit serbest bırakıldıktan sonra video indirme kuyruğuna güvenle aktarılacak şekilde mimari refaktör edildi.
+
+- **Stale RSS Scan Watchdog & Automatic Lock Recovery (Askıda Kalan RSS Taraması Bekçi Mekanizması):**
+  - Added `rssCheckStartTime` timestamp tracking to `triggerChannelCheck` in `server/services/rss.js`.
+  - If an RSS channel scanning cycle unexpectedly hangs or exceeds 5 minutes (300 seconds), the lock is automatically reset with a console/terminal warning, allowing subsequent automated background timer checks to resume uninterrupted.
+  - Arka plan RSS taramasının beklenmedik harici ağ/sistem gecikmeleri nedeniyle 5 dakikadan (300 sn) uzun süre askıda kalması durumunda kilidin otomatik sıfırlanması ve zamanlayıcı döngüsünün kesintisiz devam etmesi sağlandı.
+
+- **Database Mutex 30-Second Timeout Safety Guard (Veritabanı Mutex 30 Saniye Zaman Aşımı Koruması):**
+  - Added an automatic 30-second `Promise.race` timeout guard to `acquireDbLock()` in `server/database.js`.
+  - Ensures no asynchronous database write operation can permanently freeze or deadlock the application event loop under any circumstance.
+  - `server/database.js` içindeki `acquireDbLock()` sıralı kilit mekanizmasına 30 saniyelik zaman aşımı emniyeti eklendi.
+
 ## [8.27.0] - 2026-08-14
 
 ### Major Features & Fixes / Ana Özellikler & Düzeltmeler

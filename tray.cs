@@ -1073,6 +1073,10 @@ namespace HaYTooLTray
             {
                 bodyColor = Color.FromArgb(186, 85, 211); // Açık Mor / Eflatun (Medium Orchid)
             }
+            else if (bodyPart.Contains("[Abone & Avatar]") || bodyPart.Contains("[Abone Sayısı]") || bodyPart.Contains("[Kanal Logosu]") || bodyPart.Contains("Abone & Avatar") || bodyPart.Contains("Kanal Logosu") || bodyPart.Contains("Abone Sayısı"))
+            {
+                bodyColor = Color.FromArgb(218, 112, 214); // Açık Eflatun / Orchid
+            }
             else if (bodyPart.Contains("[DATABASE]"))
             {
                 bodyColor = Color.FromArgb(255, 255, 0); // Sarı (Yellow)
@@ -1094,23 +1098,87 @@ namespace HaYTooLTray
                 bodyColor = Color.FromArgb(255, 60, 60); // Kırmızı (Red)
             }
 
-            // 1. Zaman damgası varsa özel belirgin bir renkle (Slate Lavender) yaz
+            // 1. Zaman damgası varsa özel renkle (Slate Lavender) yaz
             if (!string.IsNullOrEmpty(timestampPart))
             {
-                Color timestampColor = Color.FromArgb(170, 175, 210); // Belirgin Özel Zaman Damgası Rengi
+                Color timestampColor = Color.FromArgb(170, 175, 210);
                 box.SelectionStart = box.TextLength;
                 box.SelectionLength = 0;
                 box.SelectionColor = timestampColor;
+                box.SelectionFont = box.Font;
                 box.AppendText(timestampPart);
             }
 
-            // 2. Mesaj gövdesini kendi kategorik renginde yaz
-            box.SelectionStart = box.TextLength;
-            box.SelectionLength = 0;
-            box.SelectionColor = bodyColor;
-            box.AppendText(bodyPart);
+            // 2. Mesaj gövdesini segmentlere ayırıp renklendir:
+            // Sayaçları (örn: 70/101) Altın Sarısı, Tırnak içi kanal adlarını Parlak Turkuaz yap
+            Font defaultFont = box.Font;
+            Font boldFont = defaultFont;
+            try { boldFont = new Font(box.Font, FontStyle.Bold); } catch { boldFont = defaultFont; }
 
-            box.SelectionColor = box.ForeColor; // Rengi varsayılana sıfırla
+            Color counterColor = Color.FromArgb(255, 215, 0); // Parlak Altın Sarısı (Gold)
+            Color nameColor = Color.FromArgb(0, 240, 255);     // Parlak Turkuaz / Camgöbeği (Cyan)
+
+            // Regex ile sayaç (\b\d+/\d+\b) ve tırnak içi ("[^"]+") kısımlarını yakala
+            var regex = new System.Text.RegularExpressions.Regex(@"(\b\d+\/\d+\b)|(""[^""]+"")");
+            int lastIndex = 0;
+
+            foreach (System.Text.RegularExpressions.Match m in regex.Matches(bodyPart))
+            {
+                if (m.Index > lastIndex)
+                {
+                    string normalSegment = bodyPart.Substring(lastIndex, m.Index - lastIndex);
+                    box.SelectionStart = box.TextLength;
+                    box.SelectionLength = 0;
+                    box.SelectionColor = bodyColor;
+                    box.SelectionFont = defaultFont;
+                    box.AppendText(normalSegment);
+                }
+
+                if (m.Groups[1].Success) // Sayaç (örn: 70/101)
+                {
+                    box.SelectionStart = box.TextLength;
+                    box.SelectionLength = 0;
+                    box.SelectionColor = counterColor;
+                    box.SelectionFont = boldFont;
+                    box.AppendText(m.Value);
+                }
+                else if (m.Groups[2].Success) // Tırnak içi (örn: "Özlem Gürses")
+                {
+                    box.SelectionStart = box.TextLength;
+                    box.SelectionLength = 0;
+                    box.SelectionColor = bodyColor;
+                    box.SelectionFont = defaultFont;
+                    box.AppendText("\"");
+
+                    string innerName = m.Value.Substring(1, m.Value.Length - 2);
+                    box.SelectionStart = box.TextLength;
+                    box.SelectionLength = 0;
+                    box.SelectionColor = nameColor;
+                    box.SelectionFont = boldFont;
+                    box.AppendText(innerName);
+
+                    box.SelectionStart = box.TextLength;
+                    box.SelectionLength = 0;
+                    box.SelectionColor = bodyColor;
+                    box.SelectionFont = defaultFont;
+                    box.AppendText("\"");
+                }
+
+                lastIndex = m.Index + m.Length;
+            }
+
+            if (lastIndex < bodyPart.Length)
+            {
+                string remaining = bodyPart.Substring(lastIndex);
+                box.SelectionStart = box.TextLength;
+                box.SelectionLength = 0;
+                box.SelectionColor = bodyColor;
+                box.SelectionFont = defaultFont;
+                box.AppendText(remaining);
+            }
+
+            box.SelectionColor = box.ForeColor;
+            box.SelectionFont = defaultFont;
         }
 
         // Türkçe Açıklama: Gelen konsol çıktılarına saat/dakika/saniye zaman damgası ekler ve bellek tamponuna/arayüze yansıtır.

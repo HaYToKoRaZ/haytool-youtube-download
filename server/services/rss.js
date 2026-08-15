@@ -27,6 +27,7 @@ const parser = new Parser({
 });
 
 export let isRssChecking = false;
+let rssCheckStartTime = 0;
 export let currentChannelIndex = 0;
 export let isResolvingDurations = false;
 
@@ -1521,6 +1522,7 @@ export async function checkAllChannelsRssParallel() {
                 }
               } else if (result.duration !== 'upcoming' && result.duration !== 'live') {
                 addTerminalLog(`[RSS Paralel] Yaklaşan/Canlı yayın videoya dönüştü: "${item.title}" (${channel.name})`, 'info');
+                let videoToAdd = null;
                 const release = await acquireDbLock();
                 try {
                   const freshDb = readDb();
@@ -1530,7 +1532,7 @@ export async function checkAllChannelsRssParallel() {
                     freshHistory.status = 'waiting';
                     writeDb(freshDb);
                     broadcast('db_update', freshDb);
-                    await downloadQueue.add({
+                    videoToAdd = {
                       id: videoId,
                       title: item.title,
                       channelId: channel.id,
@@ -1538,10 +1540,14 @@ export async function checkAllChannelsRssParallel() {
                       url: item.link,
                       publishedAt: freshHistory.publishedAt,
                       duration: result.duration || ''
-                    });
+                    };
                   }
                 } finally {
                   release();
+                }
+
+                if (videoToAdd) {
+                  await downloadQueue.add(videoToAdd);
                 }
               }
             }
@@ -1738,11 +1744,36 @@ export async function checkAllChannelsRssParallel() {
  * @returns {Promise<object>} Tarama sonuç nesnesi
  */
 export async function triggerChannelCheck(source = 'manual') {
+  // 1. Kanal bilgileri (abone/avatar) güncellemesi devam ediyorsa video RSS taramasını ertele
+  try {
+    const { isChannelScanInProgress, channelScanStartTime, setChannelScanInProgress } = await import('../routes/channels.js');
+    if (isChannelScanInProgress) {
+      const elapsedSec = channelScanStartTime > 0 ? (Date.now() - channelScanStartTime) / 1000 : 0;
+      if (channelScanStartTime > 0 && elapsedSec > 300) {
+        console.warn(`[Kanal Kontrolü UYARI] Önceki kanal bilgisi taraması zaman aşımına uğradı (${elapsedSec.toFixed(0)} sn). Kilit sıfırlandı.`);
+        setChannelScanInProgress(false);
+      } else {
+        const msg = `[Kanal Kontrolü] Kanal bilgisi (abone/avatar) güncellemesi devam ettiği için video RSS taraması ertelendi (Kaynak: ${source}).`;
+        console.log(msg);
+        addTerminalLog(msg, 'info');
+        return { success: false, deferred: true, message: 'Kanal güncellemesi nedeniyle video RSS taraması ertelendi.' };
+      }
+    }
+  } catch (e) {}
+
   if (isRssChecking) {
-    const msg = `[Kanal Kontrolü] Zaten devam eden bir RSS taraması var (Kaynak: ${source}). Yeni istek atlandı.`;
-    console.log(msg);
-    addTerminalLog(msg, 'info');
-    return { success: false, inProgress: true, message: 'Tarama zaten devam ediyor.' };
+    const elapsedSec = rssCheckStartTime > 0 ? (Date.now() - rssCheckStartTime) / 1000 : 0;
+    // 5 dakikadan (300 sn) uzun süredir takılı kalmışsa kilit otomatik sıfırlanır
+    if (rssCheckStartTime > 0 && elapsedSec > 300) {
+      console.warn(`[Kanal Kontrolü UYARI] Önceki RSS taraması zaman aşımına uğradı (${elapsedSec.toFixed(0)} sn). Kilit otomatik sıfırlandı.`);
+      addTerminalLog(`[Kanal Kontrolü UYARI] Önceki RSS taraması zaman aşımına uğradığı için kilit sıfırlandı.`, 'warning');
+      isRssChecking = false;
+    } else {
+      const msg = `[Kanal Kontrolü] Zaten devam eden bir RSS taraması var (Kaynak: ${source}). Yeni istek atlandı.`;
+      console.log(msg);
+      addTerminalLog(msg, 'info');
+      return { success: false, inProgress: true, message: 'Tarama zaten devam ediyor.' };
+    }
   }
 
   // Aktif indirme veya FFmpeg birleştirmesi varsa otomatik zamanlayıcı taramasını ertele
@@ -1754,6 +1785,7 @@ export async function triggerChannelCheck(source = 'manual') {
   }
 
   isRssChecking = true;
+  rssCheckStartTime = Date.now();
   try {
     const db = readDb();
     const sourceLabels = {
@@ -1782,6 +1814,7 @@ export async function triggerChannelCheck(source = 'manual') {
     return { success: false, error: err.message };
   } finally {
     isRssChecking = false;
+    rssCheckStartTime = 0;
   }
 }
 
@@ -1876,6 +1909,7 @@ export async function checkPendingLiveStreams() {
           } else if (result.duration !== 'upcoming') {
             addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını tamamlandı ve videoya dönüştü (${result.duration}), indirme kuyruğuna alındı.`, 'success');
 
+            let convertedVideo = null;
             const release = await acquireDbLock();
             try {
               const freshDb = readDb();
@@ -1888,7 +1922,7 @@ export async function checkPendingLiveStreams() {
                 writeDb(freshDb);
                 broadcast('db_update', freshDb);
 
-                await downloadQueue.add({
+                convertedVideo = {
                   id: item.id,
                   title: target.title,
                   channelId: target.channelId,
@@ -1896,10 +1930,14 @@ export async function checkPendingLiveStreams() {
                   url: `https://www.youtube.com/watch?v=${item.id}`,
                   publishedAt: target.publishedAt,
                   duration: result.duration || ''
-                });
+                };
               }
             } finally {
               release();
+            }
+
+            if (convertedVideo) {
+              await downloadQueue.add(convertedVideo);
             }
           }
         } else {

@@ -13,17 +13,25 @@ function colorizeText(text) {
   if (typeof text !== 'string') return text;
   
   const reset = '\x1b[0m';
+  const bold = '\x1b[1m';
   const red = '\x1b[31m';
   const green = '\x1b[32m';
   const yellow = '\x1b[33m';
   const blue = '\x1b[34m';
   const magenta = '\x1b[35m';
   const cyan = '\x1b[36m';
+  const brightGreen = '\x1b[92m';
+  const brightYellow = '\x1b[93m';
   const brightBlue = '\x1b[94m';
   const brightMagenta = '\x1b[95m';
+  const brightCyan = '\x1b[96m';
   
   let colored = text;
   
+  // Tag renklendirmeleri
+  colored = colored.replace(/^(\[INFO\])/gi, `${brightBlue}$1${reset}`);
+  colored = colored.replace(/^(\[SUCCESS\])/gi, `${green}$1${reset}`);
+  colored = colored.replace(/^(\[WARN(?:ING)?\])/gi, `${yellow}$1${reset}`);
   colored = colored.replace(/^(\[RSS\])/g, `${magenta}$1${reset}`);
   colored = colored.replace(/^(\[RSS Fallback\])/g, `${brightMagenta}$1${reset}`);
   colored = colored.replace(/^(\[DOWNLOAD\]|\[İNDİRME\])/gi, `${cyan}$1${reset}`);
@@ -33,20 +41,48 @@ function colorizeText(text) {
   colored = colored.replace(/^(\[GIST\]|\[Gist\])/gi, `${brightMagenta}$1${reset}`);
   colored = colored.replace(/^(\[DATABASE\])/g, `${yellow}$1${reset}`);
   colored = colored.replace(/^(\[IPTV\])/g, `${brightBlue}$1${reset}`);
-  colored = colored.replace(/^(\[SYSTEM\])/g, `${green}$1${reset}`);
+  colored = colored.replace(/^(\[SYSTEM\]|\[Sistem\])/g, `${green}$1${reset}`);
   colored = colored.replace(/^(\[API\])/g, `${blue}$1${reset}`);
   colored = colored.replace(/^(\[HATA\]|\[ERROR\])/gi, `${red}$1${reset}`);
-  
+
+  // [Abone & Avatar 70/101] veya [Kanal Logosu 70/101] veya [Abone Sayısı 70/101] veya [ 70/101] veya [70/101] sayacı renklendirme (Parlak Sarı/Kalın)
+  colored = colored.replace(/\[([^\]]*?)(\b\d+\/\d+\b)([^\]]*?)\]/g, 
+    `${brightMagenta}[$1${reset}${bold}${brightYellow}$2${reset}${brightMagenta}$3]${reset}`
+  );
+
+  // Tırnak içerisindeki kanal adı veya video başlıklarını parlak camgöbeği ve kalın yap
+  colored = colored.replace(/"([^"\r\n]+)"/g, 
+    `"${bold}${brightCyan}$1${reset}"`
+  );
+
   return colored;
 }
 
 import fs from 'fs';
 import path from 'path';
 
-// Oturum Log Yönetimi
+// Oturum Log Yönetimi ve Otomatik Rotasyon (Son 30 oturum logu saklanır)
 const logsDir = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(logsDir)) {
   try { fs.mkdirSync(logsDir, { recursive: true }); } catch (e) {}
+} else {
+  try {
+    const logFiles = fs.readdirSync(logsDir)
+      .filter(file => file.startsWith('haytool_session_') && file.endsWith('.log'))
+      .map(file => ({
+        name: file,
+        path: path.join(logsDir, file),
+        time: fs.statSync(path.join(logsDir, file)).mtime.getTime()
+      }))
+      .sort((a, b) => b.time - a.time);
+
+    const MAX_LOG_FILES = 30;
+    if (logFiles.length > MAX_LOG_FILES) {
+      logFiles.slice(MAX_LOG_FILES).forEach(oldLog => {
+        try { fs.unlinkSync(oldLog.path); } catch (_) {}
+      });
+    }
+  } catch (e) {}
 }
 
 function getSessionTimestamp() {

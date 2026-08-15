@@ -80,6 +80,179 @@ router.get('/test-cookies', localhostOnly, async (req, res) => {
   res.json(result);
 });
 
+// Hava Durumu Bellek İçi Önbelleği (15 Dakika)
+let weatherCache = {
+  key: null,
+  timestamp: 0,
+  data: null
+};
+
+function getWmoWeatherInfo(code) {
+  switch (code) {
+    case 0:
+      return { icon: 'sun', descKey: 'weather_clear', defaultDesc: 'Açık / Güneşli' };
+    case 1:
+      return { icon: 'cloud-sun', descKey: 'weather_mostly_clear', defaultDesc: 'Çoğunlukla Açık' };
+    case 2:
+      return { icon: 'cloud-sun', descKey: 'weather_partly_cloudy', defaultDesc: 'Parçalı Bulutlu' };
+    case 3:
+      return { icon: 'cloud', descKey: 'weather_overcast', defaultDesc: 'Kapalı / Bulutlu' };
+    case 45:
+    case 48:
+      return { icon: 'cloud-fog', descKey: 'weather_fog', defaultDesc: 'Sisli' };
+    case 51:
+    case 53:
+    case 55:
+      return { icon: 'cloud-drizzle', descKey: 'weather_drizzle', defaultDesc: 'Çisenti' };
+    case 61:
+    case 63:
+    case 65:
+      return { icon: 'cloud-rain', descKey: 'weather_rain', defaultDesc: 'Yağmurlu' };
+    case 71:
+    case 73:
+    case 75:
+    case 77:
+      return { icon: 'cloud-snow', descKey: 'weather_snow', defaultDesc: 'Kar Yağışlı' };
+    case 80:
+    case 81:
+    case 82:
+      return { icon: 'cloud-rain', descKey: 'weather_showers', defaultDesc: 'Sağanak Yağış' };
+    case 85:
+    case 86:
+      return { icon: 'cloud-snow', descKey: 'weather_snow_showers', defaultDesc: 'Kar Sağanağı' };
+    case 95:
+    case 96:
+    case 99:
+      return { icon: 'cloud-lightning', descKey: 'weather_thunderstorm', defaultDesc: 'Gök Gürültülü Fırtına' };
+    default:
+      return { icon: 'cloud-sun', descKey: 'weather_partly_cloudy', defaultDesc: 'Parçalı Bulutlu' };
+  }
+}
+
+/**
+ * Open-Meteo üzerinden anlık hava durumunu döner. 15 dakikalık önbellek kullanır.
+ * 
+ * @name GET /api/weather
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.get('/weather', async (req, res) => {
+  try {
+    const db = readDb();
+    const settings = db.settings || {};
+    
+    if (settings.weatherEnabled === false) {
+      return res.json({ success: true, enabled: false });
+    }
+
+    const lat = settings.weatherLatitude !== undefined ? settings.weatherLatitude : 41.0082;
+    const lon = settings.weatherLongitude !== undefined ? settings.weatherLongitude : 28.9784;
+    const city = settings.weatherCity || 'İstanbul';
+    const unit = settings.weatherUnit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
+    const unitSymbol = unit === 'fahrenheit' ? '°F' : '°C';
+    const cacheKey = `${Number(lat).toFixed(3)}_${Number(lon).toFixed(3)}_${unit}`;
+    const now = Date.now();
+
+    // 15 dakikalık (900.000 ms) önbellek kontrolü
+    if (weatherCache.data && weatherCache.key === cacheKey && (now - weatherCache.timestamp) < 900000 && req.query.force !== 'true') {
+      return res.json({ success: true, enabled: true, cached: true, ...weatherCache.data, city });
+    }
+
+    const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&temperature_unit=${unit}&wind_speed_unit=kmh`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const apiRes = await fetch(apiUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!apiRes.ok) {
+      throw new Error(`Open-Meteo HTTP ${apiRes.status}`);
+    }
+
+    const json = await apiRes.json();
+    const current = json.current || {};
+    const temp = Math.round(current.temperature_2m !== undefined ? current.temperature_2m : 0);
+    const feelsLike = Math.round(current.apparent_temperature !== undefined ? current.apparent_temperature : temp);
+    const humidity = Math.round(current.relative_humidity_2m || 0);
+    const windSpeed = Math.round(current.wind_speed_10m || 0);
+    const weatherCode = current.weather_code !== undefined ? current.weather_code : 0;
+    const weatherInfo = getWmoWeatherInfo(weatherCode);
+
+    const payload = {
+      temp,
+      unit: unitSymbol,
+      feelsLike,
+      humidity,
+      windSpeed,
+      weatherCode,
+      icon: weatherInfo.icon,
+      descKey: weatherInfo.descKey,
+      defaultDesc: weatherInfo.defaultDesc,
+      city
+    };
+
+    weatherCache = {
+      key: cacheKey,
+      timestamp: now,
+      data: payload
+    };
+
+    return res.json({ success: true, enabled: true, cached: false, ...payload });
+  } catch (err) {
+    if (weatherCache.data) {
+      return res.json({ success: true, enabled: true, cached: true, stale: true, ...weatherCache.data });
+    }
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Şehir adı ile koordinat arama proxy uç noktası.
+ * 
+ * @name GET /api/weather/geocode
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.get('/weather/geocode', async (req, res) => {
+  try {
+    const query = (req.query.query || '').trim();
+    if (!query || query.length < 2) {
+      return res.json({ success: true, results: [] });
+    }
+
+    const apiUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=tr&format=json`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    const apiRes = await fetch(apiUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!apiRes.ok) {
+      throw new Error(`Geocoding HTTP ${apiRes.status}`);
+    }
+
+    const json = await apiRes.json();
+    const results = (json.results || []).map(item => ({
+      name: item.name,
+      country: item.country || '',
+      admin1: item.admin1 || '',
+      latitude: item.latitude,
+      longitude: item.longitude
+    }));
+
+    return res.json({ success: true, results });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 /**
  * Bellekteki terminal günlüklerini (SSE terminal log geçmişi) istemciye döner.
  * 
