@@ -85,6 +85,13 @@
             </button>
           </div>
           <div class="filter-group">
+            <input type="checkbox" id="history-show-members" style="display:none;" checked>
+            <button type="button" class="filter-chip-btn" id="btn-filter-show-members" onclick="toggleFilterChip('history-show-members')" title="Üyelere Özel Videoları Göster/Gizle">
+              <i data-lucide="crown"></i>
+              <span id="lbl-history-show-members">Üyelere Özel</span>
+            </button>
+          </div>
+          <div class="filter-group">
             <input type="checkbox" id="history-show-hidden" style="display:none;">
             <button type="button" class="filter-chip-btn" id="btn-filter-show-hidden" onclick="toggleFilterChip('history-show-hidden')" title="Gizlenen Videoları Göster/Gizle">
               <i data-lucide="eye-off"></i>

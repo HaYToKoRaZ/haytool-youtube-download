@@ -6,7 +6,7 @@
  */
 
 import { translations } from './utils/i18n.js';
-import { escapeHtml, formatDate, getDaysAgoText, parseSizeToBytes, isShortVideo, parseTimeToSeconds, formatDescriptionTimestamps, parseLikes, parseRelativeTime, debounce } from './utils/helpers.js';
+import { escapeHtml, formatDate, getDaysAgoText, parseSizeToBytes, isShortVideo, parseTimeToSeconds, formatDescriptionTimestamps, parseLikes, parseRelativeTime, debounce, isMembersOnlyVideo } from './utils/helpers.js';
 import { showToast } from './components/toast.js';
 import { renderVideoGrid } from './components/videoCard.js';
 import { renderChannelsList } from './components/channelRow.js';
@@ -136,7 +136,8 @@ function applyLanguage(lang) {
   // İndirme Sırası Sekmesi
   elQuery('#tab-queue-title', 'tab_queue_title');
   elQuery('#tab-queue-desc', 'tab_queue_desc');
-  elQuery('#queue-reset-engine-text', 'btn_reset_engine');
+  el('lbl-queue-view-table', 'queue_view_table');
+  el('lbl-queue-view-cards', 'queue_view_cards');
   elQuery('#queue-pause-text', localDb.settings && localDb.settings.isPaused ? 'btn_resume_queue' : 'btn_pause_queue');
   // Türkçe Açıklama: Kuyruk sekmesindeki hız sınırı etiketi yeni dil anahtarına bağlandı.
   elQuery('#speed-limit-label', 'label_queue_speed_limit');
@@ -157,6 +158,7 @@ function applyLanguage(lang) {
   elQuery('label[for="history-show-shorts"] + span', 'show_shorts');
   el('lbl-history-only-no-auto-download', 'lbl_history_only_no_auto_download');
   el('lbl-history-only-not-downloaded', 'lbl_history_only_not_downloaded');
+  el('lbl-history-show-members', 'lbl_history_show_members');
 
   el('opt-date-all', 'filter_all');
   el('opt-date-today', 'filter_today');
@@ -172,7 +174,7 @@ function applyLanguage(lang) {
   elQuery('#tab-downloaded .content-header h2', 'downloaded_title');
   elQuery('#tab-downloaded .content-header p', 'downloaded_desc');
   elQuery('#tab-downloaded .content-header button span', 'btn_open_downloads');
-  elQuery('label[for="downloaded-show-shorts"] + span', 'show_shorts');
+  elQuery('label[for="downloaded-show-shorts"]:not(.toggle-label)', 'show_shorts');
   elQuery('#downloaded-view-grid-btn span', 'view_grid');
   elQuery('#downloaded-view-list-btn span', 'view_list');
   elQuery('#inline-btn-description', 'inline_btn_description', 'title');
@@ -255,6 +257,13 @@ function applyLanguage(lang) {
   el('btn-install-pip-text', 'btn_install_pip_text');
   el('label-preferred-audio-lang', 'label_preferred_audio_lang');
   el('desc-preferred-audio-lang', 'desc_preferred_audio_lang');
+  el('label-ytdlp-version', 'label_ytdlp_version');
+  el('ytdlp-version-prefix', 'ytdlp_version_prefix');
+  el('ytdlp-latest-version-prefix', 'ytdlp_latest_version_prefix');
+  el('opt-ytdlp-nightly', 'opt_ytdlp_nightly');
+  el('opt-ytdlp-stable', 'opt_ytdlp_stable');
+  el('btn-ytdlp-update-text', 'btn_ytdlp_update_text');
+  el('desc-ytdlp-version', 'desc_ytdlp_version', 'innerHTML');
 
   // Hava Durumu Çevirileri
   el('badge-weather', 'badge_weather_title', 'title');
@@ -689,47 +698,74 @@ function switchTab(targetTab, triggerPushState = true) {
   try {
   const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
   
-  // İndirilenler sekmesinden çıkış yapılıyorsa ve video oynatılıyorsa mini oynatıcıya geç
+  // İndirilenler sekmesinden çıkış yapılıyorsa ve video oynatılıyorsa mini oynatıcıya KESİNTİSİZ (0ms) geç
   if (activeTab === 'downloaded' && targetTab !== 'downloaded') {
     const inlineContainer = document.getElementById('downloaded-inline-player-container');
     const isInlineOpen = inlineContainer && !inlineContainer.classList.contains('hidden');
     if (isInlineOpen && currentPlayingVideoId) {
-      const { currentTime, paused } = getCurrentPlaybackState();
-      const videoId = currentPlayingVideoId;
+      const video = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+      const isShort = isShortVideo(video?.duration, video?.title, video?.channelId);
       
-      // Yerleşik oynatıcıyı kapat
-      if (window.closeInlinePlayer) window.closeInlinePlayer();
-      
-      // UI sekmesini değiştir
-      performTabSwitchUI(targetTab);
-      
-      // Modal oynatıcıyı minimized modunda aç
+      const inlineBody = document.getElementById('inline-player-body');
       const modal = document.getElementById('player-modal');
-      if (modal) {
-        modal.classList.add('minimized');
-        const btn = document.getElementById('minimize-player-modal-btn');
-        if (btn) {
-          const icon = btn.querySelector('i') || btn.querySelector('[data-lucide]');
+      const modalBody = modal ? modal.querySelector('.player-modal-body') : null;
+      const modalTitle = document.getElementById('player-modal-title');
+      const modalLogo = document.getElementById('player-modal-logo');
+
+      if (modal && modalBody && inlineBody && inlineBody.firstElementChild) {
+        // Modal başlık ve logoyu güncelle
+        if (modalTitle) modalTitle.textContent = video ? video.title : 'Gömülü Video Oynatıcı';
+        if (modalLogo && video?.channelId) {
+          modalLogo.src = `/api/channels/${video.channelId}/avatar`;
+          modalLogo.style.display = 'block';
+        } else if (modalLogo) {
+          modalLogo.style.display = 'none';
+        }
+
+        // Canlı DOM elementini (Artplayer veya Plyr/Video) doğrudan modala taşı
+        while (inlineBody.firstChild) {
+          modalBody.appendChild(inlineBody.firstChild);
+        }
+
+        // Yerleşik alanı gizle
+        inlineContainer.classList.add('hidden');
+        const listContainer = document.getElementById('downloaded-list-container');
+        if (listContainer) listContainer.classList.remove('hidden');
+
+        // Modalı göster ve boyutlandır
+        modal.classList.remove('hidden');
+        if (typeof resetAndApplyPlayerDimensions === 'function') {
+          resetAndApplyPlayerDimensions(isShort, true); // Minimized modunda aç
+        }
+
+        const minBtn = document.getElementById('minimize-player-modal-btn');
+        if (minBtn) {
+          const icon = minBtn.querySelector('i') || minBtn.querySelector('[data-lucide]');
           if (icon) icon.setAttribute('data-lucide', 'maximize-2');
-          btn.title = localDb.settings && localDb.settings.lang === 'en' ? 'Maximize' : 'Büyüt';
+          minBtn.title = localDb.settings && localDb.settings.lang === 'en' ? 'Maximize' : 'Büyüt';
         }
-        lucide.createIcons();
-      }
-      
-      // Modalda videoyu başlat
-      playVideoEmbedded(videoId, currentTime, paused);
-      
-      if (triggerPushState) {
-        const targetPath = tabPathMap[targetTab];
-        if (targetPath && window.location.pathname !== targetPath) {
-          history.pushState({ tab: targetTab }, '', targetPath);
+        try {
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        } catch (e) {}
+
+        if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
+          setTimeout(() => videoPlayerInstance.resize(), 50);
         }
+
+        performTabSwitchUI(targetTab);
+
+        if (triggerPushState) {
+          const targetPath = tabPathMap[targetTab];
+          if (targetPath && window.location.pathname !== targetPath) {
+            history.pushState({ tab: targetTab }, '', targetPath);
+          }
+        }
+        return;
       }
-      return;
     }
   }
   
-  // Başka sekmeden İndirilenler sekmesine geçiş yapılıyorsa ve modal oynatıcı açıksa ve video indirilmişse
+  // Başka sekmeden İndirilenler sekmesine geçiş yapılıyorsa ve modal oynatıcı açıksa
   if (targetTab === 'downloaded') {
     const modal = document.getElementById('player-modal');
     const isModalOpen = modal && !modal.classList.contains('hidden');
@@ -740,25 +776,35 @@ function switchTab(targetTab, triggerPushState = true) {
       const isDownloaded = isCompleted && !isMissing;
       
       if (isDownloaded) {
-        const { currentTime, paused } = getCurrentPlaybackState();
-        const videoId = currentPlayingVideoId;
-        
-        // Modal oynatıcıyı kapat
-        if (window.closePlayerModal) window.closePlayerModal();
-        
-        // UI sekmesini değiştir
-        performTabSwitchUI(targetTab);
-        
-        // Yerleşik oynatıcıda videoyu başlat
-        playVideoEmbedded(videoId, currentTime, paused);
-        
-        if (triggerPushState) {
-          const targetPath = tabPathMap[targetTab];
-          if (targetPath && window.location.pathname !== targetPath) {
-            history.pushState({ tab: targetTab }, '', targetPath);
+        const inlineContainer = document.getElementById('downloaded-inline-player-container');
+        const inlineBody = document.getElementById('inline-player-body');
+        const modalBody = modal.querySelector('.player-modal-body');
+
+        if (inlineContainer && inlineBody && modalBody && modalBody.firstElementChild) {
+          // Canlı DOM elementini yerleşik gövdeye geri taşı
+          while (modalBody.firstChild) {
+            inlineBody.appendChild(modalBody.firstChild);
           }
+
+          modal.classList.add('hidden');
+          inlineContainer.classList.remove('hidden');
+          const listContainer = document.getElementById('downloaded-list-container');
+          if (listContainer) listContainer.classList.add('hidden');
+
+          performTabSwitchUI(targetTab);
+
+          if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
+            setTimeout(() => videoPlayerInstance.resize(), 50);
+          }
+
+          if (triggerPushState) {
+            const targetPath = tabPathMap[targetTab];
+            if (targetPath && window.location.pathname !== targetPath) {
+              history.pushState({ tab: targetTab }, '', targetPath);
+            }
+          }
+          return;
         }
-        return;
       }
     }
   }
@@ -1347,9 +1393,21 @@ function updateUI(db) {
     }
 
     // 4. Kuyruk Listesi
+    // 4. Kuyruk Listesi
     if (queueList) {
       queueList.innerHTML = '';
       const isEn = db.settings && db.settings.lang === 'en';
+      const t = translations[lang] || translations.tr;
+      const viewMode = (db.settings && db.settings.queueViewMode) || localStorage.getItem('haytool_queue_view_mode') || 'table';
+
+      // Header butonlarını senkronize et
+      const tableBtn = document.getElementById('queue-view-table-btn');
+      const cardsBtn = document.getElementById('queue-view-cards-btn');
+      if (tableBtn && cardsBtn) {
+        tableBtn.classList.toggle('active', viewMode === 'table');
+        cardsBtn.classList.toggle('active', viewMode === 'cards');
+      }
+
       const mergingVideos = db.history.filter(h => h.status === 'merging');
       const downloadingVideos = db.history.filter(h => h.status === 'downloading');
       const waitingVideos = db.history.filter(h => h.status === 'waiting');
@@ -1361,105 +1419,214 @@ function updateUI(db) {
         navQueueCountBadge.textContent = totalQueueCount;
       }
       
+      const statWaitingCount = document.getElementById('stat-waiting-count');
+      if (statWaitingCount) {
+        statWaitingCount.textContent = totalQueueCount;
+      }
+      
       if (allActiveQueue.length === 0 && mergingVideos.length === 0) {
         queueList.innerHTML = `
           <div class="text-center text-muted" id="queue-list-empty" style="padding: 30px 0; font-size: 0.85rem;">${isEn ? 'No videos waiting in the queue.' : 'Kuyrukta bekleyen video yok.'}</div>
         `;
       } else {
-        // Önce birleştirilen videoları ekle (en üstte dursunlar, sürüklenemezler)
-        mergingVideos.forEach(video => {
+        // Tablo görünümüyse sütun başlıklarını ekle
+        if (viewMode === 'table') {
+          const headerEl = document.createElement('div');
+          headerEl.className = 'queue-table-header';
+          headerEl.innerHTML = `
+            <div style="display:flex; align-items:center; gap:4px;"><span>${t.queue_col_order || '#'}</span></div>
+            <div>${t.queue_col_cover || 'Kapak'}</div>
+            <div>${t.queue_col_title || 'Video Başlığı'}</div>
+            <div>${t.queue_col_channel || 'Kanal'}</div>
+            <div>${t.queue_col_duration || 'Süre'}</div>
+            <div>${t.queue_col_size || 'Boyut'}</div>
+            <div style="text-align:right;">${t.queue_col_actions || 'Sıralama & İşlem'}</div>
+          `;
+          queueList.appendChild(headerEl);
+        }
+
+        const combinedList = [...mergingVideos, ...allActiveQueue];
+        const totalItems = combinedList.length;
+
+        combinedList.forEach((video, idx) => {
+          const isMerging = video.status === 'merging';
+          const isDownloading = video.status === 'downloading';
+          const orderNoStr = `#${(idx + 1).toString().padStart(2, '0')}`;
+          const durationStr = video.duration || '--:--';
+          const sizeStr = video.fileSize || '';
+          const upDisabled = (idx === 0 || isMerging) ? 'disabled' : '';
+          const downDisabled = (idx === totalItems - 1 || isMerging) ? 'disabled' : '';
+          const cancelOnClick = isDownloading ? `cancelDownload('${video.id}')` : `cancelQueuedVideo('${video.id}')`;
+
           const item = document.createElement('div');
-          item.className = 'queue-item queue-item-merging';
-          item.setAttribute('draggable', 'false');
           item.setAttribute('data-id', video.id);
-          item.style.borderColor = 'rgba(234, 179, 8, 0.3)';
-          item.style.background = 'rgba(234, 179, 8, 0.03)';
-          item.innerHTML = `
-            <div class="queue-item-drag-handle" style="display: flex; align-items: center; justify-content: center; padding-right: 12px; color: var(--text-muted); cursor: not-allowed;" title="${isEn ? 'Merging process cannot be reordered' : 'Birleştirme işlemi sıralanamaz'}">
-              <i data-lucide="loader" class="spin-animation" style="width:16px; height:16px; color: #eab308;"></i>
-            </div>
-            <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="queue-item-thumbnail" onerror="this.src='logo.png'">
-            <div class="queue-item-info" style="flex:1;">
-              <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main);">${escapeHtml(video.title)}</div>
-              <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-                <span class="queue-item-channel" style="font-size:0.7rem; display: flex; align-items: center; gap: 2px;">
-                  <i data-lucide="tv" style="width: 10px; height: 10px;"></i>
-                  ${escapeHtml(video.channelName)}
-                </span>
-                <span class="queue-item-status-badge" style="font-size:0.68rem; display:inline-flex; align-items:center; gap:4px; padding: 1px 6px; border-radius: 4px; background: rgba(234, 179, 8, 0.1); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); font-weight: 600;">
-                  <i data-lucide="cog" class="spin-animation" style="width: 10px; height: 10px;"></i>
-                  <span>${t.status_merging || 'Birleştiriliyor...'}</span>
+
+          if (viewMode === 'table') {
+            item.className = 'queue-table-row';
+            if (isMerging) {
+              item.className += ' queue-item-merging';
+              item.setAttribute('draggable', 'false');
+              item.style.borderColor = 'rgba(234, 179, 8, 0.3)';
+              item.style.background = 'rgba(234, 179, 8, 0.03)';
+            } else {
+              item.setAttribute('draggable', 'true');
+              if (isDownloading) {
+                item.className += ' queue-item-downloading';
+                item.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                item.style.background = 'rgba(16, 185, 129, 0.03)';
+              }
+            }
+
+            item.innerHTML = `
+              <div style="display:flex; align-items:center; gap:6px;">
+                <div class="queue-item-drag-handle" style="cursor: ${isMerging ? 'not-allowed' : 'grab'}; color: var(--text-muted);" title="${isMerging ? (isEn ? 'Merging process cannot be reordered' : 'Birleştirme işlemi sıralanamaz') : (t.drag_drop_hint || 'Sürükleyin')}">
+                  ${isMerging ? '<i data-lucide="loader" class="spin-animation" style="width:14px; height:14px; color: #eab308;"></i>' : '<i data-lucide="grip-vertical" style="width:14px; height:14px;"></i>'}
+                </div>
+                <span class="queue-order-badge">${orderNoStr}</span>
+              </div>
+              <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
+                <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='logo.png'">
+              </div>
+              <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                ${escapeHtml(video.title)}
+              </div>
+              <div class="queue-item-channel" style="color:var(--text-muted); font-size:0.75rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:4px;" title="${escapeHtml(video.channelName || '')}">
+                <i data-lucide="tv" style="width:12px; height:12px; flex-shrink:0;"></i>
+                <span>${escapeHtml(video.channelName || '')}</span>
+              </div>
+              <div>
+                <span class="queue-meta-pill queue-meta-pill-duration" title="${t.queue_col_duration || 'Süre'}">
+                  <i data-lucide="clock" style="width:10px; height:10px;"></i>
+                  <span>${durationStr}</span>
                 </span>
               </div>
-            </div>
-            <div class="queue-item-actions">
-              <button class="btn-cancel-queue" onclick="cancelDownload('${video.id}')" title="${isEn ? 'Cancel' : 'İptal Et'}">
-                <i data-lucide="x" style="width: 12px; height: 12px;"></i>
-                <span>${isEn ? 'Cancel' : 'İptal Et'}</span>
-              </button>
-            </div>
-          `;
-          queueList.appendChild(item);
-        });
+              <div>
+                ${sizeStr ? `
+                  <span class="queue-meta-pill queue-meta-pill-size" title="${t.queue_col_size || 'Boyut'}">
+                    <i data-lucide="hard-drive" style="width:10px; height:10px;"></i>
+                    <span>${sizeStr}</span>
+                  </span>
+                ` : `
+                  <span class="queue-meta-pill queue-meta-pill-calc" title="${t.queue_calculating || 'Hesaplanıyor...'}">
+                    <i data-lucide="loader" class="spin-animation" style="width:10px; height:10px;"></i>
+                    <span>${t.queue_calculating || 'Hesaplanıyor...'}</span>
+                  </span>
+                `}
+              </div>
+              <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                ${!isMerging ? `
+                <div class="queue-move-btn-group">
+                  <button class="queue-move-btn queue-btn-up ${upDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'up')" ${upDisabled} title="${t.queue_move_up || 'Yukarı Taşı'}">
+                    <i data-lucide="chevron-up" style="width:12px; height:12px;"></i>
+                  </button>
+                  <button class="queue-move-btn queue-btn-down ${downDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'down')" ${downDisabled} title="${t.queue_move_down || 'Aşağı Taşı'}">
+                    <i data-lucide="chevron-down" style="width:12px; height:12px;"></i>
+                  </button>
+                </div>` : ''}
+                ${isDownloading ? `
+                  <span class="queue-item-status-badge" style="font-size:0.68rem; display:inline-flex; align-items:center; gap:4px; padding: 2px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); font-weight: 600;">
+                    <i class="spin-animation" style="width: 8px; height: 8px; display:inline-block; border: 1.5px solid #10b981; border-top-color: transparent; border-radius:50%;"></i>
+                    <span>%${video.progress || 0}</span>
+                  </span>` : ''}
+                ${isMerging ? `
+                  <span class="queue-item-status-badge" style="font-size:0.68rem; display:inline-flex; align-items:center; gap:4px; padding: 2px 6px; border-radius: 4px; background: rgba(234, 179, 8, 0.1); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); font-weight: 600;">
+                    <i data-lucide="cog" class="spin-animation" style="width: 10px; height: 10px;"></i>
+                    <span>${t.status_merging || 'Birleştiriliyor'}</span>
+                  </span>` : ''}
+                <button class="btn-cancel-queue" onclick="${isMerging ? `cancelDownload('${video.id}')` : cancelOnClick}" title="${isEn ? 'Cancel' : 'İptal Et'}">
+                  <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+                  <span>${isEn ? 'Cancel' : 'İptal'}</span>
+                </button>
+              </div>
+            `;
+          } else {
+            // Cards View
+            item.className = 'queue-item';
+            if (isMerging) {
+              item.className += ' queue-item-merging';
+              item.setAttribute('draggable', 'false');
+              item.style.borderColor = 'rgba(234, 179, 8, 0.3)';
+              item.style.background = 'rgba(234, 179, 8, 0.03)';
+            } else {
+              item.setAttribute('draggable', 'true');
+              if (isDownloading) {
+                item.className += ' queue-item-downloading';
+                item.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                item.style.background = 'rgba(16, 185, 129, 0.03)';
+              }
+            }
 
-        // Sonra aktif indirmeleri ve bekleyen videoları ekle (hepsi sürüklenebilir)
-        allActiveQueue.forEach(video => {
-          const item = document.createElement('div');
-          item.className = 'queue-item';
-          item.setAttribute('draggable', 'true');
-          item.setAttribute('data-id', video.id);
-          
-          if (video.status === 'downloading') {
-            item.className = 'queue-item queue-item-downloading';
-            item.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-            item.style.background = 'rgba(16, 185, 129, 0.03)';
+            item.innerHTML = `
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div class="queue-item-drag-handle" style="cursor: ${isMerging ? 'not-allowed' : 'grab'}; color: var(--text-muted);" title="${isMerging ? (isEn ? 'Merging process cannot be reordered' : 'Birleştirme işlemi sıralanamaz') : (t.drag_drop_hint || 'Sürükleyin')}">
+                  ${isMerging ? '<i data-lucide="loader" class="spin-animation" style="width:16px; height:16px; color: #eab308;"></i>' : '<i data-lucide="grip-vertical" style="width:16px; height:16px;"></i>'}
+                </div>
+                <span class="queue-order-badge">${orderNoStr}</span>
+                ${!isMerging ? `
+                <div class="queue-move-btn-group">
+                  <button class="queue-move-btn queue-btn-up ${upDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'up')" ${upDisabled} title="${t.queue_move_up || 'Yukarı Taşı'}">
+                    <i data-lucide="chevron-up" style="width:12px; height:12px;"></i>
+                  </button>
+                  <button class="queue-move-btn queue-btn-down ${downDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'down')" ${downDisabled} title="${t.queue_move_down || 'Aşağı Taşı'}">
+                    <i data-lucide="chevron-down" style="width:12px; height:12px;"></i>
+                  </button>
+                </div>` : ''}
+              </div>
+              <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
+                <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='logo.png'">
+              </div>
+              <div class="queue-item-info" style="flex:1; min-width:0;">
+                <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px;">
+                  ${escapeHtml(video.title)}
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <span class="queue-meta-pill queue-meta-pill-channel" title="${escapeHtml(video.channelName || '')}">
+                    <i data-lucide="tv" style="width:10px; height:10px;"></i>
+                    <span>${escapeHtml(video.channelName || '')}</span>
+                  </span>
+                  <span class="queue-meta-pill queue-meta-pill-duration" title="${t.queue_col_duration || 'Süre'}">
+                    <i data-lucide="clock" style="width:10px; height:10px;"></i>
+                    <span>${durationStr}</span>
+                  </span>
+                  ${sizeStr ? `
+                    <span class="queue-meta-pill queue-meta-pill-size" title="${t.queue_col_size || 'Boyut'}">
+                      <i data-lucide="hard-drive" style="width:10px; height:10px;"></i>
+                      <span>${sizeStr}</span>
+                    </span>
+                  ` : `
+                    <span class="queue-meta-pill queue-meta-pill-calc" title="${t.queue_calculating || 'Hesaplanıyor...'}">
+                      <i data-lucide="loader" class="spin-animation" style="width:10px; height:10px;"></i>
+                      <span>${t.queue_calculating || 'Hesaplanıyor...'}</span>
+                    </span>
+                  `}
+                  ${isDownloading ? `
+                    <span class="queue-item-status-badge" style="font-size:0.68rem; display:inline-flex; align-items:center; gap:4px; padding: 2px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); font-weight: 600;">
+                      <i class="spin-animation" style="width: 8px; height: 8px; display:inline-block; border: 1.5px solid #10b981; border-top-color: transparent; border-radius:50%;"></i>
+                      <span>%${video.progress || 0}</span>
+                    </span>` : ''}
+                  ${isMerging ? `
+                    <span class="queue-item-status-badge" style="font-size:0.68rem; display:inline-flex; align-items:center; gap:4px; padding: 2px 6px; border-radius: 4px; background: rgba(234, 179, 8, 0.1); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); font-weight: 600;">
+                      <i data-lucide="cog" class="spin-animation" style="width: 10px; height: 10px;"></i>
+                      <span>${t.status_merging || 'Birleştiriliyor'}</span>
+                    </span>` : ''}
+                </div>
+              </div>
+              <div class="queue-item-actions">
+                <button class="btn-cancel-queue" onclick="${isMerging ? `cancelDownload('${video.id}')` : cancelOnClick}" title="${isEn ? 'Cancel' : 'İptal Et'}">
+                  <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+                  <span>${isEn ? 'Cancel' : 'İptal'}</span>
+                </button>
+              </div>
+            `;
           }
 
-          const cancelOnClick = video.status === 'downloading' ? `cancelDownload('${video.id}')` : `cancelQueuedVideo('${video.id}')`;
+          if (!isMerging) {
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('drop', handleDrop);
+            item.addEventListener('dragend', handleDragEnd);
+          }
 
-          item.innerHTML = `
-            <div class="queue-item-drag-handle" style="cursor: grab; display: flex; align-items: center; justify-content: center; padding-right: 12px; color: var(--text-muted);" title="${isEn ? 'Drag to reorder' : 'Sürükleyip sıralayın'}">
-              <i data-lucide="grip-vertical" style="width:16px; height:16px;"></i>
-            </div>
-            <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="queue-item-thumbnail" onerror="this.src='logo.png'">
-            <div class="queue-item-info" style="flex:1;">
-              <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main);">${escapeHtml(video.title)}</div>
-              <div class="queue-item-channel" style="font-size:0.78rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:2px;">
-                <span style="display:flex; align-items:center; gap:2px;">
-                  <i data-lucide="tv" style="width: 10px; height: 10px;"></i>
-                  ${escapeHtml(video.channelName)}
-                </span>
-                ${video.duration ? `
-                <span style="display:flex; align-items:center; gap:2px; color:var(--text-muted);" title="${isEn ? 'Duration' : 'Süre'}">
-                  <i data-lucide="clock" style="width: 10px; height: 10px;"></i>
-                  ${video.duration}
-                </span>` : ''}
-                ${video.fileSize ? `
-                <span style="display:flex; align-items:center; gap:2px; color:var(--text-muted);" title="${isEn ? 'File Size' : 'Dosya Boyutu'}">
-                  <i data-lucide="file-video" style="width: 10px; height: 10px;"></i>
-                  ${video.fileSize}
-                </span>` : ''}
-                ${video.status === 'downloading' ? `
-                <span class="queue-item-status-badge" style="font-size:0.68rem; display:inline-flex; align-items:center; gap:4px; padding: 1px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); font-weight: 600;">
-                  <i class="spin-animation" style="width: 8px; height: 8px; display:inline-block; border: 1.5px solid #10b981; border-top-color: transparent; border-radius:50%;"></i>
-                  <span>%${video.progress || 0}</span>
-                </span>` : ''}
-              </div>
-            </div>
-            <div class="queue-item-actions">
-              <button class="btn-cancel-queue" onclick="${cancelOnClick}" title="${isEn ? 'Cancel' : 'İptal Et'}">
-                <i data-lucide="x" style="width: 12px; height: 12px;"></i>
-                <span>${isEn ? 'Cancel' : 'İptal Et'}</span>
-              </button>
-            </div>
-          `;
-          
-          // Drag and drop olaylarını ekle
-          item.addEventListener('dragstart', handleDragStart);
-          item.addEventListener('dragover', handleDragOver);
-          item.addEventListener('drop', handleDrop);
-          item.addEventListener('dragend', handleDragEnd);
-          
           queueList.appendChild(item);
         });
       }
@@ -1471,6 +1638,7 @@ function updateUI(db) {
       queueCompletedList.innerHTML = '';
       const isEn = db.settings && db.settings.lang === 'en';
       const t = translations[lang] || translations.tr;
+      const viewMode = (db.settings && db.settings.queueViewMode) || localStorage.getItem('haytool_queue_view_mode') || 'table';
       
       const completedVideos = db.history
         .filter(h => h.status === 'completed' && h.manualDownloader !== true)
@@ -1484,43 +1652,133 @@ function updateUI(db) {
           </div>
         `;
       } else {
-        completedVideos.forEach(video => {
+        if (viewMode === 'table') {
+          const compHeader = document.createElement('div');
+          compHeader.className = 'queue-table-header completed-header';
+          compHeader.innerHTML = `
+            <div style="display:flex; align-items:center; gap:4px;"><span>${t.queue_col_order || '#'}</span></div>
+            <div>${t.queue_col_cover || 'Kapak'}</div>
+            <div>${t.queue_col_title || 'Video Başlığı'}</div>
+            <div>${t.queue_col_channel || 'Kanal'}</div>
+            <div>${t.queue_col_duration || 'Süre'}</div>
+            <div>${t.queue_col_size || 'Boyut'}</div>
+            <div>${t.queue_col_downloaded_at || 'İndirilme Zamanı'}</div>
+            <div style="text-align:right;">${t.queue_col_actions || 'İşlemler'}</div>
+          `;
+          queueCompletedList.appendChild(compHeader);
+        }
+
+        completedVideos.forEach((video, idx) => {
           const item = document.createElement('div');
-          item.className = 'queue-item queue-item-completed';
-          item.setAttribute('draggable', 'false');
-          item.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-          item.style.background = 'rgba(16, 185, 129, 0.02)';
-          item.innerHTML = `
-            <div class="queue-item-status-icon" style="display: flex; align-items: center; justify-content: center; padding-right: 12px; color: #10b981;" title="${isEn ? 'Downloaded' : 'İndirildi'}">
-              <i data-lucide="check-circle" style="width:16px; height:16px; color: #10b981;"></i>
-            </div>
-            <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="queue-item-thumbnail" onerror="this.src='logo.png'">
-            <div class="queue-item-info" style="flex:1;">
-              <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main);">${escapeHtml(video.title)}</div>
-              <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-                <span class="queue-item-channel" style="font-size:0.7rem; display: flex; align-items: center; gap: 2px;">
-                  <i data-lucide="tv" style="width: 10px; height: 10px;"></i>
-                  ${escapeHtml(video.channelName)}
-                </span>
-                <span class="queue-item-size" style="font-size:0.7rem; color:var(--text-muted);">
-                  ${video.fileSize || ''}
+          item.setAttribute('data-id', video.id);
+          const orderNoStr = `#${(idx + 1).toString().padStart(2, '0')}`;
+          const durationStr = video.duration || '--:--';
+          const sizeStr = video.fileSize || '-- MB';
+          const dateStr = formatDate(video.downloadedAt || video.publishedAt);
+
+          if (viewMode === 'table') {
+            item.className = 'queue-table-row completed-row queue-item-completed';
+            item.setAttribute('draggable', 'false');
+            item.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+            item.style.background = 'rgba(16, 185, 129, 0.02)';
+            item.innerHTML = `
+              <div style="display:flex; align-items:center; gap:4px;">
+                <span class="queue-order-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.25);">${orderNoStr}</span>
+              </div>
+              <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
+                <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='logo.png'">
+              </div>
+              <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                ${escapeHtml(video.title)}
+              </div>
+              <div class="queue-item-channel" style="color:var(--text-muted); font-size:0.75rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:4px;" title="${escapeHtml(video.channelName || '')}">
+                <i data-lucide="tv" style="width:12px; height:12px; flex-shrink:0;"></i>
+                <span>${escapeHtml(video.channelName || '')}</span>
+              </div>
+              <div>
+                <span class="queue-meta-pill queue-meta-pill-duration" title="${t.queue_col_duration || 'Süre'}">
+                  <i data-lucide="clock" style="width:10px; height:10px;"></i>
+                  <span>${durationStr}</span>
                 </span>
               </div>
-            </div>
-            <div class="queue-item-actions" style="display:flex; gap:6px;">
-              <button class="btn-cancel-queue" onclick="playVideoEmbedded('${video.id}')" title="${isEn ? 'Play' : 'Oynat'}" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #10b981; display: flex; align-items: center; gap: 4px;">
-                <i data-lucide="play" style="width: 10px; height: 10px;"></i>
-                <span>${isEn ? 'Play' : 'Oynat'}</span>
-              </button>
-              <button class="btn-cancel-queue" onclick="showDeleteModal('${video.id}')" title="${isEn ? 'Delete' : 'Sil'}" style="background: rgba(220, 53, 69, 0.1); border-color: rgba(220, 53, 69, 0.2); color: var(--danger-color); display: flex; align-items: center; gap: 4px; padding: 4px 8px;">
-                <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
-                <span>${isEn ? 'Delete' : 'Sil'}</span>
-              </button>
-            </div>
-          `;
+              <div>
+                <span class="queue-meta-pill queue-meta-pill-size" title="${t.queue_col_size || 'Boyut'}">
+                  <i data-lucide="hard-drive" style="width:10px; height:10px;"></i>
+                  <span>${sizeStr}</span>
+                </span>
+              </div>
+              <div>
+                <span class="queue-meta-pill queue-meta-pill-date" title="${t.queue_col_downloaded_at || 'İndirilme Zamanı'}">
+                  <i data-lucide="calendar" style="width:10px; height:10px;"></i>
+                  <span>${dateStr}</span>
+                </span>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                <button class="btn-play-queue" onclick="playVideoEmbedded('${video.id}')" title="${isEn ? 'Play' : 'Oynat'}">
+                  <i data-lucide="play" style="width:10px; height:10px;"></i>
+                  <span>${isEn ? 'Play' : 'Oynat'}</span>
+                </button>
+                <button class="btn-cancel-queue" onclick="showDeleteModal('${video.id}')" title="${isEn ? 'Delete' : 'Sil'}" style="padding: 4px 8px;">
+                  <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
+                  <span>${isEn ? 'Delete' : 'Sil'}</span>
+                </button>
+              </div>
+            `;
+          } else {
+            // Cards View
+            item.className = 'queue-item queue-item-completed';
+            item.setAttribute('draggable', 'false');
+            item.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+            item.style.background = 'rgba(16, 185, 129, 0.02)';
+            item.innerHTML = `
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div class="queue-item-status-icon" style="display:flex; align-items:center; justify-content:center; color:#10b981;" title="${isEn ? 'Downloaded' : 'İndirildi'}">
+                  <i data-lucide="check-circle" style="width:16px; height:16px; color:#10b981;"></i>
+                </div>
+                <span class="queue-order-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.25);">${orderNoStr}</span>
+              </div>
+              <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
+                <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='logo.png'">
+              </div>
+              <div class="queue-item-info" style="flex:1; min-width:0;">
+                <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px;">
+                  ${escapeHtml(video.title)}
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <span class="queue-meta-pill queue-meta-pill-channel" title="${escapeHtml(video.channelName || '')}">
+                    <i data-lucide="tv" style="width:10px; height:10px;"></i>
+                    <span>${escapeHtml(video.channelName || '')}</span>
+                  </span>
+                  <span class="queue-meta-pill queue-meta-pill-duration" title="${t.queue_col_duration || 'Süre'}">
+                    <i data-lucide="clock" style="width:10px; height:10px;"></i>
+                    <span>${durationStr}</span>
+                  </span>
+                  <span class="queue-meta-pill queue-meta-pill-size" title="${t.queue_col_size || 'Boyut'}">
+                    <i data-lucide="hard-drive" style="width:10px; height:10px;"></i>
+                    <span>${sizeStr}</span>
+                  </span>
+                  <span class="queue-meta-pill queue-meta-pill-date" title="${t.queue_col_downloaded_at || 'İndirilme Zamanı'}">
+                    <i data-lucide="calendar" style="width:10px; height:10px;"></i>
+                    <span>${dateStr}</span>
+                  </span>
+                </div>
+              </div>
+              <div class="queue-item-actions" style="display:flex; gap:6px;">
+                <button class="btn-play-queue" onclick="playVideoEmbedded('${video.id}')" title="${isEn ? 'Play' : 'Oynat'}">
+                  <i data-lucide="play" style="width: 10px; height: 10px;"></i>
+                  <span>${isEn ? 'Play' : 'Oynat'}</span>
+                </button>
+                <button class="btn-cancel-queue" onclick="showDeleteModal('${video.id}')" title="${isEn ? 'Delete' : 'Sil'}" style="padding: 4px 8px;">
+                  <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
+                  <span>${isEn ? 'Delete' : 'Sil'}</span>
+                </button>
+              </div>
+            `;
+          }
+
           queueCompletedList.appendChild(item);
         });
-        
+
         try {
           if (typeof lucide !== 'undefined') {
             lucide.createIcons();
@@ -1591,6 +1849,11 @@ function updateUI(db) {
   if (historyShowLiveCheck) {
     syncFilterChipUI('history-show-live');
   }
+  const historyShowMembersCheck = document.getElementById('history-show-members');
+  if (historyShowMembersCheck) {
+    historyShowMembersCheck.checked = window.historyShowMembers !== false;
+    syncFilterChipUI('history-show-members');
+  }
 
   // Görünüm butonlarının aktiflik durumunu güncelle
   if (viewGridBtn) viewGridBtn.classList.toggle('active', historyViewMode === 'grid');
@@ -1643,6 +1906,11 @@ function updateUI(db) {
 
     if (window.historyOnlyLiveProcessing) {
       filteredHistory = filteredHistory.filter(item => item.status === 'waiting_live_processing' || item.status === 'live_processing');
+    }
+
+    const showMembers = window.historyShowMembers !== false;
+    if (!showMembers) {
+      filteredHistory = filteredHistory.filter(item => !isMembersOnlyVideo(item));
     }
     
     if (historyFilterDays !== 'all') {
@@ -1820,6 +2088,12 @@ function updateUI(db) {
 
     const historyShowShorts = document.getElementById('history-show-shorts');
     if (historyShowShorts && document.activeElement !== historyShowShorts) historyShowShorts.checked = db.settings.showShorts !== false;
+
+    const downloadedShowShorts = document.getElementById('downloaded-show-shorts');
+    if (downloadedShowShorts && document.activeElement !== downloadedShowShorts) downloadedShowShorts.checked = db.settings.showShorts !== false;
+
+    const inlinePlaylistShowShorts = document.getElementById('inline-playlist-show-shorts');
+    if (inlinePlaylistShowShorts && document.activeElement !== inlinePlaylistShowShorts) inlinePlaylistShowShorts.checked = db.settings.showShorts !== false;
 
     // Yeni Ayarlar: Tema, Otomatik Silme, RSS Limiti ve Hız Limiti
     const settingsTheme = document.getElementById('settings-theme');
@@ -2949,6 +3223,74 @@ document.addEventListener('keydown', (e) => {
  * 
  * @param {string} videoId Oynatılacak video ID'si
  */
+// Türkçe Açıklama: Yüzen oynatıcı modalının boyut ve konum stillerini temizleyip video formatına (Shorts / Geniş Ekran) ve kayıtlı ayarlara göre orantılı uygular.
+/**
+ * Oynatıcı modalının boyut ve en-boy oranını video türüne göre yapılandırır.
+ * 
+ * @param {boolean} isShort Videonun Shorts/dikey olup olmadığı
+ * @param {boolean} [isMinimized=false] Modalın küçültülmüş PiP modunda olup olmadığı
+ */
+function resetAndApplyPlayerDimensions(isShort = false, isMinimized = false) {
+  const modal = document.getElementById('player-modal');
+  if (!modal) return;
+
+  const modalContent = modal.querySelector('.player-modal-content');
+  const modalBody = modal.querySelector('.player-modal-body');
+  if (!modalContent || !modalBody) return;
+
+  if (isShort) {
+    modal.classList.add('is-short-player');
+  } else {
+    modal.classList.remove('is-short-player');
+  }
+
+  if (isMinimized) {
+    modal.classList.add('minimized');
+  } else {
+    modal.classList.remove('minimized');
+  }
+
+  const suffix = isShort ? '-short' : '-wide';
+  const savedWidth = localStorage.getItem(`player-modal${suffix}-width`);
+  const savedHeight = localStorage.getItem(`player-modal${suffix}-height`);
+  const savedLeft = localStorage.getItem(`player-modal${suffix}-left`);
+  const savedTop = localStorage.getItem(`player-modal${suffix}-top`);
+
+  if (!isMinimized && savedWidth && savedHeight) {
+    modalContent.style.width = savedWidth;
+    modalContent.style.height = savedHeight;
+    modalContent.style.left = savedLeft || '';
+    modalContent.style.top = savedTop || '';
+    modalContent.style.right = savedLeft ? 'auto' : '20px';
+    modalContent.style.bottom = savedTop ? 'auto' : '20px';
+
+    const headerEl = modalContent.querySelector('.player-modal-header') || modalContent.querySelector('.modal-header');
+    const headerHeight = headerEl ? headerEl.offsetHeight : 38;
+    const bodyHeight = parseInt(savedHeight, 10) - headerHeight;
+    if (bodyHeight > 50) {
+      modalBody.style.height = `${bodyHeight}px`;
+    } else {
+      modalBody.style.height = '';
+    }
+  } else {
+    // Varsayılan temiz boyutlandırma (inline stilleri temizle, CSS kurallarına bırak)
+    modalContent.style.width = '';
+    modalContent.style.height = '';
+    modalContent.style.left = '';
+    modalContent.style.top = '';
+    modalContent.style.right = '20px';
+    modalContent.style.bottom = '20px';
+    modalBody.style.height = '';
+  }
+
+  if (isShort) {
+    modalBody.style.aspectRatio = '9 / 16';
+  } else {
+    modalBody.style.aspectRatio = '16 / 9';
+  }
+}
+window.resetAndApplyPlayerDimensions = resetAndApplyPlayerDimensions;
+
 // Türkçe Açıklama: Gömülü video oynatıcı modalının boyutunu küçültür veya eski boyutuna geri getirir.
 /**
  * Oynatıcı modalını küçültür (minimize) veya geri yükler.
@@ -2960,27 +3302,9 @@ window.togglePlayerMinimize = function() {
   
   modal.classList.toggle('minimized');
   const isMinimized = modal.classList.contains('minimized');
-  
-  const modalContent = modal.querySelector('.player-modal-content');
-  if (modalContent) {
-    if (isMinimized) {
-      modalContent.style.width = '';
-      modalContent.style.height = '';
-      modalContent.style.left = '';
-      modalContent.style.top = '';
-    } else {
-      const isShort = modal.classList.contains('is-short-player');
-      const suffix = isShort ? '-short' : '';
-      const w = localStorage.getItem(`player-modal${suffix}-width`);
-      const h = localStorage.getItem(`player-modal${suffix}-height`);
-      const l = localStorage.getItem(`player-modal${suffix}-left`);
-      const t = localStorage.getItem(`player-modal${suffix}-top`);
-      if (w) modalContent.style.width = w;
-      if (h) modalContent.style.height = h;
-      if (l) modalContent.style.left = l;
-      if (t) modalContent.style.top = t;
-    }
-  }
+  const isShort = modal.classList.contains('is-short-player');
+
+  resetAndApplyPlayerDimensions(isShort, isMinimized);
 
   if (btn) {
     const icon = btn.querySelector('i') || btn.querySelector('[data-lucide]');
@@ -2989,14 +3313,28 @@ window.togglePlayerMinimize = function() {
     }
     btn.title = isMinimized ? (localDb.settings && localDb.settings.lang === 'en' ? 'Maximize' : 'Büyüt') : (localDb.settings && localDb.settings.lang === 'en' ? 'Minimize' : 'Küçült');
   }
-  lucide.createIcons();
+  try {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } catch (e) {}
+
+  if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
+    setTimeout(() => videoPlayerInstance.resize(), 50);
+  }
 };
 
 let currentVideoSponsorSegments = [];
 let lastSkippedSegmentStart = -1;
 let playerResizeObserver = null;
 
+// Türkçe Açıklama: Gömülü video oynatıcı modalının başlık çubuğundan tutularak ekranda serbestçe ve ekran sınırları içinde taşınmasını sağlar.
+/**
+ * Oynatıcı modalını başlık barından taşınabilir hale getirir.
+ * 
+ * @param {HTMLElement} modalContent Taşınacak modal içerik elementi
+ * @param {HTMLElement} dragHeader Sürükleme tutamacı olarak kullanılacak başlık elementi
+ */
 function makeElementDraggable(modalContent, dragHeader) {
+  if (!modalContent || !dragHeader) return;
   let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
 
   dragHeader.onmousedown = dragMouseDown;
@@ -3037,13 +3375,20 @@ function makeElementDraggable(modalContent, dragHeader) {
     document.onmouseup = null;
     document.onmousemove = null;
     const isShort = modalContent.closest('#player-modal')?.classList.contains('is-short-player');
-    const suffix = isShort ? '-short' : '';
+    const suffix = isShort ? '-short' : '-wide';
     localStorage.setItem(`player-modal${suffix}-left`, modalContent.style.left);
     localStorage.setItem(`player-modal${suffix}-top`, modalContent.style.top);
   }
 }
 
+// Türkçe Açıklama: Gömülü video oynatıcı modalının köşelerinden veya kenarlarından en-boy oranını (16:9 veya 9:16) bozmadan orantılı olarak yeniden boyutlandırılmasını sağlar.
+/**
+ * Oynatıcı modalını en-boy oranı kilitli olarak orantılı boyutlandırılabilir hale getirir.
+ * 
+ * @param {HTMLElement} modalContent Boyutlandırılacak modal içerik elementi
+ */
 function makeElementResizable(modalContent) {
+  if (!modalContent) return;
   const handles = modalContent.querySelectorAll('.resize-handle');
   
   handles.forEach(handle => {
@@ -3051,57 +3396,99 @@ function makeElementResizable(modalContent) {
     
     function resizeMouseDown(e) {
       e.preventDefault();
+      e.stopPropagation();
+
+      const modal = modalContent.closest('#player-modal');
+      const isShort = modal ? modal.classList.contains('is-short-player') : false;
       
-      const isRight = handle.classList.contains('bottom-right') || handle.classList.contains('top-right');
-      const isBottom = handle.classList.contains('bottom-left') || handle.classList.contains('bottom-right');
-      const isLeft = handle.classList.contains('bottom-left') || handle.classList.contains('top-left');
-      const isTop = handle.classList.contains('top-left') || handle.classList.contains('top-right');
+      // Video elementinden veya sınıftan gerçek en-boy oranını al
+      const rawVideo = modalContent.querySelector('video') || (window.videoPlayerInstance && window.videoPlayerInstance.video);
+      let ratio = 16 / 9;
+      if (rawVideo && rawVideo.videoWidth && rawVideo.videoHeight) {
+        ratio = rawVideo.videoWidth / rawVideo.videoHeight;
+      } else if (isShort) {
+        ratio = 9 / 16;
+      }
+
+      const isRight = handle.classList.contains('bottom-right') || handle.classList.contains('top-right') || handle.classList.contains('edge-right');
+      const isLeft = handle.classList.contains('bottom-left') || handle.classList.contains('top-left') || handle.classList.contains('edge-left');
+      const isBottom = handle.classList.contains('bottom-left') || handle.classList.contains('bottom-right') || handle.classList.contains('edge-bottom');
+      const isTop = handle.classList.contains('top-left') || handle.classList.contains('top-right') || handle.classList.contains('edge-top');
       
-      const startWidth = modalContent.offsetWidth;
-      const startHeight = modalContent.offsetHeight;
+      const startRect = modalContent.getBoundingClientRect();
+      const startWidth = startRect.width;
+      const startHeight = startRect.height;
       const startX = e.clientX;
       const startY = e.clientY;
-      const startLeft = modalContent.offsetLeft;
-      const startTop = modalContent.offsetTop;
+      const startLeft = startRect.left;
+      const startTop = startRect.top;
       
+      const headerEl = modalContent.querySelector('.player-modal-header') || modalContent.querySelector('.modal-header');
+      const headerHeight = headerEl ? headerEl.offsetHeight : 38;
+
       document.onmousemove = elementResize;
       document.onmouseup = closeResizeElement;
       
       function elementResize(e) {
-        let width = startWidth;
-        let height = startHeight;
-        let left = startLeft;
-        let top = startTop;
-        
+        e.preventDefault();
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        let newWidth = startWidth;
+
         if (isRight) {
-          width = startWidth + (e.clientX - startX);
+          newWidth = startWidth + dx;
         } else if (isLeft) {
-          width = startWidth - (e.clientX - startX);
-          left = startLeft + (e.clientX - startX);
-        }
-        
-        if (isBottom) {
-          height = startHeight + (e.clientY - startY);
+          newWidth = startWidth - dx;
+        } else if (isBottom) {
+          const newBodyHeight = (startHeight - headerHeight) + dy;
+          newWidth = newBodyHeight * ratio;
         } else if (isTop) {
-          height = startHeight - (e.clientY - startY);
-          top = startTop + (e.clientY - startY);
+          const newBodyHeight = (startHeight - headerHeight) - dy;
+          newWidth = newBodyHeight * ratio;
         }
-        
-        const minWidth = 320;
-        const minHeight = 180;
-        
-        if (width >= minWidth) {
-          modalContent.style.width = `${width}px`;
-          if (isLeft) {
-            modalContent.style.left = `${left}px`;
-          }
+
+        // Minimum ve maksimum sınır kontrolleri
+        const minWidth = isShort ? 200 : 280;
+        const maxWidth = Math.min(1000, window.innerWidth - 20);
+        newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+
+        let newBodyHeight = Math.round(newWidth / ratio);
+        let newTotalHeight = newBodyHeight + headerHeight;
+
+        // Ekran yüksekliğini aşmama kontrolü
+        const maxHeight = window.innerHeight - 20;
+        if (newTotalHeight > maxHeight) {
+          newTotalHeight = maxHeight;
+          newBodyHeight = newTotalHeight - headerHeight;
+          newWidth = Math.round(newBodyHeight * ratio);
         }
-        
-        if (height >= minHeight) {
-          modalContent.style.height = `${height}px`;
-          if (isTop) {
-            modalContent.style.top = `${top}px`;
-          }
+
+        // Yeni konum hesaplama (Sol veya Üstten çekildiyse başlangıç konumunu kaydır)
+        let newLeft = startLeft;
+        let newTop = startTop;
+
+        if (isLeft) {
+          newLeft = startLeft + (startWidth - newWidth);
+        }
+        if (isTop) {
+          newTop = startTop + (startHeight - newTotalHeight);
+        }
+
+        // Ekran dışına taşmayı sınırla
+        newLeft = Math.max(10, Math.min(newLeft, window.innerWidth - newWidth - 10));
+        newTop = Math.max(10, Math.min(newTop, window.innerHeight - newTotalHeight - 10));
+
+        modalContent.style.width = `${Math.round(newWidth)}px`;
+        modalContent.style.height = `${Math.round(newTotalHeight)}px`;
+        modalContent.style.left = `${Math.round(newLeft)}px`;
+        modalContent.style.top = `${Math.round(newTop)}px`;
+        modalContent.style.right = 'auto';
+        modalContent.style.bottom = 'auto';
+
+        const bodyEl = modalContent.querySelector('.player-modal-body');
+        if (bodyEl) {
+          bodyEl.style.height = `${Math.round(newBodyHeight)}px`;
         }
       }
       
@@ -3109,8 +3496,7 @@ function makeElementResizable(modalContent) {
         document.onmousemove = null;
         document.onmouseup = null;
         
-        const isShort = modalContent.closest('#player-modal')?.classList.contains('is-short-player');
-        const suffix = isShort ? '-short' : '';
+        const suffix = isShort ? '-short' : '-wide';
         localStorage.setItem(`player-modal${suffix}-width`, modalContent.style.width);
         localStorage.setItem(`player-modal${suffix}-height`, modalContent.style.height);
         localStorage.setItem(`player-modal${suffix}-left`, modalContent.style.left);
@@ -3209,28 +3595,28 @@ function adjustPlayerOrientation(videoElement) {
   
   if (videoElement.videoWidth && videoElement.videoHeight) {
     const isVertical = videoElement.videoHeight > videoElement.videoWidth;
-    if (isVertical) {
-      if (modal) {
-        modal.classList.add('is-short-player');
-        const modalBody = modal.querySelector('.player-modal-body');
-        if (modalBody) {
-          modalBody.style.aspectRatio = `${videoElement.videoWidth} / ${videoElement.videoHeight}`;
-        }
+    const ratio = `${videoElement.videoWidth} / ${videoElement.videoHeight}`;
+
+    if (modal) {
+      const isMinimized = modal.classList.contains('minimized');
+      resetAndApplyPlayerDimensions(isVertical, isMinimized);
+      const modalBody = modal.querySelector('.player-modal-body');
+      if (modalBody) {
+        modalBody.style.aspectRatio = ratio;
       }
-      if (inlineWrapper) {
+    }
+
+    if (inlineWrapper) {
+      if (isVertical) {
         inlineWrapper.classList.add('is-short-player');
-        inlineWrapper.style.aspectRatio = `${videoElement.videoWidth} / ${videoElement.videoHeight}`;
-      }
-    } else {
-      if (modal) {
-        modal.classList.remove('is-short-player');
-        const modalBody = modal.querySelector('.player-modal-body');
-        if (modalBody) modalBody.style.aspectRatio = '';
-      }
-      if (inlineWrapper) {
+      } else {
         inlineWrapper.classList.remove('is-short-player');
-        inlineWrapper.style.aspectRatio = '';
       }
+      inlineWrapper.style.aspectRatio = ratio;
+    }
+
+    if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
+      setTimeout(() => videoPlayerInstance.resize(), 50);
     }
   }
 }
@@ -4289,7 +4675,10 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
         logoEl.onclick = null;
       }
 
-      modal.classList.remove('minimized');
+      const isShort = isShortVideo(videoDuration, videoTitle, videoChannelId);
+      modal.classList.remove('hidden');
+      resetAndApplyPlayerDimensions(isShort, false);
+
       const minBtn = document.getElementById('minimize-player-modal-btn');
       if (minBtn) {
         const icon = minBtn.querySelector('i') || minBtn.querySelector('[data-lucide]');
@@ -4298,30 +4687,11 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
         }
         minBtn.title = localDb.settings && localDb.settings.lang === 'en' ? 'Minimize' : 'Küçült';
       }
-      lucide.createIcons();
+      try {
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      } catch (e) {}
 
-      const isShort = isShortVideo(videoDuration, videoTitle, videoChannelId);
-      if (isShort) {
-        modal.classList.add('is-short-player');
-      } else {
-        modal.classList.remove('is-short-player');
-      }
-      
-      modal.classList.remove('hidden');
       playerContainer = modal.querySelector('.player-modal-body');
-      const modalContent = modal.querySelector('.player-modal-content');
-      if (modalContent) {
-        const suffix = isShort ? '-short' : '';
-        const w = localStorage.getItem(`player-modal${suffix}-width`);
-        const h = localStorage.getItem(`player-modal${suffix}-height`);
-        const l = localStorage.getItem(`player-modal${suffix}-left`);
-        const t = localStorage.getItem(`player-modal${suffix}-top`);
-        
-        modalContent.style.width = w || '';
-        modalContent.style.height = h || '';
-        modalContent.style.left = l || '';
-        modalContent.style.top = t || '';
-      }
     }
   }
 
@@ -5054,13 +5424,20 @@ window.closePlayerModal = function() {
     modal.classList.remove('is-short-player');
     modal.classList.remove('minimized');
     
-    // Reset drag position to default bottom-right
+    // Reset position & dimensions to default bottom-right
     const modalContent = modal.querySelector('.player-modal-content');
+    const modalBody = modal.querySelector('.player-modal-body');
     if (modalContent) {
       modalContent.style.left = '';
       modalContent.style.top = '';
       modalContent.style.bottom = '';
       modalContent.style.right = '';
+      modalContent.style.width = '';
+      modalContent.style.height = '';
+    }
+    if (modalBody) {
+      modalBody.style.height = '';
+      modalBody.style.aspectRatio = '';
     }
   }
 
@@ -5172,6 +5549,7 @@ function saveHistoryFilterState() {
     const dateSelect = document.getElementById('history-date-filter');
     const showShortsCb = document.getElementById('history-show-shorts');
     const showLiveCb = document.getElementById('history-show-live');
+    const showMembersCb = document.getElementById('history-show-members');
     const noAutoDlCb = document.getElementById('history-only-no-auto-download');
     const notDownloadedCb = document.getElementById('history-only-not-downloaded');
     const showHiddenCb = document.getElementById('history-show-hidden');
@@ -5182,6 +5560,7 @@ function saveHistoryFilterState() {
       date: dateSelect ? dateSelect.value : (window.historyFilterDays || 'all'),
       showShorts: showShortsCb ? showShortsCb.checked : false,
       showLive: showLiveCb ? showLiveCb.checked : true,
+      showMembers: showMembersCb ? showMembersCb.checked : (window.historyShowMembers !== false),
       noAutoDownload: noAutoDlCb ? noAutoDlCb.checked : !!window.historyOnlyNoAutoDownload,
       notDownloaded: notDownloadedCb ? notDownloadedCb.checked : !!window.historyOnlyNotDownloaded,
       showHidden: showHiddenCb ? showHiddenCb.checked : !!window.historyShowHidden,
@@ -5222,11 +5601,13 @@ function restoreHistoryFilterState() {
 
     if (state.noAutoDownload !== undefined) window.historyOnlyNoAutoDownload = !!state.noAutoDownload;
     if (state.notDownloaded !== undefined) window.historyOnlyNotDownloaded = !!state.notDownloaded;
+    if (state.showMembers !== undefined) window.historyShowMembers = state.showMembers !== false;
     if (state.showHidden !== undefined) window.historyShowHidden = !!state.showHidden;
 
     const checkMap = {
       'history-show-shorts': state.showShorts,
       'history-show-live': state.showLive,
+      'history-show-members': window.historyShowMembers !== false,
       'history-only-no-auto-download': window.historyOnlyNoAutoDownload,
       'history-only-not-downloaded': window.historyOnlyNotDownloaded,
       'history-show-hidden': window.historyShowHidden
@@ -5448,6 +5829,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const historyShowMembersCheck = document.getElementById('history-show-members');
+  if (historyShowMembersCheck) {
+    historyShowMembersCheck.addEventListener('change', () => {
+      window.historyShowMembers = historyShowMembersCheck.checked;
+      syncFilterChipUI('history-show-members');
+      saveHistoryFilterState();
+      updateUI(localDb);
+    });
+  }
+
   const historyShowHiddenCheck = document.getElementById('history-show-hidden');
   if (historyShowHiddenCheck) {
     historyShowHiddenCheck.addEventListener('change', () => {
@@ -5475,6 +5866,7 @@ function syncFilterChipUI(checkboxId) {
     'history-show-hidden': 'btn-filter-show-hidden',
     'history-only-not-downloaded': 'btn-filter-not-downloaded',
     'history-only-live-processing': 'btn-filter-live-processing',
+    'history-show-members': 'btn-filter-show-members',
     'history-show-shorts': 'btn-filter-show-shorts',
     'history-show-live': 'btn-filter-show-live',
     'history-only-no-auto-download': 'btn-filter-no-auto-download'
@@ -5517,10 +5909,15 @@ window.syncFilterChipUI = syncFilterChipUI;
       localDb.settings.showShorts = showShorts;
       
       const inlineCheckbox = document.getElementById('inline-playlist-show-shorts');
-      if (inlineCheckbox) {
-        inlineCheckbox.checked = showShorts;
-      }
-      
+      if (inlineCheckbox) inlineCheckbox.checked = showShorts;
+
+      const histCheckbox = document.getElementById('history-show-shorts');
+      if (histCheckbox) histCheckbox.checked = showShorts;
+
+      const settCheckbox = document.getElementById('settings-showshorts');
+      if (settCheckbox) settCheckbox.checked = showShorts;
+
+      if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
       updateUI(localDb);
       if (currentPlayingVideoId) {
         renderDownloadedPlaylist(currentPlayingVideoId);
@@ -6133,6 +6530,201 @@ window.addEventListener('click', (e) => {
   }
 });
 
+let dragSrcEl = null;
+
+// Türkçe Açıklama: Kuyruk sekmesinin görünüm modunu (table veya cards) değiştirir, buton durumunu günceller, ayarları INI'ye kaydeder ve listeyi yeniden çizer.
+/**
+ * Kuyruk sekmesi görünüm modunu ayarlar.
+ * 
+ * @param {'table' | 'cards'} mode Seçilen görünüm modu
+ */
+window.setQueueViewMode = function(mode) {
+  if (mode !== 'table' && mode !== 'cards') mode = 'table';
+  
+  const tableBtn = document.getElementById('queue-view-table-btn');
+  const cardsBtn = document.getElementById('queue-view-cards-btn');
+  if (tableBtn && cardsBtn) {
+    tableBtn.classList.toggle('active', mode === 'table');
+    cardsBtn.classList.toggle('active', mode === 'cards');
+  }
+
+  if (window.localDb && window.localDb.settings) {
+    window.localDb.settings.queueViewMode = mode;
+  }
+
+  localStorage.setItem('haytool_queue_view_mode', mode);
+
+  // Arayüzü güncelle
+  if (window.localDb) {
+    updateUI(window.localDb);
+  }
+
+  try {
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  } catch (e) {}
+
+  // Ayarları backend ve config.ini'ye kaydet
+  fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...(window.localDb ? window.localDb.settings : {}), queueViewMode: mode })
+  }).catch(err => console.error('Error saving queueViewMode:', err));
+};
+
+// Türkçe Açıklama: Kuyruktaki bir videonun sırasını yukarı veya aşağı yönde bir basamak kaydırır ve sunucuya bildirir.
+/**
+ * Kuyruk listesindeki videoyu yukarı veya aşağı taşır.
+ * 
+ * @param {string} videoId Taşınacak videonun ID'si
+ * @param {'up' | 'down'} direction Taşıma yönü
+ */
+window.moveQueueItem = function(videoId, direction) {
+  const list = document.getElementById('queue-list');
+  if (!list) return;
+
+  const items = Array.from(list.querySelectorAll('[data-id]'));
+  const currentIndex = items.findIndex(el => el.getAttribute('data-id') === videoId);
+  if (currentIndex === -1) return;
+
+  const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+  if (targetIndex < 0 || targetIndex >= items.length) return;
+
+  const currentEl = items[currentIndex];
+  const targetEl = items[targetIndex];
+
+  // Birleştirme (merging) durumundaki video taşınamaz
+  if (currentEl.classList.contains('queue-item-merging') || targetEl.classList.contains('queue-item-merging')) {
+    return;
+  }
+
+  if (direction === 'up') {
+    list.insertBefore(currentEl, targetEl);
+  } else {
+    targetEl.after(currentEl);
+  }
+
+  const newOrderIds = Array.from(list.querySelectorAll('[data-id]')).map(el => el.getAttribute('data-id'));
+
+  // Sıra numaralarını ve ok butonlarının aktif/pasif durumlarını hemen güncelle
+  updateQueueOrderDOM(list);
+
+  fetch('/api/queue/reorder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: newOrderIds })
+  }).catch(err => console.error('Error reordering queue via arrow:', err));
+};
+
+// Türkçe Açıklama: DOM üzerindeki sıra numarası rozetlerini (#01, #02..) ve ilk/son elemanın ok butonlarının pasiflik durumunu anında senkronize eder.
+function updateQueueOrderDOM(listEl) {
+  if (!listEl) return;
+  const items = Array.from(listEl.querySelectorAll('[data-id]'));
+  const total = items.length;
+
+  items.forEach((item, idx) => {
+    const badge = item.querySelector('.queue-order-badge');
+    if (badge) {
+      badge.textContent = `#${(idx + 1).toString().padStart(2, '0')}`;
+    }
+    const upBtn = item.querySelector('.queue-btn-up');
+    const downBtn = item.querySelector('.queue-btn-down');
+    if (upBtn) {
+      upBtn.disabled = (idx === 0);
+      upBtn.classList.toggle('disabled', idx === 0);
+    }
+    if (downBtn) {
+      downBtn.disabled = (idx === total - 1);
+      downBtn.classList.toggle('disabled', idx === total - 1);
+    }
+  });
+}
+window.updateQueueOrderDOM = updateQueueOrderDOM;
+
+// Türkçe Açıklama: Liste elemanı sürüklenmeye başlandığında şeffaflığı azaltarak görsel bildirim verir ve sürükleme verilerini ayarlar.
+/**
+ * Sürükleme başladığında tetiklenen olay yöneticisi.
+ * 
+ * @param {DragEvent} e Sürükleme olayı nesnesi
+ */
+function handleDragStart(e) {
+  this.style.opacity = '0.4';
+  dragSrcEl = this;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/html', this.innerHTML);
+}
+window.handleDragStart = handleDragStart;
+
+// Türkçe Açıklama: Sürüklenen eleman diğer elemanın üzerine geldiğinde tarayıcının varsayılan sürükleme davranışını engelleyerek taşımaya izin verir.
+/**
+ * Sürüklenen öğe başka bir öğenin üzerine geldiğinde tetiklenir.
+ * 
+ * @param {DragEvent} e Sürükleme olayı nesnesi
+ */
+function handleDragOver(e) {
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+  e.dataTransfer.dropEffect = 'move';
+  return false;
+}
+window.handleDragOver = handleDragOver;
+
+// Türkçe Açıklama: Sürüklenen eleman hedef konum üzerine bırakıldığında DOM üzerindeki sırasını değiştirir ve güncel sıralamayı backend API'sine kaydeder.
+/**
+ * Sürüklenen öğe bırakıldığında tetiklenen olay yöneticisi.
+ * Sıralamayı DOM üzerinde günceller ve sunucuya bildirir.
+ * 
+ * @param {DragEvent} e Sürükleme olayı nesnesi
+ */
+function handleDrop(e) {
+  if (e.stopPropagation) {
+    e.stopPropagation();
+  }
+  
+  if (dragSrcEl !== this) {
+    const list = document.getElementById('queue-list');
+    if (!list) return false;
+    const children = Array.from(list.querySelectorAll('[data-id]'));
+    const fromIndex = children.indexOf(dragSrcEl);
+    const toIndex = children.indexOf(this);
+    
+    if (fromIndex < toIndex) {
+      this.after(dragSrcEl);
+    } else {
+      this.before(dragSrcEl);
+    }
+    
+    const newOrderIds = Array.from(list.querySelectorAll('[data-id]')).map(el => el.getAttribute('data-id'));
+    
+    updateQueueOrderDOM(list);
+
+    fetch('/api/queue/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: newOrderIds })
+    }).catch(err => console.error('Error reordering queue:', err));
+  }
+  
+  return false;
+}
+window.handleDrop = handleDrop;
+
+// Türkçe Açıklama: Sürükleme işlemi bittiğinde elemanların şeffaflıklarını sıfırlayarak görünümü normale döndürür.
+/**
+ * Sürükleme işlemi bittiğinde tetiklenen olay yöneticisi.
+ * 
+ * @param {DragEvent} e Sürükleme olayı nesnesi
+ */
+function handleDragEnd(e) {
+  this.style.opacity = '1';
+  document.querySelectorAll('#queue-list [data-id]').forEach(item => {
+    item.style.opacity = '1';
+  });
+}
+window.handleDragEnd = handleDragEnd;
+
 /**
  * Pano içeriğini veya girilen YouTube linkini okuyarak doğrudan indirme kuyruğuna ekler.
  */
@@ -6268,83 +6860,6 @@ window.updateQueueSpeedLimit = async function() {
   }
 };
 
-let dragSrcEl = null;
-
-// Türkçe Açıklama: Liste elemanı sürüklenmeye başlandığında şeffaflığı azaltarak görsel bildirim verir ve sürükleme verilerini ayarlar.
-/**
- * Sürükleme başladığında tetiklenen olay yöneticisi.
- * 
- * @param {DragEvent} e Sürükleme olayı nesnesi
- */
-function handleDragStart(e) {
-  this.style.opacity = '0.4';
-  dragSrcEl = this;
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/html', this.innerHTML);
-}
-
-// Türkçe Açıklama: Sürüklenen eleman diğer elemanın üzerine geldiğinde tarayıcının varsayılan sürükleme davranışını engelleyerek taşımaya izin verir.
-/**
- * Sürüklenen öğe başka bir öğenin üzerine geldiğinde tetiklenir.
- * 
- * @param {DragEvent} e Sürükleme olayı nesnesi
- */
-function handleDragOver(e) {
-  if (e.preventDefault) {
-    e.preventDefault();
-  }
-  e.dataTransfer.dropEffect = 'move';
-  return false;
-}
-
-// Türkçe Açıklama: Sürüklenen eleman hedef konum üzerine bırakıldığında DOM üzerindeki sırasını değiştirir ve güncel sıralamayı backend API'sine kaydeder.
-/**
- * Sürüklenen öğe bırakıldığında tetiklenen olay yöneticisi.
- * Sıralamayı DOM üzerinde günceller ve sunucuya bildirir.
- * 
- * @param {DragEvent} e Sürükleme olayı nesnesi
- */
-function handleDrop(e) {
-  if (e.stopPropagation) {
-    e.stopPropagation();
-  }
-  
-  if (dragSrcEl !== this) {
-    const list = document.getElementById('queue-list');
-    const children = Array.from(list.children);
-    const fromIndex = children.indexOf(dragSrcEl);
-    const toIndex = children.indexOf(this);
-    
-    if (fromIndex < toIndex) {
-      this.after(dragSrcEl);
-    } else {
-      this.before(dragSrcEl);
-    }
-    
-    const newOrderIds = Array.from(list.querySelectorAll('.queue-item')).map(el => el.getAttribute('data-id'));
-    
-    fetch('/api/queue/reorder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: newOrderIds })
-    }).catch(err => console.error('Error reordering queue:', err));
-  }
-  
-  return false;
-}
-
-// Türkçe Açıklama: Sürükleme işlemi bittiğinde elemanların şeffaflıklarını sıfırlayarak görünümü normale döndürür.
-/**
- * Sürükleme işlemi bittiğinde tetiklenen olay yöneticisi.
- * 
- * @param {DragEvent} e Sürükleme olayı nesnesi
- */
-function handleDragEnd(e) {
-  this.style.opacity = '1';
-  document.querySelectorAll('.queue-item').forEach(item => {
-    item.style.opacity = '1';
-  });
-}
 
 // Türkçe Açıklama: Takip edilen kanallar yedek listesini dışarı aktarmak için browser download tetikler.
 function exportChannels() {
@@ -9621,15 +10136,18 @@ async function updateConcurrentLimit() {
 
 window.updateConcurrentLimit = updateConcurrentLimit;
 
-// Türkçe Açıklama: Mevcut yt-dlp motor sürümünü sunucudan sorgulayarak ayarlar sayfasındaki sürüm etiketini günceller.
+// Türkçe Açıklama: Mevcut yt-dlp motor sürümünü, kanalını ve tüm GitHub sürümlerini sorgulayarak ayarlar sayfasındaki seçim listesini doldurur.
 /**
- * yt-dlp motor sürümünü API'den sorgular ve #ytdlp-current-version alanına yazar.
+ * yt-dlp motor sürümünü ve mevcut tüm sürümleri API'den sorgular, arayüzü günceller.
  */
 async function fetchYtdlpVersion() {
   const versionEl = document.getElementById('ytdlp-current-version');
   const latestEl = document.getElementById('ytdlp-latest-version');
+  const badgeEl = document.getElementById('ytdlp-channel-badge');
+  const selectEl = document.getElementById('ytdlp-target-select');
   const btn = document.getElementById('ytdlp-update-btn');
   if (!versionEl) return;
+
   try {
     const res = await fetch('/api/downloader/ytdlp-version');
     const data = await res.json();
@@ -9641,24 +10159,61 @@ async function fetchYtdlpVersion() {
       versionEl.textContent = '?';
     }
 
+    // Kanal Rozeti
+    if (badgeEl) {
+      if (data.channel === 'nightly') {
+        badgeEl.textContent = '🌙 Nightly (Önerilen)';
+        badgeEl.style.background = 'rgba(147, 51, 234, 0.15)';
+        badgeEl.style.color = '#c084fc';
+        badgeEl.style.borderColor = 'rgba(147, 51, 234, 0.3)';
+      } else if (data.channel === 'stable') {
+        badgeEl.textContent = '⭐ Kararlı (Stable)';
+        badgeEl.style.background = 'rgba(59, 130, 246, 0.15)';
+        badgeEl.style.color = '#60a5fa';
+        badgeEl.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+      } else {
+        badgeEl.textContent = 'Bilinmiyor';
+      }
+    }
+
     // En Son Sürüm (Uzak Sunucu)
     if (latestEl) {
-      if (data.latestVersion) {
-        latestEl.textContent = data.latestVersion;
-        
-        // Eğer zaten güncelse buton stilini nötralize et (gri tonu yap)
-        if (btn && data.version === data.latestVersion) {
-          btn.style.background = 'rgba(128, 128, 128, 0.1)';
-          btn.style.borderColor = 'rgba(128, 128, 128, 0.3)';
-          btn.style.color = 'var(--text-muted)';
-        } else if (btn) {
-          // Güncelleme varsa yeşil tonunda tut
-          btn.style.background = 'rgba(40, 180, 99, 0.1)';
-          btn.style.borderColor = 'rgba(40, 180, 99, 0.3)';
-          btn.style.color = '#28b463';
-        }
+      if (data.latestNightly) {
+        latestEl.textContent = data.latestNightly + ' (Nightly)';
+      } else if (data.latestStable) {
+        latestEl.textContent = data.latestStable + ' (Stable)';
       } else {
         latestEl.textContent = '-';
+      }
+    }
+
+    // Sürüm Seçim Dropdown'ını Doldur
+    if (selectEl) {
+      const nightlyGroup = document.getElementById('optgroup-nightly-history');
+      const stableGroup = document.getElementById('optgroup-stable-history');
+
+      if (nightlyGroup) {
+        nightlyGroup.innerHTML = '';
+        if (data.recentNightly && data.recentNightly.length > 0) {
+          data.recentNightly.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = `nightly@${item.tag}`;
+            opt.textContent = `🌙 Nightly ${item.tag}`;
+            nightlyGroup.appendChild(opt);
+          });
+        }
+      }
+
+      if (stableGroup) {
+        stableGroup.innerHTML = '';
+        if (data.recentStable && data.recentStable.length > 0) {
+          data.recentStable.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = `stable@${item.tag}`;
+            opt.textContent = `⭐ Stable ${item.tag}`;
+            stableGroup.appendChild(opt);
+          });
+        }
       }
     }
   } catch (err) {
@@ -9667,14 +10222,17 @@ async function fetchYtdlpVersion() {
   }
 }
 
-// Türkçe Açıklama: yt-dlp motorunu en son sürüme günceller ve sonucu kullanıcıya toast mesajıyla bildirir.
+// Türkçe Açıklama: Seçilen yt-dlp sürümüne veya en güncel sürüme günceller / geri alır.
 /**
- * yt-dlp motorunu --update komutuyla güncelleyerek sonucu gösterir.
+ * Seçilen hedef sürüme göre yt-dlp motorunu günceller.
  */
 async function updateYtdlp() {
   const btn = document.getElementById('ytdlp-update-btn');
+  const selectEl = document.getElementById('ytdlp-target-select');
   const icon = btn ? btn.querySelector('i') : null;
   const t = translations[currentLang] || translations.tr;
+
+  const target = selectEl ? selectEl.value : 'nightly';
 
   if (btn) btn.disabled = true;
   if (icon) icon.style.animation = 'spin 1s linear infinite';
@@ -9682,7 +10240,11 @@ async function updateYtdlp() {
   showToast(t.toast_ytdlp_updating || 'yt-dlp güncelleniyor...', 'info');
 
   try {
-    const res = await fetch('/api/downloader/ytdlp-update', { method: 'POST' });
+    const res = await fetch('/api/downloader/ytdlp-update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target })
+    });
     const data = await res.json();
 
     if (data.success) {
@@ -9700,6 +10262,7 @@ async function updateYtdlp() {
 }
 
 window.updateYtdlp = updateYtdlp;
+window.fetchYtdlpVersion = fetchYtdlpVersion;
 
 // Sayfa yüklendiğinde yt-dlp sürümünü ve Gist alanlarını otomatik sorgula
 document.addEventListener('DOMContentLoaded', () => {

@@ -3,6 +3,199 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.38.0] - 2026-08-19
+
+### 🌐 Smart Geo-Restriction & Court-Blocked Video Bypass / Akıllı Coğrafi Kısıtlama & Mahkeme Kararlı Video Tüneli
+
+- **Automatic Geo-Block Rescue Tunnel with Zero Impact on Normal Downloads (Normal İndirmeleri Etkilemeyen Otomatik Kurtarma Tüneli):**
+  - Preserved 100% direct fiber connection speed for standard unrestricted videos without touching proxies.
+  - Automatically activates a verified HTTPS proxy tunnel only when YouTube returns country-level legal blocks (`Video unavailable due to a legal complaint`).
+  - Standart engelsiz videolarda doğrudan yerel internet hızından (%100 doğrudan bağlantı) ödün verilmez; yalnızca mahkeme kararıyla engellenmiş videolarda otomatik çalışan proxy tüneli devreye girer.
+
+- **Full HD 1080p60 AV1/AVC1 & Opus Stream Extraction (1080p60 Full HD ve Yüksek Kalite Ses Akış Desteği):**
+  - Removed restrictive `player_client=android` parameters that caused yt-dlp to downgrade geo-blocked videos to legacy 360p (Format 18).
+  - Cleanly fetches separate adaptive streams: Format 399/299 (1080p60 AV1/AVC1) + Format 251 (Opus audio) and merges them into lossless `.mp4` via FFmpeg.
+  - Engelli videoların 360p'ye düşme sorunu kökten çözüldü; tüm videolar 1080p Full HD kalitesinde indirilir.
+
+- **YouTube CDN 403 Forbidden Proxy Auto-Rotation (Proxy Otomatik Rotasyonu):**
+  - Integrated smart retry with `rotateProxy()` in `downloader.js` so that if YouTube CDN returns a temporary 403 Forbidden on a proxy IP, the engine instantly switches to the next available working proxy and resumes the download seamlessly.
+  - Proxy IP'si YouTube CDN'inde 403 aldığında indirme iptal olmaz; sıradaki çalışan tünele geçilerek indirme kesintisiz tamamlanır.
+
+### 🛡️ Atomic Database Concurrency & Windows File Lock Resilience / Atomik Veritabanı Eşzamanlılık ve Kilit Güçlendirmesi
+
+- **Zero-Conflict Write Engine (`server/database.js`):**
+  - Introduced unique randomized temporary file paths (`dbPath.<timestamp>.<rand>.tmp`) combined with a 5-step fallback retry loop to prevent `EPERM` / `ENOENT` collisions on Windows under heavy parallel write loads.
+  - Windows ortamında yoğun eşzamanlı SSE bildirimleri ve indirmeler esnasında `db.json.tmp` dosya kilitleme çakışmaları tamamen ortadan kaldırıldı.
+
+## [8.37.0] - 2026-08-18
+
+### 🚀 yt-dlp Engine Channel Manager, Nightly VisionOS Bypass & Download Priority Lock / yt-dlp Sürüm & Kanal Yöneticisi, Nightly VisionOS Kalkanı ve İndirme Öncelik Kilidi
+
+- **Advanced yt-dlp Engine Version & Channel Manager in Settings (`/settings` Sekmesinde Gelişmiş yt-dlp Sürüm ve Kanal Yöneticisi):**
+  - Integrated dynamic multi-channel yt-dlp selector (`Nightly`, `Stable`, and historical release rollback list) directly in the Settings tab.
+  - Automatically queries the latest 6 Nightly and 6 Stable releases from GitHub API (`/api/downloader/ytdlp-version`).
+  - Added one-click version switching & updating (`/api/downloader/ytdlp-update` via `--update-to <target>`) with active channel badge (`🌙 Nightly` vs `⭐ Stable`).
+  - Ayarlar sekmesine dinamik yt-dlp sürüm ve kanal seçim paneli eklendi. Kullanıcılar artık tek tıkla en güncel Nightly veya Kararlı (Stable) sürüme geçebilir veya geçmiş sürümleri seçip geri alabilir.
+
+- **Auto-Download & Auto-Healing on First Install / Missing Binary (İlk Kurulum ve Eksik Dosyada Otomatik İndirme):**
+  - Upgraded `ensureYtdlp()` in `server/services/downloader.js` to automatically fetch and install the latest working Nightly `yt-dlp.exe` / `yt-dlp` from GitHub if the local binary is missing.
+  - New users will never encounter broken/outdated yt-dlp versions or missing file errors upon first startup.
+  - Klasörde `yt-dlp.exe` bulunmasa dahi uygulama ilk açılışta veya indirme başlangıcında en güncel çalışan Nightly sürümünü GitHub'dan otomatik olarak indirip hazır hale getirir.
+
+- **YouTube CDN 403 Forbidden & 360p SABR Bypass via VisionOS Client (VisionOS İstemcisiyle 403 ve SABR Kısıtlamalarını Aşma):**
+  - Updated bundled `yt-dlp\yt-dlp.exe` to `2026.08.17` nightly build featuring the new `visionos` player client, cleanly bypassing YouTube's `android_vr` 403 restrictions and SABR degradation.
+  - Removed outdated fallback that downgraded failed downloads to 360p (`format 18`); enhanced download queue with exponential retry backoff (`--fragment-retries 10 --retries 5 --retry-sleep fragment:exp=1:20`), preserving full 1080p60 AV1 / 4K stream quality.
+  - `yt-dlp.exe` en güncel sürüme güncellendi ve YouTube'un 403 engeli koyduğu videolar en yüksek kalitede (1080p60 AV1) başarıyla indirilebilir kılındı.
+
+- **Download Priority Lock over Background Channel Scanning (İndirme Öncelik Kilidi & Kanal Taramasını Duraklatma):**
+  - Enhanced `triggerChannelCheck` and `checkAllChannelsRssParallel` in `server/services/rss.js` with active download detection (`while (activeDownloads > 0 || queue.length > 0)`).
+  - Background startup and periodic timer channel checks are automatically deferred while downloads are active or pending in the queue, eliminating network congestion and YouTube IP rate-limiting.
+  - Aktif video indirmesi devam ederken veya kuyrukta bekleyen video varken kanal taramaları otomatik olarak duraklatılır; video indirmesi bittiğinde tarama kaldığı yerden devam eder.
+
+### 💡 Interactive CLI & Console Command Guide & Help Button / İnteraktif CLI & Konsol Komut Rehberi ve Yardım Butonu
+
+- **System Tray Console "Yardım" Button & Interactive Command Guide (Tepsi Konsoluna "Yardım" Butonu ve Komut Rehberi):**
+  - Added dedicated Purple "Yardım" button (`helpButton`, `#8E44AD`) in `tray.cs` right-click "Konsol Çıktısını Göster" window with modern 4-button layout (`[Komut Kutusu]`, `[Gönder]`, `[Temizle]`, `[Yardım]`, `[Aç]`).
+  - Created `ShowCliHelpDialog` with interactive command cards, syntax badges, examples, and localized 7-language UI strings.
+  - Features one-click **"Kullan" (Use)** action that automatically inserts and focuses command templates directly into the console command input box, and one-click **"Kopyala" (Copy)** to clipboard.
+  - Tepsi "Konsol Çıktısını Göster" penceresine mor "Yardım" butonu ve tek tıkla konsola komut aktaran/kopyalayan modern interaktif komut rehberi penceresi eklendi.
+
+- **Full 7-Language Localization for Console Buttons & Command Guide (Konsol Butonları ve Komut Rehberinde Tam 7 Dil Desteği):**
+  - Resolved language switching issues where console window buttons remained static; dynamically bound `cmdLabel`, `sendButton`, `clearButton`, `helpButton`, and `openLogButton` to runtime language updates (`ApplyConsoleFormLanguage`).
+  - Added comprehensive native translations for all 9 commands and their descriptions across **TR, EN, DE, ES, PT, RU, and AR** in `ShowCliHelpDialog` (eliminating fallback to Turkish in non-English modes).
+  - Enhanced `GetLanguageSetting()` in `tray.cs` to read active language from memory, `db.json`, and `configwin.ini` simultaneously.
+  - Tepsi konsol penceresindeki tüm butonlar (`Gönder`, `Temizle`, `Yardım`, `Aç`, `Komut:`) ve Yardım kılavuzundaki 9 komutun tamamı 7 dilde (TR, EN, DE, ES, PT, RU, AR) eksiksiz çevrildi ve anlık dil senkronizasyonuna bağlandı.
+
+- **Expanded Server Console (stdin) Command Engine (Genişletilmiş Konsol Komut Motoru):**
+  - Implemented comprehensive runtime stdin commands in `server.js` (`status`, `speed <val|off|on>`, `altspeed <val>`, `ton`, `toff`, `toggle`, `pd <link>`, `clear`, `help`).
+  - Added multi-language Turkish and English aliases (`turtleon`, `turtleoff`, `turtleac`, `turtlekapat`).
+  - Konsol stdin dinleyicisine tüm hız profili, tek tuş geçiş (toggle) ve indirme komutları entegre edildi.
+
+- **Binary Compilation & System Synchronization:**
+  - Recompiled `HaYTooL YT Downloader.exe` via `0nogithub/build_tray.ps1`.
+  - Sürüm 4 ana dosyada eş zamanlı olarak `v8.37.0` yapıldı.
+
+## [8.36.0] - 2026-08-18
+
+### 🚀 Major Engine & Console Overhaul: YouTube 403/DRM Shield, Remote EJS Challenge Solver & Tray Console Clear Button / Büyük Motor & Konsol Güncellemesi: YouTube 403/DRM Kalkanı, Uzaktan EJS Çözücü & Tepsi Konsolu Temizle Butonu
+
+- **YouTube 403 Forbidden & DRM Deprecation Fix (Kökten 403 ve DRM Engeli Çözümü):**
+  - Deprecated outdated `android_vr` and DRM-restricted `tv` player clients in `server/services/downloader.js` and `server/services/rss.js`.
+  - Migrated to the modern, stable `player_client=android,web` sequence.
+  - Enabled `--remote-components ejs:github` to dynamically resolve modern YouTube JavaScript `n-challenge` algorithms with the Node.js runtime.
+  - YouTube tarafından engellenen `android_vr` ve `tv` istemcileri kaldırılıp güncel `android,web` ve uzaktan EJS JS challenge çözücüsüne geçilerek 403 Forbidden hataları kökten çözüldü.
+
+- **Smart Auto-Retry Fallback System (Akıllı Otomatik Kurtarma & Fallback):**
+  - Implemented automatic fallback retry mechanism: on transient CDN 403/503 limits, the downloader automatically transitions to the standalone `android` client and re-attempts download within 3 seconds without marking videos as failed.
+  - Olası anlık sunucu kısıtlamalarında otomatik olarak bağımsız Android akış istemcisine geçiş yapan akıllı kurtarma mekanizması entegre edildi.
+
+- **System Tray "Konsol Çıktısını Göster" Clear Button (Tepsi Konsoluna "Temizle" Butonu):**
+  - Added dedicated "Temizle" (`clearButton`, `#E67E22`) to the right-click System Tray Console window (`tray.cs`), positioned between "Gönder" and "Aç".
+  - Instantly clears on-screen terminal text without touching persistent disk logs in `logs/`.
+  - Recompiled `HaYTooL YT Downloader.exe` via `0nogithub/build_tray.ps1`.
+  - Sistem tepsisi sağ tık "Konsol Çıktısını Göster" penceresine log görünümünü temizleyen turuncu "Temizle" butonu eklendi ve `HaYTooL YT Downloader.exe` yeniden derlendi.
+
+- **Rich Terminal Output & Color Rendering (Zengin Konsol Çıktıları ve Renklendirme):**
+  - Added vibrant color rules (Neon Amber `#FFB700`, Emerald Green `#2ECC71`, Cyan `#00E1FF`) in `tray.cs` for `[403 Koruması]`, `[Kuyruk Auto-Retry]`, and `[İndirme Başarılı]` terminal events.
+  - Konsol penceresindeki kuyruk, yeniden deneme ve 403 koruma logları göz alıcı ve bilgilendirici renklerle formatlandı.
+
+## [8.35.2] - 2026-08-17
+
+### 🐛 Bug Fix: Strict Purple-Dot Members-Only Alignment & RSS Error Message Disambiguation / Hata Düzeltmesi: Mor Noktalı Üyelere Özel Eşlemesi ve RSS Hata Mesajı Ayrıştırması
+
+- **Strict Purple Dot (status-dot-members) Sync:**
+  - Standardized `isMembersOnlyVideo(item)` helper across both `videoCard.js` and `app.js` filtering.
+  - Only videos that receive the purple status dot (`status: failed` with actual YouTube membership error or `isMembersOnly: true`) are categorized as Members-Only.
+  - Sadece video kartında mor nokta (`status-dot-members`) alan gerçek Katıl/Üyelik hatalı videolar üyelere özel filtresine tabi tutulur; mavi noktalı ("ignored") sona eren canlı yayınlar veya gizli videolar artık filtreden etkilenmez.
+
+- **RSS Feed Error Disambiguation:**
+  - Disambiguated generic unavailable error in `server/services/rss.js` to accurately categorize ended live streams, private videos, and members-only videos individually.
+  - `rss.js` içindeki genel hata mesajı ayrıştırılarak canlı yayın sonlanması, gizli video ve üyelere özel içerikler birbirinden ayrıldı.
+
+## [8.35.1] - 2026-08-17
+
+### 🔄 Refinement: Members-Only Show/Hide Toggle Mode / İyileştirme: Üyelere Özel Videoları Göster/Gizle Toggle Modu
+
+- **Show / Hide Members-Only Toggle (Üyelere Özel Videoları Göster/Gizle Anahtarı):**
+  - Updated the "Üyelere Özel" filter button (`#btn-filter-show-members`) from an exclusive single-category filter into a show/hide toggle, consistent with the Shorts (`history-show-shorts`) and Live (`history-show-live`) chips.
+  - When enabled (active), members-only videos are displayed alongside standard videos. When disabled (inactive), members-only videos are filtered out and hidden from the Library list.
+  - "Üyelere Özel" butonu, tıpkı Shorts ve Canlı yayın butonları gibi listede üyelere özel videoları gösterme veya tamamen gizleme anahtarı (toggle) olarak güncellendi.
+
+## [8.35.0] - 2026-08-17
+
+### 🚀 New Feature: Members-Only Filter & State Persistence in Library Tab / Yeni Özellik: Kütüphane Sekmesinde Üyelere Özel Filtresi ve Kalıcı Tercih Hatırlama
+
+- **Dedicated "Members-Only" Filter Chip in History Toolbar (Kütüphane Toolbarında Üyelere Özel Filtre Çipi):**
+  - Added a new responsive filter button (`#btn-filter-members-only`) with a crown icon (`crown`) to `#tab-history > .history-toolbar`.
+  - When enabled, only videos identified as YouTube Members-Only / Channel Membership content (`isMembersOnly` or error containing membership join requirements) are displayed.
+  - Kütüphane sekmesine taç simgeli "Üyelere Özel" filtreleme butonu eklendi; tıklandığında yalnızca Katıl/üyelik gerektiren özel videolar listelenir.
+
+- **Persistent Preference Across App Restarts (Kalıcı Tercih Hatırlama):**
+  - Integrated the members-only filter state into `saveHistoryFilterState()` and `restoreHistoryFilterState()` via `localStorage` (`haytool_history_filters_v2`).
+  - The filter preference is remembered and restored automatically on subsequent application launches and page reloads.
+  - Yapılan filtreleme tercihi yerel depolamaya kaydedilerek uygulamanın sonraki açılışlarında otomatik olarak korunur ve hatırlanır.
+
+- **Multi-Language Localization (7 Dilde Çeviri Desteği):**
+  - Added `lbl_history_only_members_only` across all 7 supported interface languages: Turkish, English, German, Spanish, Portuguese, Russian, and Arabic.
+  - Tüm arayüz dillerine ilgili çeviriler eklendi.
+
+## [8.34.0] - 2026-08-17
+
+### 🚀 Major Feature: Floating / PiP Video Player Overhaul, Aspect-Locked Resizing & Zero-Lag Live DOM Reparenting / Büyük Özellik: Yüzen / PiP Video Oynatıcı Yenilemesi, En-Boy Kilitli Boyutlandırma & 0-Gecikmeli Canlı DOM Transferi
+
+- **Aspect-Ratio Locked Proportional Resizing (En-Boy Oranı Kilitli Orantılı Boyutlandırma):**
+  - Revamped `#player-modal` resizing engine with 8 responsive handles (4 corners + 4 edges).
+  - Resizing width or height automatically calculates proportional dimensions based on exact video aspect ratio (16:9 for Widescreen, 9:16 for Shorts, or real native stream resolution).
+  - Videos never get distorted ("tipi kaymaz"), letterbox black bars are prevented, and viewport boundaries ensure player controls and timeline never get clipped.
+  - Oynatıcı modalına 8 yönlü yeniden boyutlandırma tutamacı eklendi; dikey Shorts veya 16:9 yatay videolarda en ve boy oranı kilitli olarak kusursuz orantılı boyutlandırma sağlandı.
+
+- **Zero-Lag Instant Continuous Playback via Live DOM Reparenting (Canlı DOM Transferi ile 0-Gecikmeli Kesintisiz Oynatma):**
+  - Replaced player destroy & reload cycle during tab transitions (`switchTab`) with seamless live DOM reparenting.
+  - When navigating away from the Downloaded tab to Library, Queue, or Settings (or vice-versa), the active `<video>` or `Artplayer` DOM instance is instantly reparented into the floating player without stopping media decoding, resetting audio/video streams, or losing loaded subtitle settings and SponsorBlock segment markers.
+  - Sekmeler arası geçişlerde oynatıcının baştan başlatılması yerine canlı DOM transferi kullanılarak 1-2 saniyelik kopmalar ve donmalar tamamen ortadan kaldırıldı; akış 0ms gecikmeyle kesintisiz devam eder.
+
+- **Independent Memory Management for Shorts & Widescreen (Shorts ve Geniş Ekran İçin Ayrık Hafıza):**
+  - Split localStorage geometry keys into `player-modal-short-*` and `player-modal-wide-*`.
+  - Switching between Shorts and Standard widescreen videos cleanly resets inline style artifacts, preventing sticky aspect pollution.
+  - Shorts ve yatay videolar için pencere boyut ve konum kayıtları birbirinden tamamen ayrıldı; bir videonun boyutu diğerini etkilemez.
+
+- **Draggable & Safe Viewport Clamping (Serbest Taşınabilirlik ve Ekran Sınırı Güvencesi):**
+  - Smooth header-based dragging with strict viewport edge collision detection (`Math.max` / `Math.min`) ensuring seek bar and controls are 100% visible at all times.
+  - Başlık çubuğundan serbestçe taşınabilir hale getirildi; ekran kenarlarından taşma engeli ile alt ilerleme çubuğu daima görünür tutuldu.
+
+## [8.33.0] - 2026-08-17
+
+### 🚀 New Feature: Multi-View Queue System, Arrow Ordering & Metadata Polish / Yeni Özellik: Çoklu Görünümlü Kuyruk Sistemi, Oklarla Sıralama & Metadata İyileştirmeleri
+
+- **Dual-Mode Dynamic Queue View: Table & Cards (Çift Modlu Dinamik Kuyruk Görünümü: Tablo ve Kartlar):**
+  - Replaced the reset engine button in `#tab-queue > .content-header` with a sleek **View Switcher** (`#queue-view-toggle-container`), allowing users to toggle between **Data Table View (Tablo)** and **Glass Cards View (Kartlar)** on the fly.
+  - User's view preference (`queueViewMode: 'table' | 'cards'`) is automatically saved and read from `config.ini` under `[Settings]` and preserved across app restarts.
+  - Kuyruk başlığındaki motor sıfırlama butonu yerine kullanıcıların dilediği an Tablo ve Kart görünümleri arasında geçiş yapabileceği dinamik bir menü eklendi; tercih `config.ini` dosyasına kaydedilerek kalıcı hale getirildi.
+
+- **Persistent Metadata Visibility & Calculating State (Kesintisiz Metadata Görünürlüğü & Hesaplama Durumu):**
+  - Every single video in the queue and pre-downloaded list now prominently displays **Order Number (`#01`, `#02`...)**, **16:9 Thumbnail Cover**, **Video Title**, **Channel Name**, **Duration**, and **File Size**.
+  - If a video's file size or duration is pending calculation, a sleek animated calculating badge (`Hesaplanıyor...` / `Calculating...`) is displayed, eliminating layout shifts or missing information.
+  - Kuyruktaki ve ön indirilenler listesindeki tüm videolarda sıra numarası, kapak resmi, başlık, kanal, süre ve dosya boyutu eksiksiz gösterilecek şekilde düzenlendi; boyutu hesaplanmakta olan videolara sarı nabız animasyonlu `Hesaplanıyor...` rozeti eklendi.
+
+- **Up & Down Arrow Move Controls (Yukarı ve Aşağı Taşıma Okları ile Hızlı Sıralama):**
+  - Added intuitive Up (▲) and Down (▼) arrow buttons to each queue item in addition to native drag-and-drop reordering.
+  - Instant DOM updates with real-time `/api/queue/reorder` synchronization. Top items disable the Up arrow and bottom items disable the Down arrow.
+  - Sürükle-bırak yöntemine ek olarak her satıra/karta anında çalışan Yukarı ve Aşağı taşıma butonları eklendi.
+
+- **HQ Hover Thumbnail Cycling in Queue Lists (Kuyrukta Alternatif Kapak Döngüsü):**
+  - Integrated `video-thumbnail-wrapper` across both "Sıradaki Videolar" and "Ön İndirilen Videolar" in both views.
+  - Hovering over video thumbnails smoothly cycles through high-resolution frames (`hq1.jpg`, `hq2.jpg`, `hq3.jpg`), respecting the user's `enableAltThumbnailsHover` setting.
+  - Kuyruk sekmesindeki tüm video kapakları fare üzerine gelindiğinde anlık HQ kareleri dönecek şekilde donatıldı.
+
+- **Vertical Auto-Expansion (Dikeyde Otomatik Büyüme):**
+  - Removed restrictive `max-height: 400px` scrollbars from queue lists. Lists now expand naturally with content length.
+  - Listeler içerik uzunluğuna göre dikeyde otomatik büyüyecek şekilde ayarlandı.
+
+- **Downloaded Tab Shorts Toggle Fix (İndirilenler Sekmesi Shorts Butonu Onarımı):**
+  - Fixed an issue where clicking the "Shorts Videolarını Göster" toggle in the Downloaded tab did not synchronize with settings or filter the grid properly.
+  - Enhanced `isShortVideo` helper with robust multi-type validation to prevent parsing failures on numeric or non-standard duration inputs.
+  - İndirilenler sekmesindeki Shorts toggle butonunun senkronizasyonu ve `isShortVideo` tip güvenliği onarıldı.
+
 ## [8.32.0] - 2026-08-15
 
 ### 🌤️ New Feature: Topbar Weather Indicator & Location Settings / Yeni Özellik: Üst Bar Hava Durumu & Konum Ayarları

@@ -6,10 +6,17 @@
             <p id="tab-queue-desc">Aktif indirmeyi izleyin, sıradaki videoları sürükleyip bırakarak önceliklerini değiştirin.</p>
           </div>
           <div class="queue-header-actions" style="display:flex; gap:10px; align-items:center;">
-            <button id="queue-reset-engine-btn" class="btn" onclick="resetDownloadEngine()" style="background: rgba(255, 193, 7, 0.12); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.3); display: flex; align-items: center; gap: 8px; font-weight: 500;" title="İndirme motorunu ve askıdaki tüm süreçleri sıfırla">
-              <i data-lucide="rotate-ccw"></i>
-              <span id="queue-reset-engine-text">Motoru Sıfırla</span>
-            </button>
+            <!-- Dinamik Görünüm Değiştirici (Tablo / Kartlar) -->
+            <div class="view-toggle-container" id="queue-view-toggle-container">
+              <button type="button" id="queue-view-table-btn" class="view-btn active" onclick="setQueueViewMode('table')" title="Tablo Görünümü">
+                <i data-lucide="table"></i>
+                <span id="lbl-queue-view-table">Tablo</span>
+              </button>
+              <button type="button" id="queue-view-cards-btn" class="view-btn" onclick="setQueueViewMode('cards')" title="Kart Görünümü">
+                <i data-lucide="layout-grid"></i>
+                <span id="lbl-queue-view-cards">Kartlar</span>
+              </button>
+            </div>
             <button id="queue-cancel-all-btn" class="btn btn-danger" onclick="cancelAllDownloads()" style="background: rgba(220, 53, 69, 0.1); color: var(--danger-color); border: 1px solid rgba(220, 53, 69, 0.2); display: flex; align-items: center; gap: 8px;">
               <i data-lucide="x-octagon"></i>
               <span id="queue-cancel-all-text">Tümünü İptal Et</span>
@@ -88,34 +95,34 @@
             </div>
           </div>
 
-          <!-- Gelişmiş Sıralama Listesi -->
-          <div class="card" style="padding: 25px; display: flex; flex-direction: column; min-height: 250px; overflow: hidden;">
+          <!-- Gelişmiş Sıralama Listesi (Dikey Otomatik Büyüme & Çoklu Görünüm) -->
+          <div class="card queue-card-container" style="padding: 25px; display: flex; flex-direction: column; min-height: auto; overflow: visible;">
             <div class="card-title-bar" style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
               <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 0; color:var(--text-main);">
                 <i data-lucide="list-ordered" style="width: 18px; height: 18px; color: var(--warning);"></i>
                 <span id="queue-list-title">Sıradaki Videolar</span> (<span id="stat-waiting-count">0</span>)
               </h3>
               <div style="display: flex; align-items: center; gap: 10px;">
-                <small id="drag-drop-hint" style="color:var(--text-muted); font-size:0.75rem; font-style:italic;">Sürükleyip bırakarak sırayı değiştirin</small>
+                <small id="drag-drop-hint" style="color:var(--text-muted); font-size:0.75rem; font-style:italic;">Sürükleyip bırakarak veya oklarla sırayı değiştirin</small>
                 <button class="btn btn-secondary" onclick="cancelAllQueued()" title="Kuyruktaki Tüm Videoları İptal Et" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(255,0,85,0.08); border-color: rgba(255,0,85,0.2); color: var(--accent-red);">
                   <i data-lucide="x-circle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> <span id="btn-cancel-all-queue">Tümünü İptal Et</span>
                 </button>
               </div>
             </div>
-            <div class="queue-list" id="queue-list" style="flex:1; overflow-y:auto; max-height: 400px; display:flex; flex-direction:column; gap:8px; padding-right:5px;">
+            <div class="queue-list" id="queue-list" style="flex:1; display:flex; flex-direction:column; gap:8px;">
               <div class="text-center text-muted" id="queue-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Kuyrukta bekleyen video yok.</div>
             </div>
           </div>
 
-          <!-- Son Tamamlanan İndirmeler (Son 20) -->
-          <div class="card" style="padding: 25px; display: flex; flex-direction: column; min-height: 250px; overflow: hidden;">
+          <!-- Son Tamamlanan İndirmeler (Dikey Otomatik Büyüme & Çoklu Görünüm) -->
+          <div class="card queue-card-container" style="padding: 25px; display: flex; flex-direction: column; min-height: auto; overflow: visible;">
             <div class="card-title-bar" style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
               <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 0; color:var(--text-main);">
                 <i data-lucide="check-circle-2" style="width: 18px; height: 18px; color: #10b981;"></i>
                 <span id="queue-completed-title">Son İndirilen Videolar</span>
               </h3>
             </div>
-            <div class="queue-list" id="queue-completed-list" style="flex:1; overflow-y:auto; max-height: 400px; display:flex; flex-direction:column; gap:8px; padding-right:5px;">
+            <div class="queue-list" id="queue-completed-list" style="flex:1; display:flex; flex-direction:column; gap:8px;">
               <div class="text-center text-muted" id="queue-completed-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Henüz tamamlanan indirme yok.</div>
             </div>
           </div>

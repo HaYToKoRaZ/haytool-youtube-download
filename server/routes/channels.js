@@ -24,6 +24,7 @@ import {
 } from '../services/rss.js';
 import { broadcast, addTerminalLog } from '../services/sse.js';
 import { getLocalTempDir, cleanMeiForPid, spawnYtdlp, ytdlpPath } from '../services/paths.js';
+import { fetchPipedChannels, fetchPipedChannelInfo, getWorkingProxy } from '../services/proxyManager.js';
 
 export const router = express.Router();
 
@@ -924,71 +925,92 @@ router.get('/:id/avatar', (req, res) => {
 /**
  * Verilen arama sorgusunu YouTube kanal arama sayfasına göndererek
  * bulunan kanalların listesini döner. HTML parse ederek çalışır.
+ * Kısıtlamalı/engelli kanallar için otomatik Piped ayna aramasına geçer.
  *
  * @param {string} query - Aranacak kanal adı veya anahtar kelime
  * @returns {Promise<Array<{id: string, name: string, handle: string, avatar: string, subscribers: string}>>}
  *   Bulunan kanalların listesi; her eleman id, name, handle, avatar ve subscribers içerir
  */
-export function searchChannelsOnYoutube(query) {
+export async function searchChannelsOnYoutube(query) {
   const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&sp=EgIQAg%3D%3D`;
-  return new Promise((resolve, reject) => {
-    https.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7'
-      }
-    }, (res) => {
-      if (res.statusCode !== 200) {
-        return reject(new Error(`YouTube sunucu hatası: HTTP ${res.statusCode}`));
-      }
-
-      let html = '';
-      res.on('data', chunk => { html += chunk; });
-      res.on('end', () => {
-        try {
-          const match = html.match(/ytInitialData\s*=\s*({.+?})\s*(?:<\/script>|;)/);
-          if (!match) {
-            return resolve([]);
-          }
-
-          const data = JSON.parse(match[1]);
-          const results = [];
-          const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || [];
-
-          for (const item of contents) {
-            if (item.channelRenderer) {
-              const r = item.channelRenderer;
-              const channelId = r.channelId;
-              const title = r.title?.simpleText || r.title?.runs?.[0]?.text;
-              
-              let handleName = '';
-              const navEndpoint = r.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url;
-              if (navEndpoint && navEndpoint.includes('/@')) {
-                handleName = decodeURIComponent(navEndpoint.replace('/', ''));
-              } else {
-                handleName = `@${channelId}`;
-              }
-
-              const avatarSources = r.thumbnail?.thumbnails || [];
-              const avatar = avatarSources[avatarSources.length - 1]?.url || '';
-              const subscriberCount = r.subscriberCountText?.simpleText || '';
-
-              results.push({
-                id: channelId,
-                name: title,
-                handle: handleName,
-                avatar: avatar.startsWith('//') ? 'https:' + avatar : avatar,
-                subscribers: subscriberCount
-              });
-            }
-          }
-          resolve(results);
-        } catch (err) {
-          reject(err);
+  let results = [];
+  try {
+    results = await new Promise((resolve, reject) => {
+      https.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7'
         }
-      });
-    }).on('error', reject);
-  });
+      }, (res) => {
+        if (res.statusCode !== 200) {
+          return reject(new Error(`YouTube sunucu hatası: HTTP ${res.statusCode}`));
+        }
+
+        let html = '';
+        res.on('data', chunk => { html += chunk; });
+        res.on('end', () => {
+          try {
+            const match = html.match(/ytInitialData\s*=\s*({.+?})\s*(?:<\/script>|;)/);
+            if (!match) {
+              return resolve([]);
+            }
+
+            const data = JSON.parse(match[1]);
+            const list = [];
+            const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || [];
+
+            for (const item of contents) {
+              if (item.channelRenderer) {
+                const r = item.channelRenderer;
+                const channelId = r.channelId;
+                const title = r.title?.simpleText || r.title?.runs?.[0]?.text;
+                
+                let handleName = '';
+                const navEndpoint = r.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url;
+                if (navEndpoint && navEndpoint.includes('/@')) {
+                  handleName = decodeURIComponent(navEndpoint.replace('/', ''));
+                } else {
+                  handleName = `@${channelId}`;
+                }
+
+                const avatarSources = r.thumbnail?.thumbnails || [];
+                const avatar = avatarSources[avatarSources.length - 1]?.url || '';
+                const subscriberCount = r.subscriberCountText?.simpleText || '';
+
+                list.push({
+                  id: channelId,
+                  name: title,
+                  handle: handleName,
+                  avatar: avatar.startsWith('//') ? 'https:' + avatar : avatar,
+                  subscribers: subscriberCount
+                });
+              }
+            }
+            resolve(list);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }).on('error', reject);
+    });
+  } catch (err) {
+    console.warn(`[YouTube Arama] Standart HTML arama başarısız (${err.message}), yedek arama deneniyor...`);
+  }
+
+  // Eğer Türkiye'deki coğrafi engeller nedeniyle kanal bulunamadıysa veya boş döndüyse Piped / Ayna aramasını devreye sok
+  if (!results || results.length === 0) {
+    try {
+      console.log(`[YouTube Arama] "${query}" için Piped yedek arama motoru sorgulanıyor...`);
+      const pipedResults = await fetchPipedChannels(query);
+      if (pipedResults && pipedResults.length > 0) {
+        return pipedResults;
+      }
+    } catch (e) {
+      console.warn(`[YouTube Arama] Piped arama hatası: ${e.message}`);
+    }
+  }
+
+  return results || [];
 }
 
 // YouTube Kanal ID'sini ve Bilgilerini Çözümleme Fonksiyonu
@@ -1045,70 +1067,93 @@ export async function resolveChannelId(input, existingChannelId = null) {
       console.log(`[RSS Fallback] ${channelId} için RSS XML çekilmeye çalışılıyor...`);
       const db = readDb();
       const hl = db.settings?.lang === 'en' ? 'en' : 'tr';
-      const xml = await fetchWithProxyWaterfall(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}&hl=${hl}`);
-      
-      const titleMatch = xml.match(/<title>([^<]+)<\/title>/);
-      let channelName = titleMatch ? titleMatch[1].replace(' - YouTube', '').trim() : `Kanal ${channelId}`;
-      const authorMatch = xml.match(/<author>\s*<name>([^<]+)<\/name>/);
-      if (authorMatch) {
-        channelName = authorMatch[1].trim();
+      let channelName = '';
+      let avatarUrl = '';
+      let subCount = '';
+
+      try {
+        const xml = await fetchWithProxyWaterfall(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}&hl=${hl}`);
+        const titleMatch = xml.match(/<title>([^<]+)<\/title>/);
+        channelName = titleMatch ? titleMatch[1].replace(' - YouTube', '').trim() : '';
+        const authorMatch = xml.match(/<author>\s*<name>([^<]+)<\/name>/);
+        if (authorMatch) {
+          channelName = authorMatch[1].trim();
+        }
+      } catch (xmlErr) {
+        console.log(`[RSS Fallback] Doğrudan XML başarısız: ${xmlErr.message}`);
       }
 
-      let avatarUrl = '';
-      try {
-        const db = readDb();
-        const args = [];
-        args.push('--js-runtimes', `node:${process.execPath}`);
-        if (db.settings.browser && db.settings.browser !== 'none') {
-          const browserName = db.settings.browser === 'msedge' ? 'edge' : db.settings.browser;
-          args.push('--cookies-from-browser', browserName);
-        }
-        args.push('--dump-single-json', '--flat-playlist', '--playlist-items', '1', `https://www.youtube.com/channel/${channelId}`);
-        
-        const localTemp = getLocalTempDir();
-        const spawnOptions = {
-          env: { ...process.env, TEMP: localTemp, TMP: localTemp },
-          ...(process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {})
-        };
-        
-        const ytdlpOutput = await new Promise((resDl, rejDl) => {
-          const proc = spawnYtdlp(args, spawnOptions);
-          let out = '';
-          let err = '';
-          proc.stdout.on('data', (d) => { out += d.toString(); });
-          proc.stderr.on('data', (d) => { err += d.toString(); });
-          proc.on('close', (code) => {
-            cleanMeiForPid(proc.pid);
-            if (code !== 0) return rejDl(new Error(`Exit code ${code}. Stderr: ${err}`));
-            if (!out || !out.trim()) return rejDl(new Error('yt-dlp boş çıktı döndürdü'));
-            resDl(out);
-          });
-        });
-
-        const parsedData = JSON.parse(ytdlpOutput);
-        if (parsedData.thumbnails && parsedData.thumbnails.length > 0) {
-          const sortedThumbs = [...parsedData.thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
-          avatarUrl = sortedThumbs[0].url || '';
-        }
-        let subCount = '';
-        if (parsedData.subscriber_count) {
-          const subs = parsedData.subscriber_count;
-          if (subs >= 1000000) {
-            subCount = (subs / 1000000).toFixed(1) + 'M';
-          } else if (subs >= 1000) {
-            subCount = (subs / 1000).toFixed(1) + 'K';
-          } else {
-            subCount = subs.toString();
+      // Eğer kanal adı alınamadıysa veya saçma/boşsa Piped Channel API ile sorgula (Yasaklı kanalları mükemmel çözer)
+      if (!channelName || channelName === 'YouTube' || channelName.includes('Video - YouTube') || channelName.startsWith('Kanal UC')) {
+        try {
+          const pipedInfo = await fetchPipedChannelInfo(channelId);
+          if (pipedInfo && pipedInfo.name) {
+            channelName = pipedInfo.name;
+            avatarUrl = pipedInfo.avatar || avatarUrl;
+            subCount = pipedInfo.subscriberCount || subCount;
+            console.log(`[RSS Fallback] Piped API ile kanal adı ve görseli çözümlendi: ${channelName}`);
           }
+        } catch (pipedErr) {
+          console.log(`[RSS Fallback] Piped API sorgu hatası: ${pipedErr.message}`);
         }
-        return {
-          id: channelId,
-          name: channelName,
-          avatar: avatarUrl,
-          subscriberCount: subCount
-        };
-      } catch (avatarErr) {
-        console.log(`[RSS Fallback] yt-dlp ile logo çekilemedi: ${avatarErr.message}. Proxy yedek görseli deneniyor...`);
+      }
+
+      if (!channelName) {
+        channelName = `Kanal ${channelId}`;
+      }
+
+      if (!avatarUrl) {
+        try {
+          const db = readDb();
+          const args = [];
+          args.push('--js-runtimes', `node:${process.execPath}`);
+          if (db.settings.browser && db.settings.browser !== 'none') {
+            const browserName = db.settings.browser === 'msedge' ? 'edge' : db.settings.browser;
+            args.push('--cookies-from-browser', browserName);
+          }
+          args.push('--dump-single-json', '--flat-playlist', '--playlist-items', '1', `https://www.youtube.com/channel/${channelId}`);
+          
+          const localTemp = getLocalTempDir();
+          const spawnOptions = {
+            env: { ...process.env, TEMP: localTemp, TMP: localTemp },
+            ...(process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {})
+          };
+          
+          const ytdlpOutput = await new Promise((resDl, rejDl) => {
+            const proc = spawnYtdlp(args, spawnOptions);
+            let out = '';
+            let err = '';
+            proc.stdout.on('data', (d) => { out += d.toString(); });
+            proc.stderr.on('data', (d) => { err += d.toString(); });
+            proc.on('close', (code) => {
+              cleanMeiForPid(proc.pid);
+              if (code !== 0) return rejDl(new Error(`Exit code ${code}. Stderr: ${err}`));
+              if (!out || !out.trim()) return rejDl(new Error('yt-dlp boş çıktı döndürdü'));
+              resDl(out);
+            });
+          });
+
+          const parsedData = JSON.parse(ytdlpOutput);
+          if (parsedData.channel || parsedData.uploader) {
+            channelName = parsedData.channel || parsedData.uploader || channelName;
+          }
+          if (parsedData.thumbnails && parsedData.thumbnails.length > 0) {
+            const sortedThumbs = [...parsedData.thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
+            avatarUrl = sortedThumbs[0].url || '';
+          }
+          if (parsedData.subscriber_count) {
+            const subs = parsedData.subscriber_count;
+            if (subs >= 1000000) {
+              subCount = (subs / 1000000).toFixed(1) + 'M';
+            } else if (subs >= 1000) {
+              subCount = (subs / 1000).toFixed(1) + 'K';
+            } else {
+              subCount = subs.toString();
+            }
+          }
+        } catch (avatarErr) {
+          console.log(`[RSS Fallback] yt-dlp ile logo çekilemedi: ${avatarErr.message}. Proxy yedek görseli deneniyor...`);
+        }
       }
 
       if (!avatarUrl) {
@@ -1128,7 +1173,7 @@ export async function resolveChannelId(input, existingChannelId = null) {
         id: channelId,
         name: channelName,
         avatar: avatarUrl,
-        subscriberCount: ''
+        subscriberCount: subCount
       };
     } catch (err) {
       console.log(`[RSS Fallback] RSS XML de başarısız oldu: ${err.message}. Varsayılan isimle ekleniyor.`);
@@ -1247,8 +1292,13 @@ export async function resolveChannelId(input, existingChannelId = null) {
     const vanityMatch = html.match(/"vanityChannelUrl"\s*:\s*"https?:\/\/www\.youtube\.com\/(@[^"]+)"/);
     const handleVal = vanityMatch ? vanityMatch[1] : '';
 
+    // Eğer isim bozuk/genel ise (YouTube, Video - YouTube vb.) temizle
+    if (channelName && (channelName === 'YouTube' || channelName.includes('Video - YouTube'))) {
+      channelName = null;
+    }
+
     if (channelId) {
-      // Eğer HTML üzerinden kanal adı, avatar ve abone bilgisi zaten eksiksiz alındıysa doğrudan dön (ekstra yedek çalıştırma)
+      // Eğer HTML üzerinden kanal adı, avatar ve abone bilgisi zaten eksiksiz ve geçerli alındıysa doğrudan dön
       if (channelName && avatarUrl && subCount && subCount !== '?') {
         return {
           id: channelId,
@@ -1259,13 +1309,13 @@ export async function resolveChannelId(input, existingChannelId = null) {
         };
       }
 
-      console.log(`[Scraper] Kanal ID bulundu: ${channelId}. Eksik bilgileri tamamlamak için RSS beslemesi sorgulanıyor...`);
+      console.log(`[Scraper] Kanal ID bulundu: ${channelId}. Eksik bilgileri tamamlamak için RSS/Piped beslemesi sorgulanıyor...`);
       try {
         const rssInfo = await tryRssFallback(channelId);
-        console.log(`[Scraper] RSS ile doğrulanan Kanal: ${rssInfo.name} (ID: ${channelId})`);
+        console.log(`[Scraper] Doğrulanan Kanal: ${rssInfo.name} (ID: ${channelId})`);
         return {
           id: channelId,
-          name: channelName || rssInfo.name || `Kanal ${channelId}`,
+          name: (channelName && channelName !== 'YouTube') ? channelName : (rssInfo.name || `Kanal ${channelId}`),
           avatar: avatarUrl || rssInfo.avatar || '',
           handle: handleVal || '',
           subscriberCount: (subCount && subCount !== '?') ? subCount : (rssInfo.subscriberCount || subCount || '')
@@ -1288,11 +1338,41 @@ export async function resolveChannelId(input, existingChannelId = null) {
           subscriberCount: subCount || rssInfo.subscriberCount || ''
         };
       }
+
+      // Handle veya isim girilmiş ama YouTube 404/Block vermişse Piped aramasıyla çöz
+      if (decodedInput) {
+        console.log(`[Scraper] Kanal ID bulunamadı, Piped API araması ile çözümleniyor: ${decodedInput}`);
+        const pipedResults = await fetchPipedChannels(decodedInput.replace(/^@/, ''));
+        if (pipedResults && pipedResults.length > 0) {
+          const first = pipedResults[0];
+          return {
+            id: first.id,
+            name: first.name,
+            avatar: first.avatar,
+            handle: first.handle,
+            subscriberCount: first.subscribers
+          };
+        }
+      }
+
       throw new Error('Kanal ID veya kanal adı tespit edilemedi. Lütfen adresi kontrol edin.');
     }
   } catch (err) {
     if (fallbackChannelId) {
       return await tryRssFallback(fallbackChannelId);
+    }
+    if (decodedInput) {
+      const pipedResults = await fetchPipedChannels(decodedInput.replace(/^@/, ''));
+      if (pipedResults && pipedResults.length > 0) {
+        const first = pipedResults[0];
+        return {
+          id: first.id,
+          name: first.name,
+          avatar: first.avatar,
+          handle: first.handle,
+          subscriberCount: first.subscribers
+        };
+      }
     }
     throw err;
   }

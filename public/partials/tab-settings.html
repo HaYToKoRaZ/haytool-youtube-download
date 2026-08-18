@@ -473,16 +473,34 @@
                     </div>
                   </div>
 
-                  <div class="form-group" style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border-color);">
-                    <label id="label-ytdlp-version" style="font-weight: 700; font-size: 0.88rem; color: var(--text-main);">yt-dlp Motor Sürümü</label>
-                    <div style="display: flex; gap: 10px; align-items: center; margin-top: 6px; flex-wrap: wrap;">
+                  <div class="form-group" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label id="label-ytdlp-version" style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); margin-bottom: 0;">yt-dlp Motor Sürümü & Kanalı</label>
+                      <span id="ytdlp-channel-badge" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); font-weight: 600;">Nightly</span>
+                    </div>
+
+                    <!-- Mevcut ve En Son Sürüm Bilgileri -->
+                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
                       <span style="font-size: 0.82rem; color: var(--text-muted);"><span id="ytdlp-version-prefix">Mevcut Sürüm</span>: <strong id="ytdlp-current-version" style="color: var(--text-main);">...</strong></span>
                       <span style="font-size: 0.82rem; color: var(--text-muted);"><span id="ytdlp-latest-version-prefix">En Son Sürüm</span>: <strong id="ytdlp-latest-version" style="color: var(--text-main);">...</strong></span>
-                      <button type="button" id="ytdlp-update-btn" onclick="updateYtdlp()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 6px; font-size: 0.78rem; padding: 4px 10px; background: rgba(40, 180, 99, 0.1); border-color: rgba(40, 180, 99, 0.3); color: #28b463;">
-                        <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i>
-                        <span id="btn-ytdlp-update-text">Güncelle</span>
+                    </div>
+
+                    <!-- Sürüm / Kanal Seçimi ve Güncelleme Butonu -->
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                      <select id="ytdlp-target-select" style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.25); color: #fff; font-size: 0.82rem; cursor: pointer;">
+                        <option value="nightly" id="opt-ytdlp-nightly">🌙 En Son Nightly (Tavsiye Edilen - Güncel YouTube)</option>
+                        <option value="stable" id="opt-ytdlp-stable">⭐ En Son Kararlı Sürüm (Stable)</option>
+                        <optgroup label="Geçmiş Nightly Sürümleri" id="optgroup-nightly-history"></optgroup>
+                        <optgroup label="Geçmiş Kararlı Sürümleri" id="optgroup-stable-history"></optgroup>
+                      </select>
+                      <button type="button" id="ytdlp-update-btn" onclick="updateYtdlp()" class="btn btn-secondary" style="height: 32px; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 4px 12px; background: rgba(40, 180, 99, 0.15); border-color: rgba(40, 180, 99, 0.35); color: #28b463; white-space: nowrap;">
+                        <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
+                        <span id="btn-ytdlp-update-text">Sürüme Geç / Güncelle</span>
                       </button>
                     </div>
+                    <small class="form-text" id="desc-ytdlp-version" style="font-size: 0.74rem; color: var(--text-muted); margin-top: 5px; display: block;">
+                      YouTube'un getirdiği yeni 403 ve akış kısıtlamalarını aşmak için <strong>Nightly (Geliştirici)</strong> kanalını kullanmanız tavsiye edilir.
+                    </small>
                   </div>
                 </div>
 

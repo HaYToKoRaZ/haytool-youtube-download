@@ -160,7 +160,8 @@ export const defaultDb = {
     weatherCity: 'İstanbul',
     weatherLatitude: 41.0082,
     weatherLongitude: 28.9784,
-    weatherUnit: 'celsius'
+    weatherUnit: 'celsius',
+    queueViewMode: 'table'
   }
 };
 
@@ -374,10 +375,32 @@ export function writeDb(data) {
     }
 
     const dbString = JSON.stringify(dataToSave, null, 2);
-    const tempDbPath = dbPath + '.tmp';
+    const tempDbPath = `${dbPath}.${Date.now()}.${Math.random().toString(36).slice(2, 7)}.tmp`;
     fs.writeFileSync(tempDbPath, dbString, 'utf8');
-    fs.renameSync(tempDbPath, dbPath);
-    lastDbJsonMtime = fs.statSync(dbPath).mtimeMs;
+    
+    let renamed = false;
+    for (let i = 0; i < 5; i++) {
+      try {
+        fs.renameSync(tempDbPath, dbPath);
+        renamed = true;
+        break;
+      } catch (renameErr) {
+        if (i === 4) {
+          // Son çare olarak doğrudan writeFileSync yap
+          fs.writeFileSync(dbPath, dbString, 'utf8');
+          try { fs.unlinkSync(tempDbPath); } catch (e) {}
+          renamed = true;
+        } else {
+          // Kısa bir bekleme (synchronous busy wait)
+          const waitTill = Date.now() + 20;
+          while (Date.now() < waitTill) {}
+        }
+      }
+    }
+
+    try {
+      lastDbJsonMtime = fs.statSync(dbPath).mtimeMs;
+    } catch (e) {}
     
     // Eş zamanlı olarak config.ini ve channels.ini dosyalarını güncelle
     saveSettingsToIni(data);
@@ -655,7 +678,16 @@ export function syncWithIni(db) {
       if (weatherUnit !== undefined) {
         db.settings.weatherUnit = weatherUnit;
       }
+
+      const queueViewMode = getCaseInsensitiveKey(settingsSection, 'queueViewMode');
+      if (queueViewMode !== undefined) {
+        db.settings.queueViewMode = queueViewMode;
+      }
     }
+  }
+
+  if (!db.settings.queueViewMode) {
+    db.settings.queueViewMode = 'table';
   }
 
   // Göçten gelen ayarlar varsa ez ve kaydet
@@ -891,6 +923,7 @@ export function saveSettingsToIni(db) {
   iniData.Settings.weatherLatitude = (db.settings.weatherLatitude !== undefined ? db.settings.weatherLatitude : 41.0082).toString();
   iniData.Settings.weatherLongitude = (db.settings.weatherLongitude !== undefined ? db.settings.weatherLongitude : 28.9784).toString();
   iniData.Settings.weatherUnit = (db.settings.weatherUnit || 'celsius').toString();
+  iniData.Settings.queueViewMode = (db.settings.queueViewMode || 'table').toString();
 
   writeIni(configIniPath, iniData);
 }

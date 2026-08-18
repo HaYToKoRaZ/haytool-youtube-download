@@ -45,6 +45,14 @@ namespace HaYTooLTray
         private MenuItem showConsoleItem;
         private MenuItem exitItem;
 
+        // Konsol penceresi ve çoklu dil kontrol referansları
+        private string currentLang = "tr";
+        private Label cmdLabel;
+        private Button sendButton;
+        private Button clearButton;
+        private Button helpButton;
+        private Button openLogButton;
+
         [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
         private static extern uint RegisterWindowMessage(string lpString);
         public static readonly uint WM_TASKBARCREATED = RegisterWindowMessage("TaskbarCreated");
@@ -1049,6 +1057,14 @@ namespace HaYTooLTray
             {
                 bodyColor = Color.FromArgb(255, 128, 255); // Açık Pembe (Light Magenta)
             }
+            else if (bodyPart.Contains("[403 Koruması]") || bodyPart.Contains("[403 KORUMASI]") || bodyPart.Contains("[Kuyruk Auto-Retry]") || bodyPart.Contains("[İndirme Fallback]") || bodyPart.Contains("[Fallback]"))
+            {
+                bodyColor = Color.FromArgb(255, 185, 0); // Canlı Neon Kehribar (Neon Amber / Gold)
+            }
+            else if (bodyPart.Contains("[İndirme Başarılı]") || bodyPart.Contains("[DOWNLOAD OK]") || bodyPart.Contains("İndirme Tamamlandı"))
+            {
+                bodyColor = Color.FromArgb(46, 204, 113); // Canlı Zümrüt Yeşili (Emerald Green)
+            }
             else if (bodyPart.Contains("[CANLI]") || bodyPart.Contains("[CANLI YAYIN]") || bodyPart.Contains("[Canlı Yayın Denetleyici]"))
             {
                 bodyColor = Color.FromArgb(0, 255, 200); // Parlak Camgöbeği / Neon Teal (Canlı Yayın Denetimleri)
@@ -1402,7 +1418,7 @@ namespace HaYTooLTray
             commandPanel.BackColor = Color.FromArgb(25, 24, 45);
             commandPanel.Padding = new Padding(10);
 
-            Label cmdLabel = new Label();
+            cmdLabel = new Label();
             cmdLabel.Text = "Komut:";
             cmdLabel.ForeColor = Color.White;
             cmdLabel.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
@@ -1421,29 +1437,62 @@ namespace HaYTooLTray
                 "status",
                 "ton",
                 "toff",
+                "toggle",
+                "speed",
+                "altspeed",
                 "pd",
                 "clear"
             });
 
-            Button sendButton = new Button();
+            sendButton = new Button();
             sendButton.Text = "Gönder";
             sendButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
             sendButton.BackColor = Color.FromArgb(40, 180, 99);
             sendButton.ForeColor = Color.White;
             sendButton.FlatStyle = FlatStyle.Flat;
             sendButton.FlatAppearance.BorderSize = 0;
-            sendButton.Location = new Point(745, 13);
+            sendButton.Location = new Point(575, 13);
             sendButton.Size = new Size(80, 28);
             sendButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
 
-            Button openLogButton = new Button();
+            clearButton = new Button();
+            clearButton.Text = "Temizle";
+            clearButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+            clearButton.BackColor = Color.FromArgb(230, 126, 34);
+            clearButton.ForeColor = Color.White;
+            clearButton.FlatStyle = FlatStyle.Flat;
+            clearButton.FlatAppearance.BorderSize = 0;
+            clearButton.Location = new Point(660, 13);
+            clearButton.Size = new Size(80, 28);
+            clearButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+
+            clearButton.Click += (s, ev) => {
+                logTextBox.Clear();
+            };
+
+            helpButton = new Button();
+            helpButton.Text = "Yardım";
+            helpButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+            helpButton.BackColor = Color.FromArgb(142, 68, 173);
+            helpButton.ForeColor = Color.White;
+            helpButton.FlatStyle = FlatStyle.Flat;
+            helpButton.FlatAppearance.BorderSize = 0;
+            helpButton.Location = new Point(745, 13);
+            helpButton.Size = new Size(80, 28);
+            helpButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+
+            helpButton.Click += (s, ev) => {
+                ShowCliHelpDialog(commandComboBox, logForm);
+            };
+
+            openLogButton = new Button();
             openLogButton.Text = "Aç";
             openLogButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
             openLogButton.BackColor = Color.FromArgb(41, 128, 185);
             openLogButton.ForeColor = Color.White;
             openLogButton.FlatStyle = FlatStyle.Flat;
             openLogButton.FlatAppearance.BorderSize = 0;
-            openLogButton.Location = new Point(835, 13);
+            openLogButton.Location = new Point(830, 13);
             openLogButton.Size = new Size(80, 28);
             openLogButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
 
@@ -1456,10 +1505,15 @@ namespace HaYTooLTray
                 }
             };
 
-            // Yeniden boyutlandırma olayı
+            // Konsol penceresinin etiketlerini güncel dile göre uygula
+            ApplyConsoleFormLanguage(GetLanguageSetting());
+
+            // Yeniden boyutlandırma olayı (4 butonlu düzen: Gönder, Temizle, Yardım, Aç)
             commandPanel.Resize += (s, ev) => {
-                commandComboBox.Width = commandPanel.Width - 250;
-                sendButton.Left = commandPanel.Width - 170;
+                commandComboBox.Width = commandPanel.Width - 420;
+                sendButton.Left = commandPanel.Width - 340;
+                clearButton.Left = commandPanel.Width - 255;
+                helpButton.Left = commandPanel.Width - 170;
                 openLogButton.Left = commandPanel.Width - 85;
             };
 
@@ -1504,12 +1558,388 @@ namespace HaYTooLTray
             commandPanel.Controls.Add(cmdLabel);
             commandPanel.Controls.Add(commandComboBox);
             commandPanel.Controls.Add(sendButton);
+            commandPanel.Controls.Add(clearButton);
+            commandPanel.Controls.Add(helpButton);
             commandPanel.Controls.Add(openLogButton);
 
             mainLayout.Controls.Add(commandPanel, 0, 1);
 
             logForm.Controls.Add(mainLayout);
             logForm.Show();
+        }
+
+        // Türkçe Açıklama: Konsol penceresindeki buton ve etiket metinlerini seçili dile göre dinamik günceller.
+        private void ApplyConsoleFormLanguage(string lang)
+        {
+            if (string.IsNullOrEmpty(lang)) lang = "tr";
+            lang = lang.ToLower();
+
+            if (logForm != null && !logForm.IsDisposed)
+            {
+                logForm.Text = lang == "en" ? "HaYTool - Console Output"
+                    : lang == "de" ? "HaYTool - Konsolenausgabe"
+                    : lang == "es" ? "HaYTool - Salida de Consola"
+                    : lang == "pt" ? "HaYTool - Saída do Console"
+                    : lang == "ru" ? "HaYTool - Вывод консоли"
+                    : lang == "ar" ? "HaYTool - مخرجات وحدة التحكم"
+                    : "HaYTool - Konsol Çıktısı";
+            }
+
+            if (cmdLabel != null && !cmdLabel.IsDisposed)
+            {
+                cmdLabel.Text = lang == "en" ? "Command:"
+                    : lang == "de" ? "Befehl:"
+                    : lang == "es" ? "Comando:"
+                    : lang == "pt" ? "Comando:"
+                    : lang == "ru" ? "Команда:"
+                    : lang == "ar" ? "الأمر:"
+                    : "Komut:";
+            }
+
+            if (sendButton != null && !sendButton.IsDisposed)
+            {
+                sendButton.Text = lang == "en" ? "Send"
+                    : lang == "de" ? "Senden"
+                    : lang == "es" ? "Enviar"
+                    : lang == "pt" ? "Enviar"
+                    : lang == "ru" ? "Отправить"
+                    : lang == "ar" ? "إرسال"
+                    : "Gönder";
+            }
+
+            if (clearButton != null && !clearButton.IsDisposed)
+            {
+                clearButton.Text = lang == "en" ? "Clear"
+                    : lang == "de" ? "Leeren"
+                    : lang == "es" ? "Limpiar"
+                    : lang == "pt" ? "Limpar"
+                    : lang == "ru" ? "Очистить"
+                    : lang == "ar" ? "مسح"
+                    : "Temizle";
+            }
+
+            if (helpButton != null && !helpButton.IsDisposed)
+            {
+                helpButton.Text = lang == "en" ? "Help"
+                    : lang == "de" ? "Hilfe"
+                    : lang == "es" ? "Ayuda"
+                    : lang == "pt" ? "Ajuda"
+                    : lang == "ru" ? "Помощь"
+                    : lang == "ar" ? "مساعدة"
+                    : "Yardım";
+            }
+
+            if (openLogButton != null && !openLogButton.IsDisposed)
+            {
+                openLogButton.Text = lang == "en" ? "Open"
+                    : lang == "de" ? "Öffnen"
+                    : lang == "es" ? "Abrir"
+                    : lang == "pt" ? "Abrir"
+                    : lang == "ru" ? "Открыть"
+                    : lang == "ar" ? "فتح"
+                    : "Aç";
+            }
+        }
+
+        private Form helpFormInstance = null;
+
+        // Türkçe Açıklama: Konsol ve CLI komutlarını 7 dilde örnekleriyle listeleyen, tek tıkla konsola aktarma ve kopyalama sağlayan interaktif yardım penceresini açar.
+        private void ShowCliHelpDialog(ComboBox targetComboBox, Form parentForm)
+        {
+            if (helpFormInstance != null && !helpFormInstance.IsDisposed)
+            {
+                helpFormInstance.Focus();
+                return;
+            }
+
+            string lang = GetLanguageSetting();
+
+            helpFormInstance = new Form();
+            helpFormInstance.Text = lang == "en" ? "HaYTool - CLI & Console Command Guide"
+                : lang == "de" ? "HaYTool - CLI- und Konsolen-Befehlsreferenz"
+                : lang == "es" ? "HaYTool - Guía de Comandos CLI y Consola"
+                : lang == "pt" ? "HaYTool - Guia de Comandos CLI e Console"
+                : lang == "ru" ? "HaYTool - Справочник команд CLI и консоли"
+                : lang == "ar" ? "HaYTool - دليل أوامر CLI ووحدة التحكم"
+                : "HaYTool - CLI ve Konsol Komut Rehberi";
+
+            helpFormInstance.Size = new Size(840, 580);
+            helpFormInstance.MinimumSize = new Size(720, 460);
+            helpFormInstance.StartPosition = FormStartPosition.CenterScreen;
+            helpFormInstance.BackColor = Color.FromArgb(20, 19, 38);
+            helpFormInstance.ForeColor = Color.White;
+            helpFormInstance.Font = new Font("Segoe UI", 9.5f);
+
+            if (File.Exists("icon.ico"))
+            {
+                try { helpFormInstance.Icon = new Icon("icon.ico"); } catch {}
+            }
+
+            TableLayoutPanel mainLayout = new TableLayoutPanel();
+            mainLayout.Dock = DockStyle.Fill;
+            mainLayout.RowCount = 2;
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 55F));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+            // Başlık Paneli
+            Panel headerPanel = new Panel();
+            headerPanel.Dock = DockStyle.Fill;
+            headerPanel.BackColor = Color.FromArgb(28, 27, 52);
+            headerPanel.Padding = new Padding(14, 8, 14, 8);
+
+            Label titleLabel = new Label();
+            titleLabel.Text = lang == "en" ? "💡 CLI & Console Commands Guide"
+                : lang == "de" ? "💡 CLI- und Konsolen-Befehle"
+                : lang == "es" ? "💡 Guía de Comandos CLI y Consola"
+                : lang == "pt" ? "💡 Guia de Comandos CLI e Console"
+                : lang == "ru" ? "💡 Справочник команд CLI и консоли"
+                : lang == "ar" ? "💡 دليل أوامر CLI ووحدة التحكم"
+                : "💡 CLI ve Konsol Komut Rehberi";
+            titleLabel.Font = new Font("Segoe UI", 12f, FontStyle.Bold);
+            titleLabel.ForeColor = Color.FromArgb(0, 225, 255);
+            titleLabel.AutoSize = true;
+            titleLabel.Location = new Point(14, 6);
+
+            Label subTitleLabel = new Label();
+            subTitleLabel.Text = lang == "en" ? "Click 'Use' to insert command into console box, or 'Copy' to copy to clipboard:"
+                : lang == "de" ? "Klicken Sie auf 'Nutzen', um den Befehl einzufügen, oder 'Kopieren':"
+                : lang == "es" ? "Haga clic en 'Usar' para insertar el comando en la consola o 'Copiar':"
+                : lang == "pt" ? "Clique em 'Usar' para inserir o comando no console ou 'Copiar':"
+                : lang == "ru" ? "Нажмите 'Исп.' для вставки команды в консоль или 'Копир.':"
+                : lang == "ar" ? "انقر فوق 'استخدام' لإدراج الأمر في وحدة التحكم أو 'نسخ':"
+                : "Komutları 'Kullan' butonuyla doğrudan konsola aktarabilir veya 'Kopyala' ile panoya alabilirsiniz:";
+            subTitleLabel.Font = new Font("Segoe UI", 8.5f);
+            subTitleLabel.ForeColor = Color.FromArgb(180, 185, 210);
+            subTitleLabel.AutoSize = true;
+            subTitleLabel.Location = new Point(16, 29);
+
+            headerPanel.Controls.Add(titleLabel);
+            headerPanel.Controls.Add(subTitleLabel);
+
+            // Komutlar Kaydırılabilir Paneli
+            Panel scrollPanel = new Panel();
+            scrollPanel.Dock = DockStyle.Fill;
+            scrollPanel.AutoScroll = true;
+            scrollPanel.Padding = new Padding(12);
+
+            TableLayoutPanel table = new TableLayoutPanel();
+            table.Dock = DockStyle.Top;
+            table.AutoSize = true;
+            table.ColumnCount = 4;
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140F));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 85F));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90F));
+
+            string txtUse = lang == "en" ? "Use" : lang == "de" ? "Nutzen" : lang == "es" ? "Usar" : lang == "pt" ? "Usar" : lang == "ru" ? "Исп." : lang == "ar" ? "استخدام" : "Kullan";
+            string txtCopy = lang == "en" ? "Copy" : lang == "de" ? "Kopieren" : lang == "es" ? "Copiar" : lang == "pt" ? "Copiar" : lang == "ru" ? "Копир." : lang == "ar" ? "نسخ" : "Kopyala";
+            string txtEx = lang == "en" ? "Example:" : lang == "de" ? "Beispiel:" : lang == "es" ? "Ejemplo:" : lang == "pt" ? "Exemplo:" : lang == "ru" ? "Пример:" : lang == "ar" ? "مثال:" : "Örnek:";
+
+            var commandsList = new[]
+            {
+                new {
+                    Cmd = "status",
+                    Example = "status",
+                    Desc = lang == "en" ? "Displays speed limits, active download status, and turtle profile."
+                         : lang == "de" ? "Zeigt aktuelle Geschwindigkeitsbegrenzungen, Download-Status und Schildkröten-Profil an."
+                         : lang == "es" ? "Muestra los límites de velocidad, el estado de descarga y el perfil tortuga."
+                         : lang == "pt" ? "Exibe limites de velocidade, status de download e perfil tartaruga."
+                         : lang == "ru" ? "Показывает лимиты скорости, статус активных загрузок и режим черепахи."
+                         : lang == "ar" ? "يعرض حدود السرعة الحالية وحالة التنزيل النشطة ووضع السلحفاة."
+                         : "Geçerli hız limitlerini, aktif indirme durumunu ve kaplumbağa profilini listeler."
+                },
+                new {
+                    Cmd = "ton",
+                    Example = "ton",
+                    Desc = lang == "en" ? "Enables alternative speed limit profile (Turtle Mode)."
+                         : lang == "de" ? "Aktiviert die alternative Geschwindigkeitsbegrenzung (Schildkröten-Modus)."
+                         : lang == "es" ? "Activa el límite de velocidad alternativo (Modo Tortuga)."
+                         : lang == "pt" ? "Ativa o limite de velocidade alternativo (Modo Tartaruga)."
+                         : lang == "ru" ? "Включает альтернативный лимит скорости (Режим Черепахи)."
+                         : lang == "ar" ? "تفعيل حد السرعة البديل (وضع السلحفاة)."
+                         : "Alternatif kaplumbağa hız sınırını (Turtle Mode) aktif hale getirir."
+                },
+                new {
+                    Cmd = "toff",
+                    Example = "toff",
+                    Desc = lang == "en" ? "Disables alternative speed limit, returns to standard speed."
+                         : lang == "de" ? "Deaktiviert das alternative Limit und kehrt zur Standardgeschwindigkeit zurück."
+                         : lang == "es" ? "Desactiva el límite alternativo y vuelve a la velocidad normal."
+                         : lang == "pt" ? "Desativa o limite alternativo e retorna à velocidade padrão."
+                         : lang == "ru" ? "Выключает альтернативный лимит и возвращает обычную скорость."
+                         : lang == "ar" ? "إيقاف حد السرعة البديل والعودة إلى السرعة العادية."
+                         : "Alternatif kaplumbağa hız sınırını kapatır, normal hız limitine döner."
+                },
+                new {
+                    Cmd = "toggle",
+                    Example = "toggle",
+                    Desc = lang == "en" ? "Toggles alternative speed limit on/off (single-click switch)."
+                         : lang == "de" ? "Schaltet das alternative Tempolimit ein oder aus (Profilwechsel)."
+                         : lang == "es" ? "Alterna el límite de velocidad alternativo (encendido/apagado)."
+                         : lang == "pt" ? "Alterna o limite de velocidade alternativo (ligado/desligado)."
+                         : lang == "ru" ? "Переключает альтернативный лимит скорости (вкл/выкл)."
+                         : lang == "ar" ? "التبديل بين تشغيل وإيقاف حد السرعة البديل بنقرة واحدة."
+                         : "Alternatif hız modunu tek tıkla açık/kapalı konuma getirir (Profil geçişi)."
+                },
+                new {
+                    Cmd = "speed <kb>",
+                    Example = "speed 2500",
+                    Desc = lang == "en" ? "Sets standard download speed limit (e.g. speed 2500) or 'speed off'."
+                         : lang == "de" ? "Setzt das normale Tempolimit (z. B. speed 2500) oder schaltet es mit 'speed off' aus."
+                         : lang == "es" ? "Establece el límite de velocidad normal (ej: speed 2500) o 'speed off' para quitarlo."
+                         : lang == "pt" ? "Define o limite de velocidade normal (ex: speed 2500) ou 'speed off' para desativar."
+                         : lang == "ru" ? "Устанавливает обычный лимит скорости (напр. speed 2500) или 'speed off'."
+                         : lang == "ar" ? "ضبط حد سرعة التنزيل العادي (مثال: speed 2500) أو 'speed off' للإلغاء."
+                         : "Normal indirme hız limitini ayarlar (örn: speed 2500) veya 'speed off' ile kapatır."
+                },
+                new {
+                    Cmd = "altspeed <kb>",
+                    Example = "altspeed 500",
+                    Desc = lang == "en" ? "Sets alternative speed limit profile value in KB/s (e.g. altspeed 500)."
+                         : lang == "de" ? "Legt den Wert für das alternative Profil in KB/s fest (z. B. altspeed 500)."
+                         : lang == "es" ? "Establece el valor en KB/s del perfil alternativo (ej: altspeed 500)."
+                         : lang == "pt" ? "Define o valor em KB/s do perfil alternativo (ex: altspeed 500)."
+                         : lang == "ru" ? "Задает значение альтернативного лимита в КБ/с (напр. altspeed 500)."
+                         : lang == "ar" ? "تحديد قيمة حد السرعة البديل بالكيلوبايت/ثانية (مثال: altspeed 500)."
+                         : "Alternatif hız profilinin KB/s değerini belirler (örn: altspeed 500)."
+                },
+                new {
+                    Cmd = "pd <link>",
+                    Example = "pd https://www.youtube.com/watch?v=",
+                    Desc = lang == "en" ? "Adds YouTube video or playlist URL directly to download queue."
+                         : lang == "de" ? "Fügt YouTube-Video- oder Playlist-Link direkt zur Warteschlange hinzu."
+                         : lang == "es" ? "Añade el enlace de YouTube o lista de reproducción directamente a la cola."
+                         : lang == "pt" ? "Adiciona o link de vídeo ou playlist do YouTube diretamente à fila."
+                         : lang == "ru" ? "Добавляет ссылку на видео или плейлист YouTube напрямую в очередь."
+                         : lang == "ar" ? "إضافة رابط فيديو أو قائمة تشغيل يوتيوب مباشرة إلى قائمة الانتظار."
+                         : "Verilen YouTube video veya oynatma listesi linkini doğrudan indirme sırasına ekler."
+                },
+                new {
+                    Cmd = "clear",
+                    Example = "clear",
+                    Desc = lang == "en" ? "Clears on-screen console output immediately."
+                         : lang == "de" ? "Löscht den Textausgabe-Bildschirm der Konsole sofort."
+                         : lang == "es" ? "Limpia la pantalla de salida de la consola inmediatamente."
+                         : lang == "pt" ? "Limpa a tela de saída do console imediatamente."
+                         : lang == "ru" ? "Мгновенно очищает текст на экране консоли."
+                         : lang == "ar" ? "مسح نصوص شاشة وحدة التحكم على الفور."
+                         : "Konsol ekranındaki metinleri anında temizler."
+                },
+                new {
+                    Cmd = "help",
+                    Example = "help",
+                    Desc = lang == "en" ? "Prints command list and parameter descriptions to console."
+                         : lang == "de" ? "Gibt Befehlsliste und Parameterbeschreibungen in der Konsole aus."
+                         : lang == "es" ? "Muestra la lista de comandos y descripciones en la consola."
+                         : lang == "pt" ? "Imprime a lista de comandos e parâmetros no console."
+                         : lang == "ru" ? "Выводит список команд и описания параметров в консоль."
+                         : lang == "ar" ? "طباعة قائمة الأوامر وتفاصيلها في وحدة التحكم."
+                         : "Konsol üzerinden komut listesini ve parametreleri yazdırır."
+                }
+            };
+
+            int rowIndex = 0;
+            foreach (var item in commandsList)
+            {
+                table.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
+
+                Label cmdBadge = new Label();
+                cmdBadge.Text = item.Cmd;
+                cmdBadge.Font = new Font("Consolas", 9.5f, FontStyle.Bold);
+                cmdBadge.ForeColor = Color.FromArgb(255, 215, 0);
+                cmdBadge.BackColor = Color.FromArgb(35, 34, 60);
+                cmdBadge.TextAlign = ContentAlignment.MiddleCenter;
+                cmdBadge.Margin = new Padding(3, 4, 3, 4);
+                cmdBadge.Dock = DockStyle.Fill;
+
+                Panel descPanel = new Panel();
+                descPanel.Dock = DockStyle.Fill;
+                descPanel.Margin = new Padding(6, 2, 6, 2);
+
+                Label descLbl = new Label();
+                descLbl.Text = item.Desc;
+                descLbl.Font = new Font("Segoe UI", 9f);
+                descLbl.ForeColor = Color.FromArgb(230, 230, 240);
+                descLbl.AutoSize = true;
+                descLbl.Location = new Point(0, 2);
+
+                Label exLbl = new Label();
+                exLbl.Text = txtEx + " " + item.Example;
+                exLbl.Font = new Font("Consolas", 8.2f);
+                exLbl.ForeColor = Color.FromArgb(0, 225, 255);
+                exLbl.AutoSize = true;
+                exLbl.Location = new Point(0, 21);
+
+                descPanel.Controls.Add(descLbl);
+                descPanel.Controls.Add(exLbl);
+
+                Button useBtn = new Button();
+                useBtn.Text = txtUse;
+                useBtn.Font = new Font("Segoe UI", 8.5f, FontStyle.Bold);
+                useBtn.BackColor = Color.FromArgb(39, 174, 96);
+                useBtn.ForeColor = Color.White;
+                useBtn.FlatStyle = FlatStyle.Flat;
+                useBtn.FlatAppearance.BorderSize = 0;
+                useBtn.Dock = DockStyle.Fill;
+                useBtn.Margin = new Padding(3, 6, 3, 6);
+                useBtn.Cursor = Cursors.Hand;
+
+                string toInsert = item.Example;
+                useBtn.Click += (s, ev) => {
+                    if (targetComboBox != null && !targetComboBox.IsDisposed)
+                    {
+                        targetComboBox.Text = toInsert;
+                        targetComboBox.Focus();
+                        targetComboBox.SelectionStart = targetComboBox.Text.Length;
+                    }
+                    if (parentForm != null && !parentForm.IsDisposed)
+                    {
+                        parentForm.Focus();
+                    }
+                    helpFormInstance.Close();
+                };
+
+                Button copyBtn = new Button();
+                copyBtn.Text = txtCopy;
+                copyBtn.Font = new Font("Segoe UI", 8.5f, FontStyle.Bold);
+                copyBtn.BackColor = Color.FromArgb(41, 128, 185);
+                copyBtn.ForeColor = Color.White;
+                copyBtn.FlatStyle = FlatStyle.Flat;
+                copyBtn.FlatAppearance.BorderSize = 0;
+                copyBtn.Dock = DockStyle.Fill;
+                copyBtn.Margin = new Padding(3, 6, 3, 6);
+                copyBtn.Cursor = Cursors.Hand;
+
+                copyBtn.Click += (s, ev) => {
+                    Clipboard.SetText(toInsert);
+                    copyBtn.Text = "✓ OK";
+                    copyBtn.BackColor = Color.FromArgb(22, 160, 133);
+                    var t = new System.Windows.Forms.Timer();
+                    t.Interval = 1200;
+                    t.Tick += (ts, tev) => {
+                        copyBtn.Text = txtCopy;
+                        copyBtn.BackColor = Color.FromArgb(41, 128, 185);
+                        t.Stop();
+                        t.Dispose();
+                    };
+                    t.Start();
+                };
+
+                table.Controls.Add(cmdBadge, 0, rowIndex);
+                table.Controls.Add(descPanel, 1, rowIndex);
+                table.Controls.Add(useBtn, 2, rowIndex);
+                table.Controls.Add(copyBtn, 3, rowIndex);
+
+                rowIndex++;
+            }
+
+            scrollPanel.Controls.Add(table);
+
+            mainLayout.Controls.Add(headerPanel, 0, 0);
+            mainLayout.Controls.Add(scrollPanel, 0, 1);
+
+            helpFormInstance.Controls.Add(mainLayout);
+            helpFormInstance.Show(parentForm);
         }
 
         // Türkçe Açıklama: Arka planda çalışan Node.js alt sürecini sonlandırır.
@@ -1587,11 +2017,15 @@ namespace HaYTooLTray
             }
         }
 
-        // Türkçe Açıklama: Arayüz dil ayarlarına göre C# Tray uygulamasındaki menü elemanlarını dinamik olarak yerelleştirir.
+        // Türkçe Açıklama: Arayüz dil ayarlarına göre C# Tray uygulamasındaki menü elemanlarını ve konsol penceresini dinamik olarak yerelleştirir.
         private void ApplyLanguage(string lang)
         {
             if (string.IsNullOrEmpty(lang)) lang = "tr";
             lang = lang.ToLower();
+            currentLang = lang;
+
+            // Açık olan konsol formu varsa butonlarını ve etiketlerini de anında güncelle
+            ApplyConsoleFormLanguage(lang);
 
             if (lang == "en")
             {
@@ -1785,9 +2219,47 @@ namespace HaYTooLTray
             MessageBox.Show(msg, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
-        // Türkçe Açıklama: configwin.ini dosyasından güncel arayüz dil seçimini okur.
+        // Türkçe Açıklama: Aktif dil ayarını döner (önce hafızadaki güncel dile, sonra db.json / configwin.ini dosyalarına bakar).
         private string GetLanguageSetting()
         {
+            if (!string.IsNullOrEmpty(currentLang) && currentLang != "tr")
+            {
+                return currentLang;
+            }
+
+            // db.json kontrolü
+            string dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "db.json");
+            if (File.Exists(dbPath))
+            {
+                try
+                {
+                    string content = File.ReadAllText(dbPath, Encoding.UTF8);
+                    int langIdx = content.IndexOf("\"lang\"");
+                    if (langIdx != -1)
+                    {
+                        int colonIdx = content.IndexOf(':', langIdx);
+                        if (colonIdx != -1)
+                        {
+                            int quote1 = content.IndexOf('\"', colonIdx);
+                            if (quote1 != -1)
+                            {
+                                int quote2 = content.IndexOf('\"', quote1 + 1);
+                                if (quote2 != -1)
+                                {
+                                    string val = content.Substring(quote1 + 1, quote2 - quote1 - 1).Trim().ToLower();
+                                    if (!string.IsNullOrEmpty(val))
+                                    {
+                                        currentLang = val;
+                                        return val;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch {}
+            }
+
             string iniPath = "configwin.ini";
             if (File.Exists(iniPath))
             {
@@ -1804,14 +2276,16 @@ namespace HaYTooLTray
                             string val = trimmed.Substring(equalsIdx + 1).Trim();
                             if (string.Equals(key, "lang", StringComparison.OrdinalIgnoreCase))
                             {
-                                return val;
+                                string v = val.ToLower();
+                                currentLang = v;
+                                return v;
                             }
                         }
                     }
                 }
                 catch {}
             }
-            return "tr";
+            return !string.IsNullOrEmpty(currentLang) ? currentLang : "tr";
         }
 
         // Türkçe Açıklama: Belirtilen portu kullanan TCP sürecini netstat ve taskkill aracılığıyla sonlandırır.

@@ -1,6 +1,6 @@
 // Türkçe Açıklama: Kütüphane ve İndirilenler sayfalarında videoların kart (grid) veya liste (compact) görünümünde çizilmesini sağlayan UI bileşeni.
 
-import { escapeHtml, formatDate, getDaysAgoText, isShortVideo } from '../utils/helpers.js';
+import { escapeHtml, formatDate, getDaysAgoText, isShortVideo, isMembersOnlyVideo } from '../utils/helpers.js';
 import { translations } from '../utils/i18n.js';
 
 // YouTube SVG İkon Şablonu
@@ -172,7 +172,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         shortError = t.downloader_invalid_url || 'İndirme başarısız oldu';
       }
 
-      const isMembersOnly = item.isMembersOnly || (item.error && /yeler|üyeler|members-only|katıl|katil|join this channel|ayrıcalık|ayrcal/i.test(item.error));
+      const isMembersOnly = isMembersOnlyVideo(item);
 
       if (isMembersOnly) {
         const tooltipText = t.card_members_only ? `${t.card_members_only}: ${shortError}` : shortError;

@@ -679,50 +679,115 @@ process.stdin.on('data', (data) => {
   const args = parts.slice(1);
 
   if (command === 'help' || command === '?') {
-    console.log('[Console] Kullanılabilir komutlar:\n' +
-                '  - status (Hız ve kuyruk durumunu gösterir)\n' +
-                '  - ton (Alternatif kaplumbağa hız limitini açar)\n' +
-                '  - toff (Alternatif kaplumbağa hız limitini kapatır)\n' +
-                '  - pd <link> (Verilen YouTube URL\'sini indirme sırasına ekler)\n' +
-                '  - clear (Konsol ekranını temizler)');
+    console.log('[Console] Kullanılabilir Komutlar:\n' +
+                '  • status                 : Hız limitlerini ve aktif indirme durumunu gösterir\n' +
+                '  • ton / turtleon         : Alternatif kaplumbağa hız limitini açar\n' +
+                '  • toff / turtleoff       : Alternatif kaplumbağa hız limitini kapatır\n' +
+                '  • toggle                 : Alternatif hız modunu açar/kapatır (geçiş yapar)\n' +
+                '  • speed <değer|off|on>   : Normal hız limitini ayarlar veya kapatır (örn: speed 2500, speed off)\n' +
+                '  • altspeed <değer>       : Alternatif hız profilini ayarlar (örn: altspeed 500)\n' +
+                '  • pd <link>              : Belirtilen YouTube video/oynatma listesini kuyruğa ekler\n' +
+                '  • clear                  : Konsol ekranını temizler');
     return;
   }
 
   const db = readDb();
 
-  if (command === 'ton') {
+  if (command === 'ton' || command === 'turtleon' || command === 'turtleac') {
     const oldLimit = getEffectiveSpeedLimit(db.settings);
     db.settings.useAlternativeSpeed = true;
     const newLimit = getEffectiveSpeedLimit(db.settings);
     const speedLimitChanged = oldLimit !== newLimit;
     writeDb(db);
     broadcast('db_update', db);
-    addTerminalLog(`[Console] Alternative speed limit (Turtle) ENABLED.`, 'info');
+    addTerminalLog(`[Console] Alternative speed limit (Turtle) ENABLED. Limit: ${newLimit} KB/s`, 'info');
     console.log(`[Console] Alternative speed limit (Turtle) ENABLED. Limit: ${newLimit} KB/s`);
     if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
       restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
     }
-  } else if (command === 'toff') {
+  } else if (command === 'toff' || command === 'turtleoff' || command === 'turtlekapat') {
     const oldLimit = getEffectiveSpeedLimit(db.settings);
     db.settings.useAlternativeSpeed = false;
     const newLimit = getEffectiveSpeedLimit(db.settings);
     const speedLimitChanged = oldLimit !== newLimit;
     writeDb(db);
     broadcast('db_update', db);
-    addTerminalLog(`[Console] Alternative speed limit (Turtle) DISABLED.`, 'info');
+    addTerminalLog(`[Console] Alternative speed limit (Turtle) DISABLED. Limit: ${newLimit} KB/s`, 'info');
     console.log(`[Console] Alternative speed limit (Turtle) DISABLED. Limit: ${newLimit} KB/s`);
     if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
       restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
     }
+  } else if (command === 'toggle' || (command === 'altspeed' && args[0] === 'toggle')) {
+    const oldLimit = getEffectiveSpeedLimit(db.settings);
+    db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
+    const newLimit = getEffectiveSpeedLimit(db.settings);
+    const speedLimitChanged = oldLimit !== newLimit;
+    writeDb(db);
+    broadcast('db_update', db);
+    const stateStr = db.settings.useAlternativeSpeed ? 'AÇIK (ENABLED)' : 'KAPALI (DISABLED)';
+    addTerminalLog(`[Console] Alternatif hız sınırı (Turtle): ${stateStr}. Geçerli Limit: ${newLimit} KB/s`, 'info');
+    console.log(`[Console] Alternatif hız sınırı (Turtle): ${stateStr}. Geçerli Limit: ${newLimit} KB/s`);
+    if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+      restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+    }
+  } else if (command === 'speed') {
+    const val = args[0];
+    if (!val) {
+      console.log(`[Console] Geçerli normal hız limiti: ${db.settings.downloadSpeedLimit || 0} KB/s (0 = Limitsiz)`);
+      return;
+    }
+    const oldLimit = getEffectiveSpeedLimit(db.settings);
+    if (val.toLowerCase() === 'off' || val === '0' || val.toLowerCase() === 'none') {
+      db.settings.downloadSpeedLimit = 0;
+      console.log('[Console] Hız limiti KAPATILDI (Limitsiz mod).');
+      addTerminalLog('[Console] Normal indirme hız limiti KAPATILDI (Limitsiz mod).', 'info');
+    } else {
+      const numVal = parseInt(val, 10);
+      if (isNaN(numVal) || numVal < 0) {
+        console.log('[Console] Hata: Geçerli bir sayı girmelisiniz. Örnek: speed 2500 veya speed off');
+        return;
+      }
+      db.settings.downloadSpeedLimit = numVal;
+      console.log(`[Console] Normal indirme hız limiti ${numVal} KB/s olarak ayarlandı.`);
+      addTerminalLog(`[Console] Normal indirme hız limiti ${numVal} KB/s olarak ayarlandı.`, 'info');
+    }
+    const newLimit = getEffectiveSpeedLimit(db.settings);
+    const speedLimitChanged = oldLimit !== newLimit;
+    writeDb(db);
+    broadcast('db_update', db);
+    if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+      restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+    }
+  } else if (command === 'altspeed') {
+    const val = args[0];
+    if (!val) {
+      console.log(`[Console] Geçerli alternatif hız limiti: ${db.settings.alternativeSpeedLimit || 500} KB/s`);
+      return;
+    }
+    const numVal = parseInt(val, 10);
+    if (isNaN(numVal) || numVal < 0) {
+      console.log('[Console] Hata: Geçerli bir sayı girmelisiniz. Örnek: altspeed 500');
+      return;
+    }
+    const oldLimit = getEffectiveSpeedLimit(db.settings);
+    db.settings.alternativeSpeedLimit = numVal;
+    writeDb(db);
+    broadcast('db_update', db);
+    console.log(`[Console] Alternatif hız limiti ${numVal} KB/s olarak ayarlandı.`);
+    addTerminalLog(`[Console] Alternatif hız limiti ${numVal} KB/s olarak ayarlandı.`, 'info');
+    const newLimit = getEffectiveSpeedLimit(db.settings);
+    if (db.settings.useAlternativeSpeed && oldLimit !== newLimit && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+      restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+    }
   } else if (command === 'status') {
     const effective = getEffectiveSpeedLimit(db.settings);
-    const altStatus = db.settings.useAlternativeSpeed ? 'Active' : 'Inactive';
-    console.log(`[Console] Durum:
-      - Normal Hız Limiti: ${db.settings.downloadSpeedLimit} KB/s
-      - Alternatif Hız Limiti: ${db.settings.alternativeSpeedLimit} KB/s
-      - Alternatif Hız (Kaplumbağa) Aktif: ${altStatus}
-      - Geçerli Limit: ${effective} KB/s
-      - Aktif İndirme: ${downloadQueue.activeVideoId ? 'Evet' : 'Hayır'}`);
+    const altStatus = db.settings.useAlternativeSpeed ? 'Active (Kaplumbağa Açık)' : 'Inactive (Kaplumbağa Kapalı)';
+    console.log(`[Console] Sistem Durumu:
+      - Normal Hız Limiti: ${db.settings.downloadSpeedLimit || 0} KB/s (${db.settings.downloadSpeedLimit ? 'Aktif' : 'Limitsiz'})
+      - Alternatif Hız Limiti: ${db.settings.alternativeSpeedLimit || 500} KB/s
+      - Alternatif Hız (Turtle): ${altStatus}
+      - Geçerli İndirme Limiti: ${effective > 0 ? effective + ' KB/s' : 'Limitsiz'}
+      - Aktif İndirme Süreci: ${downloadQueue.activeVideoId ? 'Evet (' + downloadQueue.activeVideoId + ')' : 'Hayır'}`);
   } else if (command === 'pd') {
     const link = args[0];
     if (!link) {
@@ -741,7 +806,7 @@ process.stdin.on('data', (data) => {
   } else if (command === 'clear') {
     console.clear();
   } else {
-    console.log('[Console] Bilinmeyen komut. Kullanılabilir komutlar: ton, toff, pd <video-link>, status, clear, help');
+    console.log('[Console] Bilinmeyen komut. Komut rehberi için "help" veya "?" yazabilirsiniz.');
   }
 });
 

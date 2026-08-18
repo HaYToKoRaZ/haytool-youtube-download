@@ -17,6 +17,7 @@ import {
 import { broadcast, addTerminalLog } from './sse.js';
 import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp } from './paths.js';
 import { downloadQueue } from './downloader.js';
+import { getWorkingProxy } from './proxyManager.js';
 
 const parser = new Parser({
   headers: {
@@ -322,9 +323,21 @@ function parseDurationFromHtml(html, isShortFallback = false) {
   }
 
   if (!isUnavailable && html) {
-    if (/This video is private|Bu video gizli|members-only|uyelere-ozel|Üyelere özel|Video unavailable|Bu video kaldırıldı|removed by the uploader|This live stream has ended|Canlı yayın sona erdi|Yayının süresi doldu|Bu içerik kullanılamıyor|Özel video|Private video|Stream offline/i.test(html)) {
+    if (/members-only|uyelere-ozel|Üyelere özel|join this channel/i.test(html)) {
       isUnavailable = true;
-      reason = 'Video gizli, üyelere özel, sonlanmış veya kaldırılmış.';
+      reason = 'Video üyelere özel (Katıl) içeriğidir.';
+    } else if (/This video is private|Bu video gizli|Özel video|Private video/i.test(html)) {
+      isUnavailable = true;
+      reason = 'Bu video gizlidir.';
+    } else if (/This live stream has ended|Canlı yayın sona erdi|Yayının süresi doldu|Stream offline/i.test(html)) {
+      isUnavailable = true;
+      reason = 'Canlı yayın sona erdi.';
+    } else if (/Video unavailable|Bu video kaldırıldı|removed by the uploader|Bu içerik kullanılamıyor/i.test(html)) {
+      isUnavailable = true;
+      reason = 'Video kaldırılmış veya kullanılamıyor.';
+    } else if (/This video is private|Bu video gizli|Video unavailable|Bu video kaldırıldı|removed by the uploader|This live stream has ended|Canlı yayın sona erdi|Yayının süresi doldu|Bu içerik kullanılamıyor|Özel video|Private video|Stream offline/i.test(html)) {
+      isUnavailable = true;
+      reason = 'Video gizli, sonlanmış veya kaldırılamıyor.';
     }
   }
 
@@ -673,87 +686,90 @@ export function fetchChannelVideosYtdlp(channelId, limit) {
 export async function fetchRestrictedChannelVideos(channel, limit = 5) {
   const channelName = channel.name || channel.id;
   const channelId = channel.id;
-  addTerminalLog(`[YASAKLI KANAL] "${channelName}" kısıtlamalı kanal tespit edildi, özel bypass motoru devreye giriyor...`, 'warn');
+  addTerminalLog(`[WARN] [YASAKLI KANAL] "${channelName}" kısıtlamalı kanal tespit edildi, özel bypass motoru devreye giriyor...`, 'warn');
   console.log(`[YASAKLI KANAL] "${channelName}" kısıtlamalı kanal tespit edildi, özel bypass motoru devreye giriyor...`);
 
   const db = readDb();
   const settings = db.settings || {};
 
-  // 1. Aşama: yt-dlp Geo-Bypass & TV/Android Client
+  // 1. Aşama: Çalışan Proxy Havuzu & yt-dlp Motoru
   try {
-    addTerminalLog(`[YASAKLI KANAL] "${channelName}" için Geo-Bypass & TV Client deneniyor...`, 'info');
-    const geoItems = await new Promise((resolve, reject) => {
-      const args = [
-        '--js-runtimes', `node:${process.execPath}`,
-        '--ignore-errors',
-        '--flat-playlist',
-        '--playlist-end', limit.toString(),
-        '--dump-json',
-        '--geo-bypass',
-        '--geo-bypass-country', 'US',
-        '--extractor-args', `youtube:player_client=android,tv_embedded;lang=${settings.lang || 'tr'}`,
-        '--socket-timeout', '10',
-        '--retries', '2'
-      ];
+    addTerminalLog(`[YASAKLI KANAL] "${channelName}" için çalışan Proxy havuzundan tünel aranıyor...`, 'info');
+    const workingProxy = await getWorkingProxy();
+    
+    if (workingProxy) {
+      addTerminalLog(`[YASAKLI KANAL] "${channelName}" için Proxy tüneli (${workingProxy.replace('http://', '')}) ile yt-dlp sorgulanıyor...`, 'info');
+      const proxyItems = await new Promise((resolve, reject) => {
+        const args = [
+          '--js-runtimes', `node:${process.execPath}`,
+          '--ignore-errors',
+          '--flat-playlist',
+          '--playlist-end', limit.toString(),
+          '--dump-json',
+          '--proxy', workingProxy,
+          '--socket-timeout', '8',
+          '--retries', '2'
+        ];
 
-      if (settings.browser && settings.browser !== 'none') {
-        const browserName = settings.browser === 'msedge' ? 'edge' : settings.browser;
-        args.push('--cookies-from-browser', browserName);
-      }
+        if (settings.browser && settings.browser !== 'none') {
+          const browserName = settings.browser === 'msedge' ? 'edge' : settings.browser;
+          args.push('--cookies-from-browser', browserName);
+        }
 
-      let targetUrl = channelId.startsWith('http') ? channelId : (channelId.startsWith('@') ? `https://www.youtube.com/${channelId}` : `https://www.youtube.com/channel/${channelId}`);
-      args.push(targetUrl);
+        let targetUrl = channelId.startsWith('http') ? channelId : (channelId.startsWith('@') ? `https://www.youtube.com/${channelId}` : `https://www.youtube.com/channel/${channelId}`);
+        args.push(targetUrl);
 
-      const localTemp = getLocalTempDir();
-      const spawnOptions = {
-        env: { ...process.env, TEMP: localTemp, TMP: localTemp },
-        ...(process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {})
-      };
+        const localTemp = getLocalTempDir();
+        const spawnOptions = {
+          env: { ...process.env, TEMP: localTemp, TMP: localTemp },
+          ...(process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {})
+        };
 
-      const proc = spawnYtdlp(args, spawnOptions);
-      let stdout = '';
-      let isSettled = false;
-      const timer = setTimeout(() => {
-        if (!isSettled) {
+        const proc = spawnYtdlp(args, spawnOptions);
+        let stdout = '';
+        let isSettled = false;
+        const timer = setTimeout(() => {
+          if (!isSettled) {
+            isSettled = true;
+            try { proc.kill(); } catch (e) {}
+            reject(new Error('Proxy yt-dlp zaman aşımı'));
+          }
+        }, 12000);
+
+        proc.stdout.on('data', (d) => stdout += d.toString());
+        proc.on('close', (code) => {
+          cleanMeiForPid(proc.pid);
+          clearTimeout(timer);
+          if (isSettled) return;
           isSettled = true;
-          try { proc.kill(); } catch (e) {}
-          reject(new Error('Geo-Bypass zaman aşımı'));
-        }
-      }, 12000);
-
-      proc.stdout.on('data', (d) => stdout += d.toString());
-      proc.on('close', (code) => {
-        cleanMeiForPid(proc.pid);
-        clearTimeout(timer);
-        if (isSettled) return;
-        isSettled = true;
-        const items = [];
-        const lines = stdout.split('\n');
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const v = JSON.parse(line.trim());
-            if (v && v.id) {
-              items.push({
-                title: v.title || 'Video',
-                link: `https://www.youtube.com/watch?v=${v.id}`,
-                id: `yt:video:${v.id}`,
-                isoDate: v.timestamp ? new Date(v.timestamp * 1000).toISOString() : new Date().toISOString()
-              });
-            }
-          } catch (e) {}
-        }
-        if (items.length > 0) resolve({ items });
-        else reject(new Error('yt-dlp Geo-Bypass boş döndü'));
+          const items = [];
+          const lines = stdout.split('\n');
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const v = JSON.parse(line.trim());
+              if (v && v.id) {
+                items.push({
+                  title: v.title || 'Video',
+                  link: `https://www.youtube.com/watch?v=${v.id}`,
+                  id: `yt:video:${v.id}`,
+                  isoDate: v.timestamp ? new Date(v.timestamp * 1000).toISOString() : new Date().toISOString()
+                });
+              }
+            } catch (e) {}
+          }
+          if (items.length > 0) resolve({ items });
+          else reject(new Error('yt-dlp Proxy çıktısı boş döndü'));
+        });
       });
-    });
 
-    if (geoItems && geoItems.items && geoItems.items.length > 0) {
-      addTerminalLog(`[YASAKLI KANAL] "${channelName}" Geo-Bypass ile başarıyla taranarak ${geoItems.items.length} video çekildi!`, 'success');
-      return geoItems;
+      if (proxyItems && proxyItems.items && proxyItems.items.length > 0) {
+        addTerminalLog(`[BAŞARILI] [YASAKLI KANAL] "${channelName}" Proxy tüneli üzerinden başarıyla taranarak ${proxyItems.items.length} video tespit edildi!`, 'success');
+        return proxyItems;
+      }
     }
-  } catch (geoErr) {
-    console.log(`[YASAKLI KANAL] Geo-Bypass başarısız (${geoErr.message}), alternatif Invidious/Piped aynalarına geçiliyor...`);
+  } catch (proxyErr) {
+    console.log(`[YASAKLI KANAL] Proxy tüneli başarısız (${proxyErr.message}), alternatif Invidious/Piped aynalarına geçiliyor...`);
   }
 
   // 2. Aşama: Alternatif Invidious / Piped Mirror RSS beslemeleri
@@ -771,7 +787,7 @@ export async function fetchRestrictedChannelVideos(channel, limit = 5) {
       const xmlData = await fetchWithProxyWaterfall(mirrorUrl);
       const parsed = await parser.parseString(xmlData);
       if (parsed && parsed.items && parsed.items.length > 0) {
-        addTerminalLog(`[YASAKLI KANAL] "${channelName}" alternatif ayna (${new URL(mirrorUrl).hostname}) üzerinden ${parsed.items.length} video ile çözüldü!`, 'success');
+        addTerminalLog(`[BAŞARILI] [YASAKLI KANAL] "${channelName}" alternatif ayna (${new URL(mirrorUrl).hostname}) üzerinden ${parsed.items.length} video ile çözüldü!`, 'success');
         return parsed;
       }
     } catch (mirrorErr) {
@@ -800,14 +816,15 @@ export async function fetchRestrictedChannelVideos(channel, limit = 5) {
     }
 
     if (items.length > 0) {
-      addTerminalLog(`[YASAKLI KANAL] "${channelName}" Proxy HTML tarayıcı üzerinden ${items.length} video ile çözüldü!`, 'success');
+      addTerminalLog(`[BAŞARILI] [YASAKLI KANAL] "${channelName}" Proxy HTML tarayıcı üzerinden ${items.length} video ile çözüldü!`, 'success');
       return { items };
     }
   } catch (htmlErr) {
     console.log(`[YASAKLI KANAL] Proxy HTML Scraper başarısız: ${htmlErr.message}`);
   }
 
-  throw new Error('Tüm yasaklı kanal bypass yöntemleri (Geo-Bypass, Ayna RSS, HTML Scraper) denendi ancak kanala erişilemedi.');
+  addTerminalLog(`[HATA] [YASAKLI KANAL] "${channelName}" için tüm bypass yöntemleri (Proxy Tüneli, Ayna RSS, HTML Scraper) denendi ancak erişilemedi.`, 'error');
+  throw new Error('Tüm yasaklı kanal bypass yöntemleri (Proxy Tüneli, Ayna RSS, HTML Scraper) denendi ancak kanala erişilemedi.');
 }
 
 /**
@@ -836,6 +853,7 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
             feed = await fetchRestrictedChannelVideos(channel, rssLimit);
           } catch (restrictedErr) {
             console.error(`[RSS] [HATA] ${channel.name} tüm yasaklı kanal bypass yöntemleriyle de denetlenemedi:`, restrictedErr.message);
+            addTerminalLog(`[HATA] [YASAKLI KANAL] "${channel.name}" taranamadı: ${restrictedErr.message}`, 'error');
           }
         }
       }
@@ -854,6 +872,7 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
             feed = await fetchRestrictedChannelVideos(channel, rssLimit);
           } catch (restrictedErr) {
             console.error(`[RSS] [HATA] ${channel.name} tüm yasaklı kanal bypass yöntemleriyle de denetlenemedi:`, restrictedErr.message);
+            addTerminalLog(`[HATA] [YASAKLI KANAL] "${channel.name}" taranamadı: ${restrictedErr.message}`, 'error');
           }
         }
       }
@@ -1436,6 +1455,21 @@ export async function checkAllChannelsRssParallel() {
   const results = [];
   let processedCount = 0;
   for (let i = 0; i < db.channels.length; i += BATCH_SIZE) {
+    // Aktif bir video indirmesi veya kuyrukta bekleyen video varsa kanal taramasını tam duraklat
+    let pausedLogged = false;
+    while (downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.queue && downloadQueue.queue.length > 0) || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
+      if (!pausedLogged) {
+        console.log(`[RSS] Aktif video indirmesi tespit edildi. Kanal taraması indirme bitene kadar duraklatıldı...`);
+        addTerminalLog(`[RSS] Aktif video indirmesi nedeniyle kanal taraması duraklatıldı (İndirme bitince devam edecek).`, 'info');
+        pausedLogged = true;
+      }
+      await new Promise(res => setTimeout(res, 2000));
+    }
+    if (pausedLogged) {
+      console.log(`[RSS] Video indirmesi tamamlandı, kanal taramasına kaldığı yerden devam ediliyor...`);
+      addTerminalLog(`[RSS] Video indirmesi bitti, kanal taramasına devam ediliyor.`, 'info');
+    }
+
     const batch = db.channels.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.allSettled(batch.map(checkSingleChannel));
     results.push(...batchResults);
@@ -1776,12 +1810,18 @@ export async function triggerChannelCheck(source = 'manual') {
     }
   }
 
-  // Aktif indirme veya FFmpeg birleştirmesi varsa otomatik zamanlayıcı taramasını ertele
-  if (source === 'timer' && downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
-    const msg = `[Kanal Kontrolü] Aktif indirme veya FFmpeg birleştirmesi devam ettiği için arka plan zamanlayıcı taraması ertelendi.`;
+  // Aktif indirme, kuyrukta bekleyen video veya FFmpeg birleştirmesi varsa otomatik taramaları (zamanlayıcı, açılış) ertele
+  const hasActiveOrPendingDownloads = downloadQueue && (
+    downloadQueue.activeDownloads > 0 || 
+    (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0) ||
+    (downloadQueue.queue && downloadQueue.queue.length > 0)
+  );
+
+  if ((source === 'timer' || source === 'startup') && hasActiveOrPendingDownloads) {
+    const msg = `[Kanal Kontrolü] Aktif video indirmesi veya kuyrukta bekleyen işlem olduğu için otomatik kanal taraması (${source === 'startup' ? 'Açılış Taraması' : 'Zamanlayıcı'}) ertelendi.`;
     console.log(msg);
     addTerminalLog(msg, 'info');
-    return { success: false, deferred: true, message: 'Aktif indirme nedeniyle tarama ertelendi.' };
+    return { success: false, deferred: true, message: msg };
   }
 
   isRssChecking = true;

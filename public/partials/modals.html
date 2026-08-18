@@ -22,27 +22,32 @@
     </div>
   </div>
 
-  <!-- Gömülü Oynatıcı Modalı -->
+  <!-- Gömülü Oynatıcı Modalı (Floating PiP Player) -->
   <div id="player-modal" class="modal hidden">
     <div class="modal-content card player-modal-content">
-      <!-- Sürükleme / Yeniden Boyutlandırma Köşeleri -->
+      <!-- Sürükleme / Yeniden Boyutlandırma Köşeleri ve Kenarları -->
       <div class="resize-handle top-left"></div>
       <div class="resize-handle top-right"></div>
       <div class="resize-handle bottom-left"></div>
       <div class="resize-handle bottom-right"></div>
-      <div class="modal-header" style="padding: 12px 16px; margin-bottom: 0; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 15px;">
-        <div style="display: flex; flex-direction: column; max-width: 85%; overflow: hidden;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <img id="player-modal-logo" src="" alt="" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); display: none;">
-            <h3 id="player-modal-title" style="margin: 0; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; font-size: 1.15rem; font-weight: 700;">Gömülü Video Oynatıcı</h3>
+      <div class="resize-handle edge-top"></div>
+      <div class="resize-handle edge-bottom"></div>
+      <div class="resize-handle edge-left"></div>
+      <div class="resize-handle edge-right"></div>
+      
+      <div class="modal-header player-modal-header" style="padding: 8px 14px; margin-bottom: 0; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: move; user-select: none;">
+        <div style="display: flex; flex-direction: column; max-width: 80%; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <img id="player-modal-logo" src="" alt="" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); display: none; flex-shrink: 0;">
+            <h3 id="player-modal-title" style="margin: 0; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; font-size: 0.95rem; font-weight: 700; color: var(--text-main);">Gömülü Video Oynatıcı</h3>
           </div>
-          <span id="player-sponsorblock-status" style="font-size: 0.72rem; color: #ff0055; margin-left: 34px; margin-top: 2px; font-weight: 600; display: none;"></span>
+          <span id="player-sponsorblock-status" style="font-size: 0.7rem; color: #ff0055; margin-left: 30px; margin-top: 1px; font-weight: 600; display: none;"></span>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-          <button class="modal-close-btn" id="minimize-player-modal-btn" onclick="togglePlayerMinimize()" title="Küçült" style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;">
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <button class="modal-close-btn" id="minimize-player-modal-btn" onclick="togglePlayerMinimize()" title="Küçült" style="width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
             <i data-lucide="minus"></i>
           </button>
-          <button class="modal-close-btn" id="close-player-modal-btn" onclick="closePlayerModal()" style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;">
+          <button class="modal-close-btn" id="close-player-modal-btn" onclick="closePlayerModal()" style="width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
             <i data-lucide="x"></i>
           </button>
         </div>

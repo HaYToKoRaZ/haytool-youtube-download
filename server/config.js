@@ -108,7 +108,8 @@ export const settingComments = {
   isPaused: '# Otomatik Kontrol Duraklatıldı mı / Is Automatic Checking Paused\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
   showNotifications: '# Windows Bildirimlerini Göster / Show Windows Notifications\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
   autoOpenBrowser: '# Başlangıçta Tarayıcıyı Aç / Auto Open Browser on Startup\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
-  enableAltThumbnailsHover: '# Fare Üzerine Geldiğinde Alternatif Kapak Döngüsü / Hover Alternative Thumbnail Cycle\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)'
+  enableAltThumbnailsHover: '# Fare Üzerine Geldiğinde Alternatif Kapak Döngüsü / Hover Alternative Thumbnail Cycle\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  queueViewMode: '# Kuyruk Sekmesi Görünüm Modu / Queue Tab View Mode\n# Seçenekler: table (tablo), cards (kartlar)\n# Options: table, cards'
 };
 
 /**

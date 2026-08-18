@@ -96,12 +96,14 @@ export function parseSizeToBytes(sizeStr) {
  */
 export function isShortVideo(durationStr, title, channelId) {
   if (title) {
-    const lowerTitle = title.toLowerCase();
-    if (lowerTitle.includes('#shorts') || lowerTitle.includes('#short')) {
+    const lowerTitle = String(title).toLowerCase();
+    if (lowerTitle.includes('#shorts') || lowerTitle.includes('#short') || lowerTitle.includes('/shorts/')) {
       return true;
     }
   }
-  if (!durationStr) return false;
+  if (durationStr === null || durationStr === undefined || durationStr === '') return false;
+  
+  let strVal = String(durationStr).trim();
   
   let limit = 180;
   if (channelId && window.localDb && window.localDb.channels) {
@@ -113,7 +115,13 @@ export function isShortVideo(durationStr, title, channelId) {
     limit = window.localDb.settings.shortsDurationLimit;
   }
 
-  const parts = durationStr.split(':').map(Number);
+  // Doğrudan sayısal saniye gelmişse (örn: "45" veya 45)
+  if (!isNaN(strVal) && !strVal.includes(':')) {
+    const totalSec = Number(strVal);
+    return totalSec > 0 && totalSec <= limit;
+  }
+
+  const parts = strVal.split(':').map(Number);
   let totalSeconds = 0;
   
   if (parts.length === 1) {
@@ -124,13 +132,12 @@ export function isShortVideo(durationStr, title, channelId) {
     totalSeconds = (parts[0] * 3600) + (parts[1] * 60) + parts[2];
   }
   
-  if (totalSeconds <= limit) {
+  if (totalSeconds > 0 && totalSeconds <= limit) {
     return true;
   }
   
   if (title) {
-    const lowerTitle = title.toLowerCase();
-    // Arama kelimeleri içeren ve süresi uyanları işaretle
+    const lowerTitle = String(title).toLowerCase();
     if (lowerTitle.includes('shorts') || lowerTitle.includes('short')) {
       return true;
     }
@@ -245,4 +252,20 @@ export function debounce(func, delay) {
       func.apply(this, args);
     }, delay);
   };
+}
+
+/**
+ * Video kartında mor nokta (Katıl / Üyelere Özel) alıp almadığını kontrol eder.
+ * Sadece status === 'failed' olup üyelik hatası alanları veya isMembersOnly işaretlileri kapsar.
+ * 
+ * @param {object} item Video nesnesi
+ * @returns {boolean}
+ */
+export function isMembersOnlyVideo(item) {
+  if (!item) return false;
+  if (item.isMembersOnly === true) return true;
+  if (item.status === 'failed' && item.error && /yeler|üyeler|members-only|katıl|katil|join this channel|ayrıcalık|ayrcal/i.test(item.error)) {
+    return true;
+  }
+  return false;
 }

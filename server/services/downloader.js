@@ -12,20 +12,47 @@ import {
 } from '../database.js';
 import { broadcast, addTerminalLog } from './sse.js';
 import { ytdlpPath, testFfmpegSync, getFfmpegPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp } from './paths.js';
+import { getWorkingProxy, rotateProxy } from './proxyManager.js';
 
-// Türkçe Açıklama: İndirmeleri gerçekleştiren yt-dlp motorunun varlığını kontrol eder.
-export function ensureYtdlp() {
-  return new Promise((resolve, reject) => {
-    const filename = os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
-    if (fs.existsSync(ytdlpPath)) {
-      console.log(`${filename} zaten mevcut.`);
-      return resolve(ytdlpPath);
+// Türkçe Açıklama: İndirmeleri gerçekleştiren yt-dlp motorunun varlığını kontrol eder, yoksa GitHub üzerinden otomatik indirir.
+export async function ensureYtdlp() {
+  const isWin = os.platform() === 'win32';
+  const filename = isWin ? 'yt-dlp.exe' : 'yt-dlp';
+  if (fs.existsSync(ytdlpPath)) {
+    return ytdlpPath;
+  }
+
+  console.log(`[yt-dlp] ${filename} bulunamadı, GitHub üzerinden en güncel Nightly sürümü otomatik indiriliyor...`);
+  addTerminalLog(`[yt-dlp] ${filename} bulunamadı, GitHub üzerinden en güncel sürüm otomatik indiriliyor...`, 'info');
+
+  const targetDir = path.dirname(ytdlpPath);
+  if (!fs.existsSync(targetDir)) {
+    try { fs.mkdirSync(targetDir, { recursive: true }); } catch (e) {}
+  }
+
+  const downloadUrl = isWin
+    ? 'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp.exe'
+    : 'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp';
+
+  try {
+    const res = await fetch(downloadUrl, {
+      headers: { 'User-Agent': 'HaYTooL-YT-Downloader' },
+      redirect: 'follow'
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    const buffer = Buffer.from(await res.arrayBuffer());
+    fs.writeFileSync(ytdlpPath, buffer);
+    if (!isWin) {
+      try { fs.chmodSync(ytdlpPath, '755'); } catch (e) {}
     }
-    const err = new Error(`${filename} bulunamadı! Otomatik indirme iptal edildi. Lütfen yt-dlp/ klasörü altına ${filename} dosyasını ekleyin.`);
-    console.error(err.message);
-    broadcast('status_log', { message: err.message, type: 'error' });
-    reject(err);
-  });
+    console.log(`[yt-dlp] ${filename} başarıyla indirildi ve kullanıma hazır.`);
+    addTerminalLog(`[yt-dlp] ${filename} başarıyla indirildi ve kullanıma hazır.`, 'success');
+    return ytdlpPath;
+  } catch (err) {
+    console.error(`[yt-dlp] Otomatik indirme başarısız:`, err.message);
+    addTerminalLog(`[yt-dlp] Motor indirme hatası: ${err.message}`, 'error');
+    throw err;
+  }
 }
 
 // Türkçe Açıklama: İndirme durumlarına göre özel melodik bip seslerini (başlama, başarı, hata) ses kartı üzerinden çalar.
@@ -417,7 +444,14 @@ export class DownloadQueue {
       : (settings.lang || 'tr');
 
     args.push('--add-header', `Accept-Language:${prefLang}-${prefLang.toUpperCase()},${prefLang};q=0.9,en-US;q=0.8,en;q=0.7`);
-    args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=android_vr,web,tv`);
+    
+    if (video._fallbackClient) {
+      args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=${video._fallbackClient}`);
+    } else {
+      args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()}`);
+    }
+
+    args.push('--remote-components', 'ejs:github');
     args.push('--format-sort', `lang:${prefLang},hasvid,res,fps,hdr,vcodec`);
 
     const effectiveSpeed = getEffectiveSpeedLimit(settings);
@@ -428,6 +462,10 @@ export class DownloadQueue {
     if (settings.browser && settings.browser !== 'none') {
       const browserName = settings.browser === 'msedge' ? 'edge' : settings.browser;
       args.push('--cookies-from-browser', browserName);
+    }
+
+    if (video._proxy) {
+      args.push('--proxy', video._proxy);
     }
 
     const channelConfig = db.channels.find(c => c.id === video.channelId);
@@ -498,7 +536,7 @@ export class DownloadQueue {
     } else {
       args.push('--concurrent-fragments', '4');
     }
-    args.push('--fragment-retries', '3', '--retries', '3', '--skip-unavailable-fragments');
+    args.push('--fragment-retries', '10', '--retries', '5', '--retry-sleep', 'fragment:exp=1:20', '--skip-unavailable-fragments');
 
     const startLogMsg = `[İNDİRME] İndirme başlatılıyor: "${video.title}"`;
     const cmdLogMsg = `[KOMUT] yt-dlp ${args.join(' ')}`;
@@ -908,6 +946,7 @@ export class DownloadQueue {
 
         let isLiveProcessingError = /live stream (has ended|recording is still processing|is currently live)|this live event will begin|this video is a live stream|processing stream|The downloaded file is empty|Post-Live Manifestless mode|No such file or directory.*\.part-Frag/i.test(userFriendlyError);
         let isTransientHttpError = /HTTP Error 403|HTTP Error 503|HTTP Error 429|Service Unavailable|Forbidden/i.test(userFriendlyError);
+        let isGeoBlockedVideo = (/yasal|alan ad|country\'s domain|not available in your country|Geo-blocked|b[öo\uFFFD]lge|unavailable|kullan[ıi\uFFFD]lam/i.test(userFriendlyError) || /yasal|alan ad|country\'s domain|not available in your country|Geo-blocked|unavailable/i.test(errorOutput)) && !/Private video|Gizli video|This is a private video/i.test(userFriendlyError);
 
         if (isLiveProcessingError) {
           updateHistoryItem(video.id, {
@@ -919,13 +958,51 @@ export class DownloadQueue {
           });
           console.log(`[Downloader] Live stream is processing on YouTube. Deferred to waiting_live_processing: ${video.title}`);
           addTerminalLog(`[Kuyruk] Canlı yayın henüz işleniyor: "${video.title}" - YouTube VOD dönüştürmesi tamamlandığında otomatik indirilecek.`, 'info');
-        } else if (isTransientHttpError && (!video.retryCount || video.retryCount < 2)) {
+        } else if (isGeoBlockedVideo && (!video._geoRetryCount || video._geoRetryCount < 2)) {
+          video._geoRetryCount = (video._geoRetryCount || 0) + 1;
+          try {
+            console.log(`[YASAKLI VİDEO] "${video.title}" için bölgesel/yasal kısıtlama tespit edildi. Proxy havuzundan tünel aranıyor...`);
+            addTerminalLog(`[YASAKLI VİDEO] "${video.title}" bölgesel/yasal kısıtlamalı içerik algılandı. Çalışan Proxy tüneli aranıyor...`, 'warning');
+            const workingProxy = await getWorkingProxy();
+            if (workingProxy) {
+              video._proxy = workingProxy;
+              console.log(`[YASAKLI VİDEO] "${video.title}" Proxy tüneli (${workingProxy.replace('http://', '')}) üzerinden otomatik yeniden indiriliyor...`);
+              addTerminalLog(`[YASAKLI VİDEO] "${video.title}" Proxy tüneli (${workingProxy.replace('http://', '')}) üzerinden otomatik indirme kuyruğuna alındı.`, 'info');
+              updateHistoryItem(video.id, {
+                status: 'waiting',
+                progress: 0,
+                speed: '',
+                eta: '',
+                error: 'Proxy Tüneli ile İndiriliyor'
+              });
+              broadcast('db_update', readDb());
+              setTimeout(() => {
+                this.add(video);
+                this.process();
+              }, 1000);
+              return;
+            }
+          } catch (proxyErr) {
+            console.error('[YASAKLI VİDEO] Proxy tünel hatası:', proxyErr.message);
+          }
+        } else if (isTransientHttpError && (!video.retryCount || video.retryCount < 3)) {
           video.retryCount = (video.retryCount || 0) + 1;
-          console.warn(`[Kuyruk Auto-Retry] "${video.title}" için YouTube kısıtlaması algılandı. 5 saniye içinde tekrar denenecek (${video.retryCount}/2)...`);
-          addTerminalLog(`[Kuyruk Auto-Retry] "${video.title}" için geçici YouTube sunucu kısıtlaması (403/503) algılandı, 5sn sonra yeniden denenecek (${video.retryCount}/2)...`, 'warning');
+          delete video._fallbackClient;
+          if (video._proxy) {
+            const nextProxy = rotateProxy();
+            if (nextProxy) {
+              video._proxy = nextProxy;
+              console.log(`[Proxy Havuzu] HTTP kısıtlaması sonrası yeni proxy ile deneniyor: ${nextProxy}`);
+              addTerminalLog(`[Proxy Havuzu] Sıradaki Proxy tüneline (${nextProxy.replace('http://', '')}) geçiş yapılıyor...`, 'info');
+            }
+          }
+          const waitSec = video.retryCount * 4;
+          console.warn(`[Kuyruk Auto-Retry] "${video.title}" için geçici YouTube CDN kısıtlaması (403/503/429) algılandı. ${waitSec} saniye beklenip en yüksek kalitede otomatik yeniden denenecek (${video.retryCount}/3)...`);
+          addTerminalLog(`[403 Koruması] "${video.title}" için geçici YouTube CDN kısıtlaması algılandı. ${waitSec} sn sonra en yüksek kalitede (1080p/4K) otomatik yeniden deneniyor (${video.retryCount}/3)...`, 'warning');
           setTimeout(() => {
             this.add(video);
-          }, 5000);
+            this.process();
+          }, waitSec * 1000);
           return;
         } else {
           updateHistoryItem(video.id, {
