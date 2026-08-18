@@ -1195,16 +1195,24 @@ async function loadAppVersion() {
       const topbarVer = document.getElementById('topbar-version');
       if (topbarVer) {
         const link = topbarVer.querySelector('a');
-        if (link) link.textContent = verStr;
-        else topbarVer.textContent = verStr;
+        if (link) {
+          link.textContent = verStr;
+          link.href = 'https://github.com/HaYToKoRaZ/haytool-youtube-download';
+        } else {
+          topbarVer.textContent = verStr;
+        }
       }
       
       // Settings version label
       const settingsVer = document.getElementById('settings-version');
       if (settingsVer) {
         const link = settingsVer.querySelector('a');
-        if (link) link.textContent = verStr;
-        else settingsVer.textContent = verStr;
+        if (link) {
+          link.textContent = verStr;
+          link.href = 'https://github.com/HaYToKoRaZ/haytool-youtube-download';
+        } else {
+          settingsVer.textContent = verStr;
+        }
       }
     }
   } catch (err) {
