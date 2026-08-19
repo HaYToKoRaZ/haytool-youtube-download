@@ -3,7 +3,27 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.39.0] - 2026-08-19
+
+### 🎬 HaYTooL-Player Beta.exe — Direct HDD Playback Fix (Stream Bypass) / Doğrudan HDD'den Oynatma Düzeltmesi (Stream Bypass)
+
+- **Root Cause Fixed: `CoreWebView2_NavigationStarting` Was Blocking Virtual Drive URLs (`MainWindow.xaml.cs`) (Kök Neden Düzeltildi: `CoreWebView2_NavigationStarting` Sanal Sürücü URL'lerini Engelliyordu):**
+  - `SetVirtualHostNameToFolderMapping` correctly mapped all local drives to `haytool-X.local` virtual hosts, and `app.js` correctly generated `http://haytool-f.local/...` URLs inside WebView2.
+  - However, the `CoreWebView2_NavigationStarting` event handler treated `haytool-*.local` as an external domain and cancelled navigation (`e.Cancel = true`), causing fallback to the HTTP stream endpoint.
+  - Added `isVirtualDrive` guard: URLs matching `haytool-*.local` pattern are now recognized as internal WebView2 resources and are no longer redirected to the external browser.
+  - `SetVirtualHostNameToFolderMapping` tüm yerel sürücüleri `haytool-X.local` sanal sunucularına doğru eşliyordu ve `app.js` WebView2 içinde `http://haytool-f.local/...` URL'lerini doğru üretiyordu. Ancak `CoreWebView2_NavigationStarting` handler'ı bu adresleri dış link sayıp navigasyonu iptal ederek stream fallback'ine düşürüyordu. Eklenen `isVirtualDrive` koruması sayesinde artık bu URL'ler WebView2 içinde kalır ve video dosyaları doğrudan HDD'den okunur — hiçbir HTTP stream katmanı devreye girmez.
+
+- **Zero Network Traffic for Local Videos (Yerel Videolar İçin Sıfır Ağ Trafiği):**
+  - Local downloaded videos now load instantly via virtual drive mapping with no localhost HTTP streaming overhead.
+  - Undownloaded or live videos continue to use YouTube iframe embed as before.
+  - İndirilen yerel videolar artık sanal sürücü eşlemesi üzerinden anında yüklenir, localhost HTTP stream katmanı yoktur. İndirilmemiş veya canlı yayın videoları önceki gibi YouTube iframe embed kullanmaya devam eder.
+
+- **No Changes to Backend or Frontend (Backend veya Frontend'de Değişiklik Yok):**
+  - Only `HaYTooLPlayer/MainWindow.xaml.cs` was modified. `server/routes/streams.js` and `public/app.js` required no changes.
+  - Yalnızca `HaYTooLPlayer/MainWindow.xaml.cs` değiştirildi. `server/routes/streams.js` ve `public/app.js` değiştirilmedi.
+
 ## [8.38.0] - 2026-08-19
+
 
 ### 🌐 Smart Geo-Restriction & Court-Blocked Video Bypass / Akıllı Coğrafi Kısıtlama & Mahkeme Kararlı Video Tüneli
 

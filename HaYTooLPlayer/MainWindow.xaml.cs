@@ -391,8 +391,15 @@ namespace HaYTooLPlayer
                     Uri appUri = new Uri(appUrl);
                     Uri targetUri = new Uri(uri);
 
-                    // Eğer yönlenilmeye çalışılan sunucu localhost/backend sunucumuz değilse
-                    if (targetUri.Host != appUri.Host || targetUri.Port != appUri.Port)
+                    // haytool-X.local adresleri SetVirtualHostNameToFolderMapping ile eşlenmiş
+                    // sanal sürücü kaynaklarıdır (video, thumbnail vb.). Bunlar WebView2 içi kaynak
+                    // olduğundan dış tarayıcıya yönlendirilmemelidir.
+                    bool isVirtualDrive = targetUri.Host.StartsWith("haytool-", StringComparison.OrdinalIgnoreCase)
+                                       && targetUri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase);
+
+                    // Eğer yönlenilmeye çalışılan adres dahili sanal sürücü değilse
+                    // ve localhost/backend sunucumuz da değilse dışarı aç
+                    if (!isVirtualDrive && (targetUri.Host != appUri.Host || targetUri.Port != appUri.Port))
                     {
                         // Navigasyonu iptal et
                         e.Cancel = true;
