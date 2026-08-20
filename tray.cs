@@ -29,6 +29,8 @@ namespace HaYTooLTray
         // Dil senkronizasyonu için sınıf düzeyinde menü öğeleri
         private MenuItem openUiItem;
         private MenuItem openAppBrowserItem;
+        private MenuItem youtubeLoginItem;
+        private MenuItem youtubeLogoutItem;
         private MenuItem pasteDownloadItem;
         private MenuItem shortcutsMenu;
         private MenuItem libraryShortcut;
@@ -439,6 +441,8 @@ namespace HaYTooLTray
             // Sınıf düzeyindeki menü elemanlarını oluştur
             openUiItem = new MenuItem("Arayüzü Aç", OpenWebPage);
             openAppBrowserItem = new MenuItem("Kendi Tarayıcısında Aç", OpenWebAppInOwnBrowser);
+            youtubeLoginItem = new MenuItem("YouTube'da Oturum Aç", OpenYouTubeLoginWindow);
+            youtubeLogoutItem = new MenuItem("YouTube Oturumunu Kapat", OpenYouTubeLogoutAction);
             checkChannelsItem = new MenuItem("Kanalları Denetle", TriggerCheckChannels);
             pasteDownloadItem = new MenuItem("Panodan İndir", PasteAndDownload);
 
@@ -476,6 +480,8 @@ namespace HaYTooLTray
             // Sağ tık menüsünü oluştur
             ContextMenu contextMenu = new ContextMenu();
             contextMenu.MenuItems.Add(openAppBrowserItem);
+            contextMenu.MenuItems.Add(youtubeLoginItem);
+            contextMenu.MenuItems.Add(youtubeLogoutItem);
             contextMenu.MenuItems.Add(settingsItem);
             contextMenu.MenuItems.Add(checkChannelsItem);
             contextMenu.MenuItems.Add(pasteDownloadItem);
@@ -725,6 +731,94 @@ namespace HaYTooLTray
         private void OpenWebAppInOwnBrowser(object sender, EventArgs e)
         {
             OpenUrlInOwnBrowser("/downlist");
+        }
+
+        // Türkçe Açıklama: YouTube ve Google hesabında oturum açmak için izole tarayıcı penceresini açar.
+        private void OpenYouTubeLoginWindow(object sender, EventArgs e)
+        {
+            try
+            {
+                string loginUrl = "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com";
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string playerExe = Path.Combine(baseDir, "HaYTooL-Player Beta.exe");
+                string binPlayerExe = Path.Combine(baseDir, "bin", "HaYTooLPlayer.exe");
+
+                if (File.Exists(playerExe))
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo(playerExe, "\"" + loginUrl + "\"");
+                    psi.UseShellExecute = true;
+                    Process.Start(psi);
+                }
+                else if (File.Exists(binPlayerExe))
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo(binPlayerExe, "\"" + loginUrl + "\"");
+                    psi.UseShellExecute = true;
+                    Process.Start(psi);
+                }
+                else
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo("msedge.exe", "--app=" + loginUrl);
+                    psi.UseShellExecute = true;
+                    Process.Start(psi);
+                }
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo("https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com") { UseShellExecute = true });
+                }
+                catch
+                {
+                    MessageBox.Show("YouTube oturum açma penceresi açılamadı: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        // Türkçe Açıklama: YouTube oturumunu kapatır ve yerel cookies.txt dosyalarını temizler.
+        private void OpenYouTubeLogoutAction(object sender, EventArgs e)
+        {
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string rootCookiesTxt = Path.Combine(baseDir, "cookies.txt");
+                string binCookiesTxt = Path.Combine(baseDir, "bin", "cookies.txt");
+
+                if (File.Exists(rootCookiesTxt)) { try { File.Delete(rootCookiesTxt); } catch {} }
+                if (File.Exists(binCookiesTxt)) { try { File.Delete(binCookiesTxt); } catch {} }
+
+                try
+                {
+                    string launcherExe = Path.Combine(baseDir, "HaYTooL-Player Beta.exe");
+                    if (File.Exists(launcherExe))
+                    {
+                        ProcessStartInfo psi = new ProcessStartInfo(launcherExe, "LOGOUT");
+                        psi.UseShellExecute = true;
+                        Process.Start(psi);
+                    }
+                }
+                catch {}
+
+                string lang = GetLanguageSetting();
+                string title = "YouTube Oturumu";
+                string msg = "YouTube oturumu kapatıldı ve yerel çerezler temizlendi.";
+
+                if (lang == "en") { title = "YouTube Session"; msg = "Signed out of YouTube and local cookies cleared."; }
+                else if (lang == "es") { title = "Sesión de YouTube"; msg = "Sesión de YouTube cerrada y cookies locales eliminadas."; }
+                else if (lang == "de") { title = "YouTube-Sitzung"; msg = "Von YouTube abgemeldet und lokale Cookies gelöscht."; }
+                else if (lang == "pt") { title = "Sessão do YouTube"; msg = "Sessão do YouTube encerrada e cookies locais apagados."; }
+                else if (lang == "ru") { title = "Сессия YouTube"; msg = "Сессия YouTube завершена, локальные cookies очищены."; }
+                else if (lang == "ar") { title = "جلسة YouTube"; msg = "تم تسجيل الخروج من YouTube ومسح ملفات تعريف الارتباط."; }
+
+                if (trayIcon != null)
+                {
+                    trayIcon.ShowBalloonTip(3000, title, msg, ToolTipIcon.Info);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Oturum kapatılamadı: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         // Türkçe Açıklama: Belirli bir alt adresi Microsoft Edge uygulama modunda (--app) açar.
@@ -2030,6 +2124,8 @@ namespace HaYTooLTray
             if (lang == "en")
             {
                 openAppBrowserItem.Text = "Open in App Window";
+                youtubeLoginItem.Text = "Sign in to YouTube";
+                youtubeLogoutItem.Text = "Sign out of YouTube";
                 openUiItem.Text = "Open Interface";
                 checkChannelsItem.Text = "Check Channels";
                 pasteDownloadItem.Text = "Paste & Download";
@@ -2050,6 +2146,8 @@ namespace HaYTooLTray
             else if (lang == "es")
             {
                 openAppBrowserItem.Text = "Abrir en ventana de app";
+                youtubeLoginItem.Text = "Iniciar Sesión en YouTube";
+                youtubeLogoutItem.Text = "Cerrar Sesión en YouTube";
                 openUiItem.Text = "Abrir Interfaz";
                 checkChannelsItem.Text = "Comprobar canales";
                 pasteDownloadItem.Text = "Pegar y Descargar";
@@ -2070,6 +2168,8 @@ namespace HaYTooLTray
             else if (lang == "de")
             {
                 openAppBrowserItem.Text = "Im App-Fenster öffnen";
+                youtubeLoginItem.Text = "Bei YouTube anmelden";
+                youtubeLogoutItem.Text = "Von YouTube abmelden";
                 openUiItem.Text = "Benutzeroberfläche öffnen";
                 checkChannelsItem.Text = "Kanäle prüfen";
                 pasteDownloadItem.Text = "Einfügen & Herunterladen";
@@ -2090,6 +2190,8 @@ namespace HaYTooLTray
             else if (lang == "pt")
             {
                 openAppBrowserItem.Text = "Abrir na janela do app";
+                youtubeLoginItem.Text = "Entrar no YouTube";
+                youtubeLogoutItem.Text = "Sair do YouTube";
                 openUiItem.Text = "Abrir Interface";
                 checkChannelsItem.Text = "Verificar canais";
                 pasteDownloadItem.Text = "Colar & Baixar";
@@ -2110,6 +2212,8 @@ namespace HaYTooLTray
             else if (lang == "ar")
             {
                 openAppBrowserItem.Text = "الفتح في نافذة التطبيق";
+                youtubeLoginItem.Text = "تسجيل الدخول إلى YouTube";
+                youtubeLogoutItem.Text = "تسجيل الخروج من YouTube";
                 openUiItem.Text = "فتح الواجهة";
                 checkChannelsItem.Text = "التحقق من القنوات";
                 pasteDownloadItem.Text = "اللصق والتنزيل";
@@ -2130,6 +2234,8 @@ namespace HaYTooLTray
             else if (lang == "ru")
             {
                 openAppBrowserItem.Text = "Открыть в окне приложения";
+                youtubeLoginItem.Text = "Войти в YouTube";
+                youtubeLogoutItem.Text = "Выйти из YouTube";
                 openUiItem.Text = "Открыть интерфейс";
                 checkChannelsItem.Text = "Проверить каналы";
                 pasteDownloadItem.Text = "Вставить и скачать";
@@ -2150,6 +2256,8 @@ namespace HaYTooLTray
             else // Varsayılan Türkçe (tr)
             {
                 openAppBrowserItem.Text = "Kendi Tarayıcısında Aç";
+                youtubeLoginItem.Text = "YouTube'da Oturum Aç";
+                youtubeLogoutItem.Text = "YouTube Oturumunu Kapat";
                 openUiItem.Text = "Arayüzü Aç";
                 checkChannelsItem.Text = "Kanalları Denetle";
                 pasteDownloadItem.Text = "Panodan İndir";

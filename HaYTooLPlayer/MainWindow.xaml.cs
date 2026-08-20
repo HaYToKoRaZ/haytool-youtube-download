@@ -41,7 +41,7 @@ namespace HaYTooLPlayer
                 {
                     COPYDATASTRUCT cds = (COPYDATASTRUCT)Marshal.PtrToStructure(lParam, typeof(COPYDATASTRUCT));
                     string path = cds.lpData;
-                    if (!string.IsNullOrEmpty(path) && path.StartsWith("/"))
+                    if (!string.IsNullOrEmpty(path))
                     {
                         this.Dispatcher.Invoke(() =>
                         {
@@ -55,6 +55,12 @@ namespace HaYTooLPlayer
 
                             if (webView != null && webView.CoreWebView2 != null)
                             {
+                                if (path == "LOGOUT" || path == "/logout" || path == "/logout-youtube")
+                                {
+                                    ClearYouTubeSessionAsync();
+                                    return;
+                                }
+
                                 // Oynatıcı zaten açık durumdayken çift tıklanırsa (varsayılan /downlist tetiklenirse) 
                                 // sayfa değiştirilmez, sadece pencere öne getirilir (video kesilmez).
                                 if (path == "/downlist")
@@ -62,7 +68,16 @@ namespace HaYTooLPlayer
                                     return;
                                 }
 
-                                string url = GetAppUrl().TrimEnd('/') + path;
+                                string url;
+                                if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    url = path;
+                                }
+                                else
+                                {
+                                    url = GetAppUrl().TrimEnd('/') + (path.StartsWith("/") ? path : "/" + path);
+                                }
+
                                 webView.CoreWebView2.Navigate(url);
                             }
                         });
@@ -118,15 +133,25 @@ namespace HaYTooLPlayer
                 webView.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
                 webView.CoreWebView2.NewWindowRequested += CoreWebView2_NewWindowRequested;
 
+                // YouTube oturum çerezlerini kök dizindeki cookies.txt dosyasına otomatik senkronize et
+                webView.CoreWebView2.NavigationCompleted += (s, e) =>
+                {
+                    SyncYouTubeCookiesToFileAsync();
+                };
+
                 // Sunucu URL'sine Yönlendir
                 string url = GetAppUrl();
 
-                // Komut satırı argümanı (örn: /settings veya /downlist) varsa URL'ye ekle
+                // Komut satırı argümanı (örn: tam URL, /settings veya /downlist) varsa yönlendir
                 string[] args = Environment.GetCommandLineArgs();
                 if (args.Length > 1)
                 {
                     string pathArg = args[1].Trim();
-                    if (pathArg.StartsWith("/"))
+                    if (pathArg.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || pathArg.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        url = pathArg;
+                    }
+                    else if (pathArg.StartsWith("/"))
                     {
                         url = url.TrimEnd('/') + pathArg;
                     }
@@ -397,9 +422,15 @@ namespace HaYTooLPlayer
                     bool isVirtualDrive = targetUri.Host.StartsWith("haytool-", StringComparison.OrdinalIgnoreCase)
                                        && targetUri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase);
 
-                    // Eğer yönlenilmeye çalışılan adres dahili sanal sürücü değilse
-                    // ve localhost/backend sunucumuz da değilse dışarı aç
-                    if (!isVirtualDrive && (targetUri.Host != appUri.Host || targetUri.Port != appUri.Port))
+                    // YouTube ve Google oturum açma sayfaları dahili profilde çerez oluşturması için WebView2 içinde kalmalıdır
+                    bool isAuthDomain = targetUri.Host.EndsWith("youtube.com", StringComparison.OrdinalIgnoreCase)
+                                     || targetUri.Host.EndsWith("google.com", StringComparison.OrdinalIgnoreCase)
+                                     || targetUri.Host.EndsWith("gstatic.com", StringComparison.OrdinalIgnoreCase)
+                                     || targetUri.Host.EndsWith("googleusercontent.com", StringComparison.OrdinalIgnoreCase);
+
+                    // Eğer dahili sanal sürücü değilse, oturum sayfası değilse
+                    // ve localhost/backend sunucumuz da değilse dış tarayıcıya aç
+                    if (!isVirtualDrive && !isAuthDomain && (targetUri.Host != appUri.Host || targetUri.Port != appUri.Port))
                     {
                         // Navigasyonu iptal et
                         e.Cancel = true;
@@ -428,16 +459,134 @@ namespace HaYTooLPlayer
         // Türkçe Açıklama: Target="_blank" şeklinde yeni pencerede açılmak istenen dış linkleri engeller ve varsayılan tarayıcıya yönlendirir.
         private void CoreWebView2_NewWindowRequested(object sender, Microsoft.Web.WebView2.Core.CoreWebView2NewWindowRequestedEventArgs e)
         {
-            e.Handled = true;
             try
             {
                 string uri = e.Uri;
                 if (!string.IsNullOrEmpty(uri))
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo(uri);
-                    psi.UseShellExecute = true;
-                    Process.Start(psi);
+                    Uri targetUri = new Uri(uri);
+                    bool isAuthDomain = targetUri.Host.EndsWith("youtube.com", StringComparison.OrdinalIgnoreCase)
+                                     || targetUri.Host.EndsWith("google.com", StringComparison.OrdinalIgnoreCase)
+                                     || targetUri.Host.EndsWith("gstatic.com", StringComparison.OrdinalIgnoreCase)
+                                     || targetUri.Host.EndsWith("googleusercontent.com", StringComparison.OrdinalIgnoreCase);
+
+                    if (!isAuthDomain)
+                    {
+                        e.Handled = true;
+                        ProcessStartInfo psi = new ProcessStartInfo(uri);
+                        psi.UseShellExecute = true;
+                        Process.Start(psi);
+                    }
                 }
+            }
+            catch {}
+        }
+
+        // Türkçe Açıklama: WebView2 içindeki YouTube oturum çerezlerini Netscape cookies.txt formatında kök dizine yazar.
+        public async void SyncYouTubeCookiesToFileAsync()
+        {
+            try
+            {
+                if (webView == null || webView.CoreWebView2 == null) return;
+
+                var cookieManager = webView.CoreWebView2.CookieManager;
+                var cookies = await cookieManager.GetCookiesAsync("https://www.youtube.com");
+                if (cookies == null || cookies.Count == 0) return;
+
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string rootDir = Directory.Exists(Path.Combine(baseDir, "public")) ? baseDir : (Directory.GetParent(baseDir)?.FullName ?? baseDir);
+
+                bool hasLoginInfo = false;
+                System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                sb.AppendLine("# Netscape HTTP Cookie File");
+                sb.AppendLine("# https://curl.haxx.se/rfc/cookie_spec.html");
+                sb.AppendLine("# This file was generated by HaYTooL Player Native Bridge.");
+                sb.AppendLine();
+
+                foreach (var c in cookies)
+                {
+                    string domain = c.Domain;
+                    string includeSubdomains = domain.StartsWith(".") ? "TRUE" : "FALSE";
+                    string path = string.IsNullOrEmpty(c.Path) ? "/" : c.Path;
+                    string secure = c.IsSecure ? "TRUE" : "FALSE";
+                    long expires = 2147483647;
+                    if (c.Expires > DateTime.MinValue && c.Expires < DateTime.MaxValue)
+                    {
+                        try
+                        {
+                            expires = (long)(c.Expires - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+                            if (expires <= 0) expires = 2147483647;
+                        }
+                        catch {}
+                    }
+
+                    sb.AppendLine(string.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}",
+                        domain, includeSubdomains, path, secure, expires, c.Name, c.Value));
+
+                    if (c.Name == "LOGIN_INFO" || c.Name == "__Secure-1PSID" || c.Name == "__Secure-3PSID")
+                    {
+                        hasLoginInfo = true;
+                    }
+                }
+
+                if (hasLoginInfo)
+                {
+                    var utf8NoBom = new System.Text.UTF8Encoding(false);
+                    try { File.WriteAllText(Path.Combine(rootDir, "cookies.txt"), sb.ToString(), utf8NoBom); } catch {}
+                    try { File.WriteAllText(Path.Combine(baseDir, "cookies.txt"), sb.ToString(), utf8NoBom); } catch {}
+                }
+                else
+                {
+                    // Oturum yoksa veya kapatılmışsa eski cookies.txt dosyasını temizle
+                    try { if (File.Exists(Path.Combine(rootDir, "cookies.txt"))) File.Delete(Path.Combine(rootDir, "cookies.txt")); } catch {}
+                    try { if (File.Exists(Path.Combine(baseDir, "cookies.txt"))) File.Delete(Path.Combine(baseDir, "cookies.txt")); } catch {}
+                }
+            }
+            catch {}
+        }
+
+        // Türkçe Açıklama: WebView2 içindeki tüm Google ve YouTube çerezlerini siler, oturumu sıfırlar.
+        public async void ClearYouTubeSessionAsync()
+        {
+            try
+            {
+                if (webView != null && webView.CoreWebView2 != null)
+                {
+                    var cookieManager = webView.CoreWebView2.CookieManager;
+                    
+                    var ytCookies = await cookieManager.GetCookiesAsync("https://www.youtube.com");
+                    if (ytCookies != null)
+                    {
+                        foreach (var c in ytCookies)
+                        {
+                            cookieManager.DeleteCookie(c);
+                        }
+                    }
+
+                    var gCookies = await cookieManager.GetCookiesAsync("https://accounts.google.com");
+                    if (gCookies != null)
+                    {
+                        foreach (var c in gCookies)
+                        {
+                            cookieManager.DeleteCookie(c);
+                        }
+                    }
+
+                    var googleRootCookies = await cookieManager.GetCookiesAsync("https://google.com");
+                    if (googleRootCookies != null)
+                    {
+                        foreach (var c in googleRootCookies)
+                        {
+                            cookieManager.DeleteCookie(c);
+                        }
+                    }
+                }
+
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string rootDir = Directory.Exists(Path.Combine(baseDir, "public")) ? baseDir : (Directory.GetParent(baseDir)?.FullName ?? baseDir);
+
+                try { if (File.Exists(Path.Combine(rootDir, "cookies.txt"))) File.Delete(Path.Combine(rootDir, "cookies.txt")); } catch {}
+                try { if (File.Exists(Path.Combine(baseDir, "cookies.txt"))) File.Delete(Path.Combine(baseDir, "cookies.txt")); } catch {}
             }
             catch {}
         }

@@ -13,13 +13,16 @@ const ALPHABET = 'A B C Ç D E F G H I İ J K L M N O Ö P R S Ş T U Ü V Y Z'.
  * @param {object} translations Türkçe/İngilizce dil çeviri nesnesi
  * @returns {void}
  */
-export function renderChannelsList(channelsList, channels, translations, categories) {
+export function renderChannelsList(channelsList, channels, translations, categories, filters = {}) {
   if (!channelsList) return;
   channelsList.innerHTML = '';
 
   const t = translations || {};
+  const allChannels = channels || [];
 
-  if (channels.length === 0) {
+  if (allChannels.length === 0) {
+    const countBadge = document.getElementById('channel-filtered-count-badge');
+    if (countBadge) countBadge.textContent = `0 / 0 ${t.badge_channels_count_suffix || 'Kanal'}`;
     channelsList.innerHTML = `
       <div class="channels-empty-state">
         <div class="channels-empty-icon">
@@ -32,8 +35,50 @@ export function renderChannelsList(channelsList, channels, translations, categor
     return;
   }
 
+  // Filtreleri Uygula
+  let filteredChannels = [...allChannels];
+
+  if (filters.searchQuery && filters.searchQuery.trim()) {
+    const q = filters.searchQuery.trim().toLowerCase();
+    filteredChannels = filteredChannels.filter(c => 
+      (c.name && c.name.toLowerCase().includes(q)) ||
+      (c.handle && c.handle.toLowerCase().includes(q))
+    );
+  }
+
+  if (filters.autoDownload === 'enabled') {
+    filteredChannels = filteredChannels.filter(c => c.autoDownload === true);
+  } else if (filters.autoDownload === 'disabled') {
+    filteredChannels = filteredChannels.filter(c => c.autoDownload === false);
+  }
+
+  if (filters.shortsDownload === 'enabled') {
+    filteredChannels = filteredChannels.filter(c => c.downloadShorts === true);
+  } else if (filters.shortsDownload === 'disabled') {
+    filteredChannels = filteredChannels.filter(c => c.downloadShorts === false);
+  }
+
+  // Filtre Sayacını Güncelle
+  const countBadge = document.getElementById('channel-filtered-count-badge');
+  if (countBadge) {
+    countBadge.textContent = `${filteredChannels.length} / ${allChannels.length} ${t.badge_channels_count_suffix || 'Kanal'}`;
+  }
+
+  if (filteredChannels.length === 0) {
+    channelsList.innerHTML = `
+      <div class="channels-empty-state">
+        <div class="channels-empty-icon">
+          <i data-lucide="filter-x"></i>
+        </div>
+        <h3>${t.channels_no_match || 'Filtreye uygun kanal bulunamadı'}</h3>
+        <p>${t.channels_no_match_desc || 'Seçilen filtrelere uyan herhangi bir kanal bulunamadı. Filtre kriterlerini değiştirebilirsiniz.'}</p>
+      </div>
+    `;
+    return;
+  }
+
   // Kanalları alfabetik olarak sırala
-  const sortedChannels = [...channels].sort((a, b) => 
+  const sortedChannels = [...filteredChannels].sort((a, b) => 
     (a.name || '').localeCompare(b.name || '', 'tr', { sensitivity: 'base' })
   );
 

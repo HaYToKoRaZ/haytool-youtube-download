@@ -33,6 +33,38 @@
           </form>
         </div>
 
+        <!-- Kanal Filtreleri ve Arama Çubuğu -->
+        <div class="channel-filters-bar" id="channel-filters-bar">
+          <div class="channel-filters-left">
+            <div class="channel-search-input-wrap">
+              <i data-lucide="search"></i>
+              <input type="text" id="channel-list-search-input" class="channel-search-input" placeholder="Kanal listesinde ara..." oninput="handleChannelFilterChange()">
+            </div>
+
+            <div class="channel-filter-group">
+              <label for="filter-channel-auto-download" id="label-filter-channel-auto" style="display:inline-flex; align-items:center; gap:4px; font-weight:600;"><i data-lucide="download" style="width:13px;height:13px;color:var(--accent-primary);"></i> <span id="text-filter-auto-title">Otomatik İndirme:</span></label>
+              <select id="filter-channel-auto-download" class="channel-filter-select" onchange="handleChannelFilterChange()">
+                <option value="all" id="opt-filter-auto-all">Tümü</option>
+                <option value="enabled" id="opt-filter-auto-enabled">Açık (Otomatik İndirilenler)</option>
+                <option value="disabled" id="opt-filter-auto-disabled">Kapalı (Sadece Takip)</option>
+              </select>
+            </div>
+
+            <div class="channel-filter-group">
+              <label for="filter-channel-shorts-download" id="label-filter-channel-shorts" style="display:inline-flex; align-items:center; gap:4px; font-weight:600;"><i data-lucide="zap" style="width:13px;height:13px;color:var(--accent-primary);"></i> <span id="text-filter-shorts-title">Shorts İndirme:</span></label>
+              <select id="filter-channel-shorts-download" class="channel-filter-select" onchange="handleChannelFilterChange()">
+                <option value="all" id="opt-filter-shorts-all">Tümü</option>
+                <option value="enabled" id="opt-filter-shorts-enabled">Açık (Shorts İndir)</option>
+                <option value="disabled" id="opt-filter-shorts-disabled">Kapalı (Shorts Atlansın)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="channel-filters-right">
+            <span class="channel-filter-badge" id="channel-filtered-count-badge">0 / 0 Kanal</span>
+          </div>
+        </div>
+
         <!-- Arama Sonuçları Listesi -->
         <div id="channel-search-results" class="card margin-top-md" style="display: none; border: 1px solid var(--border-color); background: var(--bg-card); padding: 15px; border-radius: 8px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">

@@ -3,6 +3,195 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.51.0] - 2026-08-20
+
+### 🔧 Topbar Cookie Status Simplified to Dot Indicator / Üst Bar Çerez Durumu Nokta Göstergesine Sadeleştirildi
+
+- **Removed Cookie Text & Icon from Topbar (Üst Bardan Çerez Metni ve İkonu Kaldırıldı):**
+  - Removed the `#topbar-cookie-icon` shield icon and the `#topbar-cookie-label` text ("YouTube: Oturum Açık/Anonim") from the topbar (`public/partials/header.html`).
+  - The status is now shown solely by the `#cookie-test-indicator` dot: green (`#22c55e`) when the YouTube session is active, red (`#ef4444`) when anonymous. Clicking the dot still triggers the cookie test.
+  - `public/partials/header.html` içindeki kalkan ikonu (`#topbar-cookie-icon`) ve "YouTube: Oturum Açık/Anonim" metni (`#topbar-cookie-label`) kaldırıldı. Durum artık yalnızca `#cookie-test-indicator` noktasıyla gösterilir: oturum açıksa yeşil (`#22c55e`), anonimse kırmızı (`#ef4444`). Noktaya tıklanınca çerez testi hâlâ çalışır.
+
+- **Dead Code Cleanup (Ölü Kod Temizliği):**
+  - Removed unused references in `public/app.js`: `topbar-cookie-title` binding, `cookieStatus` / `topbarCookieStatus` / `topbarCookieIcon` variables and their status/icon update blocks (now unused `status_logged_in` / `status_logged_out` / `topbar_cookie_title` localization keys removed from all 7 language files).
+  - `public/app.js` içindeki kullanılmayan `topbar-cookie-title` bağlama, `cookieStatus` / `topbarCookieStatus` / `topbarCookieIcon` değişkenleri ile durum/ikon güncelleme blokları kaldırıldı; artık kullanılmayan `status_logged_in` / `status_logged_out` / `topbar_cookie_title` yerelleştirme anahtarları 7 dil dosyasından da silindi.
+
+## [8.50.0] - 2026-08-20
+
+### 🚀 APE (Direct Video/Channel Watched Marker Tool) / APE (Hızlı İzlendi İşaretleme Aracı)
+
+- **APE Tool Card in Tools Tab (Araçlar Sekmesine APE Kartı):**
+  - Added `#tools-ape-container` with input field (`#ape-target-input`), execute button (`#btn-ape-mark-watched`), YouTube watchtime sync toggle (`#ape-sync-youtube-checkbox`), and dynamic status response box (`#ape-result-box`).
+  - Added backend endpoint `POST /api/tools/ape-mark-watched` supporting direct video URL, short URL, raw 11-char Video ID, and Channel Handle (`@Handle`) / Channel URL / Name matching.
+  - Automatically marks local database entries as watched/hidden (`hidden: true, watched: true`) and broadcasts `db_update` to live clients.
+  - Optionally syncs playback to YouTube watch history (`syncVideoWatchtimeToYouTube`).
+
+- **7-Language i18n Localization (7 Dilde i18n Çevirileri):**
+  - Added APE translations to `tr.js`, `en.js`, `es.js`, `de.js`, `pt.js`, `ru.js`, `ar.js`.
+
+## [8.49.0] - 2026-08-20
+
+### 👁️ Unlisted Video Badge & Channels Tab Auto/Shorts Filters / Liste Dışı Video Belirteci & Kanallar Tabı Filtreleri
+
+- **Unlisted Video Detection & Dual-Theme Badge (Liste Dışı Video Tespiti ve Rozeti):**
+  - Added `isUnlisted` resolution to YouTube metadata parser (`server/services/rss.js` -> `parseDurationFromHtml` / `fetchVideoDuration`).
+  - Added `.video-unlisted-badge` (amber glassmorphism top-left badge) and `.video-card-unlisted-tag` (meta tag) to video cards (`public/components/videoCard.js` & `public/style.css`), fully compatible with all color themes.
+  - Sadece bağlantıya sahip olanların erişebildiği liste dışı videolar için video kartlarına belirteç rozeti ve etiketi eklendi.
+
+- **Channels Tab Filtering Bar (Kanallar Tabı Filtreleme Çubuğu):**
+  - Added `.channel-filters-bar` in `tab-channels.html` with instant search input (`#channel-list-search-input`), Auto Download filter (`#filter-channel-auto-download`: All / On / Off), Shorts Download filter (`#filter-channel-shorts-download`: All / On / Off), and live count badge (`#channel-filtered-count-badge`).
+  - Updated `public/components/channelRow.js` to dynamically filter channels and re-index the A-Z alphabet sidebar and card groups in real-time.
+  - Kanallar sekmesinde kanalları isim/handle ile arama, otomatik indirme ve Shorts indirme açık/kapalı durumlarına göre anlık filtreleme desteği eklendi.
+
+- **7-Language i18n Localization (7 Dilde i18n Çevirileri):**
+  - Added localization keys to `tr.js`, `en.js`, `es.js`, `de.js`, `pt.js`, `ru.js`, `ar.js`.
+
+## [8.48.0] - 2026-08-20
+
+### 🔄 Disk Synchronization Control & Real-time Logging / Disk Senkronizasyonu Kontrolü & Canlı Loglama
+
+- **Real-time Terminal & Console Logs (Canlı Terminal & Konsol Bildirimleri):**
+  - Added dedicated start and completion logs in `syncDbWithDisk` / `performDiskSync` broadcasting to both system terminal and web terminal buffer (`[Disk Sync] Başlatıldı...` / `[Disk Sync] Tamamlandı: X video doğrulandı, Y güncellendi`).
+  - Disk senkronizasyonu başladığında ve tamamlandığında konsola ve terminale renklendirilmiş detaylı istatistik bildirimleri eklendi.
+
+- **Auto Disk Sync Setting & Manual Trigger Button (Otomatik Senkronizasyon Ayarı ve Manuel Buton):**
+  - Added `settings.autoDiskSync` toggle in Settings (`tab-settings.html` / `app.js` / `database.js` / `config.ini`) allowing users to enable or disable automatic verification on startup and setting changes.
+  - Added **"Sync Disk Now" (`#btn-manual-disk-sync`)** button in Settings with animated loading state and `POST /api/settings/sync-disk` endpoint for on-demand manual synchronization.
+  - Ayarlar sekmesine otomatik disk senkronizasyonunu açıp kapatma seçeneği ve tek tıkla diski anında senkronize eden manuel buton eklendi.
+
+- **7-Language i18n Localization (7 Dilde i18n Çevirileri):**
+  - Updated `tr.js`, `en.js`, `es.js`, `de.js`, `pt.js`, `ru.js`, `ar.js` with new localization keys.
+
+## [8.47.0] - 2026-08-20
+
+### 🎨 Downloaded Video Actual Quality Badge (`ffprobe` Analysis) / İndirilen Videolara Gerçek Çözünürlük Rozeti
+
+- **Downloaded Video Cards Quality Badge (`.video-quality-badge`) (Sol Alt Çözünürlük Rozeti):**
+  - Added dedicated resolution badge in the bottom-left corner of video thumbnails across Downloaded grid (`videoCard.js`) and playlist sidebar (`app.js`).
+  - Styled with vibrant, theme-aware glassmorphism badge colors tailored to video resolution tiers:
+    - `8K` / `4K`: Golden Amber & Purple gradient with glow (`#fbbf24`).
+    - `2K` / `1440p`: Elegant Purple / Magenta accent (`#c084fc`).
+    - `1080p`: Crisp Cyan / Sky Blue (`#38bdf8`).
+    - `720p`: Bright Green (`#4ade80`).
+    - `480p` / `360p` / `240p` / `144p`: Clean Slate Gray (`#cbd5e1`).
+  - İndirilenler sekmesindeki video kartlarının kapak resminin sol alt köşesine videonun gerçek çözünürlüğünü gösteren şık, cam efektli ve çözünürlüğe göre renkli rozetler eklendi.
+
+- **Automated `ffprobe` Video Stream Analysis (`getVideoResolution`) (Otomatik ffprobe Çözünürlük Tespiti):**
+  - Integrated `getVideoResolution` in `paths.js` using local `ffmpeg/ffprobe.exe` to inspect downloaded video stream height.
+  - Automatically records `actualQuality` to `db.json` history items upon download completion and during disk sync.
+  - İndirme tamamlandığında ve disk senkronizasyonunda `ffprobe` ile video yüksekliği taranarak veritabanına işlenir.
+
+## [8.46.0] - 2026-08-20
+
+### ⏱️ YouTube Watchtime & Position Sync / YouTube İzleme Süresi ve Kaldığın Yeri Eşitleme
+
+- **Interactive Watchtime Sync Button (`#inline-btn-sync-watchtime`) (Tek Tıkla Eşitleme Butonu):**
+  - Added a dedicated 32x32 button in the inline player actions toolbar (`tab-downloaded.html`) right next to details refresh.
+  - Instantly captures current playback position (`player.currentTime`, e.g., `01:30`) and synchronizes it with your YouTube Watch History using the official YouTube Watchtime Tracking API (`/api/stats/watchtime`) with active session tokens.
+  - İndirilenler oynatıcı aksiyon çubuğuna tek tıkla izleme süresini YouTube hesabına eşitleyen yeni buton eklendi. O anki dakika/saniye YouTube izleme geçmişine işlenir.
+
+- **Smart Auto-Sync on Pause / Close (`autoSyncWatchtime`) (Akıllı Otomatik Senkronizasyon):**
+  - Added configurable toggle `[X] YouTube İzleme Süresi Eşitleme` in Settings (`tab-settings.html`).
+  - When enabled, automatically saves the playback position to YouTube watch history in the background when pausing or closing the player.
+  - Ayarlar sayfasına otomatik eşitleme seçeneği eklendi; videoyu duraklatınca veya kapatınca kaldığınız yer YouTube'a otomatik kaydedilir.
+
+- **Full 7-Language i18n & Settings Persistence (7 Dil & Kalıcı Ayarlar):**
+  - Fully translated in Turkish, English, Spanish, German, Portuguese, Russian, and Arabic across all UI cards, settings, and toast notifications.
+  - Persisted in `configwin.ini` and `database.json`.
+
+## [8.45.0] - 2026-08-20
+
+### 🎬 Mark Video as Watched on YouTube on Delete / Silme Sırasında YouTube'da İzlendi Olarak İşaretleme
+
+- **Mark as Watched on Delete Confirmation (`#mark-watched-checkbox`) (Silme Modalı İzlendi Seçeneği):**
+  - Added dedicated toggle checkbox `[X] YouTube'da da izlendi olarak işaretle` in the video delete confirmation modal (`modals.html`).
+  - Automatically persists the user's latest preference in `configwin.ini`, `database.json`, and `localStorage` (`markWatchedOnDelete`), restoring the last selected state in subsequent delete dialogs.
+  - Silme onay modalına "YouTube'da da izlendi olarak işaretle" seçeneği eklendi. Kullanıcının tercihi `configwin.ini` ve veritabanına kaydedilir ve bir sonraki silme işleminde otomatik hatırlanır.
+
+- **Background YouTube Watch History Tracking (`markVideoWatchedOnYouTube`) (Arka Plan İzleme Sinyali):**
+  - Upon deletion approval, when marked, triggers background `yt-dlp --cookies cookies.txt --mark-watched --skip-download` using the active session token to mark the video as watched/fully watched in the user's YouTube Watch History without downloading any files.
+  - Diskteki dosya silinip kütüphanede gizlenirken arka planda YouTube izleme geçmişine izlendi sinyali gönderilir ve gerçek zamanlı durum bildirimi iletilir.
+
+- **Full 7-Language i18n & Persistence (7 Dil Desteği):**
+  - Translated all new modal options and status logs into Turkish, English, Spanish, German, Portuguese, Russian, and Arabic.
+
+## [8.44.0] - 2026-08-20
+
+### 🎯 Strict Cookies.txt Authentication Detection & Status Fix / Kesin Çerez Doğrulaması ve Durum Rozeti Düzeltmesi
+
+- **Strict Valid-Cookie Detection (Gerçek Oturum Doğrulaması):**
+  - Removed misleading false-positive check that marked session as active simply because `EBWebView\...\Cookies` SQLite database existed.
+  - Connected `GET /api/youtube-auth-status` and `downloader.js` directly to verified `cookies.txt` contents (`LOGIN_INFO` / `__Secure-1PSID`).
+  - Simplified and standardized status badges across Topbar and Settings page.
+  - SQLite dosyasının varlığından kaynaklanan sahte "Oturum Aktif [HaYTooL Dahili]" uyarısı giderildi; durum rozeti artık yalnızca geçerli `cookies.txt` oturum token'ları bulunduğunda aktifleşir.
+
+## [8.43.0] - 2026-08-20
+
+### 🧹 Complete In-Memory & Disk YouTube Sign Out Synchronization / Tam Bellek ve Disk YouTube Oturum Kapatma Senkronizasyonu
+
+- **In-Memory & Native WebView2 Cookie Purge (`ClearYouTubeSessionAsync`) (Bellek ve WebView2 Oturumunu Tamamen Temizleme):**
+  - Fixed an issue where signing out from the UI was immediately overridden 1 second later by the background `HaYTooL-Player` auto-syncing in-memory WebView2 cookies back to `cookies.txt`.
+  - Added native `ClearYouTubeSessionAsync` in `MainWindow.xaml.cs` to delete in-memory Google/YouTube session cookies via `CoreWebView2CookieManager`.
+  - Added inter-process `LOGOUT` command routing via `player_launcher.cs` and `POST /api/logout-youtube`.
+  - Tightened `SyncYouTubeCookiesToFileAsync`: Only generates `cookies.txt` if valid user authentication tokens (`LOGIN_INFO` / `__Secure-1PSID`) are actively present; otherwise purges any orphaned cookie files.
+  - Arayüzden oturum kapatıldığında açık olan HaYTooL-Player'ın hafızasındaki çerezleri tekrar diske yazıp oturumu açık göstermesi sorunu çözüldü; WebView2 bellek çerezleri anında temizlenir ve `cookies.txt` otomatik silinir.
+
+## [8.42.0] - 2026-08-20
+
+### 🚪 YouTube Sign Out Feature & Downloader Verification / YouTube Oturumu Kapatma Butonu & Downloader Doğrulaması
+
+- **YouTube Sign Out Action (Ayarlar ve Sistem Tepsisine "Oturumu Kapat" Butonu):**
+  - Added dedicated **"Oturumu Kapat" (Sign Out)** button (`#btn-logout-youtube`) in the Settings tab alongside "Çerezleri Doğrula" with interactive confirmation dialog.
+  - Added "YouTube Oturumunu Kapat" action to the Windows System Tray right-click context menu in all 7 languages.
+  - Implemented backend endpoint `POST /api/logout-youtube` to safely delete `cookies.txt`, `bin/cookies.txt` and reset isolated WebView2 session state, instantly updating UI indicators back to "YouTube: Anonim" mode.
+  - Ayarlar sekmesine ve Windows sistem tepsisi sağ tık menüsüne 7 dilde "Oturumu Kapat" seçeneği eklendi. Tıklandığında yerel çerezleri güvenle temizler ve rozetleri anında "YouTube: Anonim" durumuna döndürür.
+
+- **Downloader Tab & Format Verification (Araçlar / Downloader Sekmesi Doğrulaması):**
+  - Verified and confirmed that the manual Downloader tab (`tab-downloader.html` & `handleDownloaderStart`) operates at 100% full capacity with the updated cookie bridge, authenticated clients (`player_client=tv,web_creator,mweb,web`), and FFmpeg merge workflows for all custom video qualities (Best, 1080p, 720p) and MP3 formats.
+  - Araçlar menüsündeki Downloader sekmesinin güncel çerez motoru, özel format seçicisi ve FFmpeg birleştirme süreçleriyle %100 uyumlu ve eksiksiz çalıştığı doğrulandı.
+
+## [8.41.0] - 2026-08-20
+
+### 🛡️ Topbar YouTube Auth Live Indicator & Settings Cleanup / Üst Bar Canlı YouTube Oturum Rozeti & Ayarlar Temizliği
+
+- **Topbar Live YouTube Auth Badge (`#badge-cookie`) (Üst Bar Canlı YouTube Oturum Rozeti):**
+  - Updated the topbar status badge `#badge-cookie` from legacy browser names to a live YouTube authentication state indicator.
+  - Displays **"YouTube: Oturum Açık"** with a glowing green pulse dot (`#22c55e`) when logged in, or **"YouTube: Anonim"** (`#ef4444`) when no session is active.
+  - Clicking the badge triggers instant cookie verification (`testCookies()`).
+  - Üst bardaki `#badge-cookie` alanı harici tarayıcı isimleri yerine doğrudan canlı YouTube oturum durumunu gösterecek şekilde güncellendi ("YouTube: Oturum Açık" / "YouTube: Anonim"). Rozete tıklandığında anında canlı çerez doğrulaması yapılır.
+
+- **Removed Legacy "Premium Cookie Browser" Setting (Eski "Premium Çerez Tarayıcısı" Ayarı Kaldırıldı):**
+  - Completely removed the redundant external browser selection dropdown (`#settings-browser`) from the Settings tab and application state.
+  - The application now relies purely on the secure, zero-lock native YouTube session bridge (`cookies.txt` & isolated WebView2 profile).
+  - Ayarlar sekmesindeki gereksiz harici tarayıcı seçim menüsü (`#settings-browser`) ve ilgili kodlar tamamen temizlendi; sistem artık sıfır kilitlenme garantili yerel YouTube oturum köprüsünü kullanır.
+
+- **Optimized Cookie-Compatible Client Extraction (`player_client=tv,web_creator,mweb,web`) (Çerez Uyumlu İstemci Rotasyonu):**
+  - Updated yt-dlp extractor arguments to ensure full 4K (3840x2160) and 1080p stream availability when cookies are present, bypassing PO Token bottlenecks.
+  - yt-dlp istemci argümanları güncellenerek çerez aktifken 4K ve 1080p DASH akışların PO Token engeline takılmadan eksiksiz çekilmesi sağlandı.
+
+## [8.40.0] - 2026-08-20
+
+### 🔐 Native YouTube Session & Cookie Integration + Anti-360p Fallback Protection / Dahili YouTube Oturumu & Çerez Entegrasyonu + 360p Düşme Koruması
+
+- **Native YouTube Authentication via Isolated WebView2 Profile (`HaYTooL-Player`) (İzole WebView2 Profili ile Dahili YouTube Oturum Açma):**
+  - Added native YouTube sign-in integration directly within HaYTooL (`HaYTooL-Player Beta.exe`). Users can sign into their Google/YouTube accounts within an isolated WebView2 profile (`%LOCALAPPDATA%\HaYTooLPlayer_Main`).
+  - Once signed in, yt-dlp automatically recognizes the authenticated session, completely bypassing YouTube's bot challenges, GVS PO Token requirements, SABR streaming experiments, and HTTP 429 rate limits.
+  - HaYTooL içinde izole WebView2 profili üzerinden yerel YouTube oturum açma entegrasyonu eklendi. Kullanıcı Google/YouTube hesabıyla giriş yaptığında yt-dlp oturumu otomatik tanır; bot doğrulamaları, PO Token dayatmaları, SABR kısıtlamaları ve 429 hataları tamamen aşılır.
+
+- **Multi-Tier Cookie Priority & Zero Database Locking (Çok Katmanlı Çerez Önceliği & Sıfır Kilitlenme):**
+  - Dynamic cookie loader (`getCookieArgs`): Prioritizes 1) Root `cookies.txt` -> 2) Native HaYTooL WebView2 Session -> 3) User-selected External Browser (`chrome`, `edge`, `firefox`, `brave`, `opera`).
+  - Using HaYTooL's isolated WebView2 profile prevents SQLite file lock errors (`EPERM` / `cookie database locked`) even when your daily Chrome/Edge browsers remain open.
+  - Dinamik çerez yükleyici eklendi: 1) `cookies.txt` -> 2) Dahili WebView2 YouTube Oturumu -> 3) Harici Tarayıcı. Dahili profil kullanımı sayesinde günlük tarayıcınız açık kalsa dahi çerez kilitlenme çakışması yaşanmaz.
+
+- **Anti-Quality-Degradation (360p Format 18 Fallback Protection) (Kalite Düşmesi & 360p Koruma Kalkanı):**
+  - Enhanced extractor arguments (`player_client=android_vr,web,visionos`) and format sort rules to ensure 4K/1440p/1080p adaptive DASH streams (AV1, VP9, Opus) are always acquired without silently degrading to legacy Format 18 (360p).
+  - Geliştirilmiş akıllı istemci rotasyonu ile 4K/1080p akışların gizlenmesi önlendi, videoların sessizce 360p Format 18'e düşmesi engellendi.
+
+- **System Tray Menu Integration & Settings Simplification (Sistem Tepsisi Menü Entegrasyonu & Sadeleştirilmiş Ayarlar):**
+  - Added dedicated "Sign in to YouTube" (`YouTube'da Oturum Aç`) action directly to the Windows System Tray right-click context menu (`tray.cs` -> `HaYTooL YT Downloader.exe`) with full 7-language support (`tr`, `en`, `es`, `de`, `pt`, `ar`, `ru`).
+  - Simplified Settings tab: Removed redundant web-based popup buttons in favor of an elegant, live-updating Cookie Status Badge and a single "Verify Cookies" action with interactive tray guidance hints.
+  - Windows sistem tepsisi (Tray) sağ tık menüsüne 7 dilde "YouTube'da Oturum Aç" seçeneği eklendi. Ayarlar sekmesi sadeleştirildi; karmaşık web butonları kaldırılarak sadece canlı durum rozeti, çerez doğrulama butonu ve sağ tık ipucu bırakıldı.
+
 ## [8.39.0] - 2026-08-19
 
 ### 🎬 HaYTooL-Player Beta.exe — Direct HDD Playback Fix (Stream Bypass) / Doğrudan HDD'den Oynatma Düzeltmesi (Stream Bypass)

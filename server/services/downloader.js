@@ -11,7 +11,7 @@ import {
   defaultDownloadDir 
 } from '../database.js';
 import { broadcast, addTerminalLog } from './sse.js';
-import { ytdlpPath, testFfmpegSync, getFfmpegPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp } from './paths.js';
+import { ytdlpPath, testFfmpegSync, getFfmpegPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp, getVideoResolution } from './paths.js';
 import { getWorkingProxy, rotateProxy } from './proxyManager.js';
 
 // Türkçe Açıklama: İndirmeleri gerçekleştiren yt-dlp motorunun varlığını kontrol eder, yoksa GitHub üzerinden otomatik indirir.
@@ -119,6 +119,49 @@ export function showWindowsNotification(title, message) {
   exec(`powershell -NoProfile -NonInteractive -EncodedCommand ${base64Script}`, (err) => {
     if (err) console.error('Windows masaüstü bildirimi gönderilemedi:', err.message);
   });
+}
+
+// Türkçe Açıklama: Kök ve bin/ çerez dosyalarını tek bir Netscape dosyasında birleştirip yt-dlp argümanlarını döner.
+// Kök "cookies.txt" (yt-dlp dışa aktarımı) çoğu zaman yalnızca 3. taraf (__Secure-3P*) çerezleri tutar;
+// tam oturum (SAPISID/SID/HSID/SSID/APISID/LOGIN_INFO/__Secure-1PSID) "bin/cookies.txt" içindedir.
+// "izlendi olarak işaretle" (--mark-watched) gibi kimlik doğrulama isteyen işlemler eksik çerezlerle sessizce
+// başarısız olur. Bu yüzden iki dosyayı birleştirip eksiksiz seti yt-dlp'ye veriyoruz.
+export function getCookieArgs(settings = {}) {
+  const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
+  const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
+
+  const merged = mergeCookieFiles([rootCookiesTxt, binCookiesTxt]);
+  if (merged) {
+    return ['--cookies', merged];
+  }
+
+  return [];
+}
+
+// Türkçe Açıklama: Birden çok Netscape çerez dosyasını tek dosyada birleştirir. Aynı (alan adı + isim)
+// çerezinde son dosya öncekini ezer; bu yüzden bin/ (tam oturum) kök dosyanın üzerine yazılır.
+// Sonuç her çağrıda taze üretilir; hiçbir çerez yoksa null döner.
+function mergeCookieFiles(filePaths) {
+  const cookieMap = new Map();
+  for (const fp of filePaths) {
+    if (!fp || !fs.existsSync(fp)) continue;
+    const content = fs.readFileSync(fp, 'utf8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const parts = trimmed.split('\t');
+      if (parts.length < 7) continue;
+      const key = `${parts[0]}\t${parts[5]}`; // alan adı + çerez adı
+      cookieMap.set(key, trimmed);
+    }
+  }
+
+  if (cookieMap.size === 0) return null;
+
+  const mergedPath = path.join(os.tmpdir(), 'haytool_cookies_merged.txt');
+  const merged = '# Netscape HTTP Cookie File\n' + Array.from(cookieMap.values()).join('\n') + '\n';
+  fs.writeFileSync(mergedPath, merged, 'utf8');
+  return mergedPath;
 }
 
 // Türkçe Açıklama: Etkin indirme hız sınırını belirler.
@@ -445,23 +488,30 @@ export class DownloadQueue {
 
     args.push('--add-header', `Accept-Language:${prefLang}-${prefLang.toUpperCase()},${prefLang};q=0.9,en-US;q=0.8,en;q=0.7`);
     
+    const cookieArgs = getCookieArgs(settings);
+    const hasCookies = cookieArgs.length > 0;
+
     if (video._fallbackClient) {
       args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=${video._fallbackClient}`);
+    } else if (hasCookies) {
+      // Çerez aktifken: visionos, ios, android, web_creator, mweb, web
+      args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=visionos,ios,android,web_creator,mweb,web`);
     } else {
-      args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()}`);
+      // Anonim modda: visionos, ios, android, web
+      args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=visionos,ios,android,web`);
     }
 
     args.push('--remote-components', 'ejs:github');
-    args.push('--format-sort', `lang:${prefLang},hasvid,res,fps,hdr,vcodec`);
+    args.push('--format-sort', 'hasvid,res,fps,hdr,vcodec');
 
     const effectiveSpeed = getEffectiveSpeedLimit(settings);
     if (effectiveSpeed && effectiveSpeed > 0) {
       args.push('--limit-rate', `${effectiveSpeed}K`);
     }
 
-    if (settings.browser && settings.browser !== 'none') {
-      const browserName = settings.browser === 'msedge' ? 'edge' : settings.browser;
-      args.push('--cookies-from-browser', browserName);
+    // Çerez kaynağını ekle (cookies.txt -> Dahili WebView2 -> Harici Tarayıcı)
+    if (hasCookies) {
+      args.push(...cookieArgs);
     }
 
     if (video._proxy) {
@@ -914,6 +964,8 @@ export class DownloadQueue {
             console.error(`Boyut okuma hatası: ${resolvedTitle}`, err.message);
           }
 
+          const actualQuality = actualPath ? getVideoResolution(actualPath) : null;
+
           updateHistoryItem(video.id, {
             status: 'completed',
             progress: 100,
@@ -921,7 +973,8 @@ export class DownloadQueue {
             title: resolvedTitle,
             speed: '',
             eta: '',
-            fileSize: calculatedSize
+            fileSize: calculatedSize,
+            ...(actualQuality ? { actualQuality } : {})
           });
           console.log(`İndirme tamamlandı: ${resolvedTitle}`);
           broadcast('status_log', { message: `İndirme tamamlandı: ${resolvedTitle}`, type: 'success', thumbnail: `/api/video/${video.id}/thumbnail` });

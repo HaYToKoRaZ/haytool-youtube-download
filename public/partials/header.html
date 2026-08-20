@@ -4,7 +4,7 @@
         <div class="brand-icon">
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
-        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v8.39.0</a></span>
+        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v8.51.0</a></span>
       </div>
 
       <nav class="nav-menu">
@@ -73,10 +73,8 @@
           <span class="status-dot online" id="status-indicator"></span>
           <span id="topbar-status-text">Bağlantı: Bağlanıyor...</span>
         </div>
-        <div class="status-badge" id="badge-cookie" title="Premium Çerezleri">
-          <i data-lucide="cookie"></i>
-          <span id="topbar-cookie-label"><span id="topbar-cookie-title">Çerez</span>: <span id="cookie-status">Evet</span></span>
-          <span class="cookie-test-indicator" id="cookie-test-indicator" style="width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-left: 6px; background-color: var(--text-muted);" title="Çerez Canlılık Testi Bekleniyor"></span>
+        <div class="status-badge" id="badge-cookie" title="YouTube Oturum Durumu" style="cursor: pointer;" onclick="if(typeof testCookies==='function') testCookies();">
+          <span class="cookie-test-indicator" id="cookie-test-indicator" style="width: 8px; height: 8px; border-radius: 50%; display: inline-block; background-color: var(--text-muted);" title="YouTube Oturum Durumu"></span>
         </div>
         <div class="status-badge" id="badge-quality" title="Varsayılan İndirme Kalitesi">
           <i data-lucide="sliders"></i>

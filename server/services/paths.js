@@ -74,6 +74,78 @@ export function getFfmpegPath() {
   return pathInSubfolder;
 }
 
+/**
+ * Sistemdeki ffprobe yürütülebilir dosyasının konumunu işletim sistemine göre belirler.
+ * 
+ * @returns {string} ffprobe dosya yolu
+ */
+export function getFfprobePath() {
+  const isWin = os.platform() === 'win32';
+  const ext = isWin ? '.exe' : '';
+  const pathInSubfolder = path.join(rootDir, 'ffmpeg', `ffprobe${ext}`);
+  
+  if (fs.existsSync(pathInSubfolder)) {
+    if (!isWin) {
+      try { fs.chmodSync(pathInSubfolder, '755'); } catch (e) {}
+    }
+    return pathInSubfolder;
+  }
+  
+  const pathInRoot = path.join(rootDir, `ffprobe${ext}`);
+  if (fs.existsSync(pathInRoot)) {
+    if (!isWin) {
+      try { fs.chmodSync(pathInRoot, '755'); } catch (e) {}
+    }
+    return pathInRoot;
+  }
+  
+  if (!isWin) {
+    try {
+      const systemFfprobe = execSync('which ffprobe 2>/dev/null', { encoding: 'utf-8' }).trim();
+      if (systemFfprobe) return systemFfprobe;
+    } catch (e) {}
+  }
+  
+  return pathInSubfolder;
+}
+
+/**
+ * Belirtilen video dosyasının gerçek çözünürlüğünü ffprobe ile analiz eder ve standart kalite etiketi döndürür.
+ * 
+ * @param {string} filePath - Video dosyasının tam yolu
+ * @returns {string|null} Kalite etiketi (ör: '1080p', '4K', '720p', '480p', '360p') veya null
+ */
+export function getVideoResolution(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  try {
+    const ffprobe = getFfprobePath();
+    if (!fs.existsSync(ffprobe)) return null;
+
+    const out = execFileSync(ffprobe, [
+      '-v', 'error',
+      '-select_streams', 'v:0',
+      '-show_entries', 'stream=height',
+      '-of', 'csv=p=0',
+      filePath
+    ], { encoding: 'utf-8', timeout: 5000 }).trim();
+
+    const height = parseInt(out, 10);
+    if (isNaN(height) || height <= 0) return null;
+
+    if (height >= 4320) return '8K';
+    if (height >= 2160) return '4K';
+    if (height >= 1440) return '2K';
+    if (height >= 1080) return '1080p';
+    if (height >= 720) return '720p';
+    if (height >= 480) return '480p';
+    if (height >= 360) return '360p';
+    if (height >= 240) return '240p';
+    return '144p';
+  } catch (err) {
+    return null;
+  }
+}
+
 export let isFfmpegWorkingCached = null;
 
 export function testFfmpegSync(forceRecheck = false) {

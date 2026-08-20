@@ -2,6 +2,7 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import open from 'open';
 import { exec } from 'child_process';
 import { 
@@ -11,11 +12,402 @@ import {
   updateHistoryItem 
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
-import { downloadQueue } from '../services/downloader.js';
+import { downloadQueue, getCookieArgs } from '../services/downloader.js';
+import { ytdlpPath, getFfmpegPath, spawnYtdlp } from '../services/paths.js';
 import { resolveMissingDurations, fetchVideoDuration, checkSingleChannelRss, triggerChannelCheck, fetchDurationViaYtdlp } from '../services/rss.js';
 import { broadcast, addTerminalLog } from '../services/sse.js';
 
 export const router = express.Router();
+
+/**
+ * Belirtilen videonun izleme süresini YouTube hesabına senkronize eder.
+ * 
+ * @param {string} id - YouTube Video ID
+ * @param {number} currentTime - O anki izleme süresi (saniye cinsinden)
+ * @param {string} [title] - Video Başlığı
+ * @returns {Promise<object>} İşlem sonucu
+ */
+export async function syncVideoWatchtimeToYouTube(id, currentTime, title = '') {
+  try {
+    if (!id || typeof currentTime !== 'number' || isNaN(currentTime) || currentTime < 0) {
+      return { success: false, error: 'Geçersiz parametreler.' };
+    }
+
+    // Türkçe Açıklama: Hem kök hem bin/ çerez dosyalarını okuyup tek nesnede birleştirir.
+    // Kök "cookies.txt" (yt-dlp) genelde SAPISID/SID/LOGIN_INFO/HSID gibi tam oturum
+    // çerezlerini İÇERMEZ; "bin/cookies.txt" (Native Bridge) tam oturumu tutar. Eksik
+    // kimlik doğrulaması YouTube'un izleme süresini sessizce düşürmesine (HTTP 204'e rağmen)
+    // neden olur. Bu yüzden iki dosyayı birleştirip eksiksiz çerez seti kullanıyoruz.
+    const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
+    const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
+    const cookiesObj = {};
+    for (const cookieFile of [rootCookiesTxt, binCookiesTxt]) {
+      if (!fs.existsSync(cookieFile)) continue;
+      const cookieContent = fs.readFileSync(cookieFile, 'utf8');
+      for (const line of cookieContent.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const parts = trimmed.split('\t');
+        if (parts.length >= 7) {
+          cookiesObj[parts[5]] = parts[6];
+        }
+      }
+    }
+
+    if (Object.keys(cookiesObj).length === 0) {
+      return { success: false, error: 'YouTube oturum çerezi bulunamadı.' };
+    }
+
+    const cookieHeader = Object.entries(cookiesObj).map(([k, v]) => `${k}=${v}`).join('; ');
+    const sapisid = cookiesObj['SAPISID'] || cookiesObj['__Secure-1PAPISID'] || cookiesObj['__Secure-3PAPISID'] || '';
+    
+    const now = Date.now();
+    let authHeader = '';
+    if (sapisid) {
+      const origin = 'https://www.youtube.com';
+      const hashStr = `${Math.floor(now / 1000)} ${sapisid} ${origin}`;
+      const sha1 = crypto.createHash('sha1').update(hashStr).digest('hex');
+      authHeader = `SAPISIDHASH ${Math.floor(now / 1000)}_${sha1}`;
+    }
+
+    const playerHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Cookie': cookieHeader,
+      'Content-Type': 'application/json',
+      'Origin': 'https://www.youtube.com',
+      'Referer': `https://www.youtube.com/watch?v=${id}`,
+      'X-YouTube-Client-Name': '1',
+      'X-YouTube-Client-Version': '2.20240501.00.00'
+    };
+    if (authHeader) {
+      playerHeaders['Authorization'] = authHeader;
+    }
+
+    // 1. YouTube InnerTube Player API'den videoya özel playbackTracking endpoint'lerini al
+    const playerBody = {
+      context: {
+        client: {
+          hl: 'tr',
+          gl: 'TR',
+          clientName: 'WEB',
+          clientVersion: '2.20240501.00.00',
+          userAgent: playerHeaders['User-Agent']
+        }
+      },
+      videoId: id,
+      playbackContext: {
+        contentPlaybackContext: {
+          html5Preference: 'HTML5_PREF_WANTS'
+        }
+      }
+    };
+
+    let playbackBase = '';
+    let watchtimeBase = '';
+
+    try {
+      const playerRes = await fetch('https://www.youtube.com/youtubei/v1/player', {
+        method: 'POST',
+        headers: playerHeaders,
+        body: JSON.stringify(playerBody)
+      });
+      const playerData = await playerRes.json();
+      if (playerData && playerData.playbackTracking) {
+        playbackBase = playerData.playbackTracking.videostatsPlaybackUrl?.baseUrl || '';
+        watchtimeBase = playerData.playbackTracking.videostatsWatchtimeUrl?.baseUrl || '';
+      }
+    } catch (e) {
+      console.warn('[YouTube Watchtime Sync] Player config çekilemedi, varsayılan endpoint kullanılacak:', e.message);
+    }
+
+    const CPN_ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_';
+    let cpn = '';
+    for (let i = 0; i < 16; i++) {
+      cpn += CPN_ALPHABET[Math.floor(Math.random() * CPN_ALPHABET.length)];
+    }
+
+    const pingHeaders = {
+      'User-Agent': playerHeaders['User-Agent'],
+      'Cookie': cookieHeader,
+      'Origin': 'https://www.youtube.com',
+      'Referer': `https://www.youtube.com/watch?v=${id}`,
+      'Accept': '*/*'
+    };
+    if (authHeader) {
+      pingHeaders['Authorization'] = authHeader;
+    }
+
+    // Playback ping gönder
+    if (playbackBase) {
+      try {
+        const u = new URL(playbackBase);
+        u.searchParams.set('ver', '2');
+        u.searchParams.set('cpn', cpn);
+        u.searchParams.set('el', 'detailpage');
+        u.searchParams.set('cmt', '0.000');
+        u.searchParams.set('st', '0.000');
+        u.searchParams.set('et', '0.000');
+        await fetch(u.toString(), { headers: pingHeaders });
+      } catch (e) {}
+    }
+
+    // Watchtime ping gönder (hedef currentTime)
+    const cmt = currentTime.toFixed(3);
+    const rt = Math.floor(currentTime).toString();
+    const finalWatchUrl = watchtimeBase ? new URL(watchtimeBase) : new URL('https://www.youtube.com/api/stats/watchtime');
+    finalWatchUrl.searchParams.set('ns', 'yt');
+    finalWatchUrl.searchParams.set('el', 'detailpage');
+    finalWatchUrl.searchParams.set('cpn', cpn);
+    finalWatchUrl.searchParams.set('docid', id);
+    finalWatchUrl.searchParams.set('ver', '2');
+    finalWatchUrl.searchParams.set('cmt', cmt);
+    finalWatchUrl.searchParams.set('fmt', '251');
+    finalWatchUrl.searchParams.set('fs', '0');
+    finalWatchUrl.searchParams.set('rt', rt);
+    finalWatchUrl.searchParams.set('state', 'paused');
+    finalWatchUrl.searchParams.set('st', '0.000');
+    finalWatchUrl.searchParams.set('et', cmt);
+    finalWatchUrl.searchParams.set('lact', Date.now().toString());
+    finalWatchUrl.searchParams.set('cl', '666666666');
+
+    const res = await fetch(finalWatchUrl.toString(), { method: 'GET', headers: pingHeaders });
+
+    const minutes = Math.floor(currentTime / 60);
+    const seconds = Math.floor(currentTime % 60);
+    const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    console.log(`[YouTube Watchtime Sync] "${title || id}" için süre YouTube'a eşitlendi: ${timeStr} (HTTP ${res.status})`);
+    
+    return {
+      success: true,
+      timeStr,
+      currentTime,
+      message: `Kaldığınız yer (${timeStr}) YouTube hesabınıza başarıyla eşitlendi!`
+    };
+  } catch (err) {
+    console.error('[YouTube Watchtime Sync Hatası]:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Belirtilen videoyu YouTube izleme geçmişinde "İzlendi" olarak işaretler.
+ * 
+ * @param {string} id - YouTube Video ID
+ * @param {string} title - Video Başlığı
+ */
+export async function markVideoWatchedOnYouTube(id, title) {
+  try {
+    const cookieArgs = getCookieArgs();
+    if (!cookieArgs || cookieArgs.length === 0) {
+      console.log(`[YouTube Mark Watched] Çerez bulunamadığı için izlendi işareti atlandı: ${id}`);
+      return;
+    }
+
+    const videoUrl = `https://www.youtube.com/watch?v=${id}`;
+    const ffmpegPath = getFfmpegPath();
+    const args = [
+      ...cookieArgs,
+      '--mark-watched',
+      '--skip-download',
+      '--no-warnings',
+      '--no-playlist'
+    ];
+
+    if (ffmpegPath && fs.existsSync(ffmpegPath)) {
+      args.push('--ffmpeg-location', path.dirname(ffmpegPath));
+    }
+
+    args.push(videoUrl);
+
+    console.log(`[YouTube] "${title || id}" videosu YouTube'da izlendi olarak işaretleniyor...`);
+    const proc = spawnYtdlp(args, { stdio: ['ignore', 'ignore', 'ignore'] });
+    proc.on('close', (code) => {
+      if (code === 0) {
+        console.log(`[YouTube] "${title || id}" videosu YouTube'da BAŞARIYLA izlendi olarak işaretlendi.`);
+        broadcast('status_log', {
+          message: `YouTube'da izlendi olarak işaretlendi: "${title || id}"`,
+          type: 'success'
+        });
+      } else {
+        console.warn(`[YouTube] "${title || id}" izlendi işaretleme çıkış kodu: ${code}`);
+      }
+    });
+  } catch (err) {
+    console.error(`[YouTube Mark Watched Hatası]: ${err.message}`);
+  }
+}
+
+/**
+ * Oynatılan videonun o anki izleme süresini YouTube hesabına senkronize eder.
+ * 
+ * @name POST /api/video/:id/sync-watchtime
+ * @function
+ * @inner
+ */
+router.post('/video/:id/sync-watchtime', localhostOnly, async (req, res) => {
+  const { id } = req.params;
+  const { currentTime, title, silent } = req.body;
+
+  const result = await syncVideoWatchtimeToYouTube(id, parseFloat(currentTime) || 0, title || '');
+  if (result.success && !silent) {
+    broadcast('status_log', {
+      message: result.message,
+      type: 'success'
+    });
+  }
+  res.json(result);
+});
+
+/**
+ * APE Aracı: Verilen video veya kanal bağlantısındaki videoları izlendi/gizlendi olarak işaretler ve YouTube geçmişine eşitler.
+ * @route POST /api/tools/ape-mark-watched
+ */
+router.post('/tools/ape-mark-watched', localhostOnly, async (req, res) => {
+  try {
+    const { target, syncYouTube } = req.body;
+    if (!target || typeof target !== 'string' || !target.trim()) {
+      return res.status(400).json({ success: false, error: 'Lütfen geçerli bir video veya kanal linki/ID girin.' });
+    }
+
+    const raw = target.trim();
+    const db = readDb();
+    if (!db.history) db.history = [];
+    if (!db.channels) db.channels = [];
+
+    // 1. Kapsamlı Video URL / ID Tespiti (watch, youtu.be, shorts, live, embed, v)
+    let videoId = null;
+    if (/^[a-zA-Z0-9_-]{11}$/.test(raw)) {
+      videoId = raw;
+    } else if (raw.includes('watch?v=')) {
+      const match = raw.match(/v=([a-zA-Z0-9_-]{11})/);
+      if (match) videoId = match[1];
+    } else if (raw.includes('youtu.be/')) {
+      const match = raw.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+      if (match) videoId = match[1];
+    } else if (raw.includes('/shorts/')) {
+      const match = raw.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+      if (match) videoId = match[1];
+    } else if (raw.includes('/live/')) {
+      const match = raw.match(/\/live\/([a-zA-Z0-9_-]{11})/);
+      if (match) videoId = match[1];
+    } else if (raw.includes('/embed/')) {
+      const match = raw.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+      if (match) videoId = match[1];
+    } else if (raw.includes('/v/')) {
+      const match = raw.match(/\/v\/([a-zA-Z0-9_-]{11})/);
+      if (match) videoId = match[1];
+    }
+
+    if (videoId) {
+      // Tek video işaretleme
+      let matchedVideo = db.history.find(h => h.id === videoId);
+      let videoTitle = matchedVideo ? matchedVideo.title : `Video (${videoId})`;
+
+      if (matchedVideo) {
+        matchedVideo.hidden = true;
+        matchedVideo.watched = true;
+        writeDb(db);
+        broadcast('db_update', db);
+      }
+
+      let ytSyncResult = null;
+      if (syncYouTube !== false) {
+        ytSyncResult = await syncVideoWatchtimeToYouTube(videoId, 999999, videoTitle);
+      }
+
+      const syncNote = ytSyncResult && ytSyncResult.success 
+        ? ' (YouTube geçmişine de kaydedildi)' 
+        : (ytSyncResult && ytSyncResult.error ? ` (${ytSyncResult.error})` : '');
+
+      return res.json({
+        success: true,
+        type: 'video',
+        videoId: videoId,
+        title: videoTitle,
+        inDatabase: !!matchedVideo,
+        ytSynced: ytSyncResult ? ytSyncResult.success : false,
+        message: `"${videoTitle}" başarıyla izlendi olarak işaretlendi.${syncNote}`
+      });
+    }
+
+    // 2. Kanal URL / Handle Tespiti
+    let matchedChannels = [];
+    let handleQuery = null;
+
+    if (raw.startsWith('@') || raw.includes('/@')) {
+      handleQuery = (raw.startsWith('@') ? raw : raw.substring(raw.indexOf('@'))).split(/[/?#]/)[0].toLowerCase();
+      matchedChannels = db.channels.filter(c => c.handle && c.handle.toLowerCase().includes(handleQuery));
+    } else if (raw.includes('/channel/')) {
+      const chanId = raw.split('/channel/')[1].split(/[/?#]/)[0];
+      matchedChannels = db.channels.filter(c => c.id === chanId);
+    } else if (raw.includes('/c/') || raw.includes('/user/')) {
+      const seg = raw.split(/\/(?:c|user)\//)[1].split(/[/?#]/)[0].toLowerCase();
+      matchedChannels = db.channels.filter(c => (c.name && c.name.toLowerCase().includes(seg)) || (c.handle && c.handle.toLowerCase().includes(seg)));
+    } else {
+      // İsim araması
+      const query = raw.toLowerCase();
+      matchedChannels = db.channels.filter(c => (c.name && c.name.toLowerCase().includes(query)) || (c.handle && c.handle.toLowerCase().includes(query)));
+    }
+
+    if (matchedChannels.length > 0) {
+      const channelIds = new Set(matchedChannels.map(c => c.id));
+      const channelNames = matchedChannels.map(c => c.name).join(', ');
+      let markedCount = 0;
+
+      for (const item of db.history) {
+        if (channelIds.has(item.channelId)) {
+          if (item.hidden !== true || item.watched !== true) {
+            item.hidden = true;
+            item.watched = true;
+            markedCount++;
+          }
+        }
+      }
+
+      if (markedCount > 0) {
+        writeDb(db);
+        broadcast('db_update', db);
+      }
+
+      return res.json({
+        success: true,
+        type: 'channel',
+        channels: channelNames,
+        markedCount: markedCount,
+        message: `"${channelNames}" kanalındaki ${markedCount} video kütüphanede izlendi/gizlendi olarak işaretlendi.`
+      });
+    }
+
+    // 3. Eğer yerel veritabanında bulunamadıysa bile girilen linkten genel YouTube ID veya linki dene
+    // Link içerisinden olası bir 11 karakterlik video ID yakala
+    const anyIdMatch = raw.match(/([a-zA-Z0-9_-]{11})/);
+    if (anyIdMatch) {
+      const genericId = anyIdMatch[1];
+      let ytSyncResult = null;
+      if (syncYouTube !== false) {
+        ytSyncResult = await syncVideoWatchtimeToYouTube(genericId, 999999, `Video (${genericId})`);
+      }
+
+      return res.json({
+        success: true,
+        type: 'video',
+        videoId: genericId,
+        title: `Video (${genericId})`,
+        inDatabase: false,
+        ytSynced: ytSyncResult ? ytSyncResult.success : false,
+        message: `"${genericId}" kimlikli video YouTube geçmişinizde izlendi olarak işaretlendi.${ytSyncResult && ytSyncResult.success ? ' (Watchtime Sync Başarılı)' : ''}`
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      error: 'Girilen bağlantıdan geçerli bir video veya kanal tespit edilemedi. Lütfen tam YouTube video URL\'si (https://youtube.com/watch?v=...) veya @KanalAdi girin.'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'APE işlemi sırasında sunucu hatası oluştu.' });
+  }
+});
 
 /**
  * Belirtilen dizin içerisindeki tüm dosyaları alt klasörleriyle birlikte özyinelemeli (recursive) olarak tarar.
@@ -692,11 +1084,13 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
     return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
   }
   const deleteFile = req.query.deleteFile === 'true';
+  const markWatched = req.query.markWatched === 'true';
   
   console.log(`\n--- SİLME İŞLEMİ BAŞLATILDI ---`);
   console.log(`Tarih/Saat: ${new Date().toLocaleString('tr-TR')}`);
   console.log(`Target Video ID: ${id}`);
   console.log(`Bilgisayardan dosya silinsin mi: ${deleteFile}`);
+  console.log(`YouTube'da izlendi olarak işaretlensin mi: ${markWatched}`);
 
   const db = readDb();
   const itemIndex = db.history.findIndex(h => h.id === id);
@@ -831,6 +1225,10 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
     }
     broadcast('status_log', { message: statusMsg, type: 'success' });
     
+    if (markWatched) {
+      markVideoWatchedOnYouTube(id, item.title);
+    }
+
     console.log(`BAŞARI: Video geçmiş kaydı veri tabanından silindi.`);
     console.log(`--- SİLME İŞLEMİ TAMAMLANDI ---\n`);
     res.json({ success: true });

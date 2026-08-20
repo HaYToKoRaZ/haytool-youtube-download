@@ -243,6 +243,7 @@ function parseDurationFromHtml(html, isShortFallback = false) {
   let title = '';
   let channelName = '';
   let isUnavailable = false;
+  let isUnlisted = false;
   let reason = '';
   let endTimestamp = null;
   let startTimestamp = null;
@@ -267,9 +268,17 @@ function parseDurationFromHtml(html, isShortFallback = false) {
       }
 
       const videoDetails = playerResponse.videoDetails;
+      const microformat = playerResponse.microformat?.playerMicroformatRenderer;
+
+      if (microformat && microformat.isUnlisted === true) {
+        isUnlisted = true;
+      }
+      if (videoDetails && videoDetails.isUnlisted === true) {
+        isUnlisted = true;
+      }
+
       if (videoDetails) {
         const seconds = videoDetails.lengthSeconds ? parseInt(videoDetails.lengthSeconds, 10) : 0;
-        const microformat = playerResponse.microformat?.playerMicroformatRenderer;
         const liveBroadcastDetails = microformat?.liveBroadcastDetails;
         const upcomingEventData = microformat?.upcomingEventData;
 
@@ -307,7 +316,6 @@ function parseDurationFromHtml(html, isShortFallback = false) {
         }
       }
 
-      const microformat = playerResponse.microformat?.playerMicroformatRenderer;
       if (microformat) {
         if (microformat.publishDate) {
           publishedAt = new Date(microformat.publishDate).toISOString();
@@ -320,6 +328,10 @@ function parseDurationFromHtml(html, isShortFallback = false) {
     } catch (e) {
       // Hata yoksayılabilir
     }
+  }
+
+  if (!isUnlisted && /"isUnlisted"\s*:\s*true/i.test(html)) {
+    isUnlisted = true;
   }
 
   if (!isUnavailable && html) {
@@ -377,7 +389,7 @@ function parseDurationFromHtml(html, isShortFallback = false) {
     }
   }
 
-  return { duration, publishedAt, title, channelName, isUnavailable, reason, endTimestamp, startTimestamp, isLiveNow, isUpcoming };
+  return { duration, publishedAt, title, channelName, isUnavailable, isUnlisted, reason, endTimestamp, startTimestamp, isLiveNow, isUpcoming };
 }
 
 export function fetchVideoDuration(videoId) {
@@ -1894,6 +1906,12 @@ export async function checkPendingLiveStreams() {
             if (target) {
               target.status = 'ignored';
               target.error = result.reason || 'Video gizli, üyelere özel veya kaldırılmış.';
+              if (result.duration && result.duration !== 'live') {
+                target.duration = result.duration;
+              }
+              if (result.isUnlisted) {
+                target.isUnlisted = true;
+              }
               writeDb(freshDb);
               broadcast('db_update', freshDb);
             }

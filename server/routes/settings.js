@@ -19,7 +19,7 @@ import {
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
 import { ytdlpPath, getFfmpegPath, testFfmpegSync, setFfmpegWorkingCached, getLocalTempDir, spawnYtdlp } from '../services/paths.js';
-import { downloadQueue, getEffectiveSpeedLimit } from '../services/downloader.js';
+import { downloadQueue, getEffectiveSpeedLimit, getCookieArgs } from '../services/downloader.js';
 import { broadcast, addTerminalLog, terminalLogs } from '../services/sse.js';
 import { categoriesIniPath } from '../config.js';
 export function formatBackupDateStr(now = new Date()) {
@@ -63,6 +63,169 @@ async function startIntervalTimer() {
     }
   }, seconds * 1000);
 }
+
+/**
+ * Sistemdeki aktif çerez durumunu ve YouTube oturumunu kontrol eder.
+ * 
+ * @name GET /api/youtube-auth-status
+ * @function
+ * @inner
+ * @returns {Promise<void>}
+ */
+router.get('/youtube-auth-status', localhostOnly, async (req, res) => {
+  const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
+  const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
+  
+  let hasValidCookies = false;
+  let activeSource = 'none';
+
+  if (fs.existsSync(rootCookiesTxt)) {
+    try {
+      const content = fs.readFileSync(rootCookiesTxt, 'utf8');
+      if (content.includes('LOGIN_INFO') || content.includes('__Secure-1PSID') || content.includes('SID')) {
+        hasValidCookies = true;
+        activeSource = 'cookies.txt';
+      }
+    } catch (e) {}
+  } else if (fs.existsSync(binCookiesTxt)) {
+    try {
+      const content = fs.readFileSync(binCookiesTxt, 'utf8');
+      if (content.includes('LOGIN_INFO') || content.includes('__Secure-1PSID') || content.includes('SID')) {
+        hasValidCookies = true;
+        activeSource = 'cookies.txt';
+      }
+    } catch (e) {}
+  }
+
+  res.json({
+    success: true,
+    activeSource,
+    hasCookiesTxt: hasValidCookies,
+    hasWebView2Cookies: hasValidCookies,
+    selectedBrowser: 'none'
+  });
+});
+
+/**
+ * YouTube'da oturum açmak için HaYTooL dahili tarayıcısını (veya sistem tarayıcısını) açar.
+ * 
+ * @name POST /api/open-youtube-login
+ * @function
+ * @inner
+ * @returns {void}
+ */
+router.post('/open-youtube-login', localhostOnly, (req, res) => {
+  try {
+    const loginUrl = 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com';
+
+    if (process.platform === 'win32') {
+      exec(`cmd /c start "" "${loginUrl}"`, (err) => {
+        if (err) {
+          open(loginUrl);
+        }
+      });
+    } else {
+      open(loginUrl);
+    }
+
+    console.log('[YouTube Login] YouTube oturum açma sayfası tarayıcıda başlatıldı.');
+    res.json({ success: true, message: 'YouTube oturum açma penceresi açıldı.' });
+  } catch (err) {
+    console.error('[YouTube Login Hatası]:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * YouTube oturumunu kapatır ve yerel çerez dosyalarını temizler.
+ * 
+ * @name POST /api/logout-youtube
+ * @function
+ * @inner
+ * @returns {void}
+ */
+router.post('/logout-youtube', localhostOnly, (req, res) => {
+  try {
+    const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
+    const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
+
+    if (fs.existsSync(rootCookiesTxt)) {
+      try { fs.unlinkSync(rootCookiesTxt); } catch (e) {}
+    }
+    if (fs.existsSync(binCookiesTxt)) {
+      try { fs.unlinkSync(binCookiesTxt); } catch (e) {}
+    }
+
+    if (process.platform === 'win32') {
+      const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+      const mainDir = path.join(localAppData, 'HaYTooLPlayer_Main');
+      const ebDir = path.join(mainDir, 'EBWebView');
+
+      const cookieFiles = [
+        path.join(ebDir, 'Default', 'Network', 'Cookies'),
+        path.join(ebDir, 'Default', 'Cookies'),
+        path.join(mainDir, 'Default', 'Network', 'Cookies'),
+        path.join(mainDir, 'Default', 'Cookies')
+      ];
+
+      for (const cPath of cookieFiles) {
+        if (fs.existsSync(cPath)) {
+          try { fs.unlinkSync(cPath); } catch (e) {}
+        }
+      }
+
+      // Açık olan HaYTooLPlayer varsa bellek çerezlerini temizlemesi için LOGOUT sinyali gönder
+      const launcherExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
+      if (fs.existsSync(launcherExe)) {
+        exec(`"${launcherExe}" LOGOUT`, () => {});
+      }
+    }
+
+    console.log('[YouTube Logout] YouTube oturumu kapatıldı ve yerel çerezler temizlendi.');
+    res.json({
+      success: true,
+      message: 'YouTube oturumu başarıyla kapatıldı.'
+    });
+  } catch (err) {
+    console.error('[YouTube Logout Hatası]:', err.message);
+    res.status(500).json({
+      success: false,
+      error: 'Çerezler temizlenirken hata oluştu: ' + err.message
+    });
+  }
+});
+
+/**
+ * Netscape formatındaki cookies.txt içeriğini doğrudan ana dizine kaydeder.
+ * 
+ * @name POST /api/save-cookies-txt
+ * @function
+ * @inner
+ * @returns {void}
+ */
+router.post('/save-cookies-txt', localhostOnly, (req, res) => {
+  const { content } = req.body;
+  if (typeof content !== 'string') {
+    return res.status(400).json({ success: false, error: 'Geçersiz çerez içeriği.' });
+  }
+
+  const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
+  try {
+    if (!content.trim()) {
+      if (fs.existsSync(rootCookiesTxt)) {
+        fs.unlinkSync(rootCookiesTxt);
+      }
+      return res.json({ success: true, message: 'cookies.txt dosyası kaldırıldı.' });
+    }
+
+    fs.writeFileSync(rootCookiesTxt, content.trim(), 'utf8');
+    console.log('[Çerez Yönetimi] cookies.txt dosyası başarıyla kaydedildi.');
+    res.json({ success: true, message: 'cookies.txt başarıyla kaydedildi ve etkinleştirildi.' });
+  } catch (err) {
+    console.error('[Çerez Kaydetme Hatası]:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 /**
  * Seçilen tarayıcının premium çerezlerinin YouTube için geçerli olup olmadığını test eder.
@@ -673,22 +836,25 @@ export function ensureFfmpeg() {
   return Promise.reject(err);
 }
 
-// Seçilen tarayıcı çerezlerinin geçerliliğini test eden fonksiyon
+// Seçilen veya aktif çerezlerin geçerliliğini test eden fonksiyon
 export function testCookiesValidity(browser) {
   return new Promise((resolve) => {
-    if (!browser || browser === 'none') {
-      return resolve({ success: true, message: 'Tarayıcı çerezleri kullanılmıyor.' });
+    const db = readDb();
+    const settings = { ...db.settings, ...(browser ? { browser } : {}) };
+    const cookieArgs = getCookieArgs(settings);
+
+    if (cookieArgs.length === 0) {
+      return resolve({ success: true, message: 'Aktif bir çerez kaynağı bulunmuyor (Anonim mod).' });
     }
-    
-    const browserName = browser === 'msedge' ? 'edge' : browser;
+
     const args = [
-      '--cookies-from-browser', browserName,
+      ...cookieArgs,
       '--simulate',
       '--js-runtimes', `node:${process.execPath}`,
       'ytsearch1:test cookie liveness'
     ];
     
-    console.log(`[Çerez Testi] yt-dlp çerez testi başlatılıyor: ${browserName}`);
+    console.log(`[Çerez Testi] yt-dlp çerez testi başlatılıyor (${cookieArgs.join(' ')})`);
     const proc = spawnYtdlp(args);
     let errorOutput = '';
     
@@ -698,21 +864,22 @@ export function testCookiesValidity(browser) {
     
     const timer = setTimeout(() => {
       proc.kill();
-      resolve({ success: false, error: 'Zaman aşımı: Tarayıcı çerez veritabanı kilitli veya yanıt vermiyor. Lütfen tarayıcınızı tamamen kapatıp tekrar deneyin.' });
-    }, 8000);
+      resolve({ success: false, error: 'Zaman aşımı: Çerez veritabanı kilitli veya yanıt vermiyor.' });
+    }, 10000);
     
     proc.on('close', (code) => {
       clearTimeout(timer);
       if (code === 0) {
-        resolve({ success: true, message: 'Çerezler başarıyla okundu ve doğrulandı.' });
+        let srcName = cookieArgs[0] === '--cookies' ? 'cookies.txt dosyası' : cookieArgs[1];
+        resolve({ success: true, message: `Çerezler başarıyla okundu ve YouTube tarafından doğrulandı (${srcName}).` });
       } else {
         let userFriendlyError = errorOutput.trim();
         if (userFriendlyError.includes('Could not copy Chrome cookie database') || userFriendlyError.includes('Could not copy Edge cookie database')) {
-          userFriendlyError = 'Tarayıcı çerez veritabanı kilitli! Tarayıcınız açık olabilir, lütfen kapatıp tekrar deneyin.';
+          userFriendlyError = 'Tarayıcı çerez veritabanı kilitli! Tarayıcınız açık olabilir, lütfen kapatıp tekrar deneyin veya HaYTooL dahili oturumunu kullanın.';
         } else if (userFriendlyError.includes('Could not find browser')) {
-          userFriendlyError = `Belirtilen tarayıcı bulunamadı veya profil dizini eksik: ${browser.toUpperCase()}`;
+          userFriendlyError = `Belirtilen tarayıcı bulunamadı veya profil dizini eksik: ${browser ? browser.toUpperCase() : ''}`;
         } else {
-          userFriendlyError = `Çerez doğrulama hatası (Kod: ${code}): ${userFriendlyError.slice(0, 150)}`;
+          userFriendlyError = `Çerez doğrulama uyarısı (Kod: ${code}): ${userFriendlyError.slice(0, 150)}`;
         }
         resolve({ success: false, error: userFriendlyError });
       }
@@ -1521,4 +1688,20 @@ router.post('/settings/install-python-dep', localhostOnly, (req, res) => {
     addTerminalLog(`[Sistem] Bağımlılık kurulumu/güncellemesi başarıyla tamamlandı.`, 'success');
     res.json({ success: true, output: stdout });
   });
+});
+
+/**
+ * Disk senkronizasyonunu manuel olarak hemen tetikler.
+ * 
+ * @name POST /api/settings/sync-disk
+ * @function
+ * @inner
+ */
+router.post('/settings/sync-disk', localhostOnly, async (req, res) => {
+  try {
+    const result = await syncDbWithDisk(true);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });

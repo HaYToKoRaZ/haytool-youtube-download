@@ -14,6 +14,8 @@ import {
   getCaseInsensitiveKey, 
   writeIni 
 } from './config.js';
+import { getVideoResolution } from './services/paths.js';
+import { addTerminalLog, broadcast } from './services/sse.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -150,6 +152,9 @@ export const defaultDb = {
     pythonCmd: os.platform() === 'win32' ? 'python' : 'python3',
     maxConcurrentDownloads: 1,
     hideOnDelete: true,
+    markWatchedOnDelete: true,
+    autoSyncWatchtime: true,
+    autoDiskSync: true,
     checkChannelsOnStartup: false,
     enableAltThumbnailsHover: true,
     githubToken: '',
@@ -651,7 +656,22 @@ export function syncWithIni(db) {
 
       const enableAltThumbnailsHover = getCaseInsensitiveKey(settingsSection, 'enableAltThumbnailsHover');
       if (enableAltThumbnailsHover !== undefined) {
-        db.settings.enableAltThumbnailsHover = enableAltThumbnailsHover === 'true';
+        db.settings.enableAltThumbnailsHover = enableAltThumbnailsHover !== 'false';
+      }
+
+      const markWatchedOnDelete = getCaseInsensitiveKey(settingsSection, 'markWatchedOnDelete');
+      if (markWatchedOnDelete !== undefined) {
+        db.settings.markWatchedOnDelete = markWatchedOnDelete !== 'false';
+      }
+
+      const autoSyncWatchtime = getCaseInsensitiveKey(settingsSection, 'autoSyncWatchtime');
+      if (autoSyncWatchtime !== undefined) {
+        db.settings.autoSyncWatchtime = autoSyncWatchtime !== 'false';
+      }
+
+      const autoDiskSync = getCaseInsensitiveKey(settingsSection, 'autoDiskSync');
+      if (autoDiskSync !== undefined) {
+        db.settings.autoDiskSync = autoDiskSync !== 'false';
       }
 
       const weatherEnabled = getCaseInsensitiveKey(settingsSection, 'weatherEnabled');
@@ -924,6 +944,9 @@ export function saveSettingsToIni(db) {
   iniData.Settings.weatherLongitude = (db.settings.weatherLongitude !== undefined ? db.settings.weatherLongitude : 28.9784).toString();
   iniData.Settings.weatherUnit = (db.settings.weatherUnit || 'celsius').toString();
   iniData.Settings.queueViewMode = (db.settings.queueViewMode || 'table').toString();
+  iniData.Settings.markWatchedOnDelete = (db.settings.markWatchedOnDelete !== false).toString();
+  iniData.Settings.autoSyncWatchtime = (db.settings.autoSyncWatchtime !== false).toString();
+  iniData.Settings.autoDiskSync = (db.settings.autoDiskSync !== false).toString();
 
   writeIni(configIniPath, iniData);
 }
@@ -1059,21 +1082,29 @@ export function buildVideoFilesMap(downloadPath) {
 /**
  * Disk üzerindeki dosyaları veritabanıyla senkronize eder.
  * Aktif bir indirme veya FFmpeg birleştirme varsa diski yormamak için işlemi erteler.
+ * 
+ * @param {boolean} [forceManual=false] - Ayar kapalı olsa bile manuel olarak çalıştırmaya zorla
+ * @returns {Promise<object>} Senkronizasyon sonuçları
  */
-export function syncDbWithDisk() {
+export async function syncDbWithDisk(forceManual = false) {
   try {
-    // Aktif indirme veya birleştirme varken disk senkronizasyonunu ertele
-    import('./services/downloader.js').then(({ downloadQueue }) => {
-      if (downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
-        console.log('[Disk Sync] Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.');
-        return;
-      }
-      performDiskSync();
-    }).catch(() => {
-      performDiskSync();
-    });
+    const db = readDb();
+    if (!forceManual && db.settings && db.settings.autoDiskSync === false) {
+      return { success: true, skipped: true, message: 'Otomatik disk senkronizasyonu ayarlardan devre dışı bırakılmış.' };
+    }
+
+    const { downloadQueue } = await import('./services/downloader.js');
+    if (downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
+      console.log('[Disk Sync] Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.');
+      addTerminalLog('[Disk Sync] Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.', 'warn');
+      return { success: false, busy: true, message: 'Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.' };
+    }
+
+    return performDiskSync();
   } catch (err) {
     console.error('[Disk Sync Error]', err.message);
+    addTerminalLog(`[Disk Sync Error] ${err.message}`, 'error');
+    return { success: false, error: err.message };
   }
 }
 
@@ -1084,44 +1115,66 @@ function performDiskSync() {
       try {
         db = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
       } catch (e) {
-        return;
+        return { success: false, error: 'db.json okunamadı' };
       }
     } else {
-      return;
+      return { success: false, error: 'db.json mevcut değil' };
     }
 
+    console.log('[Disk Sync] Disk senkronizasyonu ve video doğrulama başlatıldı...');
+    addTerminalLog('[Disk Sync] Disk senkronizasyonu ve video doğrulama başlatıldı...', 'info');
+
     let dbUpdated = false;
+    let totalVerified = 0;
+    let updatedCount = 0;
+
     if (db.history && db.history.length > 0) {
       const newHistory = [];
       const downloadPath = db.settings.downloadPath || defaultDownloadDir;
       const diskMap = buildVideoFilesMap(downloadPath);
 
       for (const item of db.history) {
-        if (item.status === 'downloaded') {
-          const hasDiskFile = diskMap.has(item.id);
-          if (hasDiskFile) {
-            const diskFile = diskMap.get(item.id);
+        if (item.status === 'completed' || item.status === 'downloaded') {
+          let diskFile = diskMap.get(item.id);
+          if (!diskFile && item.filePath && fs.existsSync(item.filePath)) {
+            diskFile = item.filePath;
+          }
+
+          if (diskFile && fs.existsSync(diskFile)) {
+            totalVerified++;
             try {
-              const stats = fs.statSync(diskFile);
-              const sizeInMB = (stats.size / (1024 * 1024)).toFixed(2) + ' MB';
-              
-              if (item.filePath !== diskFile || item.fileSize !== sizeInMB) {
+              if (item.filePath !== diskFile) {
                 item.filePath = diskFile;
-                item.fileSize = sizeInMB;
                 dbUpdated = true;
+                updatedCount++;
+              }
+
+              if (item.fileMissing === true) {
+                delete item.fileMissing;
+                dbUpdated = true;
+                updatedCount++;
+              }
+
+              if (!item.actualQuality) {
+                const res = getVideoResolution(diskFile);
+                if (res) {
+                  item.actualQuality = res;
+                  dbUpdated = true;
+                  updatedCount++;
+                }
               }
               newHistory.push(item);
             } catch (err) {
-              dbUpdated = true;
+              newHistory.push(item);
             }
           } else {
-            item.status = 'failed';
-            item.progress = 0;
-            item.speed = '';
-            item.eta = '';
-            item.error = db.settings.lang === 'en' ? 'File deleted from disk.' : 'Dosya diskten silinmiş.';
+            // Dosya diskte bulunamadı ama geçmişi koru (fileMissing)
+            if (item.fileMissing !== true) {
+              item.fileMissing = true;
+              dbUpdated = true;
+              updatedCount++;
+            }
             newHistory.push(item);
-            dbUpdated = true;
           }
         } else {
           newHistory.push(item);
@@ -1131,10 +1184,25 @@ function performDiskSync() {
       if (dbUpdated) {
         db.history = newHistory;
         writeDb(db);
+        broadcast('db_update', db);
       }
     }
+
+    const summaryMsg = `Disk senkronizasyonu tamamlandı: ${totalVerified} video doğrulandı, ${updatedCount} kayıt güncellendi.`;
+    console.log(`[Disk Sync] ${summaryMsg}`);
+    addTerminalLog(`[Disk Sync] ${summaryMsg}`, 'success');
+    broadcast('status_log', { message: summaryMsg, type: 'success' });
+
+    return {
+      success: true,
+      totalVerified,
+      updatedCount,
+      message: summaryMsg
+    };
   } catch (err) {
     console.error('[Disk Sync Performance Error]', err.message);
+    addTerminalLog(`[Disk Sync Error] ${err.message}`, 'error');
+    return { success: false, error: err.message };
   }
 }
 

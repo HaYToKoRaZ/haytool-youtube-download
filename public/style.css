@@ -6925,3 +6925,354 @@ body.light-theme #queue-view-toggle-container .view-btn.active {
               0 0 22px var(--primary-glow, rgba(138, 43, 226, 0.45)) !important;
   transform: translateY(-2px);
 }
+
+/* ==========================================================================
+   İndirilen Video Kartı Çözünürlük Rozeti (Video Quality Badge - Sol Alt Köşe)
+   ========================================================================== */
+.video-quality-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  z-index: 5;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.2;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+}
+
+/* 8K / 4K Ultra Kalite (Altın / Mor Gradient) */
+.video-quality-badge.quality-8k,
+.video-quality-badge.quality-4k {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(168, 85, 247, 0.35));
+  border: 1px solid rgba(245, 158, 11, 0.6);
+  color: #fbbf24;
+  text-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+}
+
+/* 2K / 1440p (Mor / Magenta) */
+.video-quality-badge.quality-2k,
+.video-quality-badge.quality-1440p {
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  color: #c084fc;
+  text-shadow: 0 0 4px rgba(168, 85, 247, 0.4);
+}
+
+/* 1080p Full HD (Camgöbeği / Parlak Mavi) */
+.video-quality-badge.quality-1080p {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  color: #38bdf8;
+  text-shadow: 0 0 4px rgba(56, 189, 248, 0.4);
+}
+
+/* 720p HD (Canlı Yeşil) */
+.video-quality-badge.quality-720p {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  color: #4ade80;
+}
+
+/* 480p / 360p / 240p / 144p (Nötr Açık Gri) */
+.video-quality-badge.quality-480p,
+.video-quality-badge.quality-360p,
+.video-quality-badge.quality-240p,
+.video-quality-badge.quality-144p {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #cbd5e1;
+}
+
+/* Playlist Sidebar Küçük Thumbnail Çözünürlük Rozeti */
+.playlist-item-quality {
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  z-index: 4;
+  font-size: 0.58rem;
+  font-weight: 700;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 3px;
+  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+.playlist-item-quality.quality-4k,
+.playlist-item-quality.quality-8k {
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #fbbf24;
+}
+
+/* Açık Tema (Light Theme) Uyum Düzeltmeleri */
+body.light-theme .video-quality-badge.quality-1080p {
+  background: rgba(255, 255, 255, 0.9);
+  color: #0284c7;
+  border-color: rgba(2, 132, 199, 0.5);
+}
+body.light-theme .video-quality-badge.quality-720p {
+  background: rgba(255, 255, 255, 0.9);
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.5);
+}
+body.light-theme .video-quality-badge.quality-480p,
+body.light-theme .video-quality-badge.quality-360p {
+  background: rgba(255, 255, 255, 0.9);
+  color: #475569;
+  border-color: rgba(100, 116, 139, 0.4);
+}
+
+/* ==========================================================================
+   Liste Dışı (Unlisted) Video Rozeti & Etiketi (Çift Tema Uyumlu)
+   ========================================================================== */
+.video-unlisted-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 6;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 6px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.6);
+  color: #fbbf24;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  text-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
+}
+
+body.light-theme .video-unlisted-badge {
+  background: rgba(254, 243, 199, 0.92);
+  border: 1px solid rgba(217, 119, 6, 0.7);
+  color: #b45309;
+  text-shadow: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.video-card-unlisted-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+}
+
+body.light-theme .video-card-unlisted-tag {
+  background: rgba(254, 243, 199, 0.8);
+  border-color: rgba(217, 119, 6, 0.4);
+  color: #b45309;
+}
+
+/* ==========================================================================
+   Kanallar Tabı Filtre Çubuğu (Channel Filter Bar)
+   ========================================================================== */
+.channel-filters-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 14px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.channel-filters-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.channel-filters-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.channel-filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.channel-filter-select {
+  background: var(--bg-input, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-size: 0.78rem;
+  font-family: inherit;
+  padding: 5px 10px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.channel-filter-select:hover,
+.channel-filter-select:focus {
+  border-color: var(--accent-primary);
+}
+
+.channel-search-input-wrap {
+  position: relative;
+  min-width: 180px;
+  flex: 1;
+  max-width: 280px;
+}
+
+.channel-search-input-wrap i {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.channel-search-input {
+  width: 100%;
+  padding: 5px 10px 5px 28px;
+  font-size: 0.8rem;
+  background: var(--bg-input, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-color);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.channel-search-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(138, 43, 226, 0.2);
+}
+
+.channel-filter-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Araçlar Sekmesi Akordiyon Menü Tasarımı (Tools Accordion)
+   ========================================================================== */
+.tools-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.tools-accordion-item {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-card);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tools-accordion-item:hover {
+  border-color: rgba(138, 43, 226, 0.4);
+}
+
+.tools-accordion-item.active {
+  border-color: var(--accent-primary, #8a2be2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.tools-accordion-header {
+  padding: 16px 20px;
+  background: var(--bg-card-hover, rgba(255, 255, 255, 0.02));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+
+.tools-accordion-header:hover {
+  background: rgba(138, 43, 226, 0.06);
+}
+
+.tools-accordion-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tools-accordion-header-left h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tools-accordion-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tools-accordion-header .accordion-arrow {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tools-accordion-item.active .tools-accordion-header .accordion-arrow {
+  transform: rotate(180deg);
+  color: var(--accent-primary);
+}
+
+.tools-accordion-body {
+  padding: 20px 24px;
+  border-top: 1px solid var(--border-color);
+  display: block;
+}
+
+.tools-accordion-item:not(.active) .tools-accordion-body {
+  display: none;
+}

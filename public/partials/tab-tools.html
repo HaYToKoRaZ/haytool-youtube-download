@@ -1,10 +1,10 @@
-      <!-- Tab: Araçlar (Gelişmiş Dosya Karşılaştırma & Senkronizasyon) -->
+      <!-- Tab: Araçlar (Gelişmiş Araçlar & Bakım) -->
       <section id="tab-tools" class="tab-content">
         <header class="content-header">
           <div>
             <h2 id="tools-modal-title" style="margin: 0; display: flex; align-items: center; gap: 10px;">
               <i id="tools-modal-icon" data-lucide="folder-sync" style="color: var(--accent-color); width: 28px; height: 28px;"></i>
-              <span>Gelişmiş Dosya Karşılaştırma & Senkronizasyon</span>
+              <span id="tools-main-title">Gelişmiş Dosya Karşılaştırma & Senkronizasyon</span>
             </h2>
             <p id="tools-modal-desc" style="margin-top: 4px; margin-bottom: 0;">İndirme klasörünüzdeki fiziksel dosyaları veritabanı kayıtları ile karşılaştırarak eksik, yetim veya alakasız dosyaları listeler.</p>
           </div>
@@ -14,8 +14,8 @@
           </button>
         </header>
 
-        <div class="card" id="tools-compare-container" style="padding: 24px; display: flex; flex-direction: column; gap: 24px;">
-
+        <!-- 1. BÖLÜM: Dosya Karşılaştırma & Senkronizasyon Sayfası -->
+        <div class="card" id="tools-compare-container" style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
           <div style="display: flex; gap: 12px; align-items: center;">
             <button type="button" class="btn btn-primary" id="start-compare-btn">
               <i data-lucide="refresh-cw"></i>
@@ -28,7 +28,7 @@
             </div>
           </div>
 
-          <div id="compare-results" class="hidden" style="display: flex; flex-direction: column; gap: 24px;">
+          <div id="compare-results" class="hidden" style="display: flex; flex-direction: column; gap: 20px;">
             <div id="compare-summary-box" style="padding: 14px 20px; border-radius: 8px; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.15); font-size: 0.95rem; color: var(--text-main);">
               <!-- Summary text dynamic -->
             </div>
@@ -101,26 +101,16 @@
             </div>
           </div>
 
-          <div id="compare-no-issues" class="hidden text-center" style="padding: 40px; background: rgba(40,180,99,0.05); border: 1px dashed rgba(40,180,99,0.25); border-radius: 12px; color: #28b463;">
-            <i data-lucide="check-circle" style="width: 40px; height: 40px; margin-bottom: 12px;"></i>
+          <div id="compare-no-issues" class="hidden text-center" style="padding: 30px; background: rgba(40,180,99,0.05); border: 1px dashed rgba(40,180,99,0.25); border-radius: 12px; color: #28b463;">
+            <i data-lucide="check-circle" style="width: 36px; height: 36px; margin-bottom: 8px;"></i>
             <p style="font-weight: 600; margin: 0; font-size: 0.95rem;" id="no-issues-found">Herhangi bir eşleşme sorunu bulunamadı. Klasörünüz veritabanı ile tam uyumlu!</p>
           </div>
         </div>
 
-        <!-- Kategori Yönetimi Kartı -->
-        <div class="card" id="tools-categories-container" style="padding: 24px; display: flex; flex-direction: column; gap: 16px; margin-top: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap; gap: 12px;">
-            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.2rem;">
-              <i data-lucide="tag" style="color: var(--accent-color); width: 24px; height: 24px;"></i>
-              <span id="tools-categories-title">Kategori Yönetimi</span>
-            </h3>
-          </div>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0; line-height: 1.5;" id="tools-categories-desc">
-            Kanallarınızı gruplandırmak için kategoriler oluşturabilir, düzenleyebilir veya silebilirsiniz.
-          </p>
-          
+        <!-- 2. BÖLÜM: Kategori Yönetimi Sayfası -->
+        <div class="card hidden" id="tools-categories-container" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
           <!-- Kategori Ekleme Formu -->
-          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px;">
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             <input type="text" id="new-category-input" placeholder="Yeni kategori adı yazın..." style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 0.9rem; flex: 1; min-width: 200px;">
             <button type="button" class="btn btn-primary" id="btn-add-category" onclick="addCategoryFromTools()" style="display: flex; align-items: center; gap: 6px; padding: 8px 16px;">
               <i data-lucide="plus" style="width:16px; height:16px;"></i>
@@ -129,7 +119,7 @@
           </div>
 
           <!-- Kategori Listesi -->
-          <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px; margin-top: 10px;">
+          <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
             <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
               <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
                 <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
@@ -144,4 +134,5 @@
             </table>
           </div>
         </div>
+
       </section>

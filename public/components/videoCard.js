@@ -244,13 +244,28 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
       ? `<div class="video-shorts-badge"><i data-lucide="zap" style="width:10px;height:10px;margin-right:2px;"></i> Shorts</div>` 
       : '';
 
+    const qualityBadgeHtml = (item.status === 'completed' && !isMissing && item.actualQuality)
+      ? `<div class="video-quality-badge quality-${item.actualQuality.toLowerCase()}">${item.actualQuality}</div>`
+      : '';
+
+    const isUnlisted = item.isUnlisted === true || item.unlisted === true;
+    const unlistedBadgeHtml = isUnlisted
+      ? `<div class="video-unlisted-badge" title="${t.badge_unlisted_title || 'Bu video liste dışıdır (Sadece bağlantıya sahip olanlar görebilir)'}"><i data-lucide="eye-off" style="width:13px;height:13px;"></i></div>`
+      : '';
+
     const shortsTagHtml = isShort 
       ? `<span class="video-card-shorts-tag"><i data-lucide="zap" style="width:10px;height:10px;margin-right:2px;"></i> Shorts</span>` 
+      : '';
+
+    const unlistedTagHtml = isUnlisted
+      ? `<span class="video-card-unlisted-tag" title="${t.badge_unlisted_title || 'Liste Dışı Video'}"><i data-lucide="eye-off" style="width:11px;height:11px;margin-right:2px;"></i> ${t.badge_unlisted || 'Liste Dışı'}</span>`
       : '';
 
     card.innerHTML = `
       <div class="video-thumbnail-wrapper" data-video-id="${item.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}">
         <img class="video-thumbnail" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
+        ${qualityBadgeHtml}
+        ${unlistedBadgeHtml}
         ${durationBadgeHtml}
         ${shortsBadgeHtml}
         ${isBulkMode ? `
@@ -266,9 +281,10 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
       </div>
       <div class="video-card-content">
         <h3 class="video-card-title" onclick="${clickAction}" style="cursor: pointer;" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap: wrap;">
           <span class="video-card-duration-text">${durationText || (t.card_duration_not_specified || 'Süre Belirtilmedi')}</span>
           ${shortsTagHtml}
+          ${unlistedTagHtml}
         </div>
         <div class="video-card-metadata">
           <span class="video-card-channel clickable-channel" ${item.channelId ? `onclick="event.stopPropagation(); filterByChannel('${item.channelId}', '${gridElement.id}')"` : ''} style="cursor: pointer; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">

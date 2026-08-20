@@ -889,6 +889,11 @@ if (process.argv.length <= 2) {
       resolveMissingDurations();
     }, 6000);
 
+    // Disk senkronizasyonu ve eksik çözünürlüklerin taranması
+    setTimeout(() => {
+      syncDbWithDisk();
+    }, 7000);
+
     // Başlangıçta kuyruğa bekleyen/yarım kalan indirmeleri ekle
     setTimeout(() => {
       const currentDb = readDb();

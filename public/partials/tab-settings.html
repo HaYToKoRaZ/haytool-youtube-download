@@ -577,21 +577,67 @@
                 <div class="settings-card" id="subtab-notifications">
                   <h3 class="settings-section-title"><i data-lucide="bell"></i> <span id="settings-title-notifications-text">Çerez & Bildirim</span></h3>
                   
-                  <div class="form-group">
-                    <label for="settings-browser" id="label-browser">Premium Çerez Tarayıcısı</label>
-                    <select id="settings-browser">
-                      <option value="none" id="opt-browser-none" selected>Çerez Kullanma (Sadece Açık Videolar)</option>
-                      <option value="chrome">Google Chrome</option>
-                      <option value="edge">Microsoft Edge</option>
-                      <option value="firefox">Mozilla Firefox</option>
-                      <option value="brave">Brave</option>
-                      <option value="opera">Opera</option>
-                    </select>
+                  <!-- YouTube Oturumu & Çerez Yönetimi -->
+                  <div class="form-group" style="margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                      <label style="font-weight: 600; margin: 0; color: var(--text-main); font-size: 0.9rem;" id="label-youtube-auth-title">YouTube Oturumu & Bot Koruması</label>
+                      <div id="cookie-status-badge" style="font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; font-weight: 600; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); display: inline-flex; align-items: center; gap: 4px;">
+                        <i data-lucide="shield-alert" style="width: 12px; height: 12px;"></i>
+                        <span id="cookie-status-text">Oturum Açılmamış (Anonim Mod)</span>
+                      </div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                      <span style="font-size: 0.78rem; color: var(--text-muted);" id="cookie-tray-hint">
+                        💡 Oturum açmak için sağ alttaki tepsi simgesine sağ tıklayıp <strong>"YouTube'da Oturum Aç"</strong> seçebilirsiniz.
+                      </span>
+                      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" id="btn-test-cookies-live" class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; min-width: 140px; justify-content: center;">
+                          <i data-lucide="check-circle" style="width: 15px; height: 15px;"></i>
+                          <span id="btn-text-test-cookies">Çerezleri Doğrula</span>
+                        </button>
+                        <button type="button" id="btn-logout-youtube" class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; justify-content: center; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">
+                          <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
+                          <span id="btn-text-logout-youtube">Oturumu Kapat</span>
+                        </button>
+                      </div>
+                    </div>
+
                     <div class="cookie-warning-box" style="margin-top: 6px; padding: 8px;">
-                      <i data-lucide="alert-triangle" style="width:14px;height:14px;"></i>
+                      <i data-lucide="info" style="width:14px;height:14px;color:var(--accent-primary);"></i>
                       <div style="font-size: 0.75rem;">
-                        <strong id="cookie-warning-title">Çerez Kilidi Uyarısı:</strong>
-                        <span id="cookie-warning-desc">İndirmeden önce seçilen tarayıcıyı tamamen kapatın.</span>
+                        <strong id="cookie-info-title">Akıllı Oturum:</strong>
+                        <span id="cookie-info-desc">Dahili oturum açıldığında tüm 4K/1080p videolar bot kısıtlaması olmadan yüksek hızda indirilir.</span>
+                      </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                      <label for="settings-autosync-watchtime" id="label-autosync-watchtime" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                        <i data-lucide="bookmark-check" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
+                        <span id="text-autosync-watchtime-title">YouTube İzleme Süresi Eşitleme</span>
+                      </label>
+                      <div class="toggle-container" style="margin-top: 8px;">
+                        <input type="checkbox" id="settings-autosync-watchtime" class="toggle-input" checked>
+                        <label for="settings-autosync-watchtime" class="toggle-label"></label>
+                        <span id="desc-autosync-watchtime">Videoyu duraklatınca veya kapatınca kaldığım yeri YouTube geçmişine otomatik kaydet</span>
+                      </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <label for="settings-auto-disk-sync" id="label-auto-disk-sync" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0;">
+                          <i data-lucide="hard-drive" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
+                          <span id="text-auto-disk-sync-title">Otomatik Disk Senkronizasyonu & Doğrulama</span>
+                        </label>
+                        <button type="button" id="btn-manual-disk-sync" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.75rem; border-radius: 6px;">
+                          <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
+                          <span id="btn-sync-disk-now-text">Diski Şimdi Senkronize Et</span>
+                        </button>
+                      </div>
+                      <div class="toggle-container" style="margin-top: 8px;">
+                        <input type="checkbox" id="settings-auto-disk-sync" class="toggle-input" checked>
+                        <label for="settings-auto-disk-sync" class="toggle-label"></label>
+                        <span id="desc-auto-disk-sync">Açılışta ve ayar değişikliklerinde diskteki videoları otomatik doğrula ve çözünürlükleri eşitle</span>
                       </div>
                     </div>
                   </div>
