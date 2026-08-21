@@ -23,6 +23,7 @@ export const es = {
   gist_btn_test: 'Probar Token',
   gist_btn_push: 'Subir a Gist (Push)',
   gist_btn_pull: 'Descargar de Gist (Pull)',
+  gist_btn_help: '¿Cómo usarlo y obtener el token?',
   gist_auto_sync: 'Sincronizar automáticamente en Gist al cambiar canales',
   channels_title: 'Canales',
   channels_desc: 'Gestione los canales de YouTube que desea monitorear y descargar automáticamente.',

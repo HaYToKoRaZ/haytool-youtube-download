@@ -23,6 +23,7 @@ export const en = {
   gist_btn_test: 'Test Token',
   gist_btn_push: 'Push to Gist',
   gist_btn_pull: 'Pull from Gist',
+  gist_btn_help: 'How to Use & Get Token?',
   gist_auto_sync: 'Auto-sync to Gist on channel changes',
   channels_title: 'Channels',
   channels_desc: 'Manage YouTube channels you want to monitor and download videos from automatically.',

@@ -3,6 +3,34 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [8.52.0] - 2026-08-21
+
+### 🏗️ Atomic Modularization of Frontend Architecture & INI Localization / Frontend Mimarisinin Atomik Modülerleştirilmesi & INI Yerelleştirmesi
+
+- **Frontend Modular Architecture (`public/modules/`) / Modüler Frontend Mimarisi:**
+  - Deconstructed the monolithic `public/app.js` file (down from **11,798 lines to 394 lines**, a ~97% reduction) into 8 dedicated, single-responsibility ES modules with state dependency injection:
+    - **`modules/iptv.js`**: IPTV live streaming engine, HLS/Video.js initialization, grid/quad/dual layouts, and channel search.
+    - **`modules/tools.js`**: File comparison tools, disk sync, category CRUD operations, and APE watch history marker.
+    - **`modules/downloader.js`**: Single/playlist video downloads, queue manager, and download engine reset.
+    - **`modules/settings.js`**: Settings forms, theme engine, system backup/restore, and GitHub Gist sync.
+    - **`modules/player.js`**: Embedded player engines (Artplayer, Plyr, HTML5), modal & inline player states, SponsorBlock auto-skipping, subtitle customization, YouTube comments, and playlist stream.
+    - **`modules/i18n-apply.js`**: Dynamic text labeling, form placeholder translation, and dropdown option localization across 7 supported languages.
+    - **`modules/tab-manager.js`**: SPA tab router (`switchTab`, `popstate`), filter persistence, grid/list view mode controllers, and smart player relocation across tabs.
+    - **`modules/db-renderer.js`**: Real-time SSE event engine (`connectSSE`), live video grid rendering, statistics counters, FFmpeg validation, and channel/category filter pickers.
+  - Devasa `app.js` dosyası 11.798 satırdan sadece 394 satıra indirilerek 8 ayrı bağımsız ES modülüne dönüştürüldü ve tam atomik modüler mimariye kavuşturuldu.
+
+- **Bilingual `configwin.ini` Setting Descriptions / Çift Dilli INI Ayar Açıklamaları:**
+  - Added comprehensive Turkish (🇹🇷) and English (🇬🇧) comments, parameter options, and default values for all 33 setting keys in `server/config.js` and `configwin.ini`.
+  - Config dosyasındaki tüm 33 ayar başlığına Türkçe ve İngilizce açıklamalar, seçenekler ve varsayılan değerler eklendi.
+
+- **Default View Mode Persistence / Varsayılan Görünüm Modu ve Kalıcı Tercihler:**
+  - Default view mode for both Library and Downloaded tabs is set to **Cards (`grid`)** on fresh installations.
+  - View mode changes (Grid ⮂ List) are immediately saved to `configwin.ini` and restored seamlessly.
+  - Uygulama ilk yüklendiğinde varsayılan görünüm modu Kartlar (`grid`) olarak ayarlandı ve anlık ini dosyası kaydı sağlandı.
+
+- **Backend Structured Logging Tagging (Kural 25 & 35) / Backend Yapısal Log Etiketleme:**
+  - Added structured tags (`[Kanal]`, `[RSS]`, `[Geçmiş]`, `[Disk Sync]`) across all backend API routes and services for clean, filterable terminal and web console logging.
+
 ## [8.51.0] - 2026-08-20
 
 ### 🔧 Topbar Cookie Status Simplified to Dot Indicator / Üst Bar Çerez Durumu Nokta Göstergesine Sadeleştirildi

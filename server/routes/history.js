@@ -485,7 +485,7 @@ router.post('/download-video', localhostOnly, async (req, res) => {
 
   if (!channelName || !title) {
     try {
-      console.log(`[Manual Download] Fetching video details from YouTube: ${targetVideoId}`);
+      console.log(`[Manual Download] YouTube'dan video bilgisi alınıyor: ${targetVideoId}`);
       const details = await fetchVideoDuration(targetVideoId);
       if (details) {
         if (details.title) title = details.title;
@@ -1086,11 +1086,7 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
   const deleteFile = req.query.deleteFile === 'true';
   const markWatched = req.query.markWatched === 'true';
   
-  console.log(`\n--- SİLME İŞLEMİ BAŞLATILDI ---`);
-  console.log(`Tarih/Saat: ${new Date().toLocaleString('tr-TR')}`);
-  console.log(`Target Video ID: ${id}`);
-  console.log(`Bilgisayardan dosya silinsin mi: ${deleteFile}`);
-  console.log(`YouTube'da izlendi olarak işaretlensin mi: ${markWatched}`);
+  console.log(`[Silme] \n--- SİLME İŞLEMİ BAŞLАTILDI | ${new Date().toLocaleString('tr-TR')} | ID: ${id} | Dosya: ${deleteFile} | İzlendi: ${markWatched} ---`);
 
   const db = readDb();
   const itemIndex = db.history.findIndex(h => h.id === id);
@@ -1176,7 +1172,7 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
         if (failedToDelete.length > 0) {
           const errorMsg = `Video dosyası silinemedi (Dosya kilitli veya açık olabilir): ${failedToDelete.join(', ')}`;
           console.error(`[DELETE ERROR] ${errorMsg}`);
-          console.log(`--- SİLME İŞLEMİ BAŞARISIZ ---\n`);
+          console.log(`[Silme] Dosya silme başarısız: ${err.message}`);
           return res.status(500).json({ error: errorMsg });
         }
         if (deletedAny) {

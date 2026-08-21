@@ -20,6 +20,7 @@ export const ar = {
   gist_btn_test: 'اختبار الرمز',
   gist_btn_push: 'رفع إلى Gist (Push)',
   gist_btn_pull: 'سحب من Gist (Pull)',
+  gist_btn_help: 'كيفية الاستخدام والحصول على الرمز؟',
   gist_auto_sync: 'مزامنة تلقائية مع Gist عند تغيير القنوات',
   channels_title: 'القنوات',
   channels_desc: 'إدارة قنوات YouTube التي تريد مراقبتها وتنزيل مقاطع الفيديو منها تلقائيًا.',

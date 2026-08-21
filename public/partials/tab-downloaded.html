@@ -275,11 +275,11 @@
               <label for="downloaded-show-shorts" style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none; margin: 0;">Shorts Videolarını Göster</label>
             </div>
             <div class="view-toggle-container">
-              <button id="downloaded-view-grid-btn" class="view-btn active" title="Kart Görünümü">
+              <button id="downloaded-view-grid-btn" class="view-btn active" title="Kart Görünümü" onclick="setDownloadedViewMode('grid')">
                 <i data-lucide="layout-grid"></i>
                 <span>Kartlar</span>
               </button>
-              <button id="downloaded-view-list-btn" class="view-btn" title="Sade Liste Görünümü">
+              <button id="downloaded-view-list-btn" class="view-btn" title="Sade Liste Görünümü" onclick="setDownloadedViewMode('list')">
                 <i data-lucide="list"></i>
                 <span>Sade Liste</span>
               </button>

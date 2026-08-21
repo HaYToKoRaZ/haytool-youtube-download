@@ -109,7 +109,24 @@ export const settingComments = {
   showNotifications: '# Windows Bildirimlerini Göster / Show Windows Notifications\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
   autoOpenBrowser: '# Başlangıçta Tarayıcıyı Aç / Auto Open Browser on Startup\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
   enableAltThumbnailsHover: '# Fare Üzerine Geldiğinde Alternatif Kapak Döngüsü / Hover Alternative Thumbnail Cycle\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
-  queueViewMode: '# Kuyruk Sekmesi Görünüm Modu / Queue Tab View Mode\n# Seçenekler: table (tablo), cards (kartlar)\n# Options: table, cards'
+  subtitleColor: '# Altyazı Rengi / Subtitle Text Color\n# Varsayılan: #ffffff\n# Default: #ffffff',
+  subtitleOpacity: '# Altyazı Arka Plan Saydamlığı / Subtitle Background Opacity\n# Değer aralığı: 0.0 - 1.0 (0 = Tamamen Saydam, 1 = Katı)\n# Range: 0.0 - 1.0 (0 = Fully Transparent, 1 = Solid)',
+  subtitleSize: '# Altyazı Yazı Boyutu / Subtitle Font Size\n# Varsayılan: 26px\n# Default: 26px',
+  sponsorBlockEnabled: '# SponsorBlock Entegrasyonu / SponsorBlock Integration\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  discordRpcEnabled: '# Discord Zengin Varlık (RPC) Durumu / Discord Rich Presence (RPC)\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  doubleClickAction: '# Çift Tıklama Eylemi / Double Click Action\n# Seçenekler: system (Sistem Oynatıcı), player (Gömülü Oynatıcı), folder (Klasörü Aç)\n# Options: system (System Player), player (Embedded Player), folder (Open Folder)',
+  historyDurationFilter: '# Kütüphane Süre Filtresi / Library Duration Filter\n# Seçenekler: off (Kapalı), 1, 2, 3, 4, 5, 10, 15, 20, 25, 30 (Dakika)\n# Options: off (Disabled), 1, 2, 3, 4, 5, 10, 15, 20, 25, 30 (Minutes)',
+  historyViewMode: '# Kütüphane Sekmesi Görünüm Modu / Library Tab View Mode\n# Seçenekler: grid (Kartlar), list (Sade Liste)\n# Options: grid (Cards), list (Compact List)',
+  downloadedViewMode: '# İndirilenler Sekmesi Görünüm Modu / Downloaded Tab View Mode\n# Seçenekler: grid (Kartlar), list (Sade Liste)\n# Options: grid (Cards), list (Compact List)',
+  weatherEnabled: '# Hava Durumu Göstergesi / Weather Indicator\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  weatherCity: '# Hava Durumu Şehri / Weather City\n# Varsayılan: İstanbul\n# Default: Istanbul',
+  weatherLatitude: '# Hava Durumu Enlemi / Weather Latitude\n# Varsayılan: 41.0082\n# Default: 41.0082',
+  weatherLongitude: '# Hava Durumu Boylamı / Weather Longitude\n# Varsayılan: 28.9784\n# Default: 28.9784',
+  weatherUnit: '# Sıcaklık Birimi / Temperature Unit\n# Seçenekler: celsius (°C), fahrenheit (°F)\n# Options: celsius (°C), fahrenheit (°F)',
+  queueViewMode: '# Kuyruk Sekmesi Görünüm Modu / Queue Tab View Mode\n# Seçenekler: table (tablo), cards (kartlar)\n# Options: table, cards',
+  markWatchedOnDelete: '# Video Silindiğinde İzlenmiş Olarak İşaretle (APE) / Mark as Watched on Delete (APE)\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  autoSyncWatchtime: '# YouTube İzleme Geçmişini Otomatik Senkronize Et / Auto-sync YouTube Watch History\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)',
+  autoDiskSync: '# İndirme Klasörünü Disk İle Otomatik Eşitle / Auto-sync Download Directory With Disk\n# Seçenekler: true (etkin), false (devre dışı)\n# Options: true (enabled), false (disabled)'
 };
 
 /**

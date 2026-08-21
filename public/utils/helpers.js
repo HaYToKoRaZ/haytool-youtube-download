@@ -167,6 +167,28 @@ export function parseTimeToSeconds(timeStr) {
 }
 
 /**
+ * Video süre stringini (HH:MM:SS, MM:SS veya saniye) saniyeye çevirir.
+ * Bilinmeyen formatlar için null döner.
+ * @param {string|number|undefined} duration - Video süresi
+ * @returns {number|null} Saniye cinsinden süre veya null
+ */
+export function parseDurationToSeconds(duration) {
+  if (duration === undefined || duration === null || duration === '' || duration === '-') return null;
+  if (typeof duration === 'number') return duration;
+  const str = String(duration).trim();
+  if (!str) return null;
+  const parts = str.split(':');
+  if (parts.length === 3) {
+    return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseInt(parts[2], 10);
+  }
+  if (parts.length === 2) {
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  }
+  const num = parseInt(str, 10);
+  return isNaN(num) ? null : num;
+}
+
+/**
  * Video açıklamasındaki zaman etiketlerini (örn: 01:23) tıklanabilir linklere dönüştürür.
  * 
  * @param {string} text Ham açıklama metni

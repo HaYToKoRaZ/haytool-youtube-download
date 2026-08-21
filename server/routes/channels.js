@@ -1038,7 +1038,7 @@ export async function resolveChannelId(input, existingChannelId = null) {
       const videoId = videoMatch[1];
       targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
       isVideoUrl = true;
-      console.log(`Video URL'si tespit edildi. Video ID: ${videoId}`);
+      console.log(`[Kanal] Video URL tespit edildi. Video ID: ${videoId}`);
     } else if (!decodedInput.startsWith('http')) {
       if (decodedInput.startsWith('@')) {
         targetUrl = `https://www.youtube.com/${decodedInput}`;
@@ -1052,7 +1052,7 @@ export async function resolveChannelId(input, existingChannelId = null) {
     targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'hl=tr';
   }
 
-  console.log(`Çözümlenecek adres: ${targetUrl}`);
+  console.log(`[Kanal] Çözümlenecek adres: ${targetUrl}`);
   
   let fallbackChannelId = existingChannelId;
   const directIdMatch = targetUrl.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/);

@@ -23,6 +23,7 @@ export const de = {
   gist_btn_test: 'Token testen',
   gist_btn_push: 'Auf Gist hochladen (Push)',
   gist_btn_pull: 'Von Gist herunterladen (Pull)',
+  gist_btn_help: 'Wie verwenden & Token erhalten?',
   gist_auto_sync: 'Bei Kanaländerungen automatisch mit Gist synchronisieren',
   channels_title: 'Kanäle',
   channels_desc: 'Kanäle verwalten, die Sie automatisch überwachen und herunterladen möchten.',

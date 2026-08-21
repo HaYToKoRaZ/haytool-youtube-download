@@ -654,6 +654,16 @@ export function syncWithIni(db) {
         db.settings.historyDurationFilter = historyDurationFilter;
       }
 
+      const historyViewMode = getCaseInsensitiveKey(settingsSection, 'historyViewMode');
+      if (historyViewMode !== undefined) {
+        db.settings.historyViewMode = historyViewMode;
+      }
+
+      const downloadedViewMode = getCaseInsensitiveKey(settingsSection, 'downloadedViewMode');
+      if (downloadedViewMode !== undefined) {
+        db.settings.downloadedViewMode = downloadedViewMode;
+      }
+
       const enableAltThumbnailsHover = getCaseInsensitiveKey(settingsSection, 'enableAltThumbnailsHover');
       if (enableAltThumbnailsHover !== undefined) {
         db.settings.enableAltThumbnailsHover = enableAltThumbnailsHover !== 'false';
@@ -937,6 +947,8 @@ export function saveSettingsToIni(db) {
   iniData.Settings.discordRpcEnabled = (db.settings.discordRpcEnabled === true).toString();
   iniData.Settings.doubleClickAction = (db.settings.doubleClickAction || 'system').toString();
   iniData.Settings.historyDurationFilter = (db.settings.historyDurationFilter || 'off').toString();
+  iniData.Settings.historyViewMode = (db.settings.historyViewMode || 'grid').toString();
+  iniData.Settings.downloadedViewMode = (db.settings.downloadedViewMode || 'grid').toString();
   iniData.Settings.enableAltThumbnailsHover = (db.settings.enableAltThumbnailsHover !== false).toString();
   iniData.Settings.weatherEnabled = (db.settings.weatherEnabled !== false).toString();
   iniData.Settings.weatherCity = (db.settings.weatherCity || 'İstanbul').toString();

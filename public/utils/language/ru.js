@@ -20,6 +20,7 @@ export const ru = {
   gist_btn_test: 'Проверить токен',
   gist_btn_push: 'Загрузить в Gist (Push)',
   gist_btn_pull: 'Скачать из Gist (Pull)',
+  gist_btn_help: 'Как использовать & получить токен?',
   gist_auto_sync: 'Авто-синхронизация с Gist при изменении каналов',
   channels_title: 'Каналы',
   channels_desc: 'Управление YouTube-каналами, video с которых вы хотите скачивать автоматически.',

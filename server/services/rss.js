@@ -205,7 +205,7 @@ export function downloadChannelAvatar(url, channelName) {
         res.pipe(fileStream);
         fileStream.on('finish', () => {
           fileStream.close();
-          console.log(`Kanal avatarı başarıyla indirildi: ${channelName}`);
+          console.log(`[RSS] Kanal avatarı başarıyla indirildi: ${channelName}`);
           resolve(`/api/channels/${encodeURIComponent(channelName)}/avatar`);
         });
         fileStream.on('error', (err) => {
@@ -977,7 +977,7 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
                         if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
                           shouldDownload = false;
                           freshHistory.status = 'ignored';
-                          console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
+                          console.log(`[RSS] Shorts izni yok, atlandı: ${item.title}`);
                         }
                         
                         if (shouldDownload) {
@@ -1132,15 +1132,15 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
               if (liveHandling === 'ignore_live' && (duration === 'upcoming' || duration === 'live')) {
                 shouldDownload = false;
                 historyItem.status = 'ignored';
-                console.log(`Live stream / premiere ignored per user settings: ${item.title}`);
+                console.log(`[RSS] Canlı yayın/prömiyer kullanıcı ayarıyla yok sayıldı: ${item.title}`);
               } else if (liveHandling === 'vod_only' && (duration === 'upcoming' || duration === 'live')) {
                 shouldDownload = false;
                 historyItem.status = 'waiting_live_processing';
-                console.log(`Live stream detected. Deferring download until VOD conversion: ${item.title}`);
+                console.log(`[RSS] Canlı yayın tespit edildi, VOD dönüşümü bekleniyor: ${item.title}`);
               } else if (duration === 'upcoming' || duration === 'live') {
                 shouldDownload = true;
                 historyItem.status = 'waiting';
-                console.log(`Live stream / premiere detected. Queueing for instant download attempt: ${item.title}`);
+                console.log(`[RSS] Canlı yayın/prömiyer kuyruğa alındı: ${item.title}`);
               } else if (!downloadShorts && !duration) {
                 shouldDownload = false;
                 historyItem.status = 'waiting_duration';
@@ -1148,11 +1148,11 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
               } else if (!downloadShorts && isShortDuration(duration, shortsLimit)) {
                 shouldDownload = false;
                 historyItem.status = 'ignored';
-                console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
+                console.log(`[RSS] Shorts izni yok, atlandı: ${item.title}`);
               } else if (!freshDb.settings.autoDownload || (channelConfig ? channelConfig.autoDownload === false : false)) {
                 shouldDownload = false;
                 historyItem.status = 'ignored';
-                console.log(`Auto-download disabled. Ignoring: ${item.title}`);
+                console.log(`[RSS] Otomatik indirme kapalı, atlandı: ${item.title}`);
               } else {
                 historyItem.status = 'waiting';
               }
@@ -1200,7 +1200,7 @@ export async function checkNextChannelRss() {
   try {
     const db = readDb();
     if (db.channels.length === 0) {
-      console.log('İzlenen kanal bulunmuyor.');
+      console.log('[RSS] İzlenen kanal bulunamadı, tarama atlandı.');
       return;
     }
 
