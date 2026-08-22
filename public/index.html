@@ -1,0 +1,71 @@
+<!-- 
+  HaYTooL YouTube Downloader - Arayüz Tasarımı
+  Yapımcı: HaYTo
+  İletişim: korazhayto@gmail.com
+-->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HaYTooL YouTube Downloader</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons (Yerel) -->
+  <script src="lucide.min.js"></script>
+  <!-- Plyr Video Player (Yerel) -->
+  <link rel="stylesheet" href="plyr.css" />
+  <script src="plyr.min.js"></script>
+  <!-- ArtPlayer (Yerel) -->
+  <script src="artplayer.js"></script>
+  <link rel="stylesheet" href="style.css?v=8.31.0">
+</head>
+<body>
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('haytool_theme');
+        if (t && t !== 'dark') {
+          document.body.classList.remove('light-theme', 'matrix-theme', 'discord-theme', 'youtube-theme');
+          document.body.classList.add(t + '-theme');
+        }
+      } catch(e) {}
+    })();
+  </script>
+  <div class="app-container">
+    <!-- Üst Panel (Navigasyon & Sistem Durumu) -->
+    <!--PARTIAL:header-->
+
+    <!-- Ana İçerik Alanı -->
+    <main class="main-content">
+      <!-- Bildirim Log Çubuğu (Anlık Bilgilendirme) -->
+      <div id="toast-container"></div>
+
+      <!-- FFmpeg Bilgilendirme Banner'ı -->
+      <div id="ffmpeg-info-banner" class="ffmpeg-info-banner hidden">
+        <div class="ffmpeg-banner-content">
+          <i data-lucide="info" class="banner-icon"></i>
+          <span id="ffmpeg-banner-text">1080p/4K videoları birleştirmek için FFmpeg bulunamadı.</span>
+          <button id="ffmpeg-banner-install-btn" class="btn btn-xs btn-primary" style="background: linear-gradient(135deg, var(--primary), var(--secondary)); border: none; font-weight: 500;">Otomatik Kur</button>
+          <button id="ffmpeg-banner-close-btn" class="btn-banner-close"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
+        </div>
+      </div>
+
+      <!--PARTIAL:tab-channels-->
+      <!--PARTIAL:tab-history-->
+      <!--PARTIAL:tab-queue-->
+      <!--PARTIAL:tab-downloaded-->
+      <!--PARTIAL:tab-settings-->
+      <!--PARTIAL:tab-tools-->
+      <!--PARTIAL:tab-downloader-->
+      <!--PARTIAL:tab-iptv-->
+    </main>
+  </div>
+
+  <!--PARTIAL:modals-->
+  <script type="module" src="app.js?v=8.31.0"></script>
+</body>
+</html>

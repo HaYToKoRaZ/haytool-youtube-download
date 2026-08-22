@@ -1,0 +1,106 @@
+    <!-- Üst Panel (Navigasyon & Sistem Durumu) -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">
+          <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
+        </div>
+        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYTooL-YT-Downloader/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v8.52.0</a></span>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="history">
+          <i data-lucide="library" class="nav-tab-icon"></i>
+          <span id="lbl-nav-history">Kütüphane</span>
+        </button>
+        <button class="nav-item" data-tab="downloaded">
+          <i data-lucide="folder-check" class="nav-tab-icon"></i>
+          <span id="lbl-nav-downloaded">İndirilenler</span>
+        </button>
+        <button class="nav-item" data-tab="iptv" id="nav-iptv-btn">
+          <i data-lucide="monitor-play" class="nav-tab-icon"></i>
+          <span id="lbl-nav-iptv">IPTV</span>
+        </button>
+        <button class="nav-item" data-tab="queue" id="nav-queue-btn">
+          <i data-lucide="list-ordered" class="nav-tab-icon"></i>
+          <span id="lbl-nav-queue">Kuyruk</span>
+          <span class="queue-nav-badge" id="nav-queue-count-badge" title="Bekleyen İndirme Sayısı">0</span>
+        </button>
+        <button class="nav-item" data-tab="channels" id="nav-channels-btn">
+          <i data-lucide="tv" class="nav-tab-icon"></i>
+          <span id="lbl-nav-channels">Kanallar</span>
+        </button>
+        <div class="nav-dropdown" id="tools-dropdown">
+          <button class="tools-btn" id="tools-btn" title="Araçlar Menüsü">
+            <i data-lucide="wrench" class="nav-tab-icon"></i>
+            <span id="nav-tools-text">Araçlar</span>
+            <div class="nav-tab-badge"><i data-lucide="chevron-down" class="dropdown-arrow"></i></div>
+          </button>
+          <div class="nav-dropdown-menu" id="tools-menu">
+            <div class="nav-dropdown-header">
+              <i data-lucide="sparkles"></i>
+              <span id="nav-tools-panel-title">Hızlı Araçlar Paneli</span>
+            </div>
+            <button class="nav-dropdown-item" id="pd-action-btn" onclick="pasteAndDownload()">
+              <div class="nav-item-icon-box"><i data-lucide="clipboard-copy"></i></div>
+              <span id="nav-hdown-pd-text">PD (Yapıştır & İndir)</span>
+              <div class="nav-dropdown-badge"><i data-lucide="download"></i></div>
+            </button>
+            <button class="nav-dropdown-item" data-tab="downloader" id="downloader-action-btn">
+              <div class="nav-item-icon-box"><i data-lucide="list-video"></i></div>
+              <span id="nav-hdown-downloader-text">Downloader</span>
+              <div class="nav-dropdown-badge"><i data-lucide="play"></i></div>
+            </button>
+            <button class="nav-dropdown-item" id="nav-tools-compare-btn">
+              <div class="nav-item-icon-box"><i data-lucide="folder-sync"></i></div>
+              <span id="nav-tools-compare-text">Dosya Karşılaştırma</span>
+              <div class="nav-dropdown-badge"><i data-lucide="files"></i></div>
+            </button>
+            <button class="nav-dropdown-item" id="nav-tools-categories-btn">
+              <div class="nav-item-icon-box"><i data-lucide="tag"></i></div>
+              <span id="nav-tools-categories-text">Kanal Kategorilerini Düzenleme</span>
+              <div class="nav-dropdown-badge"><i data-lucide="folder-tree"></i></div>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div class="topbar-status-badges">
+        <div class="status-badge" id="badge-weather" title="Hava Durumu" style="cursor: pointer;">
+          <i data-lucide="sun" id="weather-icon"></i>
+          <span id="weather-display">--°</span>
+        </div>
+        <div class="status-badge status-badge-duo" id="badge-status-duo" title="Sistem ve YouTube Oturum Durumu">
+          <div class="status-duo-item" id="badge-connection" title="Sunucu Bağlantı Durumu: Bağlanıyor...">
+            <span class="status-dot online" id="status-indicator"></span>
+            <span id="topbar-status-text" style="display: none;">Bağlantı: Bağlanıyor...</span>
+          </div>
+          <span class="status-duo-divider"></span>
+          <div class="status-duo-item" id="badge-cookie" title="YouTube Oturum Durumu" style="cursor: pointer;" onclick="if(typeof testCookies==='function') testCookies();">
+            <span class="cookie-test-indicator" id="cookie-test-indicator" style="width: 7px; height: 7px; border-radius: 50%; display: inline-block; background-color: var(--text-muted);"></span>
+          </div>
+        </div>
+        <div class="status-badge" id="badge-quality" title="Varsayılan İndirme Kalitesi">
+          <i data-lucide="sliders"></i>
+          <span id="topbar-quality-label"><span id="topbar-quality-title">Kalite</span>: <span id="quality-status">En Yüksek</span></span>
+        </div>
+        <div class="status-badge" id="badge-disk" title="İndirme Sürücüsü Boş Alanı ve Klasör Boyutu">
+          <i data-lucide="hard-drive"></i>
+          <span id="topbar-disk-label"><span id="topbar-disk-title-free">Boş</span>: <span id="disk-status-free">--</span> | <span id="topbar-disk-title-folder">Alan</span>: <span id="disk-status-folder">--</span></span>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <button id="open-downloads-folder-btn" onclick="openFolder()" class="btn btn-secondary btn-icon-only" title="İndirilenler Klasörünü Aç">
+          <i data-lucide="folder-open"></i>
+        </button>
+        <button id="quick-theme-toggle-btn" onclick="toggleQuickTheme()" class="btn btn-secondary btn-icon-only" title="Hızlı Tema Değiştir (Koyu / Açık)">
+          <i data-lucide="sun" id="quick-theme-icon"></i>
+        </button>
+        <button id="header-settings-btn" class="btn btn-secondary btn-icon-only" title="Ayarlar">
+          <i data-lucide="settings"></i>
+        </button>
+        <button id="sync-now-btn" class="btn btn-secondary btn-icon-only" title="Kanalları Şimdi Denetle">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+      </div>
+    </header>
