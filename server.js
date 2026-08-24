@@ -176,7 +176,7 @@ import { configIniPath, parseIni } from './server/config.js';
 import { appVersion } from './server/version.js';
 
 // API Rotası Modülleri
-import { router as settingsRouter, ensureDailySystemBackup } from './server/routes/settings.js';
+import { router as settingsRouter, ensureDailySystemBackup, triggerSilentCookieRefresh, setupPeriodicDiskSync } from './server/routes/settings.js';
 import { router as channelsRouter } from './server/routes/channels.js';
 import { router as historyRouter } from './server/routes/history.js';
 import { router as iptvRouter } from './server/routes/iptv.js';
@@ -849,7 +849,15 @@ if (process.argv.length <= 2) {
     setTimeout(() => {
       ensureDailySystemBackup();
     }, 1000);
-    setInterval(syncDbWithDisk, 5 * 60 * 1000);
+    setupPeriodicDiskSync();
+
+    // YouTube oturum çerezlerini açılışın ilk adımı olarak bağımsız şekilde tazele.
+    // İndirme kuyruğu (4s), disk sync (7s) ve diğer işlemlerden ÖNCE çalışır.
+    // Aktif indirme veya başka bir işlem olup olmadığından bağımsızdır.
+    setTimeout(() => {
+      addTerminalLog('[Sistem Açılışı] YouTube oturum çerezleri açılışta tazeleniyor...', 'info');
+      triggerSilentCookieRefresh();
+    }, 2000);
     
     // Bozuk kanal kayıtlarını temizle
     const originalCount = db.channels.length;
@@ -918,29 +926,35 @@ if (process.argv.length <= 2) {
       checkGithubUpdates().catch(err => console.error('GitHub güncelleme kontrolü yenilenemedi:', err.message));
     }, 12 * 60 * 60 * 1000);
 
-    // Sunucu açılış yaşam döngüsü: Önce disk senkronizasyonu eksiksiz tamamlanır, ardından kanal taraması başlatılır
+    // Sunucu açılış yaşam döngüsü: Disk Senkronizasyonu -> Açılış Kanal Taraması
+    // NOT: Çerez tazeleme (triggerSilentCookieRefresh) bağımsız olarak 2s'de çalışmaktadır.
     setTimeout(async () => {
       try {
         const initialDb = readDb();
         if (initialDb.settings.autoDiskSync !== false) {
-          addTerminalLog('[Sistem Açılışı] İlk olarak disk senkronizasyonu çalıştırılıyor...', 'info');
+          addTerminalLog('[Sistem Açılışı] 1/2 Disk senkronizasyonu çalıştırılıyor...', 'info');
           await syncDbWithDisk();
         }
       } catch (diskErr) {
         console.error('[Sistem Açılışı] Disk senkronizasyonu hatası:', diskErr.message);
       }
 
-      // Disk senkronizasyonu tamamen bittikten sonra açılış kanal taraması (Ayarlarda aktifse)
+      // Disk senkronizasyonu tamamlandıktan sonra açılış kanal taraması (Ayarlarda aktifse)
       const currentDb = readDb();
       if (currentDb.settings.checkChannelsOnStartup && !currentDb.settings.isPaused && currentDb.channels.length > 0) {
         try {
-          addTerminalLog('[Sistem Açılışı] Disk senkronizasyonu tamamlandı, açılış kanal taraması başlatılıyor...', 'info');
+          addTerminalLog('[Sistem Açılışı] 2/2 Açılış kanal taraması başlatılıyor...', 'info');
           await triggerChannelCheck('startup');
         } catch (err) {
           console.error('[RSS] Başlangıç taramasında hata oluştu:', err.message);
         }
       }
     }, 7000);
+
+    // YouTube Oturum Çerezlerini Periyodik Olarak Arka Planda Yenile (Her 30 dakikada bir)
+    setInterval(() => {
+      triggerSilentCookieRefresh();
+    }, 30 * 60 * 1000);
 
     // Tarayıcıyı aç
     const currentDbState = readDb();

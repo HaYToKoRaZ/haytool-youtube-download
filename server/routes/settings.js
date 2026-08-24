@@ -34,6 +34,38 @@ export function formatBackupDateStr(now = new Date()) {
 
 export const router = express.Router();
 
+let periodicDiskSyncTimer = null;
+
+/**
+ * Periyodik arka plan disk senkronizasyonu zamanlayıcısını ayara göre başlatır / günceller.
+ * 
+ * @param {string|number|null} [intervalMinutes=null] - Dakika cinsinden sıklık ('off', '15', '30', '60', '360', '1440')
+ * @returns {void}
+ */
+export function setupPeriodicDiskSync(intervalMinutes = null) {
+  if (periodicDiskSyncTimer) {
+    clearInterval(periodicDiskSyncTimer);
+    periodicDiskSyncTimer = null;
+  }
+
+  const db = readDb();
+  let intervalVal = intervalMinutes !== null ? intervalMinutes : (db.settings?.periodicDiskSyncInterval || '360');
+
+  if (intervalVal === 'off' || intervalVal === false || intervalVal === 0 || intervalVal === '0') {
+    console.log('[Disk Sync] Periyodik arka plan disk senkronizasyonu devre dışı (Kapalı).');
+    return;
+  }
+
+  const mins = parseInt(intervalVal, 10);
+  if (!isNaN(mins) && mins > 0) {
+    const ms = mins * 60 * 1000;
+    console.log(`[Disk Sync] Periyodik arka plan disk senkronizasyonu kuruldu: Her ${mins} dakikada bir.`);
+    periodicDiskSyncTimer = setInterval(() => {
+      syncDbWithDisk(false);
+    }, ms);
+  }
+}
+
 let checkIntervalTimer = null;
 
 // Türkçe Açıklama: RSS video kontrol döngüsünü ayardaki saniyeye göre başlatır (rss.js modülünü dinamik çağırır).
@@ -42,7 +74,7 @@ let checkIntervalTimer = null;
  * 
  * @returns {Promise<void>}
  */
-async function startIntervalTimer() {
+export async function startIntervalTimer() {
   const db = readDb();
   if (checkIntervalTimer) {
     clearInterval(checkIntervalTimer);
@@ -101,8 +133,7 @@ router.get('/youtube-auth-status', localhostOnly, async (req, res) => {
     success: true,
     activeSource,
     hasCookiesTxt: hasValidCookies,
-    hasWebView2Cookies: hasValidCookies,
-    selectedBrowser: 'none'
+    hasWebView2Cookies: hasValidCookies
   });
 });
 
@@ -119,15 +150,21 @@ router.post('/open-youtube-login', localhostOnly, (req, res) => {
     const loginUrl = 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com';
 
     if (process.platform === 'win32') {
-      exec(`cmd /c start "" "${loginUrl}"`, (err) => {
-        if (err) {
-          open(loginUrl);
-        }
-      });
-    } else {
-      open(loginUrl);
+      // bin/ içindeki gerçek WPF player'ını tercih et (WebView2 ile oturum cookie'lerini senkronize eder)
+      const binPlayerExe = path.resolve(process.cwd(), 'bin', 'HaYTooLPlayer.exe');
+      const rootPlayerExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
+      const targetExe = fs.existsSync(binPlayerExe) ? binPlayerExe : (fs.existsSync(rootPlayerExe) ? rootPlayerExe : null);
+
+      if (targetExe) {
+        exec(`"${targetExe}" "${loginUrl}"`, { windowsHide: false }, () => {});
+        console.log('[YouTube Login] YouTube oturum açma sayfası dahili tarayıcıda başlatıldı.');
+        res.json({ success: true, message: 'YouTube oturum açma penceresi açıldı.' });
+        return;
+      }
     }
 
+    // Fallback: sistem tarayıcısını aç
+    open(loginUrl);
     console.log('[YouTube Login] YouTube oturum açma sayfası tarayıcıda başlatıldı.');
     res.json({ success: true, message: 'YouTube oturum açma penceresi açıldı.' });
   } catch (err) {
@@ -196,6 +233,51 @@ router.post('/logout-youtube', localhostOnly, (req, res) => {
 });
 
 /**
+ * Arka planda sessizce HaYTooL-Player WebView2 motoru üzerinden taze YouTube çerezlerini yeniler.
+ * 
+ * @returns {Promise<boolean>}
+ */
+export function triggerSilentCookieRefresh() {
+  return new Promise((resolve) => {
+    try {
+      if (process.platform === 'win32') {
+        const launcherExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
+        const binPlayerExe = path.resolve(process.cwd(), 'bin', 'HaYTooLPlayer.exe');
+        // Sessiz çerez tazeleme için bin/ içindeki güncel versiyonu tercih et (NavigationCompleted fix'i içerir).
+        // Root'taki launcher yalnızca bin/ bulunamazsa yedek olarak kullanılır.
+        const targetExe = fs.existsSync(binPlayerExe) ? binPlayerExe : (fs.existsSync(launcherExe) ? launcherExe : null);
+        if (targetExe) {
+          exec(`"${targetExe}" --silent-cookie-refresh`, { windowsHide: true }, (err) => {
+            resolve(!err);
+          });
+          return;
+        }
+      }
+      resolve(false);
+    } catch (e) {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * YouTube oturum çerezlerini arka planda otomatik ve sessizce yeniler.
+ * 
+ * @name POST /api/refresh-youtube-cookies
+ * @function
+ * @inner
+ * @returns {void}
+ */
+router.post('/refresh-youtube-cookies', localhostOnly, (req, res) => {
+  try {
+    triggerSilentCookieRefresh();
+    res.json({ success: true, message: 'Arka plan çerez yenileme başlatıldı.' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * Netscape formatındaki cookies.txt içeriğini doğrudan ana dizine kaydeder.
  * 
  * @name POST /api/save-cookies-txt
@@ -228,7 +310,7 @@ router.post('/save-cookies-txt', localhostOnly, (req, res) => {
 });
 
 /**
- * Seçilen tarayıcının premium çerezlerinin YouTube için geçerli olup olmadığını test eder.
+ * WebView2 oturum çerezlerinin (cookies.txt) YouTube için geçerli olup olmadığını test eder.
  * 
  * @name GET /api/test-cookies
  * @function
@@ -238,8 +320,7 @@ router.post('/save-cookies-txt', localhostOnly, (req, res) => {
  * @returns {Promise<void>}
  */
 router.get('/test-cookies', localhostOnly, async (req, res) => {
-  const db = readDb();
-  const result = await testCookiesValidity(db.settings.browser);
+  const result = await testCookiesValidity();
   res.json(result);
 });
 
@@ -444,6 +525,7 @@ router.get('/logs', (req, res) => {
 router.post('/settings', localhostOnly, (req, res) => {
   const db = readDb();
   const oldSpeedLimit = getEffectiveSpeedLimit(db.settings);
+  const oldDownloadPath = db.settings.downloadPath;
 
   if (req.body.downloadSpeedLimit !== undefined) {
     req.body.downloadSpeedLimit = parseInt(req.body.downloadSpeedLimit, 10) || 0;
@@ -461,6 +543,7 @@ router.post('/settings', localhostOnly, (req, res) => {
   db.settings = { ...db.settings, ...req.body };
   const newSpeedLimit = getEffectiveSpeedLimit(db.settings);
   const speedLimitChanged = newSpeedLimit !== oldSpeedLimit;
+  const downloadPathChanged = Boolean(req.body.downloadPath && req.body.downloadPath !== oldDownloadPath);
 
   if (req.body.lang) {
     console.log(`[TRAY_CMD] lang=${req.body.lang}`);
@@ -468,11 +551,15 @@ router.post('/settings', localhostOnly, (req, res) => {
 
   writeDb(db);
   startIntervalTimer(); // Süre değiştiyse zamanlayıcıyı güncelle
+  setupPeriodicDiskSync(); // Disk senkronizasyon sıklığı değiştiyse güncelle
   broadcast('db_update', db);
 
-  setTimeout(() => {
-    syncDbWithDisk();
-  }, 100);
+  // Yalnızca indirme klasörü yolu fiziksel olarak değiştiğinde disk senkronizasyonu çalıştır
+  if (downloadPathChanged) {
+    setTimeout(() => {
+      syncDbWithDisk(false);
+    }, 100);
+  }
 
   if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
     const videoId = downloadQueue.activeVideoId;
@@ -836,11 +923,11 @@ export function ensureFfmpeg() {
   return Promise.reject(err);
 }
 
-// Seçilen veya aktif çerezlerin geçerliliğini test eden fonksiyon
-export function testCookiesValidity(browser) {
+// WebView2 oturum çerezlerinin (cookies.txt) geçerliliğini test eden fonksiyon
+export function testCookiesValidity() {
   return new Promise((resolve) => {
     const db = readDb();
-    const settings = { ...db.settings, ...(browser ? { browser } : {}) };
+    const settings = db.settings || {};
     const cookieArgs = getCookieArgs(settings);
 
     if (cookieArgs.length === 0) {
@@ -874,13 +961,7 @@ export function testCookiesValidity(browser) {
         resolve({ success: true, message: `Çerezler başarıyla okundu ve YouTube tarafından doğrulandı (${srcName}).` });
       } else {
         let userFriendlyError = errorOutput.trim();
-        if (userFriendlyError.includes('Could not copy Chrome cookie database') || userFriendlyError.includes('Could not copy Edge cookie database')) {
-          userFriendlyError = 'Tarayıcı çerez veritabanı kilitli! Tarayıcınız açık olabilir, lütfen kapatıp tekrar deneyin veya HaYTooL dahili oturumunu kullanın.';
-        } else if (userFriendlyError.includes('Could not find browser')) {
-          userFriendlyError = `Belirtilen tarayıcı bulunamadı veya profil dizini eksik: ${browser ? browser.toUpperCase() : ''}`;
-        } else {
-          userFriendlyError = `Çerez doğrulama uyarısı (Kod: ${code}): ${userFriendlyError.slice(0, 150)}`;
-        }
+        userFriendlyError = `Çerez doğrulama uyarısı (Kod: ${code}): ${userFriendlyError.slice(0, 150)}`;
         resolve({ success: false, error: userFriendlyError });
       }
     });

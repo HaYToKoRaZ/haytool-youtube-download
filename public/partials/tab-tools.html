@@ -135,4 +135,33 @@
           </div>
         </div>
 
+        <!-- 3. BÖLÜM: APE - Hızlı İzlendi İşaretleme Aracı -->
+        <div class="card hidden" id="tools-ape-container" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <h3 id="tools-ape-title" style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.05rem;">APE</h3>
+            <span id="tools-ape-badge" style="background: rgba(56, 189, 248, 0.12); color: var(--accent-color); padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">İzlendi İşaretleme</span>
+          </div>
+          <p id="tools-ape-desc" style="margin: 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.55;">Video veya kanal linki/kullanıcı adı girerek ilgili videoları kütüphanede ve YouTube geçmişinizde izlendi olarak işaretleyin.</p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <input type="text" id="ape-target-input" placeholder="YouTube Video veya Kanal Linki / ID girin..." style="flex: 1; min-width: 260px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 0.9rem;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label for="ape-limit-input" id="label-ape-limit" style="font-size: 0.8rem; color: var(--text-muted); white-space: nowrap;">Video Sayısı:</label>
+              <input type="number" id="ape-limit-input" min="1" max="200" value="50" title="Kanal işaretlemede maksimum video sayısı (1-200)" style="width: 78px; padding: 10px 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 0.9rem; text-align: center;">
+            </div>
+            <button type="button" class="btn btn-primary" id="btn-ape-mark-watched" onclick="handleApeMarkWatched()" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+              <i data-lucide="check-check" style="width: 16px; height: 16px;"></i>
+              <span id="btn-ape-mark-text">İzlendi Olarak İşaretle</span>
+            </button>
+          </div>
+          <div class="checkbox-container" style="margin-top: 4px;">
+            <input type="checkbox" id="ape-sync-youtube-checkbox" class="toggle-input" checked>
+            <label for="ape-sync-youtube-checkbox" class="toggle-label"></label>
+            <span class="checkbox-text" id="label-ape-sync-youtube">YouTube hesabında da izlendi olarak işaretle (Watchtime Sync)</span>
+          </div>
+          <div id="ape-result-box" class="hidden" style="padding: 12px 16px; border-radius: 8px; display: flex; align-items: flex-start; gap: 10px; font-size: 0.92rem; line-height: 1.5;">
+            <i id="ape-result-icon" data-lucide="info" style="width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px;"></i>
+            <span id="ape-result-text"></span>
+          </div>
+        </div>
+
       </section>

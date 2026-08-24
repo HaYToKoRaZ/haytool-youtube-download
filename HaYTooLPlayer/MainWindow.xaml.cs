@@ -11,16 +11,57 @@ namespace HaYTooLPlayer
     public partial class MainWindow : Window
     {
         private System.Windows.Threading.DispatcherTimer backendMonitorTimer;
+        private System.Windows.Threading.DispatcherTimer cookieKeepaliveTimer;
+        private bool isSilentCookieRefresh = false;
 
         public MainWindow()
         {
             InitializeComponent();
-            this.WindowState = WindowState.Maximized;
+
+            string[] args = Environment.GetCommandLineArgs();
+            foreach (var arg in args)
+            {
+                if (arg.Equals("--silent-cookie-refresh", StringComparison.OrdinalIgnoreCase) || arg.Equals("REFRESH_COOKIES", StringComparison.OrdinalIgnoreCase))
+                {
+                    isSilentCookieRefresh = true;
+                    break;
+                }
+            }
+
+            if (isSilentCookieRefresh)
+            {
+                this.ShowInTaskbar = false;
+                this.Visibility = Visibility.Hidden;
+                this.Width = 0;
+                this.Height = 0;
+                this.WindowStyle = WindowStyle.None;
+            }
+            else
+            {
+                this.WindowState = WindowState.Maximized;
+                StartBackendMonitor();
+                StartCookieKeepaliveTimer();
+                this.Activated += (s, e) => { SyncYouTubeCookiesToFileAsync(); };
+                this.Closing += (s, e) => { SyncYouTubeCookiesToFileAsync(); };
+            }
+
             InitializeAsync();
-            StartBackendMonitor();
         }
 
-
+        private void StartCookieKeepaliveTimer()
+        {
+            try
+            {
+                cookieKeepaliveTimer = new System.Windows.Threading.DispatcherTimer();
+                cookieKeepaliveTimer.Interval = TimeSpan.FromMinutes(15);
+                cookieKeepaliveTimer.Tick += (s, e) =>
+                {
+                    SyncYouTubeCookiesToFileAsync();
+                };
+                cookieKeepaliveTimer.Start();
+            }
+            catch {}
+        }
 
         private const int WM_COPYDATA = 0x004A;
 
@@ -45,6 +86,12 @@ namespace HaYTooLPlayer
                     {
                         this.Dispatcher.Invoke(() =>
                         {
+                            if (path == "REFRESH_COOKIES" || path == "--silent-cookie-refresh")
+                            {
+                                SyncYouTubeCookiesToFileAsync();
+                                return;
+                            }
+
                             if (this.WindowState == WindowState.Minimized)
                             {
                                 this.WindowState = WindowState.Normal;
@@ -133,11 +180,25 @@ namespace HaYTooLPlayer
                 webView.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
                 webView.CoreWebView2.NewWindowRequested += CoreWebView2_NewWindowRequested;
 
-                // YouTube oturum çerezlerini kök dizindeki cookies.txt dosyasına otomatik senkronize et
-                webView.CoreWebView2.NavigationCompleted += (s, e) =>
+                // YouTube oturum çerezlerini kök dizindeki cookies.txt dosyasına otomatik senkronize et.
+                // Sessiz çerez yenileme modunda: sayfa yüklenince çerezleri yaz ve uygulamayı kapat.
+                webView.CoreWebView2.NavigationCompleted += async (s, e) =>
                 {
                     SyncYouTubeCookiesToFileAsync();
+                    if (isSilentCookieRefresh)
+                    {
+                        await System.Threading.Tasks.Task.Delay(3000);
+                        this.Dispatcher.Invoke(() => Application.Current.Shutdown());
+                    }
                 };
+
+                // Eğer sessiz arka plan çerez yenileme modundaysak, YouTube ana sayfasına yönlendir.
+                // Sayfa yüklenince NavigationCompleted tetiklenir → taze oturum çerezleri cookies.txt'e yazılır → uygulama kapanır.
+                if (isSilentCookieRefresh)
+                {
+                    webView.CoreWebView2.Navigate("https://www.youtube.com");
+                    return;
+                }
 
                 // Sunucu URL'sine Yönlendir
                 string url = GetAppUrl();
@@ -489,6 +550,13 @@ namespace HaYTooLPlayer
             {
                 if (webView == null || webView.CoreWebView2 == null) return;
 
+                // 1. Arka planda sessizce YouTube keepalive pingi atarak taze token'ların (PSIDTS, SAPISID, SIDCC) alınmasını sağla
+                try
+                {
+                    await webView.CoreWebView2.ExecuteScriptAsync("fetch('https://www.youtube.com/generate_204', {credentials: 'include', mode: 'no-cors'}).catch(()=>{})");
+                }
+                catch {}
+
                 var cookieManager = webView.CoreWebView2.CookieManager;
                 var cookies = await cookieManager.GetCookiesAsync("https://www.youtube.com");
                 if (cookies == null || cookies.Count == 0) return;
@@ -523,7 +591,7 @@ namespace HaYTooLPlayer
                     sb.AppendLine(string.Format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}",
                         domain, includeSubdomains, path, secure, expires, c.Name, c.Value));
 
-                    if (c.Name == "LOGIN_INFO" || c.Name == "__Secure-1PSID" || c.Name == "__Secure-3PSID")
+                    if (c.Name == "LOGIN_INFO" || c.Name == "__Secure-1PSID" || c.Name == "__Secure-3PSID" || c.Name == "SAPISID" || c.Name == "SID" || c.Name == "__Secure-3PAPISID" || c.Name == "__Secure-1PAPISID")
                     {
                         hasLoginInfo = true;
                     }
@@ -534,12 +602,6 @@ namespace HaYTooLPlayer
                     var utf8NoBom = new System.Text.UTF8Encoding(false);
                     try { File.WriteAllText(Path.Combine(rootDir, "cookies.txt"), sb.ToString(), utf8NoBom); } catch {}
                     try { File.WriteAllText(Path.Combine(baseDir, "cookies.txt"), sb.ToString(), utf8NoBom); } catch {}
-                }
-                else
-                {
-                    // Oturum yoksa veya kapatılmışsa eski cookies.txt dosyasını temizle
-                    try { if (File.Exists(Path.Combine(rootDir, "cookies.txt"))) File.Delete(Path.Combine(rootDir, "cookies.txt")); } catch {}
-                    try { if (File.Exists(Path.Combine(baseDir, "cookies.txt"))) File.Delete(Path.Combine(baseDir, "cookies.txt")); } catch {}
                 }
             }
             catch {}

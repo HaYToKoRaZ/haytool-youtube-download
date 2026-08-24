@@ -112,7 +112,6 @@ export const defaultDb = {
   ],
   settings: {
     downloadPath: defaultDownloadDir,
-    browser: 'none',
     quality: 'best',
     channelCheckInterval: 1800,
     autoDownload: true,
@@ -155,6 +154,7 @@ export const defaultDb = {
     markWatchedOnDelete: true,
     autoSyncWatchtime: true,
     autoDiskSync: true,
+    periodicDiskSyncInterval: '360',
     checkChannelsOnStartup: false,
     enableAltThumbnailsHover: true,
     githubToken: '',
@@ -321,11 +321,8 @@ export function readDb() {
       writeDb(db);
     }
 
-    // Çerez varsayılanı migrasyonu (Chrome varsayılanını 'none' olarak günceller)
+    // Çerez varsayılanı migrasyonu kaldırıldı: tarayıcı çerez sistemi (browser ayarı) tamamen kullanımdan kaldırıldı
     if (!db.settings.cookieDefaultMigrationDone) {
-      if (db.settings.browser === 'chrome') {
-        db.settings.browser = 'none';
-      }
       db.settings.cookieDefaultMigrationDone = true;
       writeDb(db);
       saveSettingsToIni(db);
@@ -524,9 +521,6 @@ export function syncWithIni(db) {
       const downloadPath = getCaseInsensitiveKey(settingsSection, 'downloadPath');
       if (downloadPath !== undefined) db.settings.downloadPath = downloadPath;
 
-      const browser = getCaseInsensitiveKey(settingsSection, 'browser');
-      if (browser !== undefined) db.settings.browser = browser;
-
       const quality = getCaseInsensitiveKey(settingsSection, 'quality');
       if (quality !== undefined) db.settings.quality = quality;
 
@@ -672,6 +666,11 @@ export function syncWithIni(db) {
       const autoDiskSync = getCaseInsensitiveKey(settingsSection, 'autoDiskSync');
       if (autoDiskSync !== undefined) {
         db.settings.autoDiskSync = autoDiskSync !== 'false';
+      }
+
+      const periodicDiskSyncInterval = getCaseInsensitiveKey(settingsSection, 'periodicDiskSyncInterval');
+      if (periodicDiskSyncInterval !== undefined) {
+        db.settings.periodicDiskSyncInterval = periodicDiskSyncInterval;
       }
 
       const weatherEnabled = getCaseInsensitiveKey(settingsSection, 'weatherEnabled');
@@ -909,7 +908,6 @@ export function saveSettingsToIni(db) {
   const iniData = { Settings: {} };
   
   iniData.Settings.downloadPath = db.settings.downloadPath;
-  iniData.Settings.browser = db.settings.browser;
   iniData.Settings.quality = db.settings.quality;
   iniData.Settings.channelCheckInterval = (db.settings.channelCheckInterval !== undefined ? db.settings.channelCheckInterval : 1800).toString();
   iniData.Settings.autoDownload = db.settings.autoDownload.toString();
@@ -947,6 +945,7 @@ export function saveSettingsToIni(db) {
   iniData.Settings.markWatchedOnDelete = (db.settings.markWatchedOnDelete !== false).toString();
   iniData.Settings.autoSyncWatchtime = (db.settings.autoSyncWatchtime !== false).toString();
   iniData.Settings.autoDiskSync = (db.settings.autoDiskSync !== false).toString();
+  iniData.Settings.periodicDiskSyncInterval = (db.settings.periodicDiskSyncInterval || '360').toString();
 
   writeIni(configIniPath, iniData);
 }
@@ -1096,11 +1095,13 @@ export async function syncDbWithDisk(forceManual = false) {
     const { downloadQueue } = await import('./services/downloader.js');
     if (downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
       console.log('[Disk Sync] Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.');
-      addTerminalLog('[Disk Sync] Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.', 'warn');
+      if (forceManual) {
+        addTerminalLog('[Disk Sync] Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.', 'warn');
+      }
       return { success: false, busy: true, message: 'Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.' };
     }
 
-    return performDiskSync();
+    return performDiskSync(forceManual);
   } catch (err) {
     console.error('[Disk Sync Error]', err.message);
     addTerminalLog(`[Disk Sync Error] ${err.message}`, 'error');
@@ -1108,7 +1109,7 @@ export async function syncDbWithDisk(forceManual = false) {
   }
 }
 
-function performDiskSync() {
+function performDiskSync(forceManual = false) {
   try {
     let db = defaultDb;
     if (fs.existsSync(dbPath)) {
@@ -1121,7 +1122,9 @@ function performDiskSync() {
       return { success: false, error: 'db.json mevcut değil' };
     }
 
-    addTerminalLog('[Disk Sync] Disk senkronizasyonu ve video doğrulama başlatıldı...', 'info');
+    if (forceManual) {
+      addTerminalLog('[Disk Sync] Disk senkronizasyonu ve video doğrulama başlatıldı...', 'info');
+    }
 
     let dbUpdated = false;
     let totalVerified = 0;
@@ -1154,13 +1157,11 @@ function performDiskSync() {
                 updatedCount++;
               }
 
-              if (!item.actualQuality) {
-                const res = getVideoResolution(diskFile);
-                if (res) {
-                  item.actualQuality = res;
-                  dbUpdated = true;
-                  updatedCount++;
-                }
+              const res = getVideoResolution(diskFile);
+              if (res && item.actualQuality !== res) {
+                item.actualQuality = res;
+                dbUpdated = true;
+                updatedCount++;
               }
               newHistory.push(item);
             } catch (err) {
@@ -1188,8 +1189,14 @@ function performDiskSync() {
     }
 
     const summaryMsg = `Disk senkronizasyonu tamamlandı: ${totalVerified} video doğrulandı, ${updatedCount} kayıt güncellendi.`;
-    addTerminalLog(`[Disk Sync] ${summaryMsg}`, 'success');
-    broadcast('status_log', { message: summaryMsg, type: 'success' });
+    
+    // Manuel tetiklendiğinde veya arka planda dosya güncellendiğinde logla & bildirim gönder
+    if (forceManual || updatedCount > 0) {
+      addTerminalLog(`[Disk Sync] ${summaryMsg}`, 'success');
+      broadcast('status_log', { message: summaryMsg, type: 'success' });
+    } else {
+      console.log(`[Disk Sync] ${summaryMsg}`);
+    }
 
     return {
       success: true,

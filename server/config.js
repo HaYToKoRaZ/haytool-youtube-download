@@ -88,8 +88,6 @@ export function getCaseInsensitiveKey(obj, targetKey) {
 export const settingComments = {
   downloadPath: '# İndirme Klasörü / Download Directory\n# Açıklama: İndirilen video ve müziklerin kaydedileceği fiziksel dizin yolu.\n# Description: Physical directory path where downloaded video and audio files are saved.\n# Seçenekler / Options: Geçerli klasör yolu / Any valid folder path\n# Varsayılan / Default: download',
 
-  browser: '# Çerez Çekilecek Tarayıcı / Browser to Import Cookies From\n# Açıklama: YouTube oturumu ve üyelere özel içeriklerin indirilmesi için çerezlerin okunacağı web tarayıcısı.\n# Description: Web browser to import session cookies from for YouTube login and member-only videos.\n# Seçenekler / Options: none, chrome, firefox, edge, msedge, brave, opera, vivaldi\n# Varsayılan / Default: none',
-
   quality: '# Video İndirme Kalitesi / Video Download Quality\n# Açıklama: İndirilecek videolar için hedeflenen maksimum çözünürlük kalitesi.\n# Description: Target maximum video resolution quality for downloads.\n# Seçenekler / Options: best, 2160p, 1440p, 1080p, 720p, 480p, 360p, audio_only\n# Varsayılan / Default: best',
 
   channelCheckInterval: '# Tüm Kanalları Otomatik Denetleme Sıklığı (Saniye) / All Channels Automatic Check Interval (Seconds)\n# Açıklama: Takip edilen tüm kanalların arka planda otomatik taranma sıklığı.\n# Description: Frequency in seconds for automatically scanning all tracked channels in background.\n# Seçenekler / Options: Sayısal değer (Saniye / Seconds, örn: 300, 600, 1500, 1800)\n# Varsayılan / Default: 1800',
@@ -178,6 +176,12 @@ export const settingComments = {
 
   tempDirType: '# Geçici Dosya Klasörü Türü / Temporary Directory Type\n# Açıklama: İndirme sırasında parçaların ve FFmpeg işlemlerinin tutulacağı geçici klasör.\n# Description: Temp folder location for download parts and FFmpeg processing.\n# Seçenekler / Options: system (İşletim sistemi varsayılanı), local (Uygulama içi yerel temp)\n# Varsayılan / Default: system',
 
+  preferredAudioLang: '# Tercih Edilen Ses Dili / Preferred Audio Track Language\n# Açıklama: Çok dilli videolarda otomatik indirilecek ses parçası dil kodu.\n# Description: Preferred audio language code for multi-audio YouTube videos.\n# Seçenekler / Options: tr, en, es, de, pt, ru, ar vb.\n# Varsayılan / Default: tr',
+
+  periodicDiskSyncInterval: '# Periyodik Disk Senkronizasyonu Sıklığı (Dakika) / Periodic Disk Sync Interval (Minutes)\n# Açıklama: Uygulama açıkken yerel indirme klasörünü arka planda otomatik doğrulama sıklığı.\n# Description: Interval in minutes to periodically reconcile downloaded files with database.\n# Seçenekler / Options: off (Kapalı / Asla), 15 (15 dk), 30 (30 dk), 60 (1 saat), 360 (6 saat), 1440 (24 saat)\n# Varsayılan / Default: 360',
+
+  pythonCmd: '# Python Komutu / Python Command\n# Açıklama: yt-dlp python modunda çalıştırılırken kullanılacak komut.\n# Description: Command used to launch Python interpreter for yt-dlp.\n# Seçenekler / Options: python, python3, tam python.exe yolu\n# Varsayılan / Default: python',
+
   ytdlpRunMode: '# yt-dlp Çalıştırma Modu / yt-dlp Execution Mode\n# Açıklama: yt-dlp ikili dosyasının nasıl yürütüleceği.\n# Description: How the yt-dlp binary is executed.\n# Seçenekler / Options: exe (Doğrudan derlenmiş EXE), python (Python yorumlayıcısı ile)\n# Varsayılan / Default: exe',
 
   shortsDurationLimit: '# Shorts Maksimum Süre Sınırı (Saniye) / Shorts Maximum Duration Limit (Seconds)\n# Açıklama: Kısa video (Shorts) kabul edilecek maksimum süre sınırı.\n# Description: Maximum duration threshold in seconds to consider a video as Shorts.\n# Seçenekler / Options: Sayısal değer (Saniye / Seconds, örn: 60, 90, 180, 240)\n# Varsayılan / Default: 180',
@@ -205,49 +209,6 @@ export function writeIni(filePath, data) {
   content += '; HaYTooL YouTube Downloader Yapılandırma Dosyası / Configuration File\n';
   content += '; Bu dosya web arayüzündeki ayarlar veya kanallar değiştikçe otomatik güncellenir.\n';
   content += '; This file is updated automatically when Settings or Channels change.\n';
-  if (isSettingsFile) {
-    content += '; --------------------------------------------------------------------------------\n';
-    content += '; VARSAYILAN AYARLAR REFERANS BİLGİLENDİRMESİ / DEFAULT SETTINGS REFERENCE:\n';
-    content += '; • downloadPath: download (Uygulama indirme klasörü / Default download folder)\n';
-    content += '; • browser: none (Çerez çekilecek tarayıcı / Cookies browser)\n';
-    content += '; • quality: best (Video kalitesi / Video quality)\n';
-    content += '; • channelCheckInterval: 1800 (Otomatik tarama sıklığı / Scan interval in seconds [30 dk])\n';
-    content += '; • autoDownload: true (Otomatik video indirme / Auto-download new videos)\n';
-    content += '; • mergeType: merge (FFmpeg ile birleştir / Merge audio+video)\n';
-    content += '; • writeThumbnail: true (Kapak resmi kaydet / Save thumbnail)\n';
-    content += '; • showShorts: false (Kütüphanede shorts göster / Show shorts in library)\n';
-    content += '; • rssLimit: 15 (RSS tarama limiti / RSS fetch limit)\n';
-    content += '; • autoDeleteDays: 0 (Otomatik silme gün sınırı [0=Kapalı] / Auto-delete days [0=Off])\n';
-    content += '; • theme: dark (Arayüz teması / UI theme)\n';
-    content += '; • downloadSpeedLimit: 0 (Standart hız sınırı [0=Sınırsız] / Speed limit [0=Unlimited])\n';
-    content += '; • useAlternativeSpeed: false (Kaplumbağa modu / Turtle mode)\n';
-    content += '; • alternativeSpeedLimit: 3000 (Kaplumbağa hız sınırı KB/s / Turtle speed limit KB/s)\n';
-    content += '; • port: 4141 (Web arayüz portu / Web interface port)\n';
-    content += '; • playerPreference: system (Oynatıcı tercihi / Player preference)\n';
-    content += '; • playerType: plyr (Gömülü oynatıcı türü / Embedded player type)\n';
-    content += '; • subtitleColor: #ffffff (Altyazı rengi / Subtitle font color)\n';
-    content += '; • subtitleOpacity: 0.0 (Altyazı kutu opaklığı / Subtitle background opacity)\n';
-    content += '; • subtitleSize: 26px (Altyazı boyutu / Subtitle font size)\n';
-    content += '; • playSounds: true (Sistem sesleri / System sounds)\n';
-    content += '; • lang: en (Uygulama dili / Application language)\n';
-    content += '; • isPaused: false (Taramalar duraklatıldı mı / Is checking paused)\n';
-    content += '; • showNotifications: false (Masaüstü bildirimleri / Desktop notifications)\n';
-    content += '; • autoOpenBrowser: false (Açılışta tarayıcıyı aç / Auto open browser)\n';
-    content += '; • sponsorBlockEnabled: true (SponsorBlock entegrasyonu / SponsorBlock integration)\n';
-    content += '; • discordRpcEnabled: true (Discord Rich Presence durumu / Discord RPC)\n';
-    content += '; • doubleClickAction: player (Çift tıklama eylemi / Double-click action)\n';
-    content += '; • historyDurationFilter: off (Kütüphane süre filtresi / Library duration filter)\n';
-    content += '; • enableAltThumbnailsHover: true (Kapak animasyonu / Hover alt thumbnails)\n';
-    content += '; • weatherEnabled: true (Hava durumu widgetı / Weather widget)\n';
-    content += '; • weatherCity: Derince (Hava durumu şehri / Weather city)\n';
-    content += '; • weatherLatitude: 40.75694 (Hava durumu enlemi / Weather latitude)\n';
-    content += '; • weatherLongitude: 29.81472 (Hava durumu boylamı / Weather longitude)\n';
-    content += '; • weatherUnit: celsius (Sıcaklık birimi / Temperature unit)\n';
-    content += '; • queueViewMode: table (Kuyruk görünüm modu / Queue view mode)\n';
-    content += '; • markWatchedOnDelete: true (Silinen videoyu izlendi yap / Mark watched on delete)\n';
-    content += '; • autoSyncWatchtime: true (İzleme süresi senkronu / Auto sync watchtime)\n';
-    content += '; • autoDiskSync: true (Açılışta otomatik disk senkronu / Auto disk sync on startup)\n';
-  }
   content += '; ================================================================================\n\n';
   
   for (const section in data) {

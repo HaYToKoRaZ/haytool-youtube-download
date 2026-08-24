@@ -80,7 +80,6 @@ export const en = {
   label_download_path: 'Downloads Folder Path',
   btn_select_folder: 'Select Folder',
   btn_test_folder: 'Test Folder',
-  label_browser: 'Premium Cookie Browser',
   label_quality: 'Default Download Quality',
   label_merge_type: 'Download Method (FFmpeg / File Structure)',
   label_interval: 'All Channels Automatic Check Interval (Seconds)',
@@ -191,8 +190,6 @@ export const en = {
   desc_channel_check_interval: 'Waiting time to check all channels together.',
   desc_rss_limit: 'How many of the latest videos in the RSS feed should be checked per channel?',
   desc_auto_delete: 'After how many days should it be deleted automatically? (Write 0 to disable)',
-  opt_browser_none: 'Do Not Use Cookies (Public Videos Only)',
-  desc_browser: 'Select the browser where your YouTube Premium account is logged in. This enables Premium high download speed and high quality.',
   settings_status_text: 'Changes are automatically saved instantly.',
   connection_connecting: 'Connection: Connecting...',
   connection_active: 'Connection: Connected',
@@ -569,8 +566,16 @@ export const en = {
   inline_btn_sync_watchtime: 'Sync Playback Position to YouTube',
   text_autosync_watchtime_title: 'YouTube Watchtime Sync',
   desc_autosync_watchtime: 'Automatically save playback position to YouTube watch history on pause or close',
-  text_auto_disk_sync_title: 'Automatic Disk Sync & Verification',
-  desc_auto_disk_sync: 'Automatically verify downloaded videos on disk and sync resolution badges upon startup and settings changes',
+  text_auto_disk_sync_title: 'Disk Sync & Verification',
+  lbl_disk_sync_startup: 'Verification on Startup',
+  desc_auto_disk_sync: 'Scan and reconcile downloaded video files on application startup',
+  lbl_disk_sync_interval: 'Background Sync Frequency',
+  opt_disk_sync_off: 'Never (Disabled / Off)',
+  opt_disk_sync_15m: 'Every 15 Minutes',
+  opt_disk_sync_30m: 'Every 30 Minutes',
+  opt_disk_sync_1h: 'Every 1 Hour',
+  opt_disk_sync_6h: 'Every 6 Hours (Default)',
+  opt_disk_sync_24h: 'Once a Day (24 Hours)',
   btn_sync_disk_now: 'Sync Disk Now',
   msg_disk_sync_started: 'Disk synchronization started...',
   msg_disk_sync_success: 'Disk synchronization completed successfully.',
@@ -596,7 +601,10 @@ export const en = {
   ape_error_title: 'Error:',
   tools_compare_accordion_title: 'Advanced File Comparison & Sync',
   ape_accordion_title: 'APE (Mark as Watched)',
-  nav_tools_ape: 'APE (Mark Watched)'
+  nav_tools_ape: 'APE - Mark as Watched',
+  ape_limit_label: 'Video Count:',
+  resuming_playback: 'Resuming from where you left off: {time}',
+  resumed_from: 'Last Position'
 };
 
 

@@ -136,6 +136,7 @@ export function applyLanguage(lang) {
   elQuery('#test-folder-btn span', 'btn_test_folder');
   el('label-youtube-auth-title', 'label_youtube_auth_title');
   el('cookie-tray-hint', 'cookie_tray_hint', 'innerHTML');
+  el('btn-text-yt-login', 'btn_text_yt_login');
   el('btn-text-test-cookies', 'btn_text_test_cookies');
   el('btn-text-logout-youtube', 'btn_text_logout_youtube');
   el('cookie-info-title', 'cookie_info_title');
@@ -143,7 +144,15 @@ export function applyLanguage(lang) {
   el('text-autosync-watchtime-title', 'text_autosync_watchtime_title');
   el('desc-autosync-watchtime', 'desc_autosync_watchtime');
   el('text-auto-disk-sync-title', 'text_auto_disk_sync_title');
+  el('lbl-disk-sync-startup', 'lbl_disk_sync_startup');
   el('desc-auto-disk-sync', 'desc_auto_disk_sync');
+  el('lbl-disk-sync-interval', 'lbl_disk_sync_interval');
+  el('opt-disk-sync-off', 'opt_disk_sync_off');
+  el('opt-disk-sync-15m', 'opt_disk_sync_15m');
+  el('opt-disk-sync-30m', 'opt_disk_sync_30m');
+  el('opt-disk-sync-1h', 'opt_disk_sync_1h');
+  el('opt-disk-sync-6h', 'opt_disk_sync_6h');
+  el('opt-disk-sync-24h', 'opt_disk_sync_24h');
   el('btn-sync-disk-now-text', 'btn_sync_disk_now');
   elQuery('label[for="settings-quality"]', 'label_quality');
   elQuery('label[for="settings-mergetype"]', 'label_merge_type');
@@ -501,8 +510,6 @@ export function applyLanguage(lang) {
   el('desc-channel-check-interval', 'desc_channel_check_interval');
   el('desc-rss-limit', 'desc_rss_limit');
   el('desc-auto-delete', 'desc_auto_delete');
-  el('opt-browser-none', 'opt_browser_none');
-  el('desc-browser', 'desc_browser');
   el('settings-status-text', 'settings_status_text');
 
   // Geçmiş limit ve veri yönetimi çevirileri
@@ -570,6 +577,7 @@ export function applyLanguage(lang) {
   el('nav-hdown-pd-text', 'nav_hdown_pd');
   el('nav-hdown-downloader-text', 'nav_hdown_downloader');
   el('nav-tools-compare-text', 'compare_title');
+  el('nav-tools-ape-text', 'nav_tools_ape');
   el('nav-tools-categories-text', 'category_manage_title');
   el('nav-tools-ape-text', 'nav_tools_ape');
 
@@ -636,6 +644,7 @@ export function applyLanguage(lang) {
   }
   el('btn-ape-mark-text', 'btn_ape_mark_text');
   el('label-ape-sync-youtube', 'label_ape_sync_youtube');
+  el('label-ape-limit', 'ape_limit_label');
 
 
 

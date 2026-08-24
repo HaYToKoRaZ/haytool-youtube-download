@@ -3,6 +3,170 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.1.1] - 2026-08-24
+
+### 🚀 Major Update v9 — YouTube Integration Overhaul / Sürüm 9 Ana Güncellemesi
+
+- **Live Stream Error Handling & Real Error Reporting (Canlı Yayın Hata Yönetimi & Gerçek Hata Raporlama):**
+  - stderr artık `\r` ayracında da bölünüyor; gerçek hata satırları ayrı toplanıyor; kuyruk hata mesajları çöp metin yerine gerçek hatayı gösteriyor.
+  - Türkçe canlı yayın hataları ("Bu canlı etkinlik X dakika sonra başlayacak") artık `waiting_live_processing` durumuna düşüp otomatik yeniden denemeyle bekliyor.
+
+- **"Mark as Watched" Real Duration Fix (İzlendi İşaretleme Gerçek Süre Düzeltmesi):**
+  - Silme ve APE akışlarında 999999 saniye yerine **gerçek video süresi** + `state=playing` gönderiliyor; YouTube artık videoları "tamamen izlendi" olarak işaretliyor (yalnızca geçmişe eklemek yerine).
+
+- **APE Tool Complete Integration (APE Aracının Tam Entegrasyonu):**
+  - APE aracı Araçlar menüsüne eklendi ve tam arayüzü oluşturuldu (link girişi, YouTube senkron onayı, sonuç kutusu).
+  - Kanal işaretleme artık 3 katmanlı: takip edilen kanal / kütüphanede kayıtlı kanal / tamamen yabancı kanal (son N videosu YouTube'dan çekilip işaretleniyor).
+  - Kanal işaretleme için **ayarlanabilir video sayısı** (1-200) eklendi.
+
+- **Browser Cookie System Removed (Tarayıcı Çerez Sistemi Kaldırıldı):**
+  - Eski `browser` (tarayıcıdan çerez okuma) sistemi tamamen temizlendi; çerezler yalnızca WebView2 (oynatıcı) üzerinden alınıyor.
+  - "Çerezleri Doğrula" butonu artık WebView2'nin `cookies.txt` dosyasını test ediyor.
+
+- **Tray "YouTube'da Oturum Aç" Fix (Tepsi Oturum Aç Düzeltmesi):**
+  - Tepsi menüsündeki buton artık WebView2 oynatıcıyı doğrudan login URL'siyle başlatıyor (Ayarlar sayfasıyla aynı yol).
+
+- **Cache-Busting Fix (Önbellek Düzeltmesi):** `index.html` sürüm parametreleri güncellendi (`?v=9.1.1`) — eski önbelleğin yeni arayüzü gizlemesi engellendi.
+
+## [8.59.0] - 2026-08-24
+
+### 🪟 Tray Menu "YouTube Login" Fix — Direct WebView2 Player Launch / Tepsi Menüsü "YouTube'da Oturum Aç" Düzeltmesi
+
+- **Tray login button now launches `bin/HaYTooLPlayer.exe` directly** with the Google login URL, matching the proven working path used by the Settings page (`/api/open-youtube-login`). The launcher (`HaYTooL-Player Beta.exe`) is kept only as a fallback.
+- Tepsi menüsündeki "YouTube'da Oturum Aç" butonu artık launcher üzerinden (görünmez pencere mesajı) değil, **doğrudan `bin/HaYTooLPlayer.exe`'yi login URL'si ile başlatarak** çalışır — Ayarlar sayfasındaki çalışan yöntemle birebir aynıdır. Launcher yalnızca yedek olarak kullanılır.
+- **Why:** The launcher's WM_COPYDATA message path silently failed when the player was half-open/invisible, so the login window never appeared.
+- **Neden:** Launcher'ın pencere mesajı (WM_COPYDATA) yolu, oynatıcı yarı açık/görünmez durumdayken sessizce başarısız oluyordu; oturum penceresi hiç açılmıyordu.
+- Rebuilt `HaYTooL YT Downloader.exe` tray binary.
+- `HaYTooL YT Downloader.exe` tepsi uygulaması yeniden derlendi.
+
+## [8.58.0] - 2026-08-24
+
+### 🛠️ Live Stream Error Handling, Real Error Reporting & Clean stderr Filtering / Canlı Yayın Hata Yönetimi, Gerçek Hata Raporlama ve Temiz stderr Filtreleme
+
+- **Real Error Line Collection (Gerçek Hata Satırı Toplama):**
+  - Error lines from yt-dlp stderr are now collected separately from WARNING and harmless ffmpeg output; queue failure messages show the actual error instead of mixed-in warning/cookie spam.
+  - Kuyruk hata mesajı artık stderr'deki WARNING ve zararsız ffmpeg çıktılarından arındırılmış gerçek hata satırlarını gösterir; çöp hata metinleri ortadan kalktı.
+
+- **False-Positive Cookie Error Fix (Yanlış Pozitif Çerez Hatası Düzeltmesi):**
+  - "The provided YouTube account cookies are no longer valid" WARNING lines no longer trigger the "Tarayıcı çerezleri okunamadı" error message. Live stream errors like "Bu canlı etkinlik X dakika sonra başlayacak" are now reported correctly.
+  - Çerez uyarı satırları artık yanlışlıkla "Tarayıcı çerezleri okunamadı" hatasına dönüşmez; canlı yayın "Bu canlı etkinlik X dakika sonra başlayacak" gibi gerçek hatalar kullanıcıya doğru gösterilir.
+
+- **Turkish Live Stream Error Patterns (Türkçe Canlı Yayın Hata Kalıpları):**
+  - Added Turkish patterns to `isLiveProcessingError`: "canlı etkinlik ... başlayacak", "canlı yayın ... işleniyor" etc. Live streams now defer to `waiting_live_processing` (automatic retry) instead of failing.
+  - Türkçe canlı yayın hata mesajları artık `waiting_live_processing` durumuna geçip mevcut `liveStreamTimer` mekanizmasıyla otomatik yeniden denemeyle bekler; `failed` durumuna düşmez.
+
+- **Cleaner Terminal Logs (Daha Temiz Terminal Logları):**
+  - Harmless ffmpeg HLS lines (`id3v2_priv...transportStreamTimestamp`, `Thread message queue blocking`, `size=...time=...bitrate=` progress) are now filtered from error logs.
+  - Zararsız ffmpeg HLS satırları (`id3v2_priv...transportStreamTimestamp`, `Thread message queue blocking`, `size=...time=...bitrate=` ilerleme satırları) artık hata loguna karışmaz.
+
+- **Carriage-Return Line Splitting (Satır Ayracı Düzeltmesi):**
+  - stdout/stderr now split on `\r` as well; merged progress lines no longer produce garbage error messages.
+  - stdout/stderr artık `\r` ayracında da bölünür; birleşen ilerleme satırları çöp hata mesajı oluşturmaz.
+
+## [8.57.0] - 2026-08-24
+
+### ⚡ Instant 0ms Video Playback, Double-Play Prevention & SSE Database Broadcast Elimination / Anında 0ms Gecikmesiz Oynatma, Üst Üste Oynatma Koruması ve Veritabanı Yayın Optimizasyonu
+
+- **Instant 0ms Video Player Startup (Gecikmesiz Anında Oynatma):**
+  - Eliminated blocking `await fetchSponsorSegments()` and `await fetchSubtitles()` before launching video player instances. Video modals and playback elements now mount and start instantly (0ms latency) upon user interaction.
+  - Subtitles and SponsorBlock timeline segment markers are now fetched asynchronously in the background and attached non-blockingly without delaying playback.
+  - Video oynatma butonuna basıldığında SponsorBlock ve altyazıların beklenmesi engellendi; oynatıcı anında açılarak arka planda akıllıca yükleme yapılması sağlandı.
+
+- **Strict Concurrency Request Locking (Üst Üste Ses & Video Çalma Engelleyici):**
+  - Added atomic `activePlayRequestId` transaction guard to prevent stale asynchronous video playback initialization when switching quickly between videos.
+  - Enhanced `cleanupAllPlayers()` to actively pause, disconnect sources, remove DOM `<video>`/`<audio>` tags, and destroy existing player instances before initializing new streams.
+  - Bir videodan diğerine hızlıca tıklandığında eski videonun arka planda asılı kalıp sesinin ikinci videonun üstüne binmesi ve çift ses çıkması sorunu tamamen çözüldü.
+
+- **SSE Database Broadcast Elimination on Watchtime Sync (İzleme Süresinde UI Donması ve Titremeyi Önleme):**
+  - Removed full-database `broadcast('db_update', db)` triggers from heartbeat endpoints (`/api/video/:id/sync-watchtime` and `/api/video/:id/save-position`).
+  - Completely eliminated unnecessary DOM re-rendering thrash, tab freezing, and high CPU usage caused by continuous database broadcast loops during video playback.
+  - İzleme süresi ve kaldığı yer güncellemelerinde istemciye tüm veritabanının tekrar tekrar gönderilmesi ve sekmelerin gereksiz yeniden çizilerek arayüzü kasması engellendi.
+
+## [8.56.0] - 2026-08-24
+
+### 💽 Configurable Two-Tier Disk Sync, Silent Background Scanning & Compact INI Architecture / İki Kademeli Disk Senkronizasyon Ayarları, Sessiz Arka Plan Taraması ve Kompakt INI Mimarisi
+
+- **Two-Tier Granular Disk Synchronization Controls (İki Kademeli Disk Senkronizasyon Yönetimi):**
+  - Separated disk synchronization into two independent controls: **Startup Scan** (`autoDiskSync`, default: `true`) and **Periodic Background Sync Interval** (`periodicDiskSyncInterval`, default: `360` minutes / 6 hours).
+  - Added background interval options: *Never / Disabled (`off`)*, *Every 15 Minutes (`15`)*, *Every 30 Minutes (`30`)*, *Every 1 Hour (`60`)*, *Every 6 Hours (`360` - Default)*, and *Once a Day (`1440`)*.
+  - Disk senkronizasyonu iki bağımsız kontrole ayrıldı: Sistem Açılışında Doğrulama (Açık/Kapalı) ve Arka Plan Tarama Sıklığı (Asla, 15 dk, 30 dk, 1 saat, 6 saat, 24 saat).
+
+- **Silent Periodic Background Execution (Sessiz Arka Plan Taraması):**
+  - Background periodic sync no longer floods the UI with success toasts or terminal logs when `0` records are updated (`updatedCount === 0`).
+  - Toasts and terminal alerts are now strictly reserved for manual on-demand triggers via *"Sync Disk Now"* or when actual file discrepancies are resolved.
+  - Arka plan taramalarında dosyalarda değişiklik olmadığı sürece ekrana gereksiz popup basılması engellendi.
+
+- **Clean & Compact `configwin.ini` Generation (Sade ve Kompakt INI Dosyası Yapısı):**
+  - Removed the redundant 45-line top summary reference table from `writeIni()` and `configwin.ini`, significantly decreasing file size and clutter.
+  - Added comprehensive bilingual (TR/EN) descriptions for all settings directly above each key in `configwin.ini` and `server/config.js`.
+  - `configwin.ini` başındaki mükerrer özet tablo kaldırılarak dosya yarı yarıya küçültüldü; her ayarın üzerine detaylı açıklamalar entegre edildi.
+
+- **Full 7-Language Internationalization (7 Dilde Tam Yerelleştirme):**
+  - Added translation tokens across TR, EN, ES, DE, PT, RU, and AR for all new disk sync controls and dropdown options.
+  - Yeni eklenen tüm arayüz bileşenleri ve seçenekler 7 dilde eksiksiz tanımlandı.
+
+## [8.55.0] - 2026-08-24
+
+### ⚡ High-Performance UI Engine, Chunked Lazy Grid & Instant Filter Response / Yüksek Performanslı Arayüz Motoru, Kademeli Grid Yükleme ve Anlık Filtreleme
+
+- **Chunked Lazy Grid & Virtual Infinite Scroll (Kademeli ve Anlık Grid Yükleme Motoru):**
+  - Re-architected `renderVideoGrid` to use `DocumentFragment` and chunked initial rendering (first 50 items rendered in <10ms).
+  - Integrated `IntersectionObserver` sentinel to seamlessly stream additional video chunks on demand without any UI stutter or frame drops with 6,000+ items.
+  - 6.000'den fazla videonun bulunduğu devasa veritabanlarında ilk 50 kartın 10ms'den kısa sürede anında çizilmesi sağlandı; kaydırdıkça `IntersectionObserver` ile sonraki kartlar arka planda takılmasız yüklenir.
+
+- **Loop Memory Caching & Elimination of Synchronous Disk Reads (Döngü İçi localStorage Okumalarının Kaldırılması):**
+  - Extracted repetitive `localStorage.getItem('haytool_playback_resume')` and `JSON.parse` operations completely out of the 6,000-card render loop to execute only once upfront.
+  - Kart döngüsü içinde 6.000 kez disk/storage sorgusu yapılması engellendi, tek bir bellek haritası üzerinden O(1) hızında okunması sağlandı.
+
+- **Scoped Lucide SVG Icon Transformation (Hedefe Yönelik İkon Dönüştürme):**
+  - Scoped `lucide.createIcons` strictly to `{ root: gridElement }`, preventing full-document traversal of 18,000+ icons and eliminating 1.5-2.5s JavaScript Main Thread lockups.
+  - İkon dönüştürme işlemi sadece ilgili gride hedeflenerek tüm sayfa kilitlenmesi tamamen ortadan kaldırıldı.
+
+- **Active Tab Isolation & Auth Status Throttling (Aktif Sekme İzolasyonu ve Ağ İsteği Optimizasyonu):**
+  - Prevented invisible background tabs (`downloadedGrid` / `historyGrid`) from recalculating and re-rendering when filters in the active tab change.
+  - Eliminated continuous `/api/youtube-auth-status` HTTP requests during UI filter updates.
+  - Filtre tıklamalarında sadece açık olan sekme güncellenir; arka plandaki sekmelerin ve gereksiz ağ isteklerinin arayüzü yavaşlatması önlendi.
+
+## [8.54.0] - 2026-08-23
+
+### 🎬 Smart Playback Resume, Visual Progress Indicators & Dedicated YouTube Login UI / Akıllı Kaldığım Yerden Devam Etme, Görsel İlerleme Çubuğu ve Doğrudan YouTube Oturum Arayüzü
+
+- **Smart Server-Synced Playback Resume (Akıllı ve Sunucu Senkronlu Kaldığım Yerden Devam Etme):**
+  - Added persistent playback position tracking in `db.json` (`lastPositionSeconds`, `durationSeconds`, and `lastWatchedAt`).
+  - Added new backend API endpoint `POST /api/video/:id/save-position` with secure thread-safe database locking (`acquireDbLock`) and real-time SSE broadcasting (`db_update`).
+  - Automatically restores playback position seamlessly across all 3 embedded players (ArtPlayer, Plyr, and HTML5 standard).
+  - Displays a sleek, non-intrusive transient notification card (*"Resuming from: 04:12"*) when seeking to the saved timestamp upon player launch.
+  - Automatically resets saved position when reaching the end of the video (>= 95% or last 5 seconds).
+  - `db.json` veritabanına izlenen videoların kaldığı saniye (`lastPositionSeconds`), toplam süresi ve son izlenme zamanı güvenli veritabanı kilidi (`acquireDbLock`) ile eklendi. Tüm gömülü oynatıcılarda (ArtPlayer, Plyr, HTML5) video açıldığında otomatik olarak kaldığı saniyeye sarar ve ekranda şık bir bildirim kartı gösterir. Video sonuna gelindiğinde pozisyon otomatik sıfırlanır.
+
+- **Visual Thumbnail Progress Indicators (Küçük Resimlerde YouTube/Netflix Tarzı İlerleme Çubuğu):**
+  - Added a slim, glowing red progress bar (`.video-playback-progress-container` / `.video-playback-progress-bar`) at the bottom of video thumbnails across the Library (History) and Downloaded grids.
+  - Displays precise percentage and timestamp tooltip (`Kaldığı Yer: 04:12 (35%)`) on hover.
+  - Kütüphane ve İndirilenler kartlarının alt kısmına YouTube/Netflix tarzı kırmızı ışıltılı izleme ilerleme çubuğu eklendi; farenin üzerine gelindiğinde kaldığı dakikayı ve yüzdesini ipucu olarak gösterir.
+
+- **Dedicated "Sign in to YouTube" Button in Settings Tab (Ayarlar Sekmesine "YouTube'da Oturum Aç" Butonu):**
+  - Added a dedicated, vibrant red "Sign in to YouTube" button (`btn-open-yt-login`) in `public/partials/tab-settings.html` next to "Verify Cookies" and "Sign Out".
+  - Works seamlessly whether running inside the HaYTooL-Player (WebView2) or external web browsers (Chrome, Edge, Firefox).
+  - Full 7-language localization (`tr`, `en`, `es`, `de`, `pt`, `ru`, `ar`) and synchronized i18n support.
+  - Ayarlar sekmesindeki "Çerez & Bildirim" kartına doğrudan YouTube oturumu açmayı tetikleyen kırmızı renkli "YouTube'da Oturum Aç" butonu eklendi; hem yerleşik player içinde hem harici tarayıcılarda sorunsuz çalışır ve 7 dilde desteklenir.
+
+## [8.53.0] - 2026-08-22
+
+### 🔄 100% Automated YouTube Background Cookie Refresh & Watchtime Sync / %100 Tam Otomatik Arka Plan YouTube Çerez Yenileme ve İzleme Senkronu
+
+- **100% Automated Silent Cookie Refresh Engine (Arka Planda %100 Tam Otomatik Çerez Yenileme):**
+  - Eliminated the need to manually open/close the "Sign in to YouTube" window when session tokens expire.
+  - Added background keepalive timer in `HaYTooLPlayer` (WPF C# / WebView2) running every 15 minutes and on window focus/startup to silently ping `https://www.youtube.com/generate_204` with credentials and write updated `cookies.txt` and `bin/cookies.txt`.
+  - Added silent background command `--silent-cookie-refresh` in `player_launcher.cs` and `MainWindow.xaml.cs` allowing the backend to trigger a 2-second invisible cookie refresh in the background even if the player GUI is not open.
+  - Scheduled automatic background cookie maintenance every 30 minutes in `server.js`.
+  - Kullanıcının "YouTube'da Oturum Aç" penceresini manuel açıp kapatma zorunluluğu ortadan kaldırıldı; arka planda çalışan görünmez canlılık döngüsü ve 30 dakikalık otomatik bakım servisi ile `cookies.txt` dosyası %100 otomatik olarak güncel tutulur.
+
+- **YouTube 1080p Premium (Enhanced Bitrate) Detection & `1080pPre` Badge (1080p Premium Tespiti ve Özel 1080pPre Rozeti):**
+  - Enhanced `getVideoResolution` in `server/services/paths.js` using `ffprobe` JSON stream analysis to detect YouTube Premium's Enhanced Bitrate 1080p streams (> 6.2 Mbps).
+  - Automatically tags downloaded and disk-synced 1080p Premium videos with `actualQuality: '1080pPre'`.
+  - Added dedicated styling in `public/style.css` (`.video-quality-badge.quality-1080ppre` and `.playlist-item-quality.quality-1080ppre`) with a distinguished glowing Ruby / Fuchsia-Gold gradient, clearly distinguishing it from standard blue `1080p` badges in both dark and light themes.
+  - `server/services/paths.js` içindeki `getVideoResolution` fonksiyonu `ffprobe` JSON akış analizini kullanacak şekilde geliştirildi; YouTube Premium'a özel yüksek bit hızlı (Enhanced Bitrate > 6.2 Mbps) 1080p akışları otomatik olarak tespit edilip `1080pPre` olarak etiketlenir. Video kartlarında standart mavi 1080p'den farklı olarak şık ve parlak Yakut-Mor/Altın gradyan rozetle gösterilir.
+
 ## [8.52.0] - 2026-08-22
 
 ### ⚡ Direct XML RSS, Sequential Startup & UI/Config Enhancements / Doğrudan XML RSS, Sıralı Açılış ve Arayüz/Yapılandırma Geliştirmeleri

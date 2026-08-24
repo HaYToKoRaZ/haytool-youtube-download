@@ -734,24 +734,28 @@ namespace HaYTooLTray
         }
 
         // Türkçe Açıklama: YouTube ve Google hesabında oturum açmak için izole tarayıcı penceresini açar.
+        // WebView2 çerez senkronunun güvenilir çalışması için doğrudan bin/HaYTooLPlayer.exe başlatılır
+        // (Ayarlar sayfasındaki /api/open-youtube-login ile aynı yol); launcher yalnızca yedek olarak kullanılır.
         private void OpenYouTubeLoginWindow(object sender, EventArgs e)
         {
             try
             {
                 string loginUrl = "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com";
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                string playerExe = Path.Combine(baseDir, "HaYTooL-Player Beta.exe");
                 string binPlayerExe = Path.Combine(baseDir, "bin", "HaYTooLPlayer.exe");
+                string playerExe = Path.Combine(baseDir, "HaYTooL-Player Beta.exe");
 
-                if (File.Exists(playerExe))
+                if (File.Exists(binPlayerExe))
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo(playerExe, "\"" + loginUrl + "\"");
+                    ProcessStartInfo psi = new ProcessStartInfo(binPlayerExe, "\"" + loginUrl + "\"");
+                    psi.WorkingDirectory = Path.GetDirectoryName(binPlayerExe);
                     psi.UseShellExecute = true;
                     Process.Start(psi);
                 }
-                else if (File.Exists(binPlayerExe))
+                else if (File.Exists(playerExe))
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo(binPlayerExe, "\"" + loginUrl + "\"");
+                    ProcessStartInfo psi = new ProcessStartInfo(playerExe, "\"" + loginUrl + "\"");
+                    psi.WorkingDirectory = baseDir;
                     psi.UseShellExecute = true;
                     Process.Start(psi);
                 }

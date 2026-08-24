@@ -124,18 +124,42 @@ export function getVideoResolution(filePath) {
     const out = execFileSync(ffprobe, [
       '-v', 'error',
       '-select_streams', 'v:0',
-      '-show_entries', 'stream=height',
-      '-of', 'csv=p=0',
+      '-show_entries', 'stream=height,bit_rate:format=bit_rate',
+      '-of', 'json',
       filePath
     ], { encoding: 'utf-8', timeout: 5000 }).trim();
 
-    const height = parseInt(out, 10);
+    let data;
+    try {
+      data = JSON.parse(out);
+    } catch (parseErr) {
+      return null;
+    }
+
+    const stream = (data.streams && data.streams[0]) ? data.streams[0] : null;
+    const height = stream && stream.height ? parseInt(stream.height, 10) : 0;
     if (isNaN(height) || height <= 0) return null;
+
+    // Bitrate tespiti (stream bit_rate veya format bit_rate)
+    let bitRate = 0;
+    if (stream && stream.bit_rate) {
+      bitRate = parseInt(stream.bit_rate, 10);
+    }
+    if ((!bitRate || isNaN(bitRate)) && data.format && data.format.bit_rate) {
+      bitRate = parseInt(data.format.bit_rate, 10);
+    }
 
     if (height >= 4320) return '8K';
     if (height >= 2160) return '4K';
     if (height >= 1440) return '2K';
-    if (height >= 1080) return '1080p';
+    if (height >= 1080) {
+      // YouTube standart 1080p genellikle ~2.5 - 4.5 Mbps arasındadır.
+      // 1080p Premium (Enhanced Bitrate / Format 616, 356, 614) ise ~6.5 - 15+ Mbps arasındadır.
+      if (bitRate > 6200000) {
+        return '1080pPre';
+      }
+      return '1080p';
+    }
     if (height >= 720) return '720p';
     if (height >= 480) return '480p';
     if (height >= 360) return '360p';

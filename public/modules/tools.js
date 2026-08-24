@@ -1060,6 +1060,7 @@ document.addEventListener('DOMContentLoaded', () => {
 export async function handleApeMarkWatched() {
   const inputEl = document.getElementById('ape-target-input');
   const syncCb = document.getElementById('ape-sync-youtube-checkbox');
+  const limitEl = document.getElementById('ape-limit-input');
   const resultBox = document.getElementById('ape-result-box');
   const resultText = document.getElementById('ape-result-text');
   const resultIcon = document.getElementById('ape-result-icon');
@@ -1067,6 +1068,7 @@ export async function handleApeMarkWatched() {
 
   if (!inputEl) return;
   const target = inputEl.value.trim();
+  const limit = limitEl ? parseInt(limitEl.value, 10) || 50 : 50;
   const lang = localStorage.getItem('haytool_user_lang') || 'tr';
   const t = translations[lang] || translations.tr;
 
@@ -1085,7 +1087,7 @@ export async function handleApeMarkWatched() {
     const res = await fetch('/api/tools/ape-mark-watched', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target, syncYouTube })
+      body: JSON.stringify({ target, syncYouTube, limit })
     });
 
     const data = await res.json();

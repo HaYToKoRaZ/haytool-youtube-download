@@ -1107,10 +1107,6 @@ export async function resolveChannelId(input, existingChannelId = null) {
           const db = readDb();
           const args = [];
           args.push('--js-runtimes', `node:${process.execPath}`);
-          if (db.settings.browser && db.settings.browser !== 'none') {
-            const browserName = db.settings.browser === 'msedge' ? 'edge' : db.settings.browser;
-            args.push('--cookies-from-browser', browserName);
-          }
           args.push('--dump-single-json', '--flat-playlist', '--playlist-items', '1', `https://www.youtube.com/channel/${channelId}`);
           
           const localTemp = getLocalTempDir();
@@ -1394,10 +1390,6 @@ export function getChannelSubscribersViaYtdlp(channelUrl) {
       '--js-runtimes', `node:${process.execPath}`,
       '--print', 'subscriber_count'
     ];
-    if (db.settings.browser && db.settings.browser !== 'none') {
-      const browserName = db.settings.browser === 'msedge' ? 'edge' : db.settings.browser;
-      args.push('--cookies-from-browser', browserName);
-    }
     args.push(channelUrl);
 
     const localTemp = getLocalTempDir();

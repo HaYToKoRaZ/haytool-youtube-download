@@ -297,7 +297,6 @@ let videoIdToDelete = null;
 // Ayarlar Tab Elemanları
 const settingsForm = document.getElementById('settings-form');
 const settingsDownloadPath = document.getElementById('settings-download-path');
-const settingsBrowser = document.getElementById('settings-browser');
 const settingsQuality = document.getElementById('settings-quality');
 const settingsChannelCheckInterval = document.getElementById('settings-channelcheckinterval');
 const settingsAutoDownload = document.getElementById('settings-autodownload');

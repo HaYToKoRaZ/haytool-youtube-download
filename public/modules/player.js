@@ -59,15 +59,121 @@ export function setVideoPlayerInstance(inst) {
   if (typeof window !== 'undefined') window.videoPlayerInstance = inst;
 }
 
-export const autoSyncWatchtimeHelper = window.autoSyncWatchtimeHelper = function(videoId, currentTime, isFinal = false) {
-  if (!videoId || localDb?.settings?.autoSyncWatchtime === false) return;
-  if (isFinal && currentTime > 5) {
-    fetch(`/api/video/${videoId}/sync-watchtime`, {
+let _lastPositionSaveTime = 0;
+
+/**
+ * Videonun anlık izleme süresini yerel veritabanına ve localStorage'a kaydeder.
+ * 
+ * @param {string} videoId Video ID'si
+ * @param {number} currentTime O anki saniye
+ * @param {number} duration Toplam video süresi
+ * @param {boolean} [isFinal=false] Duraklatma veya kapatma anında anında kaydet
+ */
+export const savePlaybackPosition = window.savePlaybackPosition = function(videoId, currentTime, duration = 0, isFinal = false) {
+  if (!videoId) return;
+
+  const posFloor = Math.floor(currentTime || 0);
+  const durFloor = Math.floor(duration || 0);
+
+  const item = localDb?.history?.find(h => h.id === videoId);
+  if (item) {
+    if (durFloor > 0 && (posFloor >= durFloor * 0.95 || durFloor - posFloor <= 5)) {
+      item.lastPositionSeconds = 0;
+    } else if (posFloor > 3) {
+      item.lastPositionSeconds = posFloor;
+    } else {
+      item.lastPositionSeconds = 0;
+    }
+    if (durFloor > 0) item.durationSeconds = durFloor;
+  }
+
+  try {
+    const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+    if (durFloor > 0 && (posFloor >= durFloor * 0.95 || durFloor - posFloor <= 5)) {
+      delete resumeData[videoId];
+    } else if (posFloor > 3) {
+      resumeData[videoId] = posFloor;
+    }
+    localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+  } catch (e) {}
+
+  const now = Date.now();
+  if (isFinal || (now - _lastPositionSaveTime > 5000)) {
+    _lastPositionSaveTime = now;
+    fetch(`/api/video/${videoId}/save-position`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ currentTime: currentTime, silent: true })
+      body: JSON.stringify({ position: posFloor, duration: durFloor })
     }).catch(() => {});
   }
+};
+
+/**
+ * Video kaldığı yerden başlatıldığında ekranda şık bir bilgilendirme kartı gösterir.
+ * 
+ * @param {number} targetTime Başlatılan saniye
+ */
+export function showResumeNotification(targetTime) {
+  if (targetTime <= 3) return;
+  const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
+  const mins = Math.floor(targetTime / 60);
+  const secs = Math.floor(targetTime % 60);
+  const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  
+  const template = t.resuming_playback || 'Kaldığınız yerden devam ediliyor: {time}';
+  const msg = template.replace('{time}', timeStr);
+
+  const html = `
+    <div class="player-transient-card" style="background: rgba(16, 14, 28, 0.9); border: 1px solid rgba(255, 0, 85, 0.4); box-shadow: 0 8px 32px rgba(255, 0, 85, 0.25);">
+      <i data-lucide="play-circle" style="width: 32px; height: 32px; color: #ff0055;"></i>
+      <div class="transient-title" style="color: #fff; font-size: 0.95rem; font-weight: 600;">${msg}</div>
+    </div>
+  `;
+  if (typeof showPlayerTransientOverlay === 'function') {
+    showPlayerTransientOverlay(html, 2200);
+  }
+  try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch(e) {}
+}
+
+let _syncAbortControllers = {};
+let _lastWatchtimeSyncTime = 0;
+let _lastWatchtimeSyncVid = null;
+let _lastWatchtimeSyncPos = 0;
+
+export const autoSyncWatchtimeHelper = window.autoSyncWatchtimeHelper = function(videoId, currentTime, isFinal = false) {
+  if (!videoId || typeof currentTime !== 'number' || isNaN(currentTime) || currentTime < 2) return;
+  if (localDb?.settings?.autoSyncWatchtime === false) return;
+
+  const now = Date.now();
+  if (!isFinal) {
+    if (_lastWatchtimeSyncVid === videoId && (now - _lastWatchtimeSyncTime < 45000) && Math.abs(currentTime - _lastWatchtimeSyncPos) < 30) {
+      return;
+    }
+  }
+
+  _lastWatchtimeSyncTime = now;
+  _lastWatchtimeSyncVid = videoId;
+  _lastWatchtimeSyncPos = currentTime;
+
+  // Önceki bekleyen istek varsa anında iptal et (kuyruk oluşmasını ve eski sürenin yenisini ezmesini engeller)
+  if (_syncAbortControllers[videoId]) {
+    try { _syncAbortControllers[videoId].abort(); } catch (e) {}
+  }
+
+  const controller = new AbortController();
+  _syncAbortControllers[videoId] = controller;
+
+  fetch(`/api/video/${videoId}/sync-watchtime`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentTime: currentTime, silent: true }),
+    signal: controller.signal
+  }).catch(() => {}).finally(() => {
+    if (_syncAbortControllers[videoId] === controller) {
+      delete _syncAbortControllers[videoId];
+    }
+  });
 };
 
 let seekedForCurrentVideo = false;
@@ -913,12 +1019,16 @@ export function sendPlayerActivity(isPlaying) {
   }).catch(e => console.error('[Discord RPC] Durum gönderim hatası:', e));
 }
 
+let activePlayRequestId = 0;
+
 export const cleanupAllPlayers = window.cleanupAllPlayers = function() {
   sendPlayerActivity(false);
   if (videoPlayerInstance) {
     try {
       if (typeof videoPlayerInstance.destroy === 'function') {
         videoPlayerInstance.destroy();
+      } else if (typeof videoPlayerInstance.pause === 'function') {
+        videoPlayerInstance.pause();
       }
     } catch (e) {
       console.error("Error destroying videoPlayerInstance:", e);
@@ -927,12 +1037,14 @@ export const cleanupAllPlayers = window.cleanupAllPlayers = function() {
     setVideoPlayerInstance(null);
   }
 
-  const videoElements = document.querySelectorAll('video');
+  const videoElements = document.querySelectorAll('video, audio');
   videoElements.forEach(video => {
     try {
-      video.pause();
-      video.src = '';
-      video.load();
+      if (video && typeof video.pause === 'function') video.pause();
+      if (video && typeof video.removeAttribute === 'function') video.removeAttribute('src');
+      if (video) video.src = '';
+      if (video && typeof video.load === 'function') video.load();
+      if (video && typeof video.remove === 'function') video.remove();
     } catch (e) {
       console.error("Error pausing video element:", e);
     }
@@ -962,59 +1074,48 @@ export const cleanupAllPlayers = window.cleanupAllPlayers = function() {
   }
 };
 
-
-
-// Türkçe Açıklama: İndirilen videoyu arayüz içerisindeki gömülü video oynatıcı (Plyr) modalında açarak yürütür.
+// Türkçe Açıklama: İndirilen videoyu arayüz içerisindeki gömülü video oynatıcı modalında anında açarak yürütür.
 /**
- * Videoyu gömülü tarayıcı oynatıcısında (Plyr) açar.
- * Shorts videoları dikey gösterilir ve kalınan izleme süresinden devam eder.
+ * Videoyu gömülü tarayıcı oynatıcısında anında açar.
  * 
  * @param {string} videoId Oynatılacak video ID'si
  */
 export const playVideoEmbedded = window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePaused = null) {
-  // C# PlayerWindow açılmasını devredışı bıraktık, artık her şey tek pencerede arayüz içinde oynatılacak.
-  console.log('[playVideoEmbedded] ▶ START videoId:', videoId);
+  const currentRequestId = ++activePlayRequestId;
   try {
-  cleanupAllPlayers();
-  console.log('[playVideoEmbedded] cleanupAllPlayers done');
-  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
-  const isInline = (activeTab === 'downloaded');
-  console.log('[playVideoEmbedded] activeTab:', activeTab, '| isInline:', isInline);
+    cleanupAllPlayers();
 
-  let video = localDb.history.find(h => h.id === videoId);
-  console.log('[playVideoEmbedded] video found:', !!video, '| status:', video?.status, '| fileMissing:', video?.fileMissing);
-  let videoTitle = video ? video.title : '';
-  let videoChannelId = video ? video.channelId : '';
-  let videoChannelName = video ? video.channelName : '';
-  let videoDuration = video ? video.duration : '';
-  let fileSizeStr = video ? video.fileSize : '';
-  let publishDateStr = video ? (video.publishedAt || video.downloadedAt || '') : '';
+    const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
+    const isInline = (activeTab === 'downloaded');
+    const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
 
+    let video = localDb.history.find(h => h.id === videoId);
+    let videoTitle = video ? video.title : '';
+    let videoChannelId = video ? video.channelId : '';
+    let videoChannelName = video ? video.channelName : '';
+    let videoDuration = video ? video.duration : '';
+    let fileSizeStr = video ? video.fileSize : '';
+    let publishDateStr = video ? (video.publishedAt || video.downloadedAt || '') : '';
 
+    // Arka planda gecikmesiz SponsorBlock segmentlerini çek
+    fetchSponsorSegments(videoId).then(() => {
+      if (currentRequestId !== activePlayRequestId) return;
+      updateSponsorBlockStatusUI();
+      const rawVideo = document.querySelector('#player-modal video, #inline-player-body video') || (videoPlayerInstance?.media || videoPlayerInstance?.video);
+      if (rawVideo && rawVideo.duration) {
+        drawSponsorSegmentsOnTimeline(rawVideo.duration, playerType);
+      }
+    }).catch(() => {});
 
-  // Fetch SponsorBlock segments
-  await fetchSponsorSegments(videoId);
-  updateSponsorBlockStatusUI();
+    let availableSubtitles = [];
 
-  // Fetch available subtitles
-  let availableSubtitles = [];
-  try {
-    const subRes = await fetch(`/api/video/${videoId}/subtitles`);
-    const subData = await subRes.json();
-    if (subData.success && subData.subtitles) {
-      availableSubtitles = subData.subtitles;
+    // DOM Fallback
+    if (!videoTitle) {
+      const cardTitleEl = document.querySelector(`.video-card-title[title*="${videoId}"], .video-card-title[onclick*="${videoId}"]`);
+      if (cardTitleEl) {
+        videoTitle = cardTitleEl.textContent.trim();
+      }
     }
-  } catch (err) {
-    console.error("Error loading subtitles:", err);
-  }
-
-  // DOM Fallback
-  if (!videoTitle) {
-    const cardTitleEl = document.querySelector(`.video-card-title[title*="${videoId}"], .video-card-title[onclick*="${videoId}"]`);
-    if (cardTitleEl) {
-      videoTitle = cardTitleEl.textContent.trim();
-    }
-  }
   if (!videoChannelId) {
     const cardEl = document.querySelector(`.video-thumbnail-wrapper[onclick*="${videoId}"]`)?.closest('.video-card');
     if (cardEl) {
@@ -1883,6 +1984,8 @@ export const playVideoEmbedded = window.playVideoEmbedded = async function(video
     }
   }
 
+  if (currentRequestId !== activePlayRequestId) return;
+
   seekedForCurrentVideo = false;
   currentPlayingVideoId = videoId;
   setCurrentPlayingVideoId(videoId);
@@ -1890,9 +1993,6 @@ export const playVideoEmbedded = window.playVideoEmbedded = async function(video
   const isCompleted = video && video.status === 'completed';
   const isMissing = video && video.fileMissing === true;
   let streamUrl = `/api/video-stream?videoId=${videoId}`;
-  console.log('[playVideoEmbedded] isCompleted:', isCompleted, '| isMissing:', isMissing, '| playerType:', playerType);
-  console.log('[playVideoEmbedded] streamUrl:', streamUrl);
-  console.log('[playVideoEmbedded] playerContainer before player init:', playerContainer);
 
   // Eğer WPF Player (WebView2) içindeysek ve video indirilmesi tamamlanmış yerel bir video ise doğrudan sanal yerel disk yolunu kullan
   if (isCompleted && !isMissing && window.chrome?.webview && video.filePath) {
@@ -1908,7 +2008,6 @@ export const playVideoEmbedded = window.playVideoEmbedded = async function(video
     }
   }
 
-  const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
   const playRemote = !isCompleted || isMissing;
 
   if (playRemote) {
@@ -2102,10 +2201,12 @@ export const playVideoEmbedded = window.playVideoEmbedded = async function(video
           rawVideo.addEventListener('pause', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, rawVideo.currentTime, true);
+            savePlaybackPosition(currentPlayingVideoId, rawVideo.currentTime, rawVideo.duration, true);
           });
           rawVideo.addEventListener('ended', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, rawVideo.currentTime, true);
+            savePlaybackPosition(currentPlayingVideoId, 0, rawVideo.duration, true);
           });
           adjustPlayerOrientation(rawVideo);
           if (rawVideo.duration) {
@@ -2127,22 +2228,16 @@ export const playVideoEmbedded = window.playVideoEmbedded = async function(video
             // Periyodik (her 30sn) YouTube izleme süresi senkronizasyonu
             autoSyncWatchtimeHelper(currentPlayingVideoId, currentTime, false);
 
-            const duration = rawVideo.duration || 0;
-            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              resumeData[currentPlayingVideoId] = currentTime;
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            } else if (duration > 0 && (duration - currentTime) <= 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              delete resumeData[currentPlayingVideoId];
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            }
+            // Yerel kaldığı yer kaydı
+            savePlaybackPosition(currentPlayingVideoId, currentTime, rawVideo.duration, false);
           });
 
           if (!seekedForCurrentVideo && currentPlayingVideoId) {
-            const targetTime = (startSeconds !== null) ? startSeconds : (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0);
-            if (targetTime > 0) {
+            const item = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+            const targetTime = (startSeconds !== null) ? startSeconds : (item?.lastPositionSeconds || (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0));
+            if (targetTime > 3) {
               rawVideo.currentTime = targetTime;
+              showResumeNotification(targetTime);
             }
             seekedForCurrentVideo = true;
           }
@@ -2222,10 +2317,12 @@ export const playVideoEmbedded = window.playVideoEmbedded = async function(video
           videoPlayerInstance.on('pause', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, videoPlayerInstance.currentTime, true);
+            savePlaybackPosition(currentPlayingVideoId, videoPlayerInstance.currentTime, videoPlayerInstance.duration, true);
           });
           videoPlayerInstance.on('ended', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, videoPlayerInstance.currentTime, true);
+            savePlaybackPosition(currentPlayingVideoId, 0, videoPlayerInstance.duration, true);
           });
 
           videoPlayerInstance.on('loadedmetadata', () => {
@@ -2267,23 +2364,17 @@ export const playVideoEmbedded = window.playVideoEmbedded = async function(video
             // Periyodik (her 30sn) YouTube izleme süresi senkronizasyonu
             autoSyncWatchtimeHelper(currentPlayingVideoId, currentTime, false);
 
-            const duration = videoPlayerInstance.duration || 0;
-            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              resumeData[currentPlayingVideoId] = currentTime;
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            } else if (duration > 0 && (duration - currentTime) <= 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              delete resumeData[currentPlayingVideoId];
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            }
+            // Yerel kaldığı yer kaydı
+            savePlaybackPosition(currentPlayingVideoId, currentTime, videoPlayerInstance.duration, false);
           });
 
           videoPlayerInstance.on('canplay', () => {
             if (!seekedForCurrentVideo && currentPlayingVideoId) {
-              const targetTime = (startSeconds !== null) ? startSeconds : (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0);
-              if (targetTime > 0) {
+              const item = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+              const targetTime = (startSeconds !== null) ? startSeconds : (item?.lastPositionSeconds || (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0));
+              if (targetTime > 3) {
                 videoPlayerInstance.currentTime = targetTime;
+                showResumeNotification(targetTime);
               }
               seekedForCurrentVideo = true;
             }
@@ -2333,23 +2424,17 @@ export const playVideoEmbedded = window.playVideoEmbedded = async function(video
             // Periyodik (her 30sn) YouTube izleme süresi senkronizasyonu
             autoSyncWatchtimeHelper(currentPlayingVideoId, currentTime, false);
 
-            const duration = player.duration || 0;
-            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              resumeData[currentPlayingVideoId] = currentTime;
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            } else if (duration > 0 && (duration - currentTime) <= 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              delete resumeData[currentPlayingVideoId];
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            }
+            // Yerel kaldığı yer kaydı
+            savePlaybackPosition(currentPlayingVideoId, currentTime, player.duration, false);
           });
 
           player.addEventListener('canplay', () => {
             if (!seekedForCurrentVideo && currentPlayingVideoId) {
-              const targetTime = (startSeconds !== null) ? startSeconds : (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0);
-              if (targetTime > 0) {
+              const item = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+              const targetTime = (startSeconds !== null) ? startSeconds : (item?.lastPositionSeconds || (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0));
+              if (targetTime > 3) {
                 player.currentTime = targetTime;
+                showResumeNotification(targetTime);
               }
               seekedForCurrentVideo = true;
             }
@@ -2359,10 +2444,12 @@ export const playVideoEmbedded = window.playVideoEmbedded = async function(video
           player.addEventListener('pause', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, player.currentTime, true);
+            savePlaybackPosition(currentPlayingVideoId, player.currentTime, player.duration, true);
           });
           player.addEventListener('ended', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, player.currentTime, true);
+            savePlaybackPosition(currentPlayingVideoId, 0, player.duration, true);
           });
 
           player.load();

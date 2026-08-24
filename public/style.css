@@ -7023,6 +7023,17 @@ body.light-theme #queue-view-toggle-container .view-btn.active {
   text-shadow: 0 0 4px rgba(56, 189, 248, 0.4);
 }
 
+/* 1080p Premium (1080pPre - Özel Parlak Yakut/Altın-Mor Gradient) */
+.video-quality-badge.quality-1080ppre {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.3), rgba(168, 85, 247, 0.4));
+  border: 1px solid rgba(244, 63, 94, 0.8);
+  color: #fecdd3;
+  text-shadow: 0 0 6px rgba(244, 63, 94, 0.8);
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.4);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
 /* 720p HD (Canlı Yeşil) */
 .video-quality-badge.quality-720p {
   background: rgba(15, 23, 42, 0.85);
@@ -7064,12 +7075,25 @@ body.light-theme #queue-view-toggle-container .view-btn.active {
   border-color: rgba(245, 158, 11, 0.6);
   color: #fbbf24;
 }
+.playlist-item-quality.quality-1080ppre {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.4), rgba(168, 85, 247, 0.5));
+  border-color: rgba(244, 63, 94, 0.8);
+  color: #fecdd3;
+  font-weight: 800;
+}
 
 /* Açık Tema (Light Theme) Uyum Düzeltmeleri */
 body.light-theme .video-quality-badge.quality-1080p {
   background: rgba(255, 255, 255, 0.9);
   color: #0284c7;
   border-color: rgba(2, 132, 199, 0.5);
+}
+body.light-theme .video-quality-badge.quality-1080ppre {
+  background: linear-gradient(135deg, rgba(255, 228, 230, 0.95), rgba(250, 232, 255, 0.95));
+  color: #be123c;
+  border-color: rgba(225, 29, 72, 0.7);
+  text-shadow: none;
+  box-shadow: 0 2px 6px rgba(225, 29, 72, 0.2);
 }
 body.light-theme .video-quality-badge.quality-720p {
   background: rgba(255, 255, 255, 0.9);
@@ -7324,3 +7348,32 @@ body.light-theme .video-card-unlisted-tag {
 .tools-accordion-item:not(.active) .tools-accordion-body {
   display: none;
 }
+
+/* Video Playback Progress Bar (Kaldığım Yer Göstergesi) */
+.video-playback-progress-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  z-index: 4;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  pointer-events: none;
+  transition: height 0.2s ease;
+}
+
+.video-card:hover .video-playback-progress-container {
+  height: 6px;
+}
+
+.video-playback-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #ff0055, #ff4d88);
+  box-shadow: 0 0 8px rgba(255, 0, 85, 0.8);
+  border-radius: 0 2px 2px 0;
+  transition: width 0.3s ease;
+}
+

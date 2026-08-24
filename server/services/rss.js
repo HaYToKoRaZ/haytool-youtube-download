@@ -480,11 +480,6 @@ export function fetchDurationViaYtdlp(videoId) {
     const settings = db.settings || {};
     const args = [];
 
-    if (settings.browser && settings.browser !== 'none') {
-      const browserName = settings.browser === 'msedge' ? 'edge' : settings.browser;
-      args.push('--cookies-from-browser', browserName);
-    }
-
     args.push(
       '--no-playlist',
       '--skip-download',
@@ -615,11 +610,6 @@ export function fetchChannelVideosYtdlp(channelId, limit) {
 
     const args = [];
     args.push('--js-runtimes', `node:${process.execPath}`);
-    
-    if (settings.browser && settings.browser !== 'none') {
-      const browserName = settings.browser === 'msedge' ? 'edge' : settings.browser;
-      args.push('--cookies-from-browser', browserName);
-    }
     
     args.push(
       '--ignore-errors',

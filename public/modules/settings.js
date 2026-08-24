@@ -200,7 +200,6 @@ export async function performAutoSave() {
   const durationFetchMethodSelect = document.getElementById('settings-duration-fetch-method');
   const ytdlpRunModeSelect = document.getElementById('settings-ytdlp-run-mode');
   const pythonCmdInput = document.getElementById('settings-python-cmd');
-  const browserSelect = document.getElementById('settings-browser');
   const qualitySelect = document.getElementById('settings-quality');
   const maxResSelect = document.getElementById('settings-max-resolution');
   const embedSubsCheckbox = document.getElementById('settings-embed-subs');
@@ -216,7 +215,6 @@ export async function performAutoSave() {
   if (durationFetchMethodSelect) settings.durationFetchMethod = durationFetchMethodSelect.value;
   if (ytdlpRunModeSelect) settings.ytdlpRunMode = ytdlpRunModeSelect.value;
   if (pythonCmdInput) settings.pythonCmd = pythonCmdInput.value.trim();
-  if (browserSelect) settings.browser = browserSelect.value;
   if (qualitySelect) settings.quality = qualitySelect.value;
   if (maxResSelect) settings.maxResolution = maxResSelect.value;
   if (embedSubsCheckbox) settings.embedSubtitles = embedSubsCheckbox.checked;
@@ -819,14 +817,21 @@ window.logoutYouTube = logoutYouTube;
 export async function openYouTubeLogin() {
   const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
   const loginUrl = 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com';
-  showToast(currentLang === 'en' ? 'Opening YouTube login window...' : 'YouTube oturum açma sayfası açılıyor...', 'info');
 
-  try {
-    window.open(loginUrl, '_blank');
-  } catch (e) {}
+  // WebView2 içinde mi kontrol et (HaYTooL Player içinde çalışıyor muyuz?)
+  const isWebView2 = typeof window.chrome !== 'undefined' && typeof window.chrome.webview !== 'undefined';
 
-  try {
-    await fetch('/api/open-youtube-login', { method: 'POST' });
-  } catch (e) {}
+  if (isWebView2) {
+    // Player içindeyiz: mevcut WebView2 penceresini YouTube login'e yönlendir.
+    // NavigationCompleted → SyncYouTubeCookiesToFileAsync → cookies.txt güncellenir.
+    showToast(currentLang === 'en' ? 'Redirecting to YouTube login...' : 'YouTube giriş sayfasına yönlendiriliyor...', 'info');
+    window.location.href = loginUrl;
+  } else {
+    // Normal tarayıcıda: API aracılığıyla dahili player aç
+    showToast(currentLang === 'en' ? 'Opening YouTube login window...' : 'YouTube oturum açma sayfası açılıyor...', 'info');
+    try {
+      await fetch('/api/open-youtube-login', { method: 'POST' });
+    } catch (e) {}
+  }
 }
 window.openYouTubeLogin = openYouTubeLogin;

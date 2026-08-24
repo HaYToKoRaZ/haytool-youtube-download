@@ -154,11 +154,7 @@ router.get('/video/:videoId/description', (req, res) => {
 
 function fetchDescriptionFromYtdlp(videoId) {
   return new Promise((resolve, reject) => {
-    const db = readDb();
     const args = ['--encoding', 'utf-8', '--get-description', `https://www.youtube.com/watch?v=${videoId}`];
-    if (db.settings && db.settings.cookiesFromBrowser) {
-      args.push('--cookies-from-browser', db.settings.cookiesFromBrowser);
-    }
     
     // Windows ve diğer platformlarda UTF-8 kodlamasını garanti altına al
     const localTemp = getLocalTempDir();

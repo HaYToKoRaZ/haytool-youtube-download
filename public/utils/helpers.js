@@ -167,6 +167,26 @@ export function parseTimeToSeconds(timeStr) {
 }
 
 /**
+ * Süre filtresi için "01:23:45" veya "12:34" formatındaki süreyi saniyeye çevirir.
+ * 
+ * @param {string} duration Süre metni
+ * @returns {number|null} Saniye cinsinden süre veya null
+ */
+export function parseDurationToSeconds(duration) {
+  if (!duration) return null;
+  const parts = String(duration).split(':').map(Number);
+  if (parts.some(isNaN)) return null;
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  } else if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 1) {
+    return parts[0];
+  }
+  return null;
+}
+
+/**
  * Video açıklamasındaki zaman etiketlerini (örn: 01:23) tıklanabilir linklere dönüştürür.
  * 
  * @param {string} text Ham açıklama metni

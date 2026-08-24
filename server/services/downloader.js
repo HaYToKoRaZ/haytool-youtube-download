@@ -669,7 +669,8 @@ export class DownloadQueue {
     downloadProc.stdout.on('data', (data) => {
       const output = data.toString();
       
-      const lines = output.split(/\r?\n/);
+      // \r ayracı da satır sonu kabul edilir (yt-dlp/ffmpeg ilerleme satırları birleşmesin)
+      const lines = output.split(/[\r\n]+/);
       for (const line of lines) {
         const trimmed = line.trim();
         if (trimmed) {
@@ -777,13 +778,16 @@ export class DownloadQueue {
 
     let errorOutput = '';
     let stderrBuffer = '';
+    // Gerçek hata satırları: WARNING ve zararsız ffmpeg çıktıları hariç yalnızca gerçek hatalar toplanır
+    let realErrorLines = [];
 
     function handleStderrLine(line) {
       const trimmed = line.trim();
       if (!trimmed) return;
 
       const lowerTrimmed = trimmed.toLowerCase();
-      const isFfmpegProgress = lowerTrimmed.startsWith('frame=') || (lowerTrimmed.includes('fps=') && lowerTrimmed.includes('size=') && lowerTrimmed.includes('time='));
+      // HLS/TS ilerleme satırları (size=... time=... bitrate=...) ilerleme spamı sayılır
+      const isFfmpegProgress = lowerTrimmed.startsWith('frame=') || (lowerTrimmed.includes('fps=') && lowerTrimmed.includes('size=') && lowerTrimmed.includes('time=')) || (lowerTrimmed.includes('size=') && lowerTrimmed.includes('time=') && lowerTrimmed.includes('bitrate='));
       const isFfmpegOpening = lowerTrimmed.includes('opening \'http') || /\[[a-z0-9]+ @ [0-9a-fx]+\] opening/i.test(trimmed);
       const isFfmpegInfo = lowerTrimmed.includes('last message repeated') ||
                            lowerTrimmed.startsWith('input #') ||
@@ -795,7 +799,10 @@ export class DownloadQueue {
                            lowerTrimmed.includes('stream mapping:') ||
                            lowerTrimmed.startsWith('output #') ||
                            lowerTrimmed.includes('encoder') ||
-                           lowerTrimmed.includes('press [q] to stop');
+                           lowerTrimmed.includes('press [q] to stop') ||
+                           lowerTrimmed.includes('id3v2_priv') ||
+                           lowerTrimmed.includes('transportstreamtimestamp') ||
+                           lowerTrimmed.includes('thread message queue blocking');
       const isFfmpegConnection = /^\[[a-z0-9#_/.-]+ @ 0x?[0-9a-f]+\]/i.test(trimmed) && (
         lowerTrimmed.includes('cannot reuse') ||
         lowerTrimmed.includes('keepalive') ||
@@ -825,6 +832,7 @@ export class DownloadQueue {
       } else {
         console.error(`yt-dlp error line: ${trimmed}`);
         addTerminalLog(`[yt-dlp Error] ${trimmed}`, 'error');
+        realErrorLines.push(trimmed);
       }
     }
 
@@ -836,7 +844,8 @@ export class DownloadQueue {
       }
       stderrBuffer += output;
       
-      const lines = stderrBuffer.split(/\r?\n/);
+      // \r ayracı da satır sonu kabul edilir (ffmpeg ilerleme/HLS satırları birleşmesin)
+      const lines = stderrBuffer.split(/[\r\n]+/);
       stderrBuffer = lines.pop();
       
       for (const line of lines) {
@@ -986,18 +995,19 @@ export class DownloadQueue {
           );
         }
       } else {
-        let userFriendlyError = errorOutput.trim();
+        // Gerçek hata satırları toplandıysa onları kullan; yoksa ham stderr'e düş (güvenli geri dönüş)
+        let userFriendlyError = realErrorLines.length > 0 ? realErrorLines.join('\n') : errorOutput.trim();
         if (userFriendlyError.includes('Could not copy Chrome cookie database') || userFriendlyError.includes('Could not copy Edge cookie database')) {
           userFriendlyError = `Tarayıcı çerez dosyası kilitli! Edge/Chrome tarayıcınız arka planda çalışmaya devam ediyor olabilir. Lütfen tarayıcınızı tamamen kapatıp tekrar deneyin veya Ayarlar sekmesinden çerez seçeneğini 'Çerez Kullanma (Sadece Açık Videolar)' olarak ayarlayın.`;
-        } else if (userFriendlyError.includes('Could not find browser') || userFriendlyError.includes('cookie')) {
-          userFriendlyError = `Tarayıcı çerezleri okunamadı. Lütfen ayarlarınızdan çerez aldığınız tarayıcıyı (${settings.browser.toUpperCase()}) kapatıp tekrar deneyin veya tarayıcı profilinizin doğru olduğundan emin olun.`;
+        } else if ((userFriendlyError.includes('Could not find browser') || userFriendlyError.includes('cookie')) && !/no longer valid|cookies? are? (no longer valid|expired)|WARNING:/i.test(userFriendlyError)) {
+          userFriendlyError = `YouTube oturum çerezleri okunamadı. Lütfen Ayarlar sekmesinden "YouTube'da Oturum Aç" ile oturumunuzu yenileyip tekrar deneyin.`;
         } else if (/yeler|üyeler|members-only|katıl|katil|join this channel|ayrıcalık|ayrcal/i.test(userFriendlyError)) {
           userFriendlyError = settings.lang === 'en'
             ? `This video is Members-Only content. To download it, you must be a joined member of this channel and set 'Premium Browser Cookies' in Settings.`
             : `Bu video Katıl (Üyelere Özel) içeriğidir. İndirebilmek için kanala Katıl üyesi olmanız ve Ayarlar sekmesinden "Premium Çerez Tarayıcısı" seçeneğini aktif yapmanız gerekmektedir.`;
         }
 
-        let isLiveProcessingError = /live stream (has ended|recording is still processing|is currently live)|this live event will begin|this video is a live stream|processing stream|The downloaded file is empty|Post-Live Manifestless mode|No such file or directory.*\.part-Frag/i.test(userFriendlyError);
+        let isLiveProcessingError = /live stream (has ended|recording is still processing|is currently live)|this live event will begin|this video is a live stream|processing stream|The downloaded file is empty|Post-Live Manifestless mode|No such file or directory.*\.part-Frag|canl[ıi] etkinlik.*ba[şs]layacak|canl[ıi] yay[ıi]n.*(ba[şs]layacak|i[şs]leniyor|i[şs]len|devam ediyor|s[üu]r[üu]yor)|bu canl[ıi]|yay[ıi]n.*sonra ba[şs]layacak/i.test(userFriendlyError);
         let isTransientHttpError = /HTTP Error 403|HTTP Error 503|HTTP Error 429|Service Unavailable|Forbidden/i.test(userFriendlyError);
         let isGeoBlockedVideo = (/yasal|alan ad|country\'s domain|not available in your country|Geo-blocked|b[öo\uFFFD]lge|unavailable|kullan[ıi\uFFFD]lam/i.test(userFriendlyError) || /yasal|alan ad|country\'s domain|not available in your country|Geo-blocked|unavailable/i.test(errorOutput)) && !/Private video|Gizli video|This is a private video/i.test(userFriendlyError);
 

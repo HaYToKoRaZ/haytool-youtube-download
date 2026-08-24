@@ -592,11 +592,15 @@
                         💡 Oturum açmak için sağ alttaki tepsi simgesine sağ tıklayıp <strong>"YouTube'da Oturum Aç"</strong> seçebilirsiniz.
                       </span>
                       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" id="btn-test-cookies-live" class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; min-width: 140px; justify-content: center;">
+                        <button type="button" id="btn-open-yt-login" onclick="openYouTubeLogin()" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; justify-content: center; background: #e11d48; border-color: #be123c;">
+                          <i data-lucide="log-in" style="width: 15px; height: 15px;"></i>
+                          <span id="btn-text-yt-login">YouTube'da Oturum Aç</span>
+                        </button>
+                        <button type="button" id="btn-test-cookies-live" onclick="testCookies()" class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; min-width: 140px; justify-content: center;">
                           <i data-lucide="check-circle" style="width: 15px; height: 15px;"></i>
                           <span id="btn-text-test-cookies">Çerezleri Doğrula</span>
                         </button>
-                        <button type="button" id="btn-logout-youtube" class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; justify-content: center; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">
+                        <button type="button" id="btn-logout-youtube" onclick="logoutYouTube()" class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; justify-content: center; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">
                           <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
                           <span id="btn-text-logout-youtube">Oturumu Kapat</span>
                         </button>
@@ -623,21 +627,41 @@
                       </div>
                     </div>
 
-                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
-                      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
                         <label for="settings-auto-disk-sync" id="label-auto-disk-sync" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0;">
-                          <i data-lucide="hard-drive" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
-                          <span id="text-auto-disk-sync-title">Otomatik Disk Senkronizasyonu & Doğrulama</span>
+                          <i data-lucide="hard-drive" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
+                          <span id="text-auto-disk-sync-title">Disk Senkronizasyonu & Doğrulama</span>
                         </label>
                         <button type="button" id="btn-manual-disk-sync" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.75rem; border-radius: 6px;">
                           <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
                           <span id="btn-sync-disk-now-text">Diski Şimdi Senkronize Et</span>
                         </button>
                       </div>
-                      <div class="toggle-container" style="margin-top: 8px;">
-                        <input type="checkbox" id="settings-auto-disk-sync" class="toggle-input" checked>
-                        <label for="settings-auto-disk-sync" class="toggle-label"></label>
-                        <span id="desc-auto-disk-sync">Açılışta ve ayar değişikliklerinde diskteki videoları otomatik doğrula ve çözünürlükleri eşitle</span>
+
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
+                        <!-- Açılışta Tarama -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                          <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-color);" id="lbl-disk-sync-startup">Sistem Açılışında Doğrulama</span>
+                          <div class="toggle-container" style="margin-top: 2px;">
+                            <input type="checkbox" id="settings-auto-disk-sync" class="toggle-input" checked>
+                            <label for="settings-auto-disk-sync" class="toggle-label"></label>
+                            <span id="desc-auto-disk-sync" style="font-size: 0.75rem;">Açılışta diskteki videoları tara ve eşitle</span>
+                          </div>
+                        </div>
+
+                        <!-- Periyodik Arka Plan Taraması -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                          <label for="settings-periodic-disk-sync-interval" id="lbl-disk-sync-interval" style="font-size: 0.8rem; font-weight: 600; color: var(--text-color); margin: 0;">Arka Plan Tarama Sıklığı</label>
+                          <select id="settings-periodic-disk-sync-interval" class="form-control form-control-sm" style="padding: 4px 8px; font-size: 0.8rem; border-radius: 6px; height: 32px;">
+                            <option value="off" id="opt-disk-sync-off">Asla (Devre Dışı / Kapalı)</option>
+                            <option value="15" id="opt-disk-sync-15m">Her 15 Dakikada Bir</option>
+                            <option value="30" id="opt-disk-sync-30m">Her 30 Dakikada Bir</option>
+                            <option value="60" id="opt-disk-sync-1h">Her 1 Saatte Bir</option>
+                            <option value="360" id="opt-disk-sync-6h" selected>Her 6 Saatte Bir (Varsayılan)</option>
+                            <option value="1440" id="opt-disk-sync-24h">Günde Bir Kez (24 Saat)</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </div>

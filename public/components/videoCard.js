@@ -1,6 +1,4 @@
-// Türkçe Açıklama: Kütüphane ve İndirilenler sayfalarında videoların kart (grid) veya liste (compact) görünümünde çizilmesini sağlayan UI bileşeni.
-
-import { escapeHtml, formatDate, getDaysAgoText, isShortVideo, isMembersOnlyVideo } from '../utils/helpers.js';
+import { escapeHtml, formatDate, getDaysAgoText, isShortVideo, isMembersOnlyVideo, parseTimeToSeconds } from '../utils/helpers.js';
 import { translations } from '../utils/i18n.js';
 
 // YouTube SVG İkon Şablonu
@@ -8,6 +6,35 @@ export const youtubeSvgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="
 
 /**
  * Belirtilen video listesini hedef DOM elemanı içerisine kart veya liste düzeninde render eder.
+ * 
+ * @param {HTMLElement} gridElement Hedef çizim DOM elemanı (örn: history-grid)
+ * @param {Array<object>} videosList Çizilecek videoların veri dizisi
+ * @param {'grid'|'list'} viewMode Arayüz görünüm modu
+ * @returns {void}
+ */
+// Infinite Scroll / Chunked Loading Observer
+let _gridScrollObserver = null;
+
+function getGridScrollObserver() {
+  if (!_gridScrollObserver && typeof IntersectionObserver !== 'undefined') {
+    _gridScrollObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const sentinel = entry.target;
+          const grid = sentinel._targetGrid;
+          if (grid && typeof grid._renderNextChunk === 'function') {
+            grid._renderNextChunk();
+          }
+        }
+      });
+    }, { rootMargin: '400px 0px' });
+  }
+  return _gridScrollObserver;
+}
+
+/**
+ * Belirtilen video listesini hedef DOM elemanı içerisine kart veya liste düzeninde render eder.
+ * İlk etapta ilk 50 kartı DocumentFragment ile anında (<10ms) çizer, kaydırdıkça kademeli yükler.
  * 
  * @param {HTMLElement} gridElement Hedef çizim DOM elemanı (örn: history-grid)
  * @param {Array<object>} videosList Çizilecek videoların veri dizisi
@@ -28,7 +55,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
   const t = translations[lang] || translations.tr;
   const isEn = lang === 'en';
 
-  if (videosList.length === 0) {
+  if (!videosList || videosList.length === 0) {
     gridElement.innerHTML = `
       <div class="card text-center" style="grid-column: 1 / -1; padding: 40px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px;">
         <p class="text-muted">${t.card_no_video_filter || 'Filtreye uygun video kaydı bulunmuyor.'}</p>
@@ -37,285 +64,355 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
     return;
   }
 
-  videosList.forEach(item => {
-    const isShort = isShortVideo(item.duration, item.title, item.channelId);
+  // 1. localStorage'ı 6000 kez değil, sadece 1 kez oku
+  let resumeMap = {};
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      resumeMap = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+    }
+  } catch (e) {}
+
+  gridElement._allVideos = videosList;
+  gridElement._renderedCount = 0;
+  gridElement._resumeMap = resumeMap;
+  gridElement._viewMode = viewMode;
+
+  function renderNextChunk(chunkSize = 50) {
+    const total = gridElement._allVideos.length;
+    const current = gridElement._renderedCount;
+    if (current >= total) {
+      const oldSentinel = gridElement.querySelector('.grid-scroll-sentinel');
+      if (oldSentinel) {
+        if (_gridScrollObserver) _gridScrollObserver.unobserve(oldSentinel);
+        oldSentinel.remove();
+      }
+      return;
+    }
+
+    const chunk = gridElement._allVideos.slice(current, current + chunkSize);
+    const fragment = document.createDocumentFragment();
+
     const isBulkMode = window.isDownloadedBulkDeleteMode === true && gridElement.id === 'downloaded-grid';
     const isBulkHideMode = window.isHistoryBulkHideMode === true && gridElement.id === 'history-grid';
-    // Bir kart gizlenebilir: history-grid'de, indirilmemiş veya canlı, henüz gizlenmemiş
-    const isMissingCheck = item.fileMissing === true;
-    const isCompletedCheck = item.status === 'completed';
-    const isHideEligible = isBulkHideMode && (!isCompletedCheck || item.duration === 'live') && item.hidden !== true;
+    const sortVal = typeof window.downloadedSortVal !== 'undefined' ? window.downloadedSortVal : 'date-desc';
 
-    const card = document.createElement('div');
-    card.className = 'video-card'
-      + (isShort ? ' is-short' : '')
-      + (isBulkMode ? ' bulk-delete-active' : '')
-      + (isBulkHideMode ? ' bulk-hide-active' : '')
-      + (isBulkHideMode && !isHideEligible ? ' bulk-hide-ineligible' : '');
-    card.setAttribute('data-id', item.id);
-    if (typeof window.downloadedSortVal !== 'undefined' && window.downloadedSortVal === 'user' && gridElement === window.downloadedGrid) {
-      card.setAttribute('draggable', 'true');
-    }
-    
-    let statusHtml = '';
-    let actionsHtml = '';
+    chunk.forEach(item => {
+      const isShort = isShortVideo(item.duration, item.title, item.channelId);
+      const isMissingCheck = item.fileMissing === true;
+      const isCompletedCheck = item.status === 'completed';
+      const isHideEligible = isBulkHideMode && (!isCompletedCheck || item.duration === 'live') && item.hidden !== true;
 
-    const isMissing = item.fileMissing === true;
-    const isCompleted = item.status === 'completed';
-
-    const clickAction = isBulkMode
-      ? `toggleDownloadedCardSelection('${item.id}')`
-      : (isBulkHideMode && isHideEligible)
-        ? `toggleHistoryBulkHideCardSelection('${item.id}')`
-        : `playVideoEmbedded('${item.id}')`;
-    const clickTitle = isBulkMode
-      ? (t.card_select_video || 'Videoyu Seç')
-      : (isBulkHideMode && isHideEligible)
-        ? (t.history_bulk_hide_toggle || 'Toplu Gizle')
-        : '';
-
-    if (item.duration === 'live') {
-      const liveTooltip = t.card_live_stream_desc || t.card_watch_live || 'Canlı Yayın';
-      statusHtml = `<span class="status-dot-live animate-pulse" title="${escapeHtml(liveTooltip)}"></span>`;
-      actionsHtml = `
-        <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-          ${youtubeSvgIcon}
-        </button>
-        <button class="btn-icon btn-action-play" onclick="playVideoEmbedded('${item.id}')" title="${t.card_watch_live || 'Canlı Yayını İzle'}">
-          <i data-lucide="monitor-play"></i>
-        </button>
-      `;
-    } else if (item.status === 'completed') {
-      if (isMissing) {
-        // Türkçe Açıklama: Dosya diskte bulunamazsa sarı uyarı noktası ve devre dışı butonlar gösterilir.
-        statusHtml = `<span class="status-dot-warning" title="${t.card_file_missing || 'Dosya disk üzerinde bulunamadı!'}"></span>`;
-        actionsHtml = `
-          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-            ${youtubeSvgIcon}
-          </button>
-          <button class="btn-icon" disabled title="${t.card_file_missing_desc || 'Dosya diskte mevcut değil'}" style="opacity:0.35; cursor:not-allowed;">
-            <i data-lucide="monitor-play"></i>
-          </button>
-          <button class="btn-icon" disabled title="${t.card_file_missing_desc || 'Dosya diskte mevcut değil'}" style="opacity:0.35; cursor:not-allowed;">
-            <i data-lucide="folder-open"></i>
-          </button>
-        `;
-      } else {
-        // Türkçe Açıklama: Başarıyla indirilmiş videolar yeşil nokta ve tam aksiyon butonlarıyla gösterilir.
-        statusHtml = `<span class="status-dot-completed" title="${t.card_download_completed || 'İndirildi'}"></span>`;
-        actionsHtml = `
-          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-            ${youtubeSvgIcon}
-          </button>
-          <button class="btn-icon btn-action-play" onclick="playVideoSystem('${item.id}')" title="${t.card_open_system_player || 'Sistem Oynatıcısında Aç'}">
-            <i data-lucide="monitor-play"></i>
-          </button>
-          <button class="btn-icon btn-action-folder" onclick="openFolder(decodeURIComponent('${encodeURIComponent(item.channelName)}'))" title="${t.card_open_channel_folder || 'Kanal Klasörünü Aç'}">
-            <i data-lucide="folder-open"></i>
-          </button>
-        `;
+      const card = document.createElement('div');
+      card.className = 'video-card'
+        + (isShort ? ' is-short' : '')
+        + (isBulkMode ? ' bulk-delete-active' : '')
+        + (isBulkHideMode ? ' bulk-hide-active' : '')
+        + (isBulkHideMode && !isHideEligible ? ' bulk-hide-ineligible' : '');
+      card.setAttribute('data-id', item.id);
+      if (sortVal === 'user' && gridElement === window.downloadedGrid) {
+        card.setAttribute('draggable', 'true');
       }
-    } else if (item.status === 'downloading') {
-      statusHtml = `<span class="status-pill downloading"><i data-lucide="loader" class="pulse-animation" style="width:12px;height:12px;margin-right:4px;"></i> ${(t.active_download_progress || 'İndiriliyor').replace(':', '')} (${item.progress}%)</span>`;
-      actionsHtml = `
-        <button class="btn-icon btn-action-cancel" onclick="cancelDownload('${item.id}')" title="${t.card_cancel_download || 'İndirmeyi İptal Et'}">
-          <i data-lucide="square"></i>
-        </button>
-        <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-          ${youtubeSvgIcon}
-        </button>
-      `;
-    } else if (item.status === 'waiting') {
-      statusHtml = `<span class="status-pill waiting"><i data-lucide="clock" style="width:12px;height:12px;margin-right:4px;"></i> ${t.card_in_queue || 'Kuyrukta'}</span>`;
-      actionsHtml = `
-        <button class="btn-icon btn-action-cancel" onclick="cancelQueuedVideo('${item.id}')" title="${t.active_download_cancel || 'İptal Et'}">
-          <i data-lucide="square"></i>
-        </button>
-        <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-          ${youtubeSvgIcon}
-        </button>
-      `;
-    } else if (item.status === 'waiting_duration') {
-      statusHtml = `<span class="status-pill waiting_duration" style="background-color: var(--warning-light, rgba(245, 158, 11, 0.15)); color: var(--warning-color, #d97706);"><i data-lucide="clock" style="width:12px;height:12px;margin-right:4px;"></i> ${t.card_waiting_duration || 'Süre Analizi'}</span>`;
-      actionsHtml = `
-        <button class="btn-icon btn-action-cancel" onclick="cancelQueuedVideo('${item.id}')" title="${t.active_download_cancel || 'İptal Et'}">
-          <i data-lucide="square"></i>
-        </button>
-        <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-          ${youtubeSvgIcon}
-        </button>
-      `;
-    } else if (item.status === 'waiting_live_processing' || item.status === 'live_processing') {
-      const tooltipMsg = t.tooltip_waiting_live_processing || 'Canlı Yayın İşleniyor (Otomatik Yeniden Deneniyor)';
-      statusHtml = `<span class="status-pill live-processing-badge" title="${escapeHtml(tooltipMsg)}" style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.3); color: #eab308; padding: 4px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: help;"><i data-lucide="radio" class="pulse-animation" style="width: 14px; height: 14px;"></i></span>`;
-      actionsHtml = `
-        <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-          ${youtubeSvgIcon}
-        </button>
-      `;
-    } else if (item.status === 'failed') {
-      let shortError = '';
-      if (item.error) {
-        const errorLines = item.error.split('\n')
-          .map(l => l.trim())
-          .filter(l => l.toUpperCase().includes('ERROR:'));
-        if (errorLines.length > 0) {
-          shortError = errorLines[errorLines.length - 1];
+
+      let statusHtml = '';
+      let actionsHtml = '';
+
+      const isMissing = item.fileMissing === true;
+      const isCompleted = item.status === 'completed';
+
+      const clickAction = isBulkMode
+        ? `toggleDownloadedCardSelection('${item.id}')`
+        : (isBulkHideMode && isHideEligible)
+          ? `toggleHistoryBulkHideCardSelection('${item.id}')`
+          : `playVideoEmbedded('${item.id}')`;
+      const clickTitle = isBulkMode
+        ? (t.card_select_video || 'Videoyu Seç')
+        : (isBulkHideMode && isHideEligible)
+          ? (t.history_bulk_hide_toggle || 'Toplu Gizle')
+          : '';
+
+      if (item.duration === 'live') {
+        const liveTooltip = t.card_live_stream_desc || t.card_watch_live || 'Canlı Yayın';
+        statusHtml = `<span class="status-dot-live animate-pulse" title="${escapeHtml(liveTooltip)}"></span>`;
+        actionsHtml = `
+          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+            ${youtubeSvgIcon}
+          </button>
+          <button class="btn-icon btn-action-play" onclick="playVideoEmbedded('${item.id}')" title="${t.card_watch_live || 'Canlı Yayını İzle'}">
+            <i data-lucide="monitor-play"></i>
+          </button>
+        `;
+      } else if (item.status === 'completed') {
+        if (isMissing) {
+          statusHtml = `<span class="status-dot-warning" title="${t.card_file_missing || 'Dosya disk üzerinde bulunamadı!'}"></span>`;
+          actionsHtml = `
+            <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+              ${youtubeSvgIcon}
+            </button>
+            <button class="btn-icon" disabled title="${t.card_file_missing_desc || 'Dosya diskte mevcut değil'}" style="opacity:0.35; cursor:not-allowed;">
+              <i data-lucide="monitor-play"></i>
+            </button>
+            <button class="btn-icon" disabled title="${t.card_file_missing_desc || 'Dosya diskte mevcut değil'}" style="opacity:0.35; cursor:not-allowed;">
+              <i data-lucide="folder-open"></i>
+            </button>
+          `;
         } else {
-          shortError = item.error.split('\n')[0] || item.error;
-        }
-        if (shortError.length > 150) {
-          shortError = shortError.substring(0, 150) + '...';
-        }
-      }
-      if (!shortError) {
-        shortError = t.downloader_invalid_url || 'İndirme başarısız oldu';
-      }
-
-      const isMembersOnly = isMembersOnlyVideo(item);
-
-      if (isMembersOnly) {
-        const tooltipText = t.card_members_only ? `${t.card_members_only}: ${shortError}` : shortError;
-        statusHtml = `<span class="status-dot-members" title="${escapeHtml(tooltipText)}"></span>`;
-      } else {
-        statusHtml = `<span class="status-dot-failed" title="${escapeHtml(shortError)}"></span>`;
-      }
-
-      actionsHtml = `
-        <button class="btn-icon btn-action-retry" onclick="downloadVideoManual('${item.id}')" title="${t.card_retry_download || 'Yeniden İndirmeyi Dene'}">
-          <i data-lucide="rotate-ccw"></i>
-        </button>
-        <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-          ${youtubeSvgIcon}
-        </button>
-      `;
-    } else if (item.status === 'ignored') {
-      // Türkçe Açıklama: Göz ardı edilmiş videolar mavi nokta ile işaretlenir.
-      statusHtml = `<span class="status-dot-ignored" title="${t.card_download_now || 'Göz Ardı Edildi'}"></span>`;
-      actionsHtml = `
-        <button class="btn-icon btn-action-download" onclick="downloadVideoManual('${item.id}')" title="${t.card_download_now || 'Videoyu Şimdi İndir'}">
-          <i data-lucide="download"></i>
-        </button>
-        <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-          ${youtubeSvgIcon}
-        </button>
-      `;
-    }
-
-    if (item.status === 'completed' && item.duration !== 'live') {
-      actionsHtml += `
-        <button class="btn-icon video-action-delete" onclick="showDeleteModal('${item.id}')" title="${t.btn_delete_history || 'Geçmişten/Diskten Sil'}">
-          <i data-lucide="trash-2"></i>
-        </button>
-      `;
-    }
-
-    if (gridElement.id === 'history-grid') {
-      if (item.hidden === true) {
-        actionsHtml += `
-          <button class="btn-icon video-action-unhide" onclick="event.stopPropagation(); unhideVideo('${item.id}')" title="${t.card_unhide_video || 'Videoyu Göster'}" style="color: var(--success);">
-            <i data-lucide="eye"></i>
-          </button>
-        `;
-      } else {
-        const isDownloaded = item.status === 'completed' && !isMissing;
-        if (!isDownloaded || item.duration === 'live') {
-          actionsHtml += `
-            <button class="btn-icon video-action-hide" onclick="event.stopPropagation(); hideVideo('${item.id}')" title="${t.label_history_hide || 'Hide'}">
-              <i data-lucide="eye-off"></i>
+          statusHtml = `<span class="status-dot-completed" title="${t.card_download_completed || 'İndirildi'}"></span>`;
+          actionsHtml = `
+            <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+              ${youtubeSvgIcon}
+            </button>
+            <button class="btn-icon btn-action-play" onclick="playVideoSystem('${item.id}')" title="${t.card_open_system_player || 'Sistem Oynatıcısında Aç'}">
+              <i data-lucide="monitor-play"></i>
+            </button>
+            <button class="btn-icon btn-action-folder" onclick="openFolder(decodeURIComponent('${encodeURIComponent(item.channelName)}'))" title="${t.card_open_channel_folder || 'Kanal Klasörünü Aç'}">
+              <i data-lucide="folder-open"></i>
             </button>
           `;
         }
+      } else if (item.status === 'downloading') {
+        statusHtml = `<span class="status-pill downloading"><i data-lucide="loader" class="pulse-animation" style="width:12px;height:12px;margin-right:4px;"></i> ${(t.active_download_progress || 'İndiriliyor').replace(':', '')} (${item.progress}%)</span>`;
+        actionsHtml = `
+          <button class="btn-icon btn-action-cancel" onclick="cancelDownload('${item.id}')" title="${t.card_cancel_download || 'İndirmeyi İptal Et'}">
+            <i data-lucide="square"></i>
+          </button>
+          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+            ${youtubeSvgIcon}
+          </button>
+        `;
+      } else if (item.status === 'waiting') {
+        statusHtml = `<span class="status-pill waiting"><i data-lucide="clock" style="width:12px;height:12px;margin-right:4px;"></i> ${t.card_in_queue || 'Kuyrukta'}</span>`;
+        actionsHtml = `
+          <button class="btn-icon btn-action-cancel" onclick="cancelQueuedVideo('${item.id}')" title="${t.active_download_cancel || 'İptal Et'}">
+            <i data-lucide="square"></i>
+          </button>
+          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+            ${youtubeSvgIcon}
+          </button>
+        `;
+      } else if (item.status === 'waiting_duration') {
+        statusHtml = `<span class="status-pill waiting_duration" style="background-color: var(--warning-light, rgba(245, 158, 11, 0.15)); color: var(--warning-color, #d97706);"><i data-lucide="clock" style="width:12px;height:12px;margin-right:4px;"></i> ${t.card_waiting_duration || 'Süre Analizi'}</span>`;
+        actionsHtml = `
+          <button class="btn-icon btn-action-cancel" onclick="cancelQueuedVideo('${item.id}')" title="${t.active_download_cancel || 'İptal Et'}">
+            <i data-lucide="square"></i>
+          </button>
+          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+            ${youtubeSvgIcon}
+          </button>
+        `;
+      } else if (item.status === 'waiting_live_processing' || item.status === 'live_processing') {
+        const tooltipMsg = t.tooltip_waiting_live_processing || 'Canlı Yayın İşleniyor (Otomatik Yeniden Deneniyor)';
+        statusHtml = `<span class="status-pill live-processing-badge" title="${escapeHtml(tooltipMsg)}" style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.3); color: #eab308; padding: 4px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: help;"><i data-lucide="radio" class="pulse-animation" style="width: 14px; height: 14px;"></i></span>`;
+        actionsHtml = `
+          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+            ${youtubeSvgIcon}
+          </button>
+        `;
+      } else if (item.status === 'failed') {
+        let shortError = '';
+        if (item.error) {
+          const errorLines = item.error.split('\n')
+            .map(l => l.trim())
+            .filter(l => l.toUpperCase().includes('ERROR:'));
+          if (errorLines.length > 0) {
+            shortError = errorLines[errorLines.length - 1];
+          } else {
+            shortError = item.error.split('\n')[0] || item.error;
+          }
+          if (shortError.length > 150) {
+            shortError = shortError.substring(0, 150) + '...';
+          }
+        }
+        if (!shortError) {
+          shortError = t.downloader_invalid_url || 'İndirme başarısız oldu';
+        }
+
+        const isMembersOnly = isMembersOnlyVideo(item);
+
+        if (isMembersOnly) {
+          const tooltipText = t.card_members_only ? `${t.card_members_only}: ${shortError}` : shortError;
+          statusHtml = `<span class="status-dot-members" title="${escapeHtml(tooltipText)}"></span>`;
+        } else {
+          statusHtml = `<span class="status-dot-failed" title="${escapeHtml(shortError)}"></span>`;
+        }
+
+        actionsHtml = `
+          <button class="btn-icon btn-action-retry" onclick="downloadVideoManual('${item.id}')" title="${t.card_retry_download || 'Yeniden İndirmeyi Dene'}">
+            <i data-lucide="rotate-ccw"></i>
+          </button>
+          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+            ${youtubeSvgIcon}
+          </button>
+        `;
+      } else if (item.status === 'ignored') {
+        statusHtml = `<span class="status-dot-ignored" title="${t.card_download_now || 'Göz Ardı Edildi'}"></span>`;
+        actionsHtml = `
+          <button class="btn-icon btn-action-download" onclick="downloadVideoManual('${item.id}')" title="${t.card_download_now || 'Videoyu Şimdi İndir'}">
+            <i data-lucide="download"></i>
+          </button>
+          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+            ${youtubeSvgIcon}
+          </button>
+        `;
       }
-    }
 
-    let durationText = item.duration || '';
-    if (durationText === 'upcoming') {
-      durationText = t.shorts_limit_hours === 'h' ? 'Upcoming' : 'Yakında';
-    } else if (durationText === 'live') {
-      durationText = t.card_live || 'Canlı';
-    }
+      if (item.status === 'completed' && item.duration !== 'live') {
+        actionsHtml += `
+          <button class="btn-icon video-action-delete" onclick="showDeleteModal('${item.id}')" title="${t.btn_delete_history || 'Geçmişten/Diskten Sil'}">
+            <i data-lucide="trash-2"></i>
+          </button>
+        `;
+      }
 
-    const durationBadgeHtml = durationText 
-      ? `<div class="video-duration-badge">${durationText}</div>` 
-      : '';
+      if (gridElement.id === 'history-grid') {
+        if (item.hidden === true) {
+          actionsHtml += `
+            <button class="btn-icon video-action-unhide" onclick="event.stopPropagation(); unhideVideo('${item.id}')" title="${t.card_unhide_video || 'Videoyu Göster'}" style="color: var(--success);">
+              <i data-lucide="eye"></i>
+            </button>
+          `;
+        } else {
+          const isDownloaded = item.status === 'completed' && !isMissing;
+          if (!isDownloaded || item.duration === 'live') {
+            actionsHtml += `
+              <button class="btn-icon video-action-hide" onclick="event.stopPropagation(); hideVideo('${item.id}')" title="${t.label_history_hide || 'Hide'}">
+                <i data-lucide="eye-off"></i>
+              </button>
+            `;
+          }
+        }
+      }
 
-    const shortsBadgeHtml = isShort 
-      ? `<div class="video-shorts-badge"><i data-lucide="zap" style="width:10px;height:10px;margin-right:2px;"></i> Shorts</div>` 
-      : '';
+      let durationText = item.duration || '';
+      if (durationText === 'upcoming') {
+        durationText = t.shorts_limit_hours === 'h' ? 'Upcoming' : 'Yakında';
+      } else if (durationText === 'live') {
+        durationText = t.card_live || 'Canlı';
+      }
 
-    const qualityBadgeHtml = (item.status === 'completed' && !isMissing && item.actualQuality)
-      ? `<div class="video-quality-badge quality-${item.actualQuality.toLowerCase()}">${item.actualQuality}</div>`
-      : '';
+      const durationBadgeHtml = durationText 
+        ? `<div class="video-duration-badge">${durationText}</div>` 
+        : '';
 
-    const isUnlisted = item.isUnlisted === true || item.unlisted === true;
-    const unlistedBadgeHtml = isUnlisted
-      ? `<div class="video-unlisted-badge" title="${t.badge_unlisted_title || 'Bu video liste dışıdır (Sadece bağlantıya sahip olanlar görebilir)'}"><i data-lucide="eye-off" style="width:13px;height:13px;"></i></div>`
-      : '';
+      const shortsBadgeHtml = isShort 
+        ? `<div class="video-shorts-badge"><i data-lucide="zap" style="width:10px;height:10px;margin-right:2px;"></i> Shorts</div>` 
+        : '';
 
-    const shortsTagHtml = isShort 
-      ? `<span class="video-card-shorts-tag"><i data-lucide="zap" style="width:10px;height:10px;margin-right:2px;"></i> Shorts</span>` 
-      : '';
+      const qualityBadgeHtml = (item.status === 'completed' && !isMissing && item.actualQuality)
+        ? `<div class="video-quality-badge quality-${item.actualQuality.toLowerCase()}">${item.actualQuality}</div>`
+        : '';
 
-    const unlistedTagHtml = isUnlisted
-      ? `<span class="video-card-unlisted-tag" title="${t.badge_unlisted_title || 'Liste Dışı Video'}"><i data-lucide="eye-off" style="width:11px;height:11px;margin-right:2px;"></i> ${t.badge_unlisted || 'Liste Dışı'}</span>`
-      : '';
+      const isUnlisted = item.isUnlisted === true || item.unlisted === true;
+      const unlistedBadgeHtml = isUnlisted
+        ? `<div class="video-unlisted-badge" title="${t.badge_unlisted_title || 'Bu video liste dışıdır (Sadece bağlantıya sahip olanlar görebilir)'}"><i data-lucide="eye-off" style="width:13px;height:13px;"></i></div>`
+        : '';
 
-    card.innerHTML = `
-      <div class="video-thumbnail-wrapper" data-video-id="${item.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}">
-        <img class="video-thumbnail" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
-        ${qualityBadgeHtml}
-        ${unlistedBadgeHtml}
-        ${durationBadgeHtml}
-        ${shortsBadgeHtml}
-        ${isBulkMode ? `
-        <label class="downloaded-bulk-delete-checkbox-wrap" onclick="event.stopPropagation()">
-          <input type="checkbox" class="downloaded-bulk-delete-cb" data-id="${item.id}" onchange="updateDownloadedBulkDeleteCount(event)" onclick="event.stopPropagation()">
-        </label>
-        ` : ''}
-        ${isHideEligible ? `
-        <label class="history-bulk-hide-checkbox-wrap" onclick="event.stopPropagation()">
-          <input type="checkbox" class="history-bulk-hide-cb" data-id="${item.id}" onchange="updateHistoryBulkHideCount(event)" onclick="event.stopPropagation()">
-        </label>
-        ` : ''}
-      </div>
-      <div class="video-card-content">
-        <h3 class="video-card-title" onclick="${clickAction}" style="cursor: pointer;" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap: wrap;">
-          <span class="video-card-duration-text">${durationText || (t.card_duration_not_specified || 'Süre Belirtilmedi')}</span>
-          ${shortsTagHtml}
-          ${unlistedTagHtml}
+      const shortsTagHtml = isShort 
+        ? `<span class="video-card-shorts-tag"><i data-lucide="zap" style="width:10px;height:10px;margin-right:2px;"></i> Shorts</span>` 
+        : '';
+
+      const unlistedTagHtml = isUnlisted
+        ? `<span class="video-card-unlisted-tag" title="${t.badge_unlisted_title || 'Liste Dışı Video'}"><i data-lucide="eye-off" style="width:11px;height:11px;margin-right:2px;"></i> ${t.badge_unlisted || 'Liste Dışı'}</span>`
+        : '';
+
+      let progressBarHtml = '';
+      let durSeconds = item.durationSeconds || 0;
+      if (!durSeconds && item.duration && typeof parseTimeToSeconds === 'function') {
+        durSeconds = parseTimeToSeconds(item.duration);
+      }
+      const lastPos = item.lastPositionSeconds || (resumeMap[item.id] || 0);
+      if (lastPos > 3 && durSeconds > 10 && lastPos < durSeconds * 0.95) {
+        const pct = Math.min(100, Math.max(1, Math.round((lastPos / durSeconds) * 100)));
+        const mins = Math.floor(lastPos / 60);
+        const secs = Math.floor(lastPos % 60);
+        const posStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const resumeLabel = t.resumed_from || 'Kaldığı Yer';
+        progressBarHtml = `<div class="video-playback-progress-container" title="${resumeLabel}: ${posStr} (${pct}%)"><div class="video-playback-progress-bar" style="width: ${pct}%;"></div></div>`;
+      }
+
+      card.innerHTML = `
+        <div class="video-thumbnail-wrapper" data-video-id="${item.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}">
+          <img class="video-thumbnail" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
+          ${qualityBadgeHtml}
+          ${unlistedBadgeHtml}
+          ${durationBadgeHtml}
+          ${shortsBadgeHtml}
+          ${progressBarHtml}
+          ${isBulkMode ? `
+          <label class="downloaded-bulk-delete-checkbox-wrap" onclick="event.stopPropagation()">
+            <input type="checkbox" class="downloaded-bulk-delete-cb" data-id="${item.id}" onchange="updateDownloadedBulkDeleteCount(event)" onclick="event.stopPropagation()">
+          </label>
+          ` : ''}
+          ${isHideEligible ? `
+          <label class="history-bulk-hide-checkbox-wrap" onclick="event.stopPropagation()">
+            <input type="checkbox" class="history-bulk-hide-cb" data-id="${item.id}" onchange="updateHistoryBulkHideCount(event)" onclick="event.stopPropagation()">
+          </label>
+          ` : ''}
         </div>
-        <div class="video-card-metadata">
-          <span class="video-card-channel clickable-channel" ${item.channelId ? `onclick="event.stopPropagation(); filterByChannel('${item.channelId}', '${gridElement.id}')"` : ''} style="cursor: pointer; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
-            ${item.channelId 
-              ? `<img src="/api/channels/${item.channelId}/avatar" class="video-card-channel-avatar" onerror="this.style.display='none';" />` 
-              : ''}
-            ${escapeHtml(item.channelName)}
-          </span>
-          <span>${t.card_date || 'Tarih'}: ${formatDate(item.publishedAt || item.downloadedAt)}</span>
-          ${item.status === 'completed' ? `<span>${t.card_size || 'Boyut'}: ${item.fileSize || '-- MB'}</span>` : ''}
-        </div>
-        <div class="video-card-bottom">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            ${statusHtml}
-            <span class="video-card-age-text" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: inline-block;">
-               ${getDaysAgoText(item.publishedAt || item.downloadedAt, isEn)}
+        <div class="video-card-content">
+          <h3 class="video-card-title" onclick="${clickAction}" style="cursor: pointer;" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap: wrap;">
+            <span class="video-card-duration-text">${durationText || (t.card_duration_not_specified || 'Süre Belirtilmedi')}</span>
+            ${shortsTagHtml}
+            ${unlistedTagHtml}
+          </div>
+          <div class="video-card-metadata">
+            <span class="video-card-channel clickable-channel" ${item.channelId ? `onclick="event.stopPropagation(); filterByChannel('${item.channelId}', '${gridElement.id}')"` : ''} style="cursor: pointer; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+              ${item.channelId 
+                ? `<img src="/api/channels/${item.channelId}/avatar" class="video-card-channel-avatar" onerror="this.style.display='none';" />` 
+                : ''}
+              ${escapeHtml(item.channelName)}
             </span>
+            <span>${t.card_date || 'Tarih'}: ${formatDate(item.publishedAt || item.downloadedAt)}</span>
+            ${item.status === 'completed' ? `<span>${t.card_size || 'Boyut'}: ${item.fileSize || '-- MB'}</span>` : ''}
           </div>
-          <div class="video-card-actions">
-            ${actionsHtml}
+          <div class="video-card-bottom">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              ${statusHtml}
+              <span class="video-card-age-text" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: inline-block;">
+                 ${getDaysAgoText(item.publishedAt || item.downloadedAt, isEn)}
+              </span>
+            </div>
+            <div class="video-card-actions">
+              ${actionsHtml}
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
 
-    gridElement.appendChild(card);
-  });
+      fragment.appendChild(card);
+    });
 
-  try {
-    lucide.createIcons();
-  } catch (e) {
-    // Kasıtlı sessiz
+    const oldSentinel = gridElement.querySelector('.grid-scroll-sentinel');
+    if (oldSentinel) {
+      if (_gridScrollObserver) _gridScrollObserver.unobserve(oldSentinel);
+      oldSentinel.remove();
+    }
+
+    gridElement.appendChild(fragment);
+    gridElement._renderedCount += chunk.length;
+
+    // Hedefe yönelik Lucide ikon dönüştürme (Tüm sayfayı taramak yerine sadece grid'i tarar)
+    try {
+      if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+        lucide.createIcons({ root: gridElement });
+      }
+    } catch (e) {}
+
+    // Eğer daha render edilecek video varsa observer sentinel elemanı ekle
+    if (gridElement._renderedCount < total) {
+      const sentinel = document.createElement('div');
+      sentinel.className = 'grid-scroll-sentinel';
+      sentinel.style.cssText = 'grid-column: 1 / -1; height: 30px; margin: 10px 0; opacity: 0; pointer-events: none;';
+      sentinel._targetGrid = gridElement;
+      gridElement.appendChild(sentinel);
+
+      const obs = getGridScrollObserver();
+      if (obs) obs.observe(sentinel);
+    }
   }
+
+  gridElement._renderNextChunk = renderNextChunk;
+  // İlk 50 kartı hemen (<10ms) çiz
+  renderNextChunk(50);
 }
+

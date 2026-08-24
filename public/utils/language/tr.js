@@ -81,7 +81,6 @@ export const tr = {
   label_download_path: 'İndirme Klasörü Konumu',
   btn_select_folder: 'Klasör Seç',
   btn_test_folder: 'Test Et',
-  label_browser: 'Premium Çerez Tarayıcısı',
   label_quality: 'Varsayılan İndirme Kalitesi',
   label_merge_type: 'İndirme Yöntemi (FFmpeg / Dosya Yapısı)',
   label_interval: 'Tüm Kanalları Otomatik Denetleme Sıklığı (Saniye)',
@@ -191,8 +190,6 @@ export const tr = {
   desc_channel_check_interval: 'Tüm kanalları topluca denetlemek için beklenecek süre.',
   desc_rss_limit: 'Kanal başına RSS akışındaki en yeni kaç video kontrol edilsin?',
   desc_auto_delete: 'Kaç gün sonra otomatik silinsin? (Kapatmak için 0 yazın)',
-  opt_browser_none: 'Çerez Kullanma (Sadece Açık Videolar)',
-  desc_browser: 'YouTube Premium hesabınızın açık olduğu tarayıcıyı seçin. Bu sayede Premium yüksek indirme hızı ve yüksek kalite kullanılabilir.',
   settings_status_text: 'Değişiklikler anında otomatik kaydedilir.',
   connection_connecting: 'Bağlantı: Bağlanıyor...',
   connection_active: 'Bağlantı: Aktif',
@@ -569,8 +566,16 @@ export const tr = {
   inline_btn_sync_watchtime: 'Kaldığım Yeri YouTube\'a Eşitle',
   text_autosync_watchtime_title: 'YouTube İzleme Süresi Eşitleme',
   desc_autosync_watchtime: 'Videoyu duraklatınca veya kapatınca kaldığım yeri YouTube geçmişine otomatik kaydet',
-  text_auto_disk_sync_title: 'Otomatik Disk Senkronizasyonu & Doğrulama',
-  desc_auto_disk_sync: 'Açılışta ve ayar değişikliklerinde diskteki videoları otomatik doğrula ve çözünürlükleri eşitle',
+  text_auto_disk_sync_title: 'Disk Senkronizasyonu & Doğrulama',
+  lbl_disk_sync_startup: 'Sistem Açılışında Doğrulama',
+  desc_auto_disk_sync: 'Açılışta diskteki videoları tara ve veritabanıyla eşitle',
+  lbl_disk_sync_interval: 'Arka Plan Tarama Sıklığı',
+  opt_disk_sync_off: 'Asla (Devre Dışı / Kapalı)',
+  opt_disk_sync_15m: 'Her 15 Dakikada Bir',
+  opt_disk_sync_30m: 'Her 30 Dakikada Bir',
+  opt_disk_sync_1h: 'Her 1 Saatte Bir',
+  opt_disk_sync_6h: 'Her 6 Saatte Bir (Varsayılan)',
+  opt_disk_sync_24h: 'Günde Bir Kez (24 Saat)',
   btn_sync_disk_now: 'Diski Şimdi Senkronize Et',
   msg_disk_sync_started: 'Disk senkronizasyonu başlatıldı...',
   msg_disk_sync_success: 'Disk senkronizasyonu başarıyla tamamlandı.',
@@ -596,7 +601,10 @@ export const tr = {
   ape_error_title: 'Hata:',
   tools_compare_accordion_title: 'Gelişmiş Dosya Karşılaştırma & Senkronizasyon',
   ape_accordion_title: 'APE (İzlendi Olarak İşaretleme)',
-  nav_tools_ape: 'APE (İzlendi İşaretleme)'
+  nav_tools_ape: 'APE - İzlendi İşaretleme',
+  ape_limit_label: 'Video Sayısı:',
+  resuming_playback: 'Kaldığınız yerden devam ediliyor: {time}',
+  resumed_from: 'Kaldığı Yer'
 };
 
 

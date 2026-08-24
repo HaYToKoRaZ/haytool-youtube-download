@@ -77,7 +77,6 @@ export const ru = {
   label_download_path: 'Путь к папке загрузок',
   btn_select_folder: 'Выбрать папку',
   btn_test_folder: 'Тестировать папку',
-  label_browser: 'Браузер для куки',
   label_quality: 'Качество загрузки по умолчанию',
   label_merge_type: 'Метод загрузки (FFmpeg / Структура файлов)',
   label_interval: 'Частота автоматической проверки всех каналов (в секундах)',
@@ -188,8 +187,6 @@ export const ru = {
   desc_channel_check_interval: 'Время ожидания для проверки всех каналов вместе.',
   desc_rss_limit: 'Сколько последних видео из RSS-ленты должно проверяться для каждого канала?',
   desc_auto_delete: 'Через сколько дней видео должно удаляться автоматически? (0 для отключения)',
-  opt_browser_none: 'Не использовать куки (Только публичные видео)',
-  desc_browser: 'Выберите браузер, в котором выполнен вход в ваш аккаунт YouTube Premium. Это активирует высокую скорость скачивания Premium и высокое качество.',
   settings_status_text: 'Изменения автоматически сохраняются мгновенно.',
   connection_connecting: 'Подключение: Соединение...',
   connection_active: 'Подключение: Соединено',
@@ -569,8 +566,16 @@ export const ru = {
   inline_btn_sync_watchtime: 'Синхронизировать позицию просмотра с YouTube',
   text_autosync_watchtime_title: 'Синхронизация времени просмотра YouTube',
   desc_autosync_watchtime: 'Автоматически сохранять позицию в истории YouTube при паузе или закрытии',
-  text_auto_disk_sync_title: 'Автоматическая синхронизация и проверка диска',
-  desc_auto_disk_sync: 'Автоматически проверять загруженные видео на диске и синхронизировать значки разрешения при запуске и изменении настроек',
+  text_auto_disk_sync_title: 'Синхронизация и проверка диска',
+  lbl_disk_sync_startup: 'Проверка при запуске',
+  desc_auto_disk_sync: 'Сканировать и сопоставлять загруженные видео при запуске программы',
+  lbl_disk_sync_interval: 'Частота фоновой синхронизации',
+  opt_disk_sync_off: 'Никогда (Отключено / Выкл)',
+  opt_disk_sync_15m: 'Каждые 15 минут',
+  opt_disk_sync_30m: 'Каждые 30 минут',
+  opt_disk_sync_1h: 'Каждый 1 час',
+  opt_disk_sync_6h: 'Каждые 6 часов (По умолчанию)',
+  opt_disk_sync_24h: 'Раз в день (24 часа)',
   btn_sync_disk_now: 'Синхронизировать диск сейчас',
   msg_disk_sync_started: 'Синхронизация диска запущена...',
   msg_disk_sync_success: 'Синхронизация диска успешно завершена.',
@@ -596,7 +601,10 @@ export const ru = {
   ape_error_title: 'Ошибка:',
   tools_compare_accordion_title: 'Расширенное сравнение и синхронизация файлов',
   ape_accordion_title: 'APE (Отметить как просмотренное)',
-  nav_tools_ape: 'APE (Отметить просмотренным)'
+  nav_tools_ape: 'APE - Отметить просмотренным',
+  ape_limit_label: 'Кол-во видео:',
+  resuming_playback: 'Продолжение с места остановки: {time}',
+  resumed_from: 'Место остановки'
 };
 
 

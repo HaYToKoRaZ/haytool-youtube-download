@@ -118,7 +118,6 @@ let videoIdToDelete = null;
 // Ayarlar Tab Elemanları
 const settingsForm = document.getElementById('settings-form');
 const settingsDownloadPath = document.getElementById('settings-download-path');
-const settingsBrowser = document.getElementById('settings-browser');
 const settingsQuality = document.getElementById('settings-quality');
 const settingsChannelCheckInterval = document.getElementById('settings-channelcheckinterval');
 const settingsAutoDownload = document.getElementById('settings-autodownload');
@@ -384,6 +383,36 @@ export function updateActiveDownloadProgress(data) {
 }
 
 
+// === FILTER CHIP HELPERS ===
+export function toggleFilterChip(checkboxId) {
+  const cb = document.getElementById(checkboxId);
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  cb.dispatchEvent(new Event('change'));
+  syncFilterChipUI(checkboxId);
+}
+window.toggleFilterChip = toggleFilterChip;
+
+export function syncFilterChipUI(checkboxId) {
+  const cb = document.getElementById(checkboxId);
+  if (!cb) return;
+  const chipMap = {
+    'history-show-hidden': 'btn-filter-show-hidden',
+    'history-only-not-downloaded': 'btn-filter-not-downloaded',
+    'history-only-live-processing': 'btn-filter-live-processing',
+    'history-show-members': 'btn-filter-show-members',
+    'history-show-shorts': 'btn-filter-show-shorts',
+    'history-show-live': 'btn-filter-show-live',
+    'history-only-no-auto-download': 'btn-filter-no-auto-download'
+  };
+  const btnId = chipMap[checkboxId];
+  if (btnId) {
+    const chipBtn = document.getElementById(btnId);
+    if (chipBtn) chipBtn.classList.toggle('active', cb.checked);
+  }
+}
+window.syncFilterChipUI = syncFilterChipUI;
+
 // Türkçe Açıklama: Sunucudan veya SSE bağlantısından gelen güncel veritabanı verilerine göre tüm ekran kartlarını, istatistikleri ve listeleri günceller.
 /**
  * Veritabanı nesnesine göre arayüzdeki istatistikleri, video listelerini ve ayar formlarını günceller.
@@ -413,8 +442,9 @@ export function updateUI(db) {
   const lang = db.settings?.lang || currentLang || 'tr';
   const t = translations[lang] || translations.tr;
   
-  // YouTube Oturum ve Çerez Rozeti Durumunu Güncelle
-  if (typeof window.checkYouTubeAuthStatus === 'function') {
+  // YouTube Oturum ve Çerez Rozeti Durumunu Sadece İlk Başlangıçta veya İhtiyaç Anında Güncelle
+  if (typeof window.checkYouTubeAuthStatus === 'function' && !window._youtubeAuthChecked) {
+    window._youtubeAuthChecked = true;
     window.checkYouTubeAuthStatus();
   }
   
@@ -975,8 +1005,12 @@ export function updateUI(db) {
     }
   }
 
-  // Geçmişi filtrele ve çiz
-  if (historyGrid && db.history && db.settings) {
+  const activeNavTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
+  const isHistoryActive = activeNavTab === 'history' || activeNavTab === 'all' || !historyGrid?.closest('.tab-content')?.classList.contains('hidden');
+  const isDownloadedActive = activeNavTab === 'downloaded' || activeNavTab === 'all' || !downloadedGrid?.closest('.tab-content')?.classList.contains('hidden');
+
+  // Geçmişi filtrele ve çiz (Sadece Kütüphane sekmesi aktifse)
+  if (historyGrid && db.history && db.settings && isHistoryActive) {
     // Sadece takip edilen kanalları Kütüphane listesinde göster (PD/elle eklenen takip dışı kanallar elenir)
     const trackedChannelIds = new Set((db.channels || []).map(c => c.id));
     let filteredHistory = db.history.filter(item => item.channelId && trackedChannelIds.has(item.channelId));
@@ -1088,8 +1122,8 @@ export function updateUI(db) {
     renderVideoGrid(historyGrid, filteredHistory, window.historyViewMode || 'grid');
   }
 
-  // İndirilen Videoları filtrele ve çiz
-  if (downloadedGrid && db.history && db.settings) {
+  // İndirilen Videoları filtrele ve çiz (Sadece İndirilenler sekmesi aktifse)
+  if (downloadedGrid && db.history && db.settings && isDownloadedActive) {
     let filteredDownloaded = db.history.filter(item => item.status === 'completed');
     
     const curDlChannel = window.downloadedFilterChannel || 'all';
@@ -1169,7 +1203,6 @@ export function updateUI(db) {
     if (typeof window.togglePythonSettingsVisibility === 'function') {
       window.togglePythonSettingsVisibility();
     }
-    if (settingsBrowser && document.activeElement !== settingsBrowser) settingsBrowser.value = db.settings.browser || 'none';
     if (settingsQuality && document.activeElement !== settingsQuality) settingsQuality.value = db.settings.quality || 'best';
     if (settingsChannelCheckInterval && document.activeElement !== settingsChannelCheckInterval) settingsChannelCheckInterval.value = db.settings.channelCheckInterval || 60;
     if (settingsAutoDownload && document.activeElement !== settingsAutoDownload) settingsAutoDownload.checked = !!db.settings.autoDownload;
@@ -1227,6 +1260,9 @@ export function updateUI(db) {
 
     const settingsAutoDiskSync = document.getElementById('settings-auto-disk-sync');
     if (settingsAutoDiskSync && document.activeElement !== settingsAutoDiskSync) settingsAutoDiskSync.checked = db.settings.autoDiskSync !== false;
+
+    const settingsPeriodicDiskSync = document.getElementById('settings-periodic-disk-sync-interval');
+    if (settingsPeriodicDiskSync && document.activeElement !== settingsPeriodicDiskSync) settingsPeriodicDiskSync.value = db.settings.periodicDiskSyncInterval || '360';
 
     const settingsShowNotifications = document.getElementById('settings-shownotifications');
     if (settingsShowNotifications && document.activeElement !== settingsShowNotifications) settingsShowNotifications.checked = db.settings.showNotifications !== false;
@@ -1832,35 +1868,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// === FILTER CHIP HELPERS ===
-function toggleFilterChip(checkboxId) {
-  const cb = document.getElementById(checkboxId);
-  if (!cb) return;
-  cb.checked = !cb.checked;
-  cb.dispatchEvent(new Event('change'));
-  syncFilterChipUI(checkboxId);
-}
-window.toggleFilterChip = toggleFilterChip;
-
-function syncFilterChipUI(checkboxId) {
-  const cb = document.getElementById(checkboxId);
-  if (!cb) return;
-  const chipMap = {
-    'history-show-hidden': 'btn-filter-show-hidden',
-    'history-only-not-downloaded': 'btn-filter-not-downloaded',
-    'history-only-live-processing': 'btn-filter-live-processing',
-    'history-show-members': 'btn-filter-show-members',
-    'history-show-shorts': 'btn-filter-show-shorts',
-    'history-show-live': 'btn-filter-show-live',
-    'history-only-no-auto-download': 'btn-filter-no-auto-download'
-  };
-  const btnId = chipMap[checkboxId];
-  if (btnId) {
-    const chipBtn = document.getElementById(btnId);
-    if (chipBtn) chipBtn.classList.toggle('active', cb.checked);
-  }
-}
-window.syncFilterChipUI = syncFilterChipUI;
 
   const historyShowShorts = document.getElementById('history-show-shorts');
   if (historyShowShorts) {

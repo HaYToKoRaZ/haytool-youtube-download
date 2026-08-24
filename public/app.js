@@ -197,6 +197,7 @@ function applyLanguage(lang) {
   elQuery('#test-folder-btn span', 'btn_test_folder');
   el('label-youtube-auth-title', 'label_youtube_auth_title');
   el('cookie-tray-hint', 'cookie_tray_hint', 'innerHTML');
+  el('btn-text-yt-login', 'btn_text_yt_login');
   el('btn-text-test-cookies', 'btn_text_test_cookies');
   el('btn-text-logout-youtube', 'btn_text_logout_youtube');
   el('cookie-info-title', 'cookie_info_title');
@@ -204,7 +205,15 @@ function applyLanguage(lang) {
   el('text-autosync-watchtime-title', 'text_autosync_watchtime_title');
   el('desc-autosync-watchtime', 'desc_autosync_watchtime');
   el('text-auto-disk-sync-title', 'text_auto_disk_sync_title');
+  el('lbl-disk-sync-startup', 'lbl_disk_sync_startup');
   el('desc-auto-disk-sync', 'desc_auto_disk_sync');
+  el('lbl-disk-sync-interval', 'lbl_disk_sync_interval');
+  el('opt-disk-sync-off', 'opt_disk_sync_off');
+  el('opt-disk-sync-15m', 'opt_disk_sync_15m');
+  el('opt-disk-sync-30m', 'opt_disk_sync_30m');
+  el('opt-disk-sync-1h', 'opt_disk_sync_1h');
+  el('opt-disk-sync-6h', 'opt_disk_sync_6h');
+  el('opt-disk-sync-24h', 'opt_disk_sync_24h');
   el('btn-sync-disk-now-text', 'btn_sync_disk_now');
   elQuery('label[for="settings-quality"]', 'label_quality');
   elQuery('label[for="settings-mergetype"]', 'label_merge_type');
@@ -562,8 +571,6 @@ function applyLanguage(lang) {
   el('desc-channel-check-interval', 'desc_channel_check_interval');
   el('desc-rss-limit', 'desc_rss_limit');
   el('desc-auto-delete', 'desc_auto_delete');
-  el('opt-browser-none', 'opt_browser_none');
-  el('desc-browser', 'desc_browser');
   el('settings-status-text', 'settings_status_text');
 
   // Geçmiş limit ve veri yönetimi çevirileri
@@ -631,6 +638,7 @@ function applyLanguage(lang) {
   el('nav-hdown-pd-text', 'nav_hdown_pd');
   el('nav-hdown-downloader-text', 'nav_hdown_downloader');
   el('nav-tools-compare-text', 'compare_title');
+  el('nav-tools-ape-text', 'nav_tools_ape');
   el('nav-tools-categories-text', 'category_manage_title');
   el('nav-tools-ape-text', 'nav_tools_ape');
 
@@ -697,6 +705,7 @@ function applyLanguage(lang) {
   }
   el('btn-ape-mark-text', 'btn_ape_mark_text');
   el('label-ape-sync-youtube', 'label_ape_sync_youtube');
+  el('label-ape-limit', 'ape_limit_label');
 
 
 
@@ -985,7 +994,6 @@ let videoIdToDelete = null;
 // Ayarlar Tab Elemanları
 const settingsForm = document.getElementById('settings-form');
 const settingsDownloadPath = document.getElementById('settings-download-path');
-const settingsBrowser = document.getElementById('settings-browser');
 const settingsQuality = document.getElementById('settings-quality');
 const settingsChannelCheckInterval = document.getElementById('settings-channelcheckinterval');
 const settingsAutoDownload = document.getElementById('settings-autodownload');
@@ -1343,12 +1351,43 @@ function updateActiveDownloadProgress(data) {
 }
 
 
+// === FILTER CHIP HELPERS ===
+function toggleFilterChip(checkboxId) {
+  const cb = document.getElementById(checkboxId);
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  cb.dispatchEvent(new Event('change'));
+  syncFilterChipUI(checkboxId);
+}
+window.toggleFilterChip = toggleFilterChip;
+
+function syncFilterChipUI(checkboxId) {
+  const cb = document.getElementById(checkboxId);
+  if (!cb) return;
+  const chipMap = {
+    'history-show-hidden': 'btn-filter-show-hidden',
+    'history-only-not-downloaded': 'btn-filter-not-downloaded',
+    'history-only-live-processing': 'btn-filter-live-processing',
+    'history-show-members': 'btn-filter-show-members',
+    'history-show-shorts': 'btn-filter-show-shorts',
+    'history-show-live': 'btn-filter-show-live',
+    'history-only-no-auto-download': 'btn-filter-no-auto-download'
+  };
+  const btnId = chipMap[checkboxId];
+  if (btnId) {
+    const chipBtn = document.getElementById(btnId);
+    if (chipBtn) chipBtn.classList.toggle('active', cb.checked);
+  }
+}
+window.syncFilterChipUI = syncFilterChipUI;
+
 // Türkçe Açıklama: Sunucudan veya SSE bağlantısından gelen güncel veritabanı verilerine göre tüm ekran kartlarını, istatistikleri ve listeleri günceller.
 /**
  * Veritabanı nesnesine göre arayüzdeki istatistikleri, video listelerini ve ayar formlarını günceller.
  * 
  * @param {object} db Veritabanı veri nesnesi
  */
+window.updateUI = updateUI;
 function updateUI(db) {
   if (!db) return;
   localDb = db;
@@ -1371,8 +1410,9 @@ function updateUI(db) {
   const lang = db.settings?.lang || currentLang || 'tr';
   const t = translations[lang] || translations.tr;
   
-  // YouTube Oturum ve Çerez Rozeti Durumunu Güncelle
-  if (typeof window.checkYouTubeAuthStatus === 'function') {
+  // YouTube Oturum ve Çerez Rozeti Durumunu Sadece İlk Başlangıçta veya İhtiyaç Anında Güncelle
+  if (typeof window.checkYouTubeAuthStatus === 'function' && !window._youtubeAuthChecked) {
+    window._youtubeAuthChecked = true;
     window.checkYouTubeAuthStatus();
   }
   
@@ -1924,8 +1964,12 @@ function updateUI(db) {
     }
   }
 
-  // Geçmişi filtrele ve çiz
-  if (historyGrid && db.history && db.settings) {
+  const activeNavTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
+  const isHistoryActive = activeNavTab === 'history' || activeNavTab === 'all' || !historyGrid?.closest('.tab-content')?.classList.contains('hidden');
+  const isDownloadedActive = activeNavTab === 'downloaded' || activeNavTab === 'all' || !downloadedGrid?.closest('.tab-content')?.classList.contains('hidden');
+
+  // Geçmişi filtrele ve çiz (Sadece Kütüphane sekmesi aktifse)
+  if (historyGrid && db.history && db.settings && isHistoryActive) {
     // Sadece takip edilen kanalları Kütüphane listesinde göster (PD/elle eklenen takip dışı kanallar elenir)
     const trackedChannelIds = new Set((db.channels || []).map(c => c.id));
     let filteredHistory = db.history.filter(item => item.channelId && trackedChannelIds.has(item.channelId));
@@ -2035,8 +2079,8 @@ function updateUI(db) {
     renderVideoGrid(historyGrid, filteredHistory, historyViewMode);
   }
 
-  // İndirilen Videoları filtrele ve çiz
-  if (downloadedGrid && db.history && db.settings) {
+  // İndirilen Videoları filtrele ve çiz (Sadece İndirilenler sekmesi aktifse)
+  if (downloadedGrid && db.history && db.settings && isDownloadedActive) {
     let filteredDownloaded = db.history.filter(item => item.status === 'completed');
     
     if (downloadedFilterChannel !== 'all') {
@@ -2115,7 +2159,6 @@ function updateUI(db) {
     if (typeof window.togglePythonSettingsVisibility === 'function') {
       window.togglePythonSettingsVisibility();
     }
-    if (settingsBrowser && document.activeElement !== settingsBrowser) settingsBrowser.value = db.settings.browser || 'none';
     if (settingsQuality && document.activeElement !== settingsQuality) settingsQuality.value = db.settings.quality || 'best';
     if (settingsChannelCheckInterval && document.activeElement !== settingsChannelCheckInterval) settingsChannelCheckInterval.value = db.settings.channelCheckInterval || 60;
     if (settingsAutoDownload && document.activeElement !== settingsAutoDownload) settingsAutoDownload.checked = !!db.settings.autoDownload;
@@ -2173,6 +2216,9 @@ function updateUI(db) {
 
     const settingsAutoDiskSync = document.getElementById('settings-auto-disk-sync');
     if (settingsAutoDiskSync && document.activeElement !== settingsAutoDiskSync) settingsAutoDiskSync.checked = db.settings.autoDiskSync !== false;
+
+    const settingsPeriodicDiskSync = document.getElementById('settings-periodic-disk-sync-interval');
+    if (settingsPeriodicDiskSync && document.activeElement !== settingsPeriodicDiskSync) settingsPeriodicDiskSync.value = db.settings.periodicDiskSyncInterval || '360';
 
     const settingsShowNotifications = document.getElementById('settings-shownotifications');
     if (settingsShowNotifications && document.activeElement !== settingsShowNotifications) settingsShowNotifications.checked = db.settings.showNotifications !== false;
@@ -2608,7 +2654,6 @@ async function performAutoSave() {
     durationFetchMethod: document.getElementById('settings-duration-fetch-method') ? document.getElementById('settings-duration-fetch-method').value : 'auto',
     ytdlpRunMode: document.getElementById('settings-ytdlp-run-mode') ? document.getElementById('settings-ytdlp-run-mode').value : 'exe',
     pythonCmd: document.getElementById('settings-python-cmd') ? document.getElementById('settings-python-cmd').value : 'python',
-    browser: settingsBrowser ? settingsBrowser.value : 'none',
     quality: settingsQuality.value,
     channelCheckInterval: parseInt(settingsChannelCheckInterval.value, 10) || 60,
     autoDownload: settingsAutoDownload.checked,
@@ -2632,6 +2677,7 @@ async function performAutoSave() {
     playSounds: document.getElementById('settings-playsounds').checked,
     autoSyncWatchtime: document.getElementById('settings-autosync-watchtime') ? document.getElementById('settings-autosync-watchtime').checked : (localDb.settings.autoSyncWatchtime !== false),
     autoDiskSync: document.getElementById('settings-auto-disk-sync') ? document.getElementById('settings-auto-disk-sync').checked : (localDb.settings.autoDiskSync !== false),
+    periodicDiskSyncInterval: document.getElementById('settings-periodic-disk-sync-interval') ? document.getElementById('settings-periodic-disk-sync-interval').value : (localDb.settings.periodicDiskSyncInterval || '360'),
     showNotifications: document.getElementById('settings-shownotifications').checked,
     autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
     checkChannelsOnStartup: document.getElementById('settings-checkonstartup') ? document.getElementById('settings-checkonstartup').checked : false,
@@ -3081,25 +3127,122 @@ let lastAutoSyncedVideoId = null;
  * @param {number} curTime - Saniye cinsinden süre
  * @param {boolean} [force=false] - Süre farkı gözetmeksizin zorla gönder (pause/close anında)
  */
-function autoSyncWatchtimeHelper(vid, curTime, force = false) {
+let _lastPositionSaveTime = 0;
+
+/**
+ * Videonun anlık izleme süresini yerel veritabanına ve localStorage'a kaydeder.
+ * 
+ * @param {string} videoId Video ID'si
+ * @param {number} currentTime O anki saniye
+ * @param {number} duration Toplam video süresi
+ * @param {boolean} [isFinal=false] Duraklatma veya kapatma anında anında kaydet
+ */
+window.savePlaybackPosition = function(videoId, currentTime, duration = 0, isFinal = false) {
+  if (!videoId) return;
+
+  const posFloor = Math.floor(currentTime || 0);
+  const durFloor = Math.floor(duration || 0);
+
+  const item = localDb?.history?.find(h => h.id === videoId);
+  if (item) {
+    if (durFloor > 0 && (posFloor >= durFloor * 0.95 || durFloor - posFloor <= 5)) {
+      item.lastPositionSeconds = 0;
+    } else if (posFloor > 3) {
+      item.lastPositionSeconds = posFloor;
+    } else {
+      item.lastPositionSeconds = 0;
+    }
+    if (durFloor > 0) item.durationSeconds = durFloor;
+  }
+
+  try {
+    const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+    if (durFloor > 0 && (posFloor >= durFloor * 0.95 || durFloor - posFloor <= 5)) {
+      delete resumeData[videoId];
+    } else if (posFloor > 3) {
+      resumeData[videoId] = posFloor;
+    }
+    localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
+  } catch (e) {}
+
+  const now = Date.now();
+  if (isFinal || (now - _lastPositionSaveTime > 5000)) {
+    _lastPositionSaveTime = now;
+    fetch(`/api/video/${videoId}/save-position`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ position: posFloor, duration: durFloor })
+    }).catch(() => {});
+  }
+};
+
+/**
+ * Video kaldığı yerden başlatıldığında ekranda şık bir bilgilendirme kartı gösterir.
+ * 
+ * @param {number} targetTime Başlatılan saniye
+ */
+window.showResumeNotification = function(targetTime) {
+  if (targetTime <= 3) return;
+  const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
+  const mins = Math.floor(targetTime / 60);
+  const secs = Math.floor(targetTime % 60);
+  const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  
+  const template = t.resuming_playback || 'Kaldığınız yerden devam ediliyor: {time}';
+  const msg = template.replace('{time}', timeStr);
+
+  const html = `
+    <div class="player-transient-card" style="background: rgba(16, 14, 28, 0.9); border: 1px solid rgba(255, 0, 85, 0.4); box-shadow: 0 8px 32px rgba(255, 0, 85, 0.25);">
+      <i data-lucide="play-circle" style="width: 32px; height: 32px; color: #ff0055;"></i>
+      <div class="transient-title" style="color: #fff; font-size: 0.95rem; font-weight: 600;">${msg}</div>
+    </div>
+  `;
+  if (typeof showPlayerTransientOverlay === 'function') {
+    showPlayerTransientOverlay(html, 2200);
+  }
+  try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch(e) {}
+};
+
+let _syncAbortControllers = {};
+let _lastWatchtimeSyncTime = 0;
+let _lastWatchtimeSyncVid = null;
+let _lastWatchtimeSyncPos = 0;
+
+window.autoSyncWatchtimeHelper = function(vid, curTime, force = false) {
   if (!vid || typeof curTime !== 'number' || isNaN(curTime) || curTime < 2) return;
   if (localDb?.settings?.autoSyncWatchtime === false) return;
 
+  const now = Date.now();
   if (!force) {
-    if (lastAutoSyncedVideoId === vid && Math.abs(curTime - lastAutoSyncedTime) < 30) {
+    if (_lastWatchtimeSyncVid === vid && (now - _lastWatchtimeSyncTime < 45000) && Math.abs(curTime - _lastWatchtimeSyncPos) < 30) {
       return;
     }
   }
 
-  lastAutoSyncedTime = curTime;
-  lastAutoSyncedVideoId = vid;
+  _lastWatchtimeSyncTime = now;
+  _lastWatchtimeSyncVid = vid;
+  _lastWatchtimeSyncPos = curTime;
+
+  // Önceki bekleyen istek varsa anında iptal et (kuyruk oluşmasını ve eski sürenin yenisini ezmesini engeller)
+  if (_syncAbortControllers[vid]) {
+    try { _syncAbortControllers[vid].abort(); } catch (e) {}
+  }
+
+  const controller = new AbortController();
+  _syncAbortControllers[vid] = controller;
 
   fetch(`/api/video/${vid}/sync-watchtime`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ currentTime: curTime, silent: true })
-  }).catch(() => {});
-}
+    body: JSON.stringify({ currentTime: curTime, silent: true }),
+    signal: controller.signal
+  }).catch(() => {}).finally(() => {
+    if (_syncAbortControllers[vid] === controller) {
+      delete _syncAbortControllers[vid];
+    }
+  });
+};
 
 // Türkçe Açıklama: Gömülü video oynatıcı açıkken YouTube klavye kısayollarını (Space, F, M, yön tuşları, sayılar vb.) etkinleştirir.
 /**
@@ -3934,12 +4077,16 @@ function sendPlayerActivity(isPlaying) {
   }).catch(e => console.error('[Discord RPC] Durum gönderim hatası:', e));
 }
 
+let activePlayRequestId = 0;
+
 window.cleanupAllPlayers = function() {
   sendPlayerActivity(false);
   if (videoPlayerInstance) {
     try {
       if (typeof videoPlayerInstance.destroy === 'function') {
         videoPlayerInstance.destroy();
+      } else if (typeof videoPlayerInstance.pause === 'function') {
+        videoPlayerInstance.pause();
       }
     } catch (e) {
       console.error("Error destroying videoPlayerInstance:", e);
@@ -3947,12 +4094,14 @@ window.cleanupAllPlayers = function() {
     videoPlayerInstance = null;
   }
 
-  const videoElements = document.querySelectorAll('video');
+  const videoElements = document.querySelectorAll('video, audio');
   videoElements.forEach(video => {
     try {
-      video.pause();
-      video.src = '';
-      video.load();
+      if (video && typeof video.pause === 'function') video.pause();
+      if (video && typeof video.removeAttribute === 'function') video.removeAttribute('src');
+      if (video) video.src = '';
+      if (video && typeof video.load === 'function') video.load();
+      if (video && typeof video.remove === 'function') video.remove();
     } catch (e) {
       console.error("Error pausing video element:", e);
     }
@@ -3984,53 +4133,48 @@ window.cleanupAllPlayers = function() {
 
 
 
-// Türkçe Açıklama: İndirilen videoyu arayüz içerisindeki gömülü video oynatıcı (Plyr) modalında açarak yürütür.
+// Türkçe Açıklama: İndirilen videoyu arayüz içerisindeki gömülü video oynatıcı modalında anında açarak yürütür.
 /**
- * Videoyu gömülü tarayıcı oynatıcısında (Plyr) açar.
- * Shorts videoları dikey gösterilir ve kalınan izleme süresinden devam eder.
+ * Videoyu gömülü tarayıcı oynatıcısında anında açar.
  * 
  * @param {string} videoId Oynatılacak video ID'si
  */
 window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePaused = null) {
-  // C# PlayerWindow açılmasını devredışı bıraktık, artık her şey tek pencerede arayüz içinde oynatılacak.
-
-  cleanupAllPlayers();
-  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
-  const isInline = (activeTab === 'downloaded');
-
-  let video = localDb.history.find(h => h.id === videoId);
-  let videoTitle = video ? video.title : '';
-  let videoChannelId = video ? video.channelId : '';
-  let videoChannelName = video ? video.channelName : '';
-  let videoDuration = video ? video.duration : '';
-  let fileSizeStr = video ? video.fileSize : '';
-  let publishDateStr = video ? (video.publishedAt || video.downloadedAt || '') : '';
-
-
-
-  // Fetch SponsorBlock segments
-  await fetchSponsorSegments(videoId);
-  updateSponsorBlockStatusUI();
-
-  // Fetch available subtitles
-  let availableSubtitles = [];
+  const currentRequestId = ++activePlayRequestId;
   try {
-    const subRes = await fetch(`/api/video/${videoId}/subtitles`);
-    const subData = await subRes.json();
-    if (subData.success && subData.subtitles) {
-      availableSubtitles = subData.subtitles;
-    }
-  } catch (err) {
-    console.error("Error loading subtitles:", err);
-  }
+    cleanupAllPlayers();
 
-  // DOM Fallback
-  if (!videoTitle) {
-    const cardTitleEl = document.querySelector(`.video-card-title[title*="${videoId}"], .video-card-title[onclick*="${videoId}"]`);
-    if (cardTitleEl) {
-      videoTitle = cardTitleEl.textContent.trim();
+    const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
+    const isInline = (activeTab === 'downloaded');
+    const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
+
+    let video = localDb.history.find(h => h.id === videoId);
+    let videoTitle = video ? video.title : '';
+    let videoChannelId = video ? video.channelId : '';
+    let videoChannelName = video ? video.channelName : '';
+    let videoDuration = video ? video.duration : '';
+    let fileSizeStr = video ? video.fileSize : '';
+    let publishDateStr = video ? (video.publishedAt || video.downloadedAt || '') : '';
+
+    // Arka planda gecikmesiz SponsorBlock segmentlerini çek
+    fetchSponsorSegments(videoId).then(() => {
+      if (currentRequestId !== activePlayRequestId) return;
+      updateSponsorBlockStatusUI();
+      const rawVideo = document.querySelector('#player-modal video, #inline-player-body video') || (videoPlayerInstance?.media || videoPlayerInstance?.video);
+      if (rawVideo && rawVideo.duration) {
+        drawSponsorSegmentsOnTimeline(rawVideo.duration, playerType);
+      }
+    }).catch(() => {});
+
+    let availableSubtitles = [];
+
+    // DOM Fallback
+    if (!videoTitle) {
+      const cardTitleEl = document.querySelector(`.video-card-title[title*="${videoId}"], .video-card-title[onclick*="${videoId}"]`);
+      if (cardTitleEl) {
+        videoTitle = cardTitleEl.textContent.trim();
+      }
     }
-  }
   if (!videoChannelId) {
     const cardEl = document.querySelector(`.video-thumbnail-wrapper[onclick*="${videoId}"]`)?.closest('.video-card');
     if (cardEl) {
@@ -4899,6 +5043,8 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
     }
   }
 
+  if (currentRequestId !== activePlayRequestId) return;
+
   seekedForCurrentVideo = false;
   currentPlayingVideoId = videoId;
 
@@ -4920,7 +5066,6 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
     }
   }
 
-  const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
   const playRemote = !isCompleted || isMissing;
 
   if (playRemote) {
@@ -5110,10 +5255,12 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           rawVideo.addEventListener('pause', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, rawVideo.currentTime, true);
+            window.savePlaybackPosition(currentPlayingVideoId, rawVideo.currentTime, rawVideo.duration, true);
           });
           rawVideo.addEventListener('ended', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, rawVideo.currentTime, true);
+            window.savePlaybackPosition(currentPlayingVideoId, 0, rawVideo.duration, true);
           });
           adjustPlayerOrientation(rawVideo);
           if (rawVideo.duration) {
@@ -5135,22 +5282,16 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
             // Periyodik (her 30sn) YouTube izleme süresi senkronizasyonu
             autoSyncWatchtimeHelper(currentPlayingVideoId, currentTime, false);
 
-            const duration = rawVideo.duration || 0;
-            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              resumeData[currentPlayingVideoId] = currentTime;
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            } else if (duration > 0 && (duration - currentTime) <= 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              delete resumeData[currentPlayingVideoId];
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            }
+            // Yerel kaldığı yer kaydı
+            window.savePlaybackPosition(currentPlayingVideoId, currentTime, rawVideo.duration, false);
           });
 
           if (!seekedForCurrentVideo && currentPlayingVideoId) {
-            const targetTime = (startSeconds !== null) ? startSeconds : (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0);
-            if (targetTime > 0) {
+            const item = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+            const targetTime = (startSeconds !== null) ? startSeconds : (item?.lastPositionSeconds || (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0));
+            if (targetTime > 3) {
               rawVideo.currentTime = targetTime;
+              window.showResumeNotification(targetTime);
             }
             seekedForCurrentVideo = true;
           }
@@ -5220,10 +5361,12 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           videoPlayerInstance.on('pause', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, videoPlayerInstance.currentTime, true);
+            window.savePlaybackPosition(currentPlayingVideoId, videoPlayerInstance.currentTime, videoPlayerInstance.duration, true);
           });
           videoPlayerInstance.on('ended', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, videoPlayerInstance.currentTime, true);
+            window.savePlaybackPosition(currentPlayingVideoId, 0, videoPlayerInstance.duration, true);
           });
 
           videoPlayerInstance.on('loadedmetadata', () => {
@@ -5265,23 +5408,17 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
             // Periyodik (her 30sn) YouTube izleme süresi senkronizasyonu
             autoSyncWatchtimeHelper(currentPlayingVideoId, currentTime, false);
 
-            const duration = videoPlayerInstance.duration || 0;
-            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              resumeData[currentPlayingVideoId] = currentTime;
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            } else if (duration > 0 && (duration - currentTime) <= 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              delete resumeData[currentPlayingVideoId];
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            }
+            // Yerel kaldığı yer kaydı
+            window.savePlaybackPosition(currentPlayingVideoId, currentTime, videoPlayerInstance.duration, false);
           });
 
           videoPlayerInstance.on('canplay', () => {
             if (!seekedForCurrentVideo && currentPlayingVideoId) {
-              const targetTime = (startSeconds !== null) ? startSeconds : (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0);
-              if (targetTime > 0) {
+              const item = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+              const targetTime = (startSeconds !== null) ? startSeconds : (item?.lastPositionSeconds || (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0));
+              if (targetTime > 3) {
                 videoPlayerInstance.currentTime = targetTime;
+                window.showResumeNotification(targetTime);
               }
               seekedForCurrentVideo = true;
             }
@@ -5341,23 +5478,17 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
             // Periyodik (her 30sn) YouTube izleme süresi senkronizasyonu
             autoSyncWatchtimeHelper(currentPlayingVideoId, currentTime, false);
 
-            const duration = player.duration || 0;
-            if (currentTime > 2 && duration > 10 && (duration - currentTime) > 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              resumeData[currentPlayingVideoId] = currentTime;
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            } else if (duration > 0 && (duration - currentTime) <= 5) {
-              const resumeData = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
-              delete resumeData[currentPlayingVideoId];
-              localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
-            }
+            // Yerel kaldığı yer kaydı
+            window.savePlaybackPosition(currentPlayingVideoId, currentTime, player.duration, false);
           });
 
           player.addEventListener('canplay', () => {
             if (!seekedForCurrentVideo && currentPlayingVideoId) {
-              const targetTime = (startSeconds !== null) ? startSeconds : (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0);
-              if (targetTime > 0) {
+              const item = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+              const targetTime = (startSeconds !== null) ? startSeconds : (item?.lastPositionSeconds || (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0));
+              if (targetTime > 3) {
                 player.currentTime = targetTime;
+                window.showResumeNotification(targetTime);
               }
               seekedForCurrentVideo = true;
             }
@@ -5367,10 +5498,12 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           player.addEventListener('pause', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, player.currentTime, true);
+            window.savePlaybackPosition(currentPlayingVideoId, player.currentTime, player.duration, true);
           });
           player.addEventListener('ended', () => {
             sendPlayerActivity(false);
             autoSyncWatchtimeHelper(currentPlayingVideoId, player.currentTime, true);
+            window.savePlaybackPosition(currentPlayingVideoId, 0, player.duration, true);
           });
 
           player.load();
@@ -5393,6 +5526,9 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
         }
       }
     }
+  }
+  } catch (err) {
+    console.error('[playVideoEmbedded] HATA:', err);
   }
 };
 
@@ -6150,35 +6286,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-// === FILTER CHIP HELPERS ===
-function toggleFilterChip(checkboxId) {
-  const cb = document.getElementById(checkboxId);
-  if (!cb) return;
-  cb.checked = !cb.checked;
-  cb.dispatchEvent(new Event('change'));
-  syncFilterChipUI(checkboxId);
-}
-window.toggleFilterChip = toggleFilterChip;
-
-function syncFilterChipUI(checkboxId) {
-  const cb = document.getElementById(checkboxId);
-  if (!cb) return;
-  const chipMap = {
-    'history-show-hidden': 'btn-filter-show-hidden',
-    'history-only-not-downloaded': 'btn-filter-not-downloaded',
-    'history-only-live-processing': 'btn-filter-live-processing',
-    'history-show-members': 'btn-filter-show-members',
-    'history-show-shorts': 'btn-filter-show-shorts',
-    'history-show-live': 'btn-filter-show-live',
-    'history-only-no-auto-download': 'btn-filter-no-auto-download'
-  };
-  const btnId = chipMap[checkboxId];
-  if (btnId) {
-    const chipBtn = document.getElementById(btnId);
-    if (chipBtn) chipBtn.classList.toggle('active', cb.checked);
-  }
-}
-window.syncFilterChipUI = syncFilterChipUI;
 
   const historyShowShorts = document.getElementById('history-show-shorts');
   if (historyShowShorts) {
@@ -11077,6 +11184,7 @@ document.addEventListener('DOMContentLoaded', () => {
 window.handleApeMarkWatched = async function() {
   const inputEl = document.getElementById('ape-target-input');
   const syncCb = document.getElementById('ape-sync-youtube-checkbox');
+  const limitEl = document.getElementById('ape-limit-input');
   const resultBox = document.getElementById('ape-result-box');
   const resultText = document.getElementById('ape-result-text');
   const resultIcon = document.getElementById('ape-result-icon');
@@ -11084,6 +11192,7 @@ window.handleApeMarkWatched = async function() {
 
   if (!inputEl) return;
   const target = inputEl.value.trim();
+  const limit = limitEl ? parseInt(limitEl.value, 10) || 50 : 50;
   const lang = localStorage.getItem('haytool_user_lang') || 'tr';
   const t = translations[lang] || translations.tr;
 
@@ -11102,7 +11211,7 @@ window.handleApeMarkWatched = async function() {
     const res = await fetch('/api/tools/ape-mark-watched', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target, syncYouTube })
+      body: JSON.stringify({ target, syncYouTube, limit })
     });
 
     const data = await res.json();
@@ -11552,7 +11661,8 @@ function populateGistFields() {
   }
 
   // Input değişimlerinde otomatik kaydetme dinleyicileri
-  if (tokenInput && !tokenInput.dataset.listenerAttached) {
+  if (tokenInput && !tokenInput.dataset?.listenerAttached) {
+    if (!tokenInput.dataset) tokenInput.dataset = {};
     tokenInput.dataset.listenerAttached = 'true';
     tokenInput.addEventListener('input', () => {
       if (window.localDb && window.localDb.settings) {
@@ -11561,7 +11671,8 @@ function populateGistFields() {
       if (typeof triggerAutoSave === 'function') triggerAutoSave();
     });
   }
-  if (idInput && !idInput.dataset.listenerAttached) {
+  if (idInput && !idInput.dataset?.listenerAttached) {
+    if (!idInput.dataset) idInput.dataset = {};
     idInput.dataset.listenerAttached = 'true';
     idInput.addEventListener('input', () => {
       const val = idInput.value.trim();
@@ -11760,23 +11871,25 @@ window.logoutYouTube = async function() {
   }
 };
 
-/**
- * YouTube oturum açma penceresini başlatır.
- */
 window.openYouTubeLogin = async function() {
   const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
   const loginUrl = 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com';
-  showToast(currentLang === 'en' ? 'Opening YouTube login window...' : 'YouTube oturum açma sayfası açılıyor...', 'info');
 
-  // 1. Doğrudan tarayıcı/WebView2 penceresinde aç
-  try {
-    window.open(loginUrl, '_blank');
-  } catch (e) {}
+  // WebView2 içinde mi kontrol et (HaYTooL Player içinde çalışıyor muyuz?)
+  const isWebView2 = typeof window.chrome !== 'undefined' && typeof window.chrome.webview !== 'undefined';
 
-  // 2. Sistem düzeyinde varsayılan tarayıcıda da tetikle
-  try {
-    await fetch('/api/open-youtube-login', { method: 'POST' });
-  } catch (e) {}
+  if (isWebView2) {
+    // Player içindeyiz: mevcut WebView2 penceresini YouTube login'e yönlendir.
+    // NavigationCompleted → SyncYouTubeCookiesToFileAsync → cookies.txt güncellenir.
+    showToast(currentLang === 'en' ? 'Redirecting to YouTube login...' : 'YouTube giriş sayfasına yönlendiriliyor...', 'info');
+    window.location.href = loginUrl;
+  } else {
+    // Normal tarayıcıda: API aracılığıyla dahili player aç
+    showToast(currentLang === 'en' ? 'Opening YouTube login window...' : 'YouTube oturum açma sayfası açılıyor...', 'info');
+    try {
+      await fetch('/api/open-youtube-login', { method: 'POST' });
+    } catch (e) {}
+  }
 };
 
 // Event listener bağlantıları
