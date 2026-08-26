@@ -481,7 +481,7 @@ namespace HaYTooLTray
             ContextMenu contextMenu = new ContextMenu();
             contextMenu.MenuItems.Add(openAppBrowserItem);
             contextMenu.MenuItems.Add(youtubeLoginItem);
-            contextMenu.MenuItems.Add(youtubeLogoutItem);
+            // contextMenu.MenuItems.Add(youtubeLogoutItem); // YouTube oturumunu kapat seçeneği kaldırıldı (kullanıcı talebi)
             contextMenu.MenuItems.Add(settingsItem);
             contextMenu.MenuItems.Add(checkChannelsItem);
             contextMenu.MenuItems.Add(pasteDownloadItem);
