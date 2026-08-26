@@ -2292,3 +2292,7 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 - **Log Otomatik Temizliği:** Sunucu her başladığında 7 günden eski günlük `.log` dosyalarını otomatik olarak temizleyen temizlik işleyicisi entegre edildi.
 - **Görsel Varlıkların Güncellenmesi:** Uygulama logosu ve sistem tepsisi simgesi yeni tasarımlarla güncellendi. Artık kullanılmayan `Baslat.bat` temizlendi.
 - **CLI Desteği:** `HaYTool.exe` ve `server.js` üzerinden terminal yardımıyla anlık durum kontrolü ve limit ataması özelliği eklendi.
+
+### v9.8.10
+- Linux AppImage sürümünde veritabanı ve ayar dosyalarının çalışma dizini yerine XDG standartlarına uygun şekilde `~/.config/HaYTooL-YT-Downloader` dizinine kaydedilmesi sağlandı.
+
