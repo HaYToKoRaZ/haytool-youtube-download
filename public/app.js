@@ -6080,7 +6080,75 @@ function hideDeleteModal() {
 if (closeDeleteModalBtn) closeDeleteModalBtn.addEventListener('click', hideDeleteModal);
 if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', hideDeleteModal);
 
-// confirmDeleteBtn dinleyicisi db-renderer.js içerisine taşınmıştır. (Optimistik UI ve çift çağrı engellemesi için)
+// Silme Onaylama Butonu Dinleyicisi
+if (confirmDeleteBtn) {
+  confirmDeleteBtn.addEventListener('click', async () => {
+    if (!videoIdToDelete) return;
+    
+    const id = videoIdToDelete;
+    const deleteFile = deleteFileCheckbox ? deleteFileCheckbox.checked : true;
+    const markWatchedCb = document.getElementById('mark-watched-checkbox');
+    const markWatched = markWatchedCb ? markWatchedCb.checked : false;
+
+    // Tercihi kalıcı olarak sakla
+    localStorage.setItem('haytool_mark_watched_on_delete', String(markWatched));
+    if (localDb.settings && localDb.settings.markWatchedOnDelete !== markWatched) {
+      localDb.settings.markWatchedOnDelete = markWatched;
+      try {
+        fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(localDb.settings)
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
+    hideDeleteModal();
+    
+    const isEn = localDb.settings && localDb.settings.lang === 'en';
+    
+    // OPTİMİSTİK UI: Video kartını anında DOM'dan kaldır
+    const itemIndex = localDb.history.findIndex(h => h.id === id);
+    let backupItem = null;
+    if (itemIndex !== -1) {
+      backupItem = localDb.history[itemIndex];
+      localDb.history.splice(itemIndex, 1);
+      if (typeof updateUI === 'function') updateUI(localDb);
+    }
+    
+    // FILE LOCK DÜZELTMESİ: Silinecek video oynatılıyorsa, önce oynatıcıyı kapat
+    if (id === currentPlayingVideoId) {
+      if (window.closePlayerModal) window.closePlayerModal();
+      if (window.closeInlinePlayer) window.closeInlinePlayer();
+      // Dosya kilitlerinin Windows ve tarayıcı tarafından tamamen bırakılması için kısa bir süre bekle
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    try {
+      const res = await fetch(`/api/history/${id}?deleteFile=${deleteFile}&markWatched=${markWatched}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTimeout(updateDiskSpace, 1500); 
+      } else {
+        // Hata: Kartı geri getir
+        if (backupItem) {
+          localDb.history.push(backupItem);
+          if (typeof updateUI === 'function') updateUI(localDb);
+        }
+        showToast(data.error || (isEn ? 'Deletion failed.' : 'Silme işlemi başarısız oldu.'), 'error');
+      }
+    } catch (err) {
+      // Ağ hatası: Kartı geri getir
+      if (backupItem) {
+        localDb.history.push(backupItem);
+        if (typeof updateUI === 'function') updateUI(localDb);
+      }
+      showToast(isEn ? 'Communication error.' : 'Sunucu ile iletişim hatası.', 'error');
+    }
+  });
+}
 
 // === FILTER PERSISTENCE SYSTEM (KÜTÜPHANE & İNDİRİLENLER) ===
 function saveHistoryFilterState() {

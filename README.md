@@ -2,7 +2,7 @@
   <img src="public/logo.png" alt="HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 HaYTooL - Personal YouTube Library & Automation System (v9.8.15)</p>
+# <p align="center">📥 HaYTooL - Personal YouTube Library & Automation System (v9.8.16)</p>
 
 <p align="center">
   <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System</b><br/>

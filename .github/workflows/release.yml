@@ -126,7 +126,7 @@ jobs:
           export PATH="$HERE/usr/bin:$HERE/ffmpeg:$HERE/yt-dlp:$PATH"
           export APPDIR="$HERE"
           cd "$HERE"
-          exec "$HERE/usr/bin/node" server.js
+          exec "$HERE/usr/bin/node" server.js > /dev/null 2>&1
           EOF
           chmod +x AppDir/AppRun
 
