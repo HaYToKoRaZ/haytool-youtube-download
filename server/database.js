@@ -12,7 +12,8 @@ import {
   categoriesIniPath,
   parseIni, 
   getCaseInsensitiveKey, 
-  writeIni 
+  writeIni,
+  dataRootDir
 } from './config.js';
 import { getVideoResolution } from './services/paths.js';
 import { addTerminalLog, broadcast, broadcastHistoryUpdate } from './services/sse.js';
@@ -21,7 +22,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const appRootDir = path.resolve(__dirname, '..');
 const isAppImage = process.env.APPIMAGE;
-const dataRootDir = isAppImage ? path.dirname(process.env.APPIMAGE) : appRootDir;
 
 export const dbPath = path.join(dataRootDir, 'db.json');
 export const defaultDownloadDir = path.join(os.homedir(), 'Downloads', 'HaYTooLYouTubeAutoDownloads');

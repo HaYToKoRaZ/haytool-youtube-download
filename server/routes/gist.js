@@ -2,7 +2,7 @@
 import express from 'express';
 import fs from 'fs';
 import { readDb, writeDb, syncWithIni } from '../database.js';
-import { channelsIniPath } from '../config.js';
+import { channelsIniPath, dataRootDir } from '../config.js';
 import { localhostOnly } from '../middleware/security.js';
 import { broadcast, addTerminalLog } from '../services/sse.js';
 
@@ -65,7 +65,7 @@ async function executeAutoGistSync() {
     if (!autoSyncGist || !githubToken || !githubGistId) return;
     if (!fs.existsSync(channelsIniPath)) return;
 
-    const rootDir = process.cwd();
+    const rootDir = dataRootDir;
     const catIniPath = `${rootDir}/categories.ini`;
     const configWinPath = `${rootDir}/configwin.ini`;
     const configUnixPath = `${rootDir}/configunix.ini`;
@@ -202,7 +202,7 @@ router.post('/push', localhostOnly, async (req, res) => {
   }
 
   try {
-    const rootDir = process.cwd();
+    const rootDir = dataRootDir;
     const catIniPath = `${rootDir}/categories.ini`;
     const configWinPath = `${rootDir}/configwin.ini`;
     const configUnixPath = `${rootDir}/configunix.ini`;
@@ -314,7 +314,7 @@ router.post('/pull', localhostOnly, async (req, res) => {
 
     const gistData = await response.json();
     const files = gistData.files || {};
-    const rootDir = process.cwd();
+    const rootDir = dataRootDir;
 
     // 1. db.json (Yerel aktif token'ı koru)
     if (files['db.json'] && files['db.json'].content) {

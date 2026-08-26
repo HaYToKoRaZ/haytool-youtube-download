@@ -9,6 +9,7 @@ import zlib from 'zlib';
 import { spawn, exec, execSync, execFileSync } from 'child_process';
 import { Readable } from 'stream';
 import open from 'open';
+import { dataRootDir } from '../config.js';
 import { 
   readDb, 
   writeDb, 
@@ -1230,11 +1231,11 @@ export function ensureDailySystemBackup() {
 
     if (!hasTodayBackup) {
       const rootDir = path.resolve(process.cwd());
-      const dbFilePath = path.join(rootDir, 'db.json');
-      const channelsIniFilePath = path.join(rootDir, 'channels.ini');
-      const catIniFilePath = path.join(rootDir, 'categories.ini');
-      const configWinPath = path.join(rootDir, 'configwin.ini');
-      const configUnixPath = path.join(rootDir, 'configunix.ini');
+      const dbFilePath = path.join(dataRootDir, 'db.json');
+      const channelsIniFilePath = path.join(dataRootDir, 'channels.ini');
+      const catIniFilePath = path.join(dataRootDir, 'categories.ini');
+      const configWinPath = path.join(dataRootDir, 'configwin.ini');
+      const configUnixPath = path.join(dataRootDir, 'configunix.ini');
       const configPath = fs.existsSync(configWinPath) ? configWinPath : configUnixPath;
 
       const currentDb = readDb();
@@ -1495,12 +1496,12 @@ router.get('/backups', localhostOnly, (req, res) => {
 router.post('/backup', localhostOnly, (req, res) => {
   try {
     const rootDir = path.resolve(process.cwd());
-    const dbFilePath = path.join(rootDir, 'db.json');
-    const channelsIniFilePath = path.join(rootDir, 'channels.ini');
-    const catIniFilePath = path.join(rootDir, 'categories.ini');
+    const dbFilePath = path.join(dataRootDir, 'db.json');
+    const channelsIniFilePath = path.join(dataRootDir, 'channels.ini');
+    const catIniFilePath = path.join(dataRootDir, 'categories.ini');
     
-    const configWinPath = path.join(rootDir, 'configwin.ini');
-    const configUnixPath = path.join(rootDir, 'configunix.ini');
+    const configWinPath = path.join(dataRootDir, 'configwin.ini');
+    const configUnixPath = path.join(dataRootDir, 'configunix.ini');
     const configPath = fs.existsSync(configWinPath) ? configWinPath : configUnixPath;
     
     const currentDb = readDb();
@@ -1578,16 +1579,16 @@ router.post('/restore', localhostOnly, async (req, res) => {
     const rootDir = path.resolve(process.cwd());
     
     if (backupContent.db) {
-      const dbFilePath = path.join(rootDir, 'db.json');
+      const dbFilePath = path.join(dataRootDir, 'db.json');
       fs.writeFileSync(dbFilePath, JSON.stringify(backupContent.db, null, 2), 'utf8');
     }
     
     if (backupContent.channelsIni) {
-      const channelsIniFilePath = path.join(rootDir, 'channels.ini');
+      const channelsIniFilePath = path.join(dataRootDir, 'channels.ini');
       fs.writeFileSync(channelsIniFilePath, backupContent.channelsIni, 'utf8');
     }
     
-    const catIniFilePath = path.join(rootDir, 'categories.ini');
+    const catIniFilePath = path.join(dataRootDir, 'categories.ini');
     if (backupContent.categoriesIni) {
       fs.writeFileSync(catIniFilePath, backupContent.categoriesIni, 'utf8');
     } else if (backupContent.db && backupContent.db.categories) {
@@ -1596,7 +1597,7 @@ router.post('/restore', localhostOnly, async (req, res) => {
     
     if (backupContent.configIni) {
       const configIniName = backupContent.configIniName || (os.platform() === 'win32' ? 'configwin.ini' : 'configunix.ini');
-      const configPath = path.join(rootDir, configIniName);
+      const configPath = path.join(dataRootDir, configIniName);
       fs.writeFileSync(configPath, backupContent.configIni, 'utf8');
     }
     
@@ -1639,16 +1640,16 @@ router.post('/restore-upload', localhostOnly, async (req, res) => {
     const rootDir = path.resolve(process.cwd());
 
     if (backupContent.db) {
-      const dbFilePath = path.join(rootDir, 'db.json');
+      const dbFilePath = path.join(dataRootDir, 'db.json');
       fs.writeFileSync(dbFilePath, JSON.stringify(backupContent.db, null, 2), 'utf8');
     }
 
     if (backupContent.channelsIni) {
-      const channelsIniFilePath = path.join(rootDir, 'channels.ini');
+      const channelsIniFilePath = path.join(dataRootDir, 'channels.ini');
       fs.writeFileSync(channelsIniFilePath, backupContent.channelsIni, 'utf8');
     }
 
-    const catIniFilePath = path.join(rootDir, 'categories.ini');
+    const catIniFilePath = path.join(dataRootDir, 'categories.ini');
     if (backupContent.categoriesIni) {
       fs.writeFileSync(catIniFilePath, backupContent.categoriesIni, 'utf8');
     } else if (backupContent.db && backupContent.db.categories) {
@@ -1657,7 +1658,7 @@ router.post('/restore-upload', localhostOnly, async (req, res) => {
 
     if (backupContent.configIni) {
       const configIniName = backupContent.configIniName || (os.platform() === 'win32' ? 'configwin.ini' : 'configunix.ini');
-      const configPath = path.join(rootDir, configIniName);
+      const configPath = path.join(dataRootDir, configIniName);
       fs.writeFileSync(configPath, backupContent.configIni, 'utf8');
     }
 

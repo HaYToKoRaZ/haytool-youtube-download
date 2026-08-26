@@ -8,7 +8,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const appRootDir = path.resolve(__dirname, '..');
 const isAppImage = process.env.APPIMAGE;
-const dataRootDir = isAppImage ? path.dirname(process.env.APPIMAGE) : appRootDir;
+
+let dataRootDir = appRootDir;
+if (isAppImage) {
+  if (process.platform === 'linux') {
+    dataRootDir = path.join(os.homedir(), '.config', 'HaYTooL-YT-Downloader');
+    if (!fs.existsSync(dataRootDir)) {
+      fs.mkdirSync(dataRootDir, { recursive: true });
+    }
+  } else {
+    dataRootDir = path.dirname(process.env.APPIMAGE);
+  }
+}
+export { dataRootDir };
 
 export const configIniName = os.platform() === 'win32' ? 'configwin.ini' : 'configunix.ini';
 export const configIniPath = path.join(dataRootDir, configIniName);
