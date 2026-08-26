@@ -1188,6 +1188,8 @@ function connectSSE() {
       const item = localDb.history.find(h => h.id === id);
       if (item) Object.assign(item, updates);
     }
+
+
     if (historyUiUpdateTimer) clearTimeout(historyUiUpdateTimer);
     historyUiUpdateTimer = setTimeout(() => {
       historyUiUpdateTimer = null;
@@ -1250,6 +1252,7 @@ function connectSSE() {
   });
 
   // GitHub Güncelleme Durumu Bildirimi
+  // GitHub Güncelleme Durumu Bildirimi
   eventSource.addEventListener('update_status', (e) => {
     try {
       const update = JSON.parse(e.data);
@@ -1259,6 +1262,14 @@ function connectSSE() {
     } catch (err) {
       console.error('Update status event parse error:', err);
     }
+  });
+
+  // Sistem Konsolu Log Akışı
+  eventSource.addEventListener('terminal_log', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      appendLogToConsoleModal(data);
+    } catch (err) {}
   });
 }
 
@@ -12391,8 +12402,82 @@ window.openSubscriptionsPage = async function() {
   }
 };
 
+// ==========================================
+// SİSTEM KONSOLU MODALI
+// ==========================================
+const consoleModal = document.getElementById('console-modal');
+const consoleOutput = document.getElementById('console-output');
+const closeConsoleBtn = document.getElementById('close-console-modal-btn');
+const clearConsoleBtn = document.getElementById('clear-console-btn');
+const navToolsConsoleBtn = document.getElementById('nav-tools-console-btn');
 
+window.openConsoleModal = function() {
+  if (consoleModal) {
+    consoleModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    
+    // Geçmiş logları çek
+    fetch('/api/settings/logs')
+      .then(res => res.json())
+      .then(logs => {
+        if (!consoleOutput) return;
+        consoleOutput.innerHTML = ''; // Temizle
+        if (logs && logs.length > 0) {
+          logs.forEach(log => window.appendLogToConsoleModal(log));
+        } else {
+          consoleOutput.innerHTML = '<div style="color: #a3a3a3; margin-bottom: 8px;">> Geçmiş log bulunamadı, yeni olaylar bekleniyor...</div>';
+        }
+      })
+      .catch(err => console.error('Log geçmişi alınamadı:', err));
+  }
+  // Araçlar menüsünü kapat
+  const toolsMenu = document.getElementById('tools-menu');
+  if (toolsMenu && toolsMenu.classList.contains('show')) {
+    toolsMenu.classList.remove('show');
+  }
+};
 
+window.closeConsoleModal = function() {
+  if (consoleModal) {
+    consoleModal.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+};
 
+window.clearConsoleModal = function() {
+  if (consoleOutput) {
+    consoleOutput.innerHTML = '<div style="color: #a3a3a3; margin-bottom: 8px;">> Konsol temizlendi.</div>';
+  }
+};
 
+window.appendLogToConsoleModal = function(log) {
+  if (!consoleOutput) return;
+  const div = document.createElement('div');
+  div.style.marginBottom = '4px';
+  div.style.wordBreak = 'break-all';
+  
+  // Renk kodlaması
+  let color = '#d4d4d4'; // Varsayılan info
+  if (log.type === 'error') color = '#ff4d4d';
+  else if (log.type === 'warning' || log.type === 'warn') color = '#ffcc00';
+  else if (log.type === 'success') color = '#4af626';
+  
+  const timeStr = log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+  div.innerHTML = `<span style="color: #666;">[${timeStr}]</span> <span style="color: ${color};">${log.message}</span>`;
+  
+  consoleOutput.appendChild(div);
+  
+  // Otomatik aşağı kaydır
+  consoleOutput.scrollTop = consoleOutput.scrollHeight;
+};
+
+if (navToolsConsoleBtn) {
+  navToolsConsoleBtn.addEventListener('click', window.openConsoleModal);
+}
+if (closeConsoleBtn) {
+  closeConsoleBtn.addEventListener('click', window.closeConsoleModal);
+}
+if (clearConsoleBtn) {
+  clearConsoleBtn.addEventListener('click', window.clearConsoleModal);
+}
 

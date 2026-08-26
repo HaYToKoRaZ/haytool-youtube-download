@@ -64,6 +64,5 @@ export function addTerminalLog(message, type = 'info') {
   if (terminalLogs.length > MAX_LOGS) {
     terminalLogs.shift();
   }
-  // Not: terminal_log SSE broadcast'i hiçbir istemcide dinlenmediği için kaldırıldı.
-  // Log geçmişi GET /api/... endpoint'i üzerinden servis edilir; tray konsolu stdout'u gösterir.
+  broadcast('terminal_log', logItem);
 }

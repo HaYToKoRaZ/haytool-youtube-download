@@ -2314,3 +2314,7 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 - Linux AppImage başlatıldığında arka plandaki konsol penceresi gizlendi (Terminal=false).
 - Linux sistemlerinde tarayıcılar (Chrome/Brave/Edge) otomatik tespit edilip uygulamanın bağımsız bir pencerede (App Mode) çalışması sağlandı.
 
+
+### v9.8.15
+- Uygulama içi 'Canlı Sistem Konsolu' özelliği eklendi. Artık terminal logları doğrudan Araçlar menüsü altından uygulama içindeki bağımsız bir pencerede anlık izlenebilir.
+
