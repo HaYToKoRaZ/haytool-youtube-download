@@ -3,6 +3,12 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.9] - 2026-08-26
+
+### 🐛 Bug Fixes
+
+- **Fix (AppImage/Linux):** `open` modülünden kaynaklanan tarayıcı açılışındaki EACCES ve `Unhandled 'error' event` çökme hatası giderildi. Doğrudan sistemin `xdg-open` komutu kullanıma alındı.
+
 ## [9.8.4] - 2026-08-26
 
 ### ⚡ Event Loop & Synchronous I/O Fixes (Event Loop ve Senkron Kilitlenme Çözümleri)

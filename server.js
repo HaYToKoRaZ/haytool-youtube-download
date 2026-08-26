@@ -984,10 +984,24 @@ if (process.argv.length <= 2) {
     // Tarayıcıyı aç
     const currentDbState = readDb();
     if (currentDbState.settings.autoOpenBrowser !== false) {
-      try {
-        await open(`http://localhost:${PORT}`);
-      } catch (e) {
-        console.log(`Tarayıcı otomatik açılamadı, lütfen http://localhost:${PORT} adresine manuel gidin.`);
+      const targetUrl = `http://localhost:${PORT}`;
+      if (process.platform === 'linux') {
+        // AppImage ortamında 'open' paketi EACCES hatası verebildiği için
+        // doğrudan sistem xdg-open kullanıyoruz
+        exec(`xdg-open "${targetUrl}"`, (err) => {
+          if (err) {
+            console.log(`Tarayıcı otomatik açılamadı, lütfen ${targetUrl} adresine manuel gidin.`);
+          }
+        });
+      } else {
+        try {
+          const child = await open(targetUrl);
+          child.on('error', (err) => {
+            console.log(`Tarayıcı otomatik açılamadı: ${err.message}. Lütfen ${targetUrl} adresine manuel gidin.`);
+          });
+        } catch (e) {
+          console.log(`Tarayıcı otomatik açılamadı, lütfen ${targetUrl} adresine manuel gidin.`);
+        }
       }
     } else {
       console.log(`Otomatik tarayıcı açılışı devre dışı bırakıldı. Lütfen http://localhost:${PORT} adresine el ile gidin.`);
