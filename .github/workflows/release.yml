@@ -47,11 +47,11 @@ jobs:
               "-xr!.git", "-xr!0nogithub", "-xr!scratch", "-xr!backup", "-xr!logs", 
               "-xr!screenshots", "-xr!releases", "-xr!*.WebView2", "-xr!EBWebView", 
               "-xr!.cache", "-xr!.vs", "-xr!.vscode",
-              "-xr!*.log", "-xr!*.map", "-xr!*.d.ts", "-xr!*.pdb", "-xr!*.tmp", "-xr!*.bak", 
-              "-xr!*.exe.old", "-xr!*.sh", "-xr!Microsoft.Web.WebView2.*.xml", "-xr!tray.cs",
-              "-xr!configwin.ini", "-xr!configunix.ini", "-xr!channels.ini", "-xr!channels.json", 
-              "-xr!categories.ini", "-xr!.gitignore", "-xr!db.json", "-xr!Desktop.ini",
-              "-xr!mutex_lock.txt", "-xr!iptv_cache.json"
+              "-x!*.log", "-x!*.map", "-x!*.d.ts", "-x!*.pdb", "-x!*.tmp", "-x!*.bak", 
+              "-x!*.exe.old", "-x!*.sh", "-x!Microsoft.Web.WebView2.*.xml", "-x!tray.cs",
+              "-x!configwin.ini", "-x!configunix.ini", "-x!channels.ini", "-x!channels.json", 
+              "-x!categories.ini", "-x!.gitignore", "-x!db.json", "-x!Desktop.ini",
+              "-x!mutex_lock.txt", "-x!iptv_cache.json"
           )
           
           & 7z a -tzip $ZipName * @ExcludeArgs
