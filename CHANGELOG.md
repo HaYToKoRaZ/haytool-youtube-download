@@ -2300,3 +2300,7 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 ### v9.8.11
 - AppImageUpdate (zsync) desteği eklenerek Linux üzerinde CachyOS ve diğer araçlarla güncelleme entegrasyonu sağlandı.
 
+
+### v9.8.12
+- Test için sürüm güncellendi.
+
