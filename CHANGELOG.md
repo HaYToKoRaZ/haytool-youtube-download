@@ -2309,3 +2309,8 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 - AppImage üzerinde read-only (EROFS) hatalarına yol açan 'iptv_cache.json', 'backup' ve 'cookies.txt' yolları '.config' dizinine yönlendirildi.
 - Linux masaüstü başlatıcı (.desktop) kategorisi 'AudioVideo' (Multimedya) olarak kısıtlandı.
 
+
+### v9.8.14
+- Linux AppImage başlatıldığında arka plandaki konsol penceresi gizlendi (Terminal=false).
+- Linux sistemlerinde tarayıcılar (Chrome/Brave/Edge) otomatik tespit edilip uygulamanın bağımsız bir pencerede (App Mode) çalışması sağlandı.
+

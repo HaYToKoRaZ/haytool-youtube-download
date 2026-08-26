@@ -147,7 +147,7 @@ import net from 'net';
 import https from 'https';
 import http from 'http';
 import open from 'open';
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 // Çekirdek Backend Modülleri
@@ -986,13 +986,29 @@ if (process.argv.length <= 2) {
     if (currentDbState.settings.autoOpenBrowser !== false) {
       const targetUrl = `http://localhost:${PORT}`;
       if (process.platform === 'linux') {
-        // AppImage ortamında 'open' paketi EACCES hatası verebildiği için
-        // doğrudan sistem xdg-open kullanıyoruz
-        exec(`xdg-open "${targetUrl}"`, (err) => {
-          if (err) {
-            console.log(`Tarayıcı otomatik açılamadı, lütfen ${targetUrl} adresine manuel gidin.`);
-          }
-        });
+        const browsers = ['google-chrome', 'chromium', 'chromium-browser', 'brave-browser', 'microsoft-edge'];
+        let appBrowser = null;
+        for (const b of browsers) {
+          try {
+            if (execSync(`which ${b} 2>/dev/null`).toString().trim()) {
+              appBrowser = b;
+              break;
+            }
+          } catch(e) {}
+        }
+        
+        if (appBrowser) {
+          exec(`${appBrowser} --app="${targetUrl}"`, (err) => {
+            if (err) console.log(`AppMode açılamadı, lütfen ${targetUrl} adresine manuel gidin.`);
+          });
+        } else {
+          // Fallback
+          exec(`xdg-open "${targetUrl}"`, (err) => {
+            if (err) {
+              console.log(`Tarayıcı otomatik açılamadı, lütfen ${targetUrl} adresine manuel gidin.`);
+            }
+          });
+        }
       } else {
         try {
           const child = await open(targetUrl);

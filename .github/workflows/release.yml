@@ -139,7 +139,7 @@ jobs:
           Exec=AppRun
           Icon=haytool
           Categories=AudioVideo;
-          Terminal=true
+          Terminal=false
           EOF
           cp public/logo.png AppDir/haytool.png || touch AppDir/haytool.png
 

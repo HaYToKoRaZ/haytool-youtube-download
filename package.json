@@ -1,6 +1,6 @@
 {
     "name":  "haytool-youtube-downloader",
-    "version":  "9.8.13",
+    "version":  "9.8.14",
     "description":  "HaYTooL - YouTube Video ve Ses İndirici",
     "main":  "server.js",
     "type":  "module",
