@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*' # Sadece v ile başlayan etiketlerde çalışır (Örn: v9.8.4)
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     name: Build Windows Release
@@ -34,14 +37,29 @@ jobs:
 
       - name: Build Windows Portable ZIP
         run: |
-          # Mevcut versiyon etiketini al (Örn: v9.8.4)
           $tag = "${{ github.ref_name }}"
-          .\0nogithub\releases-maker.ps1 -UserVersion $tag
+          $date = Get-Date -Format "yyyy-MM-dd"
+          $ZipName = "$tag-HaYTooL-YouTube-Downloader-$date.zip"
+          
+          # '0nogithub' klasörü .gitignore içinde olduğu için GitHub'a gitmiyor.
+          # Bu yüzden paketlemeyi yerel betik yerine burada 7-Zip ile yapıyoruz.
+          $ExcludeArgs = @(
+              "-xr!.git", "-xr!0nogithub", "-xr!scratch", "-xr!backup", "-xr!logs", 
+              "-xr!screenshots", "-xr!releases", "-xr!*.WebView2", "-xr!EBWebView", 
+              "-xr!.cache", "-xr!.vs", "-xr!.vscode",
+              "-xr!*.log", "-xr!*.map", "-xr!*.d.ts", "-xr!*.pdb", "-xr!*.tmp", "-xr!*.bak", 
+              "-xr!*.exe.old", "-xr!*.sh", "-xr!Microsoft.Web.WebView2.*.xml", "-xr!tray.cs",
+              "-xr!configwin.ini", "-xr!configunix.ini", "-xr!channels.ini", "-xr!channels.json", 
+              "-xr!categories.ini", "-xr!.gitignore", "-xr!db.json", "-xr!Desktop.ini",
+              "-xr!mutex_lock.txt", "-xr!iptv_cache.json"
+          )
+          
+          & 7z a -tzip $ZipName * @ExcludeArgs
 
       - name: Upload Windows Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "0nogithub/releases/*.zip"
+          files: "*.zip"
           generate_release_notes: true
 
   build-linux-appimage:
