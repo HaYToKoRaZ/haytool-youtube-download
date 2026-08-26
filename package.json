@@ -1,7 +1,7 @@
 {
-    "name":  "haytool-youtube-download",
-    "version":  "9.8.10",
-    "description":  "HaYTool Youtube Download - YouTube Otomatik Video Indirme Paneli",
+    "name":  "haytool-youtube-downloader",
+    "version":  "9.8.11",
+    "description":  "HaYTooL - YouTube Video ve Ses İndirici",
     "main":  "server.js",
     "type":  "module",
     "scripts":  {

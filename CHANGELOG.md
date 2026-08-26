@@ -2296,3 +2296,7 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 ### v9.8.10
 - Linux AppImage sürümünde veritabanı ve ayar dosyalarının çalışma dizini yerine XDG standartlarına uygun şekilde `~/.config/HaYTooL-YT-Downloader` dizinine kaydedilmesi sağlandı.
 
+
+### v9.8.11
+- AppImageUpdate (zsync) desteği eklenerek Linux üzerinde CachyOS ve diğer araçlarla güncelleme entegrasyonu sağlandı.
+

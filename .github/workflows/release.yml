@@ -149,7 +149,7 @@ jobs:
           chmod +x appimagetool-x86_64.AppImage
           
           # AppImage'ı oluştur
-          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir "${{ github.ref_name }}-HaYTooL-YD-$(date +%Y-%m-%d).AppImage"
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run -u "gh-releases-zsync|HaYToKoRaZ|haytool-youtube-download|latest|*AppImage.zsync" AppDir "${{ github.ref_name }}-HaYTooL-YD-$(date +%Y-%m-%d).AppImage"
           
           # appimagetool'un kendisini sil (Releases sekmesine yüklenmemesi için)
           rm appimagetool-x86_64.AppImage
@@ -157,4 +157,6 @@ jobs:
       - name: Upload Linux Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "*.AppImage"
+          files: |
+            *.AppImage
+            *.zsync
