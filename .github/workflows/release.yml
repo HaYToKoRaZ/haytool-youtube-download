@@ -140,6 +140,9 @@ jobs:
           
           # AppImage'ı oluştur
           ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir "${{ github.ref_name }}-HaYTooL-YouTube-Downloader-Linux-$(date +%Y-%m-%d).AppImage"
+          
+          # appimagetool'un kendisini sil (Releases sekmesine yüklenmemesi için)
+          rm appimagetool-x86_64.AppImage
 
       - name: Upload Linux Release
         uses: softprops/action-gh-release@v2
