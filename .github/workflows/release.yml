@@ -138,7 +138,7 @@ jobs:
           Name=HaYTooL YouTube Downloader
           Exec=AppRun
           Icon=haytool
-          Categories=AudioVideo;Utility;
+          Categories=AudioVideo;
           Terminal=true
           EOF
           cp public/logo.png AppDir/haytool.png || touch AppDir/haytool.png

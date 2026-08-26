@@ -2304,3 +2304,8 @@ Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hat
 ### v9.8.12
 - Test için sürüm güncellendi.
 
+
+### v9.8.13
+- AppImage üzerinde read-only (EROFS) hatalarına yol açan 'iptv_cache.json', 'backup' ve 'cookies.txt' yolları '.config' dizinine yönlendirildi.
+- Linux masaüstü başlatıcı (.desktop) kategorisi 'AudioVideo' (Multimedya) olarak kısıtlandı.
+

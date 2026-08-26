@@ -106,8 +106,8 @@ export async function startIntervalTimer() {
  * @returns {Promise<void>}
  */
 router.get('/youtube-auth-status', localhostOnly, async (req, res) => {
-  const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
-  const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
+  const rootCookiesTxt = path.join(dataRootDir, 'cookies.txt');
+  const binCookiesTxt = path.join(dataRootDir, 'bin', 'cookies.txt');
   
   let hasValidCookies = false;
   let activeSource = 'none';
@@ -184,8 +184,8 @@ router.post('/open-youtube-login', localhostOnly, (req, res) => {
  */
 router.post('/logout-youtube', localhostOnly, (req, res) => {
   try {
-    const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
-    const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
+    const rootCookiesTxt = path.join(dataRootDir, 'cookies.txt');
+    const binCookiesTxt = path.join(dataRootDir, 'bin', 'cookies.txt');
 
     if (fs.existsSync(rootCookiesTxt)) {
       try { fs.unlinkSync(rootCookiesTxt); } catch (e) {}
@@ -302,7 +302,7 @@ router.post('/save-cookies-txt', localhostOnly, (req, res) => {
     return res.status(400).json({ success: false, error: 'Geçersiz çerez içeriği.' });
   }
 
-  const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
+  const rootCookiesTxt = path.join(dataRootDir, 'cookies.txt');
   try {
     if (!content.trim()) {
       if (fs.existsSync(rootCookiesTxt)) {
@@ -1213,7 +1213,7 @@ function cleanupOldBackups(backupsDir, maxRegular = 10, maxDailyProtectedDays = 
  */
 export function ensureDailySystemBackup() {
   try {
-    const backupsDir = path.resolve(process.cwd(), 'backup');
+    const backupsDir = path.join(dataRootDir, 'backup');
     if (!fs.existsSync(backupsDir)) {
       fs.mkdirSync(backupsDir, { recursive: true });
     }
@@ -1424,7 +1424,7 @@ function parseBackupBuffer(buffer, filename = '') {
  * @returns {void}
  */
 router.get('/backups', localhostOnly, (req, res) => {
-  const backupsDir = path.resolve(process.cwd(), 'backup');
+  const backupsDir = path.join(dataRootDir, 'backup');
   try {
     if (!fs.existsSync(backupsDir)) {
       return res.json({ success: true, backups: [] });
@@ -1526,7 +1526,7 @@ router.post('/backup', localhostOnly, (req, res) => {
 
     const compressedBuffer = createZipArchive(zipFiles);
     
-    const backupsDir = path.resolve(process.cwd(), 'backup');
+    const backupsDir = path.join(dataRootDir, 'backup');
     if (!fs.existsSync(backupsDir)) {
       fs.mkdirSync(backupsDir, { recursive: true });
     }
@@ -1566,7 +1566,7 @@ router.post('/restore', localhostOnly, async (req, res) => {
   const { filename } = req.body;
   if (!filename) return res.status(400).json({ error: 'filename parametresi gereklidir.' });
   
-  const backupsDir = path.resolve(process.cwd(), 'backup');
+  const backupsDir = path.join(dataRootDir, 'backup');
   const backupFilePath = path.join(backupsDir, filename);
   
   if (!fs.existsSync(backupFilePath)) {
@@ -1681,7 +1681,7 @@ router.post('/restore-upload', localhostOnly, async (req, res) => {
  */
 router.delete('/backup/:filename', localhostOnly, (req, res) => {
   const { filename } = req.params;
-  const backupsDir = path.resolve(process.cwd(), 'backup');
+  const backupsDir = path.join(dataRootDir, 'backup');
   const backupFilePath = path.join(backupsDir, filename);
 
   if (!fs.existsSync(backupFilePath)) {
@@ -1706,7 +1706,7 @@ router.delete('/backup/:filename', localhostOnly, (req, res) => {
  */
 router.get('/backup/download/:filename', localhostOnly, (req, res) => {
   const { filename } = req.params;
-  const backupsDir = path.resolve(process.cwd(), 'backup');
+  const backupsDir = path.join(dataRootDir, 'backup');
   const backupFilePath = path.join(backupsDir, filename);
 
   if (!fs.existsSync(backupFilePath)) {

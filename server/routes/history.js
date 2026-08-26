@@ -1,5 +1,6 @@
 // Türkçe Açıklama: Kütüphane, video geçmişi, dosya karşılaştırma, konum açma, video silme ve gizleme API rotaları modülü.
 import express from 'express';
+import { dataRootDir } from '../config.js';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -41,8 +42,8 @@ export async function syncVideoWatchtimeToYouTube(id, currentTime, title = '', o
     // çerezlerini İÇERMEZ; "bin/cookies.txt" (Native Bridge) tam oturumu tutar. Eksik
     // kimlik doğrulaması YouTube'un izleme süresini sessizce düşürmesine (HTTP 204'e rağmen)
     // neden olur. Bu yüzden iki dosyayı birleştirip eksiksiz çerez seti kullanıyoruz.
-    const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
-    const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
+    const rootCookiesTxt = path.join(dataRootDir, 'cookies.txt');
+    const binCookiesTxt = path.join(dataRootDir, 'bin', 'cookies.txt');
     const cookiesObj = {};
     // 1. Önce root sonra bin cookies oku ve birleştir
     for (const cookieFile of [rootCookiesTxt, binCookiesTxt]) {
@@ -664,8 +665,8 @@ const SUBSCRIPTIONS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 // Türkçe Açıklama: Kök ve bin/ çerez dosyalarını birleştirip tek Cookie header'ı üretir.
 function buildSubscriptionsCookieHeader() {
-  const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
-  const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
+  const rootCookiesTxt = path.join(dataRootDir, 'cookies.txt');
+  const binCookiesTxt = path.join(dataRootDir, 'bin', 'cookies.txt');
   const cookiesObj = {};
   for (const cookieFile of [rootCookiesTxt, binCookiesTxt]) {
     if (!fs.existsSync(cookieFile)) continue;

@@ -1,5 +1,6 @@
 // Türkçe Açıklama: İndirme işlemlerini sırayla gerçekleştiren kuyruk yapısını (DownloadQueue), bildirim seslerini ve masaüstü bildirimlerini yöneten motor modülü.
 import fs from 'fs';
+import { dataRootDir } from '../config.js';
 import path from 'path';
 import os from 'os';
 import { spawn, exec } from 'child_process';
@@ -127,8 +128,8 @@ export function showWindowsNotification(title, message) {
 // "izlendi olarak işaretle" (--mark-watched) gibi kimlik doğrulama isteyen işlemler eksik çerezlerle sessizce
 // başarısız olur. Bu yüzden iki dosyayı birleştirip eksiksiz seti yt-dlp'ye veriyoruz.
 export function getCookieArgs(settings = {}) {
-  const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
-  const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
+  const rootCookiesTxt = path.join(dataRootDir, 'cookies.txt');
+  const binCookiesTxt = path.join(dataRootDir, 'bin', 'cookies.txt');
 
   const merged = mergeCookieFiles([rootCookiesTxt, binCookiesTxt]);
   if (merged) {
