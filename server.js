@@ -170,6 +170,8 @@ import {
   checkPendingLiveStreams
 } from './server/services/rss.js';
 import { addTerminalLog, broadcast } from './server/services/sse.js';
+import { startCookieHealthCheck } from './server/services/cookieHealth.js';
+import { gzipSync } from 'zlib';
 import { discordRpc } from './server/services/discord.js';
 import { setIptvChannels } from './server/services/iptv.js';
 import { configIniPath, parseIni } from './server/config.js';
@@ -200,8 +202,28 @@ const iptvCachePath = path.join(process.cwd(), 'iptv_cache.json');
 const app = express();
 app.use(express.json());
 
+// Türkçe Açıklama: Vanilla zlib ile gzip sıkıştırma middleware'i.
+// Yalnızca gzip destekleyen istemcilere ve 1KB üzeri yanıtlara uygulanır.
+// SSE (EventSource) yanıtları res.write ile aktığı için bu katmandan etkilenmez.
+app.use((req, res, next) => {
+  const acceptEncoding = req.headers['accept-encoding'] || '';
+  if (!acceptEncoding.includes('gzip')) return next();
+  const originalSend = res.send.bind(res);
+  res.send = (body) => {
+    const buf = Buffer.isBuffer(body) ? body : (typeof body === 'string' ? Buffer.from(body, 'utf8') : null);
+    if (buf && buf.length > 1024) {
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Vary', 'Accept-Encoding');
+      return originalSend(gzipSync(buf));
+    }
+    return originalSend(body);
+  };
+  next();
+});
+
 // Statik Dosyaları Sun (public/ klasörü, index.html otomatik gönderimi devre dışı)
-app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+// ?v= sürüm parametreli dosyalar güvenle 7 gün önbelleklenebilir
+app.use(express.static(path.join(__dirname, 'public'), { index: false, maxAge: '7d' }));
 
 // Geliştirme/Hata Ayıklama Günlükleri (İsteğe bağlı)
 const isDev = process.env.NODE_ENV === 'development';
@@ -884,6 +906,9 @@ if (process.argv.length <= 2) {
     }
 
     startIntervalTimer();
+
+    // YouTube oturum çerezlerinin periyodik sağlık kontrolü (30 dk; geçersizse sessiz yenileme + bildirim)
+    startCookieHealthCheck();
 
     // Otomatik video silme döngüsü
     setTimeout(() => {

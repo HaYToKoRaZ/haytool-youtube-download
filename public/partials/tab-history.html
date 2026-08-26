@@ -2,6 +2,7 @@
       <section id="tab-history" class="tab-content active">
 
         <div class="history-toolbar">
+          <div class="history-toolbar-filters">
           <div class="filter-group">
             <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);cursor:pointer;" onclick="resetHistoryChannelFilter()" title="Filtreyi Sıfırla"></i>
             <div class="custom-channel-dropdown" id="history-custom-dropdown">
@@ -49,54 +50,64 @@
               <option value="5" id="opt-date-5days">Son 5 Gün</option>
             </select>
           </div>
-          <div class="filter-group">
-            <input type="checkbox" id="history-show-shorts" style="display:none;">
-            <button type="button" class="filter-chip-btn" id="btn-filter-show-shorts" onclick="toggleFilterChip('history-show-shorts')" title="Shorts Videolarını Göster/Gizle">
-              <i data-lucide="zap"></i>
-              <span id="lbl-history-show-shorts">Shorts</span>
+          <div class="filter-group" style="position: relative;" id="history-filters-dropdown-wrap">
+            <button type="button" class="history-filters-trigger" onclick="toggleHistoryFiltersPanel(event)" title="Hızlı Filtreler">
+              <i data-lucide="sliders-horizontal" style="width:15px;height:15px;"></i>
+              <span id="history-filters-trigger-text">Filtreler</span>
+              <span class="history-filters-count" id="history-filters-count" style="display:none;">0</span>
+              <i data-lucide="chevron-down" style="width:13px;height:13px;"></i>
             </button>
-          </div>
-          <div class="filter-group">
-            <input type="checkbox" id="history-show-live" style="display:none;" checked>
-            <button type="button" class="filter-chip-btn" id="btn-filter-show-live" onclick="toggleFilterChip('history-show-live')" title="Canlı Yayınları Göster/Gizle">
-              <i data-lucide="radio"></i>
-              <span id="lbl-history-show-live">Canlı</span>
-            </button>
-          </div>
-          <div class="filter-group">
-            <input type="checkbox" id="history-only-no-auto-download" style="display:none;">
-            <button type="button" class="filter-chip-btn" id="btn-filter-no-auto-download" onclick="toggleFilterChip('history-only-no-auto-download')" title="Sadece Otomatik İndirmesi Kapalı Olanları Göster/Gizle">
-              <i data-lucide="download-cloud"></i>
-              <span id="lbl-history-only-no-auto-download">Oto İndirme Kapalı</span>
-            </button>
-          </div>
-          <div class="filter-group">
-            <input type="checkbox" id="history-only-not-downloaded" style="display:none;">
-            <button type="button" class="filter-chip-btn" id="btn-filter-not-downloaded" onclick="toggleFilterChip('history-only-not-downloaded')" title="Sadece İndirilmeyen Videoları Göster/Gizle">
-              <i data-lucide="arrow-down-circle"></i>
-              <span id="lbl-history-only-not-downloaded">İndirilmeyenler</span>
-            </button>
-          </div>
-          <div class="filter-group">
-            <input type="checkbox" id="history-only-live-processing" style="display:none;">
-            <button type="button" class="filter-chip-btn" id="btn-filter-live-processing" onclick="toggleFilterChip('history-only-live-processing')" title="Sadece İşlenmesi Beklenen Canlı Yayınları Göster">
-              <i data-lucide="radio" style="color:#eab308;"></i>
-              <span id="lbl-history-only-live-processing">Canlı İşlenenler</span>
-            </button>
-          </div>
-          <div class="filter-group">
-            <input type="checkbox" id="history-show-members" style="display:none;" checked>
-            <button type="button" class="filter-chip-btn" id="btn-filter-show-members" onclick="toggleFilterChip('history-show-members')" title="Üyelere Özel Videoları Göster/Gizle">
-              <i data-lucide="crown"></i>
-              <span id="lbl-history-show-members">Üyelere Özel</span>
-            </button>
-          </div>
-          <div class="filter-group">
-            <input type="checkbox" id="history-show-hidden" style="display:none;">
-            <button type="button" class="filter-chip-btn" id="btn-filter-show-hidden" onclick="toggleFilterChip('history-show-hidden')" title="Gizlenen Videoları Göster/Gizle">
-              <i data-lucide="eye-off"></i>
-              <span id="lbl-history-show-hidden">Gizlenenler</span>
-            </button>
+            <div class="history-filters-panel" id="history-filters-panel">
+              <div class="filter-group" style="margin:0;">
+                <input type="checkbox" id="history-show-shorts" style="display:none;" checked>
+                <button type="button" class="filter-chip-btn" id="btn-filter-show-shorts" onclick="toggleFilterChip('history-show-shorts')" title="Shorts Videolarını Göster/Gizle">
+                  <i data-lucide="zap"></i>
+                  <span id="lbl-history-show-shorts">Shorts</span>
+                </button>
+              </div>
+              <div class="filter-group" style="margin:0;">
+                <input type="checkbox" id="history-show-live" style="display:none;" checked>
+                <button type="button" class="filter-chip-btn" id="btn-filter-show-live" onclick="toggleFilterChip('history-show-live')" title="Canlı Yayınları Göster/Gizle">
+                  <i data-lucide="radio"></i>
+                  <span id="lbl-history-show-live">Canlı</span>
+                </button>
+              </div>
+              <div class="filter-group" style="margin:0;">
+                <input type="checkbox" id="history-only-no-auto-download" style="display:none;">
+                <button type="button" class="filter-chip-btn" id="btn-filter-no-auto-download" onclick="toggleFilterChip('history-only-no-auto-download')" title="Sadece Otomatik İndirmesi Kapalı Olanları Göster/Gizle">
+                  <i data-lucide="download-cloud"></i>
+                  <span id="lbl-history-only-no-auto-download">Oto İndirme Kapalı</span>
+                </button>
+              </div>
+              <div class="filter-group" style="margin:0;">
+                <input type="checkbox" id="history-only-not-downloaded" style="display:none;">
+                <button type="button" class="filter-chip-btn" id="btn-filter-not-downloaded" onclick="toggleFilterChip('history-only-not-downloaded')" title="Sadece İndirilmeyen Videoları Göster/Gizle">
+                  <i data-lucide="arrow-down-circle"></i>
+                  <span id="lbl-history-only-not-downloaded">İndirilmeyenler</span>
+                </button>
+              </div>
+              <div class="filter-group" style="margin:0;">
+                <input type="checkbox" id="history-only-live-processing" style="display:none;">
+                <button type="button" class="filter-chip-btn" id="btn-filter-live-processing" onclick="toggleFilterChip('history-only-live-processing')" title="Sadece İşlenmesi Beklenen Canlı Yayınları Göster">
+                  <i data-lucide="radio" style="color:#eab308;"></i>
+                  <span id="lbl-history-only-live-processing">Canlı İşlenenler</span>
+                </button>
+              </div>
+              <div class="filter-group" style="margin:0;">
+                <input type="checkbox" id="history-show-members" style="display:none;" checked>
+                <button type="button" class="filter-chip-btn" id="btn-filter-show-members" onclick="toggleFilterChip('history-show-members')" title="Üyelere Özel Videoları Göster/Gizle">
+                  <i data-lucide="crown"></i>
+                  <span id="lbl-history-show-members">Üyelere Özel</span>
+                </button>
+              </div>
+              <div class="filter-group" style="margin:0;">
+                <input type="checkbox" id="history-show-hidden" style="display:none;">
+                <button type="button" class="filter-chip-btn" id="btn-filter-show-hidden" onclick="toggleFilterChip('history-show-hidden')" title="Gizlenen Videoları Göster/Gizle">
+                  <i data-lucide="eye-off"></i>
+                  <span id="lbl-history-show-hidden">Gizlenenler</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="filter-group" style="margin-left: auto; display: flex; gap: 8px;">
@@ -108,8 +119,16 @@
               <span id="btn-bulk-hide-history-toggle">Toplu Gizle</span>
             </button>
           </div>
+          </div>
 
+          <div class="history-toolbar-actions">
           <div class="view-toggle-container">
+            <div class="filter-group sort-button-group" style="display: flex; gap: 6px; margin-right: 12px;" id="history-sort-group">
+              <button type="button" class="sort-btn active" data-sort="date-desc" id="history-sort-btn-date-desc" title="Tarih: Yeniden Eskiye">Tarih ▼</button>
+              <button type="button" class="sort-btn" data-sort="date-asc" id="history-sort-btn-date-asc" title="Tarih: Eskiden Yeniye">Tarih ▲</button>
+              <button type="button" class="sort-btn" data-sort="title" id="history-sort-btn-title" title="Başlık: A'dan Z'ye">Başlık</button>
+              <button type="button" class="sort-btn" data-sort="duration" id="history-sort-btn-duration" title="Süre: Uzundan Kısaya">Süre ▼</button>
+            </div>
             <button id="view-grid-btn" class="view-btn active" title="Kart Görünümü">
               <i data-lucide="layout-grid"></i>
               <span>Kartlar</span>
@@ -118,6 +137,7 @@
               <i data-lucide="list"></i>
               <span>Sade Liste</span>
             </button>
+          </div>
           </div>
         </div>
 

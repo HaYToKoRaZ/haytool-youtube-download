@@ -216,7 +216,7 @@ router.post('/video/:videoId/refresh-details', localhostOnly, async (req, res) =
       const ext = path.extname(item.filePath);
       const basePath = item.filePath.slice(0, -ext.length);
       const descPath = basePath + '.description';
-      fs.writeFileSync(descPath, updatedDesc, 'utf8');
+      await fs.promises.writeFile(descPath, updatedDesc, 'utf8');
     }
 
     res.json({ success: true, description: updatedDesc });
@@ -433,9 +433,9 @@ router.post('/video/:videoId/translate-subtitle', localhostOnly, async (req, res
     }
 
     console.log(`[Subtitle Translation] Translating ${sourcePath} (${fromLang}) to ${targetPath} (${toLang})...`);
-    const content = fs.readFileSync(sourcePath, 'utf8');
+    const content = await fs.promises.readFile(sourcePath, 'utf8');
     const translatedContent = await translateSrtOrVttContent(content, isVtt, fromLang, toLang);
-    fs.writeFileSync(targetPath, translatedContent, 'utf8');
+    await fs.promises.writeFile(targetPath, translatedContent, 'utf8');
     console.log(`[Subtitle Translation] Successfully saved translated subtitle to ${targetPath}`);
 
     return res.json({ success: true });

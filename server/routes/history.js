@@ -8,6 +8,7 @@ import { exec } from 'child_process';
 import { 
   readDb, 
   writeDb, 
+  writeDbFast,
   acquireDbLock, 
   updateHistoryItem 
 } from '../database.js';
@@ -17,6 +18,7 @@ import { ytdlpPath, getFfmpegPath, spawnYtdlp } from '../services/paths.js';
 import { resolveMissingDurations, fetchVideoDuration, checkSingleChannelRss, triggerChannelCheck, fetchDurationViaYtdlp } from '../services/rss.js';
 import { broadcast, addTerminalLog } from '../services/sse.js';
 import { triggerSilentCookieRefresh } from './settings.js';
+import { updateChannelFullInfo } from './channels.js';
 
 export const router = express.Router();
 
@@ -652,6 +654,209 @@ router.post('/tools/ape-mark-watched', localhostOnly, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'APE işlemi sırasında sunucu hatası oluştu.' });
+  }
+});
+
+// YouTube abonelik listesi önbelleği (11MB'lık sayfa tekrar indirilmesin)
+let subscriptionsCacheRaw = null;
+let subscriptionsCacheTime = 0;
+const SUBSCRIPTIONS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+// Türkçe Açıklama: Kök ve bin/ çerez dosyalarını birleştirip tek Cookie header'ı üretir.
+function buildSubscriptionsCookieHeader() {
+  const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
+  const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
+  const cookiesObj = {};
+  for (const cookieFile of [rootCookiesTxt, binCookiesTxt]) {
+    if (!fs.existsSync(cookieFile)) continue;
+    const content = fs.readFileSync(cookieFile, 'utf8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const parts = trimmed.split('\t');
+      if (parts.length >= 7) cookiesObj[parts[5]] = parts[6];
+    }
+  }
+  return Object.entries(cookiesObj).map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+/**
+ * YouTube abone kanal listesini oturum çerezleriyle çekip takip durumlarıyla birlikte döndürür.
+ * 
+ * @name GET /api/tools/subscriptions
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.get('/tools/subscriptions', localhostOnly, async (req, res) => {
+  try {
+    const cookieHeader = buildSubscriptionsCookieHeader();
+    if (!cookieHeader) {
+      return res.status(400).json({ success: false, error: 'YouTube oturum çerezi bulunamadı. Lütfen Ayarlar sekmesinden "YouTube\'da Oturum Aç" ile oturum açın.' });
+    }
+
+    // Önbellek: aynı oturumda 5 dakika içinde 11MB'lık sayfayı tekrar indirme (performans)
+    let channels;
+    const now = Date.now();
+    if (subscriptionsCacheRaw && (now - subscriptionsCacheTime) < SUBSCRIPTIONS_CACHE_TTL_MS) {
+      channels = subscriptionsCacheRaw;
+    } else {
+      const fetchRes = await fetch('https://www.youtube.com/feed/channels', {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Cookie': cookieHeader,
+          'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8'
+        },
+        redirect: 'follow'
+      });
+      if (fetchRes.status !== 200) {
+        return res.status(502).json({ success: false, error: `YouTube yanıtı: HTTP ${fetchRes.status}` });
+      }
+      const html = await fetchRes.text();
+
+      // channelRenderer bloklarını parse et (channelId + kanal adı)
+      const parsed = [];
+      const seen = new Set();
+      const rendererRe = /"channelRenderer":\{"channelId":"(UC[\w-]+)","title":\{"simpleText":"([^"]+)"\}/g;
+      let match;
+      while ((match = rendererRe.exec(html)) !== null) {
+        const id = match[1];
+        const name = match[2].trim();
+        if (name && !seen.has(id)) {
+          seen.add(id);
+          parsed.push({ id, name });
+        }
+      }
+      channels = parsed;
+      subscriptionsCacheRaw = parsed;
+      subscriptionsCacheTime = now;
+    }
+
+    if (channels.length === 0) {
+      return res.json({ success: true, channels: [], sessionValid: false, message: 'Abone kanalı bulunamadı. Oturum geçersiz olabilir — Ayarlar → "YouTube\'da Oturum Aç" ile yenileyin.' });
+    }
+
+    const db = readDb();
+    const result = channels.map(ch => ({
+      ...ch,
+      followed: db.channels.some(c => c.id === ch.id)
+    }));
+    res.json({ success: true, channels: result, sessionValid: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Abonelikler çekilemedi.' });
+  }
+});
+
+/**
+ * Seçilen YouTube abone kanallarını toplu olarak takip listesine ekler.
+ * 
+ * @name POST /api/tools/subscriptions/import
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi (gövde: { channels: [{id, name}] })
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.post('/tools/subscriptions/import', localhostOnly, async (req, res) => {
+  try {
+    const { channels } = req.body || {};
+    if (!Array.isArray(channels) || channels.length === 0) {
+      return res.status(400).json({ success: false, error: 'Eklenecek kanal seçilmedi.' });
+    }
+
+    const db = readDb();
+    let added = 0;
+    let skipped = 0;
+    const addedNames = [];
+    const addedIds = [];
+
+    for (const ch of channels) {
+      const id = ch && ch.id;
+      const name = ch && ch.name;
+      if (!id || !/^UC[\w-]{22}$/.test(id) || !name || typeof name !== 'string') {
+        skipped++;
+        continue;
+      }
+      if (db.channels.some(c => c.id === id)) {
+        skipped++;
+        continue;
+      }
+      const cleanName = name.trim();
+      db.channels.push({
+        id,
+        name: cleanName,
+        handle: `@${cleanName.replace(/\s+/g, '')}`,
+        addedAt: new Date().toISOString(),
+        quality: 'default',
+        downloadShorts: false,
+        avatar: '',
+        shortsDurationLimit: 180,
+        autoDownload: true,
+        subscriberCount: ''
+      });
+      added++;
+      addedNames.push(cleanName);
+      addedIds.push(id);
+    }
+
+    if (added > 0) {
+      writeDb(db);
+      broadcast('db_update', db);
+      broadcast('status_log', { message: `${added} YouTube aboneliği takip listesine eklendi.`, type: 'success' });
+
+      // Arka planda yalnızca YENİ EKLENEN kanalların abone/avatar bilgilerini güncelle (600ms arayla)
+      setTimeout(async () => {
+        let changed = false;
+        for (const chId of addedIds) {
+          try {
+            const dbForUpdate = readDb();
+            const ch = dbForUpdate.channels.find(c => c.id === chId);
+            if (ch) {
+              await updateChannelFullInfo(ch);
+              changed = true;
+            }
+          } catch (e) {}
+          await new Promise(r => setTimeout(r, 600));
+        }
+        if (changed) {
+          try { writeDb(readDb()); } catch (e) {}
+        }
+      }, 300);
+    }
+
+    res.json({ success: true, addedCount: added, skippedCount: skipped, addedNames });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Kanallar eklenemedi.' });
+  }
+});
+
+/**
+ * YouTube abonelikler (feed/channels) sayfasını WebView2 oynatıcıda açar.
+ * 
+ * @name POST /api/tools/open-subscriptions
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.post('/tools/open-subscriptions', localhostOnly, (req, res) => {
+  try {
+    const subsUrl = 'https://www.youtube.com/feed/channels';
+    const binPlayerExe = path.resolve(process.cwd(), 'bin', 'HaYTooLPlayer.exe');
+    const launcherExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
+    const targetExe = fs.existsSync(binPlayerExe) ? binPlayerExe : (fs.existsSync(launcherExe) ? launcherExe : null);
+    if (targetExe) {
+      exec(`"${targetExe}" "${subsUrl}"`, { windowsHide: false }, () => {});
+      console.log('[YouTube Abonelikler] feed/channels sayfası WebView2 oynatıcıda açıldı.');
+      return res.json({ success: true, message: 'YouTube abonelik sayfası açıldı.' });
+    }
+    open(subsUrl);
+    res.json({ success: true, message: 'YouTube abonelik sayfası tarayıcıda açıldı.' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -1351,8 +1556,10 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
       try {
         let deletedAny = false;
         let failedToDelete = [];
+        const filesToDelete = new Set();
         const targetPattern = `[${id}]`;
 
+        // 1. Yol tabanlı akıllı silme klasör taraması
         if (item.filePath) {
           try {
             const ext = path.extname(item.filePath);
@@ -1361,22 +1568,12 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
             
             console.log(`Yol tabanlı akıllı silme bașlatıldı. Klasör: ${dirName}, Dosya öneki: ${baseName}`);
             
-            if (fs.existsSync(dirName)) {
-              const files = fs.readdirSync(dirName);
+            const dirExists = await fs.promises.access(dirName).then(() => true).catch(() => false);
+            if (dirExists) {
+              const files = await fs.promises.readdir(dirName);
               for (const file of files) {
                 if (file === path.basename(item.filePath) || file.startsWith(baseName + '.')) {
-                  const fullPath = path.join(dirName, file);
-                  console.log(`Akıllı eșleșen dosya bulundu ve siliniyor: ${file}`);
-                  try {
-                    if (fs.existsSync(fullPath)) {
-                      fs.unlinkSync(fullPath);
-                      console.log(`BAȘARI: Dosya silindi: ${file}`);
-                      deletedAny = true;
-                    }
-                  } catch (e) {
-                    console.error(`HATA: Dosya silinemedi: ${file}`, e.message);
-                    failedToDelete.push(`${file} (${e.message})`);
-                  }
+                  filesToDelete.add(path.join(dirName, file));
                 }
               }
             }
@@ -1385,6 +1582,7 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
           }
         }
 
+        // 2. Pattern tabanlı yedek silme klasör taraması
         const folder = db.settings.downloadPath;
         const foldersToSearch = [folder];
         if (item.channelName) {
@@ -1394,29 +1592,35 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
         console.log(`Silme ișlemi için aranan klasörler:`, foldersToSearch);
 
         for (const fld of foldersToSearch) {
-          if (fs.existsSync(fld)) {
-            const files = fs.readdirSync(fld);
-            for (const file of files) {
-              if (file.includes(targetPattern)) {
-                const fullPath = path.join(fld, file);
-                if (fs.existsSync(fullPath)) {
-                  console.log(`Eșleșen dosya bulundu (ID yedek): ${file}. Silinmeye çalıșılıyor...`);
-                  try {
-                    fs.unlinkSync(fullPath);
-                    console.log(`BAȘARI: Dosya silindi (ID yedek): ${file}`);
-                    deletedAny = true;
-                  } catch (e) {
-                    if (e.code !== 'ENOENT') {
-                      console.error(`HATA: Dosya silinemedi (ID yedek): ${file}`, e.message);
-                      if (!failedToDelete.some(f => f.startsWith(file))) {
-                        failedToDelete.push(`${file} (${e.message})`);
-                      }
-                    }
-                  }
+          try {
+            const dirExists = await fs.promises.access(fld).then(() => true).catch(() => false);
+            if (dirExists) {
+              const files = await fs.promises.readdir(fld);
+              for (const file of files) {
+                if (file.includes(targetPattern)) {
+                  filesToDelete.add(path.join(fld, file));
                 }
               }
             }
-          }
+          } catch (patternErr) {}
+        }
+
+        // Toplanan tüm dosyaları paralel olarak sil
+        if (filesToDelete.size > 0) {
+          console.log(`Eşleşen toplam ${filesToDelete.size} dosya bulundu, siliniyor...`);
+          const deletePromises = Array.from(filesToDelete).map(async (fullPath) => {
+            try {
+              await fs.promises.unlink(fullPath);
+              console.log(`BAŞARI: Dosya silindi: ${path.basename(fullPath)}`);
+              deletedAny = true;
+            } catch (e) {
+              if (e.code !== 'ENOENT') {
+                console.error(`HATA: Dosya silinemedi: ${path.basename(fullPath)}`, e.message);
+                failedToDelete.push(`${path.basename(fullPath)} (${e.message})`);
+              }
+            }
+          });
+          await Promise.all(deletePromises);
         }
 
         if (failedToDelete.length > 0) {
@@ -1425,6 +1629,7 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
           console.log(`--- SİLME İŞLEMİ BAŞARISIZ ---\n`);
           return res.status(500).json({ error: errorMsg });
         }
+        
         if (deletedAny) {
           broadcast('status_log', { message: `İlgili video dosyaları bilgisayarınızdan silindi: ${item.title}`, type: 'info' });
         } else {
@@ -1459,8 +1664,9 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
     });
     console.log(`BİLGİ: Video '${item.title}' RSS'in tekrar indirmemesi için 'ignored' olarak işaretlendi (Gizleme: ${hideOnDelete}).`);
 
-    writeDb(db);
+    await writeDbFast(db);
     broadcast('db_update', db);
+
     
     const isEn = db.settings && db.settings.lang === 'en';
     let statusMsg = '';
@@ -1472,7 +1678,11 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
     broadcast('status_log', { message: statusMsg, type: 'success' });
     
     if (markWatched) {
-      markVideoWatchedOnYouTube(id, item.title, item.duration || '');
+      setTimeout(() => {
+        markVideoWatchedOnYouTube(id, item.title, item.duration || '').catch(err => {
+          console.error(`[YouTube Watch Sync Error during Delete]`, err.message);
+        });
+      }, 0);
     }
 
     console.log(`BAŞARI: Video geçmiş kaydı veri tabanından silindi.`);
@@ -1726,20 +1936,21 @@ router.post('/history/bulk-delete', localhostOnly, async (req, res) => {
       const item = db.history[itemIndex];
 
       if (deleteFiles) {
+        const filesToDelete = new Set();
+        const targetPattern = `[${id}]`;
+
         // Yol tabanlı akıllı silme
         if (item.filePath) {
           try {
             const ext = path.extname(item.filePath);
             const baseName = path.basename(item.filePath, ext);
             const dirName = path.dirname(item.filePath);
-            if (fs.existsSync(dirName)) {
-              const files = fs.readdirSync(dirName);
+            const dirExists = await fs.promises.access(dirName).then(() => true).catch(() => false);
+            if (dirExists) {
+              const files = await fs.promises.readdir(dirName);
               for (const file of files) {
                 if (file === path.basename(item.filePath) || file.startsWith(baseName + '.')) {
-                  const fullPath = path.join(dirName, file);
-                  if (fs.existsSync(fullPath)) {
-                    fs.unlinkSync(fullPath);
-                  }
+                  filesToDelete.add(path.join(dirName, file));
                 }
               }
             }
@@ -1751,26 +1962,33 @@ router.post('/history/bulk-delete', localhostOnly, async (req, res) => {
         // Pattern tabanlı yedek silme
         try {
           const folder = db.settings.downloadPath;
-          const targetPattern = `[${id}]`;
           const foldersToSearch = [folder];
           if (item.channelName) {
             foldersToSearch.push(path.join(folder, item.channelName));
           }
           for (const fld of foldersToSearch) {
-            if (fs.existsSync(fld)) {
-              const files = fs.readdirSync(fld);
+            const dirExists = await fs.promises.access(fld).then(() => true).catch(() => false);
+            if (dirExists) {
+              const files = await fs.promises.readdir(fld);
               for (const file of files) {
                 if (file.includes(targetPattern)) {
-                  const fullPath = path.join(fld, file);
-                  if (fs.existsSync(fullPath)) {
-                    fs.unlinkSync(fullPath);
-                  }
+                  filesToDelete.add(path.join(fld, file));
                 }
               }
             }
           }
         } catch (patternErr) {
           console.error(`[Bulk Delete Pattern Error]: ${patternErr.message}`);
+        }
+
+        // Toplanan dosyaları sil
+        if (filesToDelete.size > 0) {
+          const deletePromises = Array.from(filesToDelete).map(async (fullPath) => {
+            try {
+              await fs.promises.unlink(fullPath);
+            } catch (e) {}
+          });
+          await Promise.all(deletePromises);
         }
       }
 
@@ -1796,7 +2014,7 @@ router.post('/history/bulk-delete', localhostOnly, async (req, res) => {
     }
 
     if (deletedCount > 0) {
-      writeDb(db);
+      await writeDbFast(db);
       broadcast('db_update', db);
       const isEn = db.settings && db.settings.lang === 'en';
       const statusMsg = isEn 

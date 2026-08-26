@@ -150,7 +150,7 @@ router.post('/update', localhostOnly, async (req, res) => {
     console.log(`[IPTV] ${channels.length} kanal bulundu. Diske kaydediliyor...`);
     
     const cacheData = { lastUpdated: new Date().toISOString(), channels };
-    fs.writeFileSync(iptvCachePath, JSON.stringify(cacheData), 'utf8');
+    await fs.promises.writeFile(iptvCachePath, JSON.stringify(cacheData), 'utf8');
     
     setIptvChannels(channels);
     

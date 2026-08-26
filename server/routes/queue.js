@@ -33,7 +33,14 @@ router.get('/events', (req, res) => {
   
   res.write(`event: db_update\ndata: ${JSON.stringify(readDb())}\n\n`);
 
+  // SSE bağlantı canlılığı: 25 saniyede bir heartbeat yorum satırı gönder
+  // (proxy / ara katman zaman aşımlarının bağlantıyı koparmasını önler)
+  const heartbeat = setInterval(() => {
+    try { res.write(': ping\n\n'); } catch (e) {}
+  }, 25000);
+
   req.on('close', () => {
+    clearInterval(heartbeat);
     removeClient(res);
   });
 });
@@ -379,7 +386,6 @@ router.post('/cancel-download', localhostOnly, (req, res) => {
     });
 
     broadcast('status_log', { message: 'Video indirme kuyruğundan çıkarıldı.', type: 'info' });
-    broadcast('db_update', readDb());
     return res.json({ success: true });
   }
 

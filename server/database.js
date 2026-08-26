@@ -15,13 +15,15 @@ import {
   writeIni 
 } from './config.js';
 import { getVideoResolution } from './services/paths.js';
-import { addTerminalLog, broadcast } from './services/sse.js';
+import { addTerminalLog, broadcast, broadcastHistoryUpdate } from './services/sse.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '..');
+const appRootDir = path.resolve(__dirname, '..');
+const isAppImage = process.env.APPIMAGE;
+const dataRootDir = isAppImage ? path.dirname(process.env.APPIMAGE) : appRootDir;
 
-export const dbPath = path.join(rootDir, 'db.json');
+export const dbPath = path.join(dataRootDir, 'db.json');
 export const defaultDownloadDir = path.join(os.homedir(), 'Downloads', 'HaYTooLYouTubeAutoDownloads');
 
 // Makineye özel AES-256 şifreleme tohumu ve anahtarı
@@ -353,7 +355,8 @@ export function readDb() {
  * 
  * @param {object} data Yazılacak veritabanı nesnesi
  */
-export function writeDb(data) {
+export async function writeDb(data) {
+  const release = await acquireDbLock();
   try {
     // RAM önbelleği hemen güncelleyelim ki gecikme olmasın
     cachedDb = data;
@@ -361,9 +364,9 @@ export function writeDb(data) {
     // Otomatik rolling yedek (db.json.bak)
     if (fs.existsSync(dbPath)) {
       try {
-        const stats = fs.statSync(dbPath);
+        const stats = await fs.promises.stat(dbPath);
         if (stats.size > 0) {
-          fs.copyFileSync(dbPath, dbPath + '.bak');
+          await fs.promises.copyFile(dbPath, dbPath + '.bak');
         }
       } catch (bakErr) {
         // Sessizce geç
@@ -376,26 +379,105 @@ export function writeDb(data) {
       dataToSave.settings.githubToken = encryptSecret(dataToSave.settings.githubToken);
     }
 
-    const dbString = JSON.stringify(dataToSave, null, 2);
+    const dbString = JSON.stringify(dataToSave);
     const tempDbPath = `${dbPath}.${Date.now()}.${Math.random().toString(36).slice(2, 7)}.tmp`;
-    fs.writeFileSync(tempDbPath, dbString, 'utf8');
+    await fs.promises.writeFile(tempDbPath, dbString, 'utf8');
     
     let renamed = false;
     for (let i = 0; i < 5; i++) {
       try {
-        fs.renameSync(tempDbPath, dbPath);
+        await fs.promises.rename(tempDbPath, dbPath);
         renamed = true;
         break;
       } catch (renameErr) {
         if (i === 4) {
-          // Son çare olarak doğrudan writeFileSync yap
-          fs.writeFileSync(dbPath, dbString, 'utf8');
-          try { fs.unlinkSync(tempDbPath); } catch (e) {}
+          // Son çare olarak doğrudan yaz
+          await fs.promises.writeFile(dbPath, dbString, 'utf8');
+          try { await fs.promises.unlink(tempDbPath); } catch (e) {}
           renamed = true;
         } else {
-          // Kısa bir bekleme (synchronous busy wait)
-          const waitTill = Date.now() + 20;
-          while (Date.now() < waitTill) {}
+          // Asenkron bekleme (event loop bloklanmaz)
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+      }
+    }
+
+    try {
+      const stats = await fs.promises.stat(dbPath);
+      lastDbJsonMtime = stats.mtimeMs;
+    } catch (e) {}
+    
+    // Eş zamanlı olarak config.ini ve channels.ini dosyalarını güncelle
+    await saveSettingsToIni(data);
+    await saveChannelsToIni(data);
+    await saveCategoriesToIni(data);
+  } catch (err) {
+    console.error('Veritabanı yazma hatası:', err);
+  } finally {
+    release();
+  }
+}
+
+// Son hızlı yedek zaman damgası (writeDbFast için seyrek .bak kontrolü)
+let lastFastBackupMs = 0;
+const FAST_BACKUP_INTERVAL_MS = 5 * 60 * 1000; // 5 dakikada bir .bak al
+
+/**
+ * Silme işlemleri için optimize edilmiş hızlı DB yazma fonksiyonu.
+ * Farklar: .bak yedek alma (5 dk'dan az geçmişse atlanır) ve INI senkronizasyonu yapılmaz.
+ * Settings veya kanal değişikliklerinde bu fonksiyonu KULLANMA; writeDb() kullan.
+ *
+ * @param {object} data Yazılacak veritabanı nesnesi
+ * @returns {Promise<void>}
+ */
+export async function writeDbFast(data) {
+  try {
+    // RAM önbelleği hemen güncelle
+    cachedDb = data;
+
+    // Seyrek .bak yedek: son 5 dakikada alınmamışsa al
+    const now = Date.now();
+    if (now - lastFastBackupMs > FAST_BACKUP_INTERVAL_MS) {
+      if (fs.existsSync(dbPath)) {
+        try {
+          const stats = fs.statSync(dbPath);
+          if (stats.size > 0) {
+            fs.copyFileSync(dbPath, dbPath + '.bak');
+            lastFastBackupMs = now;
+          }
+        } catch (bakErr) {
+          // Sessizce geç
+        }
+      }
+    }
+
+    // Disk kopyasını hazırla, hassas veriyi şifrele
+    const dataToSave = JSON.parse(JSON.stringify(data));
+    if (dataToSave.settings && dataToSave.settings.githubToken) {
+      dataToSave.settings.githubToken = encryptSecret(dataToSave.settings.githubToken);
+    }
+
+    const dbString = JSON.stringify(dataToSave);
+    const tempDbPath = `${dbPath}.${Date.now()}.${Math.random().toString(36).slice(2, 7)}.tmp`;
+
+    // Async yazma ile event loop'u bloklamıyoruz
+    await fs.promises.writeFile(tempDbPath, dbString, 'utf8');
+
+    // Rename ile atomik takas — EBUSY'de birkaç deneme
+    let renamed = false;
+    for (let i = 0; i < 5; i++) {
+      try {
+        await fs.promises.rename(tempDbPath, dbPath);
+        renamed = true;
+        break;
+      } catch (renameErr) {
+        if (i === 4) {
+          await fs.promises.writeFile(dbPath, dbString, 'utf8');
+          try { await fs.promises.unlink(tempDbPath); } catch (e) {}
+          renamed = true;
+        } else {
+          // Async bekleme — event loop'u bloklamaz
+          await new Promise(resolve => setTimeout(resolve, 20));
         }
       }
     }
@@ -403,13 +485,18 @@ export function writeDb(data) {
     try {
       lastDbJsonMtime = fs.statSync(dbPath).mtimeMs;
     } catch (e) {}
-    
-    // Eş zamanlı olarak config.ini ve channels.ini dosyalarını güncelle
-    saveSettingsToIni(data);
-    saveChannelsToIni(data);
-    saveCategoriesToIni(data);
+
+    // NOT: INI senkronizasyonu kasıtlı olarak atlanıyor.
+    // Silme işlemi settings/channels değiştirmez; INI tutarlılığı bozulmaz.
+    console.log(`[writeDbFast] DB başarıyla yazıldı (hızlı yol, INI atlandı).`);
   } catch (err) {
-    console.error('Veritabanı yazma hatası:', err);
+    console.error('[writeDbFast] Veritabanı hızlı yazma hatası:', err);
+    // Fallback: senkron yolu dene
+    try {
+      writeDb(data);
+    } catch (fallbackErr) {
+      console.error('[writeDbFast] Fallback writeDb de başarısız:', fallbackErr);
+    }
   }
 }
 
@@ -420,14 +507,14 @@ export function writeDb(data) {
  */
 export function syncWithIni(db) {
   // icon.ico kontrolü
-  const pngPath = path.join(rootDir, 'public', 'logo.png');
-  const icoPath = path.join(rootDir, 'icon.ico');
+  const pngPath = path.join(appRootDir, 'public', 'logo.png');
+  const icoPath = path.join(appRootDir, 'icon.ico');
   if (!fs.existsSync(icoPath) && fs.existsSync(pngPath)) {
     convertPngToIco(pngPath, icoPath);
   }
 
   // Eski tekil config.ini dosyasından yeni işletim sistemine özel yapılandırmaya göç
-  const oldConfigIniPath = path.join(rootDir, 'config.ini');
+  const oldConfigIniPath = path.join(dataRootDir, 'config.ini');
   if (fs.existsSync(oldConfigIniPath) && !fs.existsSync(configIniPath)) {
     console.log(`[Migration] Eski config.ini tespit edildi, ${configIniName} dosyasına taşınıyor...`);
     try {
@@ -494,7 +581,7 @@ export function syncWithIni(db) {
   }
 
   // Typo kurtarma ve migrasyon (config.inilş -> config.ini ve channels.ini)
-  const configIniTypoPath = path.join(rootDir, 'config.inilş');
+  const configIniTypoPath = path.join(dataRootDir, 'config.inilş');
   let migratedSettings = null;
   let migratedChannels = null;
   if (fs.existsSync(configIniTypoPath)) {
@@ -702,6 +789,52 @@ export function syncWithIni(db) {
       if (queueViewMode !== undefined) {
         db.settings.queueViewMode = queueViewMode;
       }
+
+      const historyViewMode = getCaseInsensitiveKey(settingsSection, 'historyViewMode');
+      if (historyViewMode !== undefined) {
+        db.settings.historyViewMode = historyViewMode;
+      }
+
+      const downloadedViewMode = getCaseInsensitiveKey(settingsSection, 'downloadedViewMode');
+      if (downloadedViewMode !== undefined) {
+        db.settings.downloadedViewMode = downloadedViewMode;
+      }
+
+      const downloadedSortMode = getCaseInsensitiveKey(settingsSection, 'downloadedSortMode');
+      if (downloadedSortMode !== undefined) {
+        db.settings.downloadedSortMode = downloadedSortMode;
+      }
+
+      const historySortMode = getCaseInsensitiveKey(settingsSection, 'historySortMode');
+      if (historySortMode !== undefined) {
+        db.settings.historySortMode = historySortMode;
+      }
+
+      // Kütüphane hızlı filtre durumları (çipler) configwin.ini'den yüklenir
+      const historyShowLive = getCaseInsensitiveKey(settingsSection, 'historyShowLive');
+      if (historyShowLive !== undefined) {
+        db.settings.historyShowLive = historyShowLive !== 'false';
+      }
+      const historyOnlyNoAutoDownload = getCaseInsensitiveKey(settingsSection, 'historyOnlyNoAutoDownload');
+      if (historyOnlyNoAutoDownload !== undefined) {
+        db.settings.historyOnlyNoAutoDownload = historyOnlyNoAutoDownload === 'true';
+      }
+      const historyOnlyNotDownloaded = getCaseInsensitiveKey(settingsSection, 'historyOnlyNotDownloaded');
+      if (historyOnlyNotDownloaded !== undefined) {
+        db.settings.historyOnlyNotDownloaded = historyOnlyNotDownloaded === 'true';
+      }
+      const historyOnlyLiveProcessing = getCaseInsensitiveKey(settingsSection, 'historyOnlyLiveProcessing');
+      if (historyOnlyLiveProcessing !== undefined) {
+        db.settings.historyOnlyLiveProcessing = historyOnlyLiveProcessing === 'true';
+      }
+      const historyShowMembers = getCaseInsensitiveKey(settingsSection, 'historyShowMembers');
+      if (historyShowMembers !== undefined) {
+        db.settings.historyShowMembers = historyShowMembers !== 'false';
+      }
+      const historyShowHidden = getCaseInsensitiveKey(settingsSection, 'historyShowHidden');
+      if (historyShowHidden !== undefined) {
+        db.settings.historyShowHidden = historyShowHidden === 'true';
+      }
     }
   }
 
@@ -904,7 +1037,7 @@ export function syncWithIni(db) {
  * 
  * @param {object} db Kaydedilecek veritabanı nesnesi
  */
-export function saveSettingsToIni(db) {
+export async function saveSettingsToIni(db) {
   const iniData = { Settings: {} };
   
   iniData.Settings.downloadPath = db.settings.downloadPath;
@@ -924,7 +1057,7 @@ export function saveSettingsToIni(db) {
   iniData.Settings.playerPreference = (db.settings.playerPreference || 'system').toString();
   iniData.Settings.playerType = (db.settings.playerType || 'plyr').toString();
   iniData.Settings.subtitleColor = (db.settings.subtitleColor || '#ffffff').toString();
-  iniData.Settings.subtitleOpacity = (db.settings.subtitleOpacity || '0.7').toString();
+  iniData.Settings.subtitleOpacity = (db.settings.subtitleOpacity !== undefined ? db.settings.subtitleOpacity : '0.7').toString();
   iniData.Settings.subtitleSize = (db.settings.subtitleSize || '26px').toString();
   iniData.Settings.playSounds = (db.settings.playSounds !== false).toString();
   iniData.Settings.lang = (db.settings.lang || 'en').toString();
@@ -942,12 +1075,22 @@ export function saveSettingsToIni(db) {
   iniData.Settings.weatherLongitude = (db.settings.weatherLongitude !== undefined ? db.settings.weatherLongitude : 28.9784).toString();
   iniData.Settings.weatherUnit = (db.settings.weatherUnit || 'celsius').toString();
   iniData.Settings.queueViewMode = (db.settings.queueViewMode || 'table').toString();
+  iniData.Settings.historyViewMode = (db.settings.historyViewMode || 'grid').toString();
+  iniData.Settings.downloadedViewMode = (db.settings.downloadedViewMode || 'grid').toString();
+  iniData.Settings.downloadedSortMode = (db.settings.downloadedSortMode || 'date-desc').toString();
+  iniData.Settings.historySortMode = (db.settings.historySortMode || 'date-desc').toString();
+  iniData.Settings.historyShowLive = (db.settings.historyShowLive !== false).toString();
+  iniData.Settings.historyOnlyNoAutoDownload = (db.settings.historyOnlyNoAutoDownload === true).toString();
+  iniData.Settings.historyOnlyNotDownloaded = (db.settings.historyOnlyNotDownloaded === true).toString();
+  iniData.Settings.historyOnlyLiveProcessing = (db.settings.historyOnlyLiveProcessing === true).toString();
+  iniData.Settings.historyShowMembers = (db.settings.historyShowMembers !== false).toString();
+  iniData.Settings.historyShowHidden = (db.settings.historyShowHidden === true).toString();
   iniData.Settings.markWatchedOnDelete = (db.settings.markWatchedOnDelete !== false).toString();
   iniData.Settings.autoSyncWatchtime = (db.settings.autoSyncWatchtime !== false).toString();
   iniData.Settings.autoDiskSync = (db.settings.autoDiskSync !== false).toString();
   iniData.Settings.periodicDiskSyncInterval = (db.settings.periodicDiskSyncInterval || '360').toString();
 
-  writeIni(configIniPath, iniData);
+  await writeIni(configIniPath, iniData);
 }
 
 /**
@@ -955,7 +1098,7 @@ export function saveSettingsToIni(db) {
  * 
  * @param {object} db Kaydedilecek veritabanı nesnesi
  */
-export function saveChannelsToIni(db) {
+export async function saveChannelsToIni(db) {
   if (!db || !Array.isArray(db.channels)) return;
 
   // Otomatik .bak koruma yedeği
@@ -1003,14 +1146,14 @@ export function saveChannelsToIni(db) {
   }
   let oldContent = '';
   if (fs.existsSync(channelsIniPath)) {
-    try { oldContent = fs.readFileSync(channelsIniPath, 'utf-8'); } catch(e) {}
+    try { oldContent = await fs.promises.readFile(channelsIniPath, 'utf-8'); } catch(e) {}
   }
 
-  writeIni(channelsIniPath, iniData);
+  await writeIni(channelsIniPath, iniData);
 
   let newContent = '';
   if (fs.existsSync(channelsIniPath)) {
-    try { newContent = fs.readFileSync(channelsIniPath, 'utf-8'); } catch(e) {}
+    try { newContent = await fs.promises.readFile(channelsIniPath, 'utf-8'); } catch(e) {}
   }
 
   // Sadece kanal listesi gerçekten değiştiğinde (ekleme/çıkarma/ayar) Gist yedeğini tetikle
@@ -1024,7 +1167,7 @@ export function saveChannelsToIni(db) {
  * 
  * @param {object} db Kaydedilecek veritabanı nesnesi
  */
-export function saveCategoriesToIni(db) {
+export async function saveCategoriesToIni(db) {
   const iniData = { Categories: {} };
   
   const categoriesList = db.categories || [{ id: 1, name: 'Genel' }];
@@ -1033,7 +1176,7 @@ export function saveCategoriesToIni(db) {
   for (const cat of sortedCategories) {
     iniData.Categories[cat.id.toString()] = cat.name || '';
   }
-  writeIni(categoriesIniPath, iniData);
+  await writeIni(categoriesIniPath, iniData);
 }
 
 /**
@@ -1346,7 +1489,31 @@ export function isShortDuration(durationStr, limit = 180) {
  * @param {object} updates - Uygulanacak kısmi güncelleme alanları (örn. `{ status: 'completed', progress: 100 }`)
  * @returns {void}
  */
-export function updateHistoryItem(videoId, updates) {
+// Türkçe Açıklama: Yüksek frekanslı ilerleme güncellemelerinde (progress) disk yazımını 1 saniyede bir toplar.
+// persist:false güncellemeler bellek önbelleğine yazılır; diske toplu olarak zamanlanır.
+let dbWritePending = false;
+let dbWriteTimer = null;
+
+function scheduleDbWrite() {
+  if (dbWritePending) return;
+  dbWritePending = true;
+  dbWriteTimer = setTimeout(() => {
+    dbWritePending = false;
+    try {
+      if (cachedDb) writeDb(cachedDb);
+    } catch (e) {}
+  }, 1000);
+}
+
+/**
+ * Geçmiş kaydını günceller; varsayılan olarak diske de yazar.
+ * 
+ * @param {string} videoId - YouTube Video ID
+ * @param {object} updates - Güncellenecek alanlar
+ * @param {object} [options] - Seçenekler
+ * @param {boolean} [options.persist=true] - false ise disk yazımı 1 sn'de bir toplu yapılır (ilerleme güncellemeleri için)
+ */
+export function updateHistoryItem(videoId, updates, options = {}) {
   const db = readDb();
   const index = db.history.findIndex(h => h.id === videoId);
   if (index !== -1) {
@@ -1354,7 +1521,14 @@ export function updateHistoryItem(videoId, updates) {
       updates.error = updates.error.slice(-2000);
     }
     db.history[index] = { ...db.history[index], ...updates };
-    writeDb(db);
+    // Hedefli bildirim: tüm veritabanı yerine yalnızca güncellenen kaydı istemcilere ilet
+    broadcastHistoryUpdate(videoId, updates);
+    if (options.persist === false) {
+      // İlerleme güncellemesi: bellek önbelleği güncel; disk yazımı toplu zamanlanır
+      scheduleDbWrite();
+    } else {
+      writeDb(db);
+    }
   }
 }
 

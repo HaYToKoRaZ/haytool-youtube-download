@@ -6,6 +6,37 @@
 # Çalışma dizinini betiğin bulunduğu dizin olarak ayarla
 cd "$(dirname "$0")"
 
+# --- Bağımlılık Kontrolleri (Akıllı Başlatma - Kural 22) ---
+if ! command -v node >/dev/null 2>&1; then
+    echo -e "\e[31m[HATA] Node.js sisteminizde kurulu değil!\e[0m"
+    echo -e "\e[33mLütfen CachyOS/Arch Linux için terminalde şu komutu çalıştırarak Node.js kurun:\e[0m"
+    echo -e "  sudo pacman -S nodejs npm"
+    echo ""
+    read -p "Çıkmak için Enter'a basın..."
+    exit 1
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+    echo -e "\e[31m[HATA] NPM paket yöneticisi sisteminizde kurulu değil!\e[0m"
+    echo -e "\e[33mLütfen CachyOS/Arch Linux için NPM kurun (sudo pacman -S npm).\e[0m"
+    echo ""
+    read -p "Çıkmak için Enter'a basın..."
+    exit 1
+fi
+
+if [ ! -d "node_modules" ]; then
+    echo -e "\e[36m[BİLGİ] 'node_modules' klasörü bulunamadı. Gerekli kütüphaneler ilk kez kuruluyor...\e[0m"
+    npm install
+    if [ $? -ne 0 ]; then
+        echo -e "\e[31m[HATA] Kütüphane kurulumu başarısız oldu. Lütfen internet bağlantınızı kontrol edin.\e[0m"
+        read -p "Çıkmak için Enter'a basın..."
+        exit 1
+    fi
+    echo -e "\e[32m[BAŞARILI] Tüm kütüphaneler başarıyla kuruldu.\e[0m"
+    echo ""
+fi
+# ---------------------------------------------------------
+
 # configunix.ini dosyasından port değerini dinamik olarak okur, bulamazsa varsayılan 4141 portunu kullanır.
 PORT=4141
 CONFIG_FILE="configunix.ini"
@@ -58,7 +89,7 @@ echo -e "\e[33m | |  | | \\__,_|    | |      | |               | |____\e[0m"
 echo -e "\e[33m |_|  |_|           |_|      |_|               |______|\e[0m"
 echo ""
 echo -e "\e[33m             -- Premium Otomasyonu --\e[0m"
-echo -e "\e[33m             Versiyon: v8.18.0 (CachyOS & Unix)\e[0m"
+echo -e "\e[33m             Versiyon: v9.8.1 (CachyOS & Unix)\e[0m"
 echo -e "\e[33m  ====================================================\e[0m"
 echo ""
 echo -e "  \e[32m[+] Sunucu Port: $PORT denetleniyor...\e[0m"

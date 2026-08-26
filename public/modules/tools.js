@@ -710,6 +710,7 @@ export function showToolsSubSection(section) {
   const bulkContainer = document.getElementById('tools-bulk-delete-container');
   const categoriesContainer = document.getElementById('tools-categories-container');
   const apeContainer = document.getElementById('tools-ape-container');
+  const subsContainer = document.getElementById('tools-subscriptions-container');
   const toolsHeaderTitle = document.querySelector('#tab-tools .content-header h2 span');
   const toolsHeaderDesc = document.getElementById('tools-modal-desc');
   const toolsHeaderIcon = document.getElementById('tools-modal-icon');
@@ -718,6 +719,7 @@ export function showToolsSubSection(section) {
   if (bulkContainer) bulkContainer.classList.add('hidden');
   if (categoriesContainer) categoriesContainer.classList.add('hidden');
   if (apeContainer) apeContainer.classList.add('hidden');
+  if (subsContainer) subsContainer.classList.add('hidden');
 
   const isEn = localDb.settings?.lang === 'en';
 
@@ -732,6 +734,11 @@ export function showToolsSubSection(section) {
     if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'APE (Direct Video/Channel Watched Marker)' : 'APE (Hızlı İzlendi İşaretleme Aracı)';
     if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Mark videos as watched in library and YouTube history by entering video or channel links.' : 'Video veya kanal linki girerek kütüphanede ve YouTube geçmişinizde videoları anında izlendi olarak işaretleyin.';
     if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'check-check');
+  } else if (section === 'subscriptions' && subsContainer) {
+    subsContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Import YouTube Subscriptions' : 'YouTube Aboneliklerini İçe Aktar';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Fetch your subscribed channels from YouTube and bulk-add them to your follow list.' : 'YouTube hesabınızdaki abone kanallarını getirip takip listenize toplu ekleyin.';
+    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'users');
   } else if (section === 'bulk-delete' && bulkContainer) {
     bulkContainer.classList.remove('hidden');
     if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Bulk Video Deletion' : 'Toplu Video Silme';
@@ -1144,3 +1151,146 @@ export function toggleToolsAccordion(itemKey) {
 
 window.handleApeMarkWatched = handleApeMarkWatched;
 window.toggleToolsAccordion = toggleToolsAccordion;
+
+// === YOUTUBE ABONELİKLERİNİ İÇE AKTAR ===
+// Türkçe Açıklama: YouTube abone kanallarını backend'den çekip seçmeli takip listesi listeler.
+let subscriptionsCache = [];
+
+export async function fetchYouTubeSubscriptions() {
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+  const listEl = document.getElementById('subs-list');
+  const loadingEl = document.getElementById('subs-loading');
+  const btn = document.getElementById('btn-subs-fetch');
+  const resultBox = document.getElementById('subs-result-box');
+  const resultText = document.getElementById('subs-result-text');
+  const resultIcon = document.getElementById('subs-result-icon');
+  const importBtn = document.getElementById('btn-subs-import');
+
+  if (loadingEl) loadingEl.classList.remove('hidden');
+  if (listEl) listEl.innerHTML = '';
+  if (importBtn) importBtn.style.display = 'none';
+  if (resultBox) resultBox.classList.add('hidden');
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/tools/subscriptions');
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || 'Abonelikler çekilemedi.', 'error');
+      if (resultBox && resultText) {
+        resultBox.classList.remove('hidden');
+        resultBox.style.background = 'rgba(239, 68, 68, 0.1)';
+        resultBox.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        resultBox.style.color = '#ef4444';
+        resultText.innerHTML = `<strong>${t.ape_error_title || 'Hata:'}</strong> ${escapeHtml(data.error || 'Bilinmeyen hata')}`;
+        if (resultIcon) resultIcon.setAttribute('data-lucide', 'alert-triangle');
+      }
+      return;
+    }
+
+    subscriptionsCache = data.channels || [];
+    if (subscriptionsCache.length === 0) {
+      if (resultBox && resultText) {
+        resultBox.classList.remove('hidden');
+        resultBox.style.background = 'rgba(239, 68, 68, 0.1)';
+        resultBox.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        resultBox.style.color = '#ef4444';
+        resultText.innerHTML = `<strong>${t.ape_error_title || 'Hata:'}</strong> ${escapeHtml(data.message || 'Abone kanalı bulunamadı.')}`;
+        if (resultIcon) resultIcon.setAttribute('data-lucide', 'alert-triangle');
+      }
+      return;
+    }
+
+    listEl.innerHTML = subscriptionsCache.map(ch => `
+      <label style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:6px; cursor:${ch.followed ? 'default' : 'pointer'}; ${ch.followed ? 'opacity:0.55;' : ''}" title="${escapeHtml(ch.id)}">
+        <input type="checkbox" class="subs-check" data-id="${escapeHtml(ch.id)}" data-name="${escapeHtml(ch.name)}" ${ch.followed ? 'disabled' : ''} onchange="updateSubsImportButton()">
+        <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.9rem;">${escapeHtml(ch.name)}</span>
+        ${ch.followed ? '<span style="font-size:0.72rem; color:var(--text-muted); flex-shrink:0;">' + (t.subs_followed || 'Takip ediliyor ✓') + '</span>' : ''}
+      </label>
+    `).join('');
+
+    if (importBtn) importBtn.style.display = 'none';
+    if (resultBox && resultText) {
+      resultBox.classList.remove('hidden');
+      resultBox.style.background = 'rgba(34, 197, 94, 0.1)';
+      resultBox.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+      resultBox.style.color = '#22c55e';
+      resultText.innerHTML = `<strong>${t.subs_found_title || 'Bulundu:'}</strong> ${subscriptionsCache.length} ${t.subs_channel_count || 'abone kanalı'}`;
+      if (resultIcon) resultIcon.setAttribute('data-lucide', 'check-circle');
+    }
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  } finally {
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (btn) btn.disabled = false;
+  }
+}
+window.fetchYouTubeSubscriptions = fetchYouTubeSubscriptions;
+
+// Türkçe Açıklama: Seçilen abone sayısına göre "Ekle" butonunu ve sayacı günceller.
+export function updateSubsImportButton() {
+  const checked = document.querySelectorAll('.subs-check:checked').length;
+  const importBtn = document.getElementById('btn-subs-import');
+  const countEl = document.getElementById('subs-selected-count');
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+  if (importBtn) importBtn.style.display = checked > 0 ? 'inline-flex' : 'none';
+  if (countEl) countEl.textContent = checked > 0 ? `${checked} ${t.subs_selected || 'kanal seçildi'}` : '';
+}
+window.updateSubsImportButton = updateSubsImportButton;
+
+// Türkçe Açıklama: Seçilen abone kanallarını takip listesine toplu ekler.
+export async function importSelectedSubscriptions() {
+  const checked = [...document.querySelectorAll('.subs-check:checked')];
+  if (checked.length === 0) return;
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+  const channels = checked.map(cb => ({ id: cb.dataset.id, name: cb.dataset.name }));
+  const btn = document.getElementById('btn-subs-import');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/tools/subscriptions/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channels })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`${data.addedCount} ${t.subs_added_toast || 'kanal takip listesine eklendi'}${data.skippedCount ? ` (${data.skippedCount} ${t.subs_skipped || 'atlandı'})` : ''}.`, 'success');
+      checked.forEach(cb => { cb.checked = false; cb.disabled = true; });
+      const resultBox = document.getElementById('subs-result-box');
+      const resultText = document.getElementById('subs-result-text');
+      const resultIcon = document.getElementById('subs-result-icon');
+      if (resultBox && resultText) {
+        resultBox.classList.remove('hidden');
+        resultBox.style.background = 'rgba(34, 197, 94, 0.1)';
+        resultBox.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+        resultBox.style.color = '#22c55e';
+        resultText.innerHTML = `<strong>${t.subs_success_title || 'Başarılı:'}</strong> ${data.addedCount} ${t.subs_added_detail || 'kanal eklendi. Kanal bilgileri (avatar, abone sayısı) Kanallar sekmesinden "Bilgileri Güncelle" ile doldurulabilir.'}`;
+        if (resultIcon) resultIcon.setAttribute('data-lucide', 'check-circle');
+      }
+      updateSubsImportButton();
+    } else {
+      showToast(data.error || 'Ekleme başarısız.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+window.importSelectedSubscriptions = importSelectedSubscriptions;
+
+// Türkçe Açıklama: YouTube feed/channels (abonelikler) sayfasını WebView2 oynatıcıda açar.
+export async function openSubscriptionsPage() {
+  try {
+    const res = await fetch('/api/tools/open-subscriptions', { method: 'POST' });
+    const data = await res.json();
+    showToast(data.message || 'YouTube abonelik sayfası açılıyor...', 'info');
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+}
+window.openSubscriptionsPage = openSubscriptionsPage;

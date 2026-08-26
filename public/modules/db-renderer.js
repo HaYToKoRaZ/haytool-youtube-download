@@ -178,12 +178,20 @@ export function connectSSE() {
     window.window.localDb = db;
   if (_getState?.().localDb) Object.assign(_getState().localDb, db);
     updateUI(db);
-    if (typeof renderChannels === 'function' && document.getElementById('channels-view')?.classList.contains('active')) {
-      renderChannels();
+  });
+
+  // Tek Kayıt Güncelleme Bildirimi (hedefli — tüm veritabanı yerine yalnızca değişen kayıt)
+  eventSource.addEventListener('history_updated', (e) => {
+    const data = JSON.parse(e.data);
+    const { id, updates } = data || {};
+    if (!id || !updates) return;
+    const db = window.localDb || {};
+    if (db && Array.isArray(db.history)) {
+      const item = db.history.find(h => h.id === id);
+      if (item) Object.assign(item, updates);
     }
-    if (typeof renderHistory === 'function' && document.getElementById('history-view')?.classList.contains('active')) {
-      renderHistory();
-    }
+    // Hafif arayüz güncellemesi (sayaçlar + aktif indirme paneli + kuyruk listesi)
+    updateUI(db);
   });
 
   // İndirme İlerleme Bildirimi
@@ -1548,8 +1556,7 @@ window.updateAllChannelInfo = async function() {
       if (typeof fetchDb === 'function') {
         await fetchDb();
       }
-      if (typeof renderChannels === 'function') renderChannels();
-      if (typeof renderHistory === 'function') renderHistory();
+      // (renderChannels/renderHistory tanımsız eski çağrıları kaldırıldı)
     } else {
       showToast(data.error || (isEn ? 'Process failed.' : 'İşlem başarısız oldu.'), 'error');
     }
@@ -1578,8 +1585,7 @@ window.updateChannelInfo = async function(id) {
       if (typeof fetchDb === 'function') {
         await fetchDb();
       }
-      if (typeof renderChannels === 'function') renderChannels();
-      if (typeof renderHistory === 'function') renderHistory();
+      // (renderChannels/renderHistory tanımsız eski çağrıları kaldırıldı)
     } else {
       showToast(data.error || (isEn ? 'Error occurred.' : 'Hata oluştu.'), 'error');
     }
@@ -1786,24 +1792,47 @@ if (confirmDeleteBtn) {
 
     hideDeleteModal();
     
+    const isEn = localDb.settings && localDb.settings.lang === 'en';
+    
+    // OPTİMİSTİK UI: Video kartını anında DOM'dan kaldır
+    const itemIndex = localDb.history.findIndex(h => h.id === id);
+    let backupItem = null;
+    if (itemIndex !== -1) {
+      backupItem = localDb.history[itemIndex];
+      localDb.history.splice(itemIndex, 1);
+      if (typeof updateUI === 'function') updateUI(localDb);
+    }
+    
+    // FILE LOCK DÜZELTMESİ: Silinecek video oynatılıyorsa, önce oynatıcıyı kapat
+    if (id === currentPlayingVideoId) {
+      if (window.closePlayerModal) window.closePlayerModal();
+      if (window.closeInlinePlayer) window.closeInlinePlayer();
+      // Dosya kilitlerinin Windows ve tarayıcı tarafından tamamen bırakılması için kısa bir süre bekle
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
     try {
-      const isEn = localDb.settings && localDb.settings.lang === 'en';
-      showToast(isEn ? 'Processing deletion...' : 'İşlem gerçekleştiriliyor...', 'info');
+      // showToast(isEn ? 'Processing deletion...' : 'İşlem gerçekleştiriliyor...', 'info'); // Artık gerek yok, anında silindi gibi görünüyor.
       const res = await fetch(`/api/history/${id}?deleteFile=${deleteFile}&markWatched=${markWatched}`, {
         method: 'DELETE'
       });
       const data = await res.json();
       if (data.success) {
-        if (id === currentPlayingVideoId) {
-          if (window.closePlayerModal) window.closePlayerModal();
-          if (window.closeInlinePlayer) window.closeInlinePlayer();
-        }
-        // Başarı bildirimi sunucudan (SSE status_log) gelecek
-        setTimeout(updateDiskSpace, 1500); // Dosya silinmesinin tamamlanması için kısa bir süre bekle
+        setTimeout(updateDiskSpace, 1500); 
       } else {
+        // Hata: Kartı geri getir
+        if (backupItem) {
+          localDb.history.push(backupItem);
+          if (typeof updateUI === 'function') updateUI(localDb);
+        }
         showToast(data.error || (isEn ? 'Deletion failed.' : 'Silme işlemi başarısız oldu.'), 'error');
       }
     } catch (err) {
+      // Ağ hatası: Kartı geri getir
+      if (backupItem) {
+        localDb.history.push(backupItem);
+        if (typeof updateUI === 'function') updateUI(localDb);
+      }
       showToast(isEn ? 'Communication error.' : 'Sunucu ile iletişim hatası.', 'error');
     }
   });

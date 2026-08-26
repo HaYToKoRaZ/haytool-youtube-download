@@ -65,6 +65,8 @@ window.downloadedFilterChannel = 'all';
 window.historyFilterDays = 'all';
 window.historyOnlyNoAutoDownload = false;
 window.historyOnlyNotDownloaded = false;
+window.historyOnlyLiveProcessing = false;
+window.historyShowMembers = true;
 window.historyShowHidden = false;
 window.historyViewMode = 'grid';
 window.downloadedViewMode = 'grid';
@@ -639,6 +641,7 @@ function applyLanguage(lang) {
   el('nav-hdown-downloader-text', 'nav_hdown_downloader');
   el('nav-tools-compare-text', 'compare_title');
   el('nav-tools-ape-text', 'nav_tools_ape');
+  el('nav-tools-subs-text', 'nav_tools_subs');
   el('nav-tools-categories-text', 'category_manage_title');
   el('nav-tools-ape-text', 'nav_tools_ape');
 
@@ -675,6 +678,9 @@ function applyLanguage(lang) {
   el('lbl-history-bh-execute', 'history_bulk_hide_execute');
   el('lbl-history-bh-cancel', 'history_bulk_hide_cancel');
 
+  // Kütüphane Hızlı Filtreler Panel i18n
+  el('history-filters-trigger-text', 'history_filters_btn');
+
 
   // Kategori Yönetimi i18n
   // Araçlar Akordiyon & Sayfa Başlıkları i18n
@@ -706,6 +712,16 @@ function applyLanguage(lang) {
   el('btn-ape-mark-text', 'btn_ape_mark_text');
   el('label-ape-sync-youtube', 'label_ape_sync_youtube');
   el('label-ape-limit', 'ape_limit_label');
+  // YouTube Abonelikleri i18n
+  el('tools-subs-desc', 'subs_desc');
+  el('btn-subs-fetch-text', 'subs_btn_fetch');
+  el('btn-subs-open-text', 'subs_btn_open');
+  el('btn-subs-import-text', 'subs_btn_import');
+  el('subs-loading-text', 'subs_loading');
+  el('btn-subs-select-all-text', 'subs_select_all');
+  el('btn-subs-load-more-text', 'subs_load_more');
+  const subsSearchEl = document.getElementById('subs-search-input');
+  if (subsSearchEl) subsSearchEl.placeholder = t.subs_search_placeholder || 'Kanal ara...';
 
 
 
@@ -968,6 +984,19 @@ const viewGridBtn = document.getElementById('view-grid-btn');
 const viewListBtn = document.getElementById('view-list-btn');
 
 let historyViewMode = 'grid'; // grid veya list
+let historySortMode = localStorage.getItem('history-sort-val') || 'date-desc'; // date-desc | date-asc | title | duration
+
+// Türkçe Açıklama: Kütüphane sıralama tercihini db.settings + configwin.ini'ye kalıcı kaydeder.
+function persistHistorySortMode() {
+  if (localDb.settings) {
+    localDb.settings.historySortMode = historySortMode;
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(localDb.settings)
+    }).catch(() => {});
+  }
+}
 let historyFilterChannel = 'all'; // all veya kanalId
 let historyFilterDays = 'all'; // all, 0, 1, 2, 3, 4, 5
 let historyOnlyNoAutoDownload = false;
@@ -1146,12 +1175,24 @@ function connectSSE() {
     const db = JSON.parse(e.data);
     localDb = db;
     updateUI(db);
-    if (typeof renderChannels === 'function' && document.getElementById('channels-view')?.classList.contains('active')) {
-      renderChannels();
+  });
+
+  // Tek Kayıt Güncelleme Bildirimi (hedefli — tüm veritabanı yerine yalnızca değişen kayıt)
+  // Performans: RSS taraması gibi yoğun anlarda yüzlerce event gelebilir; render 400ms'de bir toplu yapılır.
+  let historyUiUpdateTimer = null;
+  eventSource.addEventListener('history_updated', (e) => {
+    const data = JSON.parse(e.data);
+    const { id, updates } = data || {};
+    if (!id || !updates) return;
+    if (localDb && Array.isArray(localDb.history)) {
+      const item = localDb.history.find(h => h.id === id);
+      if (item) Object.assign(item, updates);
     }
-    if (typeof renderHistory === 'function' && document.getElementById('history-view')?.classList.contains('active')) {
-      renderHistory();
-    }
+    if (historyUiUpdateTimer) clearTimeout(historyUiUpdateTimer);
+    historyUiUpdateTimer = setTimeout(() => {
+      historyUiUpdateTimer = null;
+      updateUI(localDb);
+    }, 400);
   });
 
   // İndirme İlerleme Bildirimi
@@ -1358,6 +1399,7 @@ function toggleFilterChip(checkboxId) {
   cb.checked = !cb.checked;
   cb.dispatchEvent(new Event('change'));
   syncFilterChipUI(checkboxId);
+  updateHistoryFiltersCount();
 }
 window.toggleFilterChip = toggleFilterChip;
 
@@ -1380,6 +1422,85 @@ function syncFilterChipUI(checkboxId) {
   }
 }
 window.syncFilterChipUI = syncFilterChipUI;
+
+// === KÜTÜPHANE HIZLI FİLTRELER PANELİ ===
+// Türkçe Açıklama: "Filtreler" butonuna tıklanınca kayan paneli açıp kapatır ve viewport'a sabitler.
+/**
+ * Kütüphane araç çubuğundaki "Filtreler" düğmesinin açılır panelini açar/kapatır.
+ * Panel, overflow'lu üst öğelerden (yatay kaydırma) etkilenmemesi için viewport'a sabitlenir.
+ * 
+ * @param {Event} [event] Tıklama olayı
+ */
+function toggleHistoryFiltersPanel(event) {
+  if (event) {
+    event.stopPropagation();
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+  }
+  const panel = document.getElementById('history-filters-panel');
+  if (!panel) return;
+  const wrap = document.getElementById('history-filters-dropdown-wrap');
+  const isOpen = panel.classList.contains('open');
+  panel.classList.remove('open');
+  if (wrap) {
+    const trigger = wrap.querySelector('.history-filters-trigger');
+    if (trigger) trigger.classList.remove('open');
+  }
+  if (!isOpen && wrap) {
+    panel.classList.add('open');
+    const trigger = wrap.querySelector('.history-filters-trigger');
+    if (trigger) {
+      trigger.classList.add('open');
+      const rect = trigger.getBoundingClientRect();
+      panel.style.position = 'fixed';
+      panel.style.top = `${Math.max(6, Math.min(rect.bottom + 6, window.innerHeight - 420))}px`;
+      panel.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 320))}px`;
+      panel.style.maxHeight = `${Math.min(400, window.innerHeight - 60)}px`;
+    }
+  }
+}
+window.toggleHistoryFiltersPanel = toggleHistoryFiltersPanel;
+
+// Türkçe Açıklama: Varsayılan durumundan farklı (açık/kapalı) olan hızlı filtre sayısını hesaplayıp rozeti günceller.
+/**
+ * Varsayılan durumundan sapmış hızlı filtre sayısını hesaplar ve "Filtreler" rozetinde gösterir.
+ * Varsayılan durum, HTML'deki `checked` özniteliği (defaultChecked) kabul edilir.
+ */
+function updateHistoryFiltersCount() {
+  const ids = [
+    'history-show-shorts',
+    'history-show-live',
+    'history-only-no-auto-download',
+    'history-only-not-downloaded',
+    'history-only-live-processing',
+    'history-show-members',
+    'history-show-hidden'
+  ];
+  let count = 0;
+  ids.forEach(id => {
+    const cb = document.getElementById(id);
+    if (cb && cb.checked !== cb.defaultChecked) count++;
+  });
+  const badge = document.getElementById('history-filters-count');
+  if (badge) {
+    badge.textContent = String(count);
+    badge.style.display = count > 0 ? 'inline-flex' : 'none';
+  }
+}
+window.updateHistoryFiltersCount = updateHistoryFiltersCount;
+
+// Türkçe Açıklama: Panel dışına tıklanınca veya Escape basılınca filtre panelini kapatır.
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#history-filters-dropdown-wrap')) {
+    const panel = document.getElementById('history-filters-panel');
+    if (panel) panel.classList.remove('open');
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const panel = document.getElementById('history-filters-panel');
+    if (panel) panel.classList.remove('open');
+  }
+});
 
 // Türkçe Açıklama: Sunucudan veya SSE bağlantısından gelen güncel veritabanı verilerine göre tüm ekran kartlarını, istatistikleri ve listeleri günceller.
 /**
@@ -1933,13 +2054,22 @@ function updateUI(db) {
   }
   const historyShowLiveCheck = document.getElementById('history-show-live');
   if (historyShowLiveCheck) {
+    historyShowLiveCheck.checked = localDb.settings?.historyShowLive !== false;
     syncFilterChipUI('history-show-live');
+  }
+  const historyOnlyLiveProcessingCheck = document.getElementById('history-only-live-processing');
+  if (historyOnlyLiveProcessingCheck) {
+    historyOnlyLiveProcessingCheck.checked = !!window.historyOnlyLiveProcessing;
+    syncFilterChipUI('history-only-live-processing');
   }
   const historyShowMembersCheck = document.getElementById('history-show-members');
   if (historyShowMembersCheck) {
     historyShowMembersCheck.checked = window.historyShowMembers !== false;
     syncFilterChipUI('history-show-members');
   }
+
+  // Hızlı filtre rozetini güncelle
+  if (typeof updateHistoryFiltersCount === 'function') updateHistoryFiltersCount();
 
   // Görünüm butonlarının aktiflik durumunu güncelle
   if (viewGridBtn) viewGridBtn.classList.toggle('active', historyViewMode === 'grid');
@@ -2074,6 +2204,17 @@ function updateUI(db) {
     // gizlenmiş videolar son videolar kontenjanını kaplasın ve yerine eski videolar sızmasın.
     if (!window.historyShowHidden) {
       filteredHistory = filteredHistory.filter(item => item.hidden !== true);
+    }
+
+    // Kütüphane sıralama uygula (configwin.ini / db.settings historySortMode)
+    if (historySortMode === 'date-asc') {
+      filteredHistory.sort((a, b) => (a.downloadedAt || a.publishedAt || '').localeCompare(b.downloadedAt || b.publishedAt || ''));
+    } else if (historySortMode === 'title') {
+      filteredHistory.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
+    } else if (historySortMode === 'duration') {
+      filteredHistory.sort((a, b) => (parseTimeToSeconds(b.duration) || 0) - (parseTimeToSeconds(a.duration) || 0));
+    } else {
+      filteredHistory.sort((a, b) => (b.downloadedAt || b.publishedAt || '').localeCompare(a.downloadedAt || a.publishedAt || ''));
     }
     
     renderVideoGrid(historyGrid, filteredHistory, historyViewMode);
@@ -2460,8 +2601,7 @@ window.updateAllChannelInfo = async function() {
       if (typeof fetchDb === 'function') {
         await fetchDb();
       }
-      if (typeof renderChannels === 'function') renderChannels();
-      if (typeof renderHistory === 'function') renderHistory();
+      // (renderChannels/renderHistory tanımsız eski çağrıları kaldırıldı)
     } else {
       showToast(data.error || (isEn ? 'Process failed.' : 'İşlem başarısız oldu.'), 'error');
     }
@@ -2490,8 +2630,7 @@ window.updateChannelInfo = async function(id) {
       if (typeof fetchDb === 'function') {
         await fetchDb();
       }
-      if (typeof renderChannels === 'function') renderChannels();
-      if (typeof renderHistory === 'function') renderHistory();
+      // (renderChannels/renderHistory tanımsız eski çağrıları kaldırıldı)
     } else {
       showToast(data.error || (isEn ? 'Error occurred.' : 'Hata oluştu.'), 'error');
     }
@@ -5930,58 +6069,11 @@ function hideDeleteModal() {
 if (closeDeleteModalBtn) closeDeleteModalBtn.addEventListener('click', hideDeleteModal);
 if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', hideDeleteModal);
 
-// Silme Onaylama Butonu Dinleyicisi
-if (confirmDeleteBtn) {
-  confirmDeleteBtn.addEventListener('click', async () => {
-    if (!videoIdToDelete) return;
-    
-    const id = videoIdToDelete;
-    const deleteFile = deleteFileCheckbox ? deleteFileCheckbox.checked : true;
-    const markWatchedCb = document.getElementById('mark-watched-checkbox');
-    const markWatched = markWatchedCb ? markWatchedCb.checked : false;
-
-    // Tercihi kalıcı olarak sakla
-    localStorage.setItem('haytool_mark_watched_on_delete', String(markWatched));
-    if (localDb.settings && localDb.settings.markWatchedOnDelete !== markWatched) {
-      localDb.settings.markWatchedOnDelete = markWatched;
-      try {
-        fetch('/api/settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(localDb.settings)
-        }).catch(() => {});
-      } catch (e) {}
-    }
-
-    hideDeleteModal();
-    
-    try {
-      const isEn = localDb.settings && localDb.settings.lang === 'en';
-      showToast(isEn ? 'Processing deletion...' : 'İşlem gerçekleştiriliyor...', 'info');
-      const res = await fetch(`/api/history/${id}?deleteFile=${deleteFile}&markWatched=${markWatched}`, {
-        method: 'DELETE'
-      });
-      const data = await res.json();
-      if (data.success) {
-        if (id === currentPlayingVideoId) {
-          if (window.closePlayerModal) window.closePlayerModal();
-          if (window.closeInlinePlayer) window.closeInlinePlayer();
-        }
-        // Başarı bildirimi sunucudan (SSE status_log) gelecek
-        setTimeout(updateDiskSpace, 1500); // Dosya silinmesinin tamamlanması için kısa bir süre bekle
-      } else {
-        showToast(data.error || (isEn ? 'Deletion failed.' : 'Silme işlemi başarısız oldu.'), 'error');
-      }
-    } catch (err) {
-      showToast(isEn ? 'Communication error.' : 'Sunucu ile iletişim hatası.', 'error');
-    }
-  });
-}
+// confirmDeleteBtn dinleyicisi db-renderer.js içerisine taşınmıştır. (Optimistik UI ve çift çağrı engellemesi için)
 
 // === FILTER PERSISTENCE SYSTEM (KÜTÜPHANE & İNDİRİLENLER) ===
 function saveHistoryFilterState() {
   try {
-    const channelSelect = document.getElementById('history-channel-filter');
     const durationSelect = document.getElementById('history-duration-filter');
     const dateSelect = document.getElementById('history-date-filter');
     const showShortsCb = document.getElementById('history-show-shorts');
@@ -5989,10 +6081,12 @@ function saveHistoryFilterState() {
     const showMembersCb = document.getElementById('history-show-members');
     const noAutoDlCb = document.getElementById('history-only-no-auto-download');
     const notDownloadedCb = document.getElementById('history-only-not-downloaded');
+    const onlyLiveProcessingCb = document.getElementById('history-only-live-processing');
     const showHiddenCb = document.getElementById('history-show-hidden');
 
+    // Not: Kanal filtresi (historyFilterChannel) bilinçli olarak kalıcı duruma DAHIL EDILMEZ —
+    // kullanici her acilista "Tum Kanallar" ile baslamak istiyor (kanal filtresine gerek yok).
     const state = {
-      channel: channelSelect ? channelSelect.value : (window.historyFilterChannel || 'all'),
       duration: durationSelect ? durationSelect.value : 'off',
       date: dateSelect ? dateSelect.value : (window.historyFilterDays || 'all'),
       showShorts: showShortsCb ? showShortsCb.checked : false,
@@ -6000,11 +6094,31 @@ function saveHistoryFilterState() {
       showMembers: showMembersCb ? showMembersCb.checked : (window.historyShowMembers !== false),
       noAutoDownload: noAutoDlCb ? noAutoDlCb.checked : !!window.historyOnlyNoAutoDownload,
       notDownloaded: notDownloadedCb ? notDownloadedCb.checked : !!window.historyOnlyNotDownloaded,
+      onlyLiveProcessing: onlyLiveProcessingCb ? onlyLiveProcessingCb.checked : !!window.historyOnlyLiveProcessing,
       showHidden: showHiddenCb ? showHiddenCb.checked : !!window.historyShowHidden,
       viewMode: typeof historyViewMode !== 'undefined' ? historyViewMode : 'grid'
     };
 
     localStorage.setItem('haytool_history_filters_v2', JSON.stringify(state));
+
+    // Configwin.ini kalıcılığı: hızlı filtre çipleri sunucuya da yazılır (kanal filtresi hariç)
+    if (localDb && localDb.settings) {
+      const iniPatch = {
+        ...localDb.settings,
+        showShorts: state.showShorts !== false,
+        historyShowLive: state.showLive !== false,
+        historyShowMembers: state.showMembers !== false,
+        historyOnlyNoAutoDownload: !!state.noAutoDownload,
+        historyOnlyNotDownloaded: !!state.notDownloaded,
+        historyOnlyLiveProcessing: !!state.onlyLiveProcessing,
+        historyShowHidden: !!state.showHidden
+      };
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(iniPatch)
+      }).catch(err => console.error('saveHistoryFilterState ini error:', err));
+    }
   } catch (err) {
     console.error('saveHistoryFilterState error:', err);
   }
@@ -6013,15 +6127,53 @@ window.saveHistoryFilterState = saveHistoryFilterState;
 
 function restoreHistoryFilterState() {
   try {
+    // Configwin.ini / db.settings öncelikli görünüm modu (kullanıcı en son nasıl bıraktıysa)
+    const dbViewMode = localDb.settings && localDb.settings.historyViewMode;
+    if (dbViewMode === 'grid' || dbViewMode === 'list') {
+      window.historyViewMode = dbViewMode;
+      const viewGridBtn = document.getElementById('view-grid-btn');
+      const viewListBtn = document.getElementById('view-list-btn');
+      if (viewGridBtn && viewListBtn) {
+        viewGridBtn.classList.toggle('active', dbViewMode === 'grid');
+        viewListBtn.classList.toggle('active', dbViewMode === 'list');
+      }
+    }
+
+    // Kütüphane sıralama (configwin.ini / db.settings öncelikli)
+    const dbHistorySort = localDb.settings && localDb.settings.historySortMode;
+    const storedHistorySort = localStorage.getItem('history-sort-val');
+    if (dbHistorySort || storedHistorySort) {
+      historySortMode = dbHistorySort || storedHistorySort || 'date-desc';
+      window.historySortMode = historySortMode;
+      const sortGroup = document.getElementById('history-sort-group');
+      if (sortGroup) {
+        sortGroup.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-sort') === historySortMode));
+      }
+    }
+
+    // Configwin.ini / db.settings öncelikli hızlı filtre çipleri (kalıcılık INI üzerinden)
+    const ini = localDb.settings || {};
+    const iniHas = {
+      noAutoDownload: ini.historyOnlyNoAutoDownload !== undefined,
+      notDownloaded: ini.historyOnlyNotDownloaded !== undefined,
+      onlyLiveProcessing: ini.historyOnlyLiveProcessing !== undefined,
+      showMembers: ini.historyShowMembers !== undefined,
+      showHidden: ini.historyShowHidden !== undefined
+    };
+    if (iniHas.noAutoDownload) window.historyOnlyNoAutoDownload = ini.historyOnlyNoAutoDownload;
+    if (iniHas.notDownloaded) window.historyOnlyNotDownloaded = ini.historyOnlyNotDownloaded;
+    if (iniHas.onlyLiveProcessing) window.historyOnlyLiveProcessing = ini.historyOnlyLiveProcessing;
+    if (iniHas.showMembers) window.historyShowMembers = ini.historyShowMembers;
+    if (iniHas.showHidden) window.historyShowHidden = ini.historyShowHidden;
+
     const raw = localStorage.getItem('haytool_history_filters_v2');
     if (!raw) return;
     const state = JSON.parse(raw);
 
-    if (state.channel !== undefined) {
-      window.historyFilterChannel = state.channel;
-      const channelSelect = document.getElementById('history-channel-filter');
-      if (channelSelect) channelSelect.value = state.channel;
-    }
+    // Kanal filtresi bilinçli olarak geri yüklenmez — her açılışta "Tüm Kanallar" ile başlanır.
+    const channelSelect = document.getElementById('history-channel-filter');
+    if (channelSelect) channelSelect.value = 'all';
+    window.historyFilterChannel = 'all';
 
     if (state.duration !== undefined) {
       const durationSelect = document.getElementById('history-duration-filter');
@@ -6036,10 +6188,12 @@ function restoreHistoryFilterState() {
       if (dateSelect) dateSelect.value = state.date;
     }
 
-    if (state.noAutoDownload !== undefined) window.historyOnlyNoAutoDownload = !!state.noAutoDownload;
-    if (state.notDownloaded !== undefined) window.historyOnlyNotDownloaded = !!state.notDownloaded;
-    if (state.showMembers !== undefined) window.historyShowMembers = state.showMembers !== false;
-    if (state.showHidden !== undefined) window.historyShowHidden = !!state.showHidden;
+    // localStorage'daki değerler yalnızca INI'de tanımlı değilse uygulanır (INI öncelikli)
+    if (state.noAutoDownload !== undefined && !iniHas.noAutoDownload) window.historyOnlyNoAutoDownload = !!state.noAutoDownload;
+    if (state.notDownloaded !== undefined && !iniHas.notDownloaded) window.historyOnlyNotDownloaded = !!state.notDownloaded;
+    if (state.showMembers !== undefined && !iniHas.showMembers) window.historyShowMembers = state.showMembers !== false;
+    if (state.showHidden !== undefined && !iniHas.showHidden) window.historyShowHidden = !!state.showHidden;
+    if (state.onlyLiveProcessing !== undefined && !iniHas.onlyLiveProcessing) window.historyOnlyLiveProcessing = !!state.onlyLiveProcessing;
 
     const checkMap = {
       'history-show-shorts': state.showShorts,
@@ -6047,6 +6201,7 @@ function restoreHistoryFilterState() {
       'history-show-members': window.historyShowMembers !== false,
       'history-only-no-auto-download': window.historyOnlyNoAutoDownload,
       'history-only-not-downloaded': window.historyOnlyNotDownloaded,
+      'history-only-live-processing': window.historyOnlyLiveProcessing,
       'history-show-hidden': window.historyShowHidden
     };
 
@@ -6058,7 +6213,9 @@ function restoreHistoryFilterState() {
       }
     }
 
-    if (state.viewMode) {
+    if (typeof updateHistoryFiltersCount === 'function') updateHistoryFiltersCount();
+
+    if (state.viewMode && !(localDb.settings && localDb.settings.historyViewMode)) {
       window.historyViewMode = state.viewMode;
       const viewGridBtn = document.getElementById('view-grid-btn');
       const viewListBtn = document.getElementById('view-list-btn');
@@ -6094,6 +6251,26 @@ window.saveDownloadedFilterState = saveDownloadedFilterState;
 
 function restoreDownloadedFilterState() {
   try {
+    // Configwin.ini / db.settings öncelikli görünüm modu ve sıralama
+    const dbDlMode = localDb.settings && localDb.settings.downloadedViewMode;
+    if (dbDlMode === 'grid' || dbDlMode === 'list') {
+      window.downloadedViewMode = dbDlMode;
+      const gridBtn = document.getElementById('downloaded-view-grid-btn');
+      const listBtn = document.getElementById('downloaded-view-list-btn');
+      if (gridBtn && listBtn) {
+        gridBtn.classList.toggle('active', dbDlMode === 'grid');
+        listBtn.classList.toggle('active', dbDlMode === 'list');
+      }
+    }
+    if (localDb.settings && localDb.settings.downloadedSortMode) {
+      window.downloadedSortVal = localDb.settings.downloadedSortMode;
+      localStorage.setItem('downloaded-sort-val', localDb.settings.downloadedSortMode);
+      const group = document.getElementById('downloaded-sort-group');
+      if (group) {
+        group.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-sort') === localDb.settings.downloadedSortMode));
+      }
+    }
+
     const raw = localStorage.getItem('haytool_downloaded_filters_v2');
     if (!raw) return;
     const state = JSON.parse(raw);
@@ -6104,7 +6281,7 @@ function restoreDownloadedFilterState() {
       window.downloadedFilterChannel = state.channel;
     }
 
-    if (state.sortVal) {
+    if (state.sortVal && !(localDb.settings && localDb.settings.downloadedSortMode)) {
       window.downloadedSortVal = state.sortVal;
       localStorage.setItem('downloaded-sort-val', state.sortVal);
       const group = document.getElementById('downloaded-sort-group');
@@ -6122,7 +6299,7 @@ function restoreDownloadedFilterState() {
       if (inlineCb) inlineCb.checked = !!state.showShorts;
     }
 
-    if (state.viewMode) {
+    if (state.viewMode && !(localDb.settings && localDb.settings.downloadedViewMode)) {
       window.downloadedViewMode = state.viewMode;
       const gridBtn = document.getElementById('downloaded-view-grid-btn');
       const listBtn = document.getElementById('downloaded-view-list-btn');
@@ -6137,10 +6314,35 @@ function restoreDownloadedFilterState() {
 }
 window.restoreDownloadedFilterState = restoreDownloadedFilterState;
 
+// Kütüphane Sıralama Butonları Dinleyicisi
+const historySortGroup = document.getElementById('history-sort-group');
+if (historySortGroup) {
+  historySortGroup.addEventListener('click', (e) => {
+    const btn = e.target.closest('.sort-btn');
+    if (!btn) return;
+    const sortVal = btn.getAttribute('data-sort');
+    if (!sortVal) return;
+    historySortMode = sortVal;
+    localStorage.setItem('history-sort-val', historySortMode);
+    historySortGroup.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    persistHistorySortMode();
+    updateUI(localDb);
+  });
+}
+
 if (viewGridBtn) {
   viewGridBtn.addEventListener('click', () => {
     historyViewMode = 'grid';
-    saveHistoryFilterState();
+    saveHistoryFilterState();    // Görünüm modunu db.settings + configwin.ini'ye kalıcı kaydet
+    if (localDb.settings) {
+      localDb.settings.historyViewMode = 'grid';
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(localDb.settings)
+      }).catch(() => {});
+    }
     updateUI(localDb);
   });
 }
@@ -6149,6 +6351,14 @@ if (viewListBtn) {
   viewListBtn.addEventListener('click', () => {
     historyViewMode = 'list';
     saveHistoryFilterState();
+    if (localDb.settings) {
+      localDb.settings.historyViewMode = 'list';
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(localDb.settings)
+      }).catch(() => {});
+    }
     updateUI(localDb);
   });
 }
@@ -6186,6 +6396,14 @@ if (downloadedViewGridBtn) {
   downloadedViewGridBtn.addEventListener('click', () => {
     downloadedViewMode = 'grid';
     saveDownloadedFilterState();
+    if (localDb.settings) {
+      localDb.settings.downloadedViewMode = 'grid';
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(localDb.settings)
+      }).catch(() => {});
+    }
     updateUI(localDb);
   });
 }
@@ -6194,6 +6412,14 @@ if (downloadedViewListBtn) {
   downloadedViewListBtn.addEventListener('click', () => {
     downloadedViewMode = 'list';
     saveDownloadedFilterState();
+    if (localDb.settings) {
+      localDb.settings.downloadedViewMode = 'list';
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(localDb.settings)
+      }).catch(() => {});
+    }
     updateUI(localDb);
   });
 }
@@ -6208,6 +6434,19 @@ if (downloadedChannelFilter) {
 
 // Sıralama Butonları Dinleyicisi
 let downloadedSortVal = localStorage.getItem('downloaded-sort-val') || 'date-desc';
+
+// Türkçe Açıklama: İndirilenler sıralama tercihini db.settings + configwin.ini'ye kalıcı kaydeder.
+function persistDownloadedSortMode() {
+  if (localDb.settings) {
+    localDb.settings.downloadedSortMode = downloadedSortVal;
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(localDb.settings)
+    }).catch(() => {});
+  }
+}
+
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.sort-btn');
   if (btn && btn.closest('#downloaded-sort-group')) {
@@ -6215,6 +6454,7 @@ document.addEventListener('click', (e) => {
     downloadedSortVal = sortVal;
     localStorage.setItem('downloaded-sort-val', downloadedSortVal);
     saveDownloadedFilterState();
+    persistDownloadedSortMode();
     
     // Aktif sınıfını güncelle
     const group = document.getElementById('downloaded-sort-group');
@@ -6357,6 +6597,7 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadedSortVal = 'date-desc';
       }
       localStorage.setItem('downloaded-sort-val', downloadedSortVal);
+      persistDownloadedSortMode();
       // UI güncelle
       updateUI(localDb);
       if (currentPlayingVideoId) {
@@ -6374,6 +6615,7 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadedSortVal = 'size-desc';
       }
       localStorage.setItem('downloaded-sort-val', downloadedSortVal);
+      persistDownloadedSortMode();
       // UI güncelle
       updateUI(localDb);
       if (currentPlayingVideoId) {
@@ -6387,6 +6629,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSortUser.addEventListener('click', () => {
       downloadedSortVal = 'user';
       localStorage.setItem('downloaded-sort-val', downloadedSortVal);
+      persistDownloadedSortMode();
       // UI güncelle
       updateUI(localDb);
       if (currentPlayingVideoId) {
@@ -9804,6 +10047,18 @@ function initDownloaderUI() {
     });
   }
 
+  const toolsSubsBtn = document.getElementById('nav-tools-subs-btn');
+  if (toolsSubsBtn) {
+    toolsSubsBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.currentToolsSubSection = 'subscriptions';
+      switchTab('tools');
+      showToolsSubSection('subscriptions');
+      const dropdown = document.getElementById('tools-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+    });
+  }
+
   const formatSelect = document.getElementById('downloader-format-select');
   const bitrateGroup = document.getElementById('downloader-bitrate-group');
   if (formatSelect && bitrateGroup) {
@@ -9842,6 +10097,7 @@ function showToolsSubSection(section) {
   const bulkContainer = document.getElementById('tools-bulk-delete-container');
   const categoriesContainer = document.getElementById('tools-categories-container');
   const apeContainer = document.getElementById('tools-ape-container');
+  const subsContainer = document.getElementById('tools-subscriptions-container');
   const toolsHeaderTitle = document.querySelector('#tab-tools .content-header h2 span');
   const toolsHeaderDesc = document.getElementById('tools-modal-desc');
   const toolsHeaderIcon = document.getElementById('tools-modal-icon');
@@ -9850,6 +10106,7 @@ function showToolsSubSection(section) {
   if (bulkContainer) bulkContainer.classList.add('hidden');
   if (categoriesContainer) categoriesContainer.classList.add('hidden');
   if (apeContainer) apeContainer.classList.add('hidden');
+  if (subsContainer) subsContainer.classList.add('hidden');
 
   const isEn = localDb.settings?.lang === 'en';
 
@@ -9864,6 +10121,11 @@ function showToolsSubSection(section) {
     if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'APE (Direct Video/Channel Watched Marker)' : 'APE (Hızlı İzlendi İşaretleme Aracı)';
     if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Mark videos as watched in library and YouTube history by entering video or channel links.' : 'Video veya kanal linki girerek kütüphanede ve YouTube geçmişinizde videoları anında izlendi olarak işaretleyin.';
     if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'check-check');
+  } else if (section === 'subscriptions' && subsContainer) {
+    subsContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Import YouTube Subscriptions' : 'YouTube Aboneliklerini İçe Aktar';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Fetch your subscribed channels from YouTube and bulk-add them to your follow list.' : 'YouTube hesabınızdaki abone kanallarını getirip takip listenize toplu ekleyin.';
+    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'users');
   } else if (section === 'bulk-delete' && bulkContainer) {
     bulkContainer.classList.remove('hidden');
     if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Bulk Video Deletion' : 'Toplu Video Silme';
@@ -11276,6 +11538,16 @@ function toggleCustomChannelPicker(type, event) {
   document.querySelectorAll('.custom-channel-dropdown').forEach(d => d.classList.remove('open'));
   if (!isOpen) {
     dropdown.classList.add('open');
+    // Menüyü overflow'lu parent'lardan (toolbar yatay kaydırma) kurtarmak için viewport'a sabitle
+    const menu = dropdown.querySelector('.custom-dropdown-menu');
+    const trigger = dropdown.querySelector('.custom-dropdown-trigger');
+    if (menu && trigger) {
+      const rect = trigger.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - 40)}px`;
+      menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 280))}px`;
+      menu.style.maxHeight = `${Math.min(360, window.innerHeight - 60)}px`;
+    }
   }
 }
 window.toggleCustomChannelPicker = toggleCustomChannelPicker;
@@ -11909,6 +12181,215 @@ document.addEventListener('DOMContentLoaded', () => {
     btnLogoutYt.addEventListener('click', window.logoutYouTube);
   }
 });
+
+// === YOUTUBE ABONELİKLERİNİ İÇE AKTAR (aktif kopya — app.js monolitik yapıdadır) ===
+// Türkçe Açıklama: YouTube abone kanallarını backend'den çekip seçmeli takip listesi listeler.
+// 1000+ kanal için parça parça render + arama filtresi + toplu seçim desteklenir.
+let subscriptionsCache = [];
+let subsChecked = new Set();
+let subsRenderCount = 100;
+let subsFilterText = '';
+
+window.fetchYouTubeSubscriptions = async function() {
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+  const listEl = document.getElementById('subs-list');
+  const loadingEl = document.getElementById('subs-loading');
+  const btn = document.getElementById('btn-subs-fetch');
+  const resultBox = document.getElementById('subs-result-box');
+  const resultText = document.getElementById('subs-result-text');
+  const resultIcon = document.getElementById('subs-result-icon');
+  const importBtn = document.getElementById('btn-subs-import');
+
+  if (loadingEl) loadingEl.classList.remove('hidden');
+  if (listEl) listEl.innerHTML = '';
+  if (importBtn) importBtn.style.display = 'none';
+  if (resultBox) resultBox.classList.add('hidden');
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/tools/subscriptions');
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || 'Abonelikler çekilemedi.', 'error');
+      if (resultBox && resultText) {
+        resultBox.classList.remove('hidden');
+        resultBox.style.background = 'rgba(239, 68, 68, 0.1)';
+        resultBox.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        resultBox.style.color = '#ef4444';
+        resultText.innerHTML = `<strong>${t.ape_error_title || 'Hata:'}</strong> ${escapeHtml(data.error || 'Bilinmeyen hata')}`;
+        if (resultIcon) resultIcon.setAttribute('data-lucide', 'alert-triangle');
+      }
+      return;
+    }
+
+    subscriptionsCache = data.channels || [];
+    if (subscriptionsCache.length === 0) {
+      if (resultBox && resultText) {
+        resultBox.classList.remove('hidden');
+        resultBox.style.background = 'rgba(239, 68, 68, 0.1)';
+        resultBox.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        resultBox.style.color = '#ef4444';
+        resultText.innerHTML = `<strong>${t.ape_error_title || 'Hata:'}</strong> ${escapeHtml(data.message || 'Abone kanalı bulunamadı.')}`;
+        if (resultIcon) resultIcon.setAttribute('data-lucide', 'alert-triangle');
+      }
+      return;
+    }
+
+    listEl.innerHTML = '';
+    subsChecked = new Set();
+    subsRenderCount = 100;
+    subsFilterText = '';
+    const searchEl = document.getElementById('subs-search-input');
+    if (searchEl) searchEl.value = '';
+
+    renderSubsList();
+
+    if (importBtn) importBtn.style.display = 'none';
+    if (resultBox && resultText) {
+      resultBox.classList.remove('hidden');
+      resultBox.style.background = 'rgba(34, 197, 94, 0.1)';
+      resultBox.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+      resultBox.style.color = '#22c55e';
+      resultText.innerHTML = `<strong>${t.subs_found_title || 'Bulundu:'}</strong> ${subscriptionsCache.length} ${t.subs_channel_count || 'abone kanalı'}`;
+      if (resultIcon) resultIcon.setAttribute('data-lucide', 'check-circle');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  } finally {
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (btn) btn.disabled = false;
+  }
+};
+
+// Türkçe Açıklama: Filtrelenmiş abone listesini 100'er parça halinde render eder (performans için).
+window.renderSubsList = function() {
+  const listEl = document.getElementById('subs-list');
+  if (!listEl) return;
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+  const filtered = subscriptionsCache.filter(ch => !subsFilterText || (ch.name || '').toLowerCase().includes(subsFilterText));
+  const visible = filtered.slice(0, subsRenderCount);
+  listEl.innerHTML = visible.map(ch => `
+    <label style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:6px; cursor:${ch.followed ? 'default' : 'pointer'}; ${ch.followed ? 'opacity:0.55;' : ''}" title="${escapeHtml(ch.id)}">
+      <input type="checkbox" class="subs-check" data-id="${escapeHtml(ch.id)}" ${ch.followed ? 'disabled' : ''} ${subsChecked.has(ch.id) ? 'checked' : ''} onchange="toggleSubsCheck(this)">
+      <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.9rem;">${escapeHtml(ch.name)}</span>
+      ${ch.followed ? '<span style="font-size:0.72rem; color:var(--text-muted); flex-shrink:0;">' + (t.subs_followed || 'Takip ediliyor ✓') + '</span>' : ''}
+    </label>
+  `).join('');
+
+  const loadMoreBtn = document.getElementById('btn-subs-load-more');
+  if (loadMoreBtn) {
+    const remaining = filtered.length - visible.length;
+    loadMoreBtn.style.display = remaining > 0 ? 'inline-flex' : 'none';
+    const loadMoreText = document.getElementById('btn-subs-load-more-text');
+    if (loadMoreText) loadMoreText.textContent = `${t.subs_load_more || 'Daha Fazla Göster'} (${remaining})`;
+  }
+  updateSubsImportButton();
+  if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+};
+
+// Türkçe Açıklama: Checkbox değişiminde seçimi bellek kümesine işler.
+window.toggleSubsCheck = function(cb) {
+  if (!cb || cb.disabled) return;
+  if (cb.checked) subsChecked.add(cb.dataset.id);
+  else subsChecked.delete(cb.dataset.id);
+  updateSubsImportButton();
+};
+
+// Türkçe Açıklama: Arama kutusuna göre listeyi filtreler ve baştan render eder.
+window.filterSubsList = function() {
+  const searchEl = document.getElementById('subs-search-input');
+  subsFilterText = (searchEl ? searchEl.value : '').trim().toLowerCase();
+  subsRenderCount = 100;
+  renderSubsList();
+};
+
+// Türkçe Açıklama: Sonraki 100 kanalı listeye ekler.
+window.loadMoreSubs = function() {
+  subsRenderCount += 100;
+  renderSubsList();
+};
+
+// Türkçe Açıklama: Takip edilmeyen tüm abone kanallarını tek seferde işaretler.
+window.selectAllSubs = function() {
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+  subscriptionsCache.forEach(ch => { if (!ch.followed) subsChecked.add(ch.id); });
+  renderSubsList();
+  showToast(`${subsChecked.size} ${t.subs_selected || 'kanal seçildi'}`, 'info');
+};
+
+// Türkçe Açıklama: Seçilen abone sayısına göre "Ekle" butonunu ve sayacı günceller.
+window.updateSubsImportButton = function() {
+  const count = subsChecked.size;
+  const importBtn = document.getElementById('btn-subs-import');
+  const countEl = document.getElementById('subs-selected-count');
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+  if (importBtn) importBtn.style.display = count > 0 ? 'inline-flex' : 'none';
+  if (countEl) countEl.textContent = count > 0 ? `${count} ${t.subs_selected || 'kanal seçildi'}` : '';
+};
+
+// Türkçe Açıklama: Seçilen abone kanallarını takip listesine toplu ekler.
+window.importSelectedSubscriptions = async function() {
+  if (subsChecked.size === 0) return;
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+  const channels = subscriptionsCache.filter(ch => subsChecked.has(ch.id)).map(ch => ({ id: ch.id, name: ch.name }));
+  const btn = document.getElementById('btn-subs-import');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/tools/subscriptions/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channels })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`${data.addedCount} ${t.subs_added_toast || 'kanal takip listesine eklendi'}${data.skippedCount ? ` (${data.skippedCount} ${t.subs_skipped || 'atlandı'})` : ''}.`, 'success');
+      // Eklendi olarak işaretle (artık takip ediliyor) ve seçimi temizle
+      channels.forEach(ch => {
+        const cached = subscriptionsCache.find(x => x.id === ch.id);
+        if (cached) cached.followed = true;
+      });
+      subsChecked.clear();
+      renderSubsList();
+      const resultBox = document.getElementById('subs-result-box');
+      const resultText = document.getElementById('subs-result-text');
+      const resultIcon = document.getElementById('subs-result-icon');
+      if (resultBox && resultText) {
+        resultBox.classList.remove('hidden');
+        resultBox.style.background = 'rgba(34, 197, 94, 0.1)';
+        resultBox.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+        resultBox.style.color = '#22c55e';
+        resultText.innerHTML = `<strong>${t.subs_success_title || 'Başarılı:'}</strong> ${data.addedCount} ${t.subs_added_detail || 'kanal eklendi. Kanal bilgileri (avatar, abone sayısı) Kanallar sekmesinden "Bilgileri Güncelle" ile doldurulabilir.'}`;
+        if (resultIcon) resultIcon.setAttribute('data-lucide', 'check-circle');
+      }
+      updateSubsImportButton();
+
+      // Yeni eklenen kanalların abone/avatar bilgileri sunucu tarafında arka planda otomatik güncellenir
+      showToast(t.subs_info_update_started || 'Yeni eklenen kanalların bilgileri arka planda güncelleniyor...', 'info');
+    } else {
+      showToast(data.error || 'Ekleme başarısız.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+};
+
+// Türkçe Açıklama: YouTube feed/channels (abonelikler) sayfasını WebView2 oynatıcıda açar.
+window.openSubscriptionsPage = async function() {
+  try {
+    const res = await fetch('/api/tools/open-subscriptions', { method: 'POST' });
+    const data = await res.json();
+    showToast(data.message || 'YouTube abonelik sayfası açılıyor...', 'info');
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+};
 
 
 

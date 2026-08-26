@@ -597,7 +597,7 @@ router.delete('/categories/:id', localhostOnly, (req, res) => {
  * @param {object} channel Kanal nesnesi
  * @returns {Promise<object>} Güncellenen kanal nesnesi
  */
-async function updateChannelFullInfo(channel) {
+export async function updateChannelFullInfo(channel) {
   // 1. Birincil ve en güvenilir kaynak: Doğrudan resmi YouTube UC Kanal ID URL'si
   const channelIdUrl = `https://www.youtube.com/channel/${channel.id}`;
   let info = await resolveChannelId(channelIdUrl, channel.id);

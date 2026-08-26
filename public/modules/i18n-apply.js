@@ -578,6 +578,7 @@ export function applyLanguage(lang) {
   el('nav-hdown-downloader-text', 'nav_hdown_downloader');
   el('nav-tools-compare-text', 'compare_title');
   el('nav-tools-ape-text', 'nav_tools_ape');
+  el('nav-tools-subs-text', 'nav_tools_subs');
   el('nav-tools-categories-text', 'category_manage_title');
   el('nav-tools-ape-text', 'nav_tools_ape');
 
@@ -645,6 +646,16 @@ export function applyLanguage(lang) {
   el('btn-ape-mark-text', 'btn_ape_mark_text');
   el('label-ape-sync-youtube', 'label_ape_sync_youtube');
   el('label-ape-limit', 'ape_limit_label');
+  // YouTube Abonelikleri i18n
+  el('tools-subs-desc', 'subs_desc');
+  el('btn-subs-fetch-text', 'subs_btn_fetch');
+  el('btn-subs-open-text', 'subs_btn_open');
+  el('btn-subs-import-text', 'subs_btn_import');
+  el('subs-loading-text', 'subs_loading');
+  el('btn-subs-select-all-text', 'subs_select_all');
+  el('btn-subs-load-more-text', 'subs_load_more');
+  const subsSearchEl = document.getElementById('subs-search-input');
+  if (subsSearchEl) subsSearchEl.placeholder = t.subs_search_placeholder || 'Kanal ara...';
 
 
 

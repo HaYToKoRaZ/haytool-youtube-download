@@ -29,6 +29,23 @@ export function broadcast(event, data) {
 }
 
 /**
+ * Tek bir geçmiş kaydının güncellendiğini hedefli olarak bildirir (tüm veritabanı yerine).
+ * 
+ * @param {string} id - YouTube Video ID
+ * @param {object} updates - Güncellenen alanlar
+ */
+export function broadcastHistoryUpdate(id, updates) {
+  const payload = { id, updates };
+  clients.forEach(client => {
+    try {
+      client.write(`event: history_updated\ndata: ${JSON.stringify(payload)}\n\n`);
+    } catch (e) {
+      // Hatalı/kopmuş bağlantıları sessizce yut
+    }
+  });
+}
+
+/**
  * Terminal çıktılarını in-memory log buffer'ına ekler ve istemciye anlık yayınlar.
  * 
  * @param {string} message Günlük mesajı
@@ -47,5 +64,6 @@ export function addTerminalLog(message, type = 'info') {
   if (terminalLogs.length > MAX_LOGS) {
     terminalLogs.shift();
   }
-  broadcast('terminal_log', logItem);
+  // Not: terminal_log SSE broadcast'i hiçbir istemcide dinlenmediği için kaldırıldı.
+  // Log geçmişi GET /api/... endpoint'i üzerinden servis edilir; tray konsolu stdout'u gösterir.
 }

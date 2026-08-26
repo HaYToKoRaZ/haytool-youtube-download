@@ -3,6 +3,189 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.4] - 2026-08-26
+
+### ⚡ Event Loop & Synchronous I/O Fixes (Event Loop ve Senkron Kilitlenme Çözümleri)
+
+- **Database Writes Unblocked:** Overhauled `writeDb` in `server/database.js` to use fully asynchronous `fs.promises.writeFile` and `fs.promises.rename` operations. Replaced the synchronous busy-wait (`while (Date.now() < waitTill)`) with a non-blocking `await new Promise(resolve => setTimeout(resolve, 20))`, effectively eliminating backend event-loop freezing during heavy writes. (Veritabanı diske yazılırken oluşan anlık sunucu kilitlenmeleri (donmaları), tamamen asenkron dosya sistemi ve bekleme mantığı kullanılarak giderildi.)
+- **Asynchronous Config Saves:** `saveSettingsToIni`, `saveChannelsToIni`, and `saveCategoriesToIni` now utilize `await writeIni` with asynchronous file operations. (Kanallar, kategoriler ve ayarlar .ini dosyalarına kaydedilirken oluşan arayüz donmaları çözüldü.)
+- **Gist & Stream Async IO:** Refactored `server/routes/gist.js`, `server/routes/iptv.js`, and `server/routes/streams.js` to use `fs.promises.readFile` and `writeFile`, preventing the entire server from locking up when users fetch Gist backups or when subtitle files are generated/translated. (Gist yedekleme, IPTV önbelleği ve Altyazı çeviri/açıklama servislerindeki bloklayıcı senkron işlemler asenkron yapıya çevrildi.)
+
+## [9.8.3] - 2026-08-26
+
+### 🚀 HaYTooLPlayer.exe Background Process Fix & UI Performance (Arka Plan Kilitlenme ve Arayüz Optimizasyonu)
+
+- **Cookie Refresh Throttle (Çerez Tazeleme Sınırı):** The `triggerSilentCookieRefresh` function in `settings.js` now has a 10-minute cooldown. This prevents `HaYTooLPlayer.exe` from spawning rapidly in the background and locking up the user's system CPU/RAM when YouTube cookies are invalid. (Çerez yenileme işlemine 10 dakikalık bekleme süresi eklendi. Böylece Görev Yöneticisinde sürekli `HaYTooLPlayer.exe` açılıp bilgisayarı kasması sorunu çözüldü.)
+- **Non-blocking YouTube Watch Sync (Asenkron YouTube İzlendi İşaretleme):** In `history.js`, the `markVideoWatchedOnYouTube` operation during a `DELETE` request is now completely decoupled from the main thread using `setTimeout`, preventing the API from hanging the frontend UI. (Video silindiğinde, YouTube'da izlendi olarak işaretleme işlemi tamamen arka plana atıldı, böylece silme butonuna basıldığında arayüz anında tepki veriyor.)
+- **Duplicate Event Listener Removed (Çift Tetiklenen Olay Dinleyicisi Düzeltildi):** Removed a duplicate `confirmDeleteBtn` click listener in `app.js` that was bypassing the optimistic UI updates built in `db-renderer.js` and causing a secondary blocking fetch request. (Silme işlemini iki kez tetikleyen ve arayüzü kilitleyen hata `app.js` içerisinden temizlendi. Optimistik UI tam verimle çalışıyor.)
+
+## [9.8.2] - 2026-08-25
+
+### 🗺️ Comprehensive UI Control Map (Kullanıcı Arayüzü Buton & Kontrol Haritası)
+
+- **UI Button & Action Map (`0nogithub/mapsui.md`):** Created a full, structured UI map documenting all clickable buttons, tabs, modal dialogs, inline player controls, and view toggles across the entire application with their location and purpose. (Uygulamanın tüm sayfalarında, kütüphanesinde, yerleşik oynatıcısında, IPTV modülünde ve modallarında bulunan tüm tıklanabilir butonları ve işlevlerini açıklayan `0nogithub/mapsui.md` rehberi oluşturuldu.)
+- **Project Map Updated (`0nogithub/maps.md`):** Linked `mapsui.md` into the local architecture map. (`0nogithub/maps.md` dosyasına yeni harita rehberi eklendi.)
+
+## [9.8.1] - 2026-08-25
+
+### 🐧 Linux (CachyOS) & Unix Uyumluluğu (Linux & Unix Compatibility)
+
+- **Config File Creation (Ayar Dosyası Oluşturma):** Linux ve Unix tabanlı işletim sistemleri (CachyOS vb.) için `configunix.ini` dosyası projeye eklendi. (Added `configunix.ini` file for Linux/Unix systems).
+- **Path Adjustments (Dizin Ayarlamaları):** Linux dosya sistemine uyumlu varsayılan yapılandırma şablonu oluşturuldu. Kullanıcının disk yolu bilgisi (mount point) eklendi. (Created default configuration template suitable for Linux filesystems).
+- **Sync version:** Sürüm numarası `baslat.sh` dosyasında da güncel v9.8.1 sürümüne eşitlendi. (Version number synced in `baslat.sh` to v9.8.1).
+
+## [9.8.0] - 2026-08-25
+
+### 🚀 Video Deletion Performance Optimization (Video Silme Performans Optimizasyonu)
+
+- **Asynchronous File Deletion (Asenkron Dosya Silme):** The `DELETE /history/:id` and `bulk-delete` routes have been completely rewritten to use Node.js `fs.promises`. Disk operations no longer block the main event loop. (Video silme rotaları asenkron `fs.promises` kullanacak şekilde yeniden yazıldı, I/O işlemleri artık sunucuyu kitlemiyor.)
+- **Smart Folder Scanning (Akıllı Klasör Tarama):** Removed redundant fallback scans when the exact file path is known. Fallbacks now correctly use `Set` objects and `Promise.all` for parallel operations. (Gereksiz çift taramalar giderildi, paralel silme ve `Set` ile tekrar engellendi.)
+- **`writeDbFast` Optimization (Hızlı Veritabanı Yazımı):** Deletion operations no longer trigger a full INI sync or constant `.bak` file creations (throttle set to 5 minutes). This prevents ~4MB of unnecessary disk writes per deletion. (Silme işlemleri artık INI dosyalarına veya her seferinde yedek dosyasına yazmaz; bu sayede her işlemde yaklaşık ~4MB I/O tasarrufu sağlandı.)
+- **Optimistic UI for Deletion (Silme İşleminde İyimser Arayüz):** When deleting a video, the UI instantly removes the card without waiting for the server's disk operations to finish. If an error occurs, the card is safely restored. (Silme işleminde video kartı sunucu yanıtını beklemeden anında arayüzden kaybolur; işlem çok daha akıcı hale getirildi. Hata olursa kart geri gelir.)
+
+## [9.7.3] - 2026-08-25
+
+### 🎚️ Channels Tab Filter Bar Alignment (Kanallar Sekmesi Filtre Çubuğu Hizalaması)
+
+- Unified height and vertical alignment for all items inside `.channel-filters-left` (search box, both filter selects, labels) — they now share a consistent 34px height and are centered on the same baseline. Kanal filtre çubuğunun sol tarafındaki tüm öğeler (arama kutusu, iki filtre seçimi, etiketler) ortak 34px yüksekliğe ve aynı dikey hizalamaya getirildi.
+
+## [9.7.2] - 2026-08-24
+
+### 🎯 Dropdown Positioning Fix & Filter Persistence (Açılır Menü Konumu Düzeltmesi & Filtre Kalıcılığı)
+
+- **Fixed dropdown positioning:** The Library toolbar's `backdrop-filter: blur(10px)` was creating a containing block for `position:fixed` popups — the channel and filter dropdowns opened far away from their triggers (offset by the toolbar's position). Removed it; menus now open exactly below their trigger. Kütüphane araç çubuğundaki `backdrop-filter` değeri `position:fixed` açılır menüler için containing block oluşturuyordu — kanal ve filtre menüleri trigger'ından çok uzakta açılıyordu. Kaldırıldı; menüler artık tam trigger'ın altında açılıyor.
+- **Filter chips now persist to configwin.ini:** The 7 quick filter states (Shorts, Live, No-Auto-Download, Not-Downloaded, Live-Processing, Members, Hidden) are now saved to and restored from `configwin.ini` (server-side), so they survive browser storage clears. Hızlı filtre çipleri artık `configwin.ini`'ye kaydedilip oradan geri yükleniyor (sunucu tarafında) — tarayıcı deposu temizlense bile korunur.
+- **Channel filter no longer persisted:** The Library channel filter resets to "All Channels" on every launch, as requested — no INI entry for it. Kanal filtresi artık her açılışta "Tüm Kanallar" ile başlıyor — INI kaydı yok.
+
+## [9.7.1] - 2026-08-24
+
+### 🎛️ Library Quick Filters Panel (Kütüphane Hızlı Filtreler Paneli)
+
+- The 7 horizontal-scrollable filter chips in the Library toolbar are now hidden behind a compact **"Filtreler" dropdown button** — the toolbar no longer overflows horizontally. Kütüphane araç çubuğundaki yatay kaydırılabilir 7 filtre hapı artık kompakt bir **"Filtreler" açılır düğmesinin** arkasında — araç çubuğu artık yatay taşmıyor.
+- The panel opens as a fixed-position popup (viewport-anchored, same technique as the channel dropdown) so it is never clipped by toolbar overflow. Panel, kanal açılır menüsüyle aynı teknikle viewport'a sabitlenen açılır pencere olarak açılır, araç çubuğu taşmasından asla kesilmez.
+- A count badge on the button shows how many filters differ from their default state. Düğmedeki sayı rozeti, varsayılan durumundan farklı olan filtre sayısını gösterir.
+- Panel closes on outside click or Escape. Panel, dışarı tıklanınca veya Escape ile kapanır.
+
+## [9.7.0] - 2026-08-24
+
+### 🐛 Channel Dropdown Fix & Channel Filters Bar Alignment (Kanal Açılır Menü Düzeltmesi & Kanal Filtre Çubuğu Hizalama)
+
+- **Fixed channel dropdown being clipped:** The library/downloaded/channels channel picker dropdown was clipped by the toolbar's horizontal overflow — it now opens as a fixed-position popup relative to the viewport, so it is always visible. Kanal seçici açılır menüsü araç çubuğunun yatay kaydırması tarafından kesiliyordu — artık viewport'a göre sabit konumda açılır, her zaman görünür.
+- **Channels tab filter bar alignment:** All elements in `.channel-filters-bar` (search input, selects, badge) now share a uniform 34px height with proper alignment. Kanallar sekmesindeki filtre çubuğu öğeleri (arama kutusu, seçim kutuları, rozet) artık ortak 34px yüksekliğe sahip ve düzgün hizalı.
+
+## [9.6.9] - 2026-08-24
+
+### 🛠️ Library Toolbar Layout Fix (Kütüphane Araç Çubuğu Yerleşim Düzeltmesi)
+
+- The Library toolbar is now split into two zones: **filters** (scrollable horizontally when space runs out) and **fixed right actions** (sort buttons + Cards/List view toggle) — the view toggle is always visible, no more 2-line wrap. Kütüphane araç çubuğu iki bölgeye ayrıldı: **filtreler** (yer kalmayınca yatay kaydırılır) ve **sabit sağ aksiyonlar** (sıralama butonları + Kartlar/Sade Liste görünümü) — görünüm seçeneği her zaman görünür, 2 satıra taşma yok.
+- Compact sort buttons in the library header. Kütüphane başlığındaki sıralama butonları kompaktlaştırıldı.
+
+## [9.6.8] - 2026-08-24
+
+### 🗂️ Library Sort Mode in configwin.ini (Kütüphane Sıralama Modu configwin.ini'de)
+
+- **New `historySortMode` INI setting:** Library tab videos can now be sorted by `date-desc` (default), `date-asc`, `title`, or `duration` — controlled from the new sort buttons in the Library header and persisted to `configwin.ini`. Yeni `historySortMode` INI ayarı: Kütüphane sekmesi videoları artık `date-desc` (varsayılan), `date-asc`, `title` veya `duration` ile sıralanabilir — Kütüphane başlığındaki yeni sıralama butonlarıyla kontrol edilir ve `configwin.ini`'ye kaydedilir.
+- **Persistent & INI-editable:** The chosen sort is saved to db.settings + configwin.ini; manual edits (e.g. `historySortMode = title`) take effect on next launch. Seçilen sıralama db.settings + configwin.ini'ye kaydedilir; elle düzenleme (örn. `historySortMode = title`) bir sonraki açılışta geçerli olur.
+
+## [9.6.7] - 2026-08-24
+
+### 🎨 UI View Preferences in configwin.ini (Görünüm Tercihleri configwin.ini'de)
+
+- **New INI settings:** `historyViewMode` (Library tab: grid/list), `downloadedViewMode` (Downloaded tab: grid/list), and `downloadedSortMode` (Downloaded sort: date-desc/asc, size-desc/asc, user) are now written to and read from `configwin.ini` — the app opens exactly as you last left it. Yeni INI ayarları: `historyViewMode` (Kütüphane: grid/list), `downloadedViewMode` (İndirilenler: grid/list) ve `downloadedSortMode` (İndirilenler sıralama) artık `configwin.ini`'ye yazılıp okunur — uygulama en son bıraktığınız görünümle açılır.
+- **db.settings priority on restore:** When restoring view state, `db.settings` (fed from configwin.ini) takes priority over localStorage. Görünüm durumu geri yüklenirken `db.settings` (configwin.ini'den gelen) localStorage'dan önceliklidir.
+- **Manual INI editing supported:** Change `historyViewMode = list` in configwin.ini and the Library opens as a list on next launch. configwin.ini'de `historyViewMode = list` yapın — bir sonraki açılışta Kütüphane liste görünümünde açılır.
+
+## [9.6.6] - 2026-08-24
+
+### ⚡ Targeted Channel Info Update (Hedefli Kanal Bilgisi Güncelleme)
+
+- Instead of refreshing ALL channels after import (slow with many channels), the server now updates **only the newly added channels** in the background (600ms apart, ~0.6s per channel). İçe aktarma sonrası TÜM kanalları güncellemek yerine sunucu artık **yalnızca yeni eklenen kanalları** arka planda günceller (kanal başına ~0,6 sn).
+- `updateChannelFullInfo` is now exported from `channels.js` and reused by the import endpoint — no duplicate logic. `updateChannelFullInfo` artık `channels.js`'ten export edilir ve içe aktarma uç noktası tarafından yeniden kullanılır.
+
+## [9.6.5] - 2026-08-24
+
+### ⚡ Auto-Refresh Channel Info After Subscription Import (Abonelik İçe Aktarma Sonrası Otomatik Kanal Bilgisi Güncelleme)
+
+- After bulk-importing channels from YouTube subscriptions, the app now automatically triggers the existing "Update All Subscribers & Avatars" feature so newly added channels immediately get their avatar and subscriber count — no manual step needed. YouTube aboneliklerinden kanallar toplu eklendikten sonra uygulama otomatik olarak mevcut "Tüm Abone ve Avatarları Güncelle" özelliğini tetikler; yeni eklenen kanallar avatar ve abone sayısını hemen alır.
+- If an RSS scan is already running, the app shows an informational message and you can trigger the update afterwards. RSS taraması devam ediyorsa bilgilendirme mesajı gösterilir; sonrasında elle tetiklenebilir.
+
+## [9.6.4] - 2026-08-24
+
+### 🐛 Fix: UI Freezing During Scans (Tarama Sırasında Arayüz Donması Düzeltmesi)
+
+- **Root cause:** The `history_updated` SSE listener added in v9.6.2 called `updateUI()` (which re-renders the whole queue) on every single update. During RSS scans hundreds of such events arrive per second, freezing the browser — even at startup after a scan. Kök neden: v9.6.2'de eklenen `history_updated` SSE dinleyicisi her güncellemede tüm kuyruğu yeniden çizen `updateUI()`'yi çağırıyordu; RSS taraması sırasında saniyede yüzlerce event gelince tarayıcı donuyordu — açılışta tarama sonrası dahil.
+- **Fix:** `history_updated` UI refresh is now debounced to 400ms — render frequency drops from hundreds/sec to ~2.5/sec; the queue list is no longer re-rendered in a tight loop. `history_updated` arayüz tazelemesi 400ms'de bir toplu hale getirildi — render sıklığı saniyede yüzlerden ~2.5'e düştü; kuyruk listesi artık sıkı döngüde yeniden çizilmiyor.
+- **Backend cache for subscriptions fetch:** The 11MB `feed/channels` page is now cached for 5 minutes per session — repeated "Fetch" clicks no longer re-download it. `feed/channels` sayfası (11MB) artık oturumda 5 dakika önbelleklenir — tekrarlanan "Getir" tıklamaları sayfayı yeniden indirmez.
+
+## [9.6.3] - 2026-08-24
+
+### ⚡ Subscriptions List Performance (Abonelik Listesi Performansı)
+
+- **Chunked rendering (Parça Parça Render):** The subscription list now renders 100 channels at a time with a "Show More" button — 1000+ channel lists no longer freeze the browser. Abonelik listesi artık 100'er kanal halinde render edilir; 1000+ kanallık listeler tarayıcıyı dondurmaz.
+- **Search filter (Arama Filtresi):** A live search box filters channels by name instantly. Kanal adına göre anlık filtreleyen arama kutusu eklendi.
+- **Select All (Tümünü Seç):** One-click selection of all not-yet-followed channels — no need to tick 1000 checkboxes. Takip edilmeyen tüm kanalları tek tıkla işaretleyen "Tümünü Seç" butonu eklendi.
+- **State-based selection (Durum Tabanlı Seçim):** Selections are tracked in memory, so loading more pages never loses your ticks. Seçimler bellekte tutulur; daha fazla sayfa yüklemek işaretlemelerinizi kaybettirmez.
+
+## [9.6.2] - 2026-08-24
+
+### 🐛 Fix: Subscriptions Buttons Not Responding (Abonelik Butonları Çalışmıyor Düzeltmesi)
+
+- **Root cause:** `app.js` is a monolithic client — `tools.js` / `db-renderer.js` are never loaded, so functions added to `tools.js` were dead code. Subscription functions were moved into the active `app.js` copy (with `window.*` bindings for inline `onclick`). Kök neden: `app.js` monolitik istemcidir — `tools.js`/`db-renderer.js` hiç yüklenmez; `tools.js`'e eklenen fonksiyonlar ölü koddur. Abonelik fonksiyonları aktif `app.js` kopyasına taşındı (inline `onclick` için `window.*` bağlamalarıyla).
+- **Completed Adım 6 client-side:** The `history_updated` SSE listener (previously added to the unloaded `db-renderer.js`) was also added to the active `app.js` — targeted update events are now actually received by the client. Adım 6'nın istemci tarafı tamamlandı: yüklenmeyen `db-renderer.js`'e eklenmiş olan `history_updated` SSE dinleyicisi aktif `app.js`'e de eklendi — hedefli güncelleme eventleri artık istemci tarafından gerçekten alınıyor.
+
+## [9.6.1] - 2026-08-24
+
+### 🐛 Fix: Subscriptions Section Not Opening (Abonelikler Bölümü Açılmıyor Düzeltmesi)
+
+- **Fixed duplicate `showToolsSubSection`:** The active copy in `app.js` did not know the new `subscriptions` section, so it fell through to the default File Comparison view. Added the subscriptions branch to the active copy (both copies kept in sync). `app.js`'teki aktif `showToolsSubSection` kopyası yeni `subscriptions` bölümünü bilmiyordu ve varsayılan Dosya Karşılaştırma görünümüne düşüyordu — aktif kopyaya subscriptions dalı eklendi (iki kopya senkron tutuldu).
+- **Cache-busting bump to v9.6.1:** Ensures browsers load the fixed `app.js` despite the 7-day static cache. 7 günlük statik önbelleğe rağmen tarayıcıların düzeltilmiş `app.js`'i yüklemesi için sürüm v9.6.1'e çıkarıldı.
+
+## [9.6.0] - 2026-08-24
+
+### 📥 YouTube Subscriptions Import Tool / YouTube Aboneliklerini İçe Aktarma Aracı
+
+- **Fetch & bulk-import your YouTube subscriptions (Abone Kanallarını Getir + Toplu Ekle):** New Tools section reads your subscribed channels from `youtube.com/feed/channels` (using your session cookies) and lists them with checkboxes — already-followed channels are marked. Select any number and add them to your follow list in one click. Araçlar sekmesine yeni bölüm: oturum çerezlerinizle `feed/channels` sayfasından abone kanallarınızı çeker, takip edilenler işaretli checkbox listesi gösterir; seçtiklerinizi tek tıkla takip listenize toplu ekler.
+- **Open feed/channels page in WebView2 (feed/channels Sayfasını Aç):** One-click button opens the YouTube subscriptions page inside the WebView2 player (your logged-in session). feed/channels sayfasını WebView2 oynatıcıda tek tıkla açan buton eklendi (oturumunuz açık olduğu için abonelikleriniz görünür).
+- **New endpoints:** `GET /api/tools/subscriptions`, `POST /api/tools/subscriptions/import`, `POST /api/tools/open-subscriptions`.
+- **i18n:** All labels added in 7 languages. Tüm etiketler 7 dile eklendi.
+
+## [9.5.0] - 2026-08-24
+
+### 🔐 Automatic YouTube Cookie Health Monitoring / Otomatik YouTube Çerez Sağlık Takibi
+
+- **New `cookieHealth.js` service (Yeni `cookieHealth.js` servisi):** Validates YouTube session cookies at server startup and every 30 minutes by fetching the watch-history page and checking its content size (logged-in ~3MB vs signed-out ~780KB). Sunucu açılışında ve 30 dakikada bir, izleme geçmişi sayfasının içerik boyutuna bakarak YouTube oturum çerezlerinin geçerliliğini doğrular (oturum açık ~3MB, kapalı ~780KB).
+- **Automatic silent refresh (Otomatik sessiz yenileme):** When cookies are detected invalid, `triggerSilentCookieRefresh` (hidden WebView2) is triggered automatically and verified — no user action needed while the WebView2 session is alive. Çerezler geçersiz algılandığında gizli WebView2 üzerinden otomatik sessiz yenileme tetiklenir ve doğrulanır — WebView2 oturumu canlı olduğu sürece kullanıcı müdahalesi gerekmez.
+- **Clear user notification (Net kullanıcı bildirimi):** If automatic renewal also fails, the user receives a visible toast/log: "YouTube oturum çerezleriniz geçersiz! Ayarlar sekmesinden 'YouTube'da Oturum Aç" — no more silent watch-history losses. Otomatik yenileme de başarısız olursa kullanıcıya görünür bir bildirim gösterilir — sessizce kaybolan izleme geçmişi kayıtları sona erer.
+- **Fixed `subtitleOpacity` falsy bug (Altyazı Opaklığı Falsy Hatası Düzeltmesi):** `0.0` (fully transparent) is now preserved when writing to `configwin.ini` instead of being rewritten as `0.7`. `configwin.ini`'ye yazarken `0.0` (tam şeffaf) değeri artık `0.7` olarak bozulmuyor.
+
+## [9.4.0] - 2026-08-24
+
+### 🔌 SSE Heartbeat, Dead-Code Cleanup & Log Optimization / SSE Canlılık, Ölü Kod Temizliği ve Log Optimizasyonu
+
+- **SSE Heartbeat (SSE Canlılık Pingi):** A keep-alive comment line is now sent every 25 seconds on the `/api/events` stream, preventing proxy/load-balancer idle timeouts from dropping long-lived connections. `/api/events` akışına 25 saniyede bir keep-alive pingi gönderilir; uzun ömürlü bağlantıların proxy zaman aşımlarıyla kopması önlenir.
+- **Dead Terminal Log Broadcast Removed (Ölü Log Yayını Kaldırıldı):** The `terminal_log` SSE broadcast was not consumed by any client — removed; log history is still served via its API endpoint and the tray console reads stdout. `terminal_log` SSE yayını hiçbir istemcide dinlenmiyordu — kaldırıldı; log geçmişi API endpoint'i üzerinden ve tepsi konsolu stdout'tan beslenmeye devam eder.
+- **Undefined Render Calls Removed (Tanımsız Render Çağrıları Kaldırıldı):** 12 dead `renderChannels`/`renderHistory` calls (functions never defined) were cleaned up across the client. İstemcide hiç tanımlanmamış 12 ölü `renderChannels`/`renderHistory` çağrısı temizlendi.
+- **Note:** History grid already renders in 50-item chunks with a scroll sentinel (lazy render), and RSS channel scanning already batches with `Promise.allSettled` — no change needed there. Not: Geçmiş ızgarası zaten 50'lik parçalar + kaydırma bekçisiyle tembel render yapıyor ve RSS kanal taraması zaten `Promise.allSettled` ile toplu çalışıyor — orada değişiklik gerekmedi.
+
+## [9.3.0] - 2026-08-24
+
+### 🎯 Targeted Update Events / Hedefli Güncelleme Eventleri
+
+- **Targeted `history_updated` SSE Events (Hedefli `history_updated` SSE Eventleri):** Single history record updates now broadcast only `{id, updates}` via a new `history_updated` event instead of sending the entire ~3MB database on every change. Tek bir geçmiş kaydı güncellendiğinde artık her değişiklikte ~3MB veritabanı yerine yalnızca `{id, updates}` iletilir.
+- **Client-side targeted patching (İstemci Tarafında Hedefli Güncelleme):** The dashboard now patches the changed record in memory and runs a light UI refresh — the network payload drops from ~3MB to ~1KB per update. Arayüz artık değişen kaydı bellekte güncelleyip hafif bir UI tazelemesi yapar — ağ yükü güncelleme başına ~3MB'den ~1KB'ye düşer.
+- **Removed duplicate broadcasts in downloader/queue flows (İndirici/Kuyruk Akışlarında Çift Gönderim Kaldırıldı):** `updateHistoryItem` now emits the targeted event internally; 5 duplicate `db_update` broadcasts were removed. `updateHistoryItem` hedefli eventi kendi içinde yayınlar; 5 çift `db_update` gönderimi kaldırıldı.
+- **Full `db_update` retained only for bulk changes** (channel add/remove, history push/splice, settings) — rare operations. Tam `db_update` yalnızca toplu değişikliklerde (kanal ekle/sil, geçmiş ekle/çıkar, ayarlar) korunur — nadir işlemler.
+
+## [9.2.0] - 2026-08-24
+
+### ⚡ Performance & Optimization Update / Performans ve Optimizasyon Güncellemesi
+
+- **Gzip Compression (Gzip Sıkıştırma):** Vanilla `zlib` middleware added — `app.js` (~500KB) is now served at ~120KB; SSE events unaffected. Vanilla `zlib` ile sıkıştırma eklendi — `app.js` (~500KB) artık ~120KB olarak iletilir; SSE etkilenmez.
+- **Static File Caching (Statik Dosya Önbelleği):** `express.static` now sends 7-day `Cache-Control` for versioned assets (`?v=`); repeat openings load from disk cache. Sürümlü varlıklara 7 günlük önbellek başlığı eklendi; tekrar açılışlar disk önbelleğinden yüklenir.
+- **Compact db.json Format (Kompakt db.json):** Removed JSON indentation — database file ~30% smaller, faster reads/writes. JSON girintisi kaldırıldı — veritabanı dosyası ~%30 küçüldü, okuma/yazma hızlandı.
+- **Progress Write Debounce (İlerleme Yazma Debounce):** High-frequency download progress updates no longer write the whole database to disk every time; writes are batched every 1 second (memory cache stays instant). Yüksek frekanslı indirme ilerleme güncellemeleri artık her seferinde tüm veritabanını diske yazmıyor; yazımlar 1 saniyede bir toplu yapılır (bellek önbelleği anlık kalır).
+- **Note:** `readDb()` was already using an mtime-based memory cache — no change needed there. Not: `readDb()` zaten mtime tabanlı bellek önbelleği kullanıyordu — orada değişiklik gerekmedi.
+
 ## [9.1.1] - 2026-08-24
 
 ### 🚀 Major Update v9 — YouTube Integration Overhaul / Sürüm 9 Ana Güncellemesi

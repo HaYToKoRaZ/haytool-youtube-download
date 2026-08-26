@@ -71,9 +71,11 @@ async function executeAutoGistSync() {
     const configUnixPath = `${rootDir}/configunix.ini`;
     const configPath = fs.existsSync(configWinPath) ? configWinPath : configUnixPath;
 
-    const channelsContent = fs.readFileSync(channelsIniPath, 'utf-8');
-    const catContent = fs.existsSync(catIniPath) ? fs.readFileSync(catIniPath, 'utf-8') : '';
-    const configContent = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf-8') : '';
+    const channelsContent = await fs.promises.readFile(channelsIniPath, 'utf-8');
+    let catContent = '';
+    try { if (fs.existsSync(catIniPath)) catContent = await fs.promises.readFile(catIniPath, 'utf-8'); } catch (e) {}
+    let configContent = '';
+    try { if (fs.existsSync(configPath)) configContent = await fs.promises.readFile(configPath, 'utf-8'); } catch (e) {}
 
     // db.json içeriğindeki githubToken alanını temizle (GitHub secret scanner iptalini önler)
     const dbSanitized = JSON.parse(JSON.stringify(db));
@@ -323,7 +325,7 @@ router.post('/pull', localhostOnly, async (req, res) => {
           parsedDb.settings.githubToken = token || (currentDb.settings || {}).githubToken;
           parsedDb.settings.githubGistId = gistId || (currentDb.settings || {}).githubGistId;
         }
-        fs.writeFileSync(`${rootDir}/db.json`, JSON.stringify(parsedDb, null, 2), 'utf-8');
+        await fs.promises.writeFile(`${rootDir}/db.json`, JSON.stringify(parsedDb, null, 2), 'utf-8');
       } catch (e) {
         console.error('[Gist Pull Error] db.json ayrıştırılamadı:', e.message);
       }
@@ -332,19 +334,19 @@ router.post('/pull', localhostOnly, async (req, res) => {
     // 2. channels.ini
     const chanFile = files['channels.ini'] || Object.values(files).find(f => f.filename && f.filename.endsWith('.ini'));
     if (chanFile && chanFile.content) {
-      fs.writeFileSync(channelsIniPath, chanFile.content, 'utf-8');
+      await fs.promises.writeFile(channelsIniPath, chanFile.content, 'utf-8');
     }
 
     // 3. categories.ini
     if (files['categories.ini'] && files['categories.ini'].content) {
-      fs.writeFileSync(`${rootDir}/categories.ini`, files['categories.ini'].content, 'utf-8');
+      await fs.promises.writeFile(`${rootDir}/categories.ini`, files['categories.ini'].content, 'utf-8');
     }
 
     // 4. config ini
     const configFile = files['configwin.ini'] || files['configunix.ini'];
     if (configFile && configFile.content) {
       const cfgPath = `${rootDir}/${configFile.filename}`;
-      fs.writeFileSync(cfgPath, configFile.content, 'utf-8');
+      await fs.promises.writeFile(cfgPath, configFile.content, 'utf-8');
     }
 
     const db = readDb();

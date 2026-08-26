@@ -237,9 +237,19 @@ router.post('/logout-youtube', localhostOnly, (req, res) => {
  * 
  * @returns {Promise<boolean>}
  */
+let lastSilentCookieRefreshTime = 0;
+const SILENT_REFRESH_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
+
 export function triggerSilentCookieRefresh() {
   return new Promise((resolve) => {
     try {
+      const now = Date.now();
+      if (now - lastSilentCookieRefreshTime < SILENT_REFRESH_COOLDOWN_MS) {
+        console.log(`[Cookie Refresh] Atlandı, cooldown aktif. (Tekrar deneme için ${Math.floor((SILENT_REFRESH_COOLDOWN_MS - (now - lastSilentCookieRefreshTime))/1000)}s bekleyin)`);
+        return resolve(false);
+      }
+      lastSilentCookieRefreshTime = now;
+
       if (process.platform === 'win32') {
         const launcherExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
         const binPlayerExe = path.resolve(process.cwd(), 'bin', 'HaYTooLPlayer.exe');

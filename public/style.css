@@ -2245,9 +2245,34 @@ body.light-theme .nav-item[data-tab="queue"].active .queue-nav-badge {
   border-radius: 12px;
   padding: 6px 12px;
   margin-bottom: 16px;
-  backdrop-filter: blur(10px);
+  /* Dikkat: backdrop-filter burada kullanilmaz — position:fixed acilir menuleri (kanal, filtreler)
+     toolbar'i containing block yapar ve menuler trigger'dan uzakta/yanlis konumda acilir. */
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   overflow-x: auto; /* Küçük ekranlarda yatay kaydırma desteği */
+}
+
+/* Kütüphane Toolbar: filtreler kaydırılabilir, sağ aksiyonlar (sıralama + görünüm) sabit */
+.history-toolbar-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+}
+.history-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-left: 10px;
+  border-left: 1px solid var(--border-color);
+}
+#history-sort-group .sort-btn {
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  height: 26px;
+  white-space: nowrap;
 }
 
 /* Scrollbar styling for history-toolbar horizontal scroll */
@@ -2267,6 +2292,85 @@ body.light-theme .nav-item[data-tab="queue"].active .queue-nav-badge {
   align-items: center;
   gap: 8px;
   flex-shrink: 0; /* Elemanların daralmasını engeller */
+}
+
+/* === Kütüphane "Filtreler" Açılır Paneli === */
+.history-filters-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  height: 30px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-main);
+  font-size: 0.75rem;
+  font-family: var(--font-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-speed) ease;
+}
+.history-filters-trigger:hover {
+  border-color: var(--primary);
+  background-color: rgba(138, 43, 226, 0.08);
+}
+.history-filters-trigger i {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  transition: transform var(--transition-speed) ease;
+}
+.history-filters-trigger.open i[data-lucide="chevron-down"],
+.history-filters-trigger.open svg.lucide-chevron-down {
+  transform: rotate(180deg);
+}
+.history-filters-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background-color: var(--secondary);
+  color: #0a0818;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Panel: overflow'lu parent'lardan (toolbar yatay kaydırma) kurtulmak için viewport'a sabitlenir */
+.history-filters-panel {
+  display: none;
+  position: fixed;
+  z-index: 99999999;
+  min-width: 220px;
+  max-width: 300px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+  overflow-y: auto;
+}
+.history-filters-panel.open {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.history-filters-panel .filter-chip-btn {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 7px 10px;
+  height: auto;
+  font-size: 0.75rem;
+}
+.history-filters-panel .filter-chip-btn i {
+  width: 14px;
+  height: 14px;
 }
 
 .history-toolbar span {
@@ -7261,6 +7365,60 @@ body.light-theme .video-card-unlisted-tag {
   border: 1px solid var(--border-color);
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* Kanal filtre çubuğu: tüm öğelerde ortak yükseklik ve hizalama */
+.channel-filters-bar .channel-search-input,
+.channel-filters-bar .channel-filter-select {
+  height: 34px;
+  box-sizing: border-box;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  line-height: normal;
+}
+.channel-search-input {
+  height: 34px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+.channel-filter-badge {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+.channel-filter-group {
+  min-height: 34px;
+}
+
+/* Kanal filtre çubuğu: sol taraftaki tüm öğelerde ortak yükseklik ve dikey hizalama */
+.channel-filters-left {
+  align-items: center;
+}
+.channel-filters-left .channel-search-input-wrap,
+.channel-filters-left .channel-filter-group {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.channel-filters-left .channel-search-input-wrap {
+  flex: 1 1 180px;
+  min-width: 180px;
+  max-width: 280px;
+}
+.channel-filters-left .channel-filter-group label {
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  line-height: normal;
+}
+.channel-filters-left .channel-search-input,
+.channel-filters-left .channel-filter-select {
+  height: 34px;
+  box-sizing: border-box;
 }
 
 /* ==========================================================================

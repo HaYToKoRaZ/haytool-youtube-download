@@ -6,12 +6,14 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '..');
+const appRootDir = path.resolve(__dirname, '..');
+const isAppImage = process.env.APPIMAGE;
+const dataRootDir = isAppImage ? path.dirname(process.env.APPIMAGE) : appRootDir;
 
 export const configIniName = os.platform() === 'win32' ? 'configwin.ini' : 'configunix.ini';
-export const configIniPath = path.join(rootDir, configIniName);
-export const channelsIniPath = path.join(rootDir, 'channels.ini');
-export const categoriesIniPath = path.join(rootDir, 'categories.ini');
+export const configIniPath = path.join(dataRootDir, configIniName);
+export const channelsIniPath = path.join(dataRootDir, 'channels.ini');
+export const categoriesIniPath = path.join(dataRootDir, 'categories.ini');
 
 /**
  * Belirtilen INI dosyasını okuyup JavaScript nesnesi (JSON) olarak ayrıştırır.
@@ -203,7 +205,7 @@ export const settingComments = {
  * @param {string} filePath Yazılacak INI dosyasının yolu
  * @param {object} data Yazılacak veri nesnesi (Bölümler ve anahtar-değerler)
  */
-export function writeIni(filePath, data) {
+export async function writeIni(filePath, data) {
   const isSettingsFile = filePath.includes('configwin.ini') || filePath.includes('configunix.ini');
   let content = '; ================================================================================\n';
   content += '; HaYTooL YouTube Downloader Yapılandırma Dosyası / Configuration File\n';
@@ -221,6 +223,21 @@ export function writeIni(filePath, data) {
     }
   }
   const tempPath = `${filePath}.tmp`;
-  fs.writeFileSync(tempPath, content, 'utf-8');
-  fs.renameSync(tempPath, filePath);
+  await fs.promises.writeFile(tempPath, content, 'utf-8');
+  let renamed = false;
+  for (let i = 0; i < 5; i++) {
+    try {
+      await fs.promises.rename(tempPath, filePath);
+      renamed = true;
+      break;
+    } catch (renameErr) {
+      if (i === 4) {
+        await fs.promises.writeFile(filePath, content, 'utf-8');
+        try { await fs.promises.unlink(tempPath); } catch (e) {}
+        renamed = true;
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+    }
+  }
 }

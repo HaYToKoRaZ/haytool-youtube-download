@@ -355,7 +355,6 @@ export class DownloadQueue {
                 
                 if (Object.keys(updateData).length > 0) {
                   updateHistoryItem(videoId, updateData);
-                  broadcast('db_update', readDb());
                 }
               }
             }
@@ -419,7 +418,6 @@ export class DownloadQueue {
     const settings = db.settings;
 
     updateHistoryItem(video.id, { status: 'downloading', progress: 0 });
-    broadcast('db_update', readDb());
     addTerminalLog(`[Kuyruk] "${video.title}" videosu için indirme süreci başlatıldı.`, 'info');
     showWindowsNotification(
       settings.lang === 'en' ? 'Download Started' : 'İndirme Başlatıldı',
@@ -625,7 +623,6 @@ export class DownloadQueue {
           status: 'error',
           error: 'İndirme zaman aşımına uğradı (Takıldı).'
         });
-        broadcast('db_update', readDb());
       }
     }, timeoutDuration);
 
@@ -652,7 +649,6 @@ export class DownloadQueue {
           status: 'waiting_live_processing',
           error: 'Canlı yayın yeni sonlandı, YouTube VOD işlemesi bekleniyor.'
         });
-        broadcast('db_update', readDb());
         this.process();
       }
     }, 45000);
@@ -737,7 +733,7 @@ export class DownloadQueue {
             fileSize: rawSize,
             speed: speed,
             eta: eta
-          });
+          }, { persist: false });
 
           broadcast('progress', {
             id: video.id,
@@ -761,7 +757,7 @@ export class DownloadQueue {
                 progress: percent,
                 speed: 'DASH Stream',
                 eta: `${currentFrag}/${totalFrags} Parça`
-              });
+              }, { persist: false });
 
               broadcast('progress', {
                 id: video.id,

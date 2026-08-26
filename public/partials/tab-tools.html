@@ -164,4 +164,50 @@
           </div>
         </div>
 
+        <!-- 4. BÖLÜM: YouTube Aboneliklerini İçe Aktar -->
+        <div class="card hidden" id="tools-subscriptions-container" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <h3 id="tools-subs-title" style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.05rem;">YouTube Abonelikleri</h3>
+            <span id="tools-subs-badge" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">İçe Aktar</span>
+          </div>
+          <p id="tools-subs-desc" style="margin: 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.55;">YouTube hesabınızdaki abone kanallarını getirip takip listenize toplu ekleyin.</p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <button type="button" class="btn btn-primary" id="btn-subs-fetch" onclick="fetchYouTubeSubscriptions()" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+              <i data-lucide="users" style="width: 16px; height: 16px;"></i>
+              <span id="btn-subs-fetch-text">Abone Kanallarını Getir</span>
+            </button>
+            <button type="button" class="btn btn-secondary" id="btn-subs-open" onclick="openSubscriptionsPage()" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+              <i data-lucide="external-link" style="width: 16px; height: 16px;"></i>
+              <span id="btn-subs-open-text">feed/channels Sayfasını Aç</span>
+            </button>
+          </div>
+          <div id="subs-loading" class="hidden text-center" style="display: flex; align-items: center; gap: 8px; padding: 10px 0; color: var(--text-muted); font-size: 0.85rem;">
+            <i data-lucide="loader" class="spin-animation" style="width: 16px; height: 16px;"></i>
+            <span id="subs-loading-text">Abone kanalları yükleniyor...</span>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            <input type="text" id="subs-search-input" placeholder="Kanal ara..." oninput="filterSubsList()" style="flex: 1; min-width: 180px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 0.85rem;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-subs-select-all" onclick="selectAllSubs()" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; height: 34px;">
+              <i data-lucide="check-square" style="width: 15px; height: 15px;"></i>
+              <span id="btn-subs-select-all-text">Tümünü Seç</span>
+            </button>
+          </div>
+          <div id="subs-list" style="display: flex; flex-direction: column; gap: 4px; max-height: 380px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;"></div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-subs-load-more" onclick="loadMoreSubs()" style="display: none; align-items: center; gap: 6px; align-self: flex-start; white-space: nowrap; height: 34px;">
+            <i data-lucide="chevron-down" style="width: 15px; height: 15px;"></i>
+            <span id="btn-subs-load-more-text">Daha Fazla Göster</span>
+          </button>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn-primary" id="btn-subs-import" onclick="importSelectedSubscriptions()" style="display: none; align-items: center; gap: 6px; white-space: nowrap;">
+              <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i>
+              <span id="btn-subs-import-text">Seçilenleri Takip Listesine Ekle</span>
+            </button>
+            <span id="subs-selected-count" style="font-size: 0.8rem; color: var(--text-muted);"></span>
+          </div>
+          <div id="subs-result-box" class="hidden" style="padding: 12px 16px; border-radius: 8px; display: flex; align-items: flex-start; gap: 10px; font-size: 0.92rem; line-height: 1.5;">
+            <i id="subs-result-icon" data-lucide="info" style="width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px;"></i>
+            <span id="subs-result-text"></span>
+          </div>
+        </div>
+
       </section>
