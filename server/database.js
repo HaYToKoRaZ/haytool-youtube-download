@@ -155,6 +155,7 @@ export const defaultDb = {
     hideOnDelete: true,
     markWatchedOnDelete: true,
     autoSyncWatchtime: true,
+    autoSyncLocalWatchtime: true,
     autoDiskSync: true,
     periodicDiskSyncInterval: '360',
     checkChannelsOnStartup: false,
@@ -750,6 +751,11 @@ export function syncWithIni(db) {
         db.settings.autoSyncWatchtime = autoSyncWatchtime !== 'false';
       }
 
+      const autoSyncLocalWatchtime = getCaseInsensitiveKey(settingsSection, 'autoSyncLocalWatchtime');
+      if (autoSyncLocalWatchtime !== undefined) {
+        db.settings.autoSyncLocalWatchtime = autoSyncLocalWatchtime !== 'false';
+      }
+
       const autoDiskSync = getCaseInsensitiveKey(settingsSection, 'autoDiskSync');
       if (autoDiskSync !== undefined) {
         db.settings.autoDiskSync = autoDiskSync !== 'false';
@@ -1087,6 +1093,7 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.historyShowHidden = (db.settings.historyShowHidden === true).toString();
   iniData.Settings.markWatchedOnDelete = (db.settings.markWatchedOnDelete !== false).toString();
   iniData.Settings.autoSyncWatchtime = (db.settings.autoSyncWatchtime !== false).toString();
+  iniData.Settings.autoSyncLocalWatchtime = (db.settings.autoSyncLocalWatchtime !== false).toString();
   iniData.Settings.autoDiskSync = (db.settings.autoDiskSync !== false).toString();
   iniData.Settings.periodicDiskSyncInterval = (db.settings.periodicDiskSyncInterval || '360').toString();
 

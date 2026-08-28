@@ -347,7 +347,8 @@ router.post('/video/:id/sync-watchtime', localhostOnly, async (req, res) => {
 
   // Yerel veritabanına izleme pozisyonunu kaydet
   try {
-    await acquireDbLock(async () => {
+    const release = await acquireDbLock();
+    try {
       const db = readDb();
       const item = db.history.find(h => h.id === id);
       if (item) {
@@ -362,7 +363,9 @@ router.post('/video/:id/sync-watchtime', localhostOnly, async (req, res) => {
         item.lastWatchedAt = new Date().toISOString();
         writeDb(db);
       }
-    });
+    } finally {
+      release();
+    }
   } catch (e) {}
 
   // Daha yeni bir süre isteği gelmişse eski süreyi YouTube'a gönderme
@@ -401,7 +404,8 @@ router.post('/video/:id/save-position', localhostOnly, async (req, res) => {
   const durNum = parseFloat(duration) || 0;
 
   try {
-    await acquireDbLock(async () => {
+    const release = await acquireDbLock();
+    try {
       const db = readDb();
       const item = db.history.find(h => h.id === id);
       if (item) {
@@ -420,7 +424,9 @@ router.post('/video/:id/save-position', localhostOnly, async (req, res) => {
 
         writeDb(db);
       }
-    });
+    } finally {
+      release();
+    }
 
     res.json({ success: true });
   } catch (err) {

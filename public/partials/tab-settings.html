@@ -618,12 +618,24 @@
                     <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
                       <label for="settings-autosync-watchtime" id="label-autosync-watchtime" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
                         <i data-lucide="bookmark-check" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
-                        <span id="text-autosync-watchtime-title">YouTube İzleme Süresi Eşitleme</span>
+                        <span id="text-autosync-watchtime-title">YouTube İzleme Süresi Eşitleme (Uzak Sunucu)</span>
                       </label>
                       <div class="toggle-container" style="margin-top: 8px;">
                         <input type="checkbox" id="settings-autosync-watchtime" class="toggle-input" checked>
                         <label for="settings-autosync-watchtime" class="toggle-label"></label>
-                        <span id="desc-autosync-watchtime">Videoyu duraklatınca veya kapatınca kaldığım yeri YouTube geçmişine otomatik kaydet</span>
+                        <span id="desc-autosync-watchtime">Videoyu duraklatınca kaldığım yeri YouTube geçmişine kaydet</span>
+                      </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                      <label for="settings-autosync-local-watchtime" id="label-autosync-local-watchtime" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                        <i data-lucide="save" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
+                        <span id="text-autosync-local-watchtime-title">Yerel İzleme Süresi Kaydetme (Kaldığın Yerden Devam Et)</span>
+                      </label>
+                      <div class="toggle-container" style="margin-top: 8px;">
+                        <input type="checkbox" id="settings-autosync-local-watchtime" class="toggle-input" checked>
+                        <label for="settings-autosync-local-watchtime" class="toggle-label"></label>
+                        <span id="desc-autosync-local-watchtime">Uygulamayı kapattığımda videolara kaldığım saniyeden devam edebilmek için yerel veritabanına kaydet</span>
                       </div>
                     </div>
 

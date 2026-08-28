@@ -1182,8 +1182,8 @@ export function updateUI(db) {
     renderVideoGrid(downloadedGrid, filteredDownloaded, window.downloadedViewMode || 'grid');
 
     const inlineContainer = document.getElementById('downloaded-inline-player-container');
-    if (inlineContainer && !inlineContainer.classList.contains('hidden') && currentPlayingVideoId) {
-      renderDownloadedPlaylist(currentPlayingVideoId);
+    if (inlineContainer && !inlineContainer.classList.contains('hidden') && window.currentPlayingVideoId) {
+      renderDownloadedPlaylist(window.currentPlayingVideoId);
     }
   }
 
@@ -1265,6 +1265,9 @@ export function updateUI(db) {
 
     const settingsAutoSyncWatchtime = document.getElementById('settings-autosync-watchtime');
     if (settingsAutoSyncWatchtime && document.activeElement !== settingsAutoSyncWatchtime) settingsAutoSyncWatchtime.checked = db.settings.autoSyncWatchtime !== false;
+
+    const settingsAutoSyncLocalWatchtime = document.getElementById('settings-autosync-local-watchtime');
+    if (settingsAutoSyncLocalWatchtime && document.activeElement !== settingsAutoSyncLocalWatchtime) settingsAutoSyncLocalWatchtime.checked = db.settings.autoSyncLocalWatchtime !== false;
 
     const settingsAutoDiskSync = document.getElementById('settings-auto-disk-sync');
     if (settingsAutoDiskSync && document.activeElement !== settingsAutoDiskSync) settingsAutoDiskSync.checked = db.settings.autoDiskSync !== false;
@@ -1804,7 +1807,7 @@ if (confirmDeleteBtn) {
     }
     
     // FILE LOCK DÜZELTMESİ: Silinecek video oynatılıyorsa, önce oynatıcıyı kapat
-    if (id === currentPlayingVideoId) {
+    if (id === window.currentPlayingVideoId) {
       if (window.closePlayerModal) window.closePlayerModal();
       if (window.closeInlinePlayer) window.closeInlinePlayer();
       // Dosya kilitlerinin Windows ve tarayıcı tarafından tamamen bırakılması için kısa bir süre bekle

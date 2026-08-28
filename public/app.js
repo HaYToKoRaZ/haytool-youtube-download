@@ -2366,6 +2366,9 @@ function updateUI(db) {
     const settingsAutoSyncWatchtime = document.getElementById('settings-autosync-watchtime');
     if (settingsAutoSyncWatchtime && document.activeElement !== settingsAutoSyncWatchtime) settingsAutoSyncWatchtime.checked = db.settings.autoSyncWatchtime !== false;
 
+    const settingsAutoSyncLocalWatchtime = document.getElementById('settings-autosync-local-watchtime');
+    if (settingsAutoSyncLocalWatchtime && document.activeElement !== settingsAutoSyncLocalWatchtime) settingsAutoSyncLocalWatchtime.checked = db.settings.autoSyncLocalWatchtime !== false;
+
     const settingsAutoDiskSync = document.getElementById('settings-auto-disk-sync');
     if (settingsAutoDiskSync && document.activeElement !== settingsAutoDiskSync) settingsAutoDiskSync.checked = db.settings.autoDiskSync !== false;
 
@@ -2826,6 +2829,7 @@ async function performAutoSave() {
     sponsorBlockEnabled: document.getElementById('settings-sponsorblock').checked,
     playSounds: document.getElementById('settings-playsounds').checked,
     autoSyncWatchtime: document.getElementById('settings-autosync-watchtime') ? document.getElementById('settings-autosync-watchtime').checked : (localDb.settings.autoSyncWatchtime !== false),
+    autoSyncLocalWatchtime: document.getElementById('settings-autosync-local-watchtime') ? document.getElementById('settings-autosync-local-watchtime').checked : (localDb.settings.autoSyncLocalWatchtime !== false),
     autoDiskSync: document.getElementById('settings-auto-disk-sync') ? document.getElementById('settings-auto-disk-sync').checked : (localDb.settings.autoDiskSync !== false),
     periodicDiskSyncInterval: document.getElementById('settings-periodic-disk-sync-interval') ? document.getElementById('settings-periodic-disk-sync-interval').value : (localDb.settings.periodicDiskSyncInterval || '360'),
     showNotifications: document.getElementById('settings-shownotifications').checked,
@@ -12485,7 +12489,7 @@ window.openConsoleModal = function() {
     document.body.style.overflow = 'hidden';
     
     // Geçmiş logları çek
-    fetch('/api/settings/logs')
+    fetch('/api/logs')
       .then(res => res.json())
       .then(logs => {
         if (!consoleOutput) return;

@@ -3,6 +3,12 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.18] - 2026-08-28
+- **Bugfix (Konsol Modalı):** `app.js` önbellek (cache) temizlendi ve Sistem Konsolu butonu tekrar işlevsel hale getirildi. Konsolun API log adresi `/api/logs` olarak düzeltildi.
+
+## [9.8.17] - 2026-08-27
+- **Performance & Mutex Fix:** `history.js` içerisindeki kilitlenme sorunu çözüldü, izleme süresi senkronizasyonu geliştirildi ve arayüze ayarlardan yönetilebilecek `autoSyncLocalWatchtime` eklendi.
+
 ## [9.8.9] - 2026-08-26
 
 ### 🐛 Bug Fixes

@@ -97,8 +97,10 @@ export const savePlaybackPosition = window.savePlaybackPosition = function(video
     localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
   } catch (e) {}
 
+  if (localDb?.settings?.autoSyncLocalWatchtime === false) return;
+
   const now = Date.now();
-  if (isFinal || (now - _lastPositionSaveTime > 5000)) {
+  if (isFinal || (now - _lastPositionSaveTime > 60000)) {
     _lastPositionSaveTime = now;
     fetch(`/api/video/${videoId}/save-position`, {
       method: 'POST',
