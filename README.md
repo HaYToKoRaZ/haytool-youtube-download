@@ -25,6 +25,7 @@
   <img src="https://img.shields.io/badge/Version-v9.8.18-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&color=blueviolet" alt="GitHub Downloads (latest release)" />
+  <a href="https://haytokoraz.github.io/" target="_blank"><img src="https://img.shields.io/badge/🌐_All_Apps-haytokoraz.github.io-FF0000?style=for-the-badge&logo=githubpages&logoColor=white" alt="HaYTo Ecosystem Hub" /></a>
 </p>
 
   <img src="https://img.shields.io/badge/Vanilla_JS-ES6+-yellow?style=flat-square&logo=javascript" alt="JavaScript" />
@@ -159,6 +160,7 @@ You can call the executable directly from the terminal or command prompt to down
 
 ## 📞 Support & Feedback
 
+* **Main Portal (All Apps):** [haytokoraz.github.io](https://haytokoraz.github.io/)
 * **Email:** `korazhayto@gmail.com`
 * **X (Twitter):** [HaYTo](https://x.com/HaYTo)
 * **GitHub:** [haytool-youtube-download](https://github.com/HaYToKoRaZ/haytool-youtube-download)
@@ -289,6 +291,7 @@ Windows Terminal veya Komut İstemi (CMD) üzerinden indirme komutunu doğrudan 
 
 ## 📞 Destek ve İletişim
 
+* **Ana Portföy & Tüm Uygulamalar:** [haytokoraz.github.io](https://haytokoraz.github.io/)
 * **E-posta:** `korazhayto@gmail.com`
 * **X (Twitter):** [HaYTo](https://x.com/HaYTo)
 * **GitHub:** [haytool-youtube-download](https://github.com/HaYToKoRaZ/haytool-youtube-download)
