@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HaYTooL - YouTube Otomasyon & Çevrimdışı Kütüphane Sistemi</title>
+  <meta name="description" content="Algoritmaların pençesinden kurtulun: Gelişmiş, taşınabilir ve otomatik YouTube takip, indirme ve reklamsız kütüphane sistemi.">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+
+  <!-- Google Fonts: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Atmosferik Parıltılar -->
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-2"></div>
+
+  <!-- Üst Navigasyon Barı -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="#" class="nav-brand">
+        <img src="assets/logo.png" alt="HaYTooL Logo" class="nav-logo">
+        <span>HaYTooL</span>
+        <span class="nav-tag">v9.8.18</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#features" data-i18n="nav_features">Özellikler</a></li>
+        <li><a href="#screenshots" data-i18n="nav_screenshots">Ekran Görüntüleri</a></li>
+        <li><a href="#shortcuts" data-i18n="nav_shortcuts">Kısayollar</a></li>
+        <li><a href="#install" data-i18n="nav_install">Kurulum</a></li>
+      </ul>
+
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <button id="lang-switch-btn" class="lang-switch-btn">🌐 English</button>
+        <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" rel="noopener" class="btn-primary" style="padding: 0.45rem 1rem; font-size: 0.88rem; box-shadow: none;">
+          ⭐ Star
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO SECTION -->
+  <header class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="paw-icon">🐾</span>
+        <span data-i18n="hero_badge">🐱 HaYTooL Meow Edition • Algoritmalara Meydan Okuyun!</span>
+      </div>
+
+      <h1 class="hero-title">
+        <span data-i18n="hero_title_1">Algoritma Pençesinden Kurtulun,</span><br>
+        <span class="highlight" data-i18n="hero_title_2">Kendi Özel Kütüphanenizi Kurun.</span>
+      </h1>
+
+      <p class="hero-subtitle" data-i18n="hero_sub">
+        İstenmeyen öneriler ve sonsuz video tuzakları yok! Sadece takip ettiğiniz kanalları arka planda otomatik indirin, %100 reklamsız ve çevrimdışı izleyin.
+      </p>
+
+      <div class="hero-actions">
+        <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases" target="_blank" rel="noopener" class="btn-primary">
+          <span>📥</span> <span data-i18n="btn_download">Hemen İndir (v9.8.18)</span>
+        </a>
+        <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" rel="noopener" class="btn-secondary">
+          <span>🐱</span> <span data-i18n="btn_github">GitHub'da İncele</span>
+        </a>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat-item">
+          <h4 data-i18n="stat_adfree">%100 Reklamsız</h4>
+          <p data-i18n="stat_adfree_sub">SponsorBlock Entegre</p>
+        </div>
+        <div class="stat-item">
+          <h4 data-i18n="stat_portable">Sıfır Bağımlılık</h4>
+          <p data-i18n="stat_portable_sub">Node + yt-dlp + FFmpeg Dahil</p>
+        </div>
+        <div class="stat-item">
+          <h4 data-i18n="stat_languages">7 Dil Desteği</h4>
+          <p data-i18n="stat_languages_sub">Otomatik Altyazı Çevirisi</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hero Sağ: Sevimli Kedi Maskotu & Etkileşim -->
+    <div class="hero-visual">
+      <div class="mascot-container" title="Bana tıkla, miyavlayayım!">
+        <div class="mascot-glow"></div>
+        <img src="assets/cat-mascot.svg" alt="HaYTooL Cat Mascot" class="mascot-img">
+        <div class="cat-bubble" data-i18n="cat_quote">Miyav! Reklamsız izlemek harika!</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ÖZELLİKLER BÖLÜMÜ -->
+  <section id="features" class="section">
+    <div class="section-header">
+      <span class="section-tag" data-i18n="features_tag">🐾 Neden HaYTooL?</span>
+      <h2 class="section-title" data-i18n="features_title">Özgürlüğünüzü Geri Kazanın</h2>
+      <p class="section-desc" data-i18n="features_desc">Tüm kontroller sizin elinizde. Arka planda sessizce çalışan otomasyon motoru.</p>
+    </div>
+
+    <div class="features-grid">
+      <!-- Özellik 1 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">📡</div>
+        <h3>Arka Planda Otomasyon</h3>
+        <p>Takip ettiğiniz kanalların RSS akışlarını periyodik kontrol eder. Yeni bir video yüklendiğinde anında yerel diskinize indirir.</p>
+      </div>
+
+      <!-- Özellik 2 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">🛡️</div>
+        <h3>100% Reklamsız & SponsorBlock</h3>
+        <p>Sponsorlu bölümleri, introları ve abonelik hatırlatmalarını zaman tünelinde otomatik atlar. Sıfır reklam, sıfır dikkat dağınıklığı.</p>
+      </div>
+
+      <!-- Özellik 3 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">📦</div>
+        <h3>Taşınabilir & Sıfır Bağımlılık</h3>
+        <p>Node.js, yt-dlp ve FFmpeg arşivin içinde hazır gelir. Harici hiçbir kurulum veya paket yöneticisi gerekmez.</p>
+      </div>
+
+      <!-- Özellik 4 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">🎬</div>
+        <h3>Çift Oynatıcı & C# Desktop Player</h3>
+        <p>İster tarayıcıda Artplayer / Plyr ile izleyin, ister bağımsız C# WPF native oynatıcıyla diskten sıfır gecikmeyle yürütün.</p>
+      </div>
+
+      <!-- Özellik 5 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">💬</div>
+        <h3>Çok Dilli Altyazı & Çeviri</h3>
+        <p>Türkçe/İngilizce altyazıları otomatik çeker. 11 hedef dilde anlık çeviri ve 12 farklı altyazı renk/boyut özelleştirmesi sunar.</p>
+      </div>
+
+      <!-- Özellik 6 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">🔄</div>
+        <h3>APE & Gerçek Geçmiş Senkronu</h3>
+        <p>İzleme konumunuzu otomatik gerçek YouTube izleme geçmişinize senkronize eder. Toplu video işaretleme desteği sağlar.</p>
+      </div>
+
+      <!-- Özellik 7 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">🎮</div>
+        <h3>Discord Rich Presence (RPC)</h3>
+        <p>İzlediğiniz videoyu, kanal adını ve süresini Discord durumunuzda şık bir şekilde otomatik gösterir.</p>
+      </div>
+
+      <!-- Özellik 8 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">⚙️</div>
+        <h3>Kanal Bazlı Kurallar</h3>
+        <p>Her kanala özel otomatik indirme, Shorts videolarını engelleme ve maksimum/minimum süre filtreleri belirleyin.</p>
+      </div>
+
+      <!-- Özellik 9 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">🖥️</div>
+        <h3>Windows Sistem Tepsisi & Konsol</h3>
+        <p>Sistem tepsisinde (Tray) arka planda sessiz çalışır. Etkileşimli terminal komutları ile (`ton`, `toff`, `pd`) anında yönetilebilir.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- EKRAN GÖRÜNTÜLERİ BÖLÜMÜ -->
+  <section id="screenshots" class="gallery-section">
+    <div class="section-header">
+      <span class="section-tag" data-i18n="gallery_tag">📸 Arayüz & Görseller</span>
+      <h2 class="section-title" data-i18n="gallery_title">Zarif, Güçlü ve Kullanıcı Dostu Arayüz</h2>
+      <p class="section-desc" data-i18n="gallery_desc">Modern koyu tema, çift oynatıcı deneyimi ve gelişmiş yönetim paneli.</p>
+    </div>
+
+    <!-- Sekmeler -->
+    <div class="gallery-tabs">
+      <button class="tab-btn active" data-tab="all">Tümü / All</button>
+      <button class="tab-btn" data-tab="tr">🇹🇷 Türkçe Arayüz</button>
+      <button class="tab-btn" data-tab="en">🇬🇧 English Interface</button>
+    </div>
+
+    <!-- Görseller Grid -->
+    <div class="screenshots-grid" id="gallery-container">
+      <!-- JavaScript tarafından dinamik oluşturulur -->
+    </div>
+  </section>
+
+  <!-- KLAVYE KISAYOLLARI BÖLÜMÜ -->
+  <section id="shortcuts" class="section shortcuts-section">
+    <div class="section-header">
+      <span class="section-tag" data-i18n="shortcuts_tag">🎹 Klavye Kısayolları</span>
+      <h2 class="section-title" data-i18n="shortcuts_title">Oynatıcıyı Parmaklarınızla Yönetin</h2>
+      <p class="section-desc" data-i18n="shortcuts_desc">Gelişmiş yerel oynatıcımızda farenize dokunmadan her şeyi kontrol edin.</p>
+    </div>
+
+    <div class="shortcuts-grid">
+      <div class="shortcut-item">
+        <span class="shortcut-desc">Oynat / Duraklat</span>
+        <span class="key-badge">Space / K</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-desc">Tam Ekran</span>
+        <span class="key-badge">F</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-desc">Sesi Kapat / Aç</span>
+        <span class="key-badge">M</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-desc">5 Sn İleri / Geri</span>
+        <span class="key-badge">← / →</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-desc">10 Sn İleri / Geri</span>
+        <span class="key-badge">J / L</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-desc">Ses Seviyesi (+%5 / -%5)</span>
+        <span class="key-badge">↑ / ↓</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-desc">Hız Artır / Azalt</span>
+        <span class="key-badge">&gt; / &lt;</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="shortcut-desc">Yüzdeye Atla (%0 - %90)</span>
+        <span class="key-badge">0 - 9</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- KURULUM & ÇALIŞTIRMA BÖLÜMÜ -->
+  <section id="install" class="section">
+    <div class="section-header">
+      <span class="section-tag" data-i18n="install_tag">🚀 Hızlı Başlangıç</span>
+      <h2 class="section-title" data-i18n="install_title">Kurulum Gerektirmez, Hemen Başlayın</h2>
+      <p class="section-desc" data-i18n="install_desc">Tüm bağımlılıklar paket içinde hazır gelir; ek kurulumla uğraşmayın.</p>
+    </div>
+
+    <div class="install-container">
+      <!-- Windows Kurulum Kartı -->
+      <div class="install-card">
+        <div class="install-card-header">
+          <span style="font-size: 1.8rem;">🪟</span>
+          <h3>Windows İçin Başlatma</h3>
+        </div>
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">
+          Klasör içindeki <b>HaYTooL YT Downloader.exe</b> dosyasını çift tıklatarak sistem tepsisinde başlatabilirsiniz.
+        </p>
+        <p style="color: var(--text-muted);">
+          Veya bağımsız masaüstü C# oynatıcısını çalıştırmak için:
+        </p>
+        <div class="code-box">HaYTooL-Player Beta.exe</div>
+        <p style="color: var(--text-muted); font-size: 0.88rem;">
+          Dashboard varsayılan olarak <span style="color: #FFB703;">http://localhost:4141</span> adresinde açılır.
+        </p>
+      </div>
+
+      <!-- Linux / macOS Kartı -->
+      <div class="install-card">
+        <div class="install-card-header">
+          <span style="font-size: 1.8rem;">🐧</span>
+          <h3>Linux / macOS (Unix)</h3>
+        </div>
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">
+          Terminalden çalıştırma izni verin ve başlatma scriptini çalıştırın:
+        </p>
+        <div class="code-box">chmod +x baslat.sh<br>./baslat.sh</div>
+        <p style="color: var(--text-muted); font-size: 0.88rem;">
+          Çift işletim sistemli (Dual-boot) sistemlerde config parametreleri otomatik izole edilir.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <h3>
+          <img src="assets/logo.png" alt="Logo" style="width: 28px; border-radius: 6px;">
+          HaYTooL
+        </h3>
+        <p>
+          Algoritma dayatmalarından uzak, bağımsız ve gizliliğe önem veren kişisel YouTube otomasyon ve çevrimdışı arşiv sistemi.
+        </p>
+        <p style="margin-top: 1rem; font-weight: 600; color: #FFF;">
+          Geliştirici / Author: <span style="color: var(--yt-red);">HaYTo</span>
+        </p>
+      </div>
+
+      <div class="footer-col">
+        <h4>Bağlantılar</h4>
+        <ul>
+          <li><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" rel="noopener">GitHub Reposu</a></li>
+          <li><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases" target="_blank" rel="noopener">Sürümler & İndirme</a></li>
+          <li><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/blob/main/LICENSE" target="_blank" rel="noopener">MIT Lisansı</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>İletişim & Destek</h4>
+        <ul>
+          <li><a href="mailto:korazhayto@gmail.com">korazhayto@gmail.com</a></li>
+          <li><a href="https://x.com/HaYTo" target="_blank" rel="noopener">X / Twitter (@HaYTo)</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span>© 2026 HaYTooL. Made with ❤️ and 🐾 by HaYTo.</span>
+      <span>MIT License</span>
+    </div>
+  </footer>
+
+  <!-- Lightbox Modal -->
+  <div id="lightbox" class="lightbox">
+    <button id="lightbox-close" class="lightbox-close">✕</button>
+    <div class="lightbox-content">
+      <img id="lightbox-img" src="" alt="Screenshot">
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
