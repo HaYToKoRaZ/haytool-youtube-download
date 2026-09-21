@@ -114,16 +114,42 @@
             </div>
           </div>
 
-          <!-- Son Tamamlanan İndirmeler (Dikey Otomatik Büyüme & Çoklu Görünüm) -->
-          <div class="card queue-card-container" style="padding: 25px; display: flex; flex-direction: column; min-height: auto; overflow: visible;">
-            <div class="card-title-bar" style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
-              <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 0; color:var(--text-main);">
-                <i data-lucide="check-circle-2" style="width: 18px; height: 18px; color: #10b981;"></i>
-                <span id="queue-completed-title">Son İndirilen Videolar</span>
-              </h3>
+          <!-- Alt Bölüm: Son İndirilenler (Sol) ve Hata Alanlar / Denenenler (Sağ) -->
+          <div class="queue-history-grid">
+            <!-- Sol Sütun: Son İndirilen Videolar -->
+            <div class="card queue-card-container queue-split-card">
+              <div class="card-title-bar" style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+                <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 0; color:var(--text-main);">
+                  <i data-lucide="check-circle-2" style="width: 18px; height: 18px; color: #10b981;"></i>
+                  <span id="queue-completed-title">Son İndirilen Videolar</span> (<span id="queue-completed-count">0</span>)
+                </h3>
+              </div>
+              <div class="queue-list" id="queue-completed-list" style="flex:1; display:flex; flex-direction:column; gap:8px;">
+                <div class="text-center text-muted" id="queue-completed-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Henüz tamamlanan indirme yok.</div>
+              </div>
             </div>
-            <div class="queue-list" id="queue-completed-list" style="flex:1; display:flex; flex-direction:column; gap:8px;">
-              <div class="text-center text-muted" id="queue-completed-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Henüz tamamlanan indirme yok.</div>
+
+            <!-- Sağ Sütun: İndirilmesi Denenenler ve Hata Alanlar -->
+            <div class="card queue-card-container queue-split-card">
+              <div class="card-title-bar" style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+                <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 0; color:var(--text-main);">
+                  <i data-lucide="alert-circle" style="width: 18px; height: 18px; color: var(--accent-red);"></i>
+                  <span id="queue-failed-title">Hata Alanlar & Denenenler</span> (<span id="queue-failed-count">0</span>)
+                </h3>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button class="btn btn-secondary" onclick="retryAllFailedVideos()" id="btn-retry-all-failed" title="Tümünü Tekrar Dene" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.2); color: #10b981; display:flex; align-items:center; gap:4px;">
+                    <i data-lucide="rotate-ccw" style="width:12px; height:12px;"></i>
+                    <span id="btn-retry-all-failed-text">Tümünü Tekrar Dene</span>
+                  </button>
+                  <button class="btn btn-secondary" onclick="clearAllFailedVideos()" id="btn-clear-failed" title="Temizle" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(255, 0, 85, 0.08); border-color: rgba(255, 0, 85, 0.2); color: var(--accent-red); display:flex; align-items:center; gap:4px;">
+                    <i data-lucide="trash-2" style="width:12px; height:12px;"></i>
+                    <span id="btn-clear-failed-text">Temizle</span>
+                  </button>
+                </div>
+              </div>
+              <div class="queue-list" id="queue-failed-list" style="flex:1; display:flex; flex-direction:column; gap:8px;">
+                <div class="text-center text-muted" id="queue-failed-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Hata alan veya başarısız indirme bulunmuyor.</div>
+              </div>
             </div>
           </div>
         </div>

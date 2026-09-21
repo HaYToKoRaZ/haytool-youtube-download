@@ -4,7 +4,7 @@
         <div class="brand-icon">
           <img src="logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
-        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYTooL-YT-Downloader/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v9.8.18</a></span>
+        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYTooL-YT-Downloader/haytool-youtube-download" target="_blank" style="color: inherit; text-decoration: none;">v9.8.24</a></span>
       </div>
 
       <nav class="nav-menu">
@@ -80,9 +80,61 @@
       </nav>
 
       <div class="topbar-status-badges">
-        <div class="status-badge" id="badge-weather" title="Hava Durumu" style="cursor: pointer;">
+        <div class="status-badge weather-badge-wrapper" id="badge-weather" title="Hava Durumu" style="cursor: pointer;">
           <i data-lucide="sun" id="weather-icon"></i>
           <span id="weather-display">--°</span>
+          <span class="weather-precip-badge" id="weather-precip-badge" title="Yağış İhtimali">
+            <i data-lucide="cloud-rain" id="weather-precip-icon"></i>
+            <span id="weather-precip-val">--%</span>
+          </span>
+          <span class="weather-city-label" id="weather-city-display"></span>
+          <!-- Hava Durumu Detay Popover -->
+          <div class="weather-popover" id="weather-popover">
+            <div class="weather-popover-header">
+              <div class="weather-popover-icon-wrap">
+                <i data-lucide="sun" id="weather-popover-icon"></i>
+              </div>
+              <div class="weather-popover-title">
+                <span class="weather-popover-temp" id="weather-popover-temp">--°</span>
+                <span class="weather-popover-desc" id="weather-popover-desc">--</span>
+              </div>
+              <span class="weather-popover-city" id="weather-popover-city">--</span>
+            </div>
+            <div class="weather-popover-grid">
+              <div class="weather-popover-item">
+                <i data-lucide="thermometer"></i>
+                <div>
+                  <span class="wpop-label" id="weather-popover-feels-label">Hissedilen</span>
+                  <span class="wpop-value" id="weather-popover-feels">--°</span>
+                </div>
+              </div>
+              <div class="weather-popover-item">
+                <i data-lucide="droplets"></i>
+                <div>
+                  <span class="wpop-label" id="weather-popover-humidity-label">Nem</span>
+                  <span class="wpop-value" id="weather-popover-humidity">--%</span>
+                </div>
+              </div>
+              <div class="weather-popover-item">
+                <i data-lucide="wind"></i>
+                <div>
+                  <span class="wpop-label" id="weather-popover-wind-label">Rüzgar</span>
+                  <span class="wpop-value" id="weather-popover-wind">-- km/s</span>
+                </div>
+              </div>
+              <div class="weather-popover-item">
+                <i data-lucide="cloud-rain"></i>
+                <div>
+                  <span class="wpop-label" id="weather-popover-precip-label">Yağış İhtimali</span>
+                  <span class="wpop-value" id="weather-popover-precip">--%</span>
+                </div>
+              </div>
+            </div>
+            <div class="weather-popover-footer">
+              <i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i>
+              <span id="weather-popover-refresh-text">Çift tıklayarak yenileyin</span>
+            </div>
+          </div>
         </div>
         <div class="status-badge status-badge-duo" id="badge-status-duo" title="Sistem ve YouTube Oturum Durumu">
           <div class="status-duo-item" id="badge-connection" title="Sunucu Bağlantı Durumu: Bağlanıyor...">
@@ -90,7 +142,7 @@
             <span id="topbar-status-text" style="display: none;">Bağlantı: Bağlanıyor...</span>
           </div>
           <span class="status-duo-divider"></span>
-          <div class="status-duo-item" id="badge-cookie" title="YouTube Oturum Durumu" style="cursor: pointer;" onclick="if(typeof testCookies==='function') testCookies();">
+          <div class="status-duo-item" id="badge-cookie" title="YouTube Oturum Durumu" style="cursor: pointer;" onclick="if(typeof window.testCookies==='function') window.testCookies();">
             <span class="cookie-test-indicator" id="cookie-test-indicator" style="width: 7px; height: 7px; border-radius: 50%; display: inline-block; background-color: var(--text-muted);"></span>
           </div>
         </div>

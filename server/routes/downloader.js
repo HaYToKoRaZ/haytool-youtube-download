@@ -339,7 +339,8 @@ router.post('/ytdlp-update', localhostOnly, async (req, res) => {
     try { fs.mkdirSync(targetDir, { recursive: true }); } catch (e) {}
   }
 
-  // Eğer Python modunda çalışıyorsa pip ile güncelle
+  // 1. Python modunda ise pip ile güncelle
+  let pipOutput = '';
   if (runMode === 'python') {
     const pythonCmd = db.settings?.pythonCmd || (isWin ? 'python' : 'python3');
     let pipTarget = 'yt-dlp';
@@ -353,110 +354,117 @@ router.post('/ytdlp-update', localhostOnly, async (req, res) => {
     console.log(`[yt-dlp Pip Update] Komut çalıştırılıyor: ${pipCmd}`);
     addTerminalLog(`[yt-dlp] Python pip üzerinden güncelleniyor: ${pipTarget}...`, 'info');
 
-    return execYtdlp(pipCmd, { timeout: 120000 }, (pipErr, stdout, stderr) => {
-      const output = (stdout || '') + '\n' + (stderr || '');
-      if (pipErr) {
-        return res.json({ success: false, error: output || pipErr.message });
-      }
-      execYtdlp(`"${ytdlpPath}" --version`, { timeout: 10000 }, (verErr, verStdout) => {
-        const newVersion = verErr ? '' : (verStdout || '').trim();
-        addTerminalLog(`[yt-dlp] Sürüm başarıyla güncellendi: ${newVersion}`, 'success');
-        res.json({ success: true, output, newVersion });
+    try {
+      await new Promise((resolve) => {
+        exec(pipCmd, { timeout: 120000 }, (err, stdout, stderr) => {
+          pipOutput = ((stdout || '') + '\n' + (stderr || '')).trim();
+          resolve();
+        });
       });
-    });
+    } catch (_) {}
   }
 
-  // Exe / Binary Modu: Doğrudan GitHub üzerinden binary indirerek en güvenilir şekilde güncelle
-  let dlUrl = '';
-  if (target === 'nightly' || target === 'latest' || !target) {
-    dlUrl = isWin
-      ? 'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp.exe'
-      : 'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp';
-  } else if (target === 'stable') {
-    dlUrl = isWin
-      ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
-      : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
-  } else if (target.startsWith('nightly@')) {
-    const tag = target.replace('nightly@', '');
-    dlUrl = isWin
-      ? `https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/${tag}/yt-dlp.exe`
-      : `https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/${tag}/yt-dlp`;
-  } else if (target.startsWith('stable@')) {
-    const tag = target.replace('stable@', '');
-    dlUrl = isWin
-      ? `https://github.com/yt-dlp/yt-dlp/releases/download/${tag}/yt-dlp.exe`
-      : `https://github.com/yt-dlp/yt-dlp/releases/download/${tag}/yt-dlp`;
-  } else {
-    // Özel tag veya bilinmeyen format
-    dlUrl = isWin
-      ? `https://github.com/yt-dlp/yt-dlp/releases/download/${target}/yt-dlp.exe`
-      : `https://github.com/yt-dlp/yt-dlp/releases/download/${target}/yt-dlp`;
+  // 2. Bağımsız binary dosyasını (yt-dlp.exe) güncelle
+  // Windows'ta yerel updater (yt-dlp --update-to) dosya kilitlerini en temiz çözen yöntemdir
+  let binaryUpdated = false;
+  if (fs.existsSync(ytdlpPath)) {
+    try {
+      const updateCmd = `"${ytdlpPath}" --update-to ${target}`;
+      console.log(`[yt-dlp Binary Update] Komut çalıştırılıyor: ${updateCmd}`);
+      addTerminalLog(`[yt-dlp] Yerel motor güncelleniyor (${target})...`, 'info');
+
+      await new Promise((resolve, reject) => {
+        exec(updateCmd, { timeout: 120000 }, (err, stdout, stderr) => {
+          if (err) return reject(new Error((stderr || stdout || err.message).trim()));
+          binaryUpdated = true;
+          resolve();
+        });
+      });
+    } catch (selfUpdateErr) {
+      console.warn('[yt-dlp] --update-to başarısız oldu, doğrudan indirme deneniyor:', selfUpdateErr.message);
+    }
   }
 
-  console.log(`[yt-dlp Update] Doğrudan GitHub indirmesi başlatılıyor: ${dlUrl}`);
-  addTerminalLog(`[yt-dlp] Sürüm indiriliyor (${target})...`, 'info');
-
-  try {
-    const response = await fetch(dlUrl, {
-      headers: { 'User-Agent': 'HaYTooL-YT-Downloader' },
-      redirect: 'follow'
-    });
-
-    if (!response.ok) {
-      throw new Error(`GitHub HTTP ${response.status}: ${response.statusText}`);
+  // 3. Binary yoksa veya self-update başarısız olduysa GitHub'dan doğrudan indir
+  if (!binaryUpdated) {
+    let dlUrl = '';
+    if (target === 'nightly' || target === 'latest' || !target) {
+      dlUrl = isWin
+        ? 'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp.exe'
+        : 'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp';
+    } else if (target === 'stable') {
+      dlUrl = isWin
+        ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
+        : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+    } else if (target.startsWith('nightly@')) {
+      const tag = target.replace('nightly@', '');
+      dlUrl = isWin
+        ? `https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/${tag}/yt-dlp.exe`
+        : `https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/${tag}/yt-dlp`;
+    } else if (target.startsWith('stable@')) {
+      const tag = target.replace('stable@', '');
+      dlUrl = isWin
+        ? `https://github.com/yt-dlp/yt-dlp/releases/download/${tag}/yt-dlp.exe`
+        : `https://github.com/yt-dlp/yt-dlp/releases/download/${tag}/yt-dlp`;
+    } else {
+      dlUrl = isWin
+        ? `https://github.com/yt-dlp/yt-dlp/releases/download/${target}/yt-dlp.exe`
+        : `https://github.com/yt-dlp/yt-dlp/releases/download/${target}/yt-dlp`;
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    try {
+      const response = await fetch(dlUrl, {
+        headers: { 'User-Agent': 'HaYTooL-YT-Downloader' },
+        redirect: 'follow'
+      });
 
-    if (buffer.length < 100000) {
-      throw new Error('İndirilen dosya boyutu beklenenden çok küçük (geçersiz binary).');
-    }
+      if (!response.ok) {
+        throw new Error(`GitHub HTTP ${response.status}: ${response.statusText}`);
+      }
 
-    // Dosyayı geçici bir isme yazıp ardından asıl konuma taşı (Atomik ve güvenli)
-    const tempFilePath = `${ytdlpPath}.downloading_${Date.now()}`;
-    fs.writeFileSync(tempFilePath, buffer);
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
 
-    if (fs.existsSync(ytdlpPath)) {
+      if (buffer.length < 100000) {
+        throw new Error('İndirilen dosya boyutu beklenenden çok küçük.');
+      }
+
+      const tempFilePath = `${ytdlpPath}.downloading_${Date.now()}`;
+      fs.writeFileSync(tempFilePath, buffer);
+
+      if (fs.existsSync(ytdlpPath)) {
+        try {
+          fs.unlinkSync(ytdlpPath);
+        } catch (_) {
+          const oldBackupPath = `${ytdlpPath}.old_${Date.now()}`;
+          try { fs.renameSync(ytdlpPath, oldBackupPath); } catch (e) {}
+        }
+      }
+
       try {
-        fs.unlinkSync(ytdlpPath);
-      } catch (delErr) {
-        // Eğer Windows dosyayı kilitlediyse eski dosyayı .old yapıp yenisini taşı
-        const oldBackupPath = `${ytdlpPath}.old_${Date.now()}`;
-        try { fs.renameSync(ytdlpPath, oldBackupPath); } catch (_) {}
+        fs.renameSync(tempFilePath, ytdlpPath);
+      } catch (rnErr) {
+        // Yeniden adlandırma başarısız olursa doğrudan yazmayı dene
+        fs.copyFileSync(tempFilePath, ytdlpPath);
+        try { fs.unlinkSync(tempFilePath); } catch (_) {}
+      }
+
+      if (!isWin) {
+        try { fs.chmodSync(ytdlpPath, '755'); } catch (e) {}
+      }
+    } catch (dlErr) {
+      if (runMode !== 'python') {
+        return res.json({ success: false, error: 'Güncelleme başarısız: ' + dlErr.message });
       }
     }
-
-    fs.renameSync(tempFilePath, ytdlpPath);
-
-    if (!isWin) {
-      try { fs.chmodSync(ytdlpPath, '755'); } catch (e) {}
-    }
-
-    // Yeni sürümü kontrol et
-    execYtdlp(`"${ytdlpPath}" --version`, { timeout: 10000 }, (verErr, verStdout) => {
-      const newVersion = verErr ? '' : (verStdout || '').trim();
-      const successMsg = `yt-dlp başarıyla ${newVersion || target} sürümüne güncellendi.`;
-      console.log(`[yt-dlp Update] ${successMsg}`);
-      addTerminalLog(`[yt-dlp] ${successMsg}`, 'success');
-      res.json({ success: true, output: successMsg, newVersion });
-    });
-
-  } catch (err) {
-    console.error('[yt-dlp Update] Doğrudan indirme hatası, fallback komutu deneniyor:', err.message);
-    
-    // Fallback: yt-dlp --update-to veya --update dene
-    const fallbackCmd = `"${ytdlpPath}" --update-to ${target}`;
-    execYtdlp(fallbackCmd, { timeout: 120000 }, (updateErr, updateStdout, updateStderr) => {
-      const output = ((updateStdout || '') + '\n' + (updateStderr || '')).trim();
-      if (updateErr) {
-        return res.json({ success: false, error: err.message + ' | Fallback: ' + output });
-      }
-      execYtdlp(`"${ytdlpPath}" --version`, { timeout: 10000 }, (verErr, verStdout) => {
-        const newVersion = verErr ? '' : (verStdout || '').trim();
-        addTerminalLog(`[yt-dlp] Sürüm başarıyla güncellendi: ${newVersion}`, 'success');
-        res.json({ success: true, output, newVersion });
-      });
-    });
   }
+
+  // 4. Nihai güncel sürümü kontrol et ve yanıt dön
+  execYtdlp(`"${ytdlpPath}" --version`, { timeout: 10000 }, (verErr, verStdout) => {
+    const newVersion = verErr ? '' : (verStdout || '').trim();
+    const successMsg = `yt-dlp başarıyla ${newVersion || target} sürümüne güncellendi.`;
+    console.log(`[yt-dlp Update] ${successMsg}`);
+    addTerminalLog(`[yt-dlp] ${successMsg}`, 'success');
+    res.json({ success: true, output: successMsg + (pipOutput ? '\n' + pipOutput : ''), newVersion });
+  });
 });

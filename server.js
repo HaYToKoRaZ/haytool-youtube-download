@@ -173,7 +173,7 @@ import { addTerminalLog, broadcast } from './server/services/sse.js';
 import { startCookieHealthCheck } from './server/services/cookieHealth.js';
 import { gzipSync } from 'zlib';
 import { discordRpc } from './server/services/discord.js';
-import { setIptvChannels } from './server/services/iptv.js';
+import { setIptvChannels, downloadHlsJsIfNeeded } from './server/services/iptv.js';
 import { configIniPath, parseIni } from './server/config.js';
 import { appVersion } from './server/version.js';
 
@@ -221,9 +221,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// JS ve CSS dosyaları için her zaman en güncel sürümün yüklenmesini sağla (Önbellek kilidini kaldır)
+app.use((req, res, next) => {
+  if (req.path === '/app.js' || req.path.endsWith('.js') || req.path.endsWith('.css')) {
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+  }
+  next();
+});
+
 // Statik Dosyaları Sun (public/ klasörü, index.html otomatik gönderimi devre dışı)
-// ?v= sürüm parametreli dosyalar güvenle 7 gün önbelleklenebilir
-app.use(express.static(path.join(__dirname, 'public'), { index: false, maxAge: '7d' }));
+app.use(express.static(path.join(__dirname, 'public'), { index: false, maxAge: 0 }));
 
 // Geliştirme/Hata Ayıklama Günlükleri (İsteğe bağlı)
 const isDev = process.env.NODE_ENV === 'development';
@@ -291,12 +298,20 @@ export function getCompositeIndexHtml() {
     }
   }
 
+  // app.js için dinamik zaman damgası önbellek kırıcı (Cache Buster)
+  const appJsPath = path.join(publicDir, 'app.js');
+  if (fs.existsSync(appJsPath)) {
+    const mtime = Math.floor(fs.statSync(appJsPath).mtimeMs);
+    html = html.replace(/app\.js\?v=[^"']*/g, `app.js?v=${mtime}`);
+  }
+
   return html;
 }
 
 // Ana Sayfa ve SPA Yönlendirmeleri (Modüler Partial Birleştirmeli)
 app.get(['/', '/index.html', '/home', '/download', '/downlist', '/channels', '/settings', '/iptv', '/downloader', '/tools'], (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.send(getCompositeIndexHtml());
 });
 
@@ -346,7 +361,7 @@ function startIntervalTimer() {
     checkIntervalTimer = null;
   }
 
-  if (db.settings.isPaused) return;
+  // Türkçe Açıklama: İndirme listesi duraklatılmış olsa bile kanal taraması çalışabilir; indirme engeli DownloadQueue içinde yönetilir.
 
   const seconds = db.settings.channelCheckInterval || 300;
   
@@ -462,45 +477,6 @@ function ensureFfmpeg() {
   const err = new Error('FFmpeg bulunamadı! Lütfen ffmpeg/ klasörü altına ffmpeg.exe ve ffprobe.exe dosyalarını ekleyin.');
   broadcast('status_log', { message: err.message, type: 'error' });
   return Promise.reject(err);
-}
-
-// hls.min.js kontrol et ve gerekliyse indir (IPTV offline oynatımı için)
-function downloadHlsJsIfNeeded() {
-  return new Promise((resolve) => {
-    const publicDir = path.join(__dirname, 'public');
-    const hlsPath = path.join(publicDir, 'hls.min.js');
-    if (fs.existsSync(hlsPath)) {
-      console.log('[IPTV] hls.min.js zaten mevcut.');
-      return resolve();
-    }
-
-    console.log('[IPTV] hls.min.js bulunamadı, CDN üzerinden indiriliyor...');
-    const url = 'https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js';
-    
-    https.get(url, (res) => {
-      if (res.statusCode !== 200) {
-        console.error(`[IPTV] hls.min.js indirilemedi: HTTP ${res.statusCode}`);
-        return resolve();
-      }
-
-      const fileStream = fs.createWriteStream(hlsPath);
-      res.pipe(fileStream);
-      fileStream.on('finish', () => {
-        fileStream.close();
-        console.log('[IPTV] hls.min.js başarıyla indirildi.');
-        resolve();
-      });
-      fileStream.on('error', (err) => {
-        fileStream.close();
-        fs.unlink(hlsPath, () => {});
-        console.error('[IPTV] hls.min.js yazılırken hata oluştu:', err.message);
-        resolve();
-      });
-    }).on('error', (err) => {
-      console.error('[IPTV] hls.min.js indirilirken bağlantı hatası oluştu:', err.message);
-      resolve();
-    });
-  });
 }
 
 // 7 günden eski günlük dosyalarını temizle
@@ -966,7 +942,7 @@ if (process.argv.length <= 2) {
 
       // Disk senkronizasyonu tamamlandıktan sonra açılış kanal taraması (Ayarlarda aktifse)
       const currentDb = readDb();
-      if (currentDb.settings.checkChannelsOnStartup && !currentDb.settings.isPaused && currentDb.channels.length > 0) {
+      if (currentDb.settings.checkChannelsOnStartup && currentDb.channels.length > 0) {
         try {
           addTerminalLog('[Sistem Açılışı] 2/2 Açılış kanal taraması başlatılıyor...', 'info');
           await triggerChannelCheck('startup');

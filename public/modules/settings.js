@@ -835,3 +835,60 @@ export async function openYouTubeLogin() {
   }
 }
 window.openYouTubeLogin = openYouTubeLogin;
+
+// YouTube oturum ve çerez buton dinleyicilerini bağla
+if (typeof document !== 'undefined') {
+  const setupSettingsListeners = () => {
+    const btnYtLogin = document.getElementById('btn-open-yt-login');
+    if (btnYtLogin && !btnYtLogin.dataset.settingsInit) {
+      btnYtLogin.dataset.settingsInit = 'true';
+      btnYtLogin.addEventListener('click', openYouTubeLogin);
+    }
+
+    const btnTestCookies = document.getElementById('btn-test-cookies-live');
+    if (btnTestCookies && !btnTestCookies.dataset.settingsInit) {
+      btnTestCookies.dataset.settingsInit = 'true';
+      btnTestCookies.addEventListener('click', testCookies);
+    }
+
+    const btnLogoutYt = document.getElementById('btn-logout-youtube');
+    if (btnLogoutYt && !btnLogoutYt.dataset.settingsInit) {
+      btnLogoutYt.dataset.settingsInit = 'true';
+      btnLogoutYt.addEventListener('click', logoutYouTube);
+    }
+
+    const btnOpenTemp = document.getElementById('open-temp-folder-btn');
+    if (btnOpenTemp && !btnOpenTemp.dataset.settingsInit) {
+      btnOpenTemp.dataset.settingsInit = 'true';
+      btnOpenTemp.addEventListener('click', openTempFolder);
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupSettingsListeners);
+  } else {
+    setupSettingsListeners();
+  }
+}
+
+// Türkçe Açıklama: Aktif Temp klasörünü sistem dosya gezgininde açar.
+/**
+ * Aktif geçici dosyalar (Temp) klasörünü dosya gezgininde açar.
+ */
+export async function openTempFolder() {
+  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const isEn = currentLang === 'en';
+  try {
+    const res = await fetch('/api/settings/open-temp', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Temp folder opened.' : 'Temp klasörü açıldı.', 'success');
+    } else {
+      showToast(data.error || (isEn ? 'Failed to open temp folder.' : 'Temp klasörü açılamadı.'), 'error');
+    }
+  } catch (err) {
+    showToast(`Hata: ${err.message}`, 'error');
+  }
+}
+window.openTempFolder = openTempFolder;
+

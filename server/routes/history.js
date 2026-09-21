@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import open from 'open';
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import { 
   readDb, 
   writeDb, 
@@ -20,6 +20,8 @@ import { resolveMissingDurations, fetchVideoDuration, checkSingleChannelRss, tri
 import { broadcast, addTerminalLog } from '../services/sse.js';
 import { triggerSilentCookieRefresh } from './settings.js';
 import { updateChannelFullInfo } from './channels.js';
+import { buildCookieHeader } from '../services/cookieHealth.js';
+import { closeActiveVideoStreams } from './streams.js';
 
 export const router = express.Router();
 
@@ -351,7 +353,8 @@ router.post('/video/:id/sync-watchtime', localhostOnly, async (req, res) => {
     try {
       const db = readDb();
       const item = db.history.find(h => h.id === id);
-      if (item) {
+      // Sadece video hâlâ kütüphanede tamamlanmış ve silinmemiş durumdaysa pozisyon güncelle
+      if (item && item.status === 'completed' && item.hidden !== true) {
         if (durNum > 0 && (curTimeNum >= durNum * 0.95 || durNum - curTimeNum <= 5)) {
           item.lastPositionSeconds = 0;
         } else if (curTimeNum > 3) {
@@ -408,7 +411,8 @@ router.post('/video/:id/save-position', localhostOnly, async (req, res) => {
     try {
       const db = readDb();
       const item = db.history.find(h => h.id === id);
-      if (item) {
+      // Sadece video hâlâ kütüphanede tamamlanmış ve silinmemiş durumdaysa pozisyon kaydet
+      if (item && item.status === 'completed' && item.hidden !== true) {
         if (durNum > 0 && (posNum >= durNum * 0.95 || durNum - posNum <= 5)) {
           item.lastPositionSeconds = 0;
         } else if (posNum > 3) {
@@ -669,37 +673,9 @@ let subscriptionsCacheRaw = null;
 let subscriptionsCacheTime = 0;
 const SUBSCRIPTIONS_CACHE_TTL_MS = 5 * 60 * 1000;
 
-// Türkçe Açıklama: Kök ve bin/ çerez dosyalarını birleştirip tek Cookie header'ı üretir.
-function buildSubscriptionsCookieHeader() {
-  const rootCookiesTxt = path.join(dataRootDir, 'cookies.txt');
-  const binCookiesTxt = path.join(dataRootDir, 'bin', 'cookies.txt');
-  const cookiesObj = {};
-  for (const cookieFile of [rootCookiesTxt, binCookiesTxt]) {
-    if (!fs.existsSync(cookieFile)) continue;
-    const content = fs.readFileSync(cookieFile, 'utf8');
-    for (const line of content.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      const parts = trimmed.split('\t');
-      if (parts.length >= 7) cookiesObj[parts[5]] = parts[6];
-    }
-  }
-  return Object.entries(cookiesObj).map(([k, v]) => `${k}=${v}`).join('; ');
-}
-
-/**
- * YouTube abone kanal listesini oturum çerezleriyle çekip takip durumlarıyla birlikte döndürür.
- * 
- * @name GET /api/tools/subscriptions
- * @function
- * @inner
- * @param {object} req - Express istek nesnesi
- * @param {object} res - Express yanıt nesnesi
- * @returns {Promise<void>}
- */
 router.get('/tools/subscriptions', localhostOnly, async (req, res) => {
   try {
-    const cookieHeader = buildSubscriptionsCookieHeader();
+    const cookieHeader = buildCookieHeader();
     if (!cookieHeader) {
       return res.status(400).json({ success: false, error: 'YouTube oturum çerezi bulunamadı. Lütfen Ayarlar sekmesinden "YouTube\'da Oturum Aç" ile oturum açın.' });
     }
@@ -1550,156 +1526,232 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
   console.log(`Bilgisayardan dosya silinsin mi: ${deleteFile}`);
   console.log(`YouTube'da izlendi olarak işaretlensin mi: ${markWatched}`);
 
+  // 1. Oynatılmakta olan video akışını (stream) derhal kapat ve dosya kilitlerini serbest bırak
+  try {
+    closeActiveVideoStreams(id);
+  } catch (streamErr) {
+    console.warn(`[Stream Kapatma Uyarısı]:`, streamErr.message);
+  }
+
+  // Windows dosya tanıtıcılarının serbest bırakılması için kısa bir bekleme
+  await new Promise(r => setTimeout(r, 120));
+
   const db = readDb();
-  const itemIndex = db.history.findIndex(h => h.id === id);
+  const hideOnDelete = typeof req.query.hideOnDelete !== 'undefined'
+    ? req.query.hideOnDelete === 'true'
+    : (db.settings && db.settings.hideOnDelete !== false);
+  console.log(`Kütüphanede gizlensin mi: ${hideOnDelete}`);
 
-  if (itemIndex !== -1) {
-    const item = db.history[itemIndex];
-    console.log(`Video Adı: ${item.title}`);
-    console.log(`Kanal: ${item.channelName}`);
-    console.log(`Kayıtlı Yol: ${item.filePath}`);
-    
-    if (deleteFile) {
-      try {
-        let deletedAny = false;
-        let failedToDelete = [];
-        const filesToDelete = new Set();
-        const targetPattern = `[${id}]`;
+  const existingItem = (db.history || []).find(h => h.id === id);
+  const videoTitle = existingItem?.title || id;
+  const channelName = existingItem?.channelName || '';
+  const channelId = existingItem?.channelId || '';
+  const duration = existingItem?.duration || '';
+  const publishedAt = existingItem?.publishedAt || '';
 
-        // 1. Yol tabanlı akıllı silme klasör taraması
-        if (item.filePath) {
+  addTerminalLog(`[Silme] "${videoTitle}" (${id}) silme süreci başlatıldı (Dosya: ${deleteFile ? 'Evet' : 'Hayır'}, YouTube İzlendi: ${markWatched ? 'Evet' : 'Hayır'}).`, 'info');
+
+  let deletedAny = false;
+  let failedToDelete = [];
+
+  if (deleteFile) {
+    try {
+      const filesToDelete = new Set();
+      const targetPattern = `[${id}]`;
+
+      // 1. Yol tabanlı tam eşleşme ve komşu yan dosyalar (.jpg, .webp, .vtt vb.)
+      if (existingItem?.filePath) {
+        try {
+          if (fs.existsSync(existingItem.filePath)) {
+            filesToDelete.add(existingItem.filePath);
+          }
+          const ext = path.extname(existingItem.filePath);
+          const baseName = path.basename(existingItem.filePath, ext);
+          const dirName = path.dirname(existingItem.filePath);
+          
+          if (fs.existsSync(dirName)) {
+            const dirFiles = await fs.promises.readdir(dirName);
+            for (const file of dirFiles) {
+              if (file === path.basename(existingItem.filePath) || file.startsWith(baseName + '.') || file.includes(targetPattern)) {
+                filesToDelete.add(path.join(dirName, file));
+              }
+            }
+          }
+        } catch (pathErr) {
+          console.error('[Akıllı Silme Hata]:', pathErr.message);
+        }
+      }
+
+      // 2. İndirme kök dizininde özyinelemeli (recursive) arama (tüm kanallar/kategoriler dahil)
+      const downloadRoot = db.settings.downloadPath;
+      if (downloadRoot && fs.existsSync(downloadRoot)) {
+        const ignoredDirs = ['$recycle.bin', 'system volume information', '.git', 'node_modules', 'temp', '0nogithub', 'scratch', 'backup'];
+        function scanFolderRecursively(dir, depth = 0) {
+          if (depth > 3) return;
           try {
-            const ext = path.extname(item.filePath);
-            const baseName = path.basename(item.filePath, ext);
-            const dirName = path.dirname(item.filePath);
-            
-            console.log(`Yol tabanlı akıllı silme bașlatıldı. Klasör: ${dirName}, Dosya öneki: ${baseName}`);
-            
-            const dirExists = await fs.promises.access(dirName).then(() => true).catch(() => false);
-            if (dirExists) {
-              const files = await fs.promises.readdir(dirName);
-              for (const file of files) {
-                if (file === path.basename(item.filePath) || file.startsWith(baseName + '.')) {
-                  filesToDelete.add(path.join(dirName, file));
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const entry of entries) {
+              const fullPath = path.join(dir, entry.name);
+              if (entry.isDirectory()) {
+                const lower = entry.name.toLowerCase();
+                if (!ignoredDirs.includes(lower) && !lower.startsWith('.')) {
+                  scanFolderRecursively(fullPath, depth + 1);
+                }
+              } else {
+                if (entry.name.includes(targetPattern)) {
+                  filesToDelete.add(fullPath);
                 }
               }
             }
-          } catch (pathErr) {
-            console.error('[Akıllı Silme Hata]:', pathErr.message);
+          } catch (e) {}
+        }
+        scanFolderRecursively(downloadRoot, 0);
+      }
+
+      if (filesToDelete.size > 0) {
+        console.log(`Eşleşen toplam ${filesToDelete.size} dosya bulundu, siliniyor...`);
+        for (const fullPath of filesToDelete) {
+          let deleted = false;
+          let lastErr = null;
+
+          // Dosya kilitlerine karşı 5 kademeli deneme
+          for (let attempt = 1; attempt <= 5; attempt++) {
+            try {
+              if (!fs.existsSync(fullPath)) {
+                deleted = true;
+                break;
+              }
+              await fs.promises.unlink(fullPath);
+              console.log(`BAŞARI: Dosya silindi: ${path.basename(fullPath)} (Deneme: ${attempt})`);
+              deletedAny = true;
+              deleted = true;
+              break;
+            } catch (e) {
+              lastErr = e;
+              if (e.code === 'ENOENT') {
+                deleted = true;
+                break;
+              }
+              if (attempt < 5 && (e.code === 'EBUSY' || e.code === 'EPERM')) {
+                await new Promise(r => setTimeout(r, attempt * 80));
+              }
+            }
+          }
+
+          // Windows üzerinde fs.unlink kilitliyse CMD force delete dene
+          if (!deleted && process.platform === 'win32') {
+            try {
+              execSync(`cmd.exe /c del /f /q /a "${fullPath}"`, { windowsHide: true, stdio: 'ignore' });
+              if (!fs.existsSync(fullPath)) {
+                console.log(`BAŞARI (CMD force delete): ${path.basename(fullPath)}`);
+                deletedAny = true;
+                deleted = true;
+              }
+            } catch (cmdErr) {}
+          }
+
+          // Dosya harici bir uygulama (antivirüs vb.) tarafından kilitli kalmışsa arka plan temizliğine al
+          if (!deleted && fs.existsSync(fullPath)) {
+            console.warn(`HATA: Dosya kilitli, arka planda silinmek üzere zamanlandı: ${path.basename(fullPath)}`);
+            failedToDelete.push(path.basename(fullPath));
+
+            let bgAttempts = 0;
+            const bgInterval = setInterval(async () => {
+              bgAttempts++;
+              try {
+                if (!fs.existsSync(fullPath)) {
+                  clearInterval(bgInterval);
+                  return;
+                }
+                await fs.promises.unlink(fullPath);
+                console.log(`[Arka Plan Silme Başarılı]: ${path.basename(fullPath)}`);
+                clearInterval(bgInterval);
+              } catch (bgErr) {
+                if (bgAttempts >= 10) {
+                  clearInterval(bgInterval);
+                }
+              }
+            }, 2000);
           }
         }
-
-        // 2. Pattern tabanlı yedek silme klasör taraması
-        const folder = db.settings.downloadPath;
-        const foldersToSearch = [folder];
-        if (item.channelName) {
-          foldersToSearch.push(path.join(folder, item.channelName));
-        }
-
-        console.log(`Silme ișlemi için aranan klasörler:`, foldersToSearch);
-
-        for (const fld of foldersToSearch) {
-          try {
-            const dirExists = await fs.promises.access(fld).then(() => true).catch(() => false);
-            if (dirExists) {
-              const files = await fs.promises.readdir(fld);
-              for (const file of files) {
-                if (file.includes(targetPattern)) {
-                  filesToDelete.add(path.join(fld, file));
-                }
-              }
-            }
-          } catch (patternErr) {}
-        }
-
-        // Toplanan tüm dosyaları paralel olarak sil
-        if (filesToDelete.size > 0) {
-          console.log(`Eşleşen toplam ${filesToDelete.size} dosya bulundu, siliniyor...`);
-          const deletePromises = Array.from(filesToDelete).map(async (fullPath) => {
-            try {
-              await fs.promises.unlink(fullPath);
-              console.log(`BAŞARI: Dosya silindi: ${path.basename(fullPath)}`);
-              deletedAny = true;
-            } catch (e) {
-              if (e.code !== 'ENOENT') {
-                console.error(`HATA: Dosya silinemedi: ${path.basename(fullPath)}`, e.message);
-                failedToDelete.push(`${path.basename(fullPath)} (${e.message})`);
-              }
-            }
-          });
-          await Promise.all(deletePromises);
-        }
-
-        if (failedToDelete.length > 0) {
-          const errorMsg = `Video dosyası silinemedi (Dosya kilitli veya açık olabilir): ${failedToDelete.join(', ')}`;
-          console.error(`[DELETE ERROR] ${errorMsg}`);
-          console.log(`--- SİLME İŞLEMİ BAŞARISIZ ---\n`);
-          return res.status(500).json({ error: errorMsg });
-        }
-        
-        if (deletedAny) {
-          broadcast('status_log', { message: `İlgili video dosyaları bilgisayarınızdan silindi: ${item.title}`, type: 'info' });
-        } else {
-          console.log(`BİLGİ: Klasörlerde '${targetPattern}' içeren herhangi bir dosya bulunamadı.`);
-        }
-      } catch (err) {
-        console.error(`[DELETE ERROR] Genel hata: ${err.message}`);
-        console.log(`--- SİLME İŞLEMİ BAŞARISIZ ---\n`);
-        return res.status(500).json({ error: `Dosya silme hatası: ${err.message}` });
       }
+
+      if (deletedAny) {
+        broadcast('status_log', { message: `İlgili video dosyaları bilgisayarınızdan silindi: ${videoTitle}`, type: 'info' });
+      } else if (filesToDelete.size === 0) {
+        console.log(`BİLGİ: Klasörlerde '${targetPattern}' içeren herhangi bir dosya bulunamadı.`);
+      }
+    } catch (err) {
+      console.error(`[DELETE ERROR] Dosya arama/silme hatası: ${err.message}`);
     }
+  }
 
-    db.history.splice(itemIndex, 1);
+  // 2. VERİTABANI GÜNCELLEMESİ (MUTEX KİLİT KORUMASIYLA ATOMİK YAZIM)
+  // Videoya ait tüm eski kopyaları temizle, başka eş zamanlı işlemlerin (save-position, rss vb.)
+  // silinen videoyu geri getirmesini (resurrection) mutex kilidi ile kesin olarak engelle.
+  const release = await acquireDbLock();
+  try {
+    const latestDb = readDb();
+    latestDb.history = (latestDb.history || []).filter(h => h.id !== id);
 
-    const hideOnDelete = db.settings && db.settings.hideOnDelete !== false;
-
-    db.history.push({
-      id: item.id,
-      title: item.title,
-      channelId: item.channelId,
-      channelName: item.channelName,
+    // RSS'in videoyu tekrar indirmemesi için kütüphanede 'ignored' olarak sakla
+    latestDb.history.push({
+      id: id,
+      title: videoTitle,
+      channelId: channelId,
+      channelName: channelName,
       downloadedAt: new Date().toISOString(),
-      publishedAt: item.publishedAt || '',
+      publishedAt: publishedAt,
       status: 'ignored',
       progress: 0,
       fileSize: '',
       filePath: '',
       speed: '',
       eta: '',
-      duration: item.duration || '',
+      duration: duration,
       hidden: hideOnDelete
     });
-    console.log(`BİLGİ: Video '${item.title}' RSS'in tekrar indirmemesi için 'ignored' olarak işaretlendi (Gizleme: ${hideOnDelete}).`);
+    console.log(`BİLGİ: Video '${videoTitle}' RSS'in tekrar indirmemesi için 'ignored' olarak işaretlendi (Gizleme: ${hideOnDelete}).`);
 
-    await writeDbFast(db);
-    broadcast('db_update', db);
-
-    
-    const isEn = db.settings && db.settings.lang === 'en';
-    let statusMsg = '';
-    if (hideOnDelete) {
-      statusMsg = isEn ? `Video deleted and hidden from library: ${item.title}` : `Video silindi ve kütüphaneden gizlendi: ${item.title}`;
-    } else {
-      statusMsg = isEn ? `Video removed from history: ${item.title}` : `Video geçmişten temizlendi: ${item.title}`;
-    }
-    broadcast('status_log', { message: statusMsg, type: 'success' });
-    
-    if (markWatched) {
-      setTimeout(() => {
-        markVideoWatchedOnYouTube(id, item.title, item.duration || '').catch(err => {
-          console.error(`[YouTube Watch Sync Error during Delete]`, err.message);
-        });
-      }, 0);
-    }
-
-    console.log(`BAŞARI: Video geçmiş kaydı veri tabanından silindi.`);
-    console.log(`--- SİLME İŞLEMİ TAMAMLANDI ---\n`);
-    res.json({ success: true });
-  } else {
-    console.error(`HATA: ID '${id}' video kaydı veri tabanında bulunamadı.`);
-    console.log(`--- SİLME İŞLEMİ BAŞARISIZ ---\n`);
-    res.status(404).json({ error: 'Video kaydı bulunamadı.' });
+    await writeDbFast(latestDb);
+    broadcast('db_update', latestDb);
+    addTerminalLog(`[Silme] "${videoTitle}" veritabanında 'ignored' (gizli) olarak güncellendi.`, 'success');
+  } finally {
+    release();
   }
+
+  const isEn = db.settings && db.settings.lang === 'en';
+  let statusMsg = '';
+  if (hideOnDelete) {
+    statusMsg = isEn ? `Video deleted and hidden from library: ${videoTitle}` : `Video silindi ve kütüphaneden gizlendi: ${videoTitle}`;
+  } else {
+    statusMsg = isEn ? `Video removed from history: ${videoTitle}` : `Video geçmişten temizlendi: ${videoTitle}`;
+  }
+  broadcast('status_log', { message: statusMsg, type: 'success' });
+  
+  if (markWatched) {
+    setTimeout(async () => {
+      try {
+        const ytRes = await markVideoWatchedOnYouTube(id, videoTitle, duration);
+        if (ytRes && ytRes.success) {
+          addTerminalLog(`[Silme] "${videoTitle}" YouTube izleme geçmişinde "İzlendi" olarak işaretlendi.`, 'success');
+        } else {
+          addTerminalLog(`[Silme Uyarı] "${videoTitle}" YouTube geçmişine eşitlenemedi: ${ytRes?.error || 'Bilinmeyen hata'}`, 'warning');
+        }
+      } catch (err) {
+        console.error(`[YouTube Watch Sync Error during Delete]`, err.message);
+      }
+    }, 0);
+  }
+
+  console.log(`BAŞARI: Video geçmiş kaydı veri tabanından silindi ve güncellendi.`);
+  console.log(`--- SİLME İŞLEMİ TAMAMLANDI ---\n`);
+
+  res.json({ 
+    success: true, 
+    filesDeleted: deletedAny,
+    warning: failedToDelete.length > 0 ? `Bazı dosyalar kilitli olduğu için arka planda siliniyor: ${failedToDelete.join(', ')}` : undefined
+  });
 });
 
 /**
@@ -1934,7 +1986,9 @@ router.post('/history/bulk-delete', localhostOnly, async (req, res) => {
   try {
     const db = readDb();
     let deletedCount = 0;
-    const hideOnDelete = db.settings && db.settings.hideOnDelete !== false;
+    const hideOnDelete = typeof req.body.hideOnDelete !== 'undefined'
+      ? (req.body.hideOnDelete === true || req.body.hideOnDelete === 'true')
+      : (db.settings && db.settings.hideOnDelete !== false);
 
     for (const id of ids) {
       const itemIndex = db.history.findIndex(h => h.id === id);

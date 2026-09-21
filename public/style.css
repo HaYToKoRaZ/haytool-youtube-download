@@ -969,7 +969,7 @@ body.light-theme .nav-item[data-tab="queue"].active .queue-nav-badge {
   align-items: center !important;
   gap: 8px;
   flex-shrink: 1;
-  overflow-x: auto;
+  overflow: visible !important;
   scrollbar-width: none;
   margin-left: auto;
   height: 100%;
@@ -1017,6 +1017,261 @@ body.light-theme .nav-item[data-tab="queue"].active .queue-nav-badge {
   color: var(--primary);
   width: 13px;
   height: 13px;
+}
+
+/* Hava Durumu Badge Wrapper & Popover */
+.weather-badge-wrapper {
+  position: relative;
+}
+
+.weather-city-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.weather-badge-wrapper:hover .weather-city-label {
+  opacity: 1;
+  color: var(--text-main);
+}
+
+.weather-precip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 2px 5px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.weather-precip-badge i,
+.weather-precip-badge svg {
+  width: 10px !important;
+  height: 10px !important;
+  color: #38bdf8 !important;
+}
+
+.weather-badge-wrapper:hover .weather-precip-badge {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.weather-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 285px;
+  background: rgba(18, 18, 26, 0.95);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 0;
+  z-index: 1000001;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px) scale(0.96);
+  transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease;
+  cursor: default;
+  overflow: hidden;
+}
+
+.weather-popover.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.weather-popover-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.weather-popover-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.15), rgba(58, 123, 213, 0.15));
+  flex-shrink: 0;
+}
+
+.weather-popover-icon-wrap i {
+  width: 24px !important;
+  height: 24px !important;
+  color: #00d2ff;
+}
+
+.weather-popover-title {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.weather-popover-temp {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+}
+
+.weather-popover-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.weather-popover-city {
+  font-size: 0.7rem;
+  color: #00d2ff;
+  background: rgba(0, 210, 255, 0.1);
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.weather-popover-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.04);
+  margin: 0;
+}
+
+.weather-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(18, 18, 26, 0.6);
+  transition: background 0.2s ease;
+}
+
+.weather-popover-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.weather-popover-item i {
+  width: 16px !important;
+  height: 16px !important;
+  color: var(--primary);
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.weather-popover-item div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wpop-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.wpop-value {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+.weather-popover-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  opacity: 0.6;
+}
+
+.weather-popover-footer i {
+  width: 11px !important;
+  height: 11px !important;
+  color: var(--text-muted) !important;
+}
+
+/* Light Theme - Weather Popover */
+body.light-theme .weather-popover {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.04) inset;
+}
+
+body.light-theme .weather-popover-header {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+body.light-theme .weather-popover-icon-wrap {
+  background: linear-gradient(135deg, rgba(0, 140, 210, 0.1), rgba(58, 123, 213, 0.1));
+}
+
+body.light-theme .weather-popover-icon-wrap i {
+  color: #0088cc;
+}
+
+body.light-theme .weather-popover-city {
+  color: #0077b6;
+  background: rgba(0, 119, 182, 0.1);
+}
+
+body.light-theme .weather-popover-grid {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+body.light-theme .weather-popover-item {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+body.light-theme .weather-popover-item:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+body.light-theme .weather-popover-footer {
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+
+body.light-theme .weather-precip-badge {
+  color: #0284c7;
+  background: rgba(14, 165, 233, 0.1);
+  border-color: rgba(14, 165, 233, 0.28);
+}
+
+body.light-theme .weather-precip-badge i,
+body.light-theme .weather-precip-badge svg {
+  color: #0284c7 !important;
 }
 
 .status-dot {
@@ -2957,7 +3212,7 @@ body.light-theme .status-badge i {
 /* Tablo Görünümü Başlık Satırı */
 .queue-table-header {
   display: grid;
-  grid-template-columns: 70px 80px 1fr 140px 85px 100px 140px;
+  grid-template-columns: 76px 80px 1fr 140px 85px 100px 140px;
   align-items: center;
   gap: 12px;
   padding: 8px 14px;
@@ -2983,7 +3238,7 @@ body.light-theme .queue-table-header {
 /* Tablo Görünümü Satırı */
 .queue-table-row {
   display: grid;
-  grid-template-columns: 70px 80px 1fr 140px 85px 100px 140px;
+  grid-template-columns: 76px 80px 1fr 140px 85px 100px 140px;
   align-items: center;
   gap: 12px;
   padding: 8px 14px;
@@ -3068,18 +3323,19 @@ body.light-theme .queue-order-badge {
   border-color: rgba(126, 34, 206, 0.2);
 }
 
-/* Taşıma Okları Grubu (Yukarı / Aşağı) */
+/* Taşıma Okları Grubu (En Başa / Yukarı / Aşağı / En Sona) */
 .queue-move-btn-group {
-  display: inline-flex;
-  flex-direction: column;
+  display: inline-grid;
+  grid-template-columns: repeat(2, 18px);
+  grid-template-rows: repeat(2, 16px);
   gap: 2px;
   align-items: center;
   justify-content: center;
 }
 
 .queue-move-btn {
-  width: 22px;
-  height: 18px;
+  width: 18px;
+  height: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3096,7 +3352,14 @@ body.light-theme .queue-order-badge {
   background: var(--accent-primary);
   color: #fff;
   border-color: var(--accent-primary);
-  transform: scale(1.1);
+  transform: scale(1.08);
+}
+
+.queue-move-btn.queue-btn-top:hover:not(:disabled),
+.queue-move-btn.queue-btn-bottom:hover:not(:disabled) {
+  background: #06b6d4;
+  border-color: #06b6d4;
+  color: #fff;
 }
 
 .queue-move-btn:disabled,
@@ -3112,6 +3375,13 @@ body.light-theme .queue-move-btn {
 
 body.light-theme .queue-move-btn:hover:not(:disabled) {
   background: #7e22ce;
+  color: #fff;
+}
+
+body.light-theme .queue-move-btn.queue-btn-top:hover:not(:disabled),
+body.light-theme .queue-move-btn.queue-btn-bottom:hover:not(:disabled) {
+  background: #0891b2;
+  border-color: #0891b2;
   color: #fff;
 }
 
@@ -3224,6 +3494,221 @@ body.light-theme .queue-move-btn:hover:not(:disabled) {
 }
 
 .btn-play-queue:hover {
+  background: rgba(16, 185, 129, 0.2) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+/* İki Sütunlu Alt Bölüm (Son İndirilenler & Hatalılar) */
+.queue-history-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1100px) {
+  .queue-history-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.queue-split-card {
+  min-height: auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  padding: 14px 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Split Kart İçi Kartlar Görünümü (.queue-item) */
+.queue-split-card .queue-item {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  padding: 8px 10px !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.queue-split-card .queue-item-status-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  flex-shrink: 0 !important;
+}
+
+.queue-split-card .queue-thumb-container {
+  width: 66px !important;
+  height: 37px !important;
+  flex-shrink: 0 !important;
+  border-radius: 5px !important;
+}
+
+.queue-split-card .queue-item-info {
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.queue-split-card .queue-item-title {
+  font-size: 0.8rem !important;
+  line-height: 1.25 !important;
+  margin-bottom: 3px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.queue-split-card .queue-meta-pill {
+  font-size: 0.68rem !important;
+  padding: 1px 5px !important;
+  gap: 3px !important;
+}
+
+.queue-split-card .queue-meta-pill-channel {
+  max-width: 100px !important;
+}
+
+.queue-split-card .queue-meta-pill-error {
+  max-width: 130px !important;
+}
+
+.queue-split-card .queue-item-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
+
+.queue-split-card .queue-item-actions button,
+.queue-split-card .btn-cancel-queue,
+.queue-split-card .btn-retry-queue,
+.queue-split-card .btn-play-queue {
+  height: 25px !important;
+  padding: 2px 7px !important;
+  font-size: 0.72rem !important;
+  border-radius: 5px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+}
+
+.queue-split-card .queue-item-actions button i,
+.queue-split-card .queue-item-actions button svg {
+  width: 10px !important;
+  height: 10px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Kompakt Tablo Görünümü (Split Başlık & Satır) */
+.queue-table-header.split-table-header {
+  grid-template-columns: 34px 56px minmax(0, 1fr) 95px 105px;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 0.68rem;
+}
+
+.queue-table-row.split-table-row {
+  grid-template-columns: 34px 56px minmax(0, 1fr) 95px 105px;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
+.queue-table-row.split-table-row .btn-cancel-queue,
+.queue-table-row.split-table-row .btn-retry-queue,
+.queue-table-row.split-table-row .btn-play-queue {
+  padding: 3px 6px !important;
+  font-size: 0.7rem !important;
+  height: 24px;
+}
+
+.queue-table-row.failed-row {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.02);
+}
+
+.queue-table-row.failed-row:hover {
+  background: rgba(239, 68, 68, 0.04);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+body.light-theme .queue-table-row.failed-row {
+  background: rgba(239, 68, 68, 0.015);
+}
+
+body.light-theme .queue-table-row.failed-row:hover {
+  background: rgba(239, 68, 68, 0.035);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+/* Hata Kartı ve Rozet Stilleri */
+.queue-item-failed {
+  border-color: rgba(239, 68, 68, 0.2) !important;
+  background: rgba(239, 68, 68, 0.02) !important;
+}
+
+.queue-item-failed:hover {
+  background: rgba(239, 68, 68, 0.045) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+body.light-theme .queue-item-failed {
+  background: rgba(239, 68, 68, 0.015) !important;
+}
+
+body.light-theme .queue-item-failed:hover {
+  background: rgba(239, 68, 68, 0.035) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+.queue-meta-pill-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: help;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+body.light-theme .queue-meta-pill-error {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.btn-retry-queue {
+  padding: 4px 10px !important;
+  font-size: 0.75rem !important;
+  background: rgba(16, 185, 129, 0.1) !important;
+  border: 1px solid rgba(16, 185, 129, 0.25) !important;
+  color: #10b981 !important;
+  border-radius: 6px !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-retry-queue:hover {
   background: rgba(16, 185, 129, 0.2) !important;
   border-color: rgba(16, 185, 129, 0.4) !important;
   transform: translateY(-1px);
@@ -5123,40 +5608,282 @@ body.light-theme .subtitle-translation-overlay {
   background: #241f40;
 }
 
-#iptv-tr-quick-btn {
-  height: 36px;
-  padding: 0 14px;
+.iptv-quick-flags-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.iptv-quick-flags-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.iptv-quick-flags {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+}
+
+.iptv-quick-flags::-webkit-scrollbar {
+  display: none;
+}
+
+.iptv-quick-flag-btn {
+  height: 28px;
+  padding: 0 8px;
   background: #1e1a35;
   border: 1px solid rgba(138, 43, 226, 0.25);
   color: #e8e6f0;
-  border-radius: 8px;
-  font-size: 0.8rem;
+  border-radius: 6px;
+  font-size: 0.74rem;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   transition: all 0.2s ease;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-#iptv-tr-quick-btn:hover {
-  border-color: rgba(138, 43, 226, 0.5);
-  background: #241f40;
+.iptv-quick-flag-btn:hover {
+  border-color: rgba(138, 43, 226, 0.6);
+  background: #282247;
   color: #ffffff;
+  transform: translateY(-1px);
 }
 
-#iptv-tr-quick-btn:active {
+.iptv-quick-flag-btn:active {
   transform: scale(0.96);
+}
+
+.iptv-quick-flag-btn.active {
+  background: rgba(0, 242, 254, 0.15);
+  border-color: var(--secondary);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(0, 242, 254, 0.35);
 }
 
 .iptv-selects {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+  position: relative;
 }
 
+/* Özel Ülke Seçici (Custom Country Dropdown) */
+.iptv-custom-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.iptv-custom-select-trigger {
+  width: 100%;
+  height: 36px;
+  background: #1e1a35;
+  border: 1px solid rgba(138, 43, 226, 0.25);
+  color: #e8e6f0;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.iptv-custom-select-trigger:hover {
+  border-color: rgba(138, 43, 226, 0.5);
+  background: #241f40;
+}
+
+.iptv-custom-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+.iptv-trigger-flag {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.iptv-trigger-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iptv-trigger-chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.iptv-custom-select-wrapper.open .iptv-trigger-chevron {
+  transform: rotate(180deg);
+}
+
+.iptv-custom-select-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 250px;
+  max-width: calc(100vw - 32px);
+  background: #18142b;
+  border: 1px solid rgba(138, 43, 226, 0.35);
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(138, 43, 226, 0.15);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: iptvMenuFadeIn 0.15s ease;
+}
+
+#iptv-category-dropdown-wrapper .iptv-custom-select-menu {
+  left: auto;
+  right: 0;
+}
+
+@keyframes iptvMenuFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.iptv-custom-select-menu.hidden {
+  display: none !important;
+}
+
+.iptv-menu-search {
+  position: relative;
+  padding: 8px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.iptv-menu-search i,
+.iptv-menu-search svg {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.iptv-menu-search input {
+  width: 100%;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0 8px 0 28px;
+  font-size: 0.78rem;
+  color: #e8e6f0;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.iptv-menu-search input:focus {
+  border-color: var(--primary);
+}
+
+.iptv-menu-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.iptv-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: #e8e6f0;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  user-select: none;
+}
+
+.iptv-menu-item:hover {
+  background: rgba(138, 43, 226, 0.2);
+  color: #ffffff;
+}
+
+.iptv-menu-item.selected {
+  background: rgba(0, 242, 254, 0.18);
+  color: #00f2fe;
+  font-weight: 600;
+}
+
+.iptv-menu-flag {
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+}
+
+.iptv-menu-flag-img {
+  width: 18px;
+  height: 13px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
+  box-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+
+.iptv-menu-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iptv-menu-code {
+  font-size: 0.68rem;
+  opacity: 0.7;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.iptv-category-select-wrapper {
+  width: 100%;
+}
+
+.iptv-category-select-wrapper select,
 .iptv-selects select {
+  width: 100%;
   height: 36px;
   background: #1e1a35;
   border: 1px solid rgba(138, 43, 226, 0.25);
@@ -5198,35 +5925,93 @@ body.light-theme .iptv-search-box input:focus {
   background: #ffffff;
 }
 
-body.light-theme #iptv-tr-quick-btn {
+body.light-theme .iptv-quick-flags-row {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+body.light-theme .iptv-quick-flag-btn {
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.12);
   color: var(--text-muted);
 }
 
-body.light-theme #iptv-tr-quick-btn:hover {
+body.light-theme .iptv-quick-flag-btn:hover {
   border-color: var(--primary);
   background: rgba(0, 0, 0, 0.02);
   color: var(--text-main);
 }
 
-body.light-theme .iptv-selects select {
+body.light-theme .iptv-quick-flag-btn.active {
+  background: rgba(138, 43, 226, 0.1);
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 0 0 6px rgba(138, 43, 226, 0.2);
+}
+
+body.light-theme .iptv-custom-select-trigger {
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.12);
   color: var(--text-main);
 }
 
-body.light-theme .iptv-selects select option {
+body.light-theme .iptv-custom-select-trigger:hover {
+  border-color: var(--primary);
+  background: #fdfdfd;
+}
+
+body.light-theme .iptv-custom-select-menu {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .iptv-menu-search {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+body.light-theme .iptv-menu-search input {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--text-main);
+}
+
+body.light-theme .iptv-menu-item {
+  color: var(--text-main);
+}
+
+body.light-theme .iptv-menu-item:hover {
+  background: rgba(138, 43, 226, 0.08);
+  color: var(--primary);
+}
+
+body.light-theme .iptv-menu-item.selected {
+  background: rgba(138, 43, 226, 0.12);
+  color: var(--primary);
+}
+
+body.light-theme .iptv-selects select,
+body.light-theme .iptv-category-select-wrapper select {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--text-main);
+}
+
+body.light-theme .iptv-selects select option,
+body.light-theme .iptv-category-select-wrapper select option {
   background: #ffffff;
   color: var(--text-main);
 }
 
-body.light-theme .iptv-selects select:hover {
+body.light-theme .iptv-selects select:hover,
+body.light-theme .iptv-category-select-wrapper select:hover {
   border-color: var(--primary);
   background: #ffffff;
 }
 
-body.light-theme .iptv-selects select:focus {
+body.light-theme .iptv-selects select:focus,
+body.light-theme .iptv-category-select-wrapper select:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--primary-glow);
   background: #ffffff;
@@ -5287,7 +6072,7 @@ body.light-theme .iptv-selects select:focus {
 .iptv-channel-logo img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .iptv-channel-logo i {
@@ -5338,6 +6123,26 @@ body.light-theme .iptv-selects select:focus {
   background: rgba(0, 242, 254, 0.1);
   color: var(--secondary);
   border: 1px solid rgba(0, 242, 254, 0.15);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.iptv-flag-icon {
+  font-size: 0.8rem;
+  line-height: 1;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  display: inline-flex;
+  align-items: center;
+}
+
+.iptv-flag-img {
+  width: 14px;
+  height: 10px;
+  object-fit: cover;
+  border-radius: 2px;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .iptv-loading {
@@ -7534,4 +8339,172 @@ body.light-theme .video-card-unlisted-tag {
   border-radius: 0 2px 2px 0;
   transition: width 0.3s ease;
 }
+
+/* ==========================================================================
+   YH (YouTube Geçmişi) Sekmesi Stilleri
+   ========================================================================== */
+#tab-yh.tab-content {
+  display: none;
+}
+
+#tab-yh.tab-content.active {
+  display: flex !important;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  min-height: 550px;
+  padding: 0 0 14px 0;
+  box-sizing: border-box;
+  animation: fadeIn 0.3s ease;
+}
+
+.yh-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.yh-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 18px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.yh-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.yh-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.yh-title-group .yh-icon {
+  width: 18px;
+  height: 18px;
+  color: #ff0000;
+}
+
+.yh-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+}
+
+.yh-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.yh-last-updated {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.yh-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  background: rgba(0, 242, 254, 0.05);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.yh-frame-container {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: var(--bg-main, #0f0f0f);
+  overflow: hidden;
+}
+
+#yh-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: transparent;
+}
+
+/* İndirilenler Sekmesi: Yarım Kalan Videolar Filtre Butonu */
+#downloaded-filter-resume-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+#downloaded-filter-resume-btn:hover {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.35);
+  color: #c084fc;
+}
+
+#downloaded-filter-resume-btn.active {
+  background: rgba(168, 85, 247, 0.22) !important;
+  border-color: var(--accent-primary, #a855f7) !important;
+  color: #f3e8ff !important;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
+}
+
+#downloaded-filter-resume-btn.active i,
+#downloaded-filter-resume-btn.active svg {
+  color: #c084fc !important;
+}
+
+#badge-resume-count {
+  font-size: 0.72rem;
+  padding: 1px 7px;
+  border-radius: 12px;
+  background: rgba(168, 85, 247, 0.25);
+  color: #d8b4fe;
+  font-weight: 700;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  transition: all 0.2s ease;
+}
+
+#downloaded-filter-resume-btn.active #badge-resume-count {
+  background: #a855f7;
+  color: #ffffff;
+  border-color: #c084fc;
+}
+
+
 

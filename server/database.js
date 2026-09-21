@@ -158,6 +158,8 @@ export const defaultDb = {
     autoSyncLocalWatchtime: true,
     autoDiskSync: true,
     periodicDiskSyncInterval: '360',
+    autoCookieRefresh: true,
+    cookieRefreshInterval: 30,
     checkChannelsOnStartup: false,
     enableAltThumbnailsHover: true,
     githubToken: '',
@@ -178,6 +180,16 @@ let lastDbJsonMtime = 0;
 let lastConfigIniMtime = 0;
 let lastChannelsIniMtime = 0;
 let lastCategoriesIniMtime = 0;
+let lastCacheCheckTime = 0;
+const DB_CACHE_TTL_MS = 1500;
+
+/**
+ * Bellek içi db önbelleğini geçersiz kılar, bir sonraki readDb doğrudan diskten okur.
+ */
+export function invalidateDbCache() {
+  lastCacheCheckTime = 0;
+  cachedDb = null;
+}
 
 let dbLockPromise = Promise.resolve();
 /**
@@ -246,6 +258,12 @@ export function convertPngToIco(pngPath, icoPath) {
  */
 export function readDb() {
   try {
+    const now = Date.now();
+    // Bellek önbelleği geçerliyse (1500ms TTL) disk stat kontrollerini atlayarak doğrudan dön
+    if (cachedDb && (now - lastCacheCheckTime < DB_CACHE_TTL_MS)) {
+      return cachedDb;
+    }
+
     let dbJsonMtime = 0;
     if (fs.existsSync(dbPath)) {
       dbJsonMtime = fs.statSync(dbPath).mtimeMs;
@@ -272,6 +290,7 @@ export function readDb() {
         configIniMtime === lastConfigIniMtime && 
         channelsIniMtime === lastChannelsIniMtime &&
         categoriesIniMtime === lastCategoriesIniMtime) {
+      lastCacheCheckTime = now;
       return cachedDb;
     }
 
@@ -333,6 +352,7 @@ export function readDb() {
 
     // RAM Önbelleği güncelle
     cachedDb = db;
+    lastCacheCheckTime = now;
     lastDbJsonMtime = dbJsonMtime;
     if (fs.existsSync(configIniPath)) {
       lastConfigIniMtime = fs.statSync(configIniPath).mtimeMs;
@@ -361,6 +381,7 @@ export async function writeDb(data) {
   try {
     // RAM önbelleği hemen güncelleyelim ki gecikme olmasın
     cachedDb = data;
+    lastCacheCheckTime = Date.now();
     
     // Otomatik rolling yedek (db.json.bak)
     if (fs.existsSync(dbPath)) {
@@ -435,6 +456,7 @@ export async function writeDbFast(data) {
   try {
     // RAM önbelleği hemen güncelle
     cachedDb = data;
+    lastCacheCheckTime = Date.now();
 
     // Seyrek .bak yedek: son 5 dakikada alınmamışsa al
     const now = Date.now();
@@ -764,6 +786,16 @@ export function syncWithIni(db) {
       const periodicDiskSyncInterval = getCaseInsensitiveKey(settingsSection, 'periodicDiskSyncInterval');
       if (periodicDiskSyncInterval !== undefined) {
         db.settings.periodicDiskSyncInterval = periodicDiskSyncInterval;
+      }
+
+      const autoCookieRefresh = getCaseInsensitiveKey(settingsSection, 'autoCookieRefresh');
+      if (autoCookieRefresh !== undefined) {
+        db.settings.autoCookieRefresh = autoCookieRefresh !== 'false';
+      }
+
+      const cookieRefreshInterval = getCaseInsensitiveKey(settingsSection, 'cookieRefreshInterval');
+      if (cookieRefreshInterval !== undefined) {
+        db.settings.cookieRefreshInterval = parseInt(cookieRefreshInterval, 10) || 30;
       }
 
       const weatherEnabled = getCaseInsensitiveKey(settingsSection, 'weatherEnabled');
@@ -1096,6 +1128,8 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.autoSyncLocalWatchtime = (db.settings.autoSyncLocalWatchtime !== false).toString();
   iniData.Settings.autoDiskSync = (db.settings.autoDiskSync !== false).toString();
   iniData.Settings.periodicDiskSyncInterval = (db.settings.periodicDiskSyncInterval || '360').toString();
+  iniData.Settings.autoCookieRefresh = (db.settings.autoCookieRefresh !== false).toString();
+  iniData.Settings.cookieRefreshInterval = (db.settings.cookieRefreshInterval !== undefined ? db.settings.cookieRefreshInterval : 30).toString();
 
   await writeIni(configIniPath, iniData);
 }
@@ -1539,110 +1573,5 @@ export function updateHistoryItem(videoId, updates, options = {}) {
   }
 }
 
-// Türkçe Açıklama: Veritabanı üzerinde CRUD (Ekleme, Okuma, Güncelleme, Silme) işlemlerini soyutlayan ORM sınıfı.
-/**
- * Veritabanı dosyası üzerinde CRUD işlemlerini yürüten ve yöneten ORM sınıfı.
- */
-export class DatabaseORM {
-  constructor(dbPath) {
-    this.dbPath = dbPath;
-  }
 
-  /**
-   * Veritabanı nesnesini bellekten veya diskten okur.
-   * @returns {object}
-   */
-  read() {
-    return readDb();
-  }
-
-  /**
-   * Veritabanı nesnesini diske yazar.
-   * @param {object} data 
-   * @returns {void}
-   */
-  write(data) {
-    return writeDb(data);
-  }
-
-  /**
-   * Belirtilen koleksiyonda arama koşuluna uyan ilk nesneyi bulur.
-   * @param {string} collection 
-   * @param {function} predicate 
-   * @returns {*}
-   */
-  find(collection, predicate) {
-    const data = this.read();
-    return (data[collection] || []).find(predicate);
-  }
-
-  /**
-   * Belirtilen koleksiyonda ID ile arama yapar.
-   * @param {string} collection 
-   * @param {string} id 
-   * @returns {*}
-   */
-  findById(collection, id) {
-    const data = this.read();
-    return (data[collection] || []).find(item => item.id === id);
-  }
-
-  /**
-   * Koleksiyona yeni bir nesne ekler veya mevcut nesneyi günceller.
-   * @param {string} collection 
-   * @param {object} item 
-   * @returns {object}
-   */
-  save(collection, item) {
-    const data = this.read();
-    data[collection] = data[collection] || [];
-    const index = data[collection].findIndex(i => i.id === item.id);
-    if (index !== -1) {
-      data[collection][index] = { ...data[collection][index], ...item };
-    } else {
-      data[collection].push(item);
-    }
-    this.write(data);
-    return item;
-  }
-
-  /**
-   * Koleksiyondan belirtilen ID'ye sahip nesneyi siler.
-   * @param {string} collection 
-   * @param {string} id 
-   * @returns {boolean}
-   */
-  delete(collection, id) {
-    const data = this.read();
-    data[collection] = data[collection] || [];
-    const initialLength = data[collection].length;
-    data[collection] = data[collection].filter(item => item.id !== id);
-    const deleted = data[collection].length < initialLength;
-    if (deleted) {
-      this.write(data);
-    }
-    return deleted;
-  }
-
-  /**
-   * Belirtilen ID'ye sahip nesneye değişiklikleri uygular.
-   * @param {string} collection 
-   * @param {string} id 
-   * @param {object} changes 
-   * @returns {object|null}
-   */
-  update(collection, id, changes) {
-    const data = this.read();
-    data[collection] = data[collection] || [];
-    const item = data[collection].find(i => i.id === id);
-    if (item) {
-      Object.assign(item, changes);
-      this.write(data);
-      return item;
-    }
-    return null;
-  }
-}
-
-export const db = new DatabaseORM(dbPath);
 

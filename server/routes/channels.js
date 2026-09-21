@@ -799,21 +799,6 @@ router.post('/:id/update-avatar', localhostOnly, async (req, res) => {
   }
 });
 
-async function fetchChannelSubscriberCount(channel) {
-  const channelIdUrl = `https://www.youtube.com/channel/${channel.id}`;
-  let info = await resolveChannelId(channelIdUrl, channel.id);
-  if (!info || !info.subscriberCount || info.subscriberCount === '?') {
-    const handleUrl = channel.handle && channel.handle.startsWith('http') 
-      ? channel.handle 
-      : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
-    const fallbackInfo = await resolveChannelId(handleUrl, channel.id);
-    if (fallbackInfo && fallbackInfo.subscriberCount && fallbackInfo.subscriberCount !== '?') {
-      info = fallbackInfo;
-    }
-  }
-  return (info && info.subscriberCount) ? info.subscriberCount : (channel.subscriberCount || '?');
-}
-
 router.post('/update-all-subscribers', localhostOnly, async (req, res) => {
   if (isChannelScanInProgress) {
     const elapsed = channelScanStartTime > 0 ? (Date.now() - channelScanStartTime) / 1000 : 0;

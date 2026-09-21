@@ -208,7 +208,11 @@ export const settingComments = {
 
   githubGistId: '# GitHub Gist Kimliği / GitHub Gist ID\n# Açıklama: Ayarlar, kanallar ve geçmiş yedeklerinin yüklendiği Gist ID.\n# Description: Gist ID where settings, channels, and history backups are synced.\n# Seçenekler / Options: 32 karakterlik Gist hash kimliği\n# Varsayılan / Default: Boş / Empty',
 
-  autoSyncGist: '# Otomatik Gist Senkronizasyonu / Automatic Gist Sync\n# Açıklama: Değişiklik yapıldığında veritabanını GitHub Gist\'e otomatik yükler.\n# Description: Automatically uploads database backups to GitHub Gist upon changes.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: false'
+  autoSyncGist: '# Otomatik Gist Senkronizasyonu / Automatic Gist Sync\n# Açıklama: Değişiklik yapıldığında veritabanını GitHub Gist\'e otomatik yükler.\n# Description: Automatically uploads database backups to GitHub Gist upon changes.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: false',
+
+  autoCookieRefresh: '# Otomatik YouTube Çerez Yenileme / Automatic YouTube Cookie Refresh\n# Açıklama: YouTube oturum çerezlerinin geçerliliğini periyodik olarak kontrol edip arka planda sessizce tazeler.\n# Description: Periodically checks YouTube session cookies and refreshes them silently in the background.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
+
+  cookieRefreshInterval: '# Çerez Yenileme ve Denetleme Sıklığı (Dakika) / Cookie Refresh & Check Interval (Minutes)\n# Açıklama: YouTube oturum çerezlerinin kontrol edilip yenileneceği periyot (dakika).\n# Description: Periodic interval in minutes to check and refresh YouTube session cookies.\n# Seçenekler / Options: 15, 30, 60, 120, 360, 720\n# Varsayılan / Default: 30'
 };
 
 /**
@@ -234,21 +238,36 @@ export async function writeIni(filePath, data) {
       content += `${key} = ${data[section][key]}\n\n`;
     }
   }
-  const tempPath = `${filePath}.tmp`;
+  // Türkçe Açıklama: Dosya içeriği değişmemişse gereksiz disk yazımını ve olası kilitlenmeleri (EBUSY) önlemek için atla.
+  if (fs.existsSync(filePath)) {
+    try {
+      const existing = await fs.promises.readFile(filePath, 'utf-8');
+      if (existing === content) {
+        return;
+      }
+    } catch (_) {}
+  }
+
+  // Türkçe Açıklama: Windows üzerinde eş zamanlı okuma/yazma kilitlenmelerine (EBUSY) karşı rastgele geçici dosya ve kademeli yeniden deneme.
+  const tempPath = `${filePath}.${Date.now()}.${Math.random().toString(36).slice(2, 7)}.tmp`;
   await fs.promises.writeFile(tempPath, content, 'utf-8');
   let renamed = false;
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 8; i++) {
     try {
       await fs.promises.rename(tempPath, filePath);
       renamed = true;
       break;
     } catch (renameErr) {
-      if (i === 4) {
-        await fs.promises.writeFile(filePath, content, 'utf-8');
+      if (i === 7) {
+        try {
+          await fs.promises.writeFile(filePath, content, 'utf-8');
+          renamed = true;
+        } catch (writeErr) {
+          console.warn(`[writeIni] Dosya yazımı geçici olarak kilitli (${filePath}):`, writeErr.message);
+        }
         try { await fs.promises.unlink(tempPath); } catch (e) {}
-        renamed = true;
       } else {
-        await new Promise(resolve => setTimeout(resolve, 20));
+        await new Promise(resolve => setTimeout(resolve, 50 * (i + 1)));
       }
     }
   }

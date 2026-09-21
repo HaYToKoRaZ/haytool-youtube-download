@@ -12,6 +12,50 @@ export const router = express.Router();
 
 let cachedYoutubeApiKey = null;
 
+// Aktif video oynatma akışlarını (streams) takip eden harita: videoId -> Set<{ req, res }>
+const activeVideoStreams = new Map();
+
+/**
+ * Belirtilen video ID'sine ait tüm aktif video oynatma HTTP akışlarını ve dosya tanıtıcılarını derhal sonlandırır.
+ * Dosya silinmeden önce dosya kilidini serbest bırakmak için kullanılır.
+ * 
+ * @param {string} videoId - Hedef video ID'si
+ */
+export function closeActiveVideoStreams(videoId) {
+  if (!videoId) return;
+  const streams = activeVideoStreams.get(videoId);
+  if (streams && streams.size > 0) {
+    console.log(`[Stream] Video ID '${videoId}' için ${streams.size} aktif oynatma akışı zorla sonlandırılıyor.`);
+    for (const item of streams) {
+      try {
+        if (item.res && !item.res.destroyed) {
+          item.res.setHeader('Connection', 'close');
+          item.res.destroy();
+        }
+        if (item.req && !item.req.destroyed) {
+          item.req.destroy();
+        }
+      } catch (e) {
+        console.error(`[Stream Kapatma Hata]:`, e.message);
+      }
+    }
+    activeVideoStreams.delete(videoId);
+  }
+}
+
+/**
+ * Belirtilen videonun aktif akışlarını kapatmak için istemci uç noktası.
+ * 
+ * @name POST /api/video-stream/close
+ */
+router.post('/video-stream/close', localhostOnly, (req, res) => {
+  const videoId = req.query.videoId || req.body?.videoId;
+  if (videoId) {
+    closeActiveVideoStreams(videoId);
+  }
+  res.json({ success: true });
+});
+
 /**
  * İstemciye gömülü video oynatıcı (embed player) için video dosyasını akış (stream) olarak sunar.
  * 
@@ -40,6 +84,27 @@ router.get('/video-stream', (req, res) => {
 
   if (fileToPlay && fs.existsSync(fileToPlay)) {
     console.log(`[Stream] Video akıtılıyor: ${fileToPlay}`);
+
+    // Aktif akış kaydı oluştur (silme anında kilidin hemen serbest bırakılması için)
+    if (!activeVideoStreams.has(videoId)) {
+      activeVideoStreams.set(videoId, new Set());
+    }
+    const streamSet = activeVideoStreams.get(videoId);
+    const streamItem = { req, res };
+    streamSet.add(streamItem);
+
+    const cleanupStream = () => {
+      streamSet.delete(streamItem);
+      if (streamSet.size === 0) {
+        activeVideoStreams.delete(videoId);
+      }
+    };
+
+    req.on('close', cleanupStream);
+    res.on('finish', cleanupStream);
+    res.on('close', cleanupStream);
+    res.on('error', cleanupStream);
+
     res.sendFile(path.resolve(fileToPlay));
   } else {
     console.error(`[Stream Hata] Dosya bulunamadı. ID: ${videoId}`);

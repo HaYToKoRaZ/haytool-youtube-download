@@ -22,6 +22,7 @@ import { localhostOnly } from '../middleware/security.js';
 import { ytdlpPath, getFfmpegPath, testFfmpegSync, setFfmpegWorkingCached, getLocalTempDir, spawnYtdlp } from '../services/paths.js';
 import { downloadQueue, getEffectiveSpeedLimit, getCookieArgs } from '../services/downloader.js';
 import { broadcast, addTerminalLog, terminalLogs } from '../services/sse.js';
+import { restartCookieHealthCheck } from '../services/cookieHealth.js';
 import { categoriesIniPath } from '../config.js';
 export function formatBackupDateStr(now = new Date()) {
   const day = String(now.getDate()).padStart(2, '0');
@@ -82,7 +83,7 @@ export async function startIntervalTimer() {
     checkIntervalTimer = null;
   }
 
-  if (db.settings.isPaused) return;
+  // Türkçe Açıklama: İndirme listesi duraklatılmış olsa bile kanal taraması çalışabilir; indirme engeli DownloadQueue içinde yönetilir.
 
   const seconds = db.settings.channelCheckInterval || 300;
   console.log(`[Zamanlayıcı] RSS kontrol döngüsü ${seconds} saniyede bir çalışacak şekilde başlatıldı.`);
@@ -416,7 +417,7 @@ router.get('/weather', async (req, res) => {
       return res.json({ success: true, enabled: true, cached: true, ...weatherCache.data, city });
     }
 
-    const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&temperature_unit=${unit}&wind_speed_unit=kmh`;
+    const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=precipitation_probability&forecast_days=1&temperature_unit=${unit}&wind_speed_unit=kmh`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -430,6 +431,7 @@ router.get('/weather', async (req, res) => {
 
     const json = await apiRes.json();
     const current = json.current || {};
+    const hourly = json.hourly || {};
     const temp = Math.round(current.temperature_2m !== undefined ? current.temperature_2m : 0);
     const feelsLike = Math.round(current.apparent_temperature !== undefined ? current.apparent_temperature : temp);
     const humidity = Math.round(current.relative_humidity_2m || 0);
@@ -437,12 +439,23 @@ router.get('/weather', async (req, res) => {
     const weatherCode = current.weather_code !== undefined ? current.weather_code : 0;
     const weatherInfo = getWmoWeatherInfo(weatherCode);
 
+    // O anki saate ait yağış ihtimali (%0-100)
+    let precipitationProbability = 0;
+    if (hourly.time && hourly.precipitation_probability && current.time) {
+      const currentHour = current.time.slice(0, 13);
+      const hourIdx = hourly.time.findIndex(t => t.startsWith(currentHour));
+      if (hourIdx >= 0 && hourly.precipitation_probability[hourIdx] !== undefined) {
+        precipitationProbability = Math.round(hourly.precipitation_probability[hourIdx]);
+      }
+    }
+
     const payload = {
       temp,
       unit: unitSymbol,
       feelsLike,
       humidity,
       windSpeed,
+      precipitationProbability,
       weatherCode,
       icon: weatherInfo.icon,
       descKey: weatherInfo.descKey,
@@ -563,6 +576,16 @@ router.post('/settings', localhostOnly, (req, res) => {
   writeDb(db);
   startIntervalTimer(); // Süre değiştiyse zamanlayıcıyı güncelle
   setupPeriodicDiskSync(); // Disk senkronizasyon sıklığı değiştiyse güncelle
+  restartCookieHealthCheck(db.settings); // Otomatik çerez yenileme ayarı ve sıklığını güncelle
+
+  import('../services/discord.js').then(({ discordRpc }) => {
+    if (db.settings.discordRpcEnabled !== false) {
+      discordRpc.connect();
+    } else {
+      discordRpc.disconnect();
+    }
+  }).catch(e => console.error('DiscordRPC dynamic import fail:', e.message));
+
   broadcast('db_update', db);
 
   // Yalnızca indirme klasörü yolu fiziksel olarak değiştiğinde disk senkronizasyonu çalıştır
@@ -1067,11 +1090,15 @@ router.post('/settings/toggle-alt-speed', localhostOnly, (req, res) => {
 
 router.post('/settings/toggle-discord-rpc', localhostOnly, (req, res) => {
   const db = readDb();
-  db.settings.discordRpcEnabled = req.body.discordRpcEnabled === true || req.body.discordRpcEnabled === 'true';
+  if (req.body && req.body.discordRpcEnabled !== undefined) {
+    db.settings.discordRpcEnabled = req.body.discordRpcEnabled === true || req.body.discordRpcEnabled === 'true';
+  } else {
+    db.settings.discordRpcEnabled = !db.settings.discordRpcEnabled;
+  }
   writeDb(db);
   broadcast('db_update', db);
   
-  import('./discord.js').then(({ discordRpc }) => {
+  import('../services/discord.js').then(({ discordRpc }) => {
     if (db.settings.discordRpcEnabled) {
       discordRpc.connect();
     } else {

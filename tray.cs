@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
@@ -12,6 +13,28 @@ namespace HaYTooLTray
 {
     public class Program : ApplicationContext
     {
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, ref COPYDATASTRUCT lParam);
+
+        private const int SW_RESTORE = 9;
+        private const int WM_COPYDATA = 0x004A;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct COPYDATASTRUCT
+        {
+            public IntPtr dwData;
+            public int cbData;
+            [MarshalAs(UnmanagedType.LPWStr)]
+            public string lpData;
+        }
+
         private NotifyIcon trayIcon;
         private Process nodeProcess;
 
@@ -447,11 +470,11 @@ namespace HaYTooLTray
             pasteDownloadItem = new MenuItem("Panodan İndir", PasteAndDownload);
 
             shortcutsMenu = new MenuItem("Sekmelere Git");
-            libraryShortcut = new MenuItem("Kütüphane", (s, e) => OpenUrl("/home"));
-            queueShortcut = new MenuItem("İndirme Sırası", (s, e) => OpenUrl("/download"));
-            downloadedShortcut = new MenuItem("İndirilenler", (s, e) => OpenUrl("/downlist"));
-            channelsShortcut = new MenuItem("Kanallar", (s, e) => OpenUrl("/channels"));
-            settingsShortcut = new MenuItem("Ayarlar", (s, e) => OpenUrl("/settings"));
+            libraryShortcut = new MenuItem("Kütüphane", (s, e) => NavigateToAppPath("/home"));
+            queueShortcut = new MenuItem("İndirme Sırası", (s, e) => NavigateToAppPath("/download"));
+            downloadedShortcut = new MenuItem("İndirilenler", (s, e) => NavigateToAppPath("/downlist"));
+            channelsShortcut = new MenuItem("Kanallar", (s, e) => NavigateToAppPath("/channels"));
+            settingsShortcut = new MenuItem("Ayarlar", (s, e) => NavigateToAppPath("/settings"));
             settingsItem = new MenuItem("Ayarlar", OpenSettingsPage);
             
             shortcutsMenu.MenuItems.Add(libraryShortcut);
@@ -500,9 +523,9 @@ namespace HaYTooLTray
 
             // Menü her açıldığında ayarı okuyarak işareti güncelliyoruz
             contextMenu.Popup += (s, e) => {
-                altSpeedItem.Checked = GetUseAlternativeSpeedSetting();
+                altSpeedItem.Checked = GetIniBoolSetting("useAlternativeSpeed");
                 bootItem.Checked = GetStartOnBootSetting();
-                discordRpcItem.Checked = GetDiscordRpcSetting();
+                discordRpcItem.Checked = GetIniBoolSetting("discordRpcEnabled");
             };
 
             if (trayIcon != null)
@@ -528,7 +551,7 @@ namespace HaYTooLTray
         private string GetAppUrl(string relativePath = "")
         {
             int port = 4141;
-            string iniPath = "configwin.ini";
+            string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configwin.ini");
             if (File.Exists(iniPath))
             {
                 try
@@ -559,10 +582,10 @@ namespace HaYTooLTray
             return "http://localhost:" + port + relativePath;
         }
 
-        // Türkçe Açıklama: configwin.ini dosyasındaki discordRpcEnabled ayar değerini kontrol eder.
-        private bool GetDiscordRpcSetting()
+        // Türkçe Açıklama: configwin.ini dosyasındaki belirtilen boolean ayar değerini kontrol eder.
+        private bool GetIniBoolSetting(string targetKey, bool defaultValue = false)
         {
-            string iniPath = "configwin.ini";
+            string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configwin.ini");
             if (File.Exists(iniPath))
             {
                 try
@@ -576,7 +599,7 @@ namespace HaYTooLTray
                         {
                             string key = trimmed.Substring(0, equalsIdx).Trim();
                             string val = trimmed.Substring(equalsIdx + 1).Trim();
-                            if (string.Equals(key, "discordRpcEnabled", StringComparison.OrdinalIgnoreCase))
+                            if (string.Equals(key, targetKey, StringComparison.OrdinalIgnoreCase))
                             {
                                 return string.Equals(val, "true", StringComparison.OrdinalIgnoreCase);
                             }
@@ -585,7 +608,7 @@ namespace HaYTooLTray
                 }
                 catch {}
             }
-            return false;
+            return defaultValue;
         }
 
         // Türkçe Açıklama: Discord Rich Presence geçişini asenkron olarak tetikler.
@@ -615,34 +638,6 @@ namespace HaYTooLTray
             });
         }
 
-        // Türkçe Açıklama: configwin.ini dosyasındaki useAlternativeSpeed ayar değerini kontrol eder.
-        private bool GetUseAlternativeSpeedSetting()
-        {
-            string iniPath = "configwin.ini";
-            if (File.Exists(iniPath))
-            {
-                try
-                {
-                    string[] lines = File.ReadAllLines(iniPath);
-                    foreach (string line in lines)
-                    {
-                        string trimmed = line.Trim();
-                        int equalsIdx = trimmed.IndexOf('=');
-                        if (equalsIdx != -1)
-                        {
-                            string key = trimmed.Substring(0, equalsIdx).Trim();
-                            string val = trimmed.Substring(equalsIdx + 1).Trim();
-                            if (string.Equals(key, "useAlternativeSpeed", StringComparison.OrdinalIgnoreCase))
-                            {
-                                return string.Equals(val, "true", StringComparison.OrdinalIgnoreCase);
-                            }
-                        }
-                    }
-                }
-                catch {}
-            }
-            return false;
-        }
 
         // Türkçe Açıklama: Windows Görev Çubuğu (Explorer) veya başlangıç durumunda tepsi simgesini yeniler.
         public void RefreshTrayIcon()
@@ -735,27 +730,55 @@ namespace HaYTooLTray
 
         // Türkçe Açıklama: YouTube ve Google hesabında oturum açmak için izole tarayıcı penceresini açar.
         // WebView2 çerez senkronunun güvenilir çalışması için doğrudan bin/HaYTooLPlayer.exe başlatılır
-        // (Ayarlar sayfasındaki /api/open-youtube-login ile aynı yol); launcher yalnızca yedek olarak kullanılır.
+        // Türkçe Açıklama: YouTube ve Google hesabında oturum açmak için izole tarayıcı penceresini açar.
+        // Eğer HaYTooLPlayer zaten açıksa, yeni bir kopya açılmaz; WM_COPYDATA ile mevcut oynatıcıya bildirilerek 
+        // minimal oturum/çerez penceresi öne getirilir.
         private void OpenYouTubeLoginWindow(object sender, EventArgs e)
         {
             try
             {
                 string loginUrl = "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com";
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                string binPlayerExe = Path.Combine(baseDir, "bin", "HaYTooLPlayer.exe");
-                string playerExe = Path.Combine(baseDir, "HaYTooL-Player Beta.exe");
 
-                if (File.Exists(binPlayerExe))
+                // 1. Zaten açık bir oynatıcı var mı kontrol et (Tek kopya garantisi)
+                Process[] processes = Process.GetProcessesByName("HaYTooLPlayer");
+                Process activePlayer = null;
+                foreach (var p in processes)
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo(binPlayerExe, "\"" + loginUrl + "\"");
-                    psi.WorkingDirectory = Path.GetDirectoryName(binPlayerExe);
-                    psi.UseShellExecute = true;
-                    Process.Start(psi);
+                    try
+                    {
+                        if (p.MainWindowHandle != IntPtr.Zero)
+                        {
+                            activePlayer = p;
+                            break;
+                        }
+                    }
+                    catch {}
                 }
-                else if (File.Exists(playerExe))
+
+                if (activePlayer != null)
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo(playerExe, "\"" + loginUrl + "\"");
-                    psi.WorkingDirectory = baseDir;
+                    IntPtr hWnd = activePlayer.MainWindowHandle;
+                    ShowWindow(hWnd, SW_RESTORE);
+                    SetForegroundWindow(hWnd);
+
+                    COPYDATASTRUCT cds;
+                    cds.dwData = IntPtr.Zero;
+                    cds.lpData = loginUrl;
+                    cds.cbData = (loginUrl.Length + 1) * 2;
+                    SendMessage(hWnd, WM_COPYDATA, IntPtr.Zero, ref cds);
+                    return;
+                }
+
+                // 2. Oynatıcı açık değilse başlat
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string playerExe = Path.Combine(baseDir, "HaYTooL-Player Beta.exe");
+                string binPlayerExe = Path.Combine(baseDir, "bin", "HaYTooLPlayer.exe");
+                string targetExe = File.Exists(playerExe) ? playerExe : (File.Exists(binPlayerExe) ? binPlayerExe : null);
+
+                if (targetExe != null)
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo(targetExe, "\"" + loginUrl + "\"");
+                    psi.WorkingDirectory = Path.GetDirectoryName(targetExe);
                     psi.UseShellExecute = true;
                     Process.Start(psi);
                 }
@@ -1337,9 +1360,11 @@ namespace HaYTooLTray
             }
         }
 
+        // Türkçe Açıklama: Çift tıklama veya gezinme eylemi ayarını configwin.ini veya db.json dosyasından okur.
         private string GetDoubleClickActionSetting()
         {
-            string iniPath = "configwin.ini";
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string iniPath = Path.Combine(baseDir, "configwin.ini");
             if (File.Exists(iniPath))
             {
                 try
@@ -1355,50 +1380,68 @@ namespace HaYTooLTray
                             string val = trimmed.Substring(equalsIdx + 1).Trim();
                             if (string.Equals(key, "doubleClickAction", StringComparison.OrdinalIgnoreCase))
                             {
-                                return val;
+                                if (!string.IsNullOrEmpty(val))
+                                {
+                                    return val;
+                                }
                             }
                         }
                     }
                 }
                 catch {}
             }
+
+            // Yedek kontrol: db.json dosyasından doubleClickAction ayarını oku
+            string dbPath = Path.Combine(baseDir, "db.json");
+            if (File.Exists(dbPath))
+            {
+                try
+                {
+                    string json = File.ReadAllText(dbPath);
+                    var match = System.Text.RegularExpressions.Regex.Match(json, "\"doubleClickAction\"\\s*:\\s*\"([^\"]+)\"");
+                    if (match.Success && match.Groups.Count > 1)
+                    {
+                        string jsonVal = match.Groups[1].Value.Trim();
+                        if (!string.IsNullOrEmpty(jsonVal))
+                        {
+                            return jsonVal;
+                        }
+                    }
+                }
+                catch {}
+            }
+
             return "system";
         }
 
-        // Türkçe Açıklama: Varsayılan tarayıcıda veya gömülü Edge App modunda uygulamanın indirilenler sayfasını açar.
-        private void OpenWebPage(object sender, EventArgs e)
+        // Türkçe Açıklama: Seçili çift tıklama / başlatıcı ortam ayarına (player, embedded, system) göre istenen sayfayı açar.
+        private void NavigateToAppPath(string path)
         {
             string action = GetDoubleClickActionSetting();
             if (string.Equals(action, "player", StringComparison.OrdinalIgnoreCase))
             {
-                OpenInPlayer("/downlist");
+                OpenInPlayer(path);
             }
             else if (string.Equals(action, "embedded", StringComparison.OrdinalIgnoreCase))
             {
-                OpenUrlInOwnBrowser("/downlist");
+                OpenUrlInOwnBrowser(path);
             }
             else
             {
-                OpenUrl("/downlist");
+                OpenUrl(path);
             }
         }
 
-        // Türkçe Açıklama: Varsayılan tarayıcıda veya gömülü Edge App modunda uygulamanın ayarlar sayfasını açar.
+        // Türkçe Açıklama: Varsayılan tarayıcıda veya gömülü Edge App modunda ya da HaYTooL-Player'da uygulamanın indirilenler sayfasını açar.
+        private void OpenWebPage(object sender, EventArgs e)
+        {
+            NavigateToAppPath("/downlist");
+        }
+
+        // Türkçe Açıklama: Varsayılan tarayıcıda veya gömülü Edge App modunda ya da HaYTooL-Player'da uygulamanın ayarlar sayfasını açar.
         private void OpenSettingsPage(object sender, EventArgs e)
         {
-            string action = GetDoubleClickActionSetting();
-            if (string.Equals(action, "player", StringComparison.OrdinalIgnoreCase))
-            {
-                OpenInPlayer("/settings");
-            }
-            else if (string.Equals(action, "embedded", StringComparison.OrdinalIgnoreCase))
-            {
-                OpenUrlInOwnBrowser("/settings");
-            }
-            else
-            {
-                OpenUrl("/settings");
-            }
+            NavigateToAppPath("/settings");
         }
 
         // Türkçe Açıklama: HaYTooL-Player Beta.exe uygulamasını belirtilen alt sayfa argümanıyla başlatır.
@@ -1406,10 +1449,12 @@ namespace HaYTooLTray
         {
             try
             {
-                string playerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HaYTooL-Player Beta.exe");
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string playerPath = Path.Combine(baseDir, "HaYTooL-Player Beta.exe");
                 if (File.Exists(playerPath))
                 {
                     ProcessStartInfo psi = new ProcessStartInfo(playerPath, path);
+                    psi.WorkingDirectory = baseDir;
                     psi.UseShellExecute = true;
                     Process.Start(psi);
                 }
@@ -2040,6 +2085,46 @@ namespace HaYTooLTray
             helpFormInstance.Show(parentForm);
         }
 
+        // Türkçe Açıklama: Açık olan HaYTooLPlayer veya HaYTooL-Player Beta süreçlerini güvenle sonlandırır.
+        private void KillPlayerProcesses()
+        {
+            try
+            {
+                // HaYTooLPlayer (WPF oynatıcı ve WebView2 arayüzü) süreçlerini kapat
+                Process[] players = Process.GetProcessesByName("HaYTooLPlayer");
+                foreach (var p in players)
+                {
+                    try
+                    {
+                        if (!p.HasExited)
+                        {
+                            p.CloseMainWindow();
+                            if (!p.WaitForExit(700))
+                            {
+                                p.Kill();
+                            }
+                        }
+                    }
+                    catch {}
+                }
+
+                // HaYTooL-Player Beta (Launcher) süreçlerini kapat
+                Process[] launchers = Process.GetProcessesByName("HaYTooL-Player Beta");
+                foreach (var p in launchers)
+                {
+                    try
+                    {
+                        if (!p.HasExited)
+                        {
+                            p.Kill();
+                        }
+                    }
+                    catch {}
+                }
+            }
+            catch {}
+        }
+
         // Türkçe Açıklama: Arka planda çalışan Node.js alt sürecini sonlandırır.
         private void KillNode()
         {
@@ -2056,6 +2141,7 @@ namespace HaYTooLTray
         // Türkçe Açıklama: Sistem tepsisi simgesini ve alt süreçleri temizler.
         private void CleanUp()
         {
+            KillPlayerProcesses();
             KillNode();
             if (jobHandle != IntPtr.Zero)
             {

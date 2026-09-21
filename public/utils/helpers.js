@@ -289,3 +289,50 @@ export function isMembersOnlyVideo(item) {
   }
   return false;
 }
+
+/**
+ * Varsayılan YouTube/içerik kategori isimleri sözlüğü (1-17).
+ */
+export const DEFAULT_CATEGORY_NAMES = {
+  1: ["Genel", "General"],
+  2: ["Oyun", "Gaming"],
+  3: ["Eğitim", "Education"],
+  4: ["Müzik", "Music"],
+  5: ["Teknoloji", "Technology"],
+  6: ["Spor", "Sports"],
+  7: ["Sinema & Film", "Movies & Cinema"],
+  8: ["Haberler & Siyaset", "News & Politics"],
+  9: ["Eğlence", "Entertainment"],
+  10: ["Bilim", "Science"],
+  11: ["Gezi & Yaşam", "Travel & Life"],
+  12: ["Komedi", "Comedy"],
+  13: ["Belgesel", "Documentary"],
+  14: ["Anime & Çizgi Film", "Anime & Cartoon"],
+  15: ["Finans & Ekonomi", "Finance & Economy"],
+  16: ["League of Legends", "League of Legends"],
+  17: ["Podcast", "Podcast"]
+};
+
+/**
+ * Kategori nesnesini seçili dile göre çevirir ve adını döner.
+ * 
+ * @param {object} cat - Kategori nesnesi ({ id, name })
+ * @param {object} [translationsDict=null] - Çeviri sözlüğü
+ * @returns {string} Çevrilmiş kategori adı
+ */
+export function getCatTranslatedName(cat, translationsDict = null) {
+  if (!cat) return '';
+  let catName = cat.name || '';
+  if (cat.id >= 1 && cat.id <= 17) {
+    const list = DEFAULT_CATEGORY_NAMES[cat.id];
+    if (list && (cat.name === list[0] || cat.name === list[1] || !cat.name)) {
+      if (translationsDict && translationsDict[`category_${cat.id}`]) {
+        catName = translationsDict[`category_${cat.id}`];
+      }
+    }
+  }
+  return catName;
+}
+if (typeof window !== 'undefined') {
+  window.getCatTranslatedName = getCatTranslatedName;
+}

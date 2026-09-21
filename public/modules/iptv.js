@@ -25,6 +25,64 @@ let iptvIsAppending = false;
 
 // getState: app.js'den alınan localDb ve currentLang erişimi için
 let _getState = null;
+let _iptvInitialized = false;
+
+/**
+ * Yerel veritabanına ve ayarlara güvenli erişim sağlar.
+ * _getState tanımlı değilse window.localDb veya varsayılan nesneye düşer.
+ * @returns {Object}
+ */
+function getLocalDb() {
+  const state = typeof _getState === 'function' ? _getState() : null;
+  return state?.localDb || window.localDb || { settings: { lang: 'tr' } };
+}
+
+/**
+ * 2 harfli ISO 3166-1 alpha-2 ülke kodundan standart Unicode bayrak emojisi üretir.
+ * 
+ * @param {string} countryCode - Örn: 'TR', 'US', 'DE'
+ * @returns {string} Bayrak emojisi (örn: 🇹🇷)
+ */
+export function getCountryFlag(countryCode) {
+  if (!countryCode || typeof countryCode !== 'string' || countryCode.length !== 2) return '';
+  const code = countryCode.toUpperCase();
+  const first = code.charCodeAt(0);
+  const second = code.charCodeAt(1);
+  if (first < 65 || first > 90 || second < 65 || second > 90) return '';
+  return String.fromCodePoint(127397 + first, 127397 + second);
+}
+
+/**
+ * Windows ve tüm platformlarda bayrağın kesinlikle renkli ve doğru görünmesi için
+ * HTML formatında bayrak üretir (SVG flagcdn + Unicode emoji fallback).
+ * 
+ * @param {string} countryCode - Örn: 'TR', 'US', 'DE'
+ * @param {string} [className='iptv-flag-img'] - CSS sınıfı
+ * @returns {string} HTML dizesi (örn: `<img class="iptv-flag-img" ...>`)
+ */
+export function getCountryFlagHtml(countryCode, className = 'iptv-flag-img') {
+  if (!countryCode || typeof countryCode !== 'string' || countryCode.length !== 2) return '';
+  const code = countryCode.toLowerCase();
+  const emoji = getCountryFlag(countryCode);
+  return `<img class="${className}" src="https://flagcdn.com/w40/${code}.png" alt="${countryCode}" loading="lazy" onerror="this.outerHTML='<span class=\\'iptv-flag-icon\\'>${emoji}</span>';">`;
+}
+
+/**
+ * 2 harfli ülke kodundan tarayıcının yerleşik Intl API'si ile yerelleştirilmiş ülke adını döner.
+ * 
+ * @param {string} countryCode - Örn: 'TR'
+ * @param {string} [lang='tr'] - Dil kodu ('tr', 'en', 'es', 'de' vb.)
+ * @returns {string} Ülke adı (örn: 'Türkiye')
+ */
+export function getCountryName(countryCode, lang = 'tr') {
+  if (!countryCode || typeof countryCode !== 'string' || countryCode.length !== 2) return '';
+  try {
+    const regionNames = new Intl.DisplayNames([lang || 'tr', 'tr', 'en'], { type: 'region' });
+    return regionNames.of(countryCode.toUpperCase()) || countryCode.toUpperCase();
+  } catch (e) {
+    return countryCode.toUpperCase();
+  }
+}
 
 // ─── Dışa açılan API ───
 
@@ -40,9 +98,12 @@ export function getIptvPlayers() { return iptvPlayers; }
  * @returns {void}
  */
 export function stopAllIptvPlayersAndClear() {
+  if (iptvStatusInterval) {
+    clearInterval(iptvStatusInterval);
+    iptvStatusInterval = null;
+  }
   stopAllIptvPlayers();
-  const listContainer = document.getElementById('iptv-channel-list');
-  if (listContainer) listContainer.innerHTML = '';
+  clearIptvChannelList();
   const loadingEl = document.getElementById('iptv-list-loading');
   if (loadingEl) loadingEl.classList.add('hidden');
   iptvSearchQuery = '';
@@ -54,16 +115,46 @@ export function stopAllIptvPlayersAndClear() {
   if (cEl) cEl.value = '';
   const catEl = document.getElementById('iptv-category-filter');
   if (catEl) catEl.value = '';
+  updateCustomCountryTriggerUI('');
+  updateCustomCategoryTriggerUI('');
+  syncQuickFlagButtons('');
 }
 
-export { loadIptvChannels, checkIptvStatus, restoreIptvState, stopAllIptvPlayers };
+/**
+ * Kanal listesi DOM kapsayıcısını temizler.
+ */
+export function clearIptvChannelList() {
+  const listContainer = document.getElementById('iptv-channel-list');
+  if (listContainer) listContainer.innerHTML = '';
+}
+
+export {
+  loadIptvChannels,
+  checkIptvStatus,
+  restoreIptvState,
+  stopAllIptvPlayers,
+  selectIptvSlot,
+  toggleIptvMute,
+  clearIptvSlot,
+  playIptvChannel,
+  resetIptvSlotStyles,
+  resizeAllArtplayers,
+  saveIptvState,
+  swapIptvSportModePlayers,
+  updateIptvSwapBtnVisibility,
+  initIptvSportModeDragAndResize,
+  updateLoadMoreBtn,
+  renderIptvChannels
+};
 
 /**
  * IPTV modülünü başlatır. Tüm DOM event listener'larını kurar.
- * @param {Function} getState - { localDb } döndüren fonksiyon
+ * @param {Function} [getState] - { localDb } döndüren fonksiyon
  */
 export function initIptv(getState) {
-  _getState = getState;
+  if (getState) _getState = getState;
+  if (_iptvInitialized) return;
+  _iptvInitialized = true;
 
   // Slot tıklama → aktif slot seç
   document.querySelectorAll('.iptv-slot').forEach(slot => {
@@ -129,6 +220,10 @@ export function initIptv(getState) {
   const iptvSearchInput   = document.getElementById('iptv-search-input');
   const iptvCountryFilter = document.getElementById('iptv-country-filter');
   const iptvCategoryFilter = document.getElementById('iptv-category-filter');
+  const countryWrapper    = document.getElementById('iptv-country-dropdown-wrapper');
+  const countryTrigger    = document.getElementById('iptv-country-trigger');
+  const countryMenu       = document.getElementById('iptv-country-menu');
+  const countrySearch     = document.getElementById('iptv-country-search');
 
   if (iptvSearchInput) {
     let _t = null;
@@ -137,13 +232,124 @@ export function initIptv(getState) {
       _t = setTimeout(() => { iptvSearchQuery = iptvSearchInput.value.trim(); loadIptvChannels(); }, 300);
     });
   }
-  iptvCountryFilter?.addEventListener('change', () => { iptvSelectedCountry = iptvCountryFilter.value; loadIptvChannels(); });
-  iptvCategoryFilter?.addEventListener('change', () => { iptvSelectedCategory = iptvCategoryFilter.value; loadIptvChannels(); });
 
-  document.getElementById('iptv-tr-quick-btn')?.addEventListener('click', () => {
-    iptvSelectedCountry = 'TR';
-    if (iptvCountryFilter) iptvCountryFilter.value = 'TR';
+  // Özel Ülke Menüsü Açma/Kapama
+  if (countryTrigger && countryMenu) {
+    countryTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = !countryMenu.classList.contains('hidden');
+      if (isOpen) {
+        countryMenu.classList.add('hidden');
+        countryWrapper?.classList.remove('open');
+      } else {
+        countryMenu.classList.remove('hidden');
+        countryWrapper?.classList.add('open');
+        if (countrySearch) {
+          countrySearch.value = '';
+          filterCustomCountryList('');
+          setTimeout(() => countrySearch.focus(), 50);
+        }
+      }
+    });
+
+    // Menü dışına tıklanınca kapat
+    document.addEventListener('click', (e) => {
+      if (countryWrapper && !countryWrapper.contains(e.target)) {
+        countryMenu.classList.add('hidden');
+        countryWrapper.classList.remove('open');
+      }
+    });
+
+    // Menü içi arama inputu
+    countrySearch?.addEventListener('input', (e) => {
+      e.stopPropagation();
+      filterCustomCountryList(countrySearch.value.trim().toLowerCase());
+    });
+
+    countrySearch?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+
+  // Özel Kategori Menüsü Açma/Kapama
+  const categoryWrapper = document.getElementById('iptv-category-dropdown-wrapper');
+  const categoryTrigger = document.getElementById('iptv-category-trigger');
+  const categoryMenu    = document.getElementById('iptv-category-menu');
+  const categorySearch  = document.getElementById('iptv-category-search');
+
+  if (categoryTrigger && categoryMenu) {
+    categoryTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Ülke menüsü açıksa kapat
+      if (countryMenu && !countryMenu.classList.contains('hidden')) {
+        countryMenu.classList.add('hidden');
+        countryWrapper?.classList.remove('open');
+      }
+
+      const isOpen = !categoryMenu.classList.contains('hidden');
+      if (isOpen) {
+        categoryMenu.classList.add('hidden');
+        categoryWrapper?.classList.remove('open');
+      } else {
+        categoryMenu.classList.remove('hidden');
+        categoryWrapper?.classList.add('open');
+        if (categorySearch) {
+          categorySearch.value = '';
+          filterCustomCategoryList('');
+          setTimeout(() => categorySearch.focus(), 50);
+        }
+      }
+    });
+
+    // Menü dışına tıklanınca kapat
+    document.addEventListener('click', (e) => {
+      if (categoryWrapper && !categoryWrapper.contains(e.target)) {
+        categoryMenu.classList.add('hidden');
+        categoryWrapper.classList.remove('open');
+      }
+    });
+
+    // Menü içi arama inputu
+    categorySearch?.addEventListener('input', (e) => {
+      e.stopPropagation();
+      filterCustomCategoryList(categorySearch.value.trim().toLowerCase());
+    });
+
+    categorySearch?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+
+  iptvCountryFilter?.addEventListener('change', () => {
+    iptvSelectedCountry = iptvCountryFilter.value;
+    updateCustomCountryTriggerUI(iptvSelectedCountry);
+    syncQuickFlagButtons(iptvSelectedCountry);
     loadIptvChannels();
+  });
+
+  iptvCategoryFilter?.addEventListener('change', () => {
+    iptvSelectedCategory = iptvCategoryFilter.value;
+    updateCustomCategoryTriggerUI(iptvSelectedCategory);
+    loadIptvChannels();
+  });
+
+  document.querySelectorAll('.iptv-quick-flag-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const country = btn.getAttribute('data-country');
+      if (!country) return;
+      if (iptvSelectedCountry === country) {
+        // Zaten seçiliyse filtreyi kaldır
+        iptvSelectedCountry = '';
+        if (iptvCountryFilter) iptvCountryFilter.value = '';
+        btn.classList.remove('active');
+      } else {
+        iptvSelectedCountry = country;
+        if (iptvCountryFilter) iptvCountryFilter.value = country;
+      }
+      updateCustomCountryTriggerUI(iptvSelectedCountry);
+      syncQuickFlagButtons(iptvSelectedCountry);
+      loadIptvChannels();
+    });
   });
 
   document.getElementById('iptv-load-more-btn')?.addEventListener('click', () => {
@@ -153,7 +359,7 @@ export function initIptv(getState) {
 
   // IPTV güncelleme butonu
   document.getElementById('iptv-update-btn')?.addEventListener('click', async () => {
-    const { localDb } = _getState();
+    const localDb = getLocalDb();
     const isEn = localDb.settings?.lang === 'en';
     try {
       if (window.showToast) showToast(isEn ? 'IPTV list update requested...' : 'IPTV listesi güncellemesi istendi...', 'info');
@@ -205,7 +411,7 @@ async function loadIptvChannels(append = false) {
     updateLoadMoreBtn();
   } catch (err) {
     console.error('[IPTV] Kanal listesi yükleme hatası:', err);
-    const { localDb } = _getState();
+    const localDb = getLocalDb();
     if (window.showToast) showToast(localDb.settings?.lang === 'en' ? 'Failed to load IPTV channels.' : 'IPTV kanalları yüklenemedi.', 'error');
     if (li) li.classList.add('hidden');
   } finally {
@@ -222,7 +428,7 @@ function updateLoadMoreBtn() {
     btn.classList.add('hidden');
   } else {
     btn.classList.remove('hidden');
-    const { localDb } = _getState();
+    const localDb = getLocalDb();
     const isEn = localDb.settings?.lang === 'en';
     const shown = Math.min(iptvCurrentPage * 200, iptvTotalCount);
     btn.textContent = `${isEn ? 'Load More' : 'Daha Fazla'} (${shown} / ${iptvTotalCount})`;
@@ -233,7 +439,7 @@ function renderIptvChannels(channels, append = false) {
   const lc = document.getElementById('iptv-channel-list');
   if (!lc) return;
   if (!append) lc.innerHTML = '';
-  const { localDb } = _getState();
+  const localDb = getLocalDb();
   const isEn = localDb.settings?.lang === 'en';
   if (channels.length === 0 && !append) {
     lc.innerHTML = `<div class="text-center text-muted" style="padding:20px 0;font-size:0.85rem;">${isEn ? 'No channels found.' : 'Kanal bulunamadı.'}</div>`;
@@ -246,11 +452,14 @@ function renderIptvChannels(channels, append = false) {
     div.dataset.url = ch.url;
     if (iptvPlayers.some(p => p && p.streamUrl === ch.url)) div.classList.add('playing');
     const logoHtml = ch.logo
-      ? `<img src="${ch.logo}" alt="" loading="lazy" onerror="this.outerHTML='<i data-lucide=\\'monitor\\'></i>';lucide.createIcons();">`
+      ? `<img src="${ch.logo}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<i data-lucide=\\'monitor\\'></i>';if(window.lucide)lucide.createIcons();">`
       : `<i data-lucide="monitor"></i>`;
     const badges = [];
     if (ch.category) badges.push(`<span class="iptv-channel-badge iptv-channel-category">${ch.category}</span>`);
-    if (ch.country) badges.push(`<span class="iptv-channel-badge iptv-channel-country">${ch.country}</span>`);
+    if (ch.country) {
+      const flagPrefix = getCountryFlagHtml(ch.country, 'iptv-flag-img');
+      badges.push(`<span class="iptv-channel-badge iptv-channel-country" title="${getCountryName(ch.country, isEn ? 'en' : 'tr')}">${flagPrefix ? flagPrefix + ' ' : ''}${ch.country}</span>`);
+    }
     div.innerHTML = `<div class="iptv-channel-logo">${logoHtml}</div><div class="iptv-channel-details"><div class="iptv-channel-name">${ch.displayName}</div><div class="iptv-channel-sub">${badges.join('')}</div></div>`;
     div.addEventListener('click', () => playIptvChannel(activeIptvSlot, ch.url, ch.displayName));
     frag.appendChild(div);
@@ -268,24 +477,241 @@ function updateIptvPlayingStatus() {
   });
 }
 
+function syncQuickFlagButtons(selectedCountry) {
+  document.querySelectorAll('.iptv-quick-flag-btn').forEach(btn => {
+    const code = btn.getAttribute('data-country');
+    btn.classList.toggle('active', !!(selectedCountry && code === selectedCountry));
+  });
+}
+
+function updateCustomCountryTriggerUI(countryCode) {
+  const triggerText = document.getElementById('iptv-country-trigger-text');
+  const triggerFlag = document.querySelector('#iptv-country-trigger .iptv-trigger-flag');
+  const localDb = getLocalDb();
+  const currentLang = localDb.settings?.lang || 'tr';
+  const isEn = currentLang === 'en';
+
+  if (!countryCode) {
+    if (triggerFlag) triggerFlag.innerHTML = '🌐';
+    if (triggerText) triggerText.textContent = isEn ? 'All Countries' : 'Tüm Ülkeler';
+    return;
+  }
+
+  const flagHtml = getCountryFlagHtml(countryCode, 'iptv-flag-img');
+  const name = getCountryName(countryCode, currentLang);
+  if (triggerFlag) triggerFlag.innerHTML = flagHtml || '🌐';
+  if (triggerText) triggerText.textContent = `${name} (${countryCode})`;
+}
+
+function updateCustomCategoryTriggerUI(categoryName) {
+  const triggerText = document.getElementById('iptv-category-trigger-text');
+  const triggerFlag = document.querySelector('#iptv-category-trigger .iptv-trigger-flag');
+  const localDb = getLocalDb();
+  const isEn = localDb.settings?.lang === 'en';
+
+  if (!categoryName) {
+    if (triggerFlag) triggerFlag.innerHTML = '📁';
+    if (triggerText) triggerText.textContent = isEn ? 'All Categories' : 'Tüm Kategoriler';
+    return;
+  }
+
+  if (triggerFlag) triggerFlag.innerHTML = '📺';
+  if (triggerText) triggerText.textContent = categoryName.length > 25 ? categoryName.substring(0, 25) + '...' : categoryName;
+}
+
+function filterCustomCountryList(filterText) {
+  const listEl = document.getElementById('iptv-country-list');
+  if (!listEl) return;
+  const items = listEl.querySelectorAll('.iptv-menu-item');
+  items.forEach(item => {
+    if (!filterText) {
+      item.style.display = 'flex';
+      return;
+    }
+    const name = (item.dataset.name || '').toLowerCase();
+    const code = (item.dataset.code || '').toLowerCase();
+    const matches = name.includes(filterText) || code.includes(filterText);
+    item.style.display = matches ? 'flex' : 'none';
+  });
+}
+
+function filterCustomCategoryList(filterText) {
+  const listEl = document.getElementById('iptv-category-list');
+  if (!listEl) return;
+  const items = listEl.querySelectorAll('.iptv-menu-item');
+  items.forEach(item => {
+    if (!filterText) {
+      item.style.display = 'flex';
+      return;
+    }
+    const name = (item.dataset.name || '').toLowerCase();
+    const matches = name.includes(filterText);
+    item.style.display = matches ? 'flex' : 'none';
+  });
+}
+
 function populateIptvFilters(filters) {
   if (!filters) return;
   const cf = document.getElementById('iptv-country-filter');
   const catf = document.getElementById('iptv-category-filter');
-  const { localDb } = _getState();
-  const isEn = localDb.settings?.lang === 'en';
-  const selC = cf?.value || '';
-  const selCat = catf?.value || '';
-  if (cf && filters.countries) {
-    cf.innerHTML = `<option value="">${isEn ? 'All Countries' : 'Tüm Ülkeler'}</option>`;
-    filters.countries.forEach(c => { const o = document.createElement('option'); o.value = o.textContent = c; cf.appendChild(o); });
-    if (selC) cf.value = selC;
+  const customCountryListEl = document.getElementById('iptv-country-list');
+  const customCatListEl = document.getElementById('iptv-category-list');
+  const localDb = getLocalDb();
+  const currentLang = localDb.settings?.lang || 'tr';
+  const isEn = currentLang === 'en';
+  const selC = iptvSelectedCountry || cf?.value || '';
+  const selCat = iptvSelectedCategory || catf?.value || '';
+
+  // 1. Ülke Filtresi Doldurma
+  if (filters.countries) {
+    if (cf) {
+      cf.innerHTML = `<option value="">${isEn ? 'All Countries' : 'Tüm Ülkeler'}</option>`;
+    }
+
+    const countryItems = filters.countries.map(c => {
+      const flag = getCountryFlag(c);
+      const name = getCountryName(c, currentLang);
+      const label = flag ? `${flag} ${name} (${c})` : `${name} (${c})`;
+      return { code: c, label, name, flag };
+    });
+
+    countryItems.sort((a, b) => a.name.localeCompare(b.name, currentLang));
+
+    if (cf) {
+      countryItems.forEach(item => {
+        const o = document.createElement('option');
+        o.value = item.code;
+        o.textContent = item.label;
+        cf.appendChild(o);
+      });
+      if (selC) cf.value = selC;
+    }
+
+    if (customCountryListEl) {
+      customCountryListEl.innerHTML = '';
+
+      // "Tüm Ülkeler" öğesi
+      const allItem = document.createElement('div');
+      allItem.className = `iptv-menu-item ${!selC ? 'selected' : ''}`;
+      allItem.dataset.code = '';
+      allItem.dataset.name = isEn ? 'All Countries' : 'Tüm Ülkeler';
+      allItem.innerHTML = `
+        <span class="iptv-menu-flag">🌐</span>
+        <span class="iptv-menu-name">${isEn ? 'All Countries' : 'Tüm Ülkeler'}</span>
+      `;
+      allItem.addEventListener('click', () => selectCountryFromMenu(''));
+      customCountryListEl.appendChild(allItem);
+
+      // Her ülke için bayraklı öğe (Windows'ta emoji render hatasını engelleyen flagcdn img + fallback)
+      countryItems.forEach(item => {
+        const itemEl = document.createElement('div');
+        const isSelected = selC === item.code;
+        itemEl.className = `iptv-menu-item ${isSelected ? 'selected' : ''}`;
+        itemEl.dataset.code = item.code;
+        itemEl.dataset.name = item.name;
+        const flagHtml = getCountryFlagHtml(item.code, 'iptv-menu-flag-img');
+        itemEl.innerHTML = `
+          <span class="iptv-menu-flag">${flagHtml}</span>
+          <span class="iptv-menu-name">${item.name}</span>
+          <span class="iptv-menu-code">${item.code}</span>
+        `;
+        itemEl.addEventListener('click', () => selectCountryFromMenu(item.code));
+        customCountryListEl.appendChild(itemEl);
+      });
+    }
+
+    updateCustomCountryTriggerUI(selC);
+    syncQuickFlagButtons(selC);
   }
-  if (catf && filters.categories) {
-    catf.innerHTML = `<option value="">${isEn ? 'All Categories' : 'Tüm Kategoriler'}</option>`;
-    filters.categories.forEach(cat => { const o = document.createElement('option'); o.value = cat; o.textContent = cat.length > 40 ? cat.substring(0, 40) + '...' : cat; catf.appendChild(o); });
-    if (selCat) catf.value = selCat;
+
+  // 2. Kategori Filtresi Doldurma
+  if (filters.categories) {
+    if (catf) {
+      catf.innerHTML = `<option value="">${isEn ? 'All Categories' : 'Tüm Kategoriler'}</option>`;
+      filters.categories.forEach(cat => {
+        const o = document.createElement('option');
+        o.value = cat;
+        o.textContent = cat.length > 40 ? cat.substring(0, 40) + '...' : cat;
+        catf.appendChild(o);
+      });
+      if (selCat) catf.value = selCat;
+    }
+
+    if (customCatListEl) {
+      customCatListEl.innerHTML = '';
+
+      // "Tüm Kategoriler" öğesi
+      const allCatItem = document.createElement('div');
+      allCatItem.className = `iptv-menu-item ${!selCat ? 'selected' : ''}`;
+      allCatItem.dataset.name = isEn ? 'All Categories' : 'Tüm Kategoriler';
+      allCatItem.innerHTML = `
+        <span class="iptv-menu-flag">📁</span>
+        <span class="iptv-menu-name">${isEn ? 'All Categories' : 'Tüm Kategoriler'}</span>
+      `;
+      allCatItem.addEventListener('click', () => selectCategoryFromMenu(''));
+      customCatListEl.appendChild(allCatItem);
+
+      filters.categories.forEach(cat => {
+        const catItem = document.createElement('div');
+        const isSelected = selCat === cat;
+        catItem.className = `iptv-menu-item ${isSelected ? 'selected' : ''}`;
+        catItem.dataset.name = cat;
+        catItem.innerHTML = `
+          <span class="iptv-menu-flag">📺</span>
+          <span class="iptv-menu-name">${cat}</span>
+        `;
+        catItem.addEventListener('click', () => selectCategoryFromMenu(cat));
+        customCatListEl.appendChild(catItem);
+      });
+    }
+
+    updateCustomCategoryTriggerUI(selCat);
   }
+}
+
+function selectCountryFromMenu(code) {
+  iptvSelectedCountry = code;
+  const cf = document.getElementById('iptv-country-filter');
+  if (cf) cf.value = code;
+
+  const customListEl = document.getElementById('iptv-country-list');
+  if (customListEl) {
+    customListEl.querySelectorAll('.iptv-menu-item').forEach(item => {
+      item.classList.toggle('selected', (item.dataset.code || '') === code);
+    });
+  }
+
+  updateCustomCountryTriggerUI(code);
+  syncQuickFlagButtons(code);
+
+  const countryMenu = document.getElementById('iptv-country-menu');
+  const countryWrapper = document.getElementById('iptv-country-dropdown-wrapper');
+  countryMenu?.classList.add('hidden');
+  countryWrapper?.classList.remove('open');
+
+  loadIptvChannels();
+}
+
+function selectCategoryFromMenu(cat) {
+  iptvSelectedCategory = cat;
+  const catf = document.getElementById('iptv-category-filter');
+  if (catf) catf.value = cat;
+
+  const customListEl = document.getElementById('iptv-category-list');
+  if (customListEl) {
+    customListEl.querySelectorAll('.iptv-menu-item').forEach(item => {
+      item.classList.toggle('selected', (item.dataset.name || '') === cat);
+    });
+  }
+
+  updateCustomCategoryTriggerUI(cat);
+
+  const categoryMenu = document.getElementById('iptv-category-menu');
+  const categoryWrapper = document.getElementById('iptv-category-dropdown-wrapper');
+  categoryMenu?.classList.add('hidden');
+  categoryWrapper?.classList.remove('open');
+
+  loadIptvChannels();
 }
 
 function selectIptvSlot(slotIndex) {
@@ -296,7 +722,7 @@ function selectIptvSlot(slotIndex) {
   });
   const label = document.getElementById('active-slot-label');
   if (label) {
-    const { localDb } = _getState();
+    const localDb = getLocalDb();
     const isEn = localDb.settings?.lang === 'en';
     label.textContent = isEn ? `Active Slot: Slot ${slotIndex + 1}` : `Aktif Slot: Slot ${slotIndex + 1}`;
   }
@@ -363,7 +789,7 @@ function playIptvChannel(slotIndex, streamUrl, displayName) {
   const muteBtn = slotEl.querySelector('.mute-btn');
   if (muteBtn) { muteBtn.innerHTML = '<i data-lucide="volume-x"></i>'; lucide.createIcons(); }
 
-  const { localDb } = _getState();
+  const localDb = getLocalDb();
   const playerType = localDb.settings?.playerType || 'plyr';
   let hlsInstance = null;
   let playerInstance = null;
@@ -511,7 +937,7 @@ function updateIptvStatusUI(status) {
   const si = document.getElementById('iptv-status-info');
   const ub = document.getElementById('iptv-update-btn');
   if (!si) return;
-  const { localDb } = _getState();
+  const localDb = getLocalDb();
   const isEn = localDb.settings?.lang === 'en';
   if (status.status === 'updating') {
     si.textContent = isEn ? 'Updating channel list...' : 'Kanal listesi güncelleniyor...';
@@ -624,4 +1050,40 @@ function initIptvSportModeDragAndResize() {
   };
   setup(0);
   setup(1);
+}
+
+// ─── Window Küresel Köprüsü (Modüller arası ve HTML onclick uyumluluğu) ───
+if (typeof window !== 'undefined') {
+  window.initIptv = initIptv;
+  window.loadIptvChannels = loadIptvChannels;
+  window.checkIptvStatus = checkIptvStatus;
+  window.restoreIptvState = restoreIptvState;
+  window.stopAllIptvPlayers = stopAllIptvPlayers;
+  window.stopAllIptvPlayersAndClear = stopAllIptvPlayersAndClear;
+  window.clearIptvChannelList = clearIptvChannelList;
+  window.getIptvPlayers = getIptvPlayers;
+  window.selectIptvSlot = selectIptvSlot;
+  window.toggleIptvMute = toggleIptvMute;
+  window.clearIptvSlot = clearIptvSlot;
+  window.playIptvChannel = playIptvChannel;
+  window.resetIptvSlotStyles = resetIptvSlotStyles;
+  window.resizeAllArtplayers = resizeAllArtplayers;
+  window.saveIptvState = saveIptvState;
+  window.swapIptvSportModePlayers = swapIptvSportModePlayers;
+  window.updateIptvSwapBtnVisibility = updateIptvSwapBtnVisibility;
+  window.initIptvSportModeDragAndResize = initIptvSportModeDragAndResize;
+  window.updateLoadMoreBtn = updateLoadMoreBtn;
+  window.renderIptvChannels = renderIptvChannels;
+  window.activeIptvSlot = activeIptvSlot;
+  window.getCountryFlag = getCountryFlag;
+  window.getCountryName = getCountryName;
+}
+
+// Sayfa yüklendiğinde otomatik başlat
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => initIptv());
+  } else {
+    initIptv();
+  }
 }

@@ -7,7 +7,8 @@
  * Bağımlılıklar: app.js getState() fonksiyonu ile localDb, currentLang, translations erişimi sağlanır.
  */
 
-import { escapeHtml } from '../utils/helpers.js';
+import { translations } from '../utils/i18n.js';
+import { escapeHtml, getCatTranslatedName } from '../utils/helpers.js';
 import { showToast } from '../components/toast.js';
 
 let _getState = null;
@@ -18,15 +19,17 @@ let missingFilesList = [];
 let scanProgressToast = null;
 
 export function initTools(getState) {
-  _getState = getState;
+  if (getState) _getState = getState;
 
   const compareBtn = document.getElementById('start-compare-btn');
-  if (compareBtn) {
+  if (compareBtn && !compareBtn.dataset.toolsInit) {
+    compareBtn.dataset.toolsInit = 'true';
     compareBtn.addEventListener('click', runFileComparison);
   }
 
   const toolsBtn = document.getElementById('tools-btn');
-  if (toolsBtn) {
+  if (toolsBtn && !toolsBtn.dataset.toolsInit) {
+    toolsBtn.dataset.toolsInit = 'true';
     toolsBtn.addEventListener('click', toggleToolsDropdown);
   }
 
@@ -38,7 +41,8 @@ export function initTools(getState) {
   });
 
   const toolsCompareBtn = document.getElementById('nav-tools-compare-btn');
-  if (toolsCompareBtn) {
+  if (toolsCompareBtn && !toolsCompareBtn.dataset.toolsInit) {
+    toolsCompareBtn.dataset.toolsInit = 'true';
     toolsCompareBtn.addEventListener('click', (e) => {
       e.preventDefault();
       window.currentToolsSubSection = 'compare';
@@ -50,7 +54,8 @@ export function initTools(getState) {
   }
 
   const toolsCategoriesBtn = document.getElementById('nav-tools-categories-btn');
-  if (toolsCategoriesBtn) {
+  if (toolsCategoriesBtn && !toolsCategoriesBtn.dataset.toolsInit) {
+    toolsCategoriesBtn.dataset.toolsInit = 'true';
     toolsCategoriesBtn.addEventListener('click', (e) => {
       e.preventDefault();
       window.currentToolsSubSection = 'categories';
@@ -61,7 +66,8 @@ export function initTools(getState) {
   }
 
   const toolsApeBtn = document.getElementById('nav-tools-ape-btn');
-  if (toolsApeBtn) {
+  if (toolsApeBtn && !toolsApeBtn.dataset.toolsInit) {
+    toolsApeBtn.dataset.toolsInit = 'true';
     toolsApeBtn.addEventListener('click', (e) => {
       e.preventDefault();
       window.currentToolsSubSection = 'ape';
@@ -70,19 +76,30 @@ export function initTools(getState) {
       document.getElementById('tools-dropdown')?.classList.remove('open');
     });
   }
+
+  const toolsSubsBtn = document.getElementById('nav-tools-subs-btn');
+  if (toolsSubsBtn && !toolsSubsBtn.dataset.toolsInit) {
+    toolsSubsBtn.dataset.toolsInit = 'true';
+    toolsSubsBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.currentToolsSubSection = 'subscriptions';
+      if (window.switchTab) window.switchTab('tools');
+      showToolsSubSection('subscriptions');
+      document.getElementById('tools-dropdown')?.classList.remove('open');
+    });
+  }
 }
 
-const localDb = new Proxy({}, {
-  get(target, prop) {
-    const db = (_getState?.().localDb) || window.localDb || { history: [], channels: [], settings: {}, categories: [] };
-    return db[prop];
-  },
-  set(target, prop, value) {
-    const db = (_getState?.().localDb) || window.localDb || {};
-    db[prop] = value;
-    return true;
+if (typeof window !== 'undefined') {
+  window.initTools = initTools;
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => initTools());
+    } else {
+      initTools();
+    }
   }
-});
+}
 
 let currentLang = 'tr';
 
@@ -515,26 +532,6 @@ window.unhideVideo = async function(videoId) {
   }
 };
 
-// Filter library/downloaded grid by channel name click
-window.filterByChannel = function(channelId, gridId) {
-  if (!channelId) return;
-  
-  if (gridId === 'downloaded-grid') {
-    const downloadedChannelFilter = document.getElementById('downloaded-channel-filter');
-    if (downloadedChannelFilter) {
-      downloadedChannelFilter.value = channelId;
-      downloadedFilterChannel = channelId;
-      updateUI(localDb);
-    }
-  } else {
-    const historyChannelFilter = document.getElementById('history-channel-filter');
-    if (historyChannelFilter) {
-      historyChannelFilter.value = channelId;
-      historyFilterChannel = channelId;
-      updateUI(localDb);
-    }
-  }
-};
 
 // SSE Channel Scan progress toast
 export function updateScanProgressToast(data) {
@@ -577,6 +574,7 @@ window.fixAllMissing = fixAllMissing;
 window.runFileComparison = runFileComparison;
 window.openFileLocation = openFileLocation;
 window.deleteAllUnrelated = deleteAllUnrelated;
+window.updateScanProgressToast = updateScanProgressToast;
 
 document.addEventListener('DOMContentLoaded', () => {
   const compareBtn = document.getElementById('start-compare-btn');
@@ -672,6 +670,19 @@ export function initDownloaderUI() {
     });
   }
 
+  const toolsSubsBtn2 = document.getElementById('nav-tools-subs-btn');
+  if (toolsSubsBtn2) {
+    toolsSubsBtn2.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.currentToolsSubSection = 'subscriptions';
+      if (window.switchTab) window.switchTab('tools');
+      else if (typeof switchTab === 'function') switchTab('tools');
+      showToolsSubSection('subscriptions');
+      const dropdown = document.getElementById('tools-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+    });
+  }
+
   const formatSelect = document.getElementById('downloader-format-select');
   const bitrateGroup = document.getElementById('downloader-bitrate-group');
   if (formatSelect && bitrateGroup) {
@@ -704,6 +715,8 @@ export function initDownloaderUI() {
     });
   }
 }
+window.initDownloaderUI = initDownloaderUI;
+window.toggleToolsDropdown = toggleToolsDropdown;
 
 export function showToolsSubSection(section) {
   const compareContainer = document.getElementById('tools-compare-container');
@@ -840,49 +853,26 @@ window.removeChannelCategory = removeChannelCategory;
 export function loadCategoriesToTools(categories) {
   const listEl = document.getElementById('tools-categories-list');
   if (!listEl) return;
-  listEl.innerHTML = '';
-  
+
   const isEn = localDb.settings && localDb.settings.lang === 'en';
   const lang = localDb.settings?.lang || currentLang || 'tr';
   const t = translations[lang] || translations.tr;
 
   const cats = categories || [];
-  const defaultNames = {
-    1: ["Genel", "General"],
-    2: ["Oyun", "Gaming"],
-    3: ["Eğitim", "Education"],
-    4: ["Müzik", "Music"],
-    5: ["Teknoloji", "Technology"],
-    6: ["Spor", "Sports"],
-    7: ["Sinema & Film", "Movies & Cinema"],
-    8: ["Haberler & Siyaset", "News & Politics"],
-    9: ["Eğlence", "Entertainment"],
-    10: ["Bilim", "Science"],
-    11: ["Gezi & Yaşam", "Travel & Life"],
-    12: ["Komedi", "Comedy"],
-    13: ["Belgesel", "Documentary"],
-    14: ["Anime & Çizgi Film", "Anime & Cartoon"],
-    15: ["Finans & Ekonomi", "Finance & Economy"],
-    16: ["League of Legends", "League of Legends"],
-    17: ["Podcast", "Podcast"]
-  };
-
-  const getCatTranslatedName = (cat) => {
-    let catName = cat.name;
-    if (cat.id >= 1 && cat.id <= 17) {
-      const list = defaultNames[cat.id];
-      if (list && (cat.name === list[0] || cat.name === list[1] || !cat.name)) {
-        catName = t[`category_${cat.id}`] || cat.name;
-      }
-    }
-    return catName;
-  };
-
+  const catSig = `${lang}##${cats.map(c => `${c.id}:${c.name}`).join(';')}`;
+  if (window._lastToolsCategoriesSignature === catSig && listEl.children.length > 0) {
+    return;
+  }
+  if (listEl.contains(document.activeElement)) {
+    return;
+  }
+  window._lastToolsCategoriesSignature = catSig;
+  listEl.innerHTML = '';
   const sortedCats = [...cats].sort((a, b) => {
     if (a.id === 1) return -1;
     if (b.id === 1) return 1;
-    const nameA = getCatTranslatedName(a);
-    const nameB = getCatTranslatedName(b);
+    const nameA = getCatTranslatedName(a, t);
+    const nameB = getCatTranslatedName(b, t);
     return nameA.localeCompare(nameB, lang, { sensitivity: 'base' });
   });
 

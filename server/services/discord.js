@@ -11,42 +11,86 @@ export class DiscordRPC {
     this.clientId = clientId;
     this.client = null;
     this.connected = false;
+    this.isReady = false;
     this.reconnectTimeout = null;
     this.currentActivity = null;
+    this.incomingBuffer = Buffer.alloc(0);
+    this.currentPipeIndex = 0;
   }
 
   /**
    * Türkçe Açıklama: Discord Named Pipe kanalına bağlanır ve olay dinleyicilerini kurar.
    * 
+   * @param {number} [pipeIndex=0] - Taranacak pipe indeksi (0-9)
    * @returns {void}
    */
-  connect() {
+  connect(pipeIndex = 0) {
     if (this.connected || this.client) return;
     if (os.platform() !== 'win32') return;
 
-    const pipeName = '\\\\.\\pipe\\discord-ipc-0';
-    this.client = net.createConnection(pipeName);
+    this.currentPipeIndex = pipeIndex;
+    const pipeName = `\\\\.\\pipe\\discord-ipc-${this.currentPipeIndex}`;
+    this.incomingBuffer = Buffer.alloc(0);
 
-    this.client.on('connect', () => {
+    const socket = net.createConnection(pipeName);
+    this.client = socket;
+
+    socket.on('connect', () => {
       this.connected = true;
       this.sendHandshake();
-      if (this.currentActivity) {
-        this.updateActivity(this.currentActivity.title, this.currentActivity.channelName);
+    });
+
+    socket.on('data', (chunk) => {
+      this.handleIncomingData(chunk);
+    });
+
+    socket.on('error', (err) => {
+      // Eğer ilk denenen pipe bulunamadıysa (ENOENT), sonraki pipe indeksini dene (0-9)
+      const shouldTryNext = (err && (err.code === 'ENOENT' || err.code === 'ECONNREFUSED')) && this.currentPipeIndex < 9 && !this.connected;
+      this.cleanup();
+      if (shouldTryNext) {
+        this.connect(this.currentPipeIndex + 1);
       }
     });
 
-    this.client.on('data', (data) => {
-      // Yanıtlar sessizce geçilir
-    });
-
-    this.client.on('error', (err) => {
-      this.cleanup();
-    });
-
-    this.client.on('close', () => {
+    socket.on('close', () => {
       this.cleanup();
       this.scheduleReconnect();
     });
+  }
+
+  /**
+   * Türkçe Açıklama: Named Pipe'tan gelen akışı 8 baytlık başlık (opcode + uzunluk) ile tam JSON paketlerine dönüştürür.
+   * 
+   * @param {Buffer} chunk
+   */
+  handleIncomingData(chunk) {
+    this.incomingBuffer = Buffer.concat([this.incomingBuffer, chunk]);
+
+    while (this.incomingBuffer.length >= 8) {
+      const op = this.incomingBuffer.readInt32LE(0);
+      const len = this.incomingBuffer.readInt32LE(4);
+
+      if (this.incomingBuffer.length < 8 + len) {
+        break; // Paketin tamamı henüz gelmedi
+      }
+
+      const payloadBuf = this.incomingBuffer.subarray(8, 8 + len);
+      this.incomingBuffer = this.incomingBuffer.subarray(8 + len);
+
+      try {
+        const message = JSON.parse(payloadBuf.toString('utf8'));
+        if (message.cmd === 'DISPATCH' && message.evt === 'READY') {
+          this.isReady = true;
+          // El sıkışma başarıyla tamamlandı, bekleyen bir aktivite varsa hemen gönder
+          if (this.currentActivity && (this.currentActivity.title || this.currentActivity.channelName)) {
+            this.updateActivity(this.currentActivity.title, this.currentActivity.channelName);
+          }
+        }
+      } catch (e) {
+        // Geçersiz paketler sessizce yutulur
+      }
+    }
   }
 
   /**
@@ -56,8 +100,12 @@ export class DiscordRPC {
    */
   cleanup() {
     this.connected = false;
+    this.isReady = false;
+    this.incomingBuffer = Buffer.alloc(0);
     if (this.client) {
-      this.client.destroy();
+      try {
+        this.client.destroy();
+      } catch (e) {}
       this.client = null;
     }
   }
@@ -73,7 +121,7 @@ export class DiscordRPC {
 
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
     this.reconnectTimeout = setTimeout(() => {
-      this.connect();
+      this.connect(0);
     }, 15000);
   }
 
@@ -124,7 +172,12 @@ export class DiscordRPC {
     }
 
     if (!this.connected) {
-      this.connect();
+      this.connect(0);
+      return;
+    }
+
+    if (!this.isReady) {
+      // Bağlantı kuruldu ancak henüz Discord READY yanıtı gelmediyse, aktivite READY gelince gönderilecek
       return;
     }
 
@@ -139,6 +192,8 @@ export class DiscordRPC {
    * @returns {void}
    */
   updateActivity(title, channelName) {
+    if (!this.connected || !this.isReady) return;
+
     let payload;
     if (title) {
       let detailsText = channelName || 'YouTube';

@@ -9,25 +9,7 @@
 
 import { translations } from '../utils/i18n.js';
 
-let _getState = null;
-
 let currentLang = 'tr';
-
-const localDb = new Proxy({}, {
-  get(target, prop) {
-    const db = (_getState?.().localDb) || window.localDb || { history: [], channels: [], settings: {}, categories: [] };
-    return db[prop];
-  },
-  set(target, prop, value) {
-    const db = (_getState?.().localDb) || window.localDb || {};
-    db[prop] = value;
-    return true;
-  }
-});
-
-export function initI18nApply(getState) {
-  _getState = getState;
-}
 
 export function applyLanguage(lang) {
   currentLang = lang || localStorage.getItem('haytool_user_lang') || 'tr';
@@ -77,7 +59,7 @@ export function applyLanguage(lang) {
   elQuery('#tab-queue-desc', 'tab_queue_desc');
   el('lbl-queue-view-table', 'queue_view_table');
   el('lbl-queue-view-cards', 'queue_view_cards');
-  elQuery('#queue-pause-text', localDb.settings && localDb.settings.isPaused ? 'btn_resume_queue' : 'btn_pause_queue');
+  elQuery('#queue-pause-text', (window.localDb?.settings && window.localDb.settings.isPaused) ? 'btn_resume_queue' : 'btn_pause_queue');
   // Türkçe Açıklama: Kuyruk sekmesindeki hız sınırı etiketi yeni dil anahtarına bağlandı.
   elQuery('#speed-limit-label', 'label_queue_speed_limit');
   elQuery('#speed-limit-set-btn', 'btn_speed_limit_set');
@@ -92,6 +74,9 @@ export function applyLanguage(lang) {
   elQuery('#drag-drop-hint', 'drag_drop_hint');
   elQuery('#queue-list-empty', 'queue_list_empty');
   elQuery('#queue-completed-title', 'queue_completed_title');
+  elQuery('#queue-failed-title', 'queue_failed_title');
+  elQuery('#btn-retry-all-failed-text', 'btn_retry_all_failed');
+  elQuery('#btn-clear-failed-text', 'btn_clear_failed');
 
   // Kütüphane Sekmesi
   elQuery('label[for="history-show-shorts"] + span', 'show_shorts');
@@ -120,6 +105,8 @@ export function applyLanguage(lang) {
   elQuery('#description-title-text', 'inline_description_title');
   el('btn-update-metadata-dl', 'btn_update_metadata_dl');
   el('btn-bulk-delete-dl-toggle', 'btn_bulk_delete_dl_toggle');
+  el('btn-text-resume-filter', 'btn_filter_resume');
+  elQuery('#downloaded-filter-resume-btn', 'btn_filter_resume_title', 'title');
 
   // Ayarlar Sekmesi Kart Başlıkları
   el('settings-title-general-text', 'settings_title_general_text');
@@ -141,6 +128,16 @@ export function applyLanguage(lang) {
   el('btn-text-logout-youtube', 'btn_text_logout_youtube');
   el('cookie-info-title', 'cookie_info_title');
   el('cookie-info-desc', 'cookie_info_desc');
+  el('text-auto-cookie-refresh-title', 'text_auto_cookie_refresh_title');
+  el('lbl-auto-cookie-refresh', 'lbl_auto_cookie_refresh');
+  el('desc-auto-cookie-refresh', 'desc_auto_cookie_refresh');
+  el('lbl-cookie-refresh-interval', 'lbl_cookie_refresh_interval');
+  el('opt-cookie-interval-15m', 'opt_cookie_interval_15m');
+  el('opt-cookie-interval-30m', 'opt_cookie_interval_30m');
+  el('opt-cookie-interval-1h', 'opt_cookie_interval_1h');
+  el('opt-cookie-interval-2h', 'opt_cookie_interval_2h');
+  el('opt-cookie-interval-6h', 'opt_cookie_interval_6h');
+  el('opt-cookie-interval-12h', 'opt_cookie_interval_12h');
   el('text-autosync-watchtime-title', 'text_autosync_watchtime_title');
   el('desc-autosync-watchtime', 'desc_autosync_watchtime');
   el('text-auto-disk-sync-title', 'text_auto_disk_sync_title');
@@ -202,6 +199,12 @@ export function applyLanguage(lang) {
   el('opt-filter-shorts-all', 'filter_all');
   el('opt-filter-shorts-enabled', 'filter_shorts_on');
   el('opt-filter-shorts-disabled', 'filter_shorts_off');
+  el('text-filter-category-title', 'filter_category_title');
+  el('opt-filter-category-all', 'opt_filter_category_all');
+  el('opt-filter-category-none', 'opt_filter_category_none');
+  if (typeof updateChannelCategoryFilterOptions === 'function' && window.localDb) {
+    updateChannelCategoryFilterOptions(window.localDb.categories, window.localDb.channels, lang);
+  }
   const searchInputEl = document.getElementById('channel-list-search-input');
   if (searchInputEl) {
     searchInputEl.placeholder = t.filter_channels_search_placeholder || 'Kanal listesinde ara...';
@@ -249,6 +252,10 @@ export function applyLanguage(lang) {
   el('desc-weather-lat', 'desc_weather_lat');
   el('label-weather-lon', 'label_weather_lon');
   el('desc-weather-lon', 'desc_weather_lon');
+  el('desc-weather-usage-tip', 'weather_usage_tip', 'innerHTML');
+  el('weather-popover-precip-label', 'weather_precipitation');
+  el('weather-popover-refresh-text', 'weather_click_refresh');
+  el('weather-precip-badge', 'weather_precipitation', 'title');
 
   // Sistem Veritabanı & Ayar Yedekleme Kartı Çevirileri
   el('settings-title-backup-text', 'settings_title_backup_text');
@@ -432,9 +439,11 @@ export function applyLanguage(lang) {
   elQuery('#cancel-delete-btn', 'modal_cancel_btn');
   el('label-delete-file-modal', 'label_delete_file_modal');
   el('label-mark-watched-modal', 'label_mark_watched_modal');
+  el('label-hide-library-modal', 'label_hide_library_modal');
   
-  if (currentPlayingVideoId) {
-    const activeVideo = localDb?.history?.find(h => h.id === currentPlayingVideoId);
+  const playingVideoId = (typeof window !== 'undefined') ? (window.currentPlayingVideoId || null) : null;
+  if (playingVideoId) {
+    const activeVideo = window.localDb?.history?.find(h => h.id === playingVideoId);
     if (activeVideo && activeVideo.title) {
       const titleEl = document.getElementById('player-modal-title');
       if (titleEl) titleEl.textContent = activeVideo.title;

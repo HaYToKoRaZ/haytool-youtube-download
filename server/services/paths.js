@@ -4,7 +4,6 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { execSync, execFileSync, spawn, exec } from 'child_process';
-import { readDb } from '../database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,14 +39,15 @@ export function getYtdlpPath() {
 export const ytdlpPath = getYtdlpPath();
 
 /**
- * Sistemdeki FFmpeg yürütülebilir dosyasının konumunu işletim sistemine göre belirler.
+ * Sistemdeki belirtilen binary yürütülebilir dosyasının (ffmpeg, ffprobe vb.) konumunu belirler.
  * 
- * @returns {string} FFmpeg dosya yolu
+ * @param {string} binaryName Dosya adı ('ffmpeg' veya 'ffprobe')
+ * @returns {string} İlgili binary dosya yolu
  */
-export function getFfmpegPath() {
+export function getBinaryPath(binaryName) {
   const isWin = os.platform() === 'win32';
   const ext = isWin ? '.exe' : '';
-  const pathInSubfolder = path.join(rootDir, 'ffmpeg', `ffmpeg${ext}`);
+  const pathInSubfolder = path.join(rootDir, 'ffmpeg', `${binaryName}${ext}`);
   
   if (fs.existsSync(pathInSubfolder)) {
     if (!isWin) {
@@ -56,7 +56,7 @@ export function getFfmpegPath() {
     return pathInSubfolder;
   }
   
-  const pathInRoot = path.join(rootDir, `ffmpeg${ext}`);
+  const pathInRoot = path.join(rootDir, `${binaryName}${ext}`);
   if (fs.existsSync(pathInRoot)) {
     if (!isWin) {
       try { fs.chmodSync(pathInRoot, '755'); } catch (e) {}
@@ -66,12 +66,21 @@ export function getFfmpegPath() {
   
   if (!isWin) {
     try {
-      const systemFfmpeg = execSync('which ffmpeg 2>/dev/null', { encoding: 'utf-8' }).trim();
-      if (systemFfmpeg) return systemFfmpeg;
+      const systemBin = execSync(`which ${binaryName} 2>/dev/null`, { encoding: 'utf-8' }).trim();
+      if (systemBin) return systemBin;
     } catch (e) {}
   }
   
   return pathInSubfolder;
+}
+
+/**
+ * Sistemdeki FFmpeg yürütülebilir dosyasının konumunu işletim sistemine göre belirler.
+ * 
+ * @returns {string} FFmpeg dosya yolu
+ */
+export function getFfmpegPath() {
+  return getBinaryPath('ffmpeg');
 }
 
 /**
@@ -80,33 +89,7 @@ export function getFfmpegPath() {
  * @returns {string} ffprobe dosya yolu
  */
 export function getFfprobePath() {
-  const isWin = os.platform() === 'win32';
-  const ext = isWin ? '.exe' : '';
-  const pathInSubfolder = path.join(rootDir, 'ffmpeg', `ffprobe${ext}`);
-  
-  if (fs.existsSync(pathInSubfolder)) {
-    if (!isWin) {
-      try { fs.chmodSync(pathInSubfolder, '755'); } catch (e) {}
-    }
-    return pathInSubfolder;
-  }
-  
-  const pathInRoot = path.join(rootDir, `ffprobe${ext}`);
-  if (fs.existsSync(pathInRoot)) {
-    if (!isWin) {
-      try { fs.chmodSync(pathInRoot, '755'); } catch (e) {}
-    }
-    return pathInRoot;
-  }
-  
-  if (!isWin) {
-    try {
-      const systemFfprobe = execSync('which ffprobe 2>/dev/null', { encoding: 'utf-8' }).trim();
-      if (systemFfprobe) return systemFfprobe;
-    } catch (e) {}
-  }
-  
-  return pathInSubfolder;
+  return getBinaryPath('ffprobe');
 }
 
 /**

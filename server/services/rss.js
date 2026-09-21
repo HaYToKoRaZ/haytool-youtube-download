@@ -28,8 +28,9 @@ const parser = new Parser({
 
 export let isRssChecking = false;
 let rssCheckStartTime = 0;
-export let currentChannelIndex = 0;
 export let isResolvingDurations = false;
+export let hasDeferredChannelCheck = false;
+export let deferredChannelCheckSource = null;
 
 
 /**
@@ -1003,7 +1004,13 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
 
               const liveHandling = freshDb.settings.liveStreamHandling || 'instant_retry';
 
-              if (liveHandling === 'ignore_live' && (duration === 'upcoming' || duration === 'live')) {
+              const isAutoDownloadDisabled = !freshDb.settings.autoDownload || (channelConfig ? channelConfig.autoDownload === false : false);
+
+              if (isAutoDownloadDisabled) {
+                shouldDownload = false;
+                historyItem.status = 'ignored';
+                console.log(`Auto-download disabled. Ignoring: ${item.title}`);
+              } else if (liveHandling === 'ignore_live' && (duration === 'upcoming' || duration === 'live')) {
                 shouldDownload = false;
                 historyItem.status = 'ignored';
                 console.log(`Live stream / premiere ignored per user settings: ${item.title}`);
@@ -1023,10 +1030,6 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
                 shouldDownload = false;
                 historyItem.status = 'ignored';
                 console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
-              } else if (!freshDb.settings.autoDownload || (channelConfig ? channelConfig.autoDownload === false : false)) {
-                shouldDownload = false;
-                historyItem.status = 'ignored';
-                console.log(`Auto-download disabled. Ignoring: ${item.title}`);
               } else {
                 historyItem.status = 'waiting';
               }
@@ -1063,45 +1066,6 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
 }
 
 /**
- * Sıradaki kanalı alfabetik olarak bulup RSS kontrolünü gerçekleştirir.
- */
-export async function checkNextChannelRss() {
-  if (isRssChecking) {
-    console.log('[RSS] Bir önceki kanal RSS kontrolü henüz tamamlanmadı, yeni tarama atlandı.');
-    return;
-  }
-  isRssChecking = true;
-  try {
-    const db = readDb();
-    if (db.channels.length === 0) {
-      console.log('İzlenen kanal bulunmuyor.');
-      return;
-    }
-
-    const sortedChannels = [...db.channels].sort((a, b) => 
-      (a.name || '').localeCompare(b.name || '', 'tr', { sensitivity: 'base' })
-    );
-
-    if (currentChannelIndex >= sortedChannels.length) {
-      currentChannelIndex = 0;
-    }
-
-    const channel = sortedChannels[currentChannelIndex];
-    const checkMsg = `[RSS] Checking channel ${currentChannelIndex + 1} out of ${sortedChannels.length}: "${channel.name}"`;
-    console.log(checkMsg);
-    addTerminalLog(checkMsg, 'info');
-
-    await checkSingleChannelRss(channel, false);
-
-    currentChannelIndex = (currentChannelIndex + 1) % sortedChannels.length;
-
-    resolveMissingDurations();
-  } finally {
-    isRssChecking = false;
-  }
-}
-
-/**
  * Veritabanındaki süresi veya yayınlanma tarihi eksik olan videoların detaylarını arka planda tamamlar.
  */
 export async function resolveMissingDurations() {
@@ -1115,18 +1079,25 @@ export async function resolveMissingDurations() {
     // Türkçe Açıklama: Göz ardı edilmiş (ignored) videoların sürelerini sorgulayarak sistemi yormaya ve logları kirletmeye gerek yok.
     if (item.status === 'ignored' && item.duration && item.duration !== '-') continue;
 
-    // Recovery check for waiting_duration items that already have a duration or '-'
-    if (item.status === 'waiting_duration' && (item.duration || item.publishedAt)) {
+    // Türkçe Açıklama: Süresi çözümlenmeyi bekleyen (waiting_duration) videolardan süresi netleşmiş olanları denetler.
+    // Eğer süresi çözülmüşse veya '-' olarak işaretlenmişse ve kanal Shorts istemiyorsa göz ardı eder, aksi halde kuyruğa alır.
+    if (item.status === 'waiting_duration' && item.duration) {
       const dbChannels = db.channels || [];
       const channelConfig = dbChannels.find(c => c.id === item.channelId);
       const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
       const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
       
-      const finalDuration = item.duration || '-';
+      const finalDuration = item.duration;
       const isShort = finalDuration !== '-' && isShortDuration(finalDuration, shortsLimit);
       
       if (!downloadShorts && isShort) {
         item.status = 'ignored';
+        updated = true;
+        console.log(`[resolveMissingDurations Recovery] Kısa video tespit edildi ve kanal Shorts istemiyor. Göz ardı ediliyor: ${item.title}`);
+      } else if (!downloadShorts && finalDuration === '-') {
+        item.status = 'ignored';
+        updated = true;
+        console.log(`[resolveMissingDurations Recovery] Süresi çözümlenemeyen video, kanal Shorts istemediği için güvenlik amacıyla göz ardı ediliyor: ${item.title}`);
       } else {
         item.status = 'waiting';
         updated = true;
@@ -1211,6 +1182,10 @@ export async function resolveMissingDurations() {
             item.status = 'ignored';
             itemUpdated = true;
             console.log(`[resolveMissingDurations] Kısa video tespit edildi ve kanal Shorts izin vermiyor. Göz ardı ediliyor: ${item.title}`);
+          } else if (!downloadShorts && finalDuration === '-') {
+            item.status = 'ignored';
+            itemUpdated = true;
+            console.log(`[resolveMissingDurations] Süresi çözümlenemeyen video, kanal Shorts izin vermediği için güvenlik amacıyla göz ardı ediliyor: ${item.title}`);
           } else {
             item.status = 'waiting';
             itemUpdated = true;
@@ -1241,40 +1216,18 @@ export async function resolveMissingDurations() {
     broadcast('db_update', readDb());
   }
   isResolvingDurations = false;
-}
 
-/**
- * Eksik kanal avatarlarını (logolarını) arka planda otomatik tamamlar.
- */
-export async function resolveMissingChannelAvatars() {
-  const db = readDb();
-  let updated = false;
-
-  for (const channel of db.channels) {
-    if (!channel.avatar || channel.avatar.startsWith('http')) {
-      const channelFolder = path.join(db.settings.downloadPath, channel.name);
-      const localAvatar = path.join(channelFolder, 'avatar.jpg');
-      
-      if (fs.existsSync(localAvatar)) {
-        channel.avatar = `/api/channels/${encodeURIComponent(channel.name)}/avatar`;
-        updated = true;
-      } else if (channel.avatar && channel.avatar.startsWith('http')) {
-        try {
-          const localPath = await downloadChannelAvatar(channel.avatar, channel.name);
-          if (localPath) {
-            channel.avatar = localPath;
-            updated = true;
-          }
-        } catch (e) {
-          console.error(`Avatar indirilemedi (${channel.name}):`, e.message);
-        }
-      }
-    }
-  }
-
-  if (updated) {
-    writeDb(db);
-    broadcast('db_update', readDb());
+  // Türkçe Açıklama: Süre çözümü bittiğinde ertelenmiş bir kanal taraması varsa otomatik olarak başlatılır.
+  if (hasDeferredChannelCheck) {
+    const nextSource = deferredChannelCheckSource || 'startup';
+    hasDeferredChannelCheck = false;
+    deferredChannelCheckSource = null;
+    const resumeMsg = `[Kanal Kontrolü] Bekleyen süre analizleri tamamlandı. Ertelenen kanal taraması (${nextSource}) otomatik başlatılıyor...`;
+    console.log(resumeMsg);
+    addTerminalLog(resumeMsg, 'info');
+    setTimeout(() => {
+      triggerChannelCheck(nextSource);
+    }, 1500);
   }
 }
 
@@ -1333,9 +1286,9 @@ export async function checkAllChannelsRssParallel() {
   const results = [];
   let processedCount = 0;
   for (let i = 0; i < db.channels.length; i += BATCH_SIZE) {
-    // Aktif bir video indirmesi veya kuyrukta bekleyen video varsa kanal taramasını tam duraklat
+    // Türkçe Açıklama: Yalnızca fiziksel olarak aktif bir indirme/dönüştürme sürüyorsa kanal taramasını beklet. Liste duraklatılmışken kuyrukta bekleyen videolar taramayı engellemez.
     let pausedLogged = false;
-    while (downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.queue && downloadQueue.queue.length > 0) || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
+    while (downloadQueue && !downloadQueue.isPaused && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
       if (!pausedLogged) {
         console.log(`[RSS] Aktif video indirmesi tespit edildi. Kanal taraması indirme bitene kadar duraklatıldı...`);
         addTerminalLog(`[RSS] Aktif video indirmesi nedeniyle kanal taraması duraklatıldı (İndirme bitince devam edecek).`, 'info');
@@ -1439,20 +1392,37 @@ export async function checkAllChannelsRssParallel() {
                 try {
                   const freshDb = readDb();
                   const freshHistory = freshDb.history.find(h => h.id === videoId);
+                  const channelConfig = freshDb.channels.find(c => c.id === channel.id);
+                  const autoDownload = freshDb.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true);
+                  const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
+                  const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
+
                   if (freshHistory) {
                     freshHistory.duration = result.duration;
-                    freshHistory.status = 'waiting';
-                    writeDb(freshDb);
-                    broadcast('db_update', freshDb);
-                    videoToAdd = {
-                      id: videoId,
-                      title: item.title,
-                      channelId: channel.id,
-                      channelName: channel.name,
-                      url: item.link,
-                      publishedAt: freshHistory.publishedAt,
-                      duration: result.duration || ''
-                    };
+                    if (!autoDownload) {
+                      freshHistory.status = 'ignored';
+                      writeDb(freshDb);
+                      broadcast('db_update', freshDb);
+                      console.log(`[RSS Paralel] Auto-download disabled for channel ${channel.name}. Ignoring converted video: ${item.title}`);
+                    } else if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
+                      freshHistory.status = 'ignored';
+                      writeDb(freshDb);
+                      broadcast('db_update', freshDb);
+                      console.log(`[RSS Paralel] Short video detected. Ignoring converted video: ${item.title}`);
+                    } else {
+                      freshHistory.status = 'waiting';
+                      writeDb(freshDb);
+                      broadcast('db_update', freshDb);
+                      videoToAdd = {
+                        id: videoId,
+                        title: item.title,
+                        channelId: channel.id,
+                        channelName: channel.name,
+                        url: item.link,
+                        publishedAt: freshHistory.publishedAt,
+                        duration: result.duration || ''
+                      };
+                    }
                   }
                 } finally {
                   release();
@@ -1688,17 +1658,30 @@ export async function triggerChannelCheck(source = 'manual') {
     }
   }
 
-  // Aktif indirme, kuyrukta bekleyen video veya FFmpeg birleştirmesi varsa otomatik taramaları (zamanlayıcı, açılış) ertele
-  const hasActiveOrPendingDownloads = downloadQueue && (
+  // Türkçe Açıklama: YouTube Ban Koruması 1 - Aktif indirme veya dönüştürme işlemi varsa kanal taramasını ertele.
+  const hasActiveDownloads = downloadQueue && (
     downloadQueue.activeDownloads > 0 || 
-    (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0) ||
-    (downloadQueue.queue && downloadQueue.queue.length > 0)
+    (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0)
   );
 
-  if ((source === 'timer' || source === 'startup') && hasActiveOrPendingDownloads) {
-    const msg = `[Kanal Kontrolü] Aktif video indirmesi veya kuyrukta bekleyen işlem olduğu için otomatik kanal taraması (${source === 'startup' ? 'Açılış Taraması' : 'Zamanlayıcı'}) ertelendi.`;
+  if (hasActiveDownloads) {
+    const msg = `[Kanal Kontrolü] Aktif video indirmesi veya dönüştürme devam ettiği için kanal taraması ertelendi (YouTube ban koruması).`;
+    console.log(msg);
+    addTerminalLog(msg, 'warning');
+    return { success: false, deferred: true, message: msg };
+  }
+
+  // Türkçe Açıklama: YouTube Ban Koruması 2 - Süresi henüz çözülmemiş video varsa veya süre analizi sürüyorsa taramayı ertele ve analizi tetikle.
+  const checkDb = readDb();
+  const hasPendingDurations = isResolvingDurations || (checkDb.history && checkDb.history.some(h => h.status === 'waiting_duration'));
+
+  if (hasPendingDurations) {
+    hasDeferredChannelCheck = true;
+    deferredChannelCheckSource = source;
+    const msg = `[Kanal Kontrolü] Süresi çözümlenmemiş videolar bulunduğu için kanal taraması ertelendi (YouTube ban koruması). Eksik süreler analiz ediliyor...`;
     console.log(msg);
     addTerminalLog(msg, 'info');
+    resolveMissingDurations();
     return { success: false, deferred: true, message: msg };
   }
 

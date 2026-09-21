@@ -7,17 +7,18 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { triggerSilentCookieRefresh } from '../routes/settings.js';
 import { addTerminalLog, broadcast } from './sse.js';
+import { readDb } from '../database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..', '..');
 
-// History sayfası oturum açıkken ~3MB, kapalıyken ~780KB içerik döndürür.
-// 1.5MB eşiği iki durumu güvenilir şekilde ayırır.
-const HEALTHY_MIN_BYTES = 1500000;
+// YouTube izleme geçmişi sayfası kontrolü:
+// Oturum açıkken HTML içinde "LOGGED_IN":true veya "SESSION_INDEX" bulunur.
+// Anonim modda ise "LOGGED_IN":false döner veya giriş sayfasına yönlendirir.
 const CHECK_INTERVAL_MS = 30 * 60 * 1000; // 30 dakika
-const FIRST_CHECK_DELAY_MS = 10 * 1000;   // Sunucu açılışında 10 sn sonra ilk kontrol
-const REFRESH_VERIFY_DELAY_MS = 20 * 1000; // Sessiz yenileme sonrası doğrulama beklemesi
+const FIRST_CHECK_DELAY_MS = 45 * 1000;   // Sunucu açılışında arka plan yenilemesinin tamamlanması için 45 sn bekle
+const REFRESH_VERIFY_DELAY_MS = 25 * 1000; // Sessiz yenileme sonrası doğrulama beklemesi
 
 let cookieHealthTimer = null;
 
@@ -26,7 +27,7 @@ let cookieHealthTimer = null;
  * 
  * @returns {string} Cookie header değeri (çerez yoksa boş string)
  */
-function buildCookieHeader() {
+export function buildCookieHeader() {
   const rootCookiesTxt = path.resolve(rootDir, 'cookies.txt');
   const binCookiesTxt = path.resolve(rootDir, 'bin', 'cookies.txt');
   const cookiesObj = {};
@@ -47,7 +48,7 @@ function buildCookieHeader() {
 
 /**
  * Türkçe Açıklama: Mevcut çerezlerle YouTube izleme geçmişi sayfasını çekip oturumun
- * gerçekten tanınıp tanınmadığını içerik boyutuna göre doğrular.
+ * gerçekten tanınıp tanınmadığını YouTube ytcfg değişkenlerine göre doğrular.
  * 
  * @returns {Promise<boolean>} Oturum geçerliyse true
  */
@@ -65,7 +66,23 @@ export async function isYouTubeSessionHealthy() {
     });
     if (res.status !== 200) return false;
     const html = await res.text();
-    return html.length >= HEALTHY_MIN_BYTES;
+
+    // 1. Kesin kontrol: ytcfg içinde "LOGGED_IN":true bulunması
+    if (/"LOGGED_IN"\s*:\s*true/.test(html)) {
+      return true;
+    }
+
+    // 2. Yedek kontrol: Eğer "LOGGED_IN":false ise oturum kesinlikle kapalıdır
+    if (/"LOGGED_IN"\s*:\s*false/.test(html)) {
+      return false;
+    }
+
+    // 3. Ek göstergeler: SESSION_INDEX veya zengin içerik
+    if (html.includes('"SESSION_INDEX"') || (html.length >= 800000 && html.includes('ytInitialData'))) {
+      return true;
+    }
+
+    return false;
   } catch (e) {
     return false;
   }
@@ -101,11 +118,61 @@ export async function runCookieHealthCheck() {
 }
 
 /**
- * Türkçe Açıklama: Sunucu başlangıcında ve sonrasında 30 dakikada bir çerez sağlık kontrolünü başlatır.
- * Yalnızca bir kez çağrılmalıdır (server.js başlangıcında).
+ * Türkçe Açıklama: Sunucu başlangıcında ve ayar değişikliklerinde çerez sağlık kontrolünü yapılandırır.
+ * autoCookieRefresh kapalıysa zamanlayıcıyı durdurur; açıksa belirlenen dakika aralığında çalıştırır.
+ * 
+ * @param {object} [customSettings=null] - İsteğe bağlı güncel ayarlar nesnesi
+ */
+export function restartCookieHealthCheck(customSettings = null) {
+  if (cookieHealthTimer) {
+    clearInterval(cookieHealthTimer);
+    cookieHealthTimer = null;
+  }
+
+  let autoRefresh = true;
+  let intervalMins = 30;
+
+  try {
+    const db = readDb();
+    const settings = customSettings || db.settings || {};
+    autoRefresh = settings.autoCookieRefresh !== false;
+    intervalMins = parseInt(settings.cookieRefreshInterval, 10) || 30;
+  } catch (e) {
+    if (customSettings) {
+      autoRefresh = customSettings.autoCookieRefresh !== false;
+      intervalMins = parseInt(customSettings.cookieRefreshInterval, 10) || 30;
+    }
+  }
+
+  if (!autoRefresh) {
+    console.log('[Çerez Sağlık] Otomatik YouTube çerez yenileme devre dışı bırakıldı (Kapalı).');
+    return;
+  }
+
+  const intervalMs = Math.max(5, intervalMins) * 60 * 1000;
+  console.log(`[Çerez Sağlık] Otomatik çerez denetleme ve yenileme devrede. Aralık: ${intervalMins} dakika.`);
+  cookieHealthTimer = setInterval(() => { runCookieHealthCheck().catch(() => {}); }, intervalMs);
+}
+
+/**
+ * Türkçe Açıklama: Sunucu başlangıcında gecikmeli ilk kontrolü yapar ve periyodik zamanlayıcıyı başlatır.
  */
 export function startCookieHealthCheck() {
-  if (cookieHealthTimer) return;
+  let autoRefresh = true;
+  let intervalMins = 30;
+
+  try {
+    const db = readDb();
+    autoRefresh = db.settings?.autoCookieRefresh !== false;
+    intervalMins = parseInt(db.settings?.cookieRefreshInterval, 10) || 30;
+  } catch (e) {}
+
+  if (!autoRefresh) {
+    console.log('[Çerez Sağlık] Otomatik YouTube çerez yenileme açılışta kapalı.');
+    return;
+  }
+
   setTimeout(() => { runCookieHealthCheck().catch(() => {}); }, FIRST_CHECK_DELAY_MS);
-  cookieHealthTimer = setInterval(() => { runCookieHealthCheck().catch(() => {}); }, CHECK_INTERVAL_MS);
+  restartCookieHealthCheck({ autoCookieRefresh: autoRefresh, cookieRefreshInterval: intervalMins });
 }
+

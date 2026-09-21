@@ -58,6 +58,14 @@
                 <option value="disabled" id="opt-filter-shorts-disabled">Kapalı (Shorts Atlansın)</option>
               </select>
             </div>
+
+            <div class="channel-filter-group">
+              <label for="filter-channel-category" id="label-filter-channel-category" style="display:inline-flex; align-items:center; gap:4px; font-weight:600;"><i data-lucide="folder" style="width:13px;height:13px;color:var(--accent-primary);"></i> <span id="text-filter-category-title">Kategori:</span></label>
+              <select id="filter-channel-category" class="channel-filter-select" onchange="handleChannelFilterChange()">
+                <option value="all" id="opt-filter-category-all">Tümü</option>
+                <option value="uncategorized" id="opt-filter-category-none">Atanmamış / Kategorisiz</option>
+              </select>
+            </div>
           </div>
 
           <div class="channel-filters-right">

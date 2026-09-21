@@ -1,0 +1,76 @@
+# Codebase Memory Ignore Rules for HaYTooL YT Downloader
+
+# Anayasa Yasaklı Alanı ve Yerel Kılavuzlar
+0nogithub/
+yapilacaklar.txt
+
+# Bağımlılıklar ve Harici Paketler
+node_modules/
+*.min.js
+*.min.css
+public/*.min.js
+public/*.min.css
+public/artplayer.js
+
+# Derleme Çıktıları ve Geçici Klasörler
+dist/
+backup/
+Temp/
+scratch/
+logs/
+
+# .NET / C# Derleme Çıktıları ve Araçları
+HaYTooLPlayer/bin/
+HaYTooLPlayer/obj/
+HaYTooLPlayer/.vs/
+HaYTooLPlayer/packages/
+HaYTooLPlayer/HaYTooLPlayer.csproj.user
+
+# Web Sitesi (Ayrı Dal / Dal Yönetimi)
+websites/
+
+# Büyük Binary Araçlar ve Çalıştırılabilir Dosyalar
+ffmpeg/
+yt-dlp/
+bin/
+screenshots/
+*.exe
+*.dll
+*.winmd
+Microsoft.Web.WebView2.*.xml
+
+# Veritabanı, Çerezler ve Yerel Ayar/Veri Dosyaları
+*.ini
+*.ini*
+db.json
+db.json*
+*.json.bak
+cookies.txt
+iptv_cache.json
+mutex_lock.txt
+
+# Arşiv ve Sıkıştırılmış Dosyalar
+*.zip
+*.gz
+*.7z
+*.tar
+*.rar
+
+# Medya, Görsel ve Büyük Statik Varlıklar
+*.ico
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mp4
+*.m4a
+*.webm
+*.part
+*.ytdl
+
+# Log Dosyaları ve Geçici Dosyalar
+*.log
+*.tmp
+*.bak
+[Dd]esktop.ini

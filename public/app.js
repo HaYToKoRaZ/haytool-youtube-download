@@ -6,10 +6,41 @@
  */
 
 import { translations } from './utils/i18n.js';
-import { escapeHtml, formatDate, getDaysAgoText, parseSizeToBytes, isShortVideo, parseTimeToSeconds, formatDescriptionTimestamps, parseLikes, parseRelativeTime, debounce, isMembersOnlyVideo } from './utils/helpers.js';
-import { showToast } from './components/toast.js';
+import { escapeHtml, formatDate, getDaysAgoText, parseSizeToBytes, isShortVideo, parseTimeToSeconds, formatDescriptionTimestamps, parseLikes, parseRelativeTime, debounce, isMembersOnlyVideo, getCatTranslatedName } from './utils/helpers.js';
+import { showToast, toastSuccess, toastError, toastWarning, toastInfo } from './components/toast.js';
 import { renderVideoGrid } from './components/videoCard.js';
-import { renderChannelsList } from './components/channelRow.js';
+import { renderChannelsList, getChannelsRenderSignature } from './components/channelRow.js';
+// Araçlar ve dosya karşılaştırma alt modülü
+import './modules/tools.js';
+// Ayarlar, yedekleme ve Gist senkronizasyon alt modülü
+import { populateGistFields, checkYouTubeAuthStatus, openTempFolder } from './modules/settings.js';
+window.openTempFolder = openTempFolder;
+// Dinamik dil ve arayüz çevirisi alt modülü
+import { applyLanguage } from './modules/i18n-apply.js';
+window.applyLanguage = applyLanguage;
+// IPTV oynatıcı ve çoklu ekran modülü
+import {
+  initIptv,
+  loadIptvChannels,
+  checkIptvStatus,
+  restoreIptvState,
+  stopAllIptvPlayers,
+  stopAllIptvPlayersAndClear,
+  clearIptvChannelList,
+  getIptvPlayers,
+  selectIptvSlot,
+  toggleIptvMute,
+  clearIptvSlot,
+  playIptvChannel,
+  resetIptvSlotStyles,
+  resizeAllArtplayers,
+  saveIptvState,
+  swapIptvSportModePlayers,
+  updateIptvSwapBtnVisibility,
+  initIptvSportModeDragAndResize,
+  updateLoadMoreBtn,
+  renderIptvChannels
+} from './modules/iptv.js';
 
 // Geliştirici log kontrolü. Localhost haricinde tarayıcı konsol çıktısını devre dışı bırakır.
 const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -30,6 +61,8 @@ window.showToast = showToast;
 window.translations = translations;
 window.renderVideoGrid = renderVideoGrid;
 window.renderChannelsList = renderChannelsList;
+window.getChannelsRenderSignature = getChannelsRenderSignature;
+window.debounce = debounce;
 window.devLog = devLog;
 window.devWarn = devWarn;
 
@@ -56,8 +89,14 @@ window.resetDownloadEngine = async function() {
 };
 let localDb = { channels: [], history: [], settings: {} };
 window.localDb = localDb;
+let currentPlayingVideoId = null;
+window.currentPlayingVideoId = null;
 let eventSource = null;
 let currentLang = 'tr';
+
+// IPTV modülünü başlat ve durum köprüsünü kur
+initIptv(() => ({ localDb, currentLang }));
+
 window.isDownloadedBulkDeleteMode = false;
 window.isHistoryBulkHideMode = false;
 window.historyFilterChannel = 'all';
@@ -71,701 +110,14 @@ window.historyShowHidden = false;
 window.historyViewMode = 'grid';
 window.downloadedViewMode = 'grid';
 
-// IPTV Global Variables (Initialized early to avoid temporal dead zone issues)
-let iptvPlayers = [null, null, null, null];
-let activeIptvSlot = 0;
-let iptvIsLoading = false;
-let iptvSearchQuery = '';
-let iptvSelectedCountry = '';
-let iptvSelectedCategory = '';
-let iptvStatusInterval = null;
-let isRestoringIptv = false;
 
-// YouTube SVG İkon Şablonu (Lucide bağımlılığı olmadan her ortamda çalışması için yerel SVG kullanıyoruz)
-const youtubeSvgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" style="display:inline-block !important;vertical-align:middle !important;fill:#ff0000 !important;stroke:none !important;width:16px !important;height:16px !important;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" style="fill:#ff0000 !important;stroke:none !important;"/></svg>`;
-
-;
-
-// Türkçe Açıklama: Seçilen dil paketine (TR veya EN) göre sayfadaki tüm metin etiketlerini ve açıklamaları dinamik olarak günceller.
-/**
- * Arayüz dilini seçilen dile göre günceller.
- * 
- * @param {string} lang Seçilen dil kodu ('tr' veya 'en')
- */
-function applyLanguage(lang) {
-  currentLang = lang || localStorage.getItem('haytool_user_lang') || 'tr';
-  try { localStorage.setItem('haytool_user_lang', currentLang); } catch (e) {}
-  const t = translations[currentLang] || translations.tr;
-  
-  const el = (id, key, prop = 'textContent') => {
-    const element = document.getElementById(id);
-    const val = t[key] || (translations.tr && translations.tr[key]);
-    if (element && val) {
-      element[prop] = val;
-    }
-  };
-  
-  const elQuery = (selector, key, prop = 'textContent') => {
-    const element = document.querySelector(selector);
-    const val = t[key] || (translations.tr && translations.tr[key]);
-    if (element && val) {
-      element[prop] = val;
-    }
-  };
-
-  // HTML lang attribute
-  document.documentElement.lang = currentLang;
-
-  // Header Navigasyon ve Başlıklar
-  // elQuery('.brand-text span', 'premium_automation');
-  elQuery('button[data-tab="history"] span', 'tab_library');
-  elQuery('button[data-tab="queue"] span', 'tab_queue');
-  elQuery('button[data-tab="downloaded"] span', 'tab_downloaded');
-  elQuery('button[data-tab="channels"] span', 'tab_channels');
-  elQuery('button[data-tab="settings"] span', 'tab_settings');
-  elQuery('#nav-iptv-btn span', 'tab_iptv');
-
-  // Kanallar Sekmesi
-  elQuery('#tab-channels .content-header h2', 'channels_title');
-  elQuery('#tab-channels .content-header p', 'channels_desc');
-  const channelInput = document.getElementById('channel-input');
-  if (channelInput) channelInput.placeholder = t.input_channel_placeholder;
-  elQuery('#add-channel-btn span', 'btn_follow_channel');
-  // Türkçe Açıklama: Toplu güncelleme butonu dil etiketine bağlandı.
-  elQuery('#btn-update-all-logos-text', 'btn_update_all_logos');
-  elQuery('#btn-update-all-subs-text', 'btn_update_all_subscribers');
-
-  // İndirme Sırası Sekmesi
-  elQuery('#tab-queue-title', 'tab_queue_title');
-  elQuery('#tab-queue-desc', 'tab_queue_desc');
-  el('lbl-queue-view-table', 'queue_view_table');
-  el('lbl-queue-view-cards', 'queue_view_cards');
-  elQuery('#queue-pause-text', localDb.settings && localDb.settings.isPaused ? 'btn_resume_queue' : 'btn_pause_queue');
-  // Türkçe Açıklama: Kuyruk sekmesindeki hız sınırı etiketi yeni dil anahtarına bağlandı.
-  elQuery('#speed-limit-label', 'label_queue_speed_limit');
-  elQuery('#speed-limit-set-btn', 'btn_speed_limit_set');
-  elQuery('#queue-active-badge', 'badge_active_download');
-  elQuery('#no-active-download h3', 'queue_empty_title');
-  elQuery('#no-active-download p', 'queue_empty_desc');
-  elQuery('#active-progress-label', 'active_progress');
-  elQuery('#active-size-label', 'active_size');
-  elQuery('#active-eta-label', 'active_eta');
-  elQuery('#cancel-active-btn span', 'active_download_cancel');
-  elQuery('#queue-list-title', 'queue_list_title');
-  elQuery('#drag-drop-hint', 'drag_drop_hint');
-  elQuery('#queue-list-empty', 'queue_list_empty');
-  elQuery('#queue-completed-title', 'queue_completed_title');
-
-  // Kütüphane Sekmesi
-  elQuery('label[for="history-show-shorts"] + span', 'show_shorts');
-  el('lbl-history-only-no-auto-download', 'lbl_history_only_no_auto_download');
-  el('lbl-history-only-not-downloaded', 'lbl_history_only_not_downloaded');
-  el('lbl-history-show-members', 'lbl_history_show_members');
-
-  el('opt-date-all', 'filter_all');
-  el('opt-date-today', 'filter_today');
-  el('opt-date-yesterday', 'filter_yesterday');
-  el('opt-date-2days', 'filter_last_2_days');
-  el('opt-date-3days', 'filter_last_3_days');
-  el('opt-date-4days', 'filter_last_4_days');
-  el('opt-date-5days', 'filter_last_5_days');
-  elQuery('#view-grid-btn span', 'view_grid');
-  elQuery('#view-list-btn span', 'view_list');
-
-  // İndirilen Videolar Sekmesi
-  elQuery('#tab-downloaded .content-header h2', 'downloaded_title');
-  elQuery('#tab-downloaded .content-header p', 'downloaded_desc');
-  elQuery('#tab-downloaded .content-header button span', 'btn_open_downloads');
-  elQuery('label[for="downloaded-show-shorts"]:not(.toggle-label)', 'show_shorts');
-  elQuery('#downloaded-view-grid-btn span', 'view_grid');
-  elQuery('#downloaded-view-list-btn span', 'view_list');
-  elQuery('#inline-btn-description', 'inline_btn_description', 'title');
-  elQuery('#description-title-text', 'inline_description_title');
-  el('btn-update-metadata-dl', 'btn_update_metadata_dl');
-  el('btn-bulk-delete-dl-toggle', 'btn_bulk_delete_dl_toggle');
-
-  // Ayarlar Sekmesi Kart Başlıkları
-  el('settings-title-general-text', 'settings_title_general_text');
-  el('settings-title-media-text', 'settings_title_media_text');
-  el('settings-title-system-text', 'settings_title_system_text');
-  el('settings-title-download-text', 'settings_title_download_text');
-  el('settings-title-notifications-text', 'settings_title_notifications_text');
-  el('settings-title-automation-text', 'settings_title_automation_text');
-
-  elQuery('#tab-settings .content-header h2', 'settings_title');
-  elQuery('#tab-settings .content-header p', 'settings_desc');
-  elQuery('label[for="settings-download-path"]', 'label_download_path');
-  elQuery('#select-folder-btn span', 'btn_select_folder');
-  elQuery('#test-folder-btn span', 'btn_test_folder');
-  el('label-youtube-auth-title', 'label_youtube_auth_title');
-  el('cookie-tray-hint', 'cookie_tray_hint', 'innerHTML');
-  el('btn-text-yt-login', 'btn_text_yt_login');
-  el('btn-text-test-cookies', 'btn_text_test_cookies');
-  el('btn-text-logout-youtube', 'btn_text_logout_youtube');
-  el('cookie-info-title', 'cookie_info_title');
-  el('cookie-info-desc', 'cookie_info_desc');
-  el('text-autosync-watchtime-title', 'text_autosync_watchtime_title');
-  el('desc-autosync-watchtime', 'desc_autosync_watchtime');
-  el('text-auto-disk-sync-title', 'text_auto_disk_sync_title');
-  el('lbl-disk-sync-startup', 'lbl_disk_sync_startup');
-  el('desc-auto-disk-sync', 'desc_auto_disk_sync');
-  el('lbl-disk-sync-interval', 'lbl_disk_sync_interval');
-  el('opt-disk-sync-off', 'opt_disk_sync_off');
-  el('opt-disk-sync-15m', 'opt_disk_sync_15m');
-  el('opt-disk-sync-30m', 'opt_disk_sync_30m');
-  el('opt-disk-sync-1h', 'opt_disk_sync_1h');
-  el('opt-disk-sync-6h', 'opt_disk_sync_6h');
-  el('opt-disk-sync-24h', 'opt_disk_sync_24h');
-  el('btn-sync-disk-now-text', 'btn_sync_disk_now');
-  elQuery('label[for="settings-quality"]', 'label_quality');
-  elQuery('label[for="settings-mergetype"]', 'label_merge_type');
-  elQuery('label[for="settings-channelcheckinterval"]', 'label_interval');
-  el('label-live-stream-handling', 'label_live_stream_handling');
-  el('label-live-stream-retry-interval', 'label_live_stream_retry_interval');
-  el('opt-live-instant-retry', 'opt_live_instant_retry');
-  el('opt-live-vod-only', 'opt_live_vod_only');
-  el('opt-live-ignore', 'opt_live_ignore');
-  elQuery('label[for="settings-autodownload"]:not(.toggle-label)', 'label_auto_download');
-  elQuery('label[for="settings-autodownload"] + span', 'desc_auto_download');
-  elQuery('label[for="settings-writethumbnail"]:not(.toggle-label)', 'label_write_thumbnail');
-  elQuery('label[for="settings-writethumbnail"] + span', 'desc_write_thumbnail');
-  elQuery('label[for="settings-showshorts"]:not(.toggle-label)', 'label_show_shorts');
-  elQuery('label[for="settings-showshorts"] + span', 'desc_show_shorts');
-  elQuery('label[for="settings-hideondelete"]:not(.toggle-label)', 'label_hide_on_delete');
-  elQuery('label[for="settings-hideondelete"] + span', 'desc_hide_on_delete');
-  elQuery('label[for="settings-theme"]', 'label_theme');
-  el('opt-theme-dark', 'opt_theme_dark');
-  el('opt-theme-light', 'opt_theme_light');
-  el('opt-theme-matrix', 'opt_theme_matrix');
-  el('opt-theme-discord', 'opt_theme_discord');
-  el('opt-theme-youtube', 'opt_theme_youtube');
-
-  elQuery('label[for="settings-autodelete"]', 'label_auto_delete');
-  elQuery('label[for="settings-rsslimit"]', 'label_rss_limit');
-  elQuery('label[for="settings-speedlimit"]', 'label_settings_speed_limit');
-  el('label-settings-alt-speed-limit-text', 'label_settings_alt_speed_limit');
-  elQuery('label[for="settings-port"]', 'label_port');
-  elQuery('label[for="settings-playsounds"]:not(.toggle-label)', 'label_play_sounds');
-  elQuery('label[for="settings-playsounds"] + span', 'desc_play_sounds');
-  elQuery('label[for="settings-shownotifications"]:not(.toggle-label)', 'label_show_notifications');
-  elQuery('label[for="settings-shownotifications"] + span', 'desc_show_notifications');
-  elQuery('label[for="settings-autoopenbrowser"]:not(.toggle-label)', 'label_auto_open_browser');
-  elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
-  elQuery('label[for="settings-checkonstartup"]', 'label_check_on_startup');
-  elQuery('label[for="settings-checkonstartup"] + span', 'desc_check_on_startup');
-  elQuery('label[for="settings-discordrpc"]:not(.toggle-label)', 'label_discord_rpc');
-  elQuery('label[for="settings-discordrpc"] + span', 'desc_discord_rpc');
-  elQuery('#btn-search-channel-text', 'btn_search_channel');
-  elQuery('#btn-add-channel-text', 'btn_add_channel');
-  el('text-filter-auto-title', 'filter_auto_download_title');
-  el('opt-filter-auto-all', 'filter_all');
-  el('opt-filter-auto-enabled', 'filter_auto_download_on');
-  el('opt-filter-auto-disabled', 'filter_auto_download_off');
-  el('text-filter-shorts-title', 'filter_shorts_download_title');
-  el('opt-filter-shorts-all', 'filter_all');
-  el('opt-filter-shorts-enabled', 'filter_shorts_on');
-  el('opt-filter-shorts-disabled', 'filter_shorts_off');
-  const searchInputEl = document.getElementById('channel-list-search-input');
-  if (searchInputEl) {
-    searchInputEl.placeholder = t.filter_channels_search_placeholder || 'Kanal listesinde ara...';
-  }
-  elQuery('label[for="settings-lang"]', 'label_lang');
-  el('label-temp-dir-type', 'label_temp_dir_type');
-  el('desc-temp-dir-type', 'desc_temp_dir_type');
-  el('opt-temp-local', 'opt_temp_local');
-  el('opt-temp-system', 'opt_temp_system');
-  el('btn-open-temp-text', 'btn_open_temp_text');
-  el('label-duration-fetch-method', 'label_duration_fetch_method');
-  el('opt-duration-auto', 'opt_duration_auto');
-  el('opt-duration-waterfall', 'opt_duration_waterfall');
-  el('opt-duration-ytdlp', 'opt_duration_ytdlp');
-  el('desc-duration-method-info', 'desc_duration_method_info', 'innerHTML');
-  el('label-ytdlp-run-mode', 'label_ytdlp_run_mode');
-  el('opt-ytdlp-exe', 'opt_ytdlp_exe');
-  el('opt-ytdlp-python', 'opt_ytdlp_python');
-  el('desc-ytdlp-mode-info', 'desc_ytdlp_mode_info', 'innerHTML');
-  el('label-python-cmd', 'label_python_cmd');
-  el('desc-python-cmd', 'desc_python_cmd', 'innerHTML');
-  el('btn-download-python-text', 'btn_download_python_text');
-  el('btn-install-pip-text', 'btn_install_pip_text');
-  el('label-preferred-audio-lang', 'label_preferred_audio_lang');
-  el('desc-preferred-audio-lang', 'desc_preferred_audio_lang');
-  el('label-ytdlp-version', 'label_ytdlp_version');
-  el('ytdlp-version-prefix', 'ytdlp_version_prefix');
-  el('ytdlp-latest-version-prefix', 'ytdlp_latest_version_prefix');
-  el('opt-ytdlp-nightly', 'opt_ytdlp_nightly');
-  el('opt-ytdlp-stable', 'opt_ytdlp_stable');
-  el('btn-ytdlp-update-text', 'btn_ytdlp_update_text');
-  el('desc-ytdlp-version', 'desc_ytdlp_version', 'innerHTML');
-
-  // Hava Durumu Çevirileri
-  el('badge-weather', 'badge_weather_title', 'title');
-  el('label-weather-title', 'label_weather_title');
-  el('label-weather-city', 'label_weather_city');
-  el('desc-weather-city', 'desc_weather_city');
-  el('btn-weather-search-text', 'btn_weather_search_text');
-  el('label-weather-unit', 'label_weather_unit');
-  el('desc-weather-unit', 'desc_weather_unit');
-  el('opt-weather-celsius', 'opt_weather_celsius');
-  el('opt-weather-fahrenheit', 'opt_weather_fahrenheit');
-  el('label-weather-lat', 'label_weather_lat');
-  el('desc-weather-lat', 'desc_weather_lat');
-  el('label-weather-lon', 'label_weather_lon');
-  el('desc-weather-lon', 'desc_weather_lon');
-
-  // Sistem Veritabanı & Ayar Yedekleme Kartı Çevirileri
-  el('settings-title-backup-text', 'settings_title_backup_text');
-  el('desc-system-backup-info', 'desc_system_backup_info');
-  el('backup-auto-info-title', 'backup_auto_info_title');
-  el('backup-auto-info-desc', 'backup_auto_info_desc');
-  el('label-local-backup-title', 'label_local_backup_title');
-  el('label-backup-policy-badge', 'label_backup_policy_badge');
-  el('btn-create-backup-text', 'btn_create_backup_text');
-  el('btn-upload-backup-text', 'btn_upload_backup_text');
-  el('btn-list-backups-text', 'btn_list_backups_text');
-  el('text-gist-sync-title', 'text_gist_sync_title');
-  el('desc-gist-sync-info', 'desc_gist_sync_info');
-  el('label-gist-token', 'label_gist_token');
-  el('label-gist-id', 'label_gist_id');
-  el('btn-gist-get-token-text', 'btn_gist_get_token_text');
-  el('btn-gist-save-text', 'btn_gist_save_text');
-  el('btn-gist-test-text', 'btn_gist_test_text');
-  el('btn-gist-push-text', 'btn_gist_push_text');
-  el('btn-gist-pull-text', 'btn_gist_pull_text');
-  el('btn-gist-push-registered-text', 'btn_gist_push_text');
-  el('btn-gist-pull-registered-text', 'btn_gist_pull_text');
-  el('gist-status-connected-text', 'gist_status_connected_text');
-  el('text-gist-online-link', 'text_gist_online_link');
-  el('btn-gist-delete-text', 'btn_gist_delete_text');
-  el('label-gist-auto-sync', 'label_gist_auto_sync');
-  el('label-ffmpeg-status-text', 'label_ffmpeg_status_text');
-  if (typeof checkFfmpegStatus === 'function') {
-    checkFfmpegStatus();
-  }
-  elQuery('label[for="settings-playsounds"] + span', 'desc_play_sounds');
-  elQuery('label[for="settings-shownotifications"]:not(.toggle-label)', 'label_show_notifications');
-  elQuery('label[for="settings-shownotifications"] + span', 'desc_show_notifications');
-  elQuery('label[for="settings-autoopenbrowser"]:not(.toggle-label)', 'label_auto_open_browser');
-  elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
-  elQuery('label[for="settings-checkonstartup"]', 'label_check_on_startup');
-  elQuery('label[for="settings-checkonstartup"] + span', 'desc_check_on_startup');
-  elQuery('label[for="settings-discordrpc"]:not(.toggle-label)', 'label_discord_rpc');
-  elQuery('label[for="settings-discordrpc"] + span', 'desc_discord_rpc');
-  elQuery('#btn-search-channel-text', 'btn_search_channel');
-  elQuery('#btn-add-channel-text', 'btn_add_channel');
-  elQuery('label[for="settings-lang"]', 'label_lang');
-  el('label-temp-dir-type', 'label_temp_dir_type');
-  el('desc-temp-dir-type', 'desc_temp_dir_type');
-  el('opt-temp-local', 'opt_temp_local');
-  el('opt-temp-system', 'opt_temp_system');
-  el('btn-open-temp-text', 'btn_open_temp_text');
-  el('label-duration-fetch-method', 'label_duration_fetch_method');
-  el('opt-duration-auto', 'opt_duration_auto');
-  el('opt-duration-waterfall', 'opt_duration_waterfall');
-  el('opt-duration-ytdlp', 'opt_duration_ytdlp');
-  el('desc-duration-method-info', 'desc_duration_method_info', 'innerHTML');
-  el('label-ytdlp-run-mode', 'label_ytdlp_run_mode');
-  el('opt-ytdlp-exe', 'opt_ytdlp_exe');
-  el('opt-ytdlp-python', 'opt_ytdlp_python');
-  el('desc-ytdlp-mode-info', 'desc_ytdlp_mode_info', 'innerHTML');
-  el('label-python-cmd', 'label_python_cmd');
-  el('desc-python-cmd', 'desc_python_cmd', 'innerHTML');
-  el('btn-download-python-text', 'btn_download_python_text');
-  el('btn-install-pip-text', 'btn_install_pip_text');
-  el('label-preferred-audio-lang', 'label_preferred_audio_lang');
-  el('desc-preferred-audio-lang', 'desc_preferred_audio_lang');
-  
-  // Tepsi Çift Tıklama Eylemi çevirileri
-  el('label-doubleclickaction', 'label_doubleclickaction');
-  el('desc-doubleclickaction', 'desc_doubleclickaction');
-  el('opt-doubleclick-system', 'opt_doubleclick_system');
-  el('opt-doubleclick-embedded', 'opt_doubleclick_embedded');
-  el('opt-doubleclick-player', 'opt_doubleclick_player');
-  
-  // Oynatıcı tipi ve Çerez kilitleme uyarısı çevirileri
-  el('label-settings-player-type', 'label_settings_player_type');
-  el('desc-settings-player-type', 'desc_settings_player_type');
-  el('opt-player-plyr', 'opt_player_plyr');
-  el('opt-player-artplayer', 'opt_player_artplayer');
-  el('opt-player-html5', 'opt_player_html5');
-  el('cookie-warning-title', 'cookie_warning_title');
-  el('cookie-warning-desc', 'cookie_warning_desc');
-
-  el('label-sponsorblock', 'label_sponsorblock');
-  elQuery('label[for="settings-sponsorblock"] + span', 'desc_sponsorblock');
-
-  el('label-alt-thumbnails-hover', 'label_alt_thumbnails_hover');
-  el('desc-alt-thumbnails-hover', 'desc_alt_thumbnails_hover');
-
-  el('label-subtitle-color', 'label_subtitle_color');
-  el('desc-subtitle-color', 'desc_subtitle_color');
-  el('opt-sub-white', 'opt_sub_white');
-  el('opt-sub-yellow', 'opt_sub_yellow');
-  el('opt-sub-green', 'opt_sub_green');
-  el('opt-sub-cyan', 'opt_sub_cyan');
-  el('opt-sub-magenta', 'opt_sub_magenta');
-  el('opt-sub-red', 'opt_sub_red');
-
-  // Gömülü oynatıcı eylemleri title'ları
-  const inlineBtnYoutube = document.getElementById('inline-btn-youtube');
-  if (inlineBtnYoutube) {
-    inlineBtnYoutube.title = t.inline_btn_youtube;
-    inlineBtnYoutube.setAttribute('aria-label', t.inline_btn_youtube);
-  }
-  const inlineBtnSystem = document.getElementById('inline-btn-system');
-  if (inlineBtnSystem) {
-    inlineBtnSystem.title = t.inline_btn_system;
-    inlineBtnSystem.setAttribute('aria-label', t.inline_btn_system);
-  }
-  const inlineBtnFolder = document.getElementById('inline-btn-folder');
-  if (inlineBtnFolder) {
-    inlineBtnFolder.title = t.inline_btn_folder;
-    inlineBtnFolder.setAttribute('aria-label', t.inline_btn_folder);
-  }
-  const inlineBtnComments = document.getElementById('inline-btn-comments');
-  if (inlineBtnComments) {
-    inlineBtnComments.title = t.inline_btn_comments;
-    inlineBtnComments.setAttribute('aria-label', t.inline_btn_comments);
-  }
-  const inlineBtnTranslate = document.getElementById('inline-btn-translate-sub');
-  if (inlineBtnTranslate) {
-    inlineBtnTranslate.title = t.inline_btn_translate_sub;
-  }
-  const inlineBtnSyncWatchtime = document.getElementById('inline-btn-sync-watchtime');
-  if (inlineBtnSyncWatchtime) {
-    inlineBtnSyncWatchtime.title = t.inline_btn_sync_watchtime;
-    inlineBtnSyncWatchtime.setAttribute('aria-label', t.inline_btn_sync_watchtime);
-  }
-  el('text-autosync-watchtime-title', 'text_autosync_watchtime_title');
-  el('desc-autosync-watchtime', 'desc_autosync_watchtime');
-
-  if (typeof updateSBToggleButtonUI === 'function') {
-    updateSBToggleButtonUI();
-  }
-
-  // Altyazı Rengi Option Çevirileri
-  const inlineSubColor = document.getElementById('inline-subtitle-color');
-  if (inlineSubColor && inlineSubColor.options.length >= 12) {
-    inlineSubColor.title = t.inline_sub_color_title;
-    inlineSubColor.options[0].text = t.opt_sub_white;
-    inlineSubColor.options[1].text = t.opt_sub_yellow;
-    inlineSubColor.options[2].text = t.opt_sub_green;
-    inlineSubColor.options[3].text = t.opt_sub_cyan;
-    inlineSubColor.options[4].text = t.opt_sub_magenta;
-    inlineSubColor.options[5].text = t.opt_sub_red;
-    inlineSubColor.options[6].text = t.opt_sub_blue;
-    inlineSubColor.options[7].text = t.opt_sub_orange;
-    inlineSubColor.options[8].text = t.opt_sub_purple;
-    inlineSubColor.options[9].text = t.opt_sub_black;
-    inlineSubColor.options[10].text = t.opt_sub_gray;
-    inlineSubColor.options[11].text = t.opt_sub_lightyellow;
-  }
-
-  // Altyazı Saydamlığı Option Çevirileri
-  const inlineSubOpacity = document.getElementById('inline-subtitle-opacity');
-  if (inlineSubOpacity && inlineSubOpacity.options.length >= 12) {
-    inlineSubOpacity.title = t.inline_sub_opacity_title;
-    inlineSubOpacity.options[0].text = t.opt_sub_opacity_0;
-    inlineSubOpacity.options[1].text = t.opt_sub_opacity_10;
-    inlineSubOpacity.options[2].text = t.opt_sub_opacity_20;
-    inlineSubOpacity.options[3].text = t.opt_sub_opacity_30;
-    inlineSubOpacity.options[4].text = t.opt_sub_opacity_40;
-    inlineSubOpacity.options[5].text = t.opt_sub_opacity_50;
-    inlineSubOpacity.options[6].text = t.opt_sub_opacity_60;
-    inlineSubOpacity.options[7].text = t.opt_sub_opacity_70;
-    inlineSubOpacity.options[8].text = t.opt_sub_opacity_80;
-    inlineSubOpacity.options[9].text = t.opt_sub_opacity_90;
-    inlineSubOpacity.options[10].text = t.opt_sub_opacity_95;
-    inlineSubOpacity.options[11].text = t.opt_sub_opacity_100;
-  }
-
-  // Altyazı Boyutu Option Çevirileri
-  const inlineSubSize = document.getElementById('inline-subtitle-size');
-  if (inlineSubSize) {
-    inlineSubSize.title = t.inline_sub_size_title;
-  }
-
-  elQuery('.form-actions button span', 'btn_save_settings');
-
-  // Onay Modalları
-  elQuery('#delete-modal h3', 'modal_delete_title');
-  elQuery('#delete-modal-msg', 'modal_delete_desc');
-  elQuery('#delete-file-checkbox + label + span', 'modal_delete_file_checkbox');
-  elQuery('#confirm-delete-btn', 'modal_delete_btn');
-  elQuery('#cancel-delete-btn', 'modal_cancel_btn');
-  el('label-delete-file-modal', 'label_delete_file_modal');
-  el('label-mark-watched-modal', 'label_mark_watched_modal');
-  
-  if (currentPlayingVideoId) {
-    const activeVideo = localDb?.history?.find(h => h.id === currentPlayingVideoId);
-    if (activeVideo && activeVideo.title) {
-      const titleEl = document.getElementById('player-modal-title');
-      if (titleEl) titleEl.textContent = activeVideo.title;
-    } else {
-      elQuery('#player-modal-title', 'modal_player_title');
-    }
-  } else {
-    elQuery('#player-modal-title', 'modal_player_title');
-  }
-
-  // Üst bar badges çevirileri
-  el('topbar-quality-title', 'topbar_quality_title');
-  el('topbar-disk-title-free', 'topbar_disk_title_free');
-  el('topbar-disk-title-folder', 'topbar_disk_title_folder');
-
-  // Sıralama butonları ve başlıkları (title)
-  const sortBtnDateDesc = document.getElementById('sort-btn-date-desc');
-  const sortBtnDateAsc = document.getElementById('sort-btn-date-asc');
-  const sortBtnSizeDesc = document.getElementById('sort-btn-size-desc');
-  const sortBtnSizeAsc = document.getElementById('sort-btn-size-asc');
-
-  if (sortBtnDateDesc) {
-    sortBtnDateDesc.textContent = t.sort_btn_date_desc;
-    sortBtnDateDesc.title = currentLang === 'en' ? 'Date: Newest to Oldest' : 'Tarih: Yeniden Eskiye';
-  }
-  if (sortBtnDateAsc) {
-    sortBtnDateAsc.textContent = t.sort_btn_date_asc;
-    sortBtnDateAsc.title = currentLang === 'en' ? 'Date: Oldest to Newest' : 'Tarih: Eskiden Yeniye';
-  }
-  if (sortBtnSizeDesc) {
-    sortBtnSizeDesc.textContent = t.sort_btn_size_desc;
-    sortBtnSizeDesc.title = currentLang === 'en' ? 'Size: Largest to Smallest' : 'Boyut: Büyükten Küçüğe';
-  }
-  if (sortBtnSizeAsc) {
-    sortBtnSizeAsc.textContent = t.sort_btn_size_asc;
-    sortBtnSizeAsc.title = currentLang === 'en' ? 'Size: Smallest to Largest' : 'Boyut: Küçükten Büyüğe';
-  }
-
-  // Ayarlar alt sekmeleri ve açıklamaları
-  el('settings-desc', 'settings_desc');
-  el('settings-version-title', 'settings_version_title');
-  
-  elQuery('.settings-tab-btn[data-subtab="general"] span', 'settings_tab_general');
-  elQuery('.settings-tab-btn[data-subtab="download"] span', 'settings_tab_download');
-  elQuery('.settings-tab-btn[data-subtab="automation"] span', 'settings_tab_automation');
-  elQuery('.settings-tab-btn[data-subtab="notifications"] span', 'settings_tab_notifications');
-  elQuery('.feedback-btn span', 'settings_tab_feedback');
-
-  el('settings-title-general-text', 'settings_tab_general');
-  el('settings-title-download-text', 'settings_tab_download');
-  el('settings-title-automation-text', 'settings_tab_automation');
-  el('settings-title-notifications-text', 'settings_tab_notifications');
-
-  // Yeni eklenen Ayarlar alanı etiket, option ve açıklama çevirileri
-  el('desc-download-path', 'desc_download_path');
-  el('desc-lang', 'desc_lang');
-  el('opt-theme-dark', 'opt_theme_dark');
-  el('opt-theme-light', 'opt_theme_light');
-  el('opt-theme-matrix', 'opt_theme_matrix');
-  el('desc-theme', 'desc_theme');
-  el('desc-port', 'desc_port');
-  el('opt-quality-best', 'opt_quality_best');
-  el('opt-quality-1080p', 'opt_quality_1080p');
-  el('opt-quality-720p', 'opt_quality_720p');
-  el('desc-quality', 'desc_quality');
-  el('opt-merge-single', 'opt_merge_single');
-  el('opt-merge-merge', 'opt_merge_merge');
-  el('opt-merge-separate', 'opt_merge_separate');
-  el('desc-merge-type', 'desc_merge_type');
-  el('desc-speed-limit', 'desc_speed_limit');
-  el('desc-alt-speed-limit', 'desc_alt_speed_limit');
-  el('cli-info-title', 'cli_info_title');
-  el('desc-channel-check-interval', 'desc_channel_check_interval');
-  el('desc-rss-limit', 'desc_rss_limit');
-  el('desc-auto-delete', 'desc_auto_delete');
-  el('settings-status-text', 'settings_status_text');
-
-  // Geçmiş limit ve veri yönetimi çevirileri
-  el('label-history-limit', 'label_history_limit');
-  el('desc-history-limit', 'desc_history_limit');
-  el('opt-limit-10', 'opt_limit_10');
-  el('opt-limit-20', 'opt_limit_20');
-  el('opt-limit-50', 'opt_limit_50');
-  el('opt-limit-100', 'opt_limit_100');
-  el('opt-limit-200', 'opt_limit_200');
-  el('label-data-management', 'label_data_management');
-  el('desc-data-management', 'desc_data_management');
-  el('desc-system-backup-info', 'desc_system_backup_info');
-  el('backup-auto-info-title', 'backup_auto_info_title');
-  el('backup-auto-info-desc', 'backup_auto_info_desc');
-  el('label-backup-policy-badge', 'label_backup_policy_badge');
-  el('btn-export-text', 'btn_export_backup');
-  el('btn-import-text', 'btn_import_backup');
-  el('opt-import-append', 'opt_import_append');
-  el('opt-import-overwrite', 'opt_import_overwrite');
-  el('label-ytdlp-version', 'label_ytdlp_version');
-  el('desc-ytdlp-version', 'desc_ytdlp_version');
-  el('btn-ytdlp-update-text', 'btn_ytdlp_update');
-  el('ytdlp-version-prefix', 'ytdlp_version_prefix');
-  el('ytdlp-latest-version-prefix', 'ytdlp_latest_version_prefix');
-
-
-  // Ust bar baglanti ve cerez durumu baslik ve metin cevirisi
-  const statusIndicator2 = document.getElementById('status-indicator');
-  const statusText = document.getElementById('topbar-status-text');
-  const badgeConn = document.getElementById('badge-connection');
-  if (statusIndicator2) {
-    let connTitle = t.connection_connecting || 'Bağlanıyor...';
-    if (statusIndicator2.classList.contains('online')) {
-      connTitle = t.connection_active || 'Bağlantı: Aktif';
-    } else if (statusIndicator2.classList.contains('offline')) {
-      connTitle = t.connection_lost || 'Bağlantı Kesildi';
-    }
-    if (statusText) statusText.textContent = connTitle;
-    if (badgeConn) badgeConn.title = connTitle;
-  }
-
-  // CLI aciklama HTML kutusu dinamik guncellemesi
-  const cliInfoDesc = document.getElementById('cli-info-desc');
-  if (cliInfoDesc) {
-    cliInfoDesc.innerHTML = t.cli_info_desc + `<br><small style="color: var(--accent-color); opacity: 0.8; font-weight: bold;" id="cli-info-note">${t.cli_info_note}</small>`;
-  }
-
-  // IPTV Cevirileri
-  el('lbl-single-view', 'lbl_single_view');
-  el('lbl-dual-view', 'lbl_dual_view');
-  el('lbl-quad-view', 'lbl_quad_view');
-  el('lbl-sport-view', 'lbl_sport_view');
-  el('lbl-swap-screens', 'lbl_swap_screens');
-  el('lbl-update-channels', 'lbl_update_channels');
-  el('lbl-loading-more', 'lbl_loading_more');
-  el('opt-all-countries', 'opt_all_countries');
-  el('opt-all-categories', 'opt_all_categories');
-  document.querySelectorAll('.lbl-select-channel').forEach(item => {
-    if (t.lbl_select_channel) item.textContent = t.lbl_select_channel;
-  });
-
-  // Tools ve Downloader i18n Güncellemeleri
-  el('nav-tools-text', 'nav_tools_text');
-  el('nav-hdown-pd-text', 'nav_hdown_pd');
-  el('nav-hdown-downloader-text', 'nav_hdown_downloader');
-  el('nav-tools-compare-text', 'compare_title');
-  el('nav-tools-ape-text', 'nav_tools_ape');
-  el('nav-tools-subs-text', 'nav_tools_subs');
-  el('nav-tools-categories-text', 'category_manage_title');
-  el('nav-tools-ape-text', 'nav_tools_ape');
-
-
-
-
-  // Süre Filtresi i18n
-  const durationSelect = document.getElementById('history-duration-filter');
-  if (durationSelect && durationSelect.options.length >= 11) {
-    durationSelect.options[0].text = t.duration_filter_off || 'Kapalı';
-    durationSelect.options[1].text = t.duration_filter_1 || '< 1 dk';
-    durationSelect.options[2].text = t.duration_filter_2 || '< 2 dk';
-    durationSelect.options[3].text = t.duration_filter_3 || '< 3 dk';
-    durationSelect.options[4].text = t.duration_filter_4 || '< 4 dk';
-    durationSelect.options[5].text = t.duration_filter_5 || '< 5 dk';
-    durationSelect.options[6].text = t.duration_filter_10 || '< 10 dk';
-    durationSelect.options[7].text = t.duration_filter_15 || '< 15 dk';
-    durationSelect.options[8].text = t.duration_filter_20 || '< 20 dk';
-    durationSelect.options[9].text = t.duration_filter_25 || '< 25 dk';
-    durationSelect.options[10].text = t.duration_filter_30 || '< 30 dk';
-  }
-
-  // Toplu Silme Kartı i18n
-  el('tools-bulk-delete-title', 'bulk_delete_title');
-  el('tools-bulk-delete-files-label', 'bulk_delete_also_file');
-  el('tools-bulk-delete-select-all-label', 'bulk_delete_select_all');
-  el('tools-bulk-delete-btn-text', 'bulk_delete_btn');
-  el('tools-bulk-delete-selected-text', 'bulk_delete_selected_text');
-
-  // Kütüphane Toplu Gizleme Barı i18n
-  el('btn-bulk-hide-history-toggle', 'history_bulk_hide_toggle');
-  el('lbl-history-bh-select-all', 'history_bulk_hide_select_all');
-  el('lbl-history-bh-selected-count', 'history_bulk_hide_selected_count');
-  el('lbl-history-bh-execute', 'history_bulk_hide_execute');
-  el('lbl-history-bh-cancel', 'history_bulk_hide_cancel');
-
-  // Kütüphane Hızlı Filtreler Panel i18n
-  el('history-filters-trigger-text', 'history_filters_btn');
-
-
-  // Kategori Yönetimi i18n
-  // Araçlar Akordiyon & Sayfa Başlıkları i18n
-  el('tools-main-title', 'nav_tools');
-  el('tools-accordion-compare-title', 'tools_compare_accordion_title');
-  el('tools-accordion-categories-title', 'category_manage_title');
-  el('tools-accordion-ape-title', 'ape_accordion_title');
-
-  // Kategori Yönetimi i18n
-  el('tools-categories-desc', 'category_manage_desc');
-  
-  const newCatInput = document.getElementById('new-category-input');
-  if (newCatInput) {
-    newCatInput.placeholder = t.category_name_placeholder || 'Yeni kategori adı yazın...';
-  }
-  el('btn-add-category-text', 'btn_add_category');
-  el('col-category-id', 'category_id_col');
-  el('col-category-name', 'category_name_col');
-  el('col-category-actions', 'category_actions_col');
-
-  // APE Aracı i18n
-  el('tools-ape-title', 'ape_title');
-  el('tools-ape-badge', 'ape_badge');
-  el('tools-ape-desc', 'ape_desc');
-  const apeInputEl = document.getElementById('ape-target-input');
-  if (apeInputEl) {
-    apeInputEl.placeholder = t.ape_input_placeholder || 'YouTube Video veya Kanal Linki / ID girin (Örn: https://youtu.be/... veya @KanalAdi)';
-  }
-  el('btn-ape-mark-text', 'btn_ape_mark_text');
-  el('label-ape-sync-youtube', 'label_ape_sync_youtube');
-  el('label-ape-limit', 'ape_limit_label');
-  // YouTube Abonelikleri i18n
-  el('tools-subs-desc', 'subs_desc');
-  el('btn-subs-fetch-text', 'subs_btn_fetch');
-  el('btn-subs-open-text', 'subs_btn_open');
-  el('btn-subs-import-text', 'subs_btn_import');
-  el('subs-loading-text', 'subs_loading');
-  el('btn-subs-select-all-text', 'subs_select_all');
-  el('btn-subs-load-more-text', 'subs_load_more');
-  const subsSearchEl = document.getElementById('subs-search-input');
-  if (subsSearchEl) subsSearchEl.placeholder = t.subs_search_placeholder || 'Kanal ara...';
-
-
-
-  el('downloader-header-title', 'downloader_title');
-  el('downloader-header-desc', 'downloader_desc');
-  el('downloader-format-label', 'downloader_format_label');
-  el('downloader-bitrate-label-text', 'downloader_bitrate_label');
-  el('downloader-info-text', 'downloader_no_channel_folder');
-  el('downloader-start-btn-text', 'downloader_start_btn');
-  el('downloader-playlist-title-text', 'downloader_playlist_title');
-  el('downloader-download-all-text', 'downloader_download_all');
-
-  const urlInput = document.getElementById('downloader-url-input');
-  if (urlInput && t.downloader_url_placeholder) {
-    urlInput.placeholder = t.downloader_url_placeholder;
-  }
-
-  // Format seçeneklerinin metinlerini güncelle
-  const formatSelect = document.getElementById('downloader-format-select');
-  if (formatSelect && formatSelect.options.length >= 8) {
-    formatSelect.options[0].text = t.downloader_format_video_best || 'En İyi Kalite (Best)';
-    formatSelect.options[1].text = t.downloader_format_video_1080p || '1080p FHD';
-    formatSelect.options[2].text = t.downloader_format_video_720p || '720p HD';
-    formatSelect.options[3].text = t.downloader_format_video_480p || '480p';
-    formatSelect.options[4].text = t.downloader_format_video_360p || '360p';
-    formatSelect.options[5].text = t.downloader_format_video_240p || '240p';
-    formatSelect.options[6].text = t.downloader_format_video_144p || '144p';
-    formatSelect.options[7].text = t.downloader_format_audio_mp3 || 'MP3';
-  }
-
-  // Bitrate seçeneklerinin metinlerini güncelle
-  const bitrateSelect = document.getElementById('downloader-bitrate-select');
-  if (bitrateSelect && bitrateSelect.options.length >= 3) {
-    bitrateSelect.options[0].text = t.downloader_bitrate_320 || '320 kbps (En Yüksek)';
-    bitrateSelect.options[1].text = t.downloader_bitrate_192 || '192 kbps (Önerilen)';
-    bitrateSelect.options[2].text = t.downloader_bitrate_128 || '128 kbps';
-  }
-}
 
 function switchTab(targetTab, triggerPushState = true) {
   window.switchTab = switchTab;
   
   // Gecersiz veya bos tab kontrolu (pd-btn gibi data-tab olmayan nav-itemlar)
-  if (!targetTab || !tabPathMap[targetTab]) {
+  const map = typeof tabPathMap !== 'undefined' ? tabPathMap : {};
+  if (!targetTab || !map[targetTab]) {
     if (targetTab) console.warn('[switchTab] Bilinmeyen tab:', targetTab);
     return;
   }
@@ -903,12 +255,11 @@ function switchTab(targetTab, triggerPushState = true) {
     if (typeof restoreIptvState === 'function') restoreIptvState();
   } else {
     // IPTV sekmesinden cikinca: tum IPTV playerlar + arkaplan interval temizle
-    if (window.stopAllIptvPlayers) window.stopAllIptvPlayers();
-    if (window.clearIptvChannelList) window.clearIptvChannelList();
-    // IPTV durum kontrol interval'ini durdur
-    if (typeof iptvStatusInterval !== 'undefined' && iptvStatusInterval) {
-      clearInterval(iptvStatusInterval);
-      iptvStatusInterval = null;
+    if (window.stopAllIptvPlayersAndClear) {
+      window.stopAllIptvPlayersAndClear();
+    } else {
+      if (window.stopAllIptvPlayers) window.stopAllIptvPlayers();
+      if (window.clearIptvChannelList) window.clearIptvChannelList();
     }
   }
 
@@ -1004,12 +355,15 @@ let historyOnlyNotDownloaded = false;
 let historyShowHidden = false;
 let downloadedViewMode = 'grid'; // grid veya list
 let downloadedFilterChannel = 'all'; // all veya kanalId
+let downloadedOnlyPartiallyWatched = false;
+window.downloadedOnlyPartiallyWatched = downloadedOnlyPartiallyWatched;
 
 // İndirilen Videolar Tab Elemanları
 const downloadedGrid = document.getElementById('downloaded-grid');
 const downloadedChannelFilter = document.getElementById('downloaded-channel-filter');
 const downloadedViewGridBtn = document.getElementById('downloaded-view-grid-btn');
 const downloadedViewListBtn = document.getElementById('downloaded-view-list-btn');
+const downloadedFilterResumeBtn = document.getElementById('downloaded-filter-resume-btn');
 
 // Silme Modalı Elemanları
 const deleteModal = document.getElementById('delete-modal');
@@ -1017,6 +371,8 @@ const closeDeleteModalBtn = document.getElementById('close-delete-modal-btn');
 const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
 const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 const deleteFileCheckbox = document.getElementById('delete-file-checkbox');
+const markWatchedCheckbox = document.getElementById('mark-watched-checkbox');
+const hideLibraryCheckbox = document.getElementById('hide-library-checkbox');
 const deleteModalMsg = document.getElementById('delete-modal-msg');
 let videoIdToDelete = null;
 
@@ -1057,36 +413,6 @@ const pathTabMap = {
   '/downloader': 'downloader'
 };
 
-// Türkçe Açıklama: Aktif oynatıcı tipine (ArtPlayer, Plyr, HTML5) göre oynatım saniyesini ve paused durumunu alır.
-/**
- * Aktif oynatıcının zamanını ve oynatılma durumunu döndürür.
- * 
- * @returns {{currentTime: number, paused: boolean}}
- */
-function getCurrentPlaybackState() {
-  const pType = (localDb.settings && localDb.settings.playerType) || 'plyr';
-  const player = document.getElementById('embedded-video-player');
-  
-  let currentTime = 0;
-  let paused = true;
-  
-  if (pType === 'artplayer' && videoPlayerInstance) {
-    currentTime = videoPlayerInstance.currentTime || 0;
-    paused = videoPlayerInstance.paused;
-  } else if (pType === 'html5' && player) {
-    currentTime = player.currentTime || 0;
-    paused = player.paused;
-  } else if (videoPlayerInstance) {
-    currentTime = videoPlayerInstance.currentTime || 0;
-    paused = videoPlayerInstance.paused;
-  } else if (player) {
-    currentTime = player.currentTime || 0;
-    paused = player.paused;
-  }
-  
-  return { currentTime, paused };
-}
-
 // Türkçe Açıklama: Arayüzdeki sekme başlıklarını ve sekme içeriklerini aktif/pasif yapar.
 /**
  * Sekme elemanlarının CSS sınıflarını günceller.
@@ -1103,7 +429,7 @@ function performTabSwitchUI(targetTab) {
     }
   }
 
-  navItems.forEach(n => {
+  document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('data-tab') === targetTab) {
       n.classList.add('active');
     } else {
@@ -1111,7 +437,7 @@ function performTabSwitchUI(targetTab) {
     }
   });
 
-  tabContents.forEach(content => {
+  document.querySelectorAll('.tab-content').forEach(content => {
     if (content.id === `tab-${targetTab}`) {
       content.classList.add('active');
     } else {
@@ -1174,6 +500,7 @@ function connectSSE() {
   eventSource.addEventListener('db_update', (e) => {
     const db = JSON.parse(e.data);
     localDb = db;
+    window.localDb = db;
     updateUI(db);
   });
 
@@ -1408,9 +735,91 @@ function toggleFilterChip(checkboxId) {
   const cb = document.getElementById(checkboxId);
   if (!cb) return;
   cb.checked = !cb.checked;
-  cb.dispatchEvent(new Event('change'));
   syncFilterChipUI(checkboxId);
-  updateHistoryFiltersCount();
+  if (typeof updateHistoryFiltersCount === 'function') updateHistoryFiltersCount();
+
+  const currentDb = window.localDb || (typeof localDb !== 'undefined' ? localDb : {});
+
+  if (checkboxId === 'history-show-shorts') {
+    const showShorts = cb.checked;
+    if (!currentDb.settings) currentDb.settings = {};
+    currentDb.settings.showShorts = showShorts;
+
+    const dlCheckbox = document.getElementById('downloaded-show-shorts');
+    if (dlCheckbox) dlCheckbox.checked = showShorts;
+
+    const inlineCheckbox = document.getElementById('inline-playlist-show-shorts');
+    if (inlineCheckbox) inlineCheckbox.checked = showShorts;
+
+    const settCheckbox = document.getElementById('settings-showshorts');
+    if (settCheckbox) settCheckbox.checked = showShorts;
+
+    if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
+    if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
+
+    if (typeof updateUI === 'function') updateUI(currentDb);
+    if (typeof currentPlayingVideoId !== 'undefined' && currentPlayingVideoId && typeof renderDownloadedPlaylist === 'function') {
+      renderDownloadedPlaylist(currentPlayingVideoId);
+    }
+
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...currentDb.settings, showShorts })
+    }).then(r => r.json()).then(data => {
+      if (data.success) {
+        showToast(showShorts ? 'Shorts videoları gösteriliyor.' : 'Shorts videoları gizlendi.', 'success');
+      }
+    }).catch(() => {});
+    return;
+  }
+
+  if (checkboxId === 'history-show-live') {
+    window.historyShowLive = cb.checked;
+    if (!currentDb.settings) currentDb.settings = {};
+    currentDb.settings.historyShowLive = cb.checked;
+    if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
+    if (typeof updateUI === 'function') updateUI(currentDb);
+    return;
+  }
+
+  if (checkboxId === 'history-show-members') {
+    window.historyShowMembers = cb.checked;
+    if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
+    if (typeof updateUI === 'function') updateUI(currentDb);
+    return;
+  }
+
+  if (checkboxId === 'history-only-no-auto-download') {
+    window.historyOnlyNoAutoDownload = cb.checked;
+    if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
+    if (typeof updateUI === 'function') updateUI(currentDb);
+    return;
+  }
+
+  if (checkboxId === 'history-only-not-downloaded') {
+    window.historyOnlyNotDownloaded = cb.checked;
+    if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
+    if (typeof updateUI === 'function') updateUI(currentDb);
+    return;
+  }
+
+  if (checkboxId === 'history-only-live-processing') {
+    window.historyOnlyLiveProcessing = cb.checked;
+    if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
+    if (typeof updateUI === 'function') updateUI(currentDb);
+    return;
+  }
+
+  if (checkboxId === 'history-show-hidden') {
+    if (typeof historyShowHidden !== 'undefined') historyShowHidden = cb.checked;
+    window.historyShowHidden = cb.checked;
+    if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
+    if (typeof updateUI === 'function') updateUI(currentDb);
+    return;
+  }
+
+  cb.dispatchEvent(new Event('change'));
 }
 window.toggleFilterChip = toggleFilterChip;
 
@@ -1433,6 +842,48 @@ function syncFilterChipUI(checkboxId) {
   }
 }
 window.syncFilterChipUI = syncFilterChipUI;
+
+// Türkçe Açıklama: İndirilenler ve Oynatıcı kenar çubuğundaki Shorts gösterimini senkron olarak açar/kapatır ve anında UI'ı günceller.
+function toggleDownloadedShowShorts(showShorts) {
+  const currentDb = window.localDb || (typeof localDb !== 'undefined' ? localDb : {});
+  if (!currentDb.settings) currentDb.settings = {};
+  currentDb.settings.showShorts = !!showShorts;
+
+  const dlCheckbox = document.getElementById('downloaded-show-shorts');
+  if (dlCheckbox) dlCheckbox.checked = !!showShorts;
+
+  const inlineCheckbox = document.getElementById('inline-playlist-show-shorts');
+  if (inlineCheckbox) inlineCheckbox.checked = !!showShorts;
+
+  const histCheckbox = document.getElementById('history-show-shorts');
+  if (histCheckbox) {
+    histCheckbox.checked = !!showShorts;
+    syncFilterChipUI('history-show-shorts');
+    if (typeof updateHistoryFiltersCount === 'function') updateHistoryFiltersCount();
+  }
+
+  const settCheckbox = document.getElementById('settings-showshorts');
+  if (settCheckbox) settCheckbox.checked = !!showShorts;
+
+  if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
+  if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
+
+  if (typeof updateUI === 'function') updateUI(currentDb);
+  if (typeof currentPlayingVideoId !== 'undefined' && currentPlayingVideoId && typeof renderDownloadedPlaylist === 'function') {
+    renderDownloadedPlaylist(currentPlayingVideoId);
+  }
+
+  fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...currentDb.settings, showShorts: !!showShorts })
+  }).then(r => r.json()).then(data => {
+    if (data.success) {
+      showToast(showShorts ? 'Shorts videoları gösteriliyor.' : 'Shorts videoları gizlendi.', 'success');
+    }
+  }).catch(() => {});
+}
+window.toggleDownloadedShowShorts = toggleDownloadedShowShorts;
 
 // === KÜTÜPHANE HIZLI FİLTRELER PANELİ ===
 // Türkçe Açıklama: "Filtreler" butonuna tıklanınca kayan paneli açıp kapatır ve viewport'a sabitler.
@@ -1625,9 +1076,9 @@ function updateUI(db) {
         cardsBtn.classList.toggle('active', viewMode === 'cards');
       }
 
-      const mergingVideos = db.history.filter(h => h.status === 'merging');
-      const downloadingVideos = db.history.filter(h => h.status === 'downloading');
-      const waitingVideos = db.history.filter(h => h.status === 'waiting');
+      const mergingVideos = db.history.filter(h => h.status === 'merging' && h.hidden !== true);
+      const downloadingVideos = db.history.filter(h => h.status === 'downloading' && h.hidden !== true);
+      const waitingVideos = db.history.filter(h => h.status === 'waiting' && h.hidden !== true);
       const allActiveQueue = [...downloadingVideos, ...waitingVideos];
       
       const totalQueueCount = allActiveQueue.length + mergingVideos.length;
@@ -1733,11 +1184,17 @@ function updateUI(db) {
               <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
                 ${!isMerging ? `
                 <div class="queue-move-btn-group">
+                  <button class="queue-move-btn queue-btn-top ${upDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'top')" ${upDisabled} title="${t.queue_move_top || 'En Başa Taşı'}">
+                    <i data-lucide="chevrons-up" style="width:11px; height:11px;"></i>
+                  </button>
                   <button class="queue-move-btn queue-btn-up ${upDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'up')" ${upDisabled} title="${t.queue_move_up || 'Yukarı Taşı'}">
-                    <i data-lucide="chevron-up" style="width:12px; height:12px;"></i>
+                    <i data-lucide="chevron-up" style="width:11px; height:11px;"></i>
                   </button>
                   <button class="queue-move-btn queue-btn-down ${downDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'down')" ${downDisabled} title="${t.queue_move_down || 'Aşağı Taşı'}">
-                    <i data-lucide="chevron-down" style="width:12px; height:12px;"></i>
+                    <i data-lucide="chevron-down" style="width:11px; height:11px;"></i>
+                  </button>
+                  <button class="queue-move-btn queue-btn-bottom ${downDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'bottom')" ${downDisabled} title="${t.queue_move_bottom || 'En Sona Taşı'}">
+                    <i data-lucide="chevrons-down" style="width:11px; height:11px;"></i>
                   </button>
                 </div>` : ''}
                 ${isDownloading ? `
@@ -1781,11 +1238,17 @@ function updateUI(db) {
                 <span class="queue-order-badge">${orderNoStr}</span>
                 ${!isMerging ? `
                 <div class="queue-move-btn-group">
+                  <button class="queue-move-btn queue-btn-top ${upDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'top')" ${upDisabled} title="${t.queue_move_top || 'En Başa Taşı'}">
+                    <i data-lucide="chevrons-up" style="width:11px; height:11px;"></i>
+                  </button>
                   <button class="queue-move-btn queue-btn-up ${upDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'up')" ${upDisabled} title="${t.queue_move_up || 'Yukarı Taşı'}">
-                    <i data-lucide="chevron-up" style="width:12px; height:12px;"></i>
+                    <i data-lucide="chevron-up" style="width:11px; height:11px;"></i>
                   </button>
                   <button class="queue-move-btn queue-btn-down ${downDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'down')" ${downDisabled} title="${t.queue_move_down || 'Aşağı Taşı'}">
-                    <i data-lucide="chevron-down" style="width:12px; height:12px;"></i>
+                    <i data-lucide="chevron-down" style="width:11px; height:11px;"></i>
+                  </button>
+                  <button class="queue-move-btn queue-btn-bottom ${downDisabled ? 'disabled' : ''}" onclick="moveQueueItem('${video.id}', 'bottom')" ${downDisabled} title="${t.queue_move_bottom || 'En Sona Taşı'}">
+                    <i data-lucide="chevrons-down" style="width:11px; height:11px;"></i>
                   </button>
                 </div>` : ''}
               </div>
@@ -1849,166 +1312,352 @@ function updateUI(db) {
       }
     }
 
-    // 4.2. Son İndirilen Videolar (Son 20)
+    // 4.2. Alt Bölüm: Son İndirilen Videolar (Sol) ve Hata Alanlar & Denenenler (Sağ)
     const queueCompletedList = document.getElementById('queue-completed-list');
-    if (queueCompletedList && db.history) {
-      queueCompletedList.innerHTML = '';
+    const queueFailedList = document.getElementById('queue-failed-list');
+    const completedCountEl = document.getElementById('queue-completed-count');
+    const failedCountEl = document.getElementById('queue-failed-count');
+
+    if (db.history) {
       const isEn = db.settings && db.settings.lang === 'en';
       const t = translations[lang] || translations.tr;
       const viewMode = (db.settings && db.settings.queueViewMode) || localStorage.getItem('haytool_queue_view_mode') || 'table';
-      
+
+      // --- SOL: Son İndirilen Videolar (Son 20) ---
       const completedVideos = db.history
-        .filter(h => h.status === 'completed' && h.manualDownloader !== true)
+        .filter(h => h.status === 'completed' && h.manualDownloader !== true && h.hidden !== true)
         .sort((a, b) => new Date(b.downloadedAt || 0).getTime() - new Date(a.downloadedAt || 0).getTime())
         .slice(0, 20);
 
-      if (completedVideos.length === 0) {
-        queueCompletedList.innerHTML = `
-          <div class="text-center text-muted" id="queue-completed-list-empty" style="padding: 30px 0; font-size: 0.85rem;">
-            ${t.queue_completed_empty || (isEn ? 'No completed downloads yet.' : 'Henüz tamamlanan indirme yok.')}
-          </div>
-        `;
-      } else {
-        if (viewMode === 'table') {
-          const compHeader = document.createElement('div');
-          compHeader.className = 'queue-table-header completed-header';
-          compHeader.innerHTML = `
-            <div style="display:flex; align-items:center; gap:4px;"><span>${t.queue_col_order || '#'}</span></div>
-            <div>${t.queue_col_cover || 'Kapak'}</div>
-            <div>${t.queue_col_title || 'Video Başlığı'}</div>
-            <div>${t.queue_col_channel || 'Kanal'}</div>
-            <div>${t.queue_col_duration || 'Süre'}</div>
-            <div>${t.queue_col_size || 'Boyut'}</div>
-            <div>${t.queue_col_downloaded_at || 'İndirilme Zamanı'}</div>
-            <div style="text-align:right;">${t.queue_col_actions || 'İşlemler'}</div>
+      if (completedCountEl) {
+        completedCountEl.textContent = completedVideos.length;
+      }
+
+      if (queueCompletedList) {
+        queueCompletedList.innerHTML = '';
+        if (completedVideos.length === 0) {
+          queueCompletedList.innerHTML = `
+            <div class="text-center text-muted" id="queue-completed-list-empty" style="padding: 30px 0; font-size: 0.85rem;">
+              ${t.queue_completed_empty || (isEn ? 'No completed downloads yet.' : 'Henüz tamamlanan indirme yok.')}
+            </div>
           `;
-          queueCompletedList.appendChild(compHeader);
-        }
-
-        completedVideos.forEach((video, idx) => {
-          const item = document.createElement('div');
-          item.setAttribute('data-id', video.id);
-          const orderNoStr = `#${(idx + 1).toString().padStart(2, '0')}`;
-          const durationStr = video.duration || '--:--';
-          const sizeStr = video.fileSize || '-- MB';
-          const dateStr = formatDate(video.downloadedAt || video.publishedAt);
-
+        } else {
           if (viewMode === 'table') {
-            item.className = 'queue-table-row completed-row queue-item-completed';
-            item.setAttribute('draggable', 'false');
-            item.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-            item.style.background = 'rgba(16, 185, 129, 0.02)';
-            item.innerHTML = `
-              <div style="display:flex; align-items:center; gap:4px;">
-                <span class="queue-order-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.25);">${orderNoStr}</span>
-              </div>
-              <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
-                <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='logo.png'">
-              </div>
-              <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                ${escapeHtml(video.title)}
-              </div>
-              <div class="queue-item-channel" style="color:var(--text-muted); font-size:0.75rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:4px;" title="${escapeHtml(video.channelName || '')}">
-                <i data-lucide="tv" style="width:12px; height:12px; flex-shrink:0;"></i>
-                <span>${escapeHtml(video.channelName || '')}</span>
-              </div>
-              <div>
-                <span class="queue-meta-pill queue-meta-pill-duration" title="${t.queue_col_duration || 'Süre'}">
-                  <i data-lucide="clock" style="width:10px; height:10px;"></i>
-                  <span>${durationStr}</span>
-                </span>
-              </div>
-              <div>
-                <span class="queue-meta-pill queue-meta-pill-size" title="${t.queue_col_size || 'Boyut'}">
-                  <i data-lucide="hard-drive" style="width:10px; height:10px;"></i>
-                  <span>${sizeStr}</span>
-                </span>
-              </div>
-              <div>
-                <span class="queue-meta-pill queue-meta-pill-date" title="${t.queue_col_downloaded_at || 'İndirilme Zamanı'}">
-                  <i data-lucide="calendar" style="width:10px; height:10px;"></i>
-                  <span>${dateStr}</span>
-                </span>
-              </div>
-              <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
-                <button class="btn-play-queue" onclick="playVideoEmbedded('${video.id}')" title="${isEn ? 'Play' : 'Oynat'}">
-                  <i data-lucide="play" style="width:10px; height:10px;"></i>
-                  <span>${isEn ? 'Play' : 'Oynat'}</span>
-                </button>
-                <button class="btn-cancel-queue" onclick="showDeleteModal('${video.id}')" title="${isEn ? 'Delete' : 'Sil'}" style="padding: 4px 8px;">
-                  <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
-                  <span>${isEn ? 'Delete' : 'Sil'}</span>
-                </button>
-              </div>
+            const compHeader = document.createElement('div');
+            compHeader.className = 'queue-table-header split-table-header completed-header';
+            compHeader.innerHTML = `
+              <div style="display:flex; align-items:center; gap:4px;"><span>${t.queue_col_order || '#'}</span></div>
+              <div>${t.queue_col_cover || 'Kapak'}</div>
+              <div>${t.queue_col_title || 'Video Başlığı'}</div>
+              <div>${t.queue_col_duration || 'Süre'} / ${t.queue_col_size || 'Boyut'}</div>
+              <div style="text-align:right;">${t.queue_col_actions || 'İşlemler'}</div>
             `;
-          } else {
-            // Cards View
-            item.className = 'queue-item queue-item-completed';
-            item.setAttribute('draggable', 'false');
-            item.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-            item.style.background = 'rgba(16, 185, 129, 0.02)';
-            item.innerHTML = `
-              <div style="display:flex; align-items:center; gap:8px;">
-                <div class="queue-item-status-icon" style="display:flex; align-items:center; justify-content:center; color:#10b981;" title="${isEn ? 'Downloaded' : 'İndirildi'}">
-                  <i data-lucide="check-circle" style="width:16px; height:16px; color:#10b981;"></i>
+            queueCompletedList.appendChild(compHeader);
+          }
+
+          completedVideos.forEach((video, idx) => {
+            const item = document.createElement('div');
+            item.setAttribute('data-id', video.id);
+            const orderNoStr = `#${(idx + 1).toString().padStart(2, '0')}`;
+            const durationStr = video.duration || '--:--';
+            const sizeStr = video.fileSize || '-- MB';
+            const dateStr = formatDate(video.downloadedAt || video.publishedAt);
+
+            if (viewMode === 'table') {
+              item.className = 'queue-table-row split-table-row completed-row queue-item-completed';
+              item.setAttribute('draggable', 'false');
+              item.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+              item.style.background = 'rgba(16, 185, 129, 0.02)';
+              item.innerHTML = `
+                <div style="display:flex; align-items:center; gap:4px;">
+                  <span class="queue-order-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.25);">${orderNoStr}</span>
                 </div>
-                <span class="queue-order-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.25);">${orderNoStr}</span>
-              </div>
-              <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
-                <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='logo.png'">
-              </div>
-              <div class="queue-item-info" style="flex:1; min-width:0;">
-                <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px;">
-                  ${escapeHtml(video.title)}
+                <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
+                  <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='logo.png'">
                 </div>
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                  <span class="queue-meta-pill queue-meta-pill-channel" title="${escapeHtml(video.channelName || '')}">
-                    <i data-lucide="tv" style="width:10px; height:10px;"></i>
+                <div style="min-width:0; overflow:hidden;">
+                  <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.78rem;">
+                    ${escapeHtml(video.title)}
+                  </div>
+                  <div class="queue-item-channel" style="color:var(--text-muted); font-size:0.7rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:4px;" title="${escapeHtml(video.channelName || '')}">
+                    <i data-lucide="tv" style="width:10px; height:10px; flex-shrink:0;"></i>
                     <span>${escapeHtml(video.channelName || '')}</span>
-                  </span>
+                  </div>
+                </div>
+                <div>
+                  <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                    <span class="queue-meta-pill queue-meta-pill-duration" title="${t.queue_col_duration || 'Süre'}" style="font-size:0.68rem; padding:1px 5px;">
+                      <i data-lucide="clock" style="width:8px; height:8px;"></i>
+                      <span>${durationStr}</span>
+                    </span>
+                    <span class="queue-meta-pill queue-meta-pill-size" title="${t.queue_col_size || 'Boyut'}" style="font-size:0.68rem; padding:1px 5px;">
+                      <i data-lucide="hard-drive" style="width:8px; height:8px;"></i>
+                      <span>${sizeStr}</span>
+                    </span>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:4px;">
+                  <button class="btn-play-queue" onclick="playVideoEmbedded('${video.id}')" title="${isEn ? 'Play' : 'Oynat'}" style="padding: 3px 6px; font-size: 0.7rem;">
+                    <i data-lucide="play" style="width:10px; height:10px;"></i>
+                  </button>
+                  <button class="btn-cancel-queue" onclick="(window.showDeleteModal || showDeleteModal)('${video.id}')" title="${isEn ? 'Delete' : 'Sil'}" style="padding: 3px 6px; font-size: 0.7rem;">
+                    <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
+                  </button>
+                </div>
+              `;
+            } else {
+              // Cards View
+              item.className = 'queue-item queue-item-completed';
+              item.setAttribute('draggable', 'false');
+              item.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+              item.style.background = 'rgba(16, 185, 129, 0.02)';
+              item.innerHTML = `
+                <div class="queue-item-status-group">
+                  <div class="queue-item-status-icon" style="display:flex; align-items:center; justify-content:center; color:#10b981;" title="${isEn ? 'Downloaded' : 'İndirildi'}">
+                    <i data-lucide="check-circle" style="width:14px; height:14px; color:#10b981;"></i>
+                  </div>
+                  <span class="queue-order-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.25);">${orderNoStr}</span>
+                </div>
+                <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
+                  <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='logo.png'">
+                </div>
+                <div class="queue-item-info">
+                  <div class="queue-item-title" title="${escapeHtml(video.title)}">
+                    ${escapeHtml(video.title)}
+                  </div>
+                  <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                    <span class="queue-meta-pill queue-meta-pill-channel" title="${escapeHtml(video.channelName || '')}">
+                      <i data-lucide="tv" style="width:9px; height:9px;"></i>
+                      <span>${escapeHtml(video.channelName || '')}</span>
+                    </span>
+                    <span class="queue-meta-pill queue-meta-pill-duration" title="${t.queue_col_duration || 'Süre'}">
+                      <i data-lucide="clock" style="width:9px; height:9px;"></i>
+                      <span>${durationStr}</span>
+                    </span>
+                    <span class="queue-meta-pill queue-meta-pill-size" title="${t.queue_col_size || 'Boyut'}">
+                      <i data-lucide="hard-drive" style="width:9px; height:9px;"></i>
+                      <span>${sizeStr}</span>
+                    </span>
+                    <span class="queue-meta-pill queue-meta-pill-date" title="${t.queue_col_downloaded_at || 'İndirilme Zamanı'}">
+                      <i data-lucide="calendar" style="width:9px; height:9px;"></i>
+                      <span>${dateStr}</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="queue-item-actions">
+                  <button class="btn-play-queue" onclick="playVideoEmbedded('${video.id}')" title="${isEn ? 'Play' : 'Oynat'}">
+                    <i data-lucide="play"></i>
+                    <span>${isEn ? 'Play' : 'Oynat'}</span>
+                  </button>
+                  <button class="btn-cancel-queue" onclick="(window.showDeleteModal || showDeleteModal)('${video.id}')" title="${isEn ? 'Delete' : 'Sil'}">
+                    <i data-lucide="trash-2"></i>
+                    <span>${isEn ? 'Delete' : 'Sil'}</span>
+                  </button>
+                </div>
+              `;
+            }
+
+            queueCompletedList.appendChild(item);
+          });
+        }
+      }
+
+      // --- SAĞ: İndirilmeyi Deneyenler & Hata Verenler (Son 20) ---
+      const disabledChannelIds = new Set((db.channels || []).filter(c => c.autoDownload === false).map(c => c.id));
+      const failedVideos = db.history
+        .filter(h => (h.status === 'failed' || h.status === 'waiting_live_processing') && h.hidden !== true && h.status !== 'ignored' && !disabledChannelIds.has(h.channelId))
+        .sort((a, b) => new Date(b.downloadedAt || b.publishedAt || 0).getTime() - new Date(a.downloadedAt || a.publishedAt || 0).getTime())
+        .slice(0, 20);
+
+      if (failedCountEl) {
+        failedCountEl.textContent = failedVideos.length;
+      }
+
+      if (queueFailedList) {
+        queueFailedList.innerHTML = '';
+        if (failedVideos.length === 0) {
+          queueFailedList.innerHTML = `
+            <div class="text-center text-muted" id="queue-failed-list-empty" style="padding: 30px 0; font-size: 0.85rem;">
+              ${t.queue_failed_empty || (isEn ? 'No failed or retrying downloads.' : 'Hata alan veya başarısız indirme bulunmuyor.')}
+            </div>
+          `;
+        } else {
+          if (viewMode === 'table') {
+            const failHeader = document.createElement('div');
+            failHeader.className = 'queue-table-header split-table-header failed-header';
+            failHeader.innerHTML = `
+              <div style="display:flex; align-items:center; gap:4px;"><span>${t.queue_col_order || '#'}</span></div>
+              <div>${t.queue_col_cover || 'Kapak'}</div>
+              <div>${t.queue_col_title || 'Video Başlığı'} & ${t.queue_col_error || 'Hata'}</div>
+              <div>${t.queue_col_duration || 'Süre'}</div>
+              <div style="text-align:right;">${t.queue_col_actions || 'İşlemler'}</div>
+            `;
+            queueFailedList.appendChild(failHeader);
+          }
+
+          failedVideos.forEach((video, idx) => {
+            const item = document.createElement('div');
+            item.setAttribute('data-id', video.id);
+            const orderNoStr = `#${(idx + 1).toString().padStart(2, '0')}`;
+            const durationStr = video.duration || '--:--';
+            const rawError = video.error || '';
+            let shortError = '';
+            if (rawError) {
+              if (/yeler|üyeler|members-only|katıl|katil|join this channel/i.test(rawError)) {
+                shortError = t.card_members_only || 'Üyelere Özel';
+              } else if (/çerez|cookie/i.test(rawError)) {
+                shortError = 'Çerez Hatası';
+              } else if (/403|503|429|Forbidden/i.test(rawError)) {
+                shortError = '403 CDN Kısıtı';
+              } else if (/bulunamadı|not found/i.test(rawError)) {
+                shortError = 'Dosya Bulunamadı';
+              } else if (/canl[ıi]|live/i.test(rawError)) {
+                shortError = 'Canlı Yayın';
+              } else {
+                const firstLine = rawError.split('\n')[0] || rawError;
+                shortError = firstLine.length > 25 ? firstLine.substring(0, 25) + '...' : firstLine;
+              }
+            } else {
+              shortError = t.downloader_invalid_url || 'İndirme Hatası';
+            }
+
+            if (viewMode === 'table') {
+              item.className = 'queue-table-row split-table-row failed-row queue-item-failed';
+              item.setAttribute('draggable', 'false');
+              item.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+              item.style.background = 'rgba(239, 68, 68, 0.02)';
+              item.innerHTML = `
+                <div style="display:flex; align-items:center; gap:4px;">
+                  <span class="queue-order-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.25);">${orderNoStr}</span>
+                </div>
+                <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
+                  <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='logo.png'">
+                </div>
+                <div style="min-width:0; overflow:hidden;">
+                  <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.78rem;">
+                    ${escapeHtml(video.title)}
+                  </div>
+                  <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+                    <span class="queue-meta-pill queue-meta-pill-error" title="${escapeHtml(rawError || shortError)}">
+                      <i data-lucide="alert-triangle" style="width:9px; height:9px; flex-shrink:0;"></i>
+                      <span>${escapeHtml(shortError)}</span>
+                    </span>
+                  </div>
+                </div>
+                <div>
                   <span class="queue-meta-pill queue-meta-pill-duration" title="${t.queue_col_duration || 'Süre'}">
-                    <i data-lucide="clock" style="width:10px; height:10px;"></i>
+                    <i data-lucide="clock" style="width:9px; height:9px;"></i>
                     <span>${durationStr}</span>
                   </span>
-                  <span class="queue-meta-pill queue-meta-pill-size" title="${t.queue_col_size || 'Boyut'}">
-                    <i data-lucide="hard-drive" style="width:10px; height:10px;"></i>
-                    <span>${sizeStr}</span>
-                  </span>
-                  <span class="queue-meta-pill queue-meta-pill-date" title="${t.queue_col_downloaded_at || 'İndirilme Zamanı'}">
-                    <i data-lucide="calendar" style="width:10px; height:10px;"></i>
-                    <span>${dateStr}</span>
-                  </span>
                 </div>
-              </div>
-              <div class="queue-item-actions" style="display:flex; gap:6px;">
-                <button class="btn-play-queue" onclick="playVideoEmbedded('${video.id}')" title="${isEn ? 'Play' : 'Oynat'}">
-                  <i data-lucide="play" style="width: 10px; height: 10px;"></i>
-                  <span>${isEn ? 'Play' : 'Oynat'}</span>
-                </button>
-                <button class="btn-cancel-queue" onclick="showDeleteModal('${video.id}')" title="${isEn ? 'Delete' : 'Sil'}" style="padding: 4px 8px;">
-                  <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
-                  <span>${isEn ? 'Delete' : 'Sil'}</span>
-                </button>
-              </div>
-            `;
-          }
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:4px;">
+                  <button class="btn-retry-queue" onclick="retryFailedVideo('${video.id}')" title="${t.card_retry_download || 'Yeniden Dene'}" style="padding: 3px 6px; font-size: 0.7rem; display:inline-flex; align-items:center; gap:2px;">
+                    <i data-lucide="rotate-ccw" style="width:10px; height:10px;"></i>
+                    <span>${t.card_retry_download || 'Tekrar'}</span>
+                  </button>
+                  <button class="btn-cancel-queue btn-delete-failed" onclick="clearFailedVideo('${video.id}')" title="${isEn ? 'Delete from list and ignore' : 'Hata kaydını sil ve indirilmesini engelle'}" style="padding: 3px 6px; font-size: 0.7rem; display:inline-flex; align-items:center; gap:2px;">
+                    <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
+                    <span>${isEn ? 'Delete' : 'Sil'}</span>
+                  </button>
+                </div>
+              `;
+            } else {
+              // Cards View
+              item.className = 'queue-item queue-item-failed';
+              item.setAttribute('draggable', 'false');
+              item.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+              item.style.background = 'rgba(239, 68, 68, 0.02)';
+              item.innerHTML = `
+                <div class="queue-item-status-group">
+                  <div class="queue-item-status-icon" style="display:flex; align-items:center; justify-content:center; color:#ef4444;" title="${isEn ? 'Failed' : 'Hata'}">
+                    <i data-lucide="alert-circle" style="width:14px; height:14px; color:#ef4444;"></i>
+                  </div>
+                  <span class="queue-order-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.25);">${orderNoStr}</span>
+                </div>
+                <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
+                  <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='logo.png'">
+                </div>
+                <div class="queue-item-info">
+                  <div class="queue-item-title" title="${escapeHtml(video.title)}">
+                    ${escapeHtml(video.title)}
+                  </div>
+                  <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                    <span class="queue-meta-pill queue-meta-pill-channel" title="${escapeHtml(video.channelName || '')}">
+                      <i data-lucide="tv" style="width:9px; height:9px;"></i>
+                      <span>${escapeHtml(video.channelName || '')}</span>
+                    </span>
+                    <span class="queue-meta-pill queue-meta-pill-duration" title="${t.queue_col_duration || 'Süre'}">
+                      <i data-lucide="clock" style="width:9px; height:9px;"></i>
+                      <span>${durationStr}</span>
+                    </span>
+                    <span class="queue-meta-pill queue-meta-pill-error" title="${escapeHtml(rawError || shortError)}">
+                      <i data-lucide="alert-triangle" style="width:9px; height:9px;"></i>
+                      <span>${escapeHtml(shortError)}</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="queue-item-actions">
+                  <button class="btn-retry-queue" onclick="retryFailedVideo('${video.id}')" title="${t.card_retry_download || 'Yeniden Dene'}">
+                    <i data-lucide="rotate-ccw"></i>
+                    <span>${t.card_retry_download || 'Tekrar'}</span>
+                  </button>
+                  <button class="btn-cancel-queue btn-delete-failed" onclick="clearFailedVideo('${video.id}')" title="${isEn ? 'Delete from list and ignore' : 'Hata kaydını sil ve indirilmesini engelle'}">
+                    <i data-lucide="trash-2"></i>
+                    <span>${isEn ? 'Delete' : 'Sil'}</span>
+                  </button>
+                </div>
+              `;
+            }
 
-          queueCompletedList.appendChild(item);
-        });
-
-        try {
-          if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-          }
-        } catch (e) {}
+            queueFailedList.appendChild(item);
+          });
+        }
       }
+
+      try {
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons();
+        }
+      } catch (e) {}
     }
   }
 
-  // 5. Kanallar Listesi (Alfabetik Sıralı & Filtreli)
+  // 5. Kanallar Listesi (Alfabetik Sıralı & Filtreli - Akıllı İmza ve Odak Korumalı)
   if (channelsList && db.channels) {
+    if (typeof updateChannelCategoryFilterOptions === 'function') {
+      updateChannelCategoryFilterOptions(db.categories, db.channels, lang);
+    }
     const channelFilters = typeof getChannelActiveFilters === 'function' ? getChannelActiveFilters() : {};
-    renderChannelsList(channelsList, db.channels, t, db.categories, channelFilters);
+    const sigHelper = typeof getChannelsRenderSignature === 'function' ? getChannelsRenderSignature : (window.getChannelsRenderSignature || (() => Math.random()));
+    const currentSig = sigHelper(db.channels, db.categories, channelFilters, lang);
+    const isInteracting = channelsList.contains(document.activeElement);
+
+    // Kanallar listesinden odak ayrıldığında veya select değiştiğinde bekleyen render'ı çalıştıracak dinleyici
+    if (!channelsList._hasDeferredChannelsListener) {
+      channelsList._hasDeferredChannelsListener = true;
+      const flushPendingChannelsRender = () => {
+        setTimeout(() => {
+          if (window._pendingChannelsRender && !channelsList.contains(document.activeElement)) {
+            const p = window._pendingChannelsRender;
+            window._pendingChannelsRender = null;
+            window._lastChannelsRenderSignature = p.sig;
+            renderChannelsList(channelsList, p.channels, p.t, p.categories, p.filters);
+          }
+        }, 60);
+      };
+      channelsList.addEventListener('focusout', flushPendingChannelsRender);
+      channelsList.addEventListener('change', flushPendingChannelsRender);
+    }
+
+    if (currentSig !== window._lastChannelsRenderSignature) {
+      if (isInteracting) {
+        // Kullanıcı şu an menüyü açmış veya seçim yapıyor; açık menünün aniden kapanmaması için render ertelenir
+        window._pendingChannelsRender = { channels: db.channels, t, categories: db.categories, filters: channelFilters, sig: currentSig };
+      } else {
+        window._lastChannelsRenderSignature = currentSig;
+        renderChannelsList(channelsList, db.channels, t, db.categories, channelFilters);
+      }
+    }
   }
 
   // Kategori Yönetimi Arayüzünü Yükle (Araçlar Sekmesinde)
@@ -2250,6 +1899,44 @@ function updateUI(db) {
     if (!showShorts) {
       filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
     }
+
+    // Yarım Kalanlar (İzlemeyi yarıda bıraktığım videolar) hesaplama ve filtreleme
+    let resumeMap = {};
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        resumeMap = JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}');
+      }
+    } catch (e) {
+      resumeMap = {};
+    }
+
+    const isPartiallyWatchedVideo = (item) => {
+      let durSeconds = item.durationSeconds || 0;
+      if (!durSeconds && item.duration && typeof parseTimeToSeconds === 'function') {
+        durSeconds = parseTimeToSeconds(item.duration);
+      }
+      const lastPos = item.lastPositionSeconds || (resumeMap[item.id] || 0);
+      if (durSeconds > 10) {
+        return lastPos > 3 && lastPos < durSeconds * 0.95;
+      }
+      return lastPos > 10;
+    };
+
+    const partiallyWatchedCount = filteredDownloaded.filter(isPartiallyWatchedVideo).length;
+    const resumeBadge = document.getElementById('badge-resume-count');
+    if (resumeBadge) {
+      resumeBadge.textContent = partiallyWatchedCount;
+      resumeBadge.style.display = partiallyWatchedCount > 0 ? 'inline-block' : 'none';
+    }
+
+    const resumeBtnEl = document.getElementById('downloaded-filter-resume-btn');
+    if (resumeBtnEl) {
+      resumeBtnEl.classList.toggle('active', !!downloadedOnlyPartiallyWatched);
+    }
+
+    if (downloadedOnlyPartiallyWatched) {
+      filteredDownloaded = filteredDownloaded.filter(isPartiallyWatchedVideo);
+    }
     
     // Seçilen kritere göre sırala (Tarih, Boyut veya Kullanıcı)
     const sortVal = downloadedSortVal || 'date-desc';
@@ -2374,6 +2061,12 @@ function updateUI(db) {
 
     const settingsPeriodicDiskSync = document.getElementById('settings-periodic-disk-sync-interval');
     if (settingsPeriodicDiskSync && document.activeElement !== settingsPeriodicDiskSync) settingsPeriodicDiskSync.value = db.settings.periodicDiskSyncInterval || '360';
+
+    const settingsAutoCookieRefresh = document.getElementById('settings-auto-cookie-refresh');
+    if (settingsAutoCookieRefresh && document.activeElement !== settingsAutoCookieRefresh) settingsAutoCookieRefresh.checked = db.settings.autoCookieRefresh !== false;
+
+    const settingsCookieRefreshInterval = document.getElementById('settings-cookie-refresh-interval');
+    if (settingsCookieRefreshInterval && document.activeElement !== settingsCookieRefreshInterval) settingsCookieRefreshInterval.value = String(db.settings.cookieRefreshInterval !== undefined ? db.settings.cookieRefreshInterval : 30);
 
     const settingsShowNotifications = document.getElementById('settings-shownotifications');
     if (settingsShowNotifications && document.activeElement !== settingsShowNotifications) settingsShowNotifications.checked = db.settings.showNotifications !== false;
@@ -2545,12 +2238,43 @@ window.resetHistoryChannelFilter = function() {
   }
 };
 
+// Türkçe Açıklama: Kütüphane sekmesindeki tarih filtresini sıfırlar (Tüm Zamanlar yapar).
+/**
+ * Geçmiş/Kütüphane sekmesindeki tarih filtresini sıfırlar ve arayüzü günceller.
+ */
+window.resetHistoryDateFilter = function() {
+  const dateSelect = document.getElementById('history-date-filter');
+  if (dateSelect) {
+    dateSelect.value = 'all';
+  }
+  historyFilterDays = 'all';
+  window.historyFilterDays = 'all';
+  if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
+  updateUI(localDb);
+};
+
 window.resetDownloadedChannelFilter = function() {
   const filterSelect = document.getElementById('downloaded-channel-filter');
   if (filterSelect) {
     filterSelect.value = 'all';
     downloadedFilterChannel = 'all';
     updateUI(localDb);
+  }
+};
+
+// Türkçe Açıklama: İndirilenler sekmesinde sadece izlenmesi yarıda bırakılan videoları filtreler
+window.toggleDownloadedResumeFilter = function() {
+  downloadedOnlyPartiallyWatched = !downloadedOnlyPartiallyWatched;
+  window.downloadedOnlyPartiallyWatched = downloadedOnlyPartiallyWatched;
+  const btn = document.getElementById('downloaded-filter-resume-btn');
+  if (btn) btn.classList.toggle('active', downloadedOnlyPartiallyWatched);
+  if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
+  if (typeof localDb !== 'undefined') {
+    if (typeof updateUI === 'function') {
+      updateUI(localDb);
+    } else if (typeof renderUI === 'function') {
+      renderUI(localDb);
+    }
   }
 };
 
@@ -2773,28 +2497,6 @@ async function triggerAutoSave(immediate = false) {
   }
 }
 
-async function updateMetadata(type) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  showToast(isEn ? 'Metadata update started...' : 'Metadata güncellemesi başlatıldı...', 'info');
-  try {
-    const res = await fetch('/api/library/update-metadata', { 
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? `Metadata updated! Evaluated ${data.count} items.` : `Metadata güncellendi! ${data.count} öğe denetlendi.`, 'success');
-      loadDb(); // refresh the UI
-    } else {
-      showToast(data.message || (isEn ? 'Update failed' : 'Güncelleme başarısız'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Error occurred' : 'Hata oluştu', 'error');
-    console.error(err);
-  }
-}
-
 async function performAutoSave() {
   if (!settingsForm) return;
   
@@ -2832,6 +2534,8 @@ async function performAutoSave() {
     autoSyncLocalWatchtime: document.getElementById('settings-autosync-local-watchtime') ? document.getElementById('settings-autosync-local-watchtime').checked : (localDb.settings.autoSyncLocalWatchtime !== false),
     autoDiskSync: document.getElementById('settings-auto-disk-sync') ? document.getElementById('settings-auto-disk-sync').checked : (localDb.settings.autoDiskSync !== false),
     periodicDiskSyncInterval: document.getElementById('settings-periodic-disk-sync-interval') ? document.getElementById('settings-periodic-disk-sync-interval').value : (localDb.settings.periodicDiskSyncInterval || '360'),
+    autoCookieRefresh: document.getElementById('settings-auto-cookie-refresh') ? document.getElementById('settings-auto-cookie-refresh').checked : (localDb.settings.autoCookieRefresh !== false),
+    cookieRefreshInterval: document.getElementById('settings-cookie-refresh-interval') ? (parseInt(document.getElementById('settings-cookie-refresh-interval').value, 10) || 30) : (localDb.settings.cookieRefreshInterval !== undefined ? localDb.settings.cookieRefreshInterval : 30),
     showNotifications: document.getElementById('settings-shownotifications').checked,
     autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
     checkChannelsOnStartup: document.getElementById('settings-checkonstartup') ? document.getElementById('settings-checkonstartup').checked : false,
@@ -3269,7 +2973,7 @@ window.syncSingleChannelRss = async function(id) {
 };
 
 let videoPlayerInstance = null;
-let currentPlayingVideoId = null;
+// currentPlayingVideoId dosya başında global tanımlanmıştır
 let seekedForCurrentVideo = false;
 let lastAutoSyncedTime = 0;
 let lastAutoSyncedVideoId = null;
@@ -4158,7 +3862,8 @@ window.showPlayerTransientOverlay = function(htmlContent, durationMs = 1200) {
   if (isInline) {
     container = document.getElementById('inline-player-body');
   } else if (activeTab === 'iptv') {
-    const activeSlotEl = document.querySelector(`.iptv-slot[data-slot="${activeIptvSlot}"]`);
+    const slotIdx = window.activeIptvSlot !== undefined ? window.activeIptvSlot : 0;
+    const activeSlotEl = document.querySelector(`.iptv-slot[data-slot="${slotIdx}"]`);
     if (activeSlotEl) {
       container = activeSlotEl.querySelector('.slot-body');
     }
@@ -4552,7 +4257,21 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
       const isCompleted = video && video.status === 'completed';
       if (isCompleted) {
         btnDelete.style.display = 'inline-flex';
-        btnDelete.onclick = () => showDeleteModal(videoId);
+        btnDelete.onclick = () => {
+          // Oynatıcıyı geçici olarak duraklat (kullanıcı silme modalını incelerken ses arka planda devam etmesin)
+          if (videoPlayerInstance && typeof videoPlayerInstance.pause === 'function') {
+            try { videoPlayerInstance.pause(); } catch (e) {}
+          }
+          document.querySelectorAll('video, audio').forEach(v => {
+            try { v.pause(); } catch (e) {}
+          });
+          // Özelleştirilmiş zengin silme onay modalını aç (YouTube geçmişi, disk silme, kütüphanede gizleme seçenekleri)
+          if (typeof window.showDeleteModal === 'function') {
+            window.showDeleteModal(videoId);
+          } else if (typeof showDeleteModal === 'function') {
+            showDeleteModal(videoId);
+          }
+        };
       } else {
         btnDelete.style.display = 'none';
       }
@@ -5201,6 +4920,7 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
 
   seekedForCurrentVideo = false;
   currentPlayingVideoId = videoId;
+  if (typeof window !== 'undefined') window.currentPlayingVideoId = videoId;
 
   const isCompleted = video && video.status === 'completed';
   const isMissing = video && video.fileMissing === true;
@@ -5228,6 +4948,9 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
       playerContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=${autoplayVal}" style="width: 100%; height: 100%; border: none; display: block;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
     }
     videoPlayerInstance = null;
+    if (forcePaused !== true) {
+      sendPlayerActivity(true);
+    }
   } else {
     if (playerContainer) {
       if (playerType === 'artplayer') {
@@ -5407,7 +5130,7 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
         if (rawVideo) {
           rawVideo.addEventListener('play', () => sendPlayerActivity(true));
           rawVideo.addEventListener('pause', () => {
-            sendPlayerActivity(false);
+            // Kullanıcı talebi: Video duraklatıldığında da Discord etkinliği devam etsin
             autoSyncWatchtimeHelper(currentPlayingVideoId, rawVideo.currentTime, true);
             window.savePlaybackPosition(currentPlayingVideoId, rawVideo.currentTime, rawVideo.duration, true);
           });
@@ -5513,7 +5236,7 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
 
           videoPlayerInstance.on('play', () => sendPlayerActivity(true));
           videoPlayerInstance.on('pause', () => {
-            sendPlayerActivity(false);
+            // Kullanıcı talebi: Video duraklatıldığında da Discord etkinliği devam etsin
             autoSyncWatchtimeHelper(currentPlayingVideoId, videoPlayerInstance.currentTime, true);
             window.savePlaybackPosition(currentPlayingVideoId, videoPlayerInstance.currentTime, videoPlayerInstance.duration, true);
           });
@@ -5650,7 +5373,7 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
 
           player.addEventListener('play', () => sendPlayerActivity(true));
           player.addEventListener('pause', () => {
-            sendPlayerActivity(false);
+            // Kullanıcı talebi: Video duraklatıldığında da Discord etkinliği devam etsin
             autoSyncWatchtimeHelper(currentPlayingVideoId, player.currentTime, true);
             window.savePlaybackPosition(currentPlayingVideoId, player.currentTime, player.duration, true);
           });
@@ -5692,15 +5415,15 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
  * 
  * @returns {void}
  */
-window.closeInlinePlayer = function() {
+window.closeInlinePlayer = function(skipWatchSync = false) {
   const inlineContainer = document.getElementById('downloaded-inline-player-container');
   const listContainer = document.getElementById('downloaded-list-container');
   if (inlineContainer && inlineContainer.classList.contains('hidden')) {
     return;
   }
 
-  // Otomatik izleme süresi senkronizasyonu
-  if (currentPlayingVideoId && localDb?.settings?.autoSyncWatchtime !== false) {
+  // Otomatik izleme süresi senkronizasyonu (silme sırasında atlanır)
+  if (!skipWatchSync && currentPlayingVideoId && localDb?.settings?.autoSyncWatchtime !== false) {
     let lastTime = 0;
     if (videoPlayerInstance && typeof videoPlayerInstance.currentTime === 'number') {
       lastTime = videoPlayerInstance.currentTime;
@@ -5959,14 +5682,14 @@ window.handleThumbMouseLeave = function(wrapperEl) {
 /**
  * Gömülü video oynatıcı modalını kapatır ve çalmakta olan videoyu durdurur.
  */
-window.closePlayerModal = function() {
+window.closePlayerModal = function(skipWatchSync = false) {
   const modal = document.getElementById('player-modal');
   if (modal && modal.classList.contains('hidden')) {
     return;
   }
 
-  // Otomatik izleme süresi senkronizasyonu
-  if (currentPlayingVideoId) {
+  // Otomatik izleme süresi senkronizasyonu (silme sırasında atlanır)
+  if (!skipWatchSync && currentPlayingVideoId) {
     let lastTime = 0;
     if (videoPlayerInstance && typeof videoPlayerInstance.currentTime === 'number') {
       lastTime = videoPlayerInstance.currentTime;
@@ -6042,23 +5765,36 @@ window.openYouTube = async function(videoId) {
  * 
  * @param {string} id Silinecek video ID'si
  */
-window.showDeleteModal = function(id) {
-  const item = localDb.history.find(h => h.id === id);
-  if (!item) return;
+function showDeleteModal(id) {
+  const modal = deleteModal || document.getElementById('delete-modal');
+  const msgEl = deleteModalMsg || document.getElementById('delete-modal-msg');
+  const fileCb = deleteFileCheckbox || document.getElementById('delete-file-checkbox');
+  const trimmedId = (typeof id === 'string') ? id.trim() : String(id || '').trim();
+  if (!trimmedId) return;
 
-  videoIdToDelete = id;
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  deleteModalMsg.innerHTML = isEn 
-    ? `Are you sure you want to remove <strong>"${escapeHtml(item.title)}"</strong> from download history?`
-    : `<strong>"${escapeHtml(item.title)}"</strong> başlıklı videoyu geçmişten kaldırmak istediğinize emin misiniz?`;
+  let item = (localDb.history || []).find(h => h.id === trimmedId);
+  if (!item) {
+    const cardTitleEl = document.querySelector(`[data-video-id="${trimmedId}"] .video-card-title, [data-video-id="${trimmedId}"] .queue-item-title, .video-card[data-id="${trimmedId}"] .video-card-title`);
+    const fallbackTitle = cardTitleEl ? cardTitleEl.textContent.trim() : (document.getElementById('inline-player-title')?.textContent.trim() || trimmedId);
+    item = { id: trimmedId, title: fallbackTitle };
+  }
+  if (!item || !modal) return;
+
+  videoIdToDelete = trimmedId;
+  const isEn = (localDb.settings && localDb.settings.lang === 'en') || (window.currentLang === 'en');
+  if (msgEl) {
+    msgEl.innerHTML = isEn 
+      ? `Are you sure you want to remove <strong>"${escapeHtml(item.title)}"</strong> from download history?`
+      : `<strong>"${escapeHtml(item.title)}"</strong> başlıklı videoyu geçmişten kaldırmak istediğinize emin misiniz?`;
+  }
   
   // Bilgisayardan dosya silme kutusunu göster
-  const checkboxContainers = deleteModal.querySelectorAll('.checkbox-container');
+  const checkboxContainers = modal.querySelectorAll('.checkbox-container');
   checkboxContainers.forEach(c => c.classList.remove('hidden'));
-  if (deleteFileCheckbox) deleteFileCheckbox.checked = true;
+  if (fileCb) fileCb.checked = true;
   
   // YouTube'da izlendi olarak işaretleme tercihi (settings / localStorage)
-  const markWatchedCb = document.getElementById('mark-watched-checkbox');
+  const markWatchedCb = markWatchedCheckbox || document.getElementById('mark-watched-checkbox');
   if (markWatchedCb) {
     let savedPreference = true;
     if (localDb.settings && typeof localDb.settings.markWatchedOnDelete === 'boolean') {
@@ -6070,14 +5806,29 @@ window.showDeleteModal = function(id) {
     markWatchedCb.checked = savedPreference;
   }
 
-  deleteModal.classList.remove('hidden');
-};
+  // Kütüphanede gizleme tercihi (settings / localStorage)
+  const hideLibraryCb = hideLibraryCheckbox || document.getElementById('hide-library-checkbox');
+  if (hideLibraryCb) {
+    let savedHide = true;
+    if (localDb.settings && typeof localDb.settings.hideOnDelete === 'boolean') {
+      savedHide = localDb.settings.hideOnDelete;
+    } else {
+      const stored = localStorage.getItem('haytool_hide_on_delete');
+      if (stored !== null) savedHide = (stored === 'true');
+    }
+    hideLibraryCb.checked = savedHide;
+  }
+
+  modal.classList.remove('hidden');
+}
+window.showDeleteModal = showDeleteModal;
 
 /**
  * Silme onay modalını kapatır ve seçili video ID'sini sıfırlar.
  */
 function hideDeleteModal() {
-  deleteModal.classList.add('hidden');
+  const modal = deleteModal || document.getElementById('delete-modal');
+  if (modal) modal.classList.add('hidden');
   videoIdToDelete = null;
 }
 
@@ -6090,61 +5841,141 @@ if (confirmDeleteBtn) {
     if (!videoIdToDelete) return;
     
     const id = videoIdToDelete;
-    const deleteFile = deleteFileCheckbox ? deleteFileCheckbox.checked : true;
-    const markWatchedCb = document.getElementById('mark-watched-checkbox');
+    const deleteFile = (deleteFileCheckbox || document.getElementById('delete-file-checkbox'))?.checked ?? true;
+    const markWatchedCb = markWatchedCheckbox || document.getElementById('mark-watched-checkbox');
     const markWatched = markWatchedCb ? markWatchedCb.checked : false;
+    const hideLibraryCb = hideLibraryCheckbox || document.getElementById('hide-library-checkbox');
+    const hideOnDelete = hideLibraryCb ? hideLibraryCb.checked : (localDb.settings?.hideOnDelete !== false);
 
-    // Tercihi kalıcı olarak sakla
+    // Tercihleri kalıcı olarak sakla
     localStorage.setItem('haytool_mark_watched_on_delete', String(markWatched));
-    if (localDb.settings && localDb.settings.markWatchedOnDelete !== markWatched) {
-      localDb.settings.markWatchedOnDelete = markWatched;
-      try {
-        fetch('/api/settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(localDb.settings)
-        }).catch(() => {});
-      } catch (e) {}
+    localStorage.setItem('haytool_hide_on_delete', String(hideOnDelete));
+    let settingsChanged = false;
+    if (localDb.settings) {
+      if (localDb.settings.markWatchedOnDelete !== markWatched) {
+        localDb.settings.markWatchedOnDelete = markWatched;
+        settingsChanged = true;
+      }
+      if (localDb.settings.hideOnDelete !== hideOnDelete) {
+        localDb.settings.hideOnDelete = hideOnDelete;
+        settingsChanged = true;
+      }
+      if (settingsChanged) {
+        try {
+          fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localDb.settings)
+          }).catch(() => {});
+        } catch (e) {}
+      }
     }
 
     hideDeleteModal();
     
-    const isEn = localDb.settings && localDb.settings.lang === 'en';
+    const isEn = (localDb.settings && localDb.settings.lang === 'en') || (window.currentLang === 'en');
     
-    // OPTİMİSTİK UI: Video kartını anında DOM'dan kaldır
-    const itemIndex = localDb.history.findIndex(h => h.id === id);
+    // 1. OYNATICIYI DERHAL VE KESİN OLARAK KAPAT
+    const inlineContainer = document.getElementById('downloaded-inline-player-container');
+    const isInlineOpen = inlineContainer && !inlineContainer.classList.contains('hidden');
+    const playerModal = document.getElementById('player-modal');
+    const isModalOpen = playerModal && !playerModal.classList.contains('hidden');
+    const isMatchingPlayingVideo = (id === currentPlayingVideoId) || 
+                                  (typeof window !== 'undefined' && window.currentPlayingVideoId && id === window.currentPlayingVideoId);
+
+    // Sunucudaki açık video akış soketini derhal zorla kapatması için her durumda bildirim gönder
+    fetch(`/api/video-stream/close?videoId=${id}`, { method: 'POST' }).catch(() => {});
+
+    // Eğer silinen video o an oynatıcıda açıksa oynatıcıyı temizle ve kapat
+    if (isMatchingPlayingVideo) {
+      if (typeof window.closeInlinePlayer === 'function') {
+        try { window.closeInlinePlayer(true); } catch(e) {}
+      }
+      if (inlineContainer) {
+        inlineContainer.classList.add('hidden');
+        const listContainer = document.getElementById('downloaded-list-container');
+        if (listContainer) listContainer.classList.remove('hidden');
+      }
+
+      if (typeof window.closePlayerModal === 'function') {
+        try { window.closePlayerModal(true); } catch(e) {}
+      }
+      if (playerModal) {
+        playerModal.classList.add('hidden');
+      }
+
+      if (typeof window.cleanupAllPlayers === 'function') {
+        try { window.cleanupAllPlayers(); } catch(e) {}
+      }
+      document.querySelectorAll('video, audio').forEach(v => {
+        try { 
+          v.pause(); 
+          v.removeAttribute('src'); 
+          v.src = ''; 
+          if (typeof v.load === 'function') v.load();
+        } catch(e) {}
+      });
+
+      currentPlayingVideoId = null;
+      if (typeof window !== 'undefined') window.currentPlayingVideoId = null;
+
+      // Dosya kilitlerinin Windows ve tarayıcı tarafından tamamen bırakılması için bekle
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    // 2. OPTİMİSTİK UI: Video kartını anında DOM'dan kaldır
+    const itemIndex = (localDb.history || []).findIndex(h => h.id === id);
     let backupItem = null;
     if (itemIndex !== -1) {
       backupItem = localDb.history[itemIndex];
       localDb.history.splice(itemIndex, 1);
-      if (typeof updateUI === 'function') updateUI(localDb);
-    }
-    
-    // FILE LOCK DÜZELTMESİ: Silinecek video oynatılıyorsa, önce oynatıcıyı kapat
-    if (id === currentPlayingVideoId) {
-      if (window.closePlayerModal) window.closePlayerModal();
-      if (window.closeInlinePlayer) window.closeInlinePlayer();
-      // Dosya kilitlerinin Windows ve tarayıcı tarafından tamamen bırakılması için kısa bir süre bekle
-      await new Promise(resolve => setTimeout(resolve, 300));
+      if (typeof updateUI === 'function') {
+        try {
+          updateUI(localDb);
+        } catch (uiErr) {
+          console.error('Optimistic updateUI error:', uiErr);
+        }
+      }
     }
     
     try {
-      const res = await fetch(`/api/history/${id}?deleteFile=${deleteFile}&markWatched=${markWatched}`, {
+      const res = await fetch(`/api/history/${id}?deleteFile=${deleteFile}&markWatched=${markWatched}&hideOnDelete=${hideOnDelete}`, {
         method: 'DELETE'
       });
       const data = await res.json();
       if (data.success) {
-        setTimeout(updateDiskSpace, 1500); 
+        showToast(isEn ? 'Video deleted successfully.' : 'Video başarıyla silindi.', 'success');
+        if (typeof updateDiskSpace === 'function') setTimeout(updateDiskSpace, 1500);
+        else if (window.updateDiskSpace) setTimeout(window.updateDiskSpace, 1500);
       } else {
         // Hata: Kartı geri getir
         if (backupItem) {
           localDb.history.push(backupItem);
-          if (typeof updateUI === 'function') updateUI(localDb);
+          if (typeof updateUI === 'function') {
+            try {
+              updateUI(localDb);
+            } catch (uiErr) {
+              console.error('Rollback updateUI error:', uiErr);
+            }
+          }
         }
         showToast(data.error || (isEn ? 'Deletion failed.' : 'Silme işlemi başarısız oldu.'), 'error');
       }
     } catch (err) {
-      // Ağ hatası: Kartı geri getir
+      console.error('Modal delete request error:', err);
+      // Ağ hatası veya soket sıfırlanması durumunda veritabanını doğrula
+      try {
+        const checkRes = await fetch('/api/db');
+        const checkDb = await checkRes.json();
+        const stillCompleted = (checkDb.history || []).some(h => h.id === id && h.status === 'completed');
+        if (!stillCompleted) {
+          showToast(isEn ? 'Video deleted successfully.' : 'Video başarıyla silindi.', 'success');
+          if (typeof updateDiskSpace === 'function') setTimeout(updateDiskSpace, 1000);
+          return;
+        }
+      } catch (checkErr) {}
+
+      // Gerçekten başarısız olduysa kartı geri getir
       if (backupItem) {
         localDb.history.push(backupItem);
         if (typeof updateUI === 'function') updateUI(localDb);
@@ -6277,6 +6108,10 @@ function restoreHistoryFilterState() {
     if (state.showMembers !== undefined && !iniHas.showMembers) window.historyShowMembers = state.showMembers !== false;
     if (state.showHidden !== undefined && !iniHas.showHidden) window.historyShowHidden = !!state.showHidden;
     if (state.onlyLiveProcessing !== undefined && !iniHas.onlyLiveProcessing) window.historyOnlyLiveProcessing = !!state.onlyLiveProcessing;
+    if (state.showShorts !== undefined) {
+      if (!localDb.settings) localDb.settings = {};
+      localDb.settings.showShorts = !!state.showShorts;
+    }
 
     const checkMap = {
       'history-show-shorts': state.showShorts,
@@ -6322,7 +6157,8 @@ function saveDownloadedFilterState() {
       channel: channelSelect ? channelSelect.value : 'all',
       sortVal: typeof downloadedSortVal !== 'undefined' ? downloadedSortVal : 'date-desc',
       showShorts: showShortsCb ? showShortsCb.checked : false,
-      viewMode: typeof downloadedViewMode !== 'undefined' ? downloadedViewMode : 'grid'
+      viewMode: typeof downloadedViewMode !== 'undefined' ? downloadedViewMode : 'grid',
+      onlyResume: typeof downloadedOnlyPartiallyWatched !== 'undefined' ? !!downloadedOnlyPartiallyWatched : false
     };
 
     localStorage.setItem('haytool_downloaded_filters_v2', JSON.stringify(state));
@@ -6376,11 +6212,14 @@ function restoreDownloadedFilterState() {
     }
 
     const showShortsCb = document.getElementById('downloaded-show-shorts');
-    if (showShortsCb && state.showShorts !== undefined) {
-      showShortsCb.checked = !!state.showShorts;
-      const inlineCb = document.getElementById('inline-playlist-show-shorts');
-      if (inlineCb) inlineCb.checked = !!state.showShorts;
-    }
+    const inlineCb = document.getElementById('inline-playlist-show-shorts');
+    const dbHasShowShorts = localDb.settings && localDb.settings.showShorts !== undefined;
+    const finalShowShorts = dbHasShowShorts ? !!localDb.settings.showShorts : (state.showShorts !== undefined ? !!state.showShorts : false);
+
+    if (showShortsCb) showShortsCb.checked = finalShowShorts;
+    if (inlineCb) inlineCb.checked = finalShowShorts;
+    if (!localDb.settings) localDb.settings = {};
+    localDb.settings.showShorts = finalShowShorts;
 
     if (state.viewMode && !(localDb.settings && localDb.settings.downloadedViewMode)) {
       window.downloadedViewMode = state.viewMode;
@@ -6389,6 +6228,15 @@ function restoreDownloadedFilterState() {
       if (gridBtn && listBtn) {
         gridBtn.classList.toggle('active', state.viewMode === 'grid');
         listBtn.classList.toggle('active', state.viewMode === 'list');
+      }
+    }
+
+    if (state.onlyResume !== undefined) {
+      downloadedOnlyPartiallyWatched = !!state.onlyResume;
+      window.downloadedOnlyPartiallyWatched = downloadedOnlyPartiallyWatched;
+      const resumeBtn = document.getElementById('downloaded-filter-resume-btn');
+      if (resumeBtn) {
+        resumeBtn.classList.toggle('active', downloadedOnlyPartiallyWatched);
       }
     }
   } catch (err) {
@@ -6614,7 +6462,29 @@ document.addEventListener('DOMContentLoaded', () => {
   if (historyShowShorts) {
     historyShowShorts.addEventListener('change', async () => {
       const showShorts = historyShowShorts.checked;
+
+      if (!localDb.settings) localDb.settings = {};
+      localDb.settings.showShorts = showShorts;
+
+      const dlCheckbox = document.getElementById('downloaded-show-shorts');
+      if (dlCheckbox) dlCheckbox.checked = showShorts;
+
+      const inlineCheckbox = document.getElementById('inline-playlist-show-shorts');
+      if (inlineCheckbox) inlineCheckbox.checked = showShorts;
+
+      const settCheckbox = document.getElementById('settings-showshorts');
+      if (settCheckbox) settCheckbox.checked = showShorts;
+
       syncFilterChipUI('history-show-shorts');
+      if (typeof updateHistoryFiltersCount === 'function') updateHistoryFiltersCount();
+      if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
+      if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
+
+      updateUI(localDb);
+      if (currentPlayingVideoId && typeof renderDownloadedPlaylist === 'function') {
+        renderDownloadedPlaylist(currentPlayingVideoId);
+      }
+
       try {
         const res = await fetch('/api/settings', {
           method: 'POST',
@@ -6643,14 +6513,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (inlineCheckbox) inlineCheckbox.checked = showShorts;
 
       const histCheckbox = document.getElementById('history-show-shorts');
-      if (histCheckbox) histCheckbox.checked = showShorts;
+      if (histCheckbox) {
+        histCheckbox.checked = showShorts;
+        syncFilterChipUI('history-show-shorts');
+        if (typeof updateHistoryFiltersCount === 'function') updateHistoryFiltersCount();
+      }
 
       const settCheckbox = document.getElementById('settings-showshorts');
       if (settCheckbox) settCheckbox.checked = showShorts;
 
       if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
+      if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
       updateUI(localDb);
-      if (currentPlayingVideoId) {
+      if (currentPlayingVideoId && typeof renderDownloadedPlaylist === 'function') {
         renderDownloadedPlaylist(currentPlayingVideoId);
       }
       
@@ -6683,7 +6558,7 @@ document.addEventListener('DOMContentLoaded', () => {
       persistDownloadedSortMode();
       // UI güncelle
       updateUI(localDb);
-      if (currentPlayingVideoId) {
+      if (currentPlayingVideoId && typeof renderDownloadedPlaylist === 'function') {
         renderDownloadedPlaylist(currentPlayingVideoId);
       }
     });
@@ -6701,7 +6576,7 @@ document.addEventListener('DOMContentLoaded', () => {
       persistDownloadedSortMode();
       // UI güncelle
       updateUI(localDb);
-      if (currentPlayingVideoId) {
+      if (currentPlayingVideoId && typeof renderDownloadedPlaylist === 'function') {
         renderDownloadedPlaylist(currentPlayingVideoId);
       }
     });
@@ -6715,7 +6590,7 @@ document.addEventListener('DOMContentLoaded', () => {
       persistDownloadedSortMode();
       // UI güncelle
       updateUI(localDb);
-      if (currentPlayingVideoId) {
+      if (currentPlayingVideoId && typeof renderDownloadedPlaylist === 'function') {
         renderDownloadedPlaylist(currentPlayingVideoId);
       }
     });
@@ -6735,10 +6610,23 @@ document.addEventListener('DOMContentLoaded', () => {
       if (normalCheckbox) {
         normalCheckbox.checked = showShorts;
       }
+
+      const histCheckbox = document.getElementById('history-show-shorts');
+      if (histCheckbox) {
+        histCheckbox.checked = showShorts;
+        syncFilterChipUI('history-show-shorts');
+        if (typeof updateHistoryFiltersCount === 'function') updateHistoryFiltersCount();
+      }
+
+      const settCheckbox = document.getElementById('settings-showshorts');
+      if (settCheckbox) settCheckbox.checked = showShorts;
+
+      if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
+      if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
       
       // UI'yı yerel olarak güncelle
       updateUI(localDb);
-      if (currentPlayingVideoId) {
+      if (currentPlayingVideoId && typeof renderDownloadedPlaylist === 'function') {
         renderDownloadedPlaylist(currentPlayingVideoId);
       }
       
@@ -6814,8 +6702,6 @@ window.cancelAllDownloads = async function() {
  * @param {string} videoId Sıradan çıkarılacak video ID'si
  */
 window.cancelQueuedVideo = async function(videoId) {
-  if (!confirm('Bu videoyu indirme sırasından çıkarmak istediğinizden emin misiniz?')) return;
-  
   try {
     showToast('Sıradan çıkarılıyor...', 'info');
     const res = await fetch('/api/cancel-download', {
@@ -6930,9 +6816,9 @@ async function updateDiskSpace() {
   }
 }
 
-// Türkçe Açıklama: Üst bardaki hava durumu rozetini API'den çekilen anlık sıcaklık ve ikon verileriyle günceller.
+// Türkçe Açıklama: Üst bardaki hava durumu rozetini ve detay popover kartını API'den çekilen anlık verilerle günceller.
 /**
- * Hava durumu bilgilerini /api/weather üzerinden sorgular ve üst bardaki rozete yansıtır.
+ * Hava durumu bilgilerini /api/weather üzerinden sorgular, üst bardaki rozete ve popover kartına yansıtır.
  * 
  * @param {boolean} [force=false] Önbelleği atlayarak taze veri isteği
  * @returns {Promise<void>}
@@ -6941,6 +6827,7 @@ async function updateWeatherBadge(force = false) {
   const badge = document.getElementById('badge-weather');
   const display = document.getElementById('weather-display');
   const iconEl = document.getElementById('weather-icon');
+  const cityLabel = document.getElementById('weather-city-display');
   if (!badge || !display) return;
 
   if (localDb.settings && localDb.settings.weatherEnabled === false) {
@@ -6955,18 +6842,83 @@ async function updateWeatherBadge(force = false) {
     if (data.success && data.enabled !== false) {
       display.textContent = `${data.temp}${data.unit}`;
       
+      // Badge üzerinde şehir adı göster (max 12 karakter)
+      if (cityLabel && data.city) {
+        const shortCity = data.city.length > 12 ? data.city.substring(0, 11) + '…' : data.city;
+        cityLabel.textContent = shortCity;
+      }
+      
       if (iconEl) {
         iconEl.setAttribute('data-lucide', data.icon || 'sun');
         lucide.createIcons();
       }
 
       const langKey = data.descKey || 'weather_partly_cloudy';
-      const desc = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t(langKey) : data.defaultDesc;
-      const feelsLikeLabel = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('weather_feels_like') : 'Hissedilen';
-      const humidityLabel = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('weather_humidity') : 'Nem';
-      const windLabel = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('weather_wind') : 'Rüzgar';
+      const t = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t.bind(i18n) : null;
+      const desc = t ? t(langKey) : data.defaultDesc;
+      const feelsLikeLabel = t ? t('weather_feels_like') : 'Hissedilen';
+      const humidityLabel = t ? t('weather_humidity') : 'Nem';
+      const windLabel = t ? t('weather_wind') : 'Rüzgar';
+      const precipLabel = t ? t('weather_precipitation') : 'Yağış İhtimali';
+      const refreshLabel = t ? t('weather_click_refresh') : 'Çift tıklayarak yenileyin';
+      const precipProb = data.precipitationProbability !== undefined ? data.precipitationProbability : 0;
 
-      badge.title = `${data.city}: ${desc} (${data.temp}${data.unit})\n${feelsLikeLabel}: ${data.feelsLike}${data.unit} | ${humidityLabel}: %${data.humidity} | ${windLabel}: ${data.windSpeed} km/s\n(Tıklayarak Yenileyin)`;
+      // Üst bardaki doğrudan yağış ihtimali rozetini güncelle
+      const badgePrecipVal = document.getElementById('weather-precip-val');
+      const badgePrecipWrapper = document.getElementById('weather-precip-badge');
+      if (badgePrecipVal) {
+        badgePrecipVal.textContent = `%${precipProb}`;
+      }
+      if (badgePrecipWrapper) {
+        badgePrecipWrapper.title = `${precipLabel}: %${precipProb}`;
+      }
+
+      badge.title = `${data.city}: ${desc} (${data.temp}${data.unit}, ${precipLabel}: %${precipProb})`;
+
+      // Ayarlar sekmesindeki ipucu metnini güncelle
+      const usageTipEl = document.getElementById('desc-weather-usage-tip');
+      if (usageTipEl && t && t('weather_usage_tip')) {
+        usageTipEl.innerHTML = t('weather_usage_tip');
+      }
+
+      // Popover kartını güncelle
+      const popTemp = document.getElementById('weather-popover-temp');
+      const popDesc = document.getElementById('weather-popover-desc');
+      const popCity = document.getElementById('weather-popover-city');
+      const popFeels = document.getElementById('weather-popover-feels');
+      const popHumidity = document.getElementById('weather-popover-humidity');
+      const popWind = document.getElementById('weather-popover-wind');
+      const popPrecip = document.getElementById('weather-popover-precip');
+      const popFeelsLabel = document.getElementById('weather-popover-feels-label');
+      const popHumidityLabel = document.getElementById('weather-popover-humidity-label');
+      const popWindLabel = document.getElementById('weather-popover-wind-label');
+      const popPrecipLabel = document.getElementById('weather-popover-precip-label');
+      const popRefreshText = document.getElementById('weather-popover-refresh-text');
+      const popIcon = document.getElementById('weather-popover-icon');
+
+      if (popTemp) popTemp.textContent = `${data.temp}${data.unit}`;
+      if (popDesc) popDesc.textContent = desc;
+      if (popCity) popCity.textContent = data.city || '--';
+      if (popFeels) popFeels.textContent = `${data.feelsLike}${data.unit}`;
+      if (popHumidity) popHumidity.textContent = `%${data.humidity}`;
+      if (popWind) popWind.textContent = `${data.windSpeed} km/s`;
+      if (popPrecip) popPrecip.textContent = `%${precipProb}`;
+      if (popFeelsLabel) popFeelsLabel.textContent = feelsLikeLabel;
+      if (popHumidityLabel) popHumidityLabel.textContent = humidityLabel;
+      if (popWindLabel) popWindLabel.textContent = windLabel;
+      if (popPrecipLabel) popPrecipLabel.textContent = precipLabel;
+      if (popRefreshText) popRefreshText.textContent = refreshLabel;
+      if (popIcon) {
+        popIcon.setAttribute('data-lucide', data.icon || 'sun');
+      }
+
+      // İkonları render et
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
+      }
+
+      // Popover olay dinleyicilerini garantiye al
+      initWeatherPopoverEvents();
     } else if (data.enabled === false) {
       badge.style.display = 'none';
     } else {
@@ -6977,16 +6929,58 @@ async function updateWeatherBadge(force = false) {
   }
 }
 
-// Hava Durumu Rozeti ve Ayar Butonları Dinleyicileri
-document.addEventListener('DOMContentLoaded', () => {
+// Türkçe Açıklama: Hava durumu rozeti tıklama ve popover aç/kapa/yenile mantığını kurar
+function initWeatherPopoverEvents() {
   const badgeWeather = document.getElementById('badge-weather');
-  if (badgeWeather) {
-    badgeWeather.addEventListener('click', async () => {
-      showToast('Hava durumu güncelleniyor...', 'info');
-      await updateWeatherBadge(true);
-      showToast('Hava durumu güncellendi.', 'success');
-    });
-  }
+  const weatherPopover = document.getElementById('weather-popover');
+
+  if (!badgeWeather || !weatherPopover) return;
+  if (badgeWeather._popoverInitialized) return;
+  badgeWeather._popoverInitialized = true;
+
+  // Sol tık: popover aç/kapa
+  badgeWeather.addEventListener('click', (e) => {
+    // Popover içindeki tıklamalarda badge açma-kapama tetiklenmesin
+    if (weatherPopover.contains(e.target)) return;
+
+    e.stopPropagation();
+    const isActive = weatherPopover.classList.contains('active');
+    if (isActive) {
+      weatherPopover.classList.remove('active');
+    } else {
+      weatherPopover.classList.add('active');
+      lucide.createIcons();
+    }
+  });
+
+  // Popover içi tıklama: yayılmayı durdur
+  weatherPopover.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  // Dışarı tıklayınca popover'ı kapat
+  document.addEventListener('click', (e) => {
+    if (!badgeWeather.contains(e.target)) {
+      weatherPopover.classList.remove('active');
+    }
+  });
+
+  // Çift tıklama: veriyi yenile
+  badgeWeather.addEventListener('dblclick', async (e) => {
+    e.stopPropagation();
+    showToast('Hava durumu güncelleniyor...', 'info');
+    await updateWeatherBadge(true);
+    showToast('Hava durumu güncellendi.', 'success');
+  });
+}
+
+if (document.readyState !== 'loading') {
+  initWeatherPopoverEvents();
+}
+
+// Türkçe Açıklama: Hava durumu ayarları ve kontrolleri
+document.addEventListener('DOMContentLoaded', () => {
+  initWeatherPopoverEvents();
 
   const weatherToggle = document.getElementById('settings-weatherenabled');
   if (weatherToggle) {
@@ -7239,22 +7233,79 @@ window.followChannelFromSearch = async function(id, name, handle, avatar) {
   }
 };
 
-/**
- * Kanallar sekmesindeki aktif arama ve filtre seçimlerini nesne olarak döner.
- * @returns {{ searchQuery: string, autoDownload: string, shortsDownload: string }}
- */
-export function getChannelActiveFilters() {
-  const searchInput = document.getElementById('channel-list-search-input');
-  const autoSelect = document.getElementById('filter-channel-auto-download');
-  const shortsSelect = document.getElementById('filter-channel-shorts-download');
+// getChannelActiveFilters → db-renderer.js window.getChannelActiveFilters
 
-  return {
-    searchQuery: searchInput ? searchInput.value : '',
-    autoDownload: autoSelect ? autoSelect.value : 'all',
-    shortsDownload: shortsSelect ? shortsSelect.value : 'all'
-  };
+
+/**
+ * Kanallar sekmesindeki Kategori filtresi dropdown seçeneklerini dinamik olarak günceller.
+ * 
+ * @param {Array<object>} categories Kategori listesi
+ * @param {Array<object>} channels Kanal listesi
+ * @param {string} lang Geçerli dil kodu
+ */
+export function updateChannelCategoryFilterOptions(categories = [], channels = [], lang = 'tr') {
+  const select = document.getElementById('filter-channel-category');
+  if (!select) return;
+
+  // Kullanıcı o an dropdown ile etkileşimdeyse veya liste açıkken seçenekleri bozma
+  if (document.activeElement === select) return;
+
+  const t = translations[lang] || translations.tr || {};
+  const currentVal = select.value || 'all';
+
+  const getCatName = (cat) => getCatTranslatedName(cat, t);
+
+  const safeEscape = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  // Kategorilere göre kanal sayılarını hesapla
+  const catCountMap = {};
+  let uncategorizedCount = 0;
+
+  (channels || []).forEach(ch => {
+    const ids = (ch.categoryIds && ch.categoryIds.length > 0)
+      ? ch.categoryIds.map(Number)
+      : (ch.categoryId !== undefined ? [Number(ch.categoryId)] : [1]);
+    
+    if (ids.length === 0 || (ids.length === 1 && ids[0] === 1)) {
+      uncategorizedCount++;
+    }
+    ids.forEach(id => {
+      catCountMap[id] = (catCountMap[id] || 0) + 1;
+    });
+  });
+
+  const sortedCats = [...(categories || [])].sort((a, b) => {
+    if (a.id === 1) return -1;
+    if (b.id === 1) return 1;
+    const nameA = getCatName(a);
+    const nameB = getCatName(b);
+    return nameA.localeCompare(nameB, 'tr', { sensitivity: 'base' });
+  });
+
+  const allLabel = t.opt_filter_category_all || 'Tüm Kategoriler';
+  const noneLabel = t.opt_filter_category_none || 'Atanmamış / Kategorisiz';
+
+  let html = `<option value="all">${safeEscape(allLabel)} (${channels.length})</option>`;
+
+  sortedCats.forEach(cat => {
+    const cName = getCatName(cat);
+    const count = catCountMap[cat.id] || 0;
+    html += `<option value="${cat.id}">${safeEscape(cName)} (${count})</option>`;
+  });
+
+  if (uncategorizedCount > 0) {
+    html += `<option value="uncategorized">${safeEscape(noneLabel)} (${uncategorizedCount})</option>`;
+  }
+
+  // Sadece içerik değişmişse DOM'a uygula
+  if (select.dataset.renderedHtml !== html) {
+    select.innerHTML = html;
+    select.dataset.renderedHtml = html;
+    const hasCurrentVal = [...select.options].some(o => o.value === currentVal);
+    select.value = hasCurrentVal ? currentVal : 'all';
+  }
 }
-window.getChannelActiveFilters = getChannelActiveFilters;
+window.updateChannelCategoryFilterOptions = updateChannelCategoryFilterOptions;
 
 /**
  * Kanallar sekmesinde arama veya filtreler değiştiğinde kanal listesini anlık yeniden render eder.
@@ -7266,6 +7317,8 @@ export function handleChannelFilterChange() {
   const lang = (window.localDb.settings && window.localDb.settings.lang) || currentLang || 'tr';
   const t = translations[lang] || translations.tr;
   const filters = getChannelActiveFilters();
+  const sigHelper = typeof getChannelsRenderSignature === 'function' ? getChannelsRenderSignature : (window.getChannelsRenderSignature || (() => ''));
+  window._lastChannelsRenderSignature = sigHelper(window.localDb.channels, window.localDb.categories, filters, lang);
   renderChannelsList(channelsList, window.localDb.channels, t, window.localDb.categories, filters);
   try {
     if (typeof lucide !== 'undefined' && lucide.createIcons) {
@@ -7344,11 +7397,12 @@ window.setQueueViewMode = function(mode) {
 };
 
 // Türkçe Açıklama: Kuyruktaki bir videonun sırasını yukarı veya aşağı yönde bir basamak kaydırır ve sunucuya bildirir.
+// Türkçe Açıklama: Kuyruk listesindeki videoyu en başa, bir yukarı, bir aşağı veya en sona taşır.
 /**
- * Kuyruk listesindeki videoyu yukarı veya aşağı taşır.
+ * Kuyruk listesindeki videoyu taşır.
  * 
  * @param {string} videoId Taşınacak videonun ID'si
- * @param {'up' | 'down'} direction Taşıma yönü
+ * @param {'top' | 'up' | 'down' | 'bottom'} direction Taşıma yönü
  */
 window.moveQueueItem = function(videoId, direction) {
   const list = document.getElementById('queue-list');
@@ -7358,21 +7412,34 @@ window.moveQueueItem = function(videoId, direction) {
   const currentIndex = items.findIndex(el => el.getAttribute('data-id') === videoId);
   if (currentIndex === -1) return;
 
-  const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-  if (targetIndex < 0 || targetIndex >= items.length) return;
-
   const currentEl = items[currentIndex];
-  const targetEl = items[targetIndex];
 
   // Birleştirme (merging) durumundaki video taşınamaz
-  if (currentEl.classList.contains('queue-item-merging') || targetEl.classList.contains('queue-item-merging')) {
+  if (currentEl.classList.contains('queue-item-merging')) {
     return;
   }
 
-  if (direction === 'up') {
+  if (direction === 'top') {
+    const firstMovableIndex = items.findIndex(el => !el.classList.contains('queue-item-merging'));
+    if (firstMovableIndex === -1 || currentIndex <= firstMovableIndex) return;
+    const firstMovableEl = items[firstMovableIndex];
+    list.insertBefore(currentEl, firstMovableEl);
+  } else if (direction === 'bottom') {
+    if (currentIndex >= items.length - 1) return;
+    list.appendChild(currentEl);
+  } else if (direction === 'up') {
+    const targetIndex = currentIndex - 1;
+    if (targetIndex < 0) return;
+    const targetEl = items[targetIndex];
+    if (targetEl.classList.contains('queue-item-merging')) return;
     list.insertBefore(currentEl, targetEl);
-  } else {
+  } else if (direction === 'down') {
+    const targetIndex = currentIndex + 1;
+    if (targetIndex >= items.length) return;
+    const targetEl = items[targetIndex];
     targetEl.after(currentEl);
+  } else {
+    return;
   }
 
   const newOrderIds = Array.from(list.querySelectorAll('[data-id]')).map(el => el.getAttribute('data-id'));
@@ -7398,15 +7465,28 @@ function updateQueueOrderDOM(listEl) {
     if (badge) {
       badge.textContent = `#${(idx + 1).toString().padStart(2, '0')}`;
     }
+    const topBtn = item.querySelector('.queue-btn-top');
     const upBtn = item.querySelector('.queue-btn-up');
     const downBtn = item.querySelector('.queue-btn-down');
+    const bottomBtn = item.querySelector('.queue-btn-bottom');
+    const isFirst = (idx === 0);
+    const isLast = (idx === total - 1);
+
+    if (topBtn) {
+      topBtn.disabled = isFirst;
+      topBtn.classList.toggle('disabled', isFirst);
+    }
     if (upBtn) {
-      upBtn.disabled = (idx === 0);
-      upBtn.classList.toggle('disabled', idx === 0);
+      upBtn.disabled = isFirst;
+      upBtn.classList.toggle('disabled', isFirst);
     }
     if (downBtn) {
-      downBtn.disabled = (idx === total - 1);
-      downBtn.classList.toggle('disabled', idx === total - 1);
+      downBtn.disabled = isLast;
+      downBtn.classList.toggle('disabled', isLast);
+    }
+    if (bottomBtn) {
+      bottomBtn.disabled = isLast;
+      bottomBtn.classList.toggle('disabled', isLast);
     }
   });
 }
@@ -7630,64 +7710,141 @@ window.updateQueueSpeedLimit = async function() {
   }
 };
 
-
-// Türkçe Açıklama: Takip edilen kanallar yedek listesini dışarı aktarmak için browser download tetikler.
-function exportChannels() {
-  window.location.href = '/api/channels/export';
-}
-
-// Türkçe Açıklama: Dosya seçici input penceresini tetikler.
-function triggerImportFile() {
-  const fileInput = document.getElementById('import-file-input');
-  if (fileInput) {
-    fileInput.click();
-  }
-}
-
-// Türkçe Açıklama: Seçilen yedek JSON dosyasını okuyup backend'e aktararak kanalları içe aktarır.
-async function importChannels(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = async function(e) {
+// Türkçe Açıklama: Hata alan veya başarısız olan videoyu tekrar indirme kuyruğuna ekler.
+window.retryFailedVideo = async function(videoId) {
+  if (typeof window.downloadVideoManual === 'function') {
+    window.downloadVideoManual(videoId);
+  } else {
     try {
-      const backupData = JSON.parse(e.target.result);
-      if (!backupData || !Array.isArray(backupData.channels)) {
-        showToast(localDb.settings.lang === 'en' ? 'Invalid backup file structure.' : 'Geçersiz yedek dosyası yapısı.', 'error');
-        return;
+      const res = await fetch(`/api/history/${videoId}/redownload`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Video tekrar indirme kuyruğuna alındı.', 'success');
+      } else {
+        showToast(data.error || 'İşlem başarısız.', 'error');
       }
+    } catch (e) {
+      showToast('Sunucu hatası.', 'error');
+    }
+  }
+};
 
-      const importMode = document.getElementById('import-mode').value;
-      const overwrite = importMode === 'overwrite';
+// Türkçe Açıklama: Tüm hata veren videoları sırayla indirme kuyruğuna tekrar ekler (Gizlenenler ve Otomatik İndirmesi Kapalı Kanallar hariç).
+window.retryAllFailedVideos = async function() {
+  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const isEn = currentLang === 'en';
+  const disabledChannelIds = new Set((localDb.channels || []).filter(c => c.autoDownload === false).map(c => c.id));
+  const failedItems = (localDb.history || []).filter(h => h.status === 'failed' && h.hidden !== true && h.status !== 'ignored' && !disabledChannelIds.has(h.channelId));
+  if (failedItems.length === 0) {
+    showToast(isEn ? 'No failed videos to retry.' : 'Tekrar denenecek hata alan video bulunmuyor.', 'info');
+    return;
+  }
 
-      const res = await fetch('/api/channels/import', {
+  showToast(isEn ? `Retrying ${failedItems.length} failed downloads...` : `${failedItems.length} hata alan video indirmeye ekleniyor...`, 'info');
+  
+  let successCount = 0;
+  for (const item of failedItems) {
+    try {
+      const res = await fetch('/api/download-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          overwrite: overwrite,
-          channels: backupData.channels
+          videoId: item.id,
+          title: item.title,
+          channelName: item.channelName,
+          channelId: item.channelId
         })
       });
-
       const data = await res.json();
-      if (data.success) {
-        const msg = localDb.settings.lang === 'en'
-          ? `Backup imported successfully! Added: ${data.added}, Updated: ${data.updated}`
-          : `Yedek başarıyla içeri aktarıldı! Eklenen: ${data.added}, Güncellenen: ${data.updated}`;
-        showToast(msg, 'success');
-      } else {
-        showToast(data.error || (localDb.settings.lang === 'en' ? 'Import failed.' : 'İçeri aktarma başarısız.'), 'error');
+      if (data.success) successCount++;
+    } catch (e) {}
+  }
+
+  if (successCount > 0) {
+    showToast(isEn ? `${successCount} videos added to queue.` : `${successCount} video kuyruğa yeniden eklendi.`, 'success');
+  } else {
+    showToast(isEn ? 'Failed to retry downloads.' : 'Videolar kuyruğa eklenemedi.', 'error');
+  }
+};
+
+// Türkçe Açıklama: Hata veren tek bir videoyu geçmiş listesinden temizler ve tekrar indirilmesini engellemek için göz ardı eder.
+window.clearFailedVideo = async function(videoId) {
+  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const isEn = currentLang === 'en';
+  const db = window.localDb || (typeof localDb !== 'undefined' ? localDb : { history: [] });
+  const itemIndex = (db.history || []).findIndex(h => h.id === videoId && (h.status === 'failed' || h.status === 'waiting_live_processing'));
+  let backup = null;
+  if (itemIndex !== -1) {
+    backup = { ...db.history[itemIndex] };
+    db.history.splice(itemIndex, 1);
+    if (typeof updateUI === 'function') updateUI(db);
+  }
+
+  try {
+    const res = await fetch(`/api/history/${videoId}?deleteFile=false&hideOnDelete=true&markWatched=true`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Failed download removed and ignored.' : 'Hata kaydı temizlendi ve indirilmesi engellendi.', 'success');
+    } else {
+      if (backup) {
+        db.history.push(backup);
+        if (typeof updateUI === 'function') updateUI(db);
       }
-    } catch (err) {
-      console.error('Yedek okuma hatası:', err);
-      showToast(localDb.settings.lang === 'en' ? 'Failed to read backup file.' : 'Yedek dosyası okunamadı.', 'error');
-    } finally {
-      event.target.value = '';
+      showToast(data.error || (isEn ? 'Failed to remove.' : 'Temizlenemedi.'), 'error');
     }
-  };
-  reader.readAsText(file);
-}
+  } catch (err) {
+    if (backup) {
+      db.history.push(backup);
+      if (typeof updateUI === 'function') updateUI(db);
+    }
+    showToast('Sunucu hatası.', 'error');
+  }
+};
+
+// Türkçe Açıklama: Tüm hata veren videoları onay alarak toplu biçimde geçmişten temizler (Gizlenenler ve Otomatik İndirmesi Kapalı Kanallar hariç).
+window.clearAllFailedVideos = async function() {
+  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[currentLang] || translations.tr;
+  const isEn = currentLang === 'en';
+  const disabledChannelIds = new Set((localDb.channels || []).filter(c => c.autoDownload === false).map(c => c.id));
+  
+  const failedItems = (localDb.history || []).filter(h => (h.status === 'failed' || h.status === 'waiting_live_processing') && h.hidden !== true && h.status !== 'ignored' && !disabledChannelIds.has(h.channelId));
+  if (failedItems.length === 0) {
+    showToast(isEn ? 'No failed videos to clear.' : 'Temizlenecek hata kaydı bulunmuyor.', 'info');
+    return;
+  }
+
+  const confirmMsg = t.btn_clear_failed_confirm || (isEn ? 'Are you sure you want to clear all failed downloads?' : 'Tüm hata veren indirme kayıtlarını temizlemek istediğinize emin misiniz?');
+  if (!confirm(confirmMsg)) return;
+
+  const failedIds = failedItems.map(f => f.id);
+  const failedIdsSet = new Set(failedIds);
+  const backupItems = [...failedItems];
+
+  // Optimistik temizlik (yalnızca seçilen hata kayıtları)
+  localDb.history = localDb.history.filter(h => !failedIdsSet.has(h.id));
+  if (typeof updateUI === 'function') updateUI(localDb);
+
+  try {
+    const res = await fetch('/api/history/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: failedIds, deleteFiles: false, hideOnDelete: true })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? `${failedIds.length} failed records cleared and ignored.` : `${failedIds.length} hata kaydı temizlendi ve indirilmesi engellendi.`, 'success');
+    } else {
+      localDb.history.push(...backupItems);
+      if (typeof updateUI === 'function') updateUI(localDb);
+      showToast(data.error || (isEn ? 'Failed to clear records.' : 'Kayıtlar temizlenemedi.'), 'error');
+    }
+  } catch (err) {
+    localDb.history.push(...backupItems);
+    if (typeof updateUI === 'function') updateUI(localDb);
+    showToast('Sunucu bağlantı hatası.', 'error');
+  }
+};
 
 // Custom Select Dropdown with Flags (Windows Compatibility)
 function initCustomSelect() {
@@ -7865,6 +8022,7 @@ async function installPythonDependencies() {
     if (btn) btn.disabled = false;
   }
 }
+window.installPythonDependencies = installPythonDependencies;
 // FFmpeg Installer Logic
 function openFfmpegModal() {
   const modal = document.getElementById('ffmpeg-installer-modal');
@@ -8079,66 +8237,6 @@ window.toggleDescriptionPanel = function() {
 let nextCommentsToken = null;
 let loadedCommentsList = [];
 
-// IPTV Sayfalama durumu
-let iptvCurrentPage = 1;
-let iptvTotalPages = 1;
-let iptvTotalCount = 0;
-let iptvIsAppending = false;
-
-async function loadIptvChannels(append = false) {
-
-  if (!append) {
-    iptvIsLoading = true;
-    iptvCurrentPage = 1;
-    const listContainer = document.getElementById('iptv-channel-list');
-    if (listContainer) listContainer.innerHTML = '';
-  } else {
-    iptvIsAppending = true;
-  }
-
-  const loadingIndicator = document.getElementById('iptv-list-loading');
-  if (loadingIndicator) loadingIndicator.classList.remove('hidden');
-
-  try {
-    const hasFilter = (iptvSelectedCountry || iptvSearchQuery || iptvSelectedCategory);
-    // Filtre varsa tum listeyi (limit=0), yoksa sayfalı (200)
-    const limitParam = hasFilter ? 0 : 200;
-    const url = `/api/iptv/channels?limit=${limitParam}&page=${iptvCurrentPage}&search=${encodeURIComponent(iptvSearchQuery)}&country=${encodeURIComponent(iptvSelectedCountry)}&category=${encodeURIComponent(iptvSelectedCategory)}`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (loadingIndicator) loadingIndicator.classList.add('hidden');
-
-    iptvTotalPages = data.pagination?.totalPages || 1;
-    iptvTotalCount = data.pagination?.totalCount || 0;
-
-    renderIptvChannels(data.channels, append);
-    populateIptvFilters(data.filters);
-    updateLoadMoreBtn();
-  } catch (err) {
-    console.error('Error loading IPTV channels:', err);
-    showToast(currentLang === 'en' ? 'Failed to load IPTV channels.' : 'IPTV kanalları yüklenemedi.', 'error');
-    if (loadingIndicator) loadingIndicator.classList.add('hidden');
-  } finally {
-    iptvIsLoading = false;
-    iptvIsAppending = false;
-  }
-}
-
-function updateLoadMoreBtn() {
-  const btn = document.getElementById('iptv-load-more-btn');
-  if (!btn) return;
-  const hasFilter = (iptvSelectedCountry || iptvSearchQuery || iptvSelectedCategory);
-  if (hasFilter || iptvCurrentPage >= iptvTotalPages) {
-    btn.classList.add('hidden');
-  } else {
-    btn.classList.remove('hidden');
-    const isEn = currentLang === 'en';
-    const shown = Math.min(iptvCurrentPage * 200, iptvTotalCount);
-    btn.textContent = `${isEn ? 'Load More' : 'Daha Fazla'} (${shown} / ${iptvTotalCount})`;
-  }
-}
-
 // Render comments list with sorting
 function renderCommentsList() {
   const list = document.getElementById('comments-list');
@@ -8278,1154 +8376,6 @@ window.loadMoreComments = async function() {
 
 lucide.createIcons();
 
-// ==========================================
-// IPTV Oynatıcı ve Çoklu Ekran Yönetimi
-// ==========================================
-
-// Slot tıklama ve aktif slot değiştirme
-document.querySelectorAll('.iptv-slot').forEach(slot => {
-  slot.addEventListener('click', (e) => {
-    if (e.target.closest('.slot-controls')) return;
-    const slotIndex = parseInt(slot.getAttribute('data-slot'), 10);
-    selectIptvSlot(slotIndex);
-  });
-});
-
-function selectIptvSlot(slotIndex) {
-  activeIptvSlot = slotIndex;
-  
-  document.querySelectorAll('.iptv-slot').forEach(slot => {
-    const idx = parseInt(slot.getAttribute('data-slot'), 10);
-    if (idx === slotIndex) {
-      slot.classList.add('active');
-    } else {
-      slot.classList.remove('active');
-    }
-  });
-
-  const activeSlotLabel = document.getElementById('active-slot-label');
-  if (activeSlotLabel) {
-    const isEn = localDb.settings?.lang === 'en';
-    activeSlotLabel.textContent = isEn ? `Active Slot: Slot ${slotIndex + 1}` : `Aktif Slot: Slot ${slotIndex + 1}`;
-  }
-}
-
-// Mute, Swap ve Clear butonlarını bağla
-document.querySelectorAll('.iptv-slot').forEach(slot => {
-  const slotIndex = parseInt(slot.getAttribute('data-slot'), 10);
-  const muteBtn = slot.querySelector('.mute-btn');
-  const swapBtn = slot.querySelector('.swap-slot-btn');
-  const clearBtn = slot.querySelector('.clear-btn');
-
-  if (muteBtn) {
-    muteBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleIptvMute(slotIndex);
-    });
-  }
-
-  if (swapBtn) {
-    swapBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      swapIptvSportModePlayers();
-    });
-  }
-
-  if (clearBtn) {
-    clearBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      clearIptvSlot(slotIndex);
-    });
-  }
-});
-
-function toggleIptvMute(slotIndex) {
-  const current = iptvPlayers[slotIndex];
-  if (!current) return;
-
-  const slotEl = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"]`);
-  const muteBtn = slotEl?.querySelector('.mute-btn');
-  
-  let isMuted = false;
-  if (current.type === 'artplayer' && current.player) {
-    isMuted = current.player.muted;
-    current.player.muted = !isMuted;
-    isMuted = !isMuted;
-  } else if (current.type === 'plyr' && current.player) {
-    isMuted = current.player.muted;
-    current.player.muted = !isMuted;
-    isMuted = !isMuted;
-  } else if (current.videoElement) {
-    isMuted = current.videoElement.muted;
-    current.videoElement.muted = !isMuted;
-    isMuted = !isMuted;
-  }
-
-  if (muteBtn) {
-    muteBtn.innerHTML = isMuted ? '<i data-lucide="volume-x"></i>' : '<i data-lucide="volume-2"></i>';
-    lucide.createIcons();
-  }
-}
-
-function clearIptvSlot(slotIndex) {
-  const slotEl = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"]`);
-  if (!slotEl) return;
-
-  const current = iptvPlayers[slotIndex];
-  if (current) {
-    try {
-      if (current.type === 'artplayer' && current.player) {
-        current.player.destroy();
-      } else if (current.type === 'plyr' && current.player) {
-        current.player.destroy();
-      }
-      
-      if (current.hls) {
-        current.hls.destroy();
-      }
-      
-      if (current.videoElement) {
-        current.videoElement.pause();
-        current.videoElement.src = '';
-        current.videoElement.load();
-      }
-    } catch (e) {
-      console.error(`Error cleaning up IPTV slot ${slotIndex}:`, e);
-    }
-    iptvPlayers[slotIndex] = null;
-  }
-
-  const playerContainer = slotEl.querySelector('.slot-player-instance');
-  if (playerContainer) playerContainer.innerHTML = '';
-  
-  slotEl.classList.remove('has-video');
-  
-  const titleEl = slotEl.querySelector('.slot-title');
-  if (titleEl) {
-    titleEl.textContent = `Slot ${slotIndex + 1}: Boş`;
-  }
-
-  const muteBtn = slotEl.querySelector('.mute-btn');
-  if (muteBtn) {
-    muteBtn.innerHTML = '<i data-lucide="volume-x"></i>';
-    lucide.createIcons();
-  }
-
-  updateIptvPlayingStatus();
-  if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
-}
-
-function stopAllIptvPlayers() {
-  if (typeof saveIptvState === 'function') saveIptvState();
-  const prevRestoring = isRestoringIptv;
-  isRestoringIptv = true;
-  try {
-    for (let i = 0; i < 4; i++) {
-      clearIptvSlot(i);
-    }
-  } finally {
-    isRestoringIptv = prevRestoring;
-  }
-}
-window.stopAllIptvPlayers = stopAllIptvPlayers;
-
-// IPTV sekmesinden cikinca kanal listesini DOM'dan temizle (RAM tasarrufu)
-window.clearIptvChannelList = function() {
-  const listContainer = document.getElementById('iptv-channel-list');
-  if (listContainer) listContainer.innerHTML = '';
-  // Loading indicator'u gizle
-  const loadingEl = document.getElementById('iptv-list-loading');
-  if (loadingEl) loadingEl.classList.add('hidden');
-  // Filtreleri sifirla ki tekrar girildiginde dolu gelsin
-  iptvSearchQuery = '';
-  iptvSelectedCountry = '';
-  iptvSelectedCategory = '';
-  // Search input ve select'leri temizle
-  const searchEl = document.getElementById('iptv-search-input');
-  if (searchEl) searchEl.value = '';
-  const cEl = document.getElementById('iptv-country-filter');
-  if (cEl) cEl.value = '';
-  const catEl = document.getElementById('iptv-category-filter');
-  if (catEl) catEl.value = '';
-};
-
-// Tekli / İkili / Çoklu ekran mod butonları & Spor Modu (PiP)
-const singleBtn = document.getElementById('iptv-single-view-btn');
-const dualBtn = document.getElementById('iptv-dual-view-btn');
-const quadBtn = document.getElementById('iptv-quad-view-btn');
-const sportBtn = document.getElementById('iptv-sport-view-btn');
-const gridEl = document.getElementById('iptv-players-grid');
-
-if (singleBtn && dualBtn && quadBtn && sportBtn && gridEl) {
-  singleBtn.addEventListener('click', () => {
-    if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
-    gridEl.classList.remove('swapped-mode');
-    singleBtn.classList.add('active');
-    if (dualBtn) dualBtn.classList.remove('active');
-    quadBtn.classList.remove('active');
-    sportBtn.classList.remove('active');
-    gridEl.classList.remove('dual-mode', 'quad-mode', 'sport-mode');
-    gridEl.classList.add('single-mode');
-    if (typeof updateIptvSwapBtnVisibility === 'function') updateIptvSwapBtnVisibility();
-    resizeAllArtplayers();
-    if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
-  });
-
-  dualBtn.addEventListener('click', () => {
-    if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
-    gridEl.classList.remove('swapped-mode');
-    dualBtn.classList.add('active');
-    singleBtn.classList.remove('active');
-    quadBtn.classList.remove('active');
-    sportBtn.classList.remove('active');
-    gridEl.classList.remove('single-mode', 'quad-mode', 'sport-mode');
-    gridEl.classList.add('dual-mode');
-    if (activeIptvSlot > 1) {
-      selectIptvSlot(0);
-    }
-    if (typeof updateIptvSwapBtnVisibility === 'function') updateIptvSwapBtnVisibility();
-    resizeAllArtplayers();
-    if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
-  });
-
-  quadBtn.addEventListener('click', () => {
-    if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
-    gridEl.classList.remove('swapped-mode');
-    quadBtn.classList.add('active');
-    singleBtn.classList.remove('active');
-    if (dualBtn) dualBtn.classList.remove('active');
-    sportBtn.classList.remove('active');
-    gridEl.classList.remove('single-mode', 'dual-mode', 'sport-mode');
-    gridEl.classList.add('quad-mode');
-    if (typeof updateIptvSwapBtnVisibility === 'function') updateIptvSwapBtnVisibility();
-    resizeAllArtplayers();
-    if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
-  });
-
-  sportBtn.addEventListener('click', () => {
-    if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
-    gridEl.classList.remove('swapped-mode');
-    sportBtn.classList.add('active');
-    singleBtn.classList.remove('active');
-    if (dualBtn) dualBtn.classList.remove('active');
-    quadBtn.classList.remove('active');
-    gridEl.classList.remove('single-mode', 'dual-mode', 'quad-mode');
-    gridEl.classList.add('sport-mode');
-    if (activeIptvSlot > 1) {
-      selectIptvSlot(0);
-    }
-    if (typeof updateIptvSwapBtnVisibility === 'function') updateIptvSwapBtnVisibility();
-    resizeAllArtplayers();
-    if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
-  });
-}
-
-// Grid Fullscreen Toggle
-const gridFullscreenBtn = document.getElementById('iptv-grid-fullscreen-btn');
-if (gridFullscreenBtn && gridEl) {
-  gridFullscreenBtn.addEventListener('click', () => {
-    if (!document.fullscreenElement) {
-      gridEl.requestFullscreen().catch((err) => {
-        console.error('Error entering fullscreen for grid:', err);
-      });
-    } else {
-      document.exitFullscreen().catch((err) => {
-        console.error('Error exiting fullscreen:', err);
-      });
-    }
-  });
-
-  document.addEventListener('fullscreenchange', () => {
-    const icon = gridFullscreenBtn.querySelector('i');
-    if (icon) {
-      if (document.fullscreenElement === gridEl) {
-        icon.setAttribute('data-lucide', 'minimize');
-      } else {
-        icon.setAttribute('data-lucide', 'maximize');
-        // Reset slot styles when exiting fullscreen so they don't overflow the standard layout container
-        if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
-      }
-      if (window.lucide) lucide.createIcons();
-    }
-    // Trigger window resize and player resize to adjust dimensions
-    setTimeout(() => {
-      window.dispatchEvent(new Event('resize'));
-      if (typeof resizeAllArtplayers === 'function') {
-        resizeAllArtplayers();
-      }
-    }, 150);
-  });
-}
-
-/**
- * Türkçe Açıklama: Aktif tüm ArtPlayer oynatıcı örneklerinin boyutlarını yeniden hesaplar ve arayüze sığdırır.
- * 
- * @returns {void}
- */
-function resizeAllArtplayers() {
-  iptvPlayers.forEach(p => {
-    if (p && p.type === 'artplayer' && p.player && typeof p.player.resize === 'function') {
-      setTimeout(() => {
-        p.player.resize();
-      }, 100);
-    }
-  });
-}
-
-/**
- * Türkçe Açıklama: Mevcut IPTV slotlarının durumunu (aktif kanal URL'si ve adı) ve geçerli yerleşim modunu localStorage'a kaydeder.
- * 
- * @returns {void}
- */
-function saveIptvState() {
-  const slotsData = {};
-  iptvPlayers.forEach((playerRef, idx) => {
-    if (playerRef) {
-      slotsData[idx] = {
-        streamUrl: playerRef.streamUrl,
-        displayName: playerRef.displayName
-      };
-    } else {
-      slotsData[idx] = null;
-    }
-  });
-
-  const gridEl = document.getElementById('iptv-players-grid');
-  let layout = 'single-mode';
-  if (gridEl) {
-    if (gridEl.classList.contains('dual-mode')) layout = 'dual-mode';
-    else if (gridEl.classList.contains('quad-mode')) layout = 'quad-mode';
-    else if (gridEl.classList.contains('sport-mode')) layout = 'sport-mode';
-  }
-
-  const state = {
-    layout: layout,
-    slots: slotsData
-  };
-
-  localStorage.setItem('iptv_saved_state', JSON.stringify(state));
-}
-
-/**
- * Türkçe Açıklama: Tarayıcı hafızasında (localStorage) kayıtlı olan IPTV yerleşimini ve slotlarda çalan kanalları geri yükler.
- * 
- * @returns {void}
- */
-function restoreIptvState() {
-  const saved = localStorage.getItem('iptv_saved_state');
-  if (!saved) return;
-
-  try {
-    if (typeof resetIptvSlotStyles === 'function') resetIptvSlotStyles();
-    isRestoringIptv = true;
-    const state = JSON.parse(saved);
-    
-    // 1. Restore layout mode
-    const gridEl = document.getElementById('iptv-players-grid');
-    const singleBtn = document.getElementById('iptv-single-view-btn');
-    const dualBtn = document.getElementById('iptv-dual-view-btn');
-    const quadBtn = document.getElementById('iptv-quad-view-btn');
-    const sportBtn = document.getElementById('iptv-sport-view-btn');
-
-    if (gridEl) {
-      gridEl.classList.remove('single-mode', 'dual-mode', 'quad-mode', 'sport-mode', 'swapped-mode');
-      gridEl.classList.add(state.layout || 'single-mode');
-
-      // Update button active state
-      if (singleBtn) singleBtn.classList.remove('active');
-      if (dualBtn) dualBtn.classList.remove('active');
-      if (quadBtn) quadBtn.classList.remove('active');
-      if (sportBtn) sportBtn.classList.remove('active');
-
-      if (state.layout === 'dual-mode' && dualBtn) dualBtn.classList.add('active');
-      else if (state.layout === 'quad-mode' && quadBtn) quadBtn.classList.add('active');
-      else if (state.layout === 'sport-mode' && sportBtn) sportBtn.classList.add('active');
-      else if (singleBtn) singleBtn.classList.add('active');
-    }
-
-    // 2. Play channels in slots
-    if (state.slots) {
-      Object.keys(state.slots).forEach(slotIndexStr => {
-        const slotIndex = parseInt(slotIndexStr, 10);
-        const chan = state.slots[slotIndexStr];
-        if (chan && chan.streamUrl && chan.displayName) {
-          playIptvChannel(slotIndex, chan.streamUrl, chan.displayName);
-        }
-      });
-    }
-
-    // 3. Make sure active slot is valid for this layout mode
-    if (state.layout === 'dual-mode' || state.layout === 'sport-mode') {
-      if (activeIptvSlot > 1) {
-        selectIptvSlot(0);
-      }
-    } else if (state.layout === 'single-mode') {
-      if (activeIptvSlot !== 0) {
-        let playingSlot = 0;
-        if (state.slots) {
-          for (let i = 0; i < 4; i++) {
-            if (state.slots[i]) {
-              playingSlot = i;
-              break;
-            }
-          }
-        }
-        selectIptvSlot(playingSlot);
-      }
-    }
-
-    isRestoringIptv = false;
-    if (typeof updateIptvSwapBtnVisibility === 'function') updateIptvSwapBtnVisibility();
-    saveIptvState();
-    resizeAllArtplayers();
-  } catch (e) {
-    isRestoringIptv = false;
-    console.error('Error restoring IPTV state:', e);
-  }
-}
-
-// Kanal listesini cek ve render et (append=true ise listeye ekle, false ise temizle)
-// Not: Yeni loadIptvChannels artik yukarda (6916) tanimli - burasi eski versiyonu kaldirmak icin temizlendi
-
-/**
- * Türkçe Açıklama: IPTV kanal listesini alır ve arayüzde dinamik kartlar olarak render eder.
- * 
- * @param {Array<Object>} channels - Render edilecek IPTV kanal nesneleri dizisi
- * @param {boolean} [append=false] - Kanalların mevcut listede birikerek mi ekleneceği yoksa listenin temizlenip sıfırdan mı yazılacağı
- * @returns {void}
- */
-function renderIptvChannels(channels, append = false) {
-  const listContainer = document.getElementById('iptv-channel-list');
-  if (!listContainer) return;
-
-  if (!append) {
-    listContainer.innerHTML = '';
-  }
-
-  if (channels.length === 0 && !append) {
-    const isEn = currentLang === 'en';
-    listContainer.innerHTML = `<div class="text-center text-muted" style="padding: 20px 0; font-size: 0.85rem;">${isEn ? 'No channels found.' : 'Kanal bulunamad\u0131.'}</div>`;
-    return;
-  }
-
-  // DocumentFragment ile tek seferde DOM'a yaz (performans)
-  const fragment = document.createDocumentFragment();
-
-  channels.forEach(ch => {
-    const div = document.createElement('div');
-    div.className = 'iptv-channel-item';
-    div.dataset.url = ch.url;
-
-    const isPlaying = iptvPlayers.some(p => p && p.streamUrl === ch.url);
-    if (isPlaying) div.classList.add('playing');
-
-    const fallbackLogo = `<i data-lucide="monitor"></i>`;
-    const logoHtml = ch.logo
-      ? `<img src="${ch.logo}" alt="" loading="lazy" onerror="this.outerHTML='<i data-lucide=\\'monitor\\'></i>'; lucide.createIcons();">`
-      : fallbackLogo;
-
-    const badges = [];
-    if (ch.category) badges.push(`<span class="iptv-channel-badge iptv-channel-category">${ch.category}</span>`);
-    if (ch.country) badges.push(`<span class="iptv-channel-badge iptv-channel-country">${ch.country}</span>`);
-
-    div.innerHTML = `
-      <div class="iptv-channel-logo">${logoHtml}</div>
-      <div class="iptv-channel-details">
-        <div class="iptv-channel-name">${ch.displayName}</div>
-        <div class="iptv-channel-sub">${badges.join('')}</div>
-      </div>
-    `;
-
-    div.addEventListener('click', () => {
-      playIptvChannel(activeIptvSlot, ch.url, ch.displayName);
-    });
-
-    fragment.appendChild(div);
-  });
-
-  listContainer.appendChild(fragment);
-  lucide.createIcons();
-}
-
-/**
- * Türkçe Açıklama: IPTV kanal listesindeki oynatılan kanalların aktiflik (playing) sınıfını günceller.
- * 
- * @returns {void}
- */
-function updateIptvPlayingStatus() {
-  const listContainer = document.getElementById('iptv-channel-list');
-  if (!listContainer) return;
-
-  const items = listContainer.querySelectorAll('.iptv-channel-item');
-  items.forEach(item => {
-    const url = item.dataset.url;
-    const isPlaying = iptvPlayers.some(p => p && p.streamUrl === url);
-    if (isPlaying) {
-      item.classList.add('playing');
-    } else {
-      item.classList.remove('playing');
-    }
-  });
-}
-
-/**
- * Türkçe Açıklama: IPTV kanal listesindeki ülke ve kategori filtre dropdown seçeneklerini doldurur.
- * Kategorileri maksimum 40 karakter ile sınırlandırır.
- * 
- * @param {Object} filters - Filtre seçeneklerini (countries, categories) içeren nesne
- * @returns {void}
- */
-function populateIptvFilters(filters) {
-  if (!filters) return;
-
-  const countryFilter = document.getElementById('iptv-country-filter');
-  const categoryFilter = document.getElementById('iptv-category-filter');
-  const isEn = currentLang === 'en';
-
-  // Mevcut seçili değerleri sakla
-  const currentCountry = countryFilter ? countryFilter.value : '';
-  const currentCategory = categoryFilter ? categoryFilter.value : '';
-
-  if (countryFilter && filters.countries) {
-    countryFilter.innerHTML = `<option value="">${isEn ? 'All Countries' : 'Tüm Ülkeler'}</option>`;
-    filters.countries.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c;
-      opt.textContent = c;
-      countryFilter.appendChild(opt);
-    });
-    // Seçimi koru
-    if (currentCountry) countryFilter.value = currentCountry;
-  }
-
-  if (categoryFilter && filters.categories) {
-    categoryFilter.innerHTML = `<option value="">${isEn ? 'All Categories' : 'Tüm Kategoriler'}</option>`;
-    filters.categories.forEach(cat => {
-      const opt = document.createElement('option');
-      opt.value = cat;
-      const dispText = cat.length > 40 ? cat.substring(0, 40) + '...' : cat;
-      opt.textContent = dispText;
-      categoryFilter.appendChild(opt);
-    });
-    // Seçimi koru
-    if (currentCategory) categoryFilter.value = currentCategory;
-  }
-}
-
-// Filtre Dinleyicileri
-const iptvSearchInput = document.getElementById('iptv-search-input');
-const iptvCountryFilter = document.getElementById('iptv-country-filter');
-const iptvCategoryFilter = document.getElementById('iptv-category-filter');
-
-if (iptvSearchInput) {
-  iptvSearchInput.addEventListener('input', debounce(() => {
-    iptvSearchQuery = iptvSearchInput.value.trim();
-    loadIptvChannels();
-  }, 300));
-}
-
-if (iptvCountryFilter) {
-  iptvCountryFilter.addEventListener('change', () => {
-    iptvSelectedCountry = iptvCountryFilter.value;
-    loadIptvChannels();
-  });
-}
-
-if (iptvCategoryFilter) {
-  iptvCategoryFilter.addEventListener('change', () => {
-    iptvSelectedCategory = iptvCategoryFilter.value;
-    loadIptvChannels();
-  });
-}
-
-// TR Hizli Erisim Butonu
-const iptvTrBtn = document.getElementById('iptv-tr-quick-btn');
-if (iptvTrBtn) {
-  iptvTrBtn.addEventListener('click', () => {
-    iptvSelectedCountry = 'TR';
-    if (iptvCountryFilter) iptvCountryFilter.value = 'TR';
-    loadIptvChannels();
-  });
-}
-
-// Daha Fazla Yukle butonu
-const iptvLoadMoreBtn = document.getElementById('iptv-load-more-btn');
-if (iptvLoadMoreBtn) {
-  iptvLoadMoreBtn.addEventListener('click', () => {
-    iptvCurrentPage++;
-    loadIptvChannels(true);
-  });
-}
-
-
-
-// IPTV Güncelleme ve Durum Denetimleri
-/**
- * Türkçe Açıklama: Sunucudan güncel IPTV yükleme/güncelleme durumunu sorgular ve arayüzü günceller.
- * 
- * @returns {Promise<void>}
- */
-async function checkIptvStatus() {
-  try {
-    const res = await fetch('/api/iptv/status');
-    const data = await res.json();
-    updateIptvStatusUI(data);
-  } catch (err) {
-    console.error('Error checking IPTV status:', err);
-  }
-}
-
-/**
- * Türkçe Açıklama: IPTV güncelleme durumuna göre durum metnini ve güncelle butonunun yükleniyor durumunu yönetir.
- * 
- * @param {Object} status - Sunucudan gelen IPTV durumu nesnesi (status, lastUpdated, totalChannels vb.)
- * @returns {void}
- */
-function updateIptvStatusUI(status) {
-  const statusInfo = document.getElementById('iptv-status-info');
-  const updateBtn = document.getElementById('iptv-update-btn');
-  
-  if (!statusInfo) return;
-
-  const isEn = localDb.settings?.lang === 'en';
-
-  if (status.status === 'updating') {
-    statusInfo.textContent = isEn ? 'Updating channel list...' : 'Kanal listesi güncelleniyor...';
-    if (updateBtn) {
-      updateBtn.disabled = true;
-      const icon = updateBtn.querySelector('i');
-      if (icon) icon.classList.add('spin-animation');
-    }
-    startIptvStatusPolling();
-  } else {
-    if (updateBtn) {
-      updateBtn.disabled = false;
-      const icon = updateBtn.querySelector('i');
-      if (icon) icon.classList.remove('spin-animation');
-    }
-
-    if (status.lastUpdated) {
-      const date = new Date(status.lastUpdated);
-      const formattedDate = date.toLocaleString();
-      statusInfo.textContent = isEn 
-        ? `Last Updated: ${formattedDate} (${status.totalChannels} channels)`
-        : `Son Güncelleme: ${formattedDate} (${status.totalChannels} Kanal)`;
-    } else {
-      statusInfo.textContent = isEn ? 'Not updated yet.' : 'Henüz güncellenmedi.';
-    }
-  }
-}
-
-/**
- * Türkçe Açıklama: IPTV listesinin arka planda güncellenme sürecini takip etmek amacıyla periyodik durum sorgulama (polling) başlatır.
- * 
- * @returns {void}
- */
-function startIptvStatusPolling() {
-  if (iptvStatusInterval) return;
-  iptvStatusInterval = setInterval(async () => {
-    try {
-      const res = await fetch('/api/iptv/status');
-      const data = await res.json();
-      updateIptvStatusUI(data);
-      
-      if (data.status !== 'updating') {
-        clearInterval(iptvStatusInterval);
-        iptvStatusInterval = null;
-        loadIptvChannels();
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, 3000);
-}
-
-const iptvUpdateBtn = document.getElementById('iptv-update-btn');
-if (iptvUpdateBtn) {
-  iptvUpdateBtn.addEventListener('click', async () => {
-    const isEn = localDb.settings?.lang === 'en';
-    try {
-      showToast(isEn ? 'IPTV list update requested...' : 'IPTV listesi güncellemesi istendi...', 'info');
-      const res = await fetch('/api/iptv/update', { method: 'POST' });
-      const data = await res.json();
-      
-      if (data.success) {
-        checkIptvStatus();
-      } else {
-        showToast(data.error || 'Update request failed.', 'error');
-      }
-    } catch (err) {
-      showToast('Connection error.', 'error');
-    }
-  });
-}
-
-/**
- * Türkçe Açıklama: Belirli bir IPTV slotu içerisinde HLS(.m3u8) veya mp4 yayın streamini oynatıcı (Plyr, ArtPlayer veya HTML5) ile başlatır.
- * 
- * @param {number} slotIndex - Yayının oynatılacağı slot indeksi (0-3)
- * @param {string} streamUrl - Yayının akış (M3U8 / MP4 vb.) adresi
- * @param {string} displayName - Slot başlığında gösterilecek kanal adı
- * @returns {void}
- */
-function playIptvChannel(slotIndex, streamUrl, displayName) {
-  clearIptvSlot(slotIndex);
-
-  const slotEl = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"]`);
-  if (!slotEl) return;
-
-  const playerContainer = slotEl.querySelector('.slot-player-instance');
-  playerContainer.innerHTML = '';
-
-  const video = document.createElement('video');
-  video.id = `iptv-video-player-${slotIndex}`;
-  video.style.width = '100%';
-  video.style.height = '100%';
-  video.style.display = 'block';
-  video.style.outline = 'none';
-  video.controls = true;
-  video.autoplay = true;
-  video.muted = true;
-
-  playerContainer.appendChild(video);
-  slotEl.classList.add('has-video');
-  
-  const titleEl = slotEl.querySelector('.slot-title');
-  if (titleEl) {
-    titleEl.textContent = `Slot ${slotIndex + 1}: ${displayName}`;
-  }
-
-  const muteBtn = slotEl.querySelector('.mute-btn');
-  if (muteBtn) {
-    muteBtn.innerHTML = '<i data-lucide="volume-x"></i>';
-    lucide.createIcons();
-  }
-
-  const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
-  
-  let hlsInstance = null;
-  let playerInstance = null;
-
-  if (streamUrl.includes('.m3u8') || streamUrl.includes('m3u8') || streamUrl.includes('stream') || streamUrl.startsWith('http')) {
-    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-      hlsInstance = new Hls();
-      hlsInstance.loadSource(streamUrl);
-      hlsInstance.attachMedia(video);
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = streamUrl;
-    }
-  } else {
-    video.src = streamUrl;
-  }
-
-  if (playerType === 'artplayer' && typeof Artplayer !== 'undefined') {
-    playerContainer.innerHTML = `<div id="iptv-artplayer-${slotIndex}" style="width: 100%; height: 100%;"></div>`;
-    playerInstance = new Artplayer({
-      container: `#iptv-artplayer-${slotIndex}`,
-      url: streamUrl,
-      autoplay: true,
-      muted: true,
-      controls: true,
-      setting: false,
-      hotkey: false,
-      pip: false,
-      fullscreen: true,
-      mutex: false,
-      type: 'm3u8',
-      customType: {
-        m3u8: function (videoEl, url, art) {
-          if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-            if (art.hls) art.hls.destroy();
-            const hls = new Hls();
-            hls.loadSource(url);
-            hls.attachMedia(videoEl);
-            art.hls = hls;
-            hlsInstance = hls;
-            art.on('destroy', () => hls.destroy());
-          } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-            videoEl.src = url;
-          }
-        }
-      }
-    });
-  } else if (playerType === 'plyr' && typeof Plyr !== 'undefined') {
-    playerInstance = new Plyr(video, {
-      controls: ['play', 'mute', 'volume', 'fullscreen'],
-      keyboard: { global: false, focused: false }
-    });
-  } else {
-    playerInstance = video;
-  }
-
-  // IPTV kanalı baslatildi, player referanslarini kaydet
-  const playerRef = {
-    player: playerInstance,
-    hls: hlsInstance,
-    type: playerType,
-    videoElement: video,
-    streamUrl: streamUrl,
-    displayName: displayName
-  };
-  iptvPlayers[slotIndex] = playerRef;
-
-  // IPTV Kisayollar: Mouse Scroll (Ses) + Klavye (M/F/Bosluk/Yukari/Asagi Ok)
-  const getIptvVideo = () => playerRef.videoElement || document.getElementById(`iptv-video-player-${slotIndex}`);
-
-  // Mouse scroll ses degistir
-  playerContainer.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const vid = getIptvVideo();
-    if (!vid) return;
-    const delta = e.deltaY < 0 ? 0.05 : -0.05;
-    const newVol = Math.min(1, Math.max(0, (vid.volume || 0) + delta));
-    vid.volume = newVol;
-    if (vid.muted && newVol > 0) vid.muted = false;
-    if (typeof triggerVolumeHUD === 'function') triggerVolumeHUD(newVol);
-    const muteB = slotEl.querySelector('.mute-btn');
-    if (muteB) {
-      muteB.innerHTML = (vid.muted || newVol === 0)
-        ? '<i data-lucide="volume-x"></i>'
-        : '<i data-lucide="volume-2"></i>';
-      lucide.createIcons();
-    }
-  }, { passive: false });
-
-  // Klavye kısayolları – slot'a focus geldiğinde çalışır
-  slotEl.setAttribute('tabindex', '0');
-  slotEl.addEventListener('keydown', (e) => {
-    const activeEl = document.activeElement;
-    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) return;
-    const vid = getIptvVideo();
-    if (!vid) return;
-    switch (e.key) {
-      case ' ': case 'k': case 'K':
-        e.preventDefault();
-        if (vid.paused) vid.play().catch(() => {}); else vid.pause();
-        break;
-      case 'm': case 'M':
-        e.preventDefault();
-        vid.muted = !vid.muted;
-        if (typeof triggerVolumeHUD === 'function') triggerVolumeHUD(vid.muted ? 0 : vid.volume);
-        break;
-      case 'f': case 'F':
-        e.preventDefault();
-        if (!document.fullscreenElement) slotEl.requestFullscreen().catch(() => {});
-        else document.exitFullscreen().catch(() => {});
-        break;
-      case 'ArrowUp':
-        e.preventDefault(); {
-          const v = Math.min(1, (vid.volume || 0) + 0.05);
-          vid.volume = v;
-          if (vid.muted && v > 0) vid.muted = false;
-          if (typeof triggerVolumeHUD === 'function') triggerVolumeHUD(v);
-        }
-        break;
-      case 'ArrowDown':
-        e.preventDefault(); {
-          const v = Math.max(0, (vid.volume || 0) - 0.05);
-          vid.volume = v;
-          if (typeof triggerVolumeHUD === 'function') triggerVolumeHUD(v);
-        }
-        break;
-    }
-  });
-  // ─── Kısayollar Sonu ───
-
-  updateIptvPlayingStatus();
-  if (!isRestoringIptv && typeof saveIptvState === 'function') saveIptvState();
-}
-
-function resetIptvSlotStyles(slotIdx = null) {
-  const resetSlot = (idx) => {
-    const slot = document.querySelector(`.iptv-slot[data-slot="${idx}"]`);
-    if (slot) {
-      slot.classList.remove('is-dragging', 'is-resizing');
-      slot.style.left = '';
-      slot.style.top = '';
-      slot.style.right = '';
-      slot.style.bottom = '';
-      slot.style.width = '';
-      slot.style.height = '';
-      slot.style.aspectRatio = '';
-    }
-  };
-
-  if (slotIdx !== null) {
-    resetSlot(slotIdx);
-  } else {
-    resetSlot(0);
-    resetSlot(1);
-    resetSlot(2);
-    resetSlot(3);
-  }
-}
-
-/**
- * Türkçe Açıklama: IPTV spor modunda Slot 2'nin (PiP ekranı) sürüklenebilmesini ve yeniden boyutlandırılabilmesini başlatan olay dinleyicilerini kurar.
- * 
- * @returns {void}
- */
-function initIptvSportModeDragAndResize() {
-  const setupSlotDragAndResize = (slotIndex) => {
-    const slot = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"]`);
-    if (!slot) return;
-
-    const header = slot.querySelector('.slot-header');
-    const resizeHandle = slot.querySelector('.slot-resize-handle');
-    if (!header || !resizeHandle) return;
-
-    let isDragging = false;
-    let isResizing = false;
-    let startX, startY;
-    let startLeft, startTop;
-    let startWidth, startHeight;
-    const gridEl = document.getElementById('iptv-players-grid');
-
-    // Dragging logic
-    header.addEventListener('mousedown', (e) => {
-      // Only drag in sport mode
-      if (!gridEl || !gridEl.classList.contains('sport-mode')) return;
-
-      // Only drag Slot 2 (index 1) in sport mode
-      if (slotIndex !== 1) return;
-      
-      // Ignore if clicked on buttons
-      if (e.target.closest('.slot-btn') || e.target.closest('button')) return;
-
-      e.preventDefault();
-      isDragging = true;
-      slot.classList.add('is-dragging');
-      
-      // Get initial position relative to parent
-      const rect = slot.getBoundingClientRect();
-      const parentRect = gridEl.getBoundingClientRect();
-      
-      // Set left and top explicitly so we transition from bottom/right absolute positioning
-      slot.style.right = 'auto';
-      slot.style.bottom = 'auto';
-      slot.style.left = `${rect.left - parentRect.left}px`;
-      slot.style.top = `${rect.top - parentRect.top}px`;
-      
-      // Remove aspect-ratio so resizing/dragging doesn't fight it
-      slot.style.aspectRatio = 'auto';
-      slot.style.height = `${rect.height}px`;
-      slot.style.width = `${rect.width}px`;
-
-      startX = e.clientX;
-      startY = e.clientY;
-      startLeft = parseFloat(slot.style.left) || 0;
-      startTop = parseFloat(slot.style.top) || 0;
-
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    });
-
-    // Resizing logic
-    resizeHandle.addEventListener('mousedown', (e) => {
-      if (!gridEl || !gridEl.classList.contains('sport-mode')) return;
-
-      // Only resize Slot 2 (index 1) in sport mode
-      if (slotIndex !== 1) return;
-
-      e.preventDefault();
-      e.stopPropagation(); // Prevent triggering dragging
-      isResizing = true;
-      slot.classList.add('is-resizing');
-
-      const rect = slot.getBoundingClientRect();
-      const parentRect = gridEl.getBoundingClientRect();
-
-      // Set left/top explicitly if not already
-      slot.style.right = 'auto';
-      slot.style.bottom = 'auto';
-      slot.style.left = `${rect.left - parentRect.left}px`;
-      slot.style.top = `${rect.top - parentRect.top}px`;
-      
-      slot.style.aspectRatio = 'auto';
-      slot.style.height = `${rect.height}px`;
-      slot.style.width = `${rect.width}px`;
-
-      startX = e.clientX;
-      startY = e.clientY;
-      startWidth = rect.width;
-      startHeight = rect.height;
-
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    });
-
-    function onMouseMove(e) {
-      if (isDragging) {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        
-        const parentRect = gridEl.getBoundingClientRect();
-        const slotRect = slot.getBoundingClientRect();
-        
-        let newLeft = startLeft + dx;
-        let newTop = startTop + dy;
-
-        // Bound within the parent grid
-        const maxLeft = parentRect.width - slotRect.width;
-        const maxTop = parentRect.height - slotRect.height;
-
-        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-        newTop = Math.max(0, Math.min(newTop, maxTop));
-
-        slot.style.left = `${newLeft}px`;
-        slot.style.top = `${newTop}px`;
-      } else if (isResizing) {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-
-        // Maintain 16/9 aspect ratio during resize
-        let newWidth = startWidth + dx;
-        
-        // Bounding width between min and max (min-width: 150px, max: 80% of parent width)
-        const parentRect = gridEl.getBoundingClientRect();
-        const minW = 150;
-        const maxW = parentRect.width * 0.8;
-        newWidth = Math.max(minW, Math.min(newWidth, maxW));
-
-        let newHeight = newWidth * (9 / 16);
-        
-        // Ensure it doesn't overflow parent bottom
-        const slotRect = slot.getBoundingClientRect();
-        const currentTop = parseFloat(slot.style.top) || 0;
-        if (currentTop + newHeight > parentRect.height) {
-          newHeight = parentRect.height - currentTop;
-          newWidth = newHeight * (16 / 9);
-        }
-
-        slot.style.width = `${newWidth}px`;
-        slot.style.height = `${newHeight}px`;
-
-        // Trigger resize for player instance if any
-        resizeAllArtplayers();
-      }
-    }
-
-    function onMouseUp() {
-      isDragging = false;
-      isResizing = false;
-      slot.classList.remove('is-dragging', 'is-resizing');
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-    }
-  };
-
-  setupSlotDragAndResize(0);
-  setupSlotDragAndResize(1);
-}
-
-/**
- * Türkçe Açıklama: Belirli bir IPTV slotunun sessize alma (mute) butonunun ikonunu günceller.
- * 
- * @param {number} slotIndex - Güncellenecek slotun indeksi (0-3)
- * @param {boolean} isMuted - Slotun sessizde olup olmadığı bilgisi
- * @returns {void}
- */
-function updateSlotMuteIcon(slotIndex, isMuted) {
-  const slotEl = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"]`);
-  if (!slotEl) return;
-  const muteBtn = slotEl.querySelector('.mute-btn');
-  if (muteBtn) {
-    muteBtn.innerHTML = isMuted
-      ? '<i data-lucide="volume-x"></i>'
-      : '<i data-lucide="volume-2"></i>';
-    if (window.lucide) lucide.createIcons();
-  }
-}
-
-/**
- * Türkçe Açıklama: IPTV spor modunda Slot 1 (ana ekran) ve Slot 2 (PiP ekranı) kanallarını yer değiştirir.
- * 
- * @returns {void}
- */
-function swapIptvSportModePlayers() {
-  const gridEl = document.getElementById('iptv-players-grid');
-  if (!gridEl || !gridEl.classList.contains('sport-mode')) return;
-
-  const player0 = iptvPlayers[0];
-  const player1 = iptvPlayers[1];
-
-  const url0 = player0 ? player0.streamUrl : null;
-  const name0 = player0 ? player0.displayName : null;
-
-  const url1 = player1 ? player1.streamUrl : null;
-  const name1 = player1 ? player1.displayName : null;
-
-  // Swap Slot 1's channel into Slot 0
-  if (url1 && name1) {
-    playIptvChannel(0, url1, name1);
-    // Unmute Slot 0 (background)
-    const p0 = iptvPlayers[0];
-    if (p0) {
-      if (p0.videoElement) p0.videoElement.muted = false;
-      if (p0.player) p0.player.muted = false;
-      updateSlotMuteIcon(0, false);
-    }
-  } else {
-    clearIptvSlot(0);
-  }
-
-  // Swap Slot 0's channel into Slot 1
-  if (url0 && name0) {
-    playIptvChannel(1, url0, name0);
-    // Mute Slot 1 (PiP overlay)
-    const p1 = iptvPlayers[1];
-    if (p1) {
-      if (p1.videoElement) p1.videoElement.muted = true;
-      if (p1.player) p1.player.muted = true;
-      updateSlotMuteIcon(1, true);
-    }
-  } else {
-    clearIptvSlot(1);
-  }
-
-  saveIptvState();
-  resizeAllArtplayers();
-}
-
-// Global keydown event to support swapping screens via keys (s/S/y/Y) when in sports mode
-document.addEventListener('keydown', (e) => {
-  const activeEl = document.activeElement;
-  if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) return;
-  
-  const gridEl = document.getElementById('iptv-players-grid');
-  if (!gridEl || !gridEl.classList.contains('sport-mode')) return;
-
-  if (e.key === 's' || e.key === 'S' || e.key === 'y' || e.key === 'Y') {
-    e.preventDefault();
-    swapIptvSportModePlayers();
-  }
-});
-
-/**
- * Türkçe Açıklama: Yer değiştirme (Swap) butonunun görünürlüğünü aktif yerleşim moduna göre günceller (Sadece spor modunda görünür).
- * 
- * @returns {void}
- */
-function updateIptvSwapBtnVisibility() {
-  const gridEl = document.getElementById('iptv-players-grid');
-  const swapBtn = document.getElementById('iptv-swap-btn');
-  if (gridEl && swapBtn) {
-    if (gridEl.classList.contains('sport-mode')) {
-      swapBtn.classList.remove('hidden');
-    } else {
-      swapBtn.classList.add('hidden');
-    }
-  }
-}
-
-// Bind swap button listener
-const iptvSwapBtn = document.getElementById('iptv-swap-btn');
-if (iptvSwapBtn) {
-  iptvSwapBtn.addEventListener('click', swapIptvSportModePlayers);
-}
-
-// Initial Sport Mode drag & resize setup
-initIptvSportModeDragAndResize();
 
 // Initial drag-and-drop list sortable containers setup
 initDragAndDrop();
@@ -9537,695 +8487,7 @@ function setupSortableContainer(container, itemSelector, storageKey) {
 }
 
 
-// State variables for folder comparison
-let untrackedFilesList = [];
-let unrelatedFilesList = [];
-let missingFilesList = [];
-let scanProgressToast = null;
-
-// Download Folder Comparison tool
-async function runFileComparison() {
-  const compareBtn = document.getElementById('start-compare-btn');
-  const compareLoading = document.getElementById('compare-loading');
-  const noIssuesFound = document.getElementById('compare-no-issues');
-  const untrackedSection = document.getElementById('untracked-section');
-  const unrelatedSection = document.getElementById('unrelated-section');
-  const missingSection = document.getElementById('missing-section');
-  const compareResults = document.getElementById('compare-results');
-  
-  if (!compareBtn) return;
-  compareBtn.disabled = true;
-  
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
-  
-  // Show toast when starting comparison
-  showToast(isEn ? 'Folder comparison started, scanning physical files...' : 'Dosya karşılaştırması başlatıldı, fiziksel dosyalar taranıyor...', 'info');
-  
-  // Set button state to comparing
-  const compareBtnText = compareBtn.querySelector('#compare-btn-text');
-  if (compareBtnText) {
-    compareBtnText.textContent = t.compare_btn_running || 'Comparing...';
-  }
-  if (compareLoading) compareLoading.classList.remove('hidden');
-  if (compareResults) compareResults.classList.add('hidden');
-  if (noIssuesFound) noIssuesFound.classList.add('hidden');
-  if (untrackedSection) untrackedSection.classList.add('hidden');
-  if (unrelatedSection) unrelatedSection.classList.add('hidden');
-  if (missingSection) missingSection.classList.add('hidden');
-  
-  try {
-    const res = await fetch('/api/tools/compare-files');
-    const data = await res.json();
-    if (data.success) {
-      untrackedFilesList = data.untrackedFiles || [];
-      unrelatedFilesList = data.unrelatedFiles || [];
-      missingFilesList = data.missingFiles || [];
-      
-      renderComparisonResults();
-    } else {
-      showToast(data.error || (isEn ? 'Comparison failed.' : 'Karşılaştırma başarısız.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  } finally {
-    compareBtn.disabled = false;
-    if (compareBtnText) {
-      compareBtnText.textContent = t.compare_btn || 'Start Comparison';
-    }
-    if (compareLoading) compareLoading.classList.add('hidden');
-  }
-}
-
-async function openFileLocation(filePath) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  try {
-    const res = await fetch('/api/tools/open-file-location', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filePath })
-    });
-    const data = await res.json();
-    if (!data.success) {
-      showToast(data.error || (isEn ? 'Could not open folder.' : 'Klasör açılamadı.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-
-async function deleteAllUnrelated() {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  if (unrelatedFilesList.length === 0) return;
-  if (!confirm(isEn ? 'Are you sure you want to delete all unrelated files from disk?' : 'Tüm alakasız dosyaları diskten silmek istediğinize emin misiniz?')) {
-    return;
-  }
-  
-  try {
-    const res = await fetch('/api/tools/fix-files', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'delete-untracked-file',
-        filePaths: unrelatedFilesList.map(f => f.filePath)
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
-      runFileComparison();
-    } else {
-      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-
-function renderComparisonResults() {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
-  
-  const noIssuesFound = document.getElementById('compare-no-issues');
-  const untrackedSection = document.getElementById('untracked-section');
-  const unrelatedSection = document.getElementById('unrelated-section');
-  const missingSection = document.getElementById('missing-section');
-  const compareResults = document.getElementById('compare-results');
-  
-  const untrackedBody = document.getElementById('untracked-files-list');
-  const unrelatedBody = document.getElementById('unrelated-files-list');
-  const missingBody = document.getElementById('missing-files-list');
-  
-  if (untrackedBody) untrackedBody.innerHTML = '';
-  if (unrelatedBody) unrelatedBody.innerHTML = '';
-  if (missingBody) missingBody.innerHTML = '';
-  
-  if (compareResults) compareResults.classList.remove('hidden');
-  
-  if (untrackedFilesList.length === 0 && unrelatedFilesList.length === 0 && missingFilesList.length === 0) {
-    if (noIssuesFound) noIssuesFound.classList.remove('hidden');
-    if (untrackedSection) untrackedSection.classList.add('hidden');
-    if (unrelatedSection) unrelatedSection.classList.add('hidden');
-    if (missingSection) missingSection.classList.add('hidden');
-    showToast(isEn ? 'Folder comparison completed. No issues found!' : 'Dosya karşılaştırması tamamlandı. Sorun bulunamadı!', 'success');
-    return;
-  }
-  
-  if (noIssuesFound) noIssuesFound.classList.add('hidden');
-  
-  const summaryBox = document.getElementById('compare-summary-box');
-  if (summaryBox) {
-    summaryBox.innerHTML = isEn 
-      ? `Found ${untrackedFilesList.length} untracked files, ${unrelatedFilesList.length} unrelated files, and ${missingFilesList.length} missing records.`
-      : `${untrackedFilesList.length} yetim dosya, ${unrelatedFilesList.length} alakasız dosya ve ${missingFilesList.length} eksik kayıt bulundu.`;
-  }
-  
-  showToast(isEn ? 'Folder comparison completed.' : 'Dosya karşılaştırması tamamlandı.', 'success');
-  
-  // Untracked Files (Orphans)
-  if (untrackedFilesList.length > 0) {
-    if (untrackedSection) untrackedSection.classList.remove('hidden');
-    untrackedFilesList.forEach(file => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>
-          <div class="file-name-cell" title="${file.filePath}">
-            <i data-lucide="file-video" class="file-icon"></i>
-            <span>${file.filename}</span>
-          </div>
-        </td>
-        <td>${file.channelName || '<span class="text-muted">--</span>'}</td>
-        <td class="text-nowrap">${file.fileSize || '--'}</td>
-        <td>
-          <div class="action-buttons-cell" style="text-align: right;">
-            <button class="btn btn-secondary btn-sm" onclick="openFileLocation('${file.filePath.replace(/\\/g, '\\\\')}')" title="${isEn ? 'Open File Location' : 'Dosya Konumunu Aç'}">
-              <i data-lucide="external-link"></i>
-              <span>${isEn ? 'Open Location' : 'Konumu Aç'}</span>
-            </button>
-            ${file.id ? `
-              <button class="btn btn-primary btn-sm" onclick="fixFileIssue('import', '${file.filePath.replace(/\\/g, '\\\\')}', '${file.id}')">
-                <i data-lucide="plus"></i>
-                <span>${t.btn_import || 'Import'}</span>
-              </button>
-            ` : ''}
-            <button class="btn btn-danger btn-sm" onclick="fixFileIssue('delete', '${file.filePath.replace(/\\/g, '\\\\')}', '')">
-              <i data-lucide="trash-2"></i>
-              <span>${t.btn_delete_file || 'Delete'}</span>
-            </button>
-          </div>
-        </td>
-      `;
-      untrackedBody.appendChild(tr);
-    });
-  } else {
-    if (untrackedSection) untrackedSection.classList.add('hidden');
-  }
-  
-  // Unrelated Files
-  if (unrelatedFilesList.length > 0) {
-    if (unrelatedSection) unrelatedSection.classList.remove('hidden');
-    unrelatedFilesList.forEach(file => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>
-          <div class="file-name-cell" title="${file.filePath}">
-            <i data-lucide="file" class="file-icon" style="color: var(--text-muted);"></i>
-            <span>${file.filename}</span>
-          </div>
-        </td>
-        <td class="text-nowrap">${file.fileSize || '--'}</td>
-        <td>
-          <div class="action-buttons-cell" style="text-align: right;">
-            <button class="btn btn-secondary btn-sm" onclick="openFileLocation('${file.filePath.replace(/\\/g, '\\\\')}')" title="${isEn ? 'Open File Location' : 'Dosya Konumunu Aç'}">
-              <i data-lucide="external-link"></i>
-              <span>${isEn ? 'Open Location' : 'Konumu Aç'}</span>
-            </button>
-            <button class="btn btn-danger btn-sm" onclick="fixFileIssue('delete', '${file.filePath.replace(/\\/g, '\\\\')}', '')">
-              <i data-lucide="trash-2"></i>
-              <span>${t.btn_delete_file || 'Delete'}</span>
-            </button>
-          </div>
-        </td>
-      `;
-      unrelatedBody.appendChild(tr);
-    });
-  } else {
-    if (unrelatedSection) unrelatedSection.classList.add('hidden');
-  }
-  
-  // Missing Files
-  if (missingFilesList.length > 0) {
-    if (missingSection) missingSection.classList.remove('hidden');
-    missingFilesList.forEach(file => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>
-          <div class="file-name-cell" title="${file.filePath || ''}">
-            <i data-lucide="video-off" class="file-icon"></i>
-            <span>${file.title}</span>
-          </div>
-        </td>
-        <td>${file.channelName || '<span class="text-muted">--</span>'}</td>
-        <td>
-          <div class="action-buttons-cell" style="text-align: right;">
-            <button class="btn btn-primary btn-sm" onclick="downloadMissingVideo('${file.id}', '${escapeHtml(file.title)}', '${escapeHtml(file.channelName || '')}', '${file.channelId || ''}')" title="${isEn ? 'Redownload Video' : 'Videoyu Tekrar İndir'}">
-              <i data-lucide="download"></i>
-              <span>${isEn ? 'Redownload' : 'Tekrar İndir'}</span>
-            </button>
-            <button class="btn btn-warning btn-sm" onclick="fixFileIssue('mark_not_downloaded', '', '${file.id}')">
-              <i data-lucide="refresh-cw"></i>
-              <span>${t.btn_mark_not_downloaded || 'Mark Not Downloaded'}</span>
-            </button>
-            <button class="btn btn-danger btn-sm" onclick="fixFileIssue('delete_history', '', '${file.id}')">
-              <i data-lucide="trash-2"></i>
-              <span>${t.btn_delete_history || 'Delete History'}</span>
-            </button>
-          </div>
-        </td>
-      `;
-      missingBody.appendChild(tr);
-    });
-  } else {
-    if (missingSection) missingSection.classList.add('hidden');
-  }
-  
-  lucide.createIcons();
-}
-
-async function fixFileIssue(actionType, filePath, id) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  let body = {};
-  
-  if (actionType === 'import') {
-    const file = untrackedFilesList.find(f => f.filePath === filePath);
-    if (!file) return;
-    body = {
-      action: 'import-untracked-file',
-      filesToImport: [{
-        id: file.id,
-        title: file.title,
-        channelName: file.channelName,
-        fileSize: file.fileSize,
-        filePath: file.filePath
-      }]
-    };
-  } else if (actionType === 'delete') {
-    body = {
-      action: 'delete-untracked-file',
-      filePaths: [filePath]
-    };
-  } else if (actionType === 'mark_not_downloaded') {
-    body = {
-      action: 'mark-missing-as-not-downloaded',
-      videoIds: [id]
-    };
-  } else if (actionType === 'delete_history') {
-    body = {
-      action: 'delete-history-item',
-      videoIds: [id]
-    };
-  }
-  
-  try {
-    const res = await fetch('/api/tools/fix-files', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
-      // Refresh comparison
-      runFileComparison();
-    } else {
-      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-
-async function fixAllUntracked(actionType) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  if (untrackedFilesList.length === 0) return;
-  
-  let body = {};
-  if (actionType === 'import') {
-    // Only import files that have a valid ID
-    const filesToImport = untrackedFilesList.filter(f => f.id).map(file => ({
-      id: file.id,
-      title: file.title,
-      channelName: file.channelName,
-      fileSize: file.fileSize,
-      filePath: file.filePath
-    }));
-    if (filesToImport.length === 0) {
-      showToast(isEn ? 'No files with valid video IDs to import.' : 'İçe aktarılacak geçerli video ID\'sine sahip dosya yok.', 'info');
-      return;
-    }
-    body = {
-      action: 'import-untracked-file',
-      filesToImport
-    };
-  } else if (actionType === 'delete') {
-    if (!confirm(isEn ? 'Are you sure you want to delete all untracked files from disk?' : 'Tüm yetim dosyaları diskten silmek istediğinize emin misiniz?')) {
-      return;
-    }
-    body = {
-      action: 'delete-untracked-file',
-      filePaths: untrackedFilesList.map(f => f.filePath)
-    };
-  }
-  
-  try {
-    const res = await fetch('/api/tools/fix-files', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
-      runFileComparison();
-    } else {
-      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-
-async function fixAllMissing(actionType) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  if (missingFilesList.length === 0) return;
-  
-  let body = {};
-  if (actionType === 'mark' || actionType === 'mark_not_downloaded') {
-    body = {
-      action: 'mark-missing-as-not-downloaded',
-      videoIds: missingFilesList.map(f => f.id)
-    };
-  } else if (actionType === 'delete') {
-    if (!confirm(isEn ? 'Are you sure you want to delete all missing videos from history?' : 'Tüm eksik videoları geçmişten silmek istediğinize emin misiniz?')) {
-      return;
-    }
-    body = {
-      action: 'delete-history-item',
-      videoIds: missingFilesList.map(f => f.id)
-    };
-  }
-  
-  try {
-    const res = await fetch('/api/tools/fix-files', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
-      runFileComparison();
-    } else {
-      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-
-// Hide video from library
-window.hideVideo = async function(videoId) {
-  if (!videoId) return;
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  try {
-    const res = await fetch(`/api/history/${videoId}/hide`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Video hidden from library.' : 'Video kütüphaneden gizlendi.', 'success');
-    } else {
-      showToast(data.error || (isEn ? 'Failed to hide video.' : 'Video gizlenemedi.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-};
-
-// Unhide video from library
-window.unhideVideo = async function(videoId) {
-  if (!videoId) return;
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  try {
-    const res = await fetch(`/api/history/${videoId}/unhide`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Video is now visible in library.' : 'Video kütüphanede tekrar görünür yapıldı.', 'success');
-    } else {
-      showToast(data.error || (isEn ? 'Failed to unhide video.' : 'Video görünür yapılamadı.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-};
-
-// Filter library/downloaded grid by channel name click
-window.filterByChannel = function(channelId, gridId) {
-  if (!channelId) return;
-  
-  if (gridId === 'downloaded-grid') {
-    const downloadedChannelFilter = document.getElementById('downloaded-channel-filter');
-    if (downloadedChannelFilter) {
-      downloadedChannelFilter.value = channelId;
-      downloadedFilterChannel = channelId;
-      updateUI(localDb);
-    }
-  } else {
-    const historyChannelFilter = document.getElementById('history-channel-filter');
-    if (historyChannelFilter) {
-      historyChannelFilter.value = channelId;
-      historyFilterChannel = channelId;
-      updateUI(localDb);
-    }
-  }
-};
-
-// SSE Channel Scan progress toast
-function updateScanProgressToast(data) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  if (!data.active) {
-    if (scanProgressToast) {
-      scanProgressToast.style.animation = 'slideIn 0.3s reverse forwards';
-      const toastRef = scanProgressToast;
-      setTimeout(() => toastRef.remove(), 300);
-      scanProgressToast = null;
-      showToast(isEn ? 'Channel scan completed.' : 'Kanal denetimi tamamlandı.', 'success');
-    }
-    return;
-  }
-
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-
-  const msg = isEn 
-    ? `${data.current}/${data.total} - Checking ${data.channelName}` 
-    : `${data.current}/${data.total} - ${data.channelName} denetleniyor`;
-
-  if (!scanProgressToast) {
-    scanProgressToast = document.createElement('div');
-    scanProgressToast.className = 'toast toast-info toast-persistent';
-    container.appendChild(scanProgressToast);
-  }
-
-  scanProgressToast.innerHTML = `
-    <i data-lucide="loader" class="toast-icon spin"></i>
-    <div class="toast-message">${msg}</div>
-  `;
-  lucide.createIcons();
-}
-
-// Make functions globally accessible
-window.fixFileIssue = fixFileIssue;
-window.fixAllUntracked = fixAllUntracked;
-window.fixAllMissing = fixAllMissing;
-window.runFileComparison = runFileComparison;
-window.openFileLocation = openFileLocation;
-window.deleteAllUnrelated = deleteAllUnrelated;
-
-document.addEventListener('DOMContentLoaded', () => {
-  const compareBtn = document.getElementById('start-compare-btn');
-  if (compareBtn) {
-    compareBtn.addEventListener('click', runFileComparison);
-  }
-  
-  // Header Settings button click handler
-  const headerSettingsBtn = document.getElementById('header-settings-btn');
-  if (headerSettingsBtn) {
-    headerSettingsBtn.addEventListener('click', () => {
-      if (window.switchTab) {
-        window.switchTab('settings');
-      }
-    });
-  }
-  
-
-
-  // Initialize Downloader Tab and Dropdown Elements
-  initDownloaderUI();
-});
-
-// === DOWNLISTER / DOWNLOADER FRONTEND MANTIĞI ===
-let activePlaylistVideos = [];
-
-function toggleToolsDropdown(e) {
-  e.stopPropagation();
-  const dropdown = document.getElementById('tools-dropdown');
-  if (dropdown) {
-    dropdown.classList.toggle('open');
-  }
-}
-
-// Dışarı tıklayınca dropdown kapatma
-document.addEventListener('click', (e) => {
-  const dropdown = document.getElementById('tools-dropdown');
-  if (dropdown && !dropdown.contains(e.target)) {
-    dropdown.classList.remove('open');
-  }
-});
-
-function initDownloaderUI() {
-  const toolsBtn = document.getElementById('tools-btn');
-  if (toolsBtn) {
-    toolsBtn.addEventListener('click', toggleToolsDropdown);
-  }
-
-  const downloaderActionBtn = document.getElementById('downloader-action-btn');
-  if (downloaderActionBtn) {
-    downloaderActionBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      switchTab('downloader');
-      const dropdown = document.getElementById('tools-dropdown');
-      if (dropdown) dropdown.classList.remove('open');
-    });
-  }
-
-  const toolsCompareBtn = document.getElementById('nav-tools-compare-btn');
-  if (toolsCompareBtn) {
-    toolsCompareBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.currentToolsSubSection = 'compare';
-      switchTab('tools');
-      showToolsSubSection('compare');
-      runFileComparison();
-      const dropdown = document.getElementById('tools-dropdown');
-      if (dropdown) dropdown.classList.remove('open');
-    });
-  }
-
-  const toolsCategoriesBtn = document.getElementById('nav-tools-categories-btn');
-  if (toolsCategoriesBtn) {
-    toolsCategoriesBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.currentToolsSubSection = 'categories';
-      switchTab('tools');
-      showToolsSubSection('categories');
-      const dropdown = document.getElementById('tools-dropdown');
-      if (dropdown) dropdown.classList.remove('open');
-    });
-  }
-
-  const toolsApeBtn = document.getElementById('nav-tools-ape-btn');
-  if (toolsApeBtn) {
-    toolsApeBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.currentToolsSubSection = 'ape';
-      switchTab('tools');
-      showToolsSubSection('ape');
-      const dropdown = document.getElementById('tools-dropdown');
-      if (dropdown) dropdown.classList.remove('open');
-    });
-  }
-
-  const toolsSubsBtn = document.getElementById('nav-tools-subs-btn');
-  if (toolsSubsBtn) {
-    toolsSubsBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.currentToolsSubSection = 'subscriptions';
-      switchTab('tools');
-      showToolsSubSection('subscriptions');
-      const dropdown = document.getElementById('tools-dropdown');
-      if (dropdown) dropdown.classList.remove('open');
-    });
-  }
-
-  const formatSelect = document.getElementById('downloader-format-select');
-  const bitrateGroup = document.getElementById('downloader-bitrate-group');
-  if (formatSelect && bitrateGroup) {
-    formatSelect.addEventListener('change', () => {
-      if (formatSelect.value === 'audio-mp3') {
-        bitrateGroup.style.display = 'block';
-      } else {
-        bitrateGroup.style.display = 'none';
-      }
-    });
-  }
-
-  const startBtn = document.getElementById('downloader-start-btn');
-  if (startBtn) {
-    startBtn.addEventListener('click', handleDownloaderStart);
-  }
-
-  const downloadAllBtn = document.getElementById('downloader-download-all-btn');
-  if (downloadAllBtn) {
-    downloadAllBtn.addEventListener('click', handleDownloaderAll);
-  }
-
-  const toggleAllCheckbox = document.getElementById('downloader-toggle-all-checkbox');
-  if (toggleAllCheckbox) {
-    toggleAllCheckbox.addEventListener('change', (e) => {
-      const checked = e.target.checked;
-      document.querySelectorAll('.playlist-item-checkbox').forEach(cb => {
-        cb.checked = checked;
-      });
-    });
-  }
-}
-
-function showToolsSubSection(section) {
-  const compareContainer = document.getElementById('tools-compare-container');
-  const bulkContainer = document.getElementById('tools-bulk-delete-container');
-  const categoriesContainer = document.getElementById('tools-categories-container');
-  const apeContainer = document.getElementById('tools-ape-container');
-  const subsContainer = document.getElementById('tools-subscriptions-container');
-  const toolsHeaderTitle = document.querySelector('#tab-tools .content-header h2 span');
-  const toolsHeaderDesc = document.getElementById('tools-modal-desc');
-  const toolsHeaderIcon = document.getElementById('tools-modal-icon');
-
-  if (compareContainer) compareContainer.classList.add('hidden');
-  if (bulkContainer) bulkContainer.classList.add('hidden');
-  if (categoriesContainer) categoriesContainer.classList.add('hidden');
-  if (apeContainer) apeContainer.classList.add('hidden');
-  if (subsContainer) subsContainer.classList.add('hidden');
-
-  const isEn = localDb.settings?.lang === 'en';
-
-  if (section === 'categories' && categoriesContainer) {
-    categoriesContainer.classList.remove('hidden');
-    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Edit Channel Categories' : 'Kanal Kategorilerini Düzenleme';
-    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Create, edit, or delete categories to group your channels.' : 'Kanallarınızı gruplandırmak için kategoriler oluşturabilir, düzenleyebilir veya silebilirsiniz.';
-    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'tag');
-    if (typeof loadCategoriesToTools === 'function') loadCategoriesToTools(localDb.categories);
-  } else if (section === 'ape' && apeContainer) {
-    apeContainer.classList.remove('hidden');
-    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'APE (Direct Video/Channel Watched Marker)' : 'APE (Hızlı İzlendi İşaretleme Aracı)';
-    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Mark videos as watched in library and YouTube history by entering video or channel links.' : 'Video veya kanal linki girerek kütüphanede ve YouTube geçmişinizde videoları anında izlendi olarak işaretleyin.';
-    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'check-check');
-  } else if (section === 'subscriptions' && subsContainer) {
-    subsContainer.classList.remove('hidden');
-    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Import YouTube Subscriptions' : 'YouTube Aboneliklerini İçe Aktar';
-    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Fetch your subscribed channels from YouTube and bulk-add them to your follow list.' : 'YouTube hesabınızdaki abone kanallarını getirip takip listenize toplu ekleyin.';
-    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'users');
-  } else if (section === 'bulk-delete' && bulkContainer) {
-    bulkContainer.classList.remove('hidden');
-    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Bulk Video Deletion' : 'Toplu Video Silme';
-    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'List and bulk delete your downloaded videos along with their physical files from disk.' : 'Kütüphanenizdeki indirilen videoları seçerek diskten veya veritabanından toplu olarak silebilirsiniz.';
-    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'trash-2');
-  } else {
-    if (compareContainer) compareContainer.classList.remove('hidden');
-    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Advanced File Comparison & Sync' : 'Gelişmiş Dosya Karşılaştırma & Senkronizasyon';
-    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Compares physical files in your download folder with database records.' : 'İndirme klasörünüzdeki fiziksel dosyaları veritabanı kayıtları ile karşılaştırarak eksik, yetim veya alakasız dosyaları listeler.';
-    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'folder-sync');
-  }
-
-  try {
-    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
-  } catch (e) {}
-}
-window.showToolsSubSection = showToolsSubSection;
+// Araçlar, dosya karşılaştırma ve indirme UI fonksiyonları artık doğrudan './modules/tools.js' modülü üzerinden yönetilmektedir.
 
 // === DOWNLOADED BULK DELETE FUNCTIONS ===
 function toggleDownloadedBulkDeleteMode() {
@@ -10300,28 +8562,59 @@ function toggleSelectAllDownloadedBulkDelete(masterCb) {
 }
 window.toggleSelectAllDownloadedBulkDelete = toggleSelectAllDownloadedBulkDelete;
 
-function toggleDownloadedCardSelection(id) {
-  const cb = document.querySelector(`.downloaded-bulk-delete-cb[data-id="${id}"]`);
-  if (cb) {
-    cb.checked = !cb.checked;
-    
-    const card = cb.closest('.video-card');
-    if (card) {
-      card.classList.toggle('bulk-delete-selected', cb.checked);
-    }
-    
-    // Sync Select All checkbox
-    const allCbs = document.querySelectorAll('.downloaded-bulk-delete-cb');
-    const checkedCbs = document.querySelectorAll('.downloaded-bulk-delete-cb:checked');
-    const selectAllCb = document.getElementById('downloaded-bulk-delete-select-all');
-    if (selectAllCb) {
-      selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
-    }
-    
-    updateDownloadedBulkDeleteCount();
+/**
+ * Toplu seçim kartı toggle işlemi — genel yardımcı.
+ * @param {string} id - Video ID'si
+ * @param {string} cbSelector - Checkbox CSS selector'ı (ör. '.downloaded-bulk-delete-cb')
+ * @param {string} cardClass - Seçili kart CSS sınıfı (ör. 'bulk-delete-selected')
+ * @param {string} selectAllId - "Tümünü Seç" checkbox element ID'si
+ * @param {Function} updateCountFn - Sayaç güncelleme fonksiyonu
+ */
+function toggleBulkCardSelection(id, cbSelector, cardClass, selectAllId, updateCountFn) {
+  const cb = document.querySelector(`${cbSelector}[data-id="${id}"]`);
+  if (!cb) return;
+
+  cb.checked = !cb.checked;
+
+  const card = cb.closest('.video-card');
+  if (card) {
+    card.classList.toggle(cardClass, cb.checked);
   }
+
+  // "Tümünü Seç" checkbox'ını senkronize et
+  const allCbs = document.querySelectorAll(cbSelector);
+  const checkedCbs = document.querySelectorAll(`${cbSelector}:checked`);
+  const selectAllCb = document.getElementById(selectAllId);
+  if (selectAllCb) {
+    selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
+  }
+
+  if (typeof updateCountFn === 'function') updateCountFn();
+}
+
+/** İndirilenlerde toplu silme kart seçimi. */
+function toggleDownloadedCardSelection(id) {
+  toggleBulkCardSelection(
+    id,
+    '.downloaded-bulk-delete-cb',
+    'bulk-delete-selected',
+    'downloaded-bulk-delete-select-all',
+    updateDownloadedBulkDeleteCount
+  );
 }
 window.toggleDownloadedCardSelection = toggleDownloadedCardSelection;
+
+/** Geçmişte toplu gizleme kart seçimi. */
+function toggleHistoryBulkHideCardSelection(id) {
+  toggleBulkCardSelection(
+    id,
+    '.history-bulk-hide-cb',
+    'bulk-hide-selected',
+    'history-bulk-hide-select-all',
+    updateHistoryBulkHideCount
+  );
+}
+window.toggleHistoryBulkHideCardSelection = toggleHistoryBulkHideCardSelection;
 
 function updateDownloadedBulkDeleteCount(e) {
   if (e) {
@@ -10449,28 +8742,6 @@ function toggleSelectAllHistoryBulkHide(masterCb) {
 }
 window.toggleSelectAllHistoryBulkHide = toggleSelectAllHistoryBulkHide;
 
-function toggleHistoryBulkHideCardSelection(id) {
-  const cb = document.querySelector(`.history-bulk-hide-cb[data-id="${id}"]`);
-  if (cb) {
-    cb.checked = !cb.checked;
-    
-    const card = cb.closest('.video-card');
-    if (card) {
-      card.classList.toggle('bulk-hide-selected', cb.checked);
-    }
-    
-    // Sync Select All checkbox
-    const allCbs = document.querySelectorAll('.history-bulk-hide-cb');
-    const checkedCbs = document.querySelectorAll('.history-bulk-hide-cb:checked');
-    const selectAllCb = document.getElementById('history-bulk-hide-select-all');
-    if (selectAllCb) {
-      selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
-    }
-    
-    updateHistoryBulkHideCount();
-  }
-}
-window.toggleHistoryBulkHideCardSelection = toggleHistoryBulkHideCardSelection;
 
 function updateHistoryBulkHideCount(e) {
   if (e) {
@@ -11158,13 +9429,6 @@ function resetHistoryDurationFilter() {
   }
 }
 window.resetHistoryDurationFilter = resetHistoryDurationFilter;
-function formatFileSize(bytes) {
-  if (!bytes || bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const k = 1024;
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + units[i];
-}
 
 // Türkçe Açıklama: İndirilenler ve Kütüphane genelindeki videoların eksik süre ve dosya boyutu (MB/GB) bilgilerini backend'de yeniler.
 async function executeRefreshMetadata() {
@@ -11221,288 +9485,10 @@ async function executeRefreshMetadata() {
 window.executeRefreshMetadata = executeRefreshMetadata;
 
 
-/**
- * Kanala yeni bir kategori ekler (Çoklu Kategori).
- */
-async function changeChannelCategory(channelId, categoryId) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  const catInt = parseInt(categoryId, 10);
-  if (!catInt) return;
+// changeChannelCategory → tools.js window.changeChannelCategory
+// removeChannelCategory → tools.js window.removeChannelCategory
 
-  const channel = localDb.channels.find(c => c.id === channelId);
-  if (!channel) return;
-
-  let currentIds = channel.categoryIds || (channel.categoryId !== undefined ? [channel.categoryId] : [1]);
-  if (currentIds.includes(catInt)) return; // Zaten ekliyse ekleme
-
-  let newIds = [...currentIds, catInt];
-  if (catInt !== 1 && newIds.includes(1)) {
-    newIds = newIds.filter(id => id !== 1);
-  }
-
-  try {
-    const res = await fetch(`/api/channels/${channelId}/category`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ categoryIds: newIds })
-    });
-    const result = await res.json();
-    if (result.success) {
-      showToast(isEn ? 'Category added to channel.' : 'Kategori kanala eklendi.', 'success');
-    } else {
-      showToast(result.error || (isEn ? 'Failed to add category.' : 'Kategori eklenemedi.'), 'error');
-    }
-  } catch (err) {
-    console.error('changeChannelCategory error:', err);
-    showToast(isEn ? 'Failed to add category.' : 'Kategori eklenemedi.', 'error');
-  }
-}
-window.changeChannelCategory = changeChannelCategory;
-
-/**
- * Kanaldan kategori kaldırır (Çoklu Kategori).
- */
-async function removeChannelCategory(channelId, catId) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  const catInt = parseInt(catId, 10);
-  if (!catInt) return;
-
-  const channel = localDb.channels.find(c => c.id === channelId);
-  if (!channel) return;
-
-  let currentIds = channel.categoryIds || (channel.categoryId !== undefined ? [channel.categoryId] : [1]);
-  let newIds = currentIds.filter(id => id !== catInt);
-
-  if (newIds.length === 0) {
-    newIds = [1];
-  }
-
-  try {
-    const res = await fetch(`/api/channels/${channelId}/category`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ categoryIds: newIds })
-    });
-    const result = await res.json();
-    if (result.success) {
-      showToast(isEn ? 'Category removed from channel.' : 'Kategori kanaldan kaldırıldı.', 'success');
-    } else {
-      showToast(result.error || (isEn ? 'Failed to remove category.' : 'Kategori kaldırılamadı.'), 'error');
-    }
-  } catch (err) {
-    console.error('removeChannelCategory error:', err);
-    showToast(isEn ? 'Failed to remove category.' : 'Kategori kaldırılamadı.', 'error');
-  }
-}
-window.removeChannelCategory = removeChannelCategory;
-
-/**
- * Araçlar sekmesindeki kategori listesini render eder.
- */
-function loadCategoriesToTools(categories) {
-  const listEl = document.getElementById('tools-categories-list');
-  if (!listEl) return;
-  listEl.innerHTML = '';
-  
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  const lang = localDb.settings?.lang || currentLang || 'tr';
-  const t = translations[lang] || translations.tr;
-
-  const cats = categories || [];
-  const defaultNames = {
-    1: ["Genel", "General"],
-    2: ["Oyun", "Gaming"],
-    3: ["Eğitim", "Education"],
-    4: ["Müzik", "Music"],
-    5: ["Teknoloji", "Technology"],
-    6: ["Spor", "Sports"],
-    7: ["Sinema & Film", "Movies & Cinema"],
-    8: ["Haberler & Siyaset", "News & Politics"],
-    9: ["Eğlence", "Entertainment"],
-    10: ["Bilim", "Science"],
-    11: ["Gezi & Yaşam", "Travel & Life"],
-    12: ["Komedi", "Comedy"],
-    13: ["Belgesel", "Documentary"],
-    14: ["Anime & Çizgi Film", "Anime & Cartoon"],
-    15: ["Finans & Ekonomi", "Finance & Economy"],
-    16: ["League of Legends", "League of Legends"],
-    17: ["Podcast", "Podcast"]
-  };
-
-  const getCatTranslatedName = (cat) => {
-    let catName = cat.name;
-    if (cat.id >= 1 && cat.id <= 17) {
-      const list = defaultNames[cat.id];
-      if (list && (cat.name === list[0] || cat.name === list[1] || !cat.name)) {
-        catName = t[`category_${cat.id}`] || cat.name;
-      }
-    }
-    return catName;
-  };
-
-  const sortedCats = [...cats].sort((a, b) => {
-    if (a.id === 1) return -1;
-    if (b.id === 1) return 1;
-    const nameA = getCatTranslatedName(a);
-    const nameB = getCatTranslatedName(b);
-    return nameA.localeCompare(nameB, lang, { sensitivity: 'base' });
-  });
-
-  sortedCats.forEach(cat => {
-    const catName = getCatTranslatedName(cat);
-
-    const tr = document.createElement('tr');
-    tr.style.borderBottom = '1px solid var(--border-color)';
-    
-    const deleteBtnDisabled = cat.id === 1 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
-    
-    tr.innerHTML = `
-      <td style="padding:10px 12px; font-weight: 600; color: var(--text-muted);">${cat.id}</td>
-      <td style="padding:10px 12px;" id="cat-name-text-${cat.id}">${escapeHtml(catName)}</td>
-      <td style="padding:10px 12px; text-align:right;">
-        <div style="display:flex; justify-content:flex-end; gap:8px;">
-          <button class="btn-icon" onclick="editCategoryName(${cat.id}, '${escapeHtml(cat.name)}')" title="${t.category_edit_tooltip || 'Kategoriyi Düzenle'}">
-            <i data-lucide="edit-3" style="width: 14px; height: 14px; color: var(--accent-color);"></i>
-          </button>
-          <button class="btn-icon" onclick="deleteCategory(${cat.id})" ${deleteBtnDisabled} title="${t.category_delete_tooltip || 'Kategoriyi Sil'}">
-            <i data-lucide="trash-2" style="width: 14px; height: 14px; color: var(--accent-red);"></i>
-          </button>
-        </div>
-      </td>
-    `;
-    listEl.appendChild(tr);
-  });
-
-  try {
-    lucide.createIcons();
-  } catch (e) {}
-}
-window.loadCategoriesToTools = loadCategoriesToTools;
-
-/**
- * Araçlar sekmesinden yeni kategori ekler.
- */
-async function addCategoryFromTools() {
-  const input = document.getElementById('new-category-input');
-  if (!input) return;
-  const name = input.value.trim();
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-
-  if (!name) {
-    showToast(isEn ? 'Category name cannot be empty.' : 'Kategori adı boş olamaz.', 'warning');
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/channels/categories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
-    });
-    const result = await res.json();
-    if (result.success) {
-      input.value = '';
-      showToast(isEn ? 'Category added.' : 'Kategori başarıyla eklendi.', 'success');
-    } else {
-      showToast(result.error || (isEn ? 'Failed to add category.' : 'Kategori eklenemedi.'), 'error');
-    }
-  } catch (err) {
-    console.error('addCategoryFromTools error:', err);
-    showToast(isEn ? 'Failed to add category.' : 'Kategori eklenemedi.', 'error');
-  }
-}
-window.addCategoryFromTools = addCategoryFromTools;
-
-/**
- * Kategori adını düzenler (inline input alanı oluşturarak).
- */
-function editCategoryName(id, currentName) {
-  const cell = document.getElementById(`cat-name-text-${id}`);
-  if (!cell) return;
-
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = currentName;
-  input.style.cssText = 'padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 0.85rem; width: 80%;';
-  
-  const saveBtn = document.createElement('button');
-  saveBtn.innerHTML = '✓';
-  saveBtn.className = 'btn btn-primary';
-  saveBtn.style.cssText = 'padding: 4px 8px; margin-left: 6px; font-size: 0.8rem;';
-  
-  cell.innerHTML = '';
-  cell.appendChild(input);
-  cell.appendChild(saveBtn);
-  input.focus();
-
-  const performSave = async () => {
-    const newName = input.value.trim();
-    if (!newName) {
-      showToast(isEn ? 'Category name cannot be empty.' : 'Kategori adı boş olamaz.', 'warning');
-      cell.textContent = currentName;
-      return;
-    }
-    if (newName === currentName) {
-      cell.textContent = currentName;
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/channels/categories/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName })
-      });
-      const result = await res.json();
-      if (result.success) {
-        showToast(isEn ? 'Category updated.' : 'Kategori güncellendi.', 'success');
-      } else {
-        showToast(result.error || (isEn ? 'Failed to update category.' : 'Kategori güncellenemedi.'), 'error');
-        cell.textContent = currentName;
-      }
-    } catch (err) {
-      console.error('editCategoryName error:', err);
-      showToast(isEn ? 'Failed to update category.' : 'Kategori güncellenemedi.', 'error');
-      cell.textContent = currentName;
-    }
-  };
-
-  saveBtn.onclick = performSave;
-  input.onkeydown = (e) => {
-    if (e.key === 'Enter') performSave();
-    if (e.key === 'Escape') cell.textContent = currentName;
-  };
-}
-window.editCategoryName = editCategoryName;
-
-/**
- * Kategoriyi siler.
- */
-async function deleteCategory(id) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  const confirmMsg = isEn 
-    ? 'Are you sure you want to delete this category? Channels in this category will be moved to General.' 
-    : 'Bu kategoriyi silmek istediğinize emin misiniz? Bu kategorideki kanallar Genel kategorisine taşınacaktır.';
-  
-  if (!confirm(confirmMsg)) return;
-
-  try {
-    const res = await fetch(`/api/channels/categories/${id}`, {
-      method: 'DELETE'
-    });
-    const result = await res.json();
-    if (result.success) {
-      showToast(isEn ? 'Category deleted.' : 'Kategori silindi.', 'success');
-    } else {
-      showToast(result.error || (isEn ? 'Failed to delete category.' : 'Kategori silinemedi.'), 'error');
-    }
-  } catch (err) {
-    console.error('deleteCategory error:', err);
-    showToast(isEn ? 'Failed to delete category.' : 'Kategori silinemedi.', 'error');
-  }
-}
-window.deleteCategory = deleteCategory;
+// Kategori listesi ve silme işlevleri './modules/tools.js' modülü üzerinden window.loadCategoriesToTools ve window.deleteCategory ile yönetilmektedir.
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -11609,6 +9595,34 @@ window.toggleToolsAccordion = function(itemKey) {
   } catch (e) {}
 };
 
+/**
+ * Video kartında veya listede kanal adına tıklandığında filtreleme uygular.
+ * @param {string} channelId Filtrelenecek kanal kimliği
+ * @param {string} gridId İlgili tablosunun kimliği (history-grid veya downloaded-grid)
+ */
+window.filterByChannel = function(channelId, gridId) {
+  if (!channelId) return;
+  const isDownloaded = gridId === 'downloaded-grid';
+  const type = isDownloaded ? 'downloaded' : 'history';
+
+  if (isDownloaded) {
+    downloadedFilterChannel = channelId;
+    window.downloadedFilterChannel = channelId;
+    const downloadedChannelFilter = document.getElementById('downloaded-channel-filter');
+    if (downloadedChannelFilter) downloadedChannelFilter.value = channelId;
+    saveDownloadedFilterState();
+  } else {
+    historyFilterChannel = channelId;
+    window.historyFilterChannel = channelId;
+    const historyChannelFilter = document.getElementById('history-channel-filter');
+    if (historyChannelFilter) historyChannelFilter.value = channelId;
+    saveHistoryFilterState();
+  }
+
+  populateChannelFilters(localDb);
+  updateUI(localDb);
+};
+
 /* ===== Global Custom Channel Avatar Dropdown Component ===== */
 function toggleCustomChannelPicker(type, event) {
   if (event) {
@@ -11673,26 +9687,6 @@ function populateChannelFilters(db) {
   const lang = localDb.settings?.lang || currentLang || 'tr';
   const t = translations[lang] || translations.tr;
 
-  const defaultNames = {
-    1: ["Genel", "General"], 2: ["Oyun", "Gaming"], 3: ["Eğitim", "Education"],
-    4: ["Müzik", "Music"], 5: ["Teknoloji", "Technology"], 6: ["Spor", "Sports"],
-    7: ["Sinema & Film", "Movies & Cinema"], 8: ["Haberler & Siyaset", "News & Politics"],
-    9: ["Eğlence", "Entertainment"], 10: ["Bilim", "Science"], 11: ["Gezi & Yaşam", "Travel & Life"],
-    12: ["Komedi", "Comedy"], 13: ["Belgesel", "Documentary"], 14: ["Anime & Çizgi Film", "Anime & Cartoon"],
-    15: ["Finans & Ekonomi", "Finance & Economy"], 16: ["League of Legends", "League of Legends"], 17: ["Podcast", "Podcast"]
-  };
-
-  const getCatTranslatedName = (cat) => {
-    let catName = cat.name;
-    if (cat.id >= 1 && cat.id <= 17) {
-      const list = defaultNames[cat.id];
-      if (list && (cat.name === list[0] || cat.name === list[1] || !cat.name)) {
-        catName = t[`category_${cat.id}`] || cat.name;
-      }
-    }
-    return catName;
-  };
-
   ['history', 'downloaded'].forEach(type => {
     const panel = document.getElementById(`${type}-channel-options-panel`);
     const triggerContent = document.getElementById(`${type}-channel-trigger-content`);
@@ -11722,11 +9716,11 @@ function populateChannelFilters(db) {
       const sortedFilterCats = [...categories].sort((a, b) => {
         if (a.id === 1) return -1;
         if (b.id === 1) return 1;
-        return getCatTranslatedName(a).localeCompare(getCatTranslatedName(b), lang, { sensitivity: 'base' });
+        return getCatTranslatedName(a, t).localeCompare(getCatTranslatedName(b, t), lang, { sensitivity: 'base' });
       });
 
       sortedFilterCats.forEach(cat => {
-        const catName = getCatTranslatedName(cat);
+        const catName = getCatTranslatedName(cat, t);
         const hasChannel = channels.some(c => (c.categoryIds || [c.categoryId || 1]).includes(cat.id));
         if (hasChannel) {
           const catValue = `category:${cat.id}`;
@@ -11777,493 +9771,7 @@ function populateChannelFilters(db) {
 }
 window.populateChannelFilters = populateChannelFilters;
 
-// ==========================================
-// GitHub Gist Senkronizasyon İşlevleri
-// ==========================================
-
-/**
- * GitHub Token (PAT) şifreli alanının görünürlüğünü açık/kapalı yapar.
- */
-function toggleGistTokenVisibility() {
-  const input = document.getElementById('gist-token-input');
-  const icon = document.getElementById('gist-token-eye-icon');
-  if (!input) return;
-
-  if (input.type === 'password') {
-    input.type = 'text';
-    if (icon) icon.setAttribute('data-lucide', 'eye-off');
-  } else {
-    input.type = 'password';
-    if (icon) icon.setAttribute('data-lucide', 'eye');
-  }
-  try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
-}
-window.toggleGistTokenVisibility = toggleGistTokenVisibility;
-
-/**
- * GitHub Token'ının geçerliliğini test eder.
- */
-async function testGistToken() {
-  const input = document.getElementById('gist-token-input');
-  const token = input ? input.value.trim() : '';
-  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
-
-  if (!token) {
-    showToast(isEn ? 'Please enter a GitHub Token.' : 'Lütfen bir GitHub Token girin.', 'error');
-    return;
-  }
-
-  try {
-    showToast(isEn ? 'Verifying GitHub Token...' : 'GitHub Token doğrulanıyor...', 'info');
-    const res = await fetch('/api/gist/test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token })
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      if (data.warning) {
-        showToast(data.warning, 'warning');
-      } else {
-        showToast(isEn ? `Token verified! Connected as: ${data.username}` : `Token doğrulandı! Bağlanan kullanıcı: ${data.username}`, 'success');
-      }
-    } else {
-      showToast(data.error || (isEn ? 'Token verification failed.' : 'Token doğrulaması başarısız.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-window.testGistToken = testGistToken;
-
-/**
- * Yerel channels.ini dosyasını GitHub Gist'e aktarır (Push).
- */
-async function pushGistChannels() {
-  const tokenInput = document.getElementById('gist-token-input');
-  const idInput = document.getElementById('gist-id-input');
-  const autoSyncCheckbox = document.getElementById('gist-auto-sync-checkbox');
-
-  let token = tokenInput && tokenInput.value ? tokenInput.value.trim() : '';
-  if (!token && window.localDb && window.localDb.settings && window.localDb.settings.githubToken) {
-    token = window.localDb.settings.githubToken;
-  }
-  let gistId = idInput && idInput.value ? idInput.value.trim() : '';
-  if (!gistId && window.localDb && window.localDb.settings && window.localDb.settings.githubGistId) {
-    gistId = window.localDb.settings.githubGistId;
-  }
-  const autoSync = autoSyncCheckbox ? autoSyncCheckbox.checked : false;
-  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
-
-  if (!token) {
-    showToast(isEn ? 'GitHub Token missing. Please enter a new token.' : 'GitHub Token bulunamadı. Lütfen yeni bir token girin veya Token\'ı Sil\'e basıp tekrar kaydedin.', 'error');
-    return;
-  }
-
-  try {
-    showToast(isEn ? 'Uploading system data to GitHub Gist...' : 'Sistem verileri GitHub Gist üzerine aktarılıyor...', 'info');
-    const res = await fetch('/api/gist/push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, gistId, autoSync })
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      if (idInput && data.gistId) {
-        idInput.value = data.gistId;
-      }
-      if (window.localDb && window.localDb.settings) {
-        window.localDb.settings.githubToken = token;
-        window.localDb.settings.githubGistId = data.gistId || gistId;
-        window.localDb.settings.autoSyncGist = autoSync;
-      }
-      populateGistFields();
-      if (typeof triggerAutoSave === 'function') {
-        await triggerAutoSave(true);
-      }
-      showToast(isEn ? 'System data uploaded to GitHub Gist successfully!' : 'Sistem verileri başarıyla GitHub Gist üzerine yüklendi!', 'success');
-    } else {
-      let errMsg = data.error || (isEn ? 'Push failed.' : 'Gist yüklemesi başarısız.');
-      if (errMsg.toLowerCase().includes('bad credentials') || errMsg.includes('401')) {
-        errMsg = isEn ? 'Invalid or revoked GitHub Token. Please delete and save a new token.' : 'GitHub Token\'ı geçersiz veya iptal edilmiş. Lütfen "Token\'ı Sil"e basıp yeni bir token kaydedin.';
-      }
-      showToast(errMsg, 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-window.pushGistChannels = pushGistChannels;
-
-/**
- * GitHub Gist üzerindeki channels.ini dosyasını indirir (Pull).
- */
-async function pullGistChannels() {
-  const tokenInput = document.getElementById('gist-token-input');
-  const idInput = document.getElementById('gist-id-input');
-
-  let token = tokenInput && tokenInput.value ? tokenInput.value.trim() : '';
-  if (!token && window.localDb && window.localDb.settings && window.localDb.settings.githubToken) {
-    token = window.localDb.settings.githubToken;
-  }
-  let gistId = idInput && idInput.value ? idInput.value.trim() : '';
-  if (!gistId && window.localDb && window.localDb.settings && window.localDb.settings.githubGistId) {
-    gistId = window.localDb.settings.githubGistId;
-  }
-  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
-
-  if (!token || !gistId) {
-    showToast(isEn ? 'Please enter both GitHub Token and Gist ID.' : 'Lütfen hem GitHub Token hem de Gist ID girin.', 'error');
-    return;
-  }
-
-  try {
-    showToast(isEn ? 'Downloading system data from GitHub Gist...' : 'Sistem verileri GitHub Gist üzerinden indiriliyor...', 'info');
-    const res = await fetch('/api/gist/pull', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, gistId })
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      if (window.localDb && window.localDb.settings) {
-        window.localDb.settings.githubToken = token;
-        window.localDb.settings.githubGistId = gistId;
-      }
-      populateGistFields();
-      if (typeof triggerAutoSave === 'function') {
-        await triggerAutoSave(true);
-      }
-      showToast(isEn ? 'System data pulled from Gist successfully!' : 'Sistem verileri Gist üzerinden başarıyla yüklendi!', 'success');
-      setTimeout(() => {
-        window.location.reload();
-      }, 1200);
-    } else {
-      let errMsg = data.error || (isEn ? 'Pull failed.' : 'Gist indirmesi başarısız.');
-      if (errMsg.toLowerCase().includes('bad credentials') || errMsg.includes('401')) {
-        errMsg = isEn ? 'Invalid or revoked GitHub Token. Please delete and save a new token.' : 'GitHub Token\'ı geçersiz veya iptal edilmiş. Lütfen "Token\'ı Sil"e basıp yeni bir token kaydedin.';
-      }
-      showToast(errMsg, 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-window.pullGistChannels = pullGistChannels;
-
-/**
- * Otomatik Gist senkronizasyon ayarını günceller.
- */
-function toggleAutoSyncGist(checked) {
-  if (window.localDb && window.localDb.settings) {
-    window.localDb.settings.autoSyncGist = checked;
-  }
-}
-window.toggleAutoSyncGist = toggleAutoSyncGist;
-
-/**
- * Ayarlar yüklendiğinde Gist alanlarını doldurur.
- */
-function populateGistFields() {
-  if (!window.localDb || !window.localDb.settings) return;
-  const tokenInput = document.getElementById('gist-token-input');
-  const idInput = document.getElementById('gist-id-input');
-  const autoSyncCheckbox = document.getElementById('gist-auto-sync-checkbox');
-  const linkContainer = document.getElementById('gist-online-link-container');
-  const linkEl = document.getElementById('gist-online-link');
-
-  const unregState = document.getElementById('gist-unregistered-state');
-  const regState = document.getElementById('gist-registered-state');
-  const hasSavedToken = !!(window.localDb.settings.githubToken && window.localDb.settings.githubToken.trim());
-
-  if (unregState && regState) {
-    if (hasSavedToken) {
-      unregState.style.display = 'none';
-      regState.style.display = 'block';
-    } else {
-      unregState.style.display = 'block';
-      regState.style.display = 'none';
-    }
-  }
-
-  if (tokenInput && window.localDb.settings.githubToken !== undefined) {
-    if (document.activeElement !== tokenInput) {
-      tokenInput.value = window.localDb.settings.githubToken || '';
-    }
-  }
-  if (idInput && window.localDb.settings.githubGistId !== undefined) {
-    if (document.activeElement !== idInput) {
-      idInput.value = window.localDb.settings.githubGistId || '';
-    }
-  }
-  if (autoSyncCheckbox && window.localDb.settings.autoSyncGist !== undefined) {
-    if (document.activeElement !== autoSyncCheckbox) {
-      autoSyncCheckbox.checked = !!window.localDb.settings.autoSyncGist;
-    }
-  }
-
-  const gistId = idInput ? idInput.value.trim() : (window.localDb.settings.githubGistId || '');
-  if (linkContainer && linkEl) {
-    if (gistId) {
-      linkEl.href = `https://gist.github.com/${gistId}`;
-      linkContainer.style.display = 'block';
-    } else {
-      linkContainer.style.display = 'none';
-    }
-  }
-
-  // Input değişimlerinde otomatik kaydetme dinleyicileri
-  if (tokenInput && !tokenInput.dataset?.listenerAttached) {
-    if (!tokenInput.dataset) tokenInput.dataset = {};
-    tokenInput.dataset.listenerAttached = 'true';
-    tokenInput.addEventListener('input', () => {
-      if (window.localDb && window.localDb.settings) {
-        window.localDb.settings.githubToken = tokenInput.value.trim();
-      }
-      if (typeof triggerAutoSave === 'function') triggerAutoSave();
-    });
-  }
-  if (idInput && !idInput.dataset?.listenerAttached) {
-    if (!idInput.dataset) idInput.dataset = {};
-    idInput.dataset.listenerAttached = 'true';
-    idInput.addEventListener('input', () => {
-      const val = idInput.value.trim();
-      if (window.localDb && window.localDb.settings) {
-        window.localDb.settings.githubGistId = val;
-      }
-      if (linkContainer && linkEl) {
-        if (val) {
-          linkEl.href = `https://gist.github.com/${val}`;
-          linkContainer.style.display = 'block';
-        } else {
-          linkContainer.style.display = 'none';
-        }
-      }
-      if (typeof triggerAutoSave === 'function') triggerAutoSave();
-    });
-  }
-}
-window.populateGistFields = populateGistFields;
-
-/**
- * Kullanıcının girdiği Token ve Gist ID bilgilerini doğrular ve db.json'a kaydeder.
- */
-async function saveGistToken() {
-  const tokenInput = document.getElementById('gist-token-input');
-  const idInput = document.getElementById('gist-id-input');
-  const token = tokenInput ? tokenInput.value.trim() : '';
-  const gistId = idInput ? idInput.value.trim() : '';
-  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
-
-  if (!token) {
-    showToast(isEn ? 'Please enter a GitHub Token.' : 'Lütfen geçerli bir GitHub Token girin.', 'error');
-    return;
-  }
-
-  showToast(isEn ? 'Verifying token...' : 'Token doğrulanıyor...', 'info');
-
-  try {
-    const res = await fetch('/api/gist/test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token })
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      if (window.localDb && window.localDb.settings) {
-        window.localDb.settings.githubToken = token;
-        window.localDb.settings.githubGistId = gistId;
-      }
-      populateGistFields();
-      if (typeof triggerAutoSave === 'function') {
-        await triggerAutoSave(true);
-      }
-      const username = data.username || data.user || '';
-      showToast(isEn ? `Token verified and saved! Account: @${username}` : `Token başarıyla doğrulandı ve kaydedildi! Kullanıcı: @${username}`, 'success');
-    } else {
-      showToast(data.error || (isEn ? 'Token is invalid.' : 'Token geçersiz.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-window.saveGistToken = saveGistToken;
-
-/**
- * Kayıtlı Token ve Gist ID bilgilerini siler ve düzenleme moduna döner.
- */
-async function deleteGistToken() {
-  const isEn = window.localDb && window.localDb.settings && window.localDb.settings.lang === 'en';
-  const confirmMsg = isEn 
-    ? 'Are you sure you want to remove your GitHub Token credentials from this device?' 
-    : 'GitHub Token ve bağlantı bilgilerinizi bu bilgisayardan silmek istediğinize emin misiniz?';
-
-  if (!confirm(confirmMsg)) return;
-
-  if (window.localDb && window.localDb.settings) {
-    window.localDb.settings.githubToken = '';
-    window.localDb.settings.githubGistId = '';
-  }
-
-  const tokenInput = document.getElementById('gist-token-input');
-  const idInput = document.getElementById('gist-id-input');
-  if (tokenInput) tokenInput.value = '';
-  if (idInput) idInput.value = '';
-
-  populateGistFields();
-
-  if (typeof triggerAutoSave === 'function') {
-    await triggerAutoSave(true);
-  }
-
-  showToast(isEn ? 'GitHub Token removed.' : 'GitHub Token ve bağlantı bilgileri silindi.', 'info');
-}
-window.deleteGistToken = deleteGistToken;
-
-/**
- * YouTube Oturumu ve Çerez Durumunu Sorgular ve UI'da gösterir.
- */
-window.checkYouTubeAuthStatus = async function() {
-  const badgeEl = document.getElementById('cookie-status-badge');
-  const topbarCookieBadge = document.getElementById('badge-cookie');
-  const topbarCookieIndicator = document.getElementById('cookie-test-indicator');
-
-  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
-  const t = translations[currentLang] || translations.tr;
-
-  try {
-    const res = await fetch('/api/youtube-auth-status');
-    const data = await res.json();
-    const isAuthActive = data.success && data.activeSource && data.activeSource !== 'none';
-
-    if (isAuthActive) {
-      if (badgeEl) {
-        badgeEl.style.background = 'rgba(34, 197, 94, 0.15)';
-        badgeEl.style.color = '#22c55e';
-        badgeEl.style.border = '1px solid rgba(34, 197, 94, 0.3)';
-        badgeEl.innerHTML = `<i data-lucide="shield-check" style="width: 12px; height: 12px;"></i> <span>${t.cookie_status_active || 'Oturum Aktif (Bot Koruması Devre Dışı)'}</span>`;
-      }
-
-      if (topbarCookieBadge) {
-        topbarCookieBadge.title = t.topbar_cookie_active || 'YouTube Oturumu Aktif (4K/1080p ve Bot Koruması Devrede)';
-      }
-      if (topbarCookieIndicator) {
-        topbarCookieIndicator.style.backgroundColor = '#22c55e';
-        topbarCookieIndicator.style.boxShadow = '0 0 6px rgba(34, 197, 94, 0.8)';
-        topbarCookieIndicator.title = 'YouTube Oturumu Doğrulandı';
-      }
-    } else {
-      if (badgeEl) {
-        badgeEl.style.background = 'rgba(239, 68, 68, 0.15)';
-        badgeEl.style.color = '#ef4444';
-        badgeEl.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-        badgeEl.innerHTML = `<i data-lucide="shield-alert" style="width: 12px; height: 12px;"></i> <span>${t.cookie_status_anon || 'Oturum Açılmamış (Anonim Mod)'}</span>`;
-      }
-
-      if (topbarCookieBadge) {
-        topbarCookieBadge.title = t.topbar_cookie_inactive || 'YouTube Oturumu Açılmamış (Anonim Mod - 360p veya Bot Riski)';
-      }
-      if (topbarCookieIndicator) {
-        topbarCookieIndicator.style.backgroundColor = '#ef4444';
-        topbarCookieIndicator.style.boxShadow = 'none';
-        topbarCookieIndicator.title = 'YouTube Oturumu Bulunamadı';
-      }
-    }
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  } catch (e) {
-    console.error('YouTube auth status error:', e);
-  }
-};
-
-/**
- * YouTube çerezlerini canlı test eder.
- */
-window.testCookies = async function() {
-  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
-  showToast(currentLang === 'en' ? 'Verifying YouTube cookies...' : 'YouTube çerezleri doğrulanıyor...', 'info');
-
-  try {
-    const res = await fetch('/api/test-cookies');
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message || 'Çerezler başarıyla doğrulandı.', 'success');
-    } else {
-      showToast(data.error || 'Çerez doğrulama başarısız.', 'warning');
-    }
-    window.checkYouTubeAuthStatus();
-  } catch (e) {
-    showToast('Sunucu ile iletişim hatası.', 'error');
-  }
-};
-
-/**
- * YouTube oturumunu kapatır ve yerel çerezleri sıfırlar.
- */
-window.logoutYouTube = async function() {
-  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
-  const t = translations[currentLang] || translations.tr;
-
-  const confirmMsg = t.logout_youtube_confirm || 'YouTube oturumunu kapatmak ve yerel çerezleri temizlemek istediğinizden emin misiniz?';
-  if (!confirm(confirmMsg)) return;
-
-  showToast(currentLang === 'en' ? 'Signing out of YouTube...' : 'YouTube oturumu kapatılıyor...', 'info');
-
-  try {
-    const res = await fetch('/api/logout-youtube', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      showToast(t.logout_youtube_success || 'YouTube oturumu başarıyla kapatıldı.', 'success');
-    } else {
-      showToast(data.error || 'Oturum kapatılırken hata oluştu.', 'error');
-    }
-    window.checkYouTubeAuthStatus();
-  } catch (e) {
-    showToast('Sunucu ile iletişim hatası.', 'error');
-  }
-};
-
-window.openYouTubeLogin = async function() {
-  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
-  const loginUrl = 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com';
-
-  // WebView2 içinde mi kontrol et (HaYTooL Player içinde çalışıyor muyuz?)
-  const isWebView2 = typeof window.chrome !== 'undefined' && typeof window.chrome.webview !== 'undefined';
-
-  if (isWebView2) {
-    // Player içindeyiz: mevcut WebView2 penceresini YouTube login'e yönlendir.
-    // NavigationCompleted → SyncYouTubeCookiesToFileAsync → cookies.txt güncellenir.
-    showToast(currentLang === 'en' ? 'Redirecting to YouTube login...' : 'YouTube giriş sayfasına yönlendiriliyor...', 'info');
-    window.location.href = loginUrl;
-  } else {
-    // Normal tarayıcıda: API aracılığıyla dahili player aç
-    showToast(currentLang === 'en' ? 'Opening YouTube login window...' : 'YouTube oturum açma sayfası açılıyor...', 'info');
-    try {
-      await fetch('/api/open-youtube-login', { method: 'POST' });
-    } catch (e) {}
-  }
-};
-
-// Event listener bağlantıları
-document.addEventListener('DOMContentLoaded', () => {
-  const btnYtLogin = document.getElementById('btn-open-yt-login');
-  if (btnYtLogin) {
-    btnYtLogin.addEventListener('click', window.openYouTubeLogin);
-  }
-
-  const btnTestCookies = document.getElementById('btn-test-cookies-live');
-  if (btnTestCookies) {
-    btnTestCookies.addEventListener('click', window.testCookies);
-  }
-
-  const btnLogoutYt = document.getElementById('btn-logout-youtube');
-  if (btnLogoutYt) {
-    btnLogoutYt.addEventListener('click', window.logoutYouTube);
-  }
-});
+// Gist ve YouTube oturum/çerez yönetim fonksiyonları './modules/settings.js' modülü tarafından yönetilmektedir.
 
 // === YOUTUBE ABONELİKLERİNİ İÇE AKTAR (aktif kopya — app.js monolitik yapıdadır) ===
 // Türkçe Açıklama: YouTube abone kanallarını backend'den çekip seçmeli takip listesi listeler.
@@ -12552,4 +10060,4 @@ if (closeConsoleBtn) {
 if (clearConsoleBtn) {
   clearConsoleBtn.addEventListener('click', window.clearConsoleModal);
 }
-
+

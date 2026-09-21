@@ -257,7 +257,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
 
       if (item.status === 'completed' && item.duration !== 'live') {
         actionsHtml += `
-          <button class="btn-icon video-action-delete" onclick="showDeleteModal('${item.id}')" title="${t.btn_delete_history || 'Geçmişten/Diskten Sil'}">
+          <button class="btn-icon video-action-delete" onclick="event.stopPropagation(); (window.showDeleteModal || showDeleteModal)('${item.id}')" title="${t.btn_delete_history || 'Geçmişten/Diskten Sil'}">
             <i data-lucide="trash-2"></i>
           </button>
         `;

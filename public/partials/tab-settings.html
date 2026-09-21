@@ -178,6 +178,14 @@
                           <small class="form-text" id="desc-weather-lon">Konum boylam koordinatı.</small>
                         </div>
                       </div>
+
+                      <div class="weather-settings-tip" style="margin-top: 10px; padding: 10px 14px; background: rgba(0, 210, 255, 0.06); border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 8px; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 10px;">
+                        <i data-lucide="info" style="width: 16px; height: 16px; color: #00d2ff; flex-shrink: 0; margin-top: 2px;"></i>
+                        <div id="desc-weather-usage-tip" style="line-height: 1.4;">
+                          <strong>Tek Tıklama:</strong> Detaylı hava durumu kartını açar/kapatır.<br>
+                          <strong>Çift Tıklama:</strong> Hava durumu ve yağış verilerini anlık yeniler.
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -612,6 +620,41 @@
                       <div style="font-size: 0.75rem;">
                         <strong id="cookie-info-title">Akıllı Oturum:</strong>
                         <span id="cookie-info-desc">Dahili oturum açıldığında tüm 4K/1080p videolar bot kısıtlaması olmadan yüksek hızda indirilir.</span>
+                      </div>
+                    </div>
+
+                    <!-- Otomatik Çerez Yenileme & Denetleme Kartı -->
+                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+                        <label for="settings-auto-cookie-refresh" id="label-auto-cookie-refresh" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0;">
+                          <i data-lucide="refresh-cw" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
+                          <span id="text-auto-cookie-refresh-title">Otomatik Çerez Yenileme & Sağlık Denetimi</span>
+                        </label>
+                      </div>
+
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
+                        <!-- Aç / Kapat Toggle -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                          <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-color);" id="lbl-auto-cookie-refresh">Periyodik Çerez Denetimi</span>
+                          <div class="toggle-container" style="margin-top: 2px;">
+                            <input type="checkbox" id="settings-auto-cookie-refresh" class="toggle-input" checked>
+                            <label for="settings-auto-cookie-refresh" class="toggle-label"></label>
+                            <span id="desc-auto-cookie-refresh" style="font-size: 0.75rem;">Arka planda çerez geçerliliğini denetle ve otomatik yenile</span>
+                          </div>
+                        </div>
+
+                        <!-- Yenileme Sıklığı Dropdown -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                          <label for="settings-cookie-refresh-interval" id="lbl-cookie-refresh-interval" style="font-size: 0.8rem; font-weight: 600; color: var(--text-color); margin: 0;">Denetleme Sıklığı (Süre)</label>
+                          <select id="settings-cookie-refresh-interval" class="form-control form-control-sm" style="padding: 4px 8px; font-size: 0.8rem; border-radius: 6px; height: 32px;">
+                            <option value="15" id="opt-cookie-interval-15m">Her 15 Dakikada Bir</option>
+                            <option value="30" id="opt-cookie-interval-30m" selected>Her 30 Dakikada Bir (Varsayılan)</option>
+                            <option value="60" id="opt-cookie-interval-1h">Her 1 Saatte Bir</option>
+                            <option value="120" id="opt-cookie-interval-2h">Her 2 Saatte Bir</option>
+                            <option value="360" id="opt-cookie-interval-6h">Her 6 Saatte Bir</option>
+                            <option value="720" id="opt-cookie-interval-12h">Her 12 Saatte Bir</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
 

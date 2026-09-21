@@ -1,9 +1,32 @@
 // Türkçe Açıklama: Takip edilen YouTube kanallarını 9'lu modern kart (card) düzeninde ve A-Z alfabetik indeksleme ile listeleyen UI bileşeni.
 
-import { escapeHtml } from '../utils/helpers.js';
+import { escapeHtml, getCatTranslatedName } from '../utils/helpers.js';
 import { youtubeSvgIcon } from './videoCard.js';
 
 const ALPHABET = 'A B C Ç D E F G H I İ J K L M N O Ö P R S Ş T U Ü V Y Z'.split(' ');
+
+// Türkçe Açıklama: Kanallar listesinin mevcut durumunu (kanallar, kategoriler, aktif filtreler ve dil) özetleyen bir imza üretir.
+/**
+ * Kanallar listesinin DOM durum imzasını hesaplar.
+ * 
+ * @param {Array<object>} channels Takip edilen kanalların listesi
+ * @param {Array<object>} categories Kategori listesi
+ * @param {object} filters Aktif filtreler
+ * @param {string} lang Geçerli dil kodu
+ * @returns {string} Durum imzası
+ */
+export function getChannelsRenderSignature(channels, categories, filters = {}, lang = 'tr') {
+  if (!channels || !Array.isArray(channels)) return 'empty';
+  const chPart = channels.map(c => 
+    `${c.id}:${c.name || ''}:${c.autoDownload !== false}:${c.downloadShorts !== false}:${c.shortsDurationLimit || 180}:${c.quality || 'default'}:${(c.categoryIds || [c.categoryId || 1]).join(',')}:${c.subscriberCount || ''}`
+  ).join(';');
+  const catPart = (categories || []).map(cat => `${cat.id}:${cat.name}`).join(';');
+  const filterPart = `${filters?.searchQuery || ''}|${filters?.autoDownload || ''}|${filters?.shortsDownload || ''}|${filters?.categoryId || ''}`;
+  return `${lang}##${channels.length}##${chPart}##${catPart}##${filterPart}`;
+}
+if (typeof window !== 'undefined') {
+  window.getChannelsRenderSignature = getChannelsRenderSignature;
+}
 
 /**
  * Takip edilen kanal listesini hedef DOM elemanı içerisine modern grid ve A-Z rehberi ile render eder.
@@ -56,6 +79,25 @@ export function renderChannelsList(channelsList, channels, translations, categor
     filteredChannels = filteredChannels.filter(c => c.downloadShorts === true);
   } else if (filters.shortsDownload === 'disabled') {
     filteredChannels = filteredChannels.filter(c => c.downloadShorts === false);
+  }
+
+  if (filters.categoryId && filters.categoryId !== 'all') {
+    if (filters.categoryId === 'uncategorized') {
+      filteredChannels = filteredChannels.filter(c => {
+        const catIds = (c.categoryIds && c.categoryIds.length > 0)
+          ? c.categoryIds.map(Number)
+          : (c.categoryId !== undefined ? [Number(c.categoryId)] : []);
+        return catIds.length === 0 || (catIds.length === 1 && catIds[0] === 1);
+      });
+    } else {
+      const targetCatId = Number(filters.categoryId);
+      filteredChannels = filteredChannels.filter(c => {
+        const catIds = (c.categoryIds && c.categoryIds.length > 0)
+          ? c.categoryIds.map(Number)
+          : (c.categoryId !== undefined ? [Number(c.categoryId)] : [1]);
+        return catIds.includes(targetCatId);
+      });
+    }
   }
 
   // Filtre Sayacını Güncelle
@@ -190,42 +232,11 @@ export function renderChannelsList(channelsList, channels, translations, categor
       const avatarImgId = `ch-avatar-${channel.id}`;
 
       const cats = categories || [];
-      const defaultNames = {
-        1: ["Genel", "General"],
-        2: ["Oyun", "Gaming"],
-        3: ["Eğitim", "Education"],
-        4: ["Müzik", "Music"],
-        5: ["Teknoloji", "Technology"],
-        6: ["Spor", "Sports"],
-        7: ["Sinema & Film", "Movies & Cinema"],
-        8: ["Haberler & Siyaset", "News & Politics"],
-        9: ["Eğlence", "Entertainment"],
-        10: ["Bilim", "Science"],
-        11: ["Gezi & Yaşam", "Travel & Life"],
-        12: ["Komedi", "Comedy"],
-        13: ["Belgesel", "Documentary"],
-        14: ["Anime & Çizgi Film", "Anime & Cartoon"],
-        15: ["Finans & Ekonomi", "Finance & Economy"],
-        16: ["League of Legends", "League of Legends"],
-        17: ["Podcast", "Podcast"]
-      };
-
-      const getCatTranslatedName = (cat) => {
-        let catName = cat.name;
-        if (cat.id >= 1 && cat.id <= 17) {
-          const list = defaultNames[cat.id];
-          if (list && (cat.name === list[0] || cat.name === list[1] || !cat.name)) {
-            catName = t[`category_${cat.id}`] || cat.name;
-          }
-        }
-        return catName;
-      };
-
       const sortedCats = [...cats].sort((a, b) => {
         if (a.id === 1) return -1;
         if (b.id === 1) return 1;
-        const nameA = getCatTranslatedName(a);
-        const nameB = getCatTranslatedName(b);
+        const nameA = getCatTranslatedName(a, t);
+        const nameB = getCatTranslatedName(b, t);
         return nameA.localeCompare(nameB, 'tr', { sensitivity: 'base' });
       });
 
@@ -234,7 +245,7 @@ export function renderChannelsList(channelsList, channels, translations, categor
       const categoryBadges = channelCatIds.map(catId => {
         const cat = cats.find(c => c.id == catId);
         if (!cat) return '';
-        const catName = getCatTranslatedName(cat);
+        const catName = getCatTranslatedName(cat, t);
         return `
           <span class="channel-cat-badge" style="display: inline-flex; align-items: center; gap: 4px; background: rgba(124, 58, 237, 0.15); color: var(--primary); border: 1px solid rgba(124, 58, 237, 0.25); padding: 1px 6px; border-radius: 8px; font-size: 0.68rem; font-weight: 500;">
             ${escapeHtml(catName)}
@@ -247,7 +258,7 @@ export function renderChannelsList(channelsList, channels, translations, categor
       const categoryOptions = sortedCats
         .filter(cat => !channelCatIds.includes(cat.id))
         .map(cat => {
-          const catName = getCatTranslatedName(cat);
+          const catName = getCatTranslatedName(cat, t);
           return `<option value="${cat.id}">${escapeHtml(catName)}</option>`;
         }).join('');
 

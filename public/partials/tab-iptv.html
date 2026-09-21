@@ -130,22 +130,70 @@
 
             <!-- Filtreler -->
             <div class="iptv-filters">
-              <div class="iptv-search-row">
-                <div class="iptv-search-box">
-                  <i data-lucide="search"></i>
-                  <input type="text" id="iptv-search-input" placeholder="Kanal Ara...">
-                </div>
-                <button id="iptv-tr-quick-btn" title="Türk Kanalları">
-                  🇹🇷 <span>TR</span>
-                </button>
+              <!-- Satır 1: Kanal Arama -->
+              <div class="iptv-search-box">
+                <i data-lucide="search"></i>
+                <input type="text" id="iptv-search-input" placeholder="Kanal Ara...">
               </div>
+
+              <!-- Satır 2: Hızlı Bayraklar -->
+              <div class="iptv-quick-flags-row">
+                <span class="iptv-quick-flags-title">Hızlı:</span>
+                <div class="iptv-quick-flags" id="iptv-quick-flags">
+                  <button type="button" class="iptv-quick-flag-btn" data-country="TR" title="Türkiye"><img class="iptv-flag-img" src="https://flagcdn.com/w40/tr.png" alt="TR"> <span>TR</span></button>
+                  <button type="button" class="iptv-quick-flag-btn" data-country="AZ" title="Azerbaycan"><img class="iptv-flag-img" src="https://flagcdn.com/w40/az.png" alt="AZ"> <span>AZ</span></button>
+                  <button type="button" class="iptv-quick-flag-btn" data-country="DE" title="Almanya"><img class="iptv-flag-img" src="https://flagcdn.com/w40/de.png" alt="DE"> <span>DE</span></button>
+                  <button type="button" class="iptv-quick-flag-btn" data-country="GB" title="Birleşik Krallık"><img class="iptv-flag-img" src="https://flagcdn.com/w40/gb.png" alt="GB"> <span>GB</span></button>
+                  <button type="button" class="iptv-quick-flag-btn" data-country="US" title="Amerika Birleşik Devletleri"><img class="iptv-flag-img" src="https://flagcdn.com/w40/us.png" alt="US"> <span>US</span></button>
+                  <button type="button" class="iptv-quick-flag-btn" data-country="FR" title="Fransa"><img class="iptv-flag-img" src="https://flagcdn.com/w40/fr.png" alt="FR"> <span>FR</span></button>
+                </div>
+              </div>
+
+              <!-- Satır 3: Ülke ve Kategori Seçiciler -->
               <div class="iptv-selects">
-                <select id="iptv-country-filter">
-                  <option value="" id="opt-all-countries">Tüm Ülkeler</option>
-                </select>
-                <select id="iptv-category-filter">
-                  <option value="" id="opt-all-categories">Tüm Kategoriler</option>
-                </select>
+                <!-- Özel Ülke Seçici (Custom Country Dropdown) -->
+                <div class="iptv-custom-select-wrapper" id="iptv-country-dropdown-wrapper">
+                  <button type="button" class="iptv-custom-select-trigger" id="iptv-country-trigger">
+                    <span class="iptv-trigger-flag">🌐</span>
+                    <span class="iptv-trigger-text" id="iptv-country-trigger-text">Tüm Ülkeler</span>
+                    <i data-lucide="chevron-down" class="iptv-trigger-chevron"></i>
+                  </button>
+                  <div class="iptv-custom-select-menu hidden" id="iptv-country-menu">
+                    <div class="iptv-menu-search">
+                      <i data-lucide="search"></i>
+                      <input type="text" id="iptv-country-search" placeholder="Ülke ara...">
+                    </div>
+                    <div class="iptv-menu-list" id="iptv-country-list">
+                      <!-- Dinamik ülke listesi -->
+                    </div>
+                  </div>
+                  <!-- Gerçek seçimi saklayan gizli select (geriye dönük ve form uyumluluğu için) -->
+                  <select id="iptv-country-filter" style="display: none;">
+                    <option value="" id="opt-all-countries">Tüm Ülkeler</option>
+                  </select>
+                </div>
+
+                <!-- Özel Kategori Seçici (Custom Category Dropdown) -->
+                <div class="iptv-custom-select-wrapper" id="iptv-category-dropdown-wrapper">
+                  <button type="button" class="iptv-custom-select-trigger" id="iptv-category-trigger">
+                    <span class="iptv-trigger-flag">📁</span>
+                    <span class="iptv-trigger-text" id="iptv-category-trigger-text">Tüm Kategoriler</span>
+                    <i data-lucide="chevron-down" class="iptv-trigger-chevron"></i>
+                  </button>
+                  <div class="iptv-custom-select-menu hidden" id="iptv-category-menu">
+                    <div class="iptv-menu-search">
+                      <i data-lucide="search"></i>
+                      <input type="text" id="iptv-category-search" placeholder="Kategori ara...">
+                    </div>
+                    <div class="iptv-menu-list" id="iptv-category-list">
+                      <!-- Dinamik kategori listesi -->
+                    </div>
+                  </div>
+                  <!-- Gerçek seçimi saklayan gizli select (geriye dönük ve form uyumluluğu için) -->
+                  <select id="iptv-category-filter" style="display: none;">
+                    <option value="" id="opt-all-categories">Tüm Kategoriler</option>
+                  </select>
+                </div>
               </div>
             </div>
 
