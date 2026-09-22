@@ -252,16 +252,16 @@
       <div class="install-card">
         <div class="install-card-header">
           <span style="font-size: 1.8rem;">🪟</span>
-          <h3>Windows İçin Başlatma</h3>
+          <h3 data-i18n="install_win_title">Windows İçin Başlatma</h3>
         </div>
-        <p style="color: var(--text-muted); margin-bottom: 1rem;">
-          Klasör içindeki <b>HaYTooL YT Downloader.exe</b> dosyasını çift tıklatarak sistem tepsisinde başlatabilirsiniz.
+        <p style="color: var(--text-muted); margin-bottom: 1rem;" data-i18n="install_win_desc">
+          Klasör içindeki <b>Multimedia HaYTooL.exe</b> dosyasını çift tıklatarak sistem tepsisinde başlatabilirsiniz.
         </p>
-        <p style="color: var(--text-muted);">
+        <p style="color: var(--text-muted);" data-i18n="install_win_player">
           Veya bağımsız masaüstü C# oynatıcısını çalıştırmak için:
         </p>
         <div class="code-box">HaYTooL-Player.exe</div>
-        <p style="color: var(--text-muted); font-size: 0.88rem;">
+        <p style="color: var(--text-muted); font-size: 0.88rem;" data-i18n="install_win_port">
           Dashboard varsayılan olarak <span style="color: #FFB703;">http://localhost:4141</span> adresinde açılır.
         </p>
       </div>
@@ -270,15 +270,50 @@
       <div class="install-card">
         <div class="install-card-header">
           <span style="font-size: 1.8rem;">🐧</span>
-          <h3>Linux / macOS (Unix)</h3>
+          <h3 data-i18n="install_linux_title">Linux / macOS (Unix)</h3>
         </div>
-        <p style="color: var(--text-muted); margin-bottom: 1rem;">
+        <p style="color: var(--text-muted); margin-bottom: 1rem;" data-i18n="install_linux_desc">
           Terminalden çalıştırma izni verin ve başlatma scriptini çalıştırın:
         </p>
         <div class="code-box">chmod +x baslat.sh<br>./baslat.sh</div>
-        <p style="color: var(--text-muted); font-size: 0.88rem;">
+        <p style="color: var(--text-muted); font-size: 0.88rem;" data-i18n="install_linux_note">
           Çift işletim sistemli (Dual-boot) sistemlerde config parametreleri otomatik izole edilir.
         </p>
+      </div>
+    </div>
+
+    <!-- CLI & Terminal Kontrolleri Kartı -->
+    <div style="margin-top: 2rem;">
+      <div class="install-card" style="border-color: rgba(0, 225, 255, 0.25);">
+        <div class="install-card-header">
+          <span style="font-size: 1.8rem;">💻</span>
+          <h3 data-i18n="cli_title">Gelişmiş CLI & Terminal Komut Desteği</h3>
+        </div>
+        <p style="color: var(--text-muted); margin-bottom: 1.2rem;" data-i18n="cli_desc">
+          HaYTooL'u arayüz açmadan terminalden (CMD / PowerShell / Bash) veya Sistem Tepsisi "Konsol Çıktısı" penceresinden doğrudan kontrol edebilirsiniz:
+        </p>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.2rem;">
+          <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-family: monospace; color: #FFB703; font-weight: bold; margin-bottom: 0.4rem;">pd &lt;youtube-url&gt;</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cli_pd_desc">Verilen video veya çalma listesini doğrudan indirme sırasına ekler.</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-family: monospace; color: #38bdf8; font-weight: bold; margin-bottom: 0.4rem;">status</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cli_status_desc">Aktif indirmeleri, hız sınırlarını ve kuyruk durumunu listeler.</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-family: monospace; color: #4ade80; font-weight: bold; margin-bottom: 0.4rem;">ton / toff / toggle</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cli_turtle_desc">Kaplumbağa modunu (alternatif düşük hız profilini) açar, kapatır veya değiştirir.</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-family: monospace; color: #f43f5e; font-weight: bold; margin-bottom: 0.4rem;">speed &lt;kb&gt; / altspeed &lt;kb&gt;</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cli_speed_desc">Normal veya kaplumbağa indirme hız sınırını KB/s olarak anında ayarlar.</div>
+          </div>
+        </div>
+
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;" data-i18n="cli_example_label">Terminalden doğrudan indirme başlatma örneği:</p>
+        <div class="code-box" style="color: #4ade80;">"Multimedia HaYTooL.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ</div>
       </div>
     </div>
   </section>

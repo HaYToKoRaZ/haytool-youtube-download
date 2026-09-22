@@ -40,7 +40,21 @@ const i18n = {
     shortcuts_desc: "Gelişmiş yerel oynatıcımızda farenize dokunmadan her şeyi kontrol edin.",
     install_tag: "🚀 Hızlı Başlangıç",
     install_title: "Kurulum Gerektirmez, Hemen Başlayın",
-    install_desc: "Tüm bağımlılıklar paket içinde hazır gelir; ek kurulumla uğraşmayın."
+    install_desc: "Tüm bağımlılıklar paket içinde hazır gelir; ek kurulumla uğraşmayın.",
+    install_win_title: "Windows İçin Başlatma",
+    install_win_desc: "Klasör içindeki <b>Multimedia HaYTooL.exe</b> dosyasını çift tıklatarak sistem tepsisinde başlatabilirsiniz.",
+    install_win_player: "Veya bağımsız masaüstü C# oynatıcısını çalıştırmak için:",
+    install_win_port: "Dashboard varsayılan olarak <span style=\"color: #FFB703;\">http://localhost:4141</span> adresinde açılır.",
+    install_linux_title: "Linux / macOS (Unix)",
+    install_linux_desc: "Terminalden çalıştırma izni verin ve başlatma scriptini çalıştırın:",
+    install_linux_note: "Çift işletim sistemli (Dual-boot) sistemlerde config parametreleri otomatik izole edilir.",
+    cli_title: "Gelişmiş CLI & Terminal Komut Desteği",
+    cli_desc: "HaYTooL'u arayüz açmadan terminalden (CMD / PowerShell / Bash) veya Sistem Tepsisi 'Konsol Çıktısı' penceresinden doğrudan kontrol edebilirsiniz:",
+    cli_pd_desc: "Verilen video veya çalma listesini doğrudan indirme sırasına ekler.",
+    cli_status_desc: "Aktif indirmeleri, hız sınırlarını ve kuyruk durumunu listeler.",
+    cli_turtle_desc: "Kaplumbağa modunu (alternatif düşük hız profilini) açar, kapatır veya değiştirir.",
+    cli_speed_desc: "Normal veya kaplumbağa indirme hız sınırını KB/s olarak anında ayarlar.",
+    cli_example_label: "Terminalden doğrudan indirme başlatma örneği:"
   },
   en: {
     nav_features: "Features",
@@ -77,7 +91,21 @@ const i18n = {
     shortcuts_desc: "Navigate videos effortlessly with high-performance hotkeys.",
     install_tag: "🚀 Quick Start",
     install_title: "No Setup Required, Run Instantly",
-    install_desc: "All dependencies are pre-packaged in the repository. It works out of the box."
+    install_desc: "All dependencies are pre-packaged in the repository. It works out of the box.",
+    install_win_title: "Running on Windows",
+    install_win_desc: "Double-click <b>Multimedia HaYTooL.exe</b> in the folder to start the app in the system tray.",
+    install_win_player: "Or run the standalone native desktop C# player directly:",
+    install_win_port: "Dashboard opens by default at <span style=\"color: #FFB703;\">http://localhost:4141</span>.",
+    install_linux_title: "Linux / macOS (Unix)",
+    install_linux_desc: "Grant executable permission in terminal and execute the start script:",
+    install_linux_note: "Configuration parameters are safely isolated across dual-boot environments.",
+    cli_title: "Advanced CLI & Terminal Command Support",
+    cli_desc: "Control HaYTooL headless from your terminal (CMD / PowerShell / Bash) or via the System Tray 'Console Output' window:",
+    cli_pd_desc: "Directly enqueues given video or playlist URL for immediate download.",
+    cli_status_desc: "Displays active downloads, speed limits, and queue status.",
+    cli_turtle_desc: "Turns on, turns off, or toggles Turtle Mode (alternative low-speed profile).",
+    cli_speed_desc: "Sets standard or turtle download speed limit in KB/s on the fly.",
+    cli_example_label: "Example CLI download command directly from terminal:"
   }
 };
 
