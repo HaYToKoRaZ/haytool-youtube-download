@@ -1,4 +1,4 @@
-export const ar = {
+﻿export const ar = {
   status_merging: 'جاري الدمج (FFmpeg)...',
   btn_reset_engine: 'إعادة ضبط محرك التنزيل',
   reset_engine_confirm: 'سيتم إعادة ضبط محرك التنزيل وأقفال العمليات المعلقة. هل تريد الاستمرار؟',
@@ -189,7 +189,7 @@ export const ar = {
   desc_speed_limit: 'حد السرعة (0 لغير محدود).',
   desc_alt_speed_limit: 'حد السرعة البديل.',
   cli_info_title: 'أوامر وحدة التحكم و CLI',
-  cli_info_desc: "يمكنك التحكم في حدود السرعة من خلال وحدة التحكم أو موجه الأوامر (يمكنك استخدام <code>HaYTooL YT Downloader.exe &lt;الأمر&gt;</code> أو <code>haytool &lt;الأمر&gt;</code> على نظام Windows):<br>• <b>تعيين السرعة:</b> <code>HaYTooL YT Downloader.exe speed &lt;القيمة&gt;</code><br>• <b>تشغيل/إيقاف الحد:</b> <code>HaYTooL YT Downloader.exe speed off / on</code><br>• <b>الحد البديل:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;القيمة&gt;</code><br>• <b>تشغيل/إيقاف الحد البديل (السلحفاة):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleoff</code><br>• <b>تبديل ملف التعريف البديل (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code><br>• <b>التنزيل من الرابط:</b> <code>HaYTooL YT Downloader.exe pd &lt;الرابط&gt;</code> (مثال: <code>HaYTooL YT Downloader.exe pd youtubelinki</code>)<br>• <b>الاستعلام عن الحالة:</b> <code>HaYTooL YT Downloader.exe status</code>",
+  cli_info_desc: "يمكنك التحكم في حدود السرعة من خلال وحدة التحكم أو موجه الأوامر (يمكنك استخدام <code>Multimedia HaYTooL.exe &lt;الأمر&gt;</code> أو <code>haytool &lt;الأمر&gt;</code> على نظام Windows):<br>• <b>تعيين السرعة:</b> <code>Multimedia HaYTooL.exe speed &lt;القيمة&gt;</code><br>• <b>تشغيل/إيقاف الحد:</b> <code>Multimedia HaYTooL.exe speed off / on</code><br>• <b>الحد البديل:</b> <code>Multimedia HaYTooL.exe altspeed &lt;القيمة&gt;</code><br>• <b>تشغيل/إيقاف الحد البديل (السلحفاة):</b> <code>Multimedia HaYTooL.exe turtleon / turtleoff</code><br>• <b>تبديل ملف التعريف البديل (Toggle):</b> <code>Multimedia HaYTooL.exe toggle</code><br>• <b>التنزيل من الرابط:</b> <code>Multimedia HaYTooL.exe pd &lt;الرابط&gt;</code> (مثال: <code>Multimedia HaYTooL.exe pd youtubelinki</code>)<br>• <b>الاستعلام عن الحالة:</b> <code>Multimedia HaYTooL.exe status</code>",
   cli_info_note: "(أدخل الأوامر مباشرة في نافذة وحدة التحكم: speed ، toggle ، إلخ.)",
   desc_channel_check_interval: 'وقت الانتظار لفحص جميع القنوات معًا.',
   desc_rss_limit: 'عدد مقاطع الفيديو RSS التي يتم فحصها لكل قناة.',
@@ -293,7 +293,7 @@ export const ar = {
   desc_doubleclickaction: 'يحدد أين تفتح الواجهة عند النقر المزدوج على أيقونة شريط المهام.',
   opt_doubleclick_system: 'متصفح النظام الافتراضي',
   opt_doubleclick_embedded: 'المتصفح الخاص (وضع تطبيق Edge)',
-  opt_doubleclick_player: 'HaYTooL-Player Beta.exe',
+  opt_doubleclick_player: 'HaYTooL-Player.exe',
   label_history_show_live: 'عرض البث المباشر',
   label_alt_thumbnails_hover: 'دورة المصغرات البديلة',
   desc_alt_thumbnails_hover: 'التنقل بين لقطات الفيديو (HQ) عند تحريك الماوس (يتطلب اتصالاً بالإنترنت)',

@@ -1,7 +1,7 @@
 {
     "name":  "haytool-youtube-downloader",
-    "version":  "9.8.24",
-    "description":  "HaYTooL - YouTube Video ve Ses İndirici",
+    "version":  "9.8.28",
+    "description":  "Multimedia HaYTooL - YouTube Video ve Ses İndirici & Oynatıcı",
     "main":  "server.js",
     "type":  "module",
     "scripts":  {

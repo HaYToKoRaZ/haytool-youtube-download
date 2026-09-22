@@ -1362,3 +1362,98 @@
 [21.09.2026 04:18:29] WebView2 Initialized.
 [21.09.2026 04:18:30] NavCompleted: Success=True
 [21.09.2026 04:27:01] NavCompleted: Success=True
+[21.09.2026 13:08:24] App.OnStartup fired.
+[21.09.2026 13:08:24] Ctor: isSilent=True, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll --silent-cookie-refresh
+[21.09.2026 13:08:39] SilentTimeoutTimer fired, shutting down.
+[21.09.2026 13:08:39] Window.Closed fired!
+[21.09.2026 13:08:39] App.OnExit fired! ExitCode=0
+[21.09.2026 13:08:39] ProcessExit fired!
+[21.09.2026 13:29:30] App.OnStartup fired.
+[21.09.2026 13:29:30] Ctor: isSilent=False, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll
+[21.09.2026 13:29:31] WebView2 Initialized.
+[21.09.2026 13:29:32] NavCompleted: Success=True
+[21.09.2026 14:08:38] NavCompleted: Success=True
+[22.09.2026 13:38:03] App.OnStartup fired.
+[22.09.2026 13:38:04] Ctor: isSilent=True, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll --silent-cookie-refresh
+[22.09.2026 13:38:19] SilentTimeoutTimer fired, shutting down.
+[22.09.2026 13:38:19] Window.Closed fired!
+[22.09.2026 13:38:19] App.OnExit fired! ExitCode=0
+[22.09.2026 13:38:19] ProcessExit fired!
+[22.09.2026 18:43:21] App.OnStartup fired.
+[22.09.2026 18:43:23] Ctor: isSilent=True, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll --silent-cookie-refresh
+[22.09.2026 18:43:38] SilentTimeoutTimer fired, shutting down.
+[22.09.2026 18:43:38] Window.Closed fired!
+[22.09.2026 18:43:38] App.OnExit fired! ExitCode=0
+[22.09.2026 18:43:38] ProcessExit fired!
+[22.09.2026 18:46:20] App.OnStartup fired.
+[22.09.2026 18:46:20] Ctor: isSilent=False, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll /downlist
+[22.09.2026 18:46:21] WebView2 Initialized.
+[22.09.2026 18:46:21] NavCompleted: Success=False
+[22.09.2026 18:46:26] Window.Closed fired!
+[22.09.2026 18:46:26] App.OnExit fired! ExitCode=0
+[22.09.2026 18:46:26] ProcessExit fired!
+[22.09.2026 18:46:27] App.OnStartup fired.
+[22.09.2026 18:46:28] Ctor: isSilent=False, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll
+[22.09.2026 18:46:28] WebView2 Initialized.
+[22.09.2026 18:46:29] NavCompleted: Success=True
+[22.09.2026 19:43:14] NavCompleted: Success=True
+[22.09.2026 20:35:33] Window.Closed fired!
+[22.09.2026 20:35:33] App.OnExit fired! ExitCode=0
+[22.09.2026 20:35:33] ProcessExit fired!
+[22.09.2026 20:35:38] App.OnStartup fired.
+[22.09.2026 20:35:38] Ctor: isSilent=False, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll
+[22.09.2026 20:35:40] WebView2 Initialized.
+[22.09.2026 20:35:55] NavCompleted: Success=False
+[22.09.2026 20:35:56] NavCompleted: Success=False
+[22.09.2026 20:36:01] NavCompleted: Success=False
+[22.09.2026 20:36:03] Window.Closed fired!
+[22.09.2026 20:36:03] App.OnExit fired! ExitCode=0
+[22.09.2026 20:36:03] ProcessExit fired!
+[22.09.2026 20:36:56] App.OnStartup fired.
+[22.09.2026 20:36:57] Ctor: isSilent=False, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll
+[22.09.2026 20:36:58] WebView2 Initialized.
+[22.09.2026 20:36:59] NavCompleted: Success=True
+[22.09.2026 20:38:10] Window.Closed fired!
+[22.09.2026 20:38:10] App.OnExit fired! ExitCode=0
+[22.09.2026 20:38:10] ProcessExit fired!
+[22.09.2026 20:38:13] App.OnStartup fired.
+[22.09.2026 20:38:13] Ctor: isSilent=False, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll
+[22.09.2026 20:38:14] WebView2 Initialized.
+[22.09.2026 20:38:15] NavCompleted: Success=True
+[22.09.2026 20:57:46] Window.Closed fired!
+[22.09.2026 20:57:46] App.OnExit fired! ExitCode=0
+[22.09.2026 20:57:46] ProcessExit fired!
+[22.09.2026 21:14:29] App.OnStartup fired.
+[22.09.2026 21:14:30] Ctor: isSilent=False, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll
+[22.09.2026 21:14:31] WebView2 Initialized.
+[22.09.2026 21:14:32] NavCompleted: Success=True
+[22.09.2026 21:15:02] Window.Closed fired!
+[22.09.2026 21:15:02] App.OnExit fired! ExitCode=0
+[22.09.2026 21:15:02] ProcessExit fired!
+[22.09.2026 21:15:23] App.OnStartup fired.
+[22.09.2026 21:15:23] Ctor: isSilent=False, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll /downlist
+[22.09.2026 21:15:24] WebView2 Initialized.
+[22.09.2026 21:15:24] NavCompleted: Success=False
+[22.09.2026 21:15:38] Window.Closed fired!
+[22.09.2026 21:15:39] App.OnExit fired! ExitCode=0
+[22.09.2026 21:15:39] ProcessExit fired!
+[22.09.2026 21:15:41] App.OnStartup fired.
+[22.09.2026 21:15:41] Ctor: isSilent=False, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll /downlist
+[22.09.2026 21:15:42] WebView2 Initialized.
+[22.09.2026 21:15:42] NavCompleted: Success=False
+[22.09.2026 21:15:44] Window.Closed fired!
+[22.09.2026 21:15:45] App.OnExit fired! ExitCode=0
+[22.09.2026 21:15:45] ProcessExit fired!
+[22.09.2026 21:16:11] App.OnStartup fired.
+[22.09.2026 21:16:12] Ctor: isSilent=False, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll
+[22.09.2026 21:16:13] WebView2 Initialized.
+[22.09.2026 21:16:13] NavCompleted: Success=True
+[22.09.2026 21:27:46] NavCompleted: Success=True
+[22.09.2026 21:42:49] Window.Closed fired!
+[22.09.2026 21:42:49] App.OnExit fired! ExitCode=0
+[22.09.2026 21:42:49] ProcessExit fired!
+[22.09.2026 21:52:48] App.OnStartup fired.
+[22.09.2026 21:52:49] Ctor: isSilent=False, Args=D:\Program Files\HaYTooL-YT-Downloader\bin\HaYTooLPlayer.dll
+[22.09.2026 21:52:50] WebView2 Initialized.
+[22.09.2026 21:52:51] NavCompleted: Success=True
+[22.09.2026 21:53:31] NavCompleted: Success=True

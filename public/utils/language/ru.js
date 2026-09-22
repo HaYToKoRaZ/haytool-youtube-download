@@ -1,4 +1,4 @@
-export const ru = {
+﻿export const ru = {
   status_merging: 'Объединение (FFmpeg)...',
   btn_reset_engine: 'Сбросить движок загрузки',
   reset_engine_confirm: 'Движок загрузки и зависшие блокировки процессов будут сброшены. Продолжить?',
@@ -190,8 +190,8 @@ export const ru = {
   desc_speed_limit: 'Введите значение для ограничения скорости (0 для безлимитного).',
   desc_alt_speed_limit: 'Лимит скорости при активном альтернативном профиле (по умолчанию 500).',
   cli_info_title: 'Команды CLI и консоли скорости',
-  cli_info_desc: "Вы можете управлять лимитами скорости из консоли или терминала (используйте <code>HaYTooL YT Downloader.exe &lt;команда&gt;</code> или <code>haytool &lt;команда&gt;</code> в Windows):<br>• <b>Установить лимит:</b> <code>HaYTooL YT Downloader.exe speed &lt;значение&gt;</code> (например, <code>HaYTooL YT Downloader.exe speed 2500</code>)<br>• <b>Вкл/Выкл лимит:</b> <code>HaYTooL YT Downloader.exe speed off</code> (отключить) / <code>HaYTooL YT Downloader.exe speed on</code> (восстановить последнее значение)<br>• <b>Установить альт. лимит:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;значение&gt;</code> (например, <code>HaYTooL YT Downloader.exe altspeed 500</code>)<br>• <b>Принудительно включить альт. скорость (Черепаха):</b> <code>HaYTooL YT Downloader.exe turtleon</code> (включить) / <code>HaYTooL YT Downloader.exe turtleoff</code> (выключить)<br>• <b>Переключить альт. скорость:</b> <code>HaYTooL YT Downloader.exe toggle</code> или <code>HaYTooL YT Downloader.exe altspeed toggle</code><br>• <b>Скачать по ссылке:</b> <code>HaYTooL YT Downloader.exe pd &lt;ссылка&gt;</code> (например, <code>HaYTooL YT Downloader.exe pd youtubelinki</code>)<br>• <b>Запрос статуса:</b> <code>HaYTooL YT Downloader.exe status</code> (выводит состояние лимитов)",
-  cli_info_note: "(В окне Tray 'Показать вывод консоли' вводите команду напрямую без 'HaYTooL YT Downloader.exe' or 'node': 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' и т. д.)",
+  cli_info_desc: "Вы можете управлять лимитами скорости из консоли или терминала (используйте <code>Multimedia HaYTooL.exe &lt;команда&gt;</code> или <code>haytool &lt;команда&gt;</code> в Windows):<br>• <b>Установить лимит:</b> <code>Multimedia HaYTooL.exe speed &lt;значение&gt;</code> (например, <code>Multimedia HaYTooL.exe speed 2500</code>)<br>• <b>Вкл/Выкл лимит:</b> <code>Multimedia HaYTooL.exe speed off</code> (отключить) / <code>Multimedia HaYTooL.exe speed on</code> (восстановить последнее значение)<br>• <b>Установить альт. лимит:</b> <code>Multimedia HaYTooL.exe altspeed &lt;значение&gt;</code> (например, <code>Multimedia HaYTooL.exe altspeed 500</code>)<br>• <b>Принудительно включить альт. скорость (Черепаха):</b> <code>Multimedia HaYTooL.exe turtleon</code> (включить) / <code>Multimedia HaYTooL.exe turtleoff</code> (выключить)<br>• <b>Переключить альт. скорость:</b> <code>Multimedia HaYTooL.exe toggle</code> или <code>Multimedia HaYTooL.exe altspeed toggle</code><br>• <b>Скачать по ссылке:</b> <code>Multimedia HaYTooL.exe pd &lt;ссылка&gt;</code> (например, <code>Multimedia HaYTooL.exe pd youtubelinki</code>)<br>• <b>Запрос статуса:</b> <code>Multimedia HaYTooL.exe status</code> (выводит состояние лимитов)",
+  cli_info_note: "(В окне Tray 'Показать вывод консоли' вводите команду напрямую без 'Multimedia HaYTooL.exe' or 'node': 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' и т. д.)",
   desc_channel_check_interval: 'Время ожидания для проверки всех каналов вместе.',
   desc_rss_limit: 'Сколько последних видео из RSS-ленты должно проверяться для каждого канала?',
   desc_auto_delete: 'Через сколько дней видео должно удаляться автоматически? (0 для отключения)',
@@ -293,7 +293,7 @@ export const ru = {
   desc_doubleclickaction: 'Определяет, где открывается интерфейс при двойном клике на иконку в трее.',
   opt_doubleclick_system: 'Системный браузер по умолчанию',
   opt_doubleclick_embedded: 'Собственный браузер (режим Edge App)',
-  opt_doubleclick_player: 'HaYTooL-Player Beta.exe',
+  opt_doubleclick_player: 'HaYTooL-Player.exe',
   label_history_show_live: 'Показывать прямые трансляции',
   label_alt_thumbnails_hover: 'Цикл альтернативных превью',
   desc_alt_thumbnails_hover: 'Переключать кадры видео (HQ) при наведении (Требуется активное интернет-соединение)',

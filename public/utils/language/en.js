@@ -1,4 +1,4 @@
-export const en = {
+﻿export const en = {
   status_merging: 'Merging (FFmpeg)...',
   btn_reset_engine: 'Reset Download Engine',
   reset_engine_confirm: 'The download engine and lingering process locks will be reset. Do you wish to continue?',
@@ -193,8 +193,8 @@ export const en = {
   desc_speed_limit: 'Enter value to limit bandwidth (Write 0 for unlimited).',
   desc_alt_speed_limit: 'Limit to be used when alternative speed profile is active (default 500).',
   cli_info_title: 'CLI and Console Speed Commands',
-  cli_info_desc: "You can control speed limits from the console or terminal/CLI (you can use <code>HaYTooL YT Downloader.exe &lt;command&gt;</code> or <code>haytool &lt;command&gt;</code> on Windows):<br>• <b>Set Speed Limit:</b> <code>HaYTooL YT Downloader.exe speed &lt;value&gt;</code> (e.g. <code>HaYTooL YT Downloader.exe speed 2500</code>)<br>• <b>Speed Limit On/Off:</b> <code>HaYTooL YT Downloader.exe speed off</code> (disables) / <code>HaYTooL YT Downloader.exe speed on</code> (restores to last value)<br>• <b>Set Alt Speed Limit:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;value&gt;</code> (e.g. <code>HaYTooL YT Downloader.exe altspeed 500</code>)<br>• <b>Alt Speed Limit Forced On/Off (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleac</code> (enables) / <code>HaYTooL YT Downloader.exe turtleoff / turtlekapat</code> (disables)<br>• <b>Alt Speed Profile Toggle:</b> <code>HaYTooL YT Downloader.exe toggle</code> or <code>HaYTooL YT Downloader.exe altspeed toggle</code><br>• <b>Download Link/Clipboard:</b> <code>HaYTooL YT Downloader.exe pd &lt;link&gt;</code> (e.g. <code>HaYTooL YT Downloader.exe pd youtubelinki</code>)<br>• <b>Query Status:</b> <code>HaYTooL YT Downloader.exe status</code> (prints limit status)",
-  cli_info_note: "(In the Tray 'Show Console Output' window, enter the command directly without writing 'HaYTooL YT Downloader.exe' or 'node': 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' etc.)",
+  cli_info_desc: "You can control speed limits from the console or terminal/CLI (you can use <code>Multimedia HaYTooL.exe &lt;command&gt;</code> or <code>haytool &lt;command&gt;</code> on Windows):<br>• <b>Set Speed Limit:</b> <code>Multimedia HaYTooL.exe speed &lt;value&gt;</code> (e.g. <code>Multimedia HaYTooL.exe speed 2500</code>)<br>• <b>Speed Limit On/Off:</b> <code>Multimedia HaYTooL.exe speed off</code> (disables) / <code>Multimedia HaYTooL.exe speed on</code> (restores to last value)<br>• <b>Set Alt Speed Limit:</b> <code>Multimedia HaYTooL.exe altspeed &lt;value&gt;</code> (e.g. <code>Multimedia HaYTooL.exe altspeed 500</code>)<br>• <b>Alt Speed Limit Forced On/Off (Turtle):</b> <code>Multimedia HaYTooL.exe turtleon / turtleac</code> (enables) / <code>Multimedia HaYTooL.exe turtleoff / turtlekapat</code> (disables)<br>• <b>Alt Speed Profile Toggle:</b> <code>Multimedia HaYTooL.exe toggle</code> or <code>Multimedia HaYTooL.exe altspeed toggle</code><br>• <b>Download Link/Clipboard:</b> <code>Multimedia HaYTooL.exe pd &lt;link&gt;</code> (e.g. <code>Multimedia HaYTooL.exe pd youtubelinki</code>)<br>• <b>Query Status:</b> <code>Multimedia HaYTooL.exe status</code> (prints limit status)",
+  cli_info_note: "(In the Tray 'Show Console Output' window, enter the command directly without writing 'Multimedia HaYTooL.exe' or 'node': 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' etc.)",
   desc_channel_check_interval: 'Waiting time to check all channels together.',
   desc_rss_limit: 'How many of the latest videos in the RSS feed should be checked per channel?',
   desc_auto_delete: 'After how many days should it be deleted automatically? (Write 0 to disable)',
@@ -293,7 +293,7 @@ export const en = {
   desc_doubleclickaction: 'Determines where the interface opens when double-clicking the tray icon.',
   opt_doubleclick_system: 'System Default Browser',
   opt_doubleclick_embedded: 'Own Browser (Edge App Mode)',
-  opt_doubleclick_player: 'HaYTooL-Player Beta.exe',
+  opt_doubleclick_player: 'HaYTooL-Player.exe',
   label_history_show_live: 'Show Live Streams',
   label_alt_thumbnails_hover: 'Alternative Thumbnail Cycle',
   desc_alt_thumbnails_hover: 'Cycle through alternative video frame thumbnails (HQ snapshots) on hover (Requires Active Internet Connection)',

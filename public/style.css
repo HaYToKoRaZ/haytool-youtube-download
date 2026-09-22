@@ -410,12 +410,42 @@ body {
   align-items: center;
   justify-content: center;
   box-shadow: none;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.brand-icon:hover {
+  transform: scale(1.08);
+  filter: drop-shadow(0 0 8px rgba(138, 43, 226, 0.6));
 }
 
 .brand-icon i {
   color: #fff;
   width: 18px;
   height: 18px;
+}
+
+/* Güncelleme mevcut olduğunda versiyon rozetinin parıldama efekti */
+.update-pulsing {
+  animation: updatePulseGlow 1.8s infinite ease-in-out !important;
+  cursor: pointer;
+}
+
+@keyframes updatePulseGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7);
+    transform: scale(1);
+    background: linear-gradient(135deg, #f59e0b, #ef4444) !important;
+  }
+  50% {
+    box-shadow: 0 0 16px 4px rgba(239, 68, 68, 0.85);
+    transform: scale(1.06);
+    background: linear-gradient(135deg, #ef4444, #ec4899) !important;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(234, 179, 8, 0);
+    transform: scale(1);
+    background: linear-gradient(135deg, #f59e0b, #ef4444) !important;
+  }
 }
 
 /* Sorting Buttons */

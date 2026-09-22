@@ -972,7 +972,10 @@ namespace HaYTooLPlayer
                     _prevWindowState = this.WindowState;
                     _prevResizeMode = this.ResizeMode;
 
-                    this.WindowState = WindowState.Normal; // Önce Normal'e çek ki maksimize geçişi tetiklensin
+                    if (this.WindowState != WindowState.Maximized)
+                    {
+                        this.WindowState = WindowState.Normal;
+                    }
                     this.WindowStyle = WindowStyle.None;
                     this.ResizeMode = ResizeMode.NoResize;
                     this.Topmost = true;
@@ -980,11 +983,10 @@ namespace HaYTooLPlayer
                 }
                 else
                 {
-                    // Normal Pencere Moduna Geri Dön
-                    this.WindowStyle = _prevWindowStyle;
-                    this.WindowState = WindowState.Normal; // Önce normal yapıp sonra orijinal state'i uygula
-                    this.ResizeMode = _prevResizeMode;
+                    // Normal / Önceki Pencere Moduna Geri Dön
                     this.Topmost = false;
+                    this.WindowStyle = _prevWindowStyle;
+                    this.ResizeMode = _prevResizeMode;
                     this.WindowState = _prevWindowState;
                 }
             });

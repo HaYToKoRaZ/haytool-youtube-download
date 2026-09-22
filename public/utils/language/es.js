@@ -1,4 +1,4 @@
-export const es = {
+﻿export const es = {
   status_merging: 'Combinando (FFmpeg)...',
   btn_reset_engine: 'Restablecer motor de descarga',
   reset_engine_confirm: 'Se restablecerán el motor de descarga y los bloqueos de procesos pendientes. ¿Deseas continuar?',
@@ -193,7 +193,7 @@ export const es = {
   desc_speed_limit: 'Límite de velocidad (0 para ilimitado).',
   desc_alt_speed_limit: 'Límite de velocidad alternativo.',
   cli_info_title: 'Comandos de Consola y CLI',
-  cli_info_desc: "Puede controlar los límites de velocidad desde la consola o terminal/CLI (puede usar <code>HaYTooL YT Downloader.exe &lt;comando&gt;</code> o <code>haytool &lt;comando&gt;</code> en Windows):<br>• <b>Ajustar Límite:</b> <code>HaYTooL YT Downloader.exe speed &lt;valor&gt;</code><br>• <b>Límite On/Off:</b> <code>HaYTooL YT Downloader.exe speed off / on</code><br>• <b>Límite Alt:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;valor&gt;</code><br>• <b>Límite Alt Forzado (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleoff</code><br>• <b>Perfil Alt Toggle:</b> <code>HaYTooL YT Downloader.exe toggle</code><br>• <b>Descargar Enlace:</b> <code>HaYTooL YT Downloader.exe pd &lt;enlace&gt;</code> (p. ej. <code>HaYTooL YT Downloader.exe pd youtubelinki</code>)<br>• <b>Consultar Estado:</b> <code>HaYTooL YT Downloader.exe status</code>",
+  cli_info_desc: "Puede controlar los límites de velocidad desde la consola o terminal/CLI (puede usar <code>Multimedia HaYTooL.exe &lt;comando&gt;</code> o <code>haytool &lt;comando&gt;</code> en Windows):<br>• <b>Ajustar Límite:</b> <code>Multimedia HaYTooL.exe speed &lt;valor&gt;</code><br>• <b>Límite On/Off:</b> <code>Multimedia HaYTooL.exe speed off / on</code><br>• <b>Límite Alt:</b> <code>Multimedia HaYTooL.exe altspeed &lt;valor&gt;</code><br>• <b>Límite Alt Forzado (Turtle):</b> <code>Multimedia HaYTooL.exe turtleon / turtleoff</code><br>• <b>Perfil Alt Toggle:</b> <code>Multimedia HaYTooL.exe toggle</code><br>• <b>Descargar Enlace:</b> <code>Multimedia HaYTooL.exe pd &lt;enlace&gt;</code> (p. ej. <code>Multimedia HaYTooL.exe pd youtubelinki</code>)<br>• <b>Consultar Estado:</b> <code>Multimedia HaYTooL.exe status</code>",
   cli_info_note: "(Ingrese comandos en la consola directamente: speed, toggle, etc.)",
   desc_channel_check_interval: 'Tiempo de espera para revisar todos los canales juntos.',
   desc_rss_limit: 'Número de videos RSS a revisar por canal.',
@@ -293,7 +293,7 @@ export const es = {
   desc_doubleclickaction: 'Determina dónde se abre la interfaz al hacer doble clic en el icono de la bandeja.',
   opt_doubleclick_system: 'Navegador predeterminado del sistema',
   opt_doubleclick_embedded: 'Navegador propio (Modo Edge App)',
-  opt_doubleclick_player: 'HaYTooL-Player Beta.exe',
+  opt_doubleclick_player: 'HaYTooL-Player.exe',
   label_history_show_live: 'Mostrar transmisiones en vivo',
   label_alt_thumbnails_hover: 'Bucle de Miniaturas Alternativas',
   desc_alt_thumbnails_hover: 'Alternar fotogramas (capturas HQ) al pasar el cursor (Requiere conexión a Internet activa)',

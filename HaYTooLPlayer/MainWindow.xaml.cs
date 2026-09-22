@@ -106,13 +106,11 @@ namespace HaYTooLPlayer
                                 return;
                             }
 
-                            if (this.WindowState == WindowState.Minimized)
+                            if (this.WindowState == WindowState.Minimized || this.WindowState == WindowState.Normal)
                             {
-                                this.WindowState = WindowState.Normal;
+                                this.WindowState = WindowState.Maximized;
                             }
                             this.Activate();
-                            this.Topmost = true;
-                            this.Topmost = false;
 
                             if (webView != null && webView.CoreWebView2 != null)
                             {
@@ -426,12 +424,16 @@ namespace HaYTooLPlayer
                     return;
                 }
 
-                Process[] trayProcesses = Process.GetProcessesByName("HaYTooL YT Downloader");
+                Process[] trayProcesses = Process.GetProcessesByName("Multimedia HaYTooL");
+                if (trayProcesses.Length == 0) trayProcesses = Process.GetProcessesByName("HaYTooL YT Downloader");
+
                 if (trayProcesses.Length == 0)
                 {
                     string binDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
                     string appRootDir = Path.GetDirectoryName(binDir) ?? binDir;
-                    string trayPath = Path.Combine(appRootDir, "HaYTooL YT Downloader.exe");
+                    string trayPath = Path.Combine(appRootDir, "Multimedia HaYTooL.exe");
+                    if (!File.Exists(trayPath)) trayPath = Path.Combine(appRootDir, "HaYTooL YT Downloader.exe");
+
                     if (File.Exists(trayPath))
                     {
                         ProcessStartInfo trayPsi = new ProcessStartInfo(trayPath);
@@ -510,7 +512,7 @@ namespace HaYTooLPlayer
         }
 
         private WindowStyle _webPrevWindowStyle = WindowStyle.SingleBorderWindow;
-        private WindowState _webPrevWindowState = WindowState.Normal;
+        private WindowState _webPrevWindowState = WindowState.Maximized;
         private ResizeMode _webPrevResizeMode = ResizeMode.CanResize;
         private bool _webPrevTopmost = false;
 
@@ -529,7 +531,10 @@ namespace HaYTooLPlayer
                     _webPrevResizeMode = this.ResizeMode;
                     _webPrevTopmost = this.Topmost;
 
-                    this.WindowState = WindowState.Normal; // Önce Normal'e çek ki maksimize geçişi tetiklensin
+                    if (this.WindowState != WindowState.Maximized)
+                    {
+                        this.WindowState = WindowState.Normal;
+                    }
                     this.WindowStyle = WindowStyle.None;
                     this.ResizeMode = ResizeMode.NoResize;
                     this.Topmost = true;
@@ -537,12 +542,11 @@ namespace HaYTooLPlayer
                 }
                 else
                 {
-                    // Normal Moduna Dön
-                    this.WindowStyle = _webPrevWindowStyle;
-                    this.WindowState = WindowState.Normal; // Önce normal yapıp sonra orijinal state'i uygula
-                    this.ResizeMode = _webPrevResizeMode;
+                    // Normal / Önceki Pencere Moduna Dön
                     this.Topmost = _webPrevTopmost;
-                    this.WindowState = _webPrevWindowState;
+                    this.WindowStyle = _webPrevWindowStyle;
+                    this.ResizeMode = _webPrevResizeMode;
+                    this.WindowState = _webPrevWindowState == WindowState.Normal ? WindowState.Normal : WindowState.Maximized;
                 }
             });
         }

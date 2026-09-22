@@ -207,7 +207,7 @@ export class DiscordRPC {
             details: detailsText,
             assets: {
               large_image: 'logo',
-              large_text: 'HaYTooL YouTube Downloader'
+              large_text: 'Multimedia HaYTooL'
             },
             buttons: [
               {
@@ -244,4 +244,4 @@ export class DiscordRPC {
   }
 }
 
-export const discordRpc = new DiscordRPC('1518713595477622794');
+export const discordRpc = new DiscordRPC('1552027056383074314');

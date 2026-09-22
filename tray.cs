@@ -20,10 +20,20 @@ namespace HaYTooLTray
         [DllImport("user32.dll")]
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool IsIconic(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool IsZoomed(IntPtr hWnd);
+
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, ref COPYDATASTRUCT lParam);
 
         private const int SW_RESTORE = 9;
+        private const int SW_SHOW = 5;
+        private const int SW_MAXIMIZE = 3;
         private const int WM_COPYDATA = 0x004A;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -244,7 +254,7 @@ namespace HaYTooLTray
                         
                         string url = "http://localhost:" + port + "/downlist";
                         
-                        MessageBox.Show("HaYTooL YouTube Downloader zaten çalışıyor!\nArayüz tarayıcınızda açılıyor.", 
+                        MessageBox.Show("Multimedia HaYTooL zaten çalışıyor!\nArayüz tarayıcınızda açılıyor.", 
                                         "Bilgi", 
                                         MessageBoxButtons.OK, 
                                         MessageBoxIcon.Information);
@@ -437,7 +447,7 @@ namespace HaYTooLTray
             if (!IsSilentMode)
             {
                 trayIcon = new NotifyIcon();
-                trayIcon.Text = "HaYTooL YouTube Downloader";
+                trayIcon.Text = "Multimedia HaYTooL";
                 
                 // Mutlak dosya yolu ile icon.ico dosyasını yükle (Startup kaynaklı yol hatalarını önler)
                 string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
@@ -758,7 +768,28 @@ namespace HaYTooLTray
                 if (activePlayer != null)
                 {
                     IntPtr hWnd = activePlayer.MainWindowHandle;
-                    ShowWindow(hWnd, SW_RESTORE);
+                    if (IsIconic(hWnd))
+                    {
+                        if (IsZoomed(hWnd))
+                        {
+                            ShowWindow(hWnd, SW_MAXIMIZE);
+                        }
+                        else
+                        {
+                            ShowWindow(hWnd, SW_RESTORE);
+                        }
+                    }
+                    else
+                    {
+                        if (IsZoomed(hWnd))
+                        {
+                            ShowWindow(hWnd, SW_MAXIMIZE);
+                        }
+                        else
+                        {
+                            ShowWindow(hWnd, SW_SHOW);
+                        }
+                    }
                     SetForegroundWindow(hWnd);
 
                     COPYDATASTRUCT cds;
@@ -771,7 +802,7 @@ namespace HaYTooLTray
 
                 // 2. Oynatıcı açık değilse başlat
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                string playerExe = Path.Combine(baseDir, "HaYTooL-Player Beta.exe");
+                string playerExe = Path.Combine(baseDir, "HaYTooL-Player.exe");
                 string binPlayerExe = Path.Combine(baseDir, "bin", "HaYTooLPlayer.exe");
                 string targetExe = File.Exists(playerExe) ? playerExe : (File.Exists(binPlayerExe) ? binPlayerExe : null);
 
@@ -816,7 +847,7 @@ namespace HaYTooLTray
 
                 try
                 {
-                    string launcherExe = Path.Combine(baseDir, "HaYTooL-Player Beta.exe");
+                    string launcherExe = Path.Combine(baseDir, "HaYTooL-Player.exe");
                     if (File.Exists(launcherExe))
                     {
                         ProcessStartInfo psi = new ProcessStartInfo(launcherExe, "LOGOUT");
@@ -1444,29 +1475,39 @@ namespace HaYTooLTray
             NavigateToAppPath("/settings");
         }
 
-        // Türkçe Açıklama: HaYTooL-Player Beta.exe uygulamasını belirtilen alt sayfa argümanıyla başlatır.
-        private void OpenInPlayer(string path)
+        // Türkçe Açıklama: HaYTooL-Player.exe uygulamasını belirtilen alt sayfa argümanıyla başlatır.
+        private void LaunchPlayer(string path = null)
         {
             try
             {
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                string playerPath = Path.Combine(baseDir, "HaYTooL-Player Beta.exe");
-                if (File.Exists(playerPath))
+                string playerPath = Path.Combine(baseDir, "HaYTooL-Player.exe");
+                string binPlayerPath = Path.Combine(baseDir, "bin", "HaYTooLPlayer.exe");
+                string targetPlayer = File.Exists(playerPath) ? playerPath : (File.Exists(binPlayerPath) ? binPlayerPath : null);
+
+                if (targetPlayer != null)
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo(playerPath, path);
-                    psi.WorkingDirectory = baseDir;
+                    ProcessStartInfo psi = string.IsNullOrEmpty(path)
+                        ? new ProcessStartInfo(targetPlayer)
+                        : new ProcessStartInfo(targetPlayer, "\"" + path + "\"");
+                    psi.WorkingDirectory = Path.GetDirectoryName(targetPlayer);
                     psi.UseShellExecute = true;
                     Process.Start(psi);
                 }
                 else
                 {
-                    MessageBox.Show("HaYTooL-Player Beta.exe bulunamadı: " + playerPath, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("HaYTooL-Player.exe bulunamadı: " + playerPath, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Oynatıcı başlatılamadı: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void OpenInPlayer(string path)
+        {
+            LaunchPlayer(path);
         }
 
         // Türkçe Açıklama: Panodaki YouTube bağlantısını okur, Node.js sunucusuna indirme komutunu gönderir ve İndirme Sırası sekmesini açar.
@@ -1511,7 +1552,7 @@ namespace HaYTooLTray
             }
 
             logForm = new Form();
-            logForm.Text = "HaYTool - Terminal Çıktısı";
+            logForm.Text = "Multimedia HaYTooL - Terminal Çıktısı";
             logForm.Size = new Size(950, 600);
             logForm.StartPosition = FormStartPosition.CenterScreen;
             
@@ -1719,13 +1760,13 @@ namespace HaYTooLTray
 
             if (logForm != null && !logForm.IsDisposed)
             {
-                logForm.Text = lang == "en" ? "HaYTool - Console Output"
-                    : lang == "de" ? "HaYTool - Konsolenausgabe"
-                    : lang == "es" ? "HaYTool - Salida de Consola"
-                    : lang == "pt" ? "HaYTool - Saída do Console"
-                    : lang == "ru" ? "HaYTool - Вывод консоли"
-                    : lang == "ar" ? "HaYTool - مخرجات وحدة التحكم"
-                    : "HaYTool - Konsol Çıktısı";
+                logForm.Text = lang == "en" ? "Multimedia HaYTooL - Console Output"
+                    : lang == "de" ? "Multimedia HaYTooL - Konsolenausgabe"
+                    : lang == "es" ? "Multimedia HaYTooL - Salida de Consola"
+                    : lang == "pt" ? "Multimedia HaYTooL - Saída do Console"
+                    : lang == "ru" ? "Multimedia HaYTooL - Вывод консоли"
+                    : lang == "ar" ? "Multimedia HaYTooL - مخرجات وحدة التحكم"
+                    : "Multimedia HaYTooL - Konsol Çıktısı";
             }
 
             if (cmdLabel != null && !cmdLabel.IsDisposed)
@@ -1798,13 +1839,13 @@ namespace HaYTooLTray
             string lang = GetLanguageSetting();
 
             helpFormInstance = new Form();
-            helpFormInstance.Text = lang == "en" ? "HaYTool - CLI & Console Command Guide"
-                : lang == "de" ? "HaYTool - CLI- und Konsolen-Befehlsreferenz"
-                : lang == "es" ? "HaYTool - Guía de Comandos CLI y Consola"
-                : lang == "pt" ? "HaYTool - Guia de Comandos CLI e Console"
-                : lang == "ru" ? "HaYTool - Справочник команд CLI и консоли"
-                : lang == "ar" ? "HaYTool - دليل أوامر CLI ووحدة التحكم"
-                : "HaYTool - CLI ve Konsol Komut Rehberi";
+            helpFormInstance.Text = lang == "en" ? "Multimedia HaYTooL - CLI & Console Command Guide"
+                : lang == "de" ? "Multimedia HaYTooL - CLI- und Konsolen-Befehlsreferenz"
+                : lang == "es" ? "Multimedia HaYTooL - Guía de Comandos CLI y Consola"
+                : lang == "pt" ? "Multimedia HaYTooL - Guia de Comandos CLI e Console"
+                : lang == "ru" ? "Multimedia HaYTooL - Справочник команд CLI и консоли"
+                : lang == "ar" ? "Multimedia HaYTooL - دليل أوامر CLI ووحدة التحكم"
+                : "Multimedia HaYTooL - CLI ve Konsol Komut Rehberi";
 
             helpFormInstance.Size = new Size(840, 580);
             helpFormInstance.MinimumSize = new Size(720, 460);
@@ -2108,8 +2149,8 @@ namespace HaYTooLTray
                     catch {}
                 }
 
-                // HaYTooL-Player Beta (Launcher) süreçlerini kapat
-                Process[] launchers = Process.GetProcessesByName("HaYTooL-Player Beta");
+                // HaYTooL-Player süreçlerini kapat
+                Process[] launchers = Process.GetProcessesByName("HaYTooL-Player");
                 foreach (var p in launchers)
                 {
                     try
@@ -2118,6 +2159,17 @@ namespace HaYTooLTray
                         {
                             p.Kill();
                         }
+                    }
+                    catch {}
+                }
+
+                // Eski isimli varsa temizle
+                Process[] oldLaunchers = Process.GetProcessesByName("HaYTooL-Player Beta");
+                foreach (var p in oldLaunchers)
+                {
+                    try
+                    {
+                        if (!p.HasExited) p.Kill();
                     }
                     catch {}
                 }
@@ -2368,7 +2420,7 @@ namespace HaYTooLTray
 
             if (trayIcon != null)
             {
-                trayIcon.Text = "HaYTooL YouTube Downloader";
+                trayIcon.Text = "Multimedia HaYTooL";
             }
         }
 

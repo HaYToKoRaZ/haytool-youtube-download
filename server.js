@@ -171,6 +171,7 @@ import {
 } from './server/services/rss.js';
 import { addTerminalLog, broadcast } from './server/services/sse.js';
 import { startCookieHealthCheck } from './server/services/cookieHealth.js';
+import { startNetworkHealthCheck } from './server/services/networkHealth.js';
 import { gzipSync } from 'zlib';
 import { discordRpc } from './server/services/discord.js';
 import { setIptvChannels, downloadHlsJsIfNeeded } from './server/services/iptv.js';
@@ -885,6 +886,9 @@ if (process.argv.length <= 2) {
 
     // YouTube oturum çerezlerinin periyodik sağlık kontrolü (30 dk; geçersizse sessiz yenileme + bildirim)
     startCookieHealthCheck();
+
+    // Genel ağ bağlantısı süreklilik denetimi
+    startNetworkHealthCheck();
 
     // Otomatik video silme döngüsü
     setTimeout(() => {

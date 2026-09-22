@@ -3,6 +3,23 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.28] - 2026-09-22
+- **Discord RPC (Yeni İstemci Kimliği Entegrasyonu):** Discord Developer Portal üzerinden oluşturulan yeni `Multimedia HaYTooL` uygulamasının istemci kimliği (`1552027056383074314`) `server/services/discord.js` içerisine entegre edildi. Discord aktivite durumu artık doğrudan yeni uygulama üzerinden yayınlanmaktadır.
+
+## [9.8.27] - 2026-09-22
+- **Documentation & Website (HaYTooL-Player Exe Güncellemesi):** Tanıtım web sitesi (`websites/index.html`) ve `README.md` kurulum kılavuzunda (İngilizce ve Türkçe bölümleri) yer alan eski `HaYTooL-Player Beta.exe` referansları yeni kararlı sürüm adı olan `HaYTooL-Player.exe` olarak güncellendi.
+- **Discord RPC & Branding:** `server/services/discord.js` hover metni "Multimedia HaYTooL" olarak güncellendi; websitesi çoklu dil çeviri sözlüğüne Hizmet Koşulları ve Gizlilik Politikası anahtarları eklendi.
+
+## [9.8.26] - 2026-09-22
+- **UI & Header (Doğrudan Uygulama Web Sitesi Bağlantısı):** Sol üst köşedeki logoya tıklandığında doğrudan uygulamanın özel tanıtım sitesi olan `https://haytokoraz.github.io/haytool-youtube-download/` adresinin açılması sağlandı.
+- **Website & Legal (Kullanım Koşulları ve Gizlilik Politikası Sayfaları):** Uygulamanın tanıtım web sitesi (`websites/`) için hem Türkçe hem İngilizce dil seçeneklerine sahip, modern cam efektli (glassmorphism) ve Discord Developer onay standartlarına tam uyumlu Hizmet Koşulları (`terms.html`) ve Gizlilik Politikası (`privacy.html`) sayfaları hazırlandı; alt bilgi (footer) bağlantılarına eklendi.
+
+## [9.8.25] - 2026-09-22
+- **Website & Refactor (Statik Versiyon Temizliği):** `websites/index.html` ve `websites/app.js` içerisindeki hardcoded (sabit) sürüm etiketleri temizlendi; indirme butonu her iki dilde dinamik olarak "Hemen İndir" / "Download Now" olarak sadeleştirildi.
+- **UI & Header (Logo & Versiyon Rozeti Etkileşimi):** Sol üst köşedeki logo butonuna tıklandığında `https://haytokoraz.github.io/` web sitesini yeni sekmede açma özelliği ve hover efekti eklendi. Versiyon rozetine tıklandığında doğrudan GitHub Releases sayfası (`/releases`) açılacak şekilde güncellendi. Yeni sürüm çıktığında versiyon rozetinin dikkat çekici şekilde parıldamasını sağlayan `update-pulsing` CSS animasyonu entegre edildi.
+- **Fix & Player (Tepsi Ayarlar Pencere Boyutu Koruması):** Sistem tepsisinden (Tray) "Ayarlar" veya kısayollar tıklandığında açık olan oynatıcı penceresinin `Maximized` tam ekran boyutunu kaybetmesi sorunu `IsZoomed` ve `SW_MAXIMIZE` Win32 API kontrolleriyle giderildi.
+- **Governance & Anayasa:** `0nogithub/clinerules.md` Kural 32 güncellenerek kod veya arayüzdeki en ufak değişiklikte sürümün anında artırılması prensibi Anayasa güvencesine alındı.
+
 ## [9.8.24] - 2026-09-12
 - **UI & UX (Özelleştirilmiş Silme Modalı & Kütüphanede Gizleme Seçeneği):** Yerleşik video oynatıcı altındaki "Sil" butonuna tıklandığında standart tarayıcı uyarısı (`confirm()`) yerine zengin seçenekler içeren özelleştirilmiş `#delete-modal` penceresinin açılması sağlandı. Silme butonuna basıldığında video otomatik duraklatılır ve kullanıcıya 3 bağımsız seçenek sunulur:
   1. "İndirilen video dosyasını bilgisayardan da kalıcı olarak sil" (`#delete-file-checkbox`)

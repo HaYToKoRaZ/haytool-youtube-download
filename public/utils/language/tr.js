@@ -1,4 +1,4 @@
-export const tr = {
+﻿export const tr = {
   status_merging: 'Birleştiriliyor (FFmpeg)...',
   btn_reset_engine: 'İndirme Motorunu Sıfırla',
   reset_engine_confirm: 'İndirme motoru ve askıdaki süreç kilitleri sıfırlanacak. Devam etmek istiyor musunuz?',
@@ -193,8 +193,8 @@ export const tr = {
   desc_speed_limit: 'Bant genişliğini sınırlamak için değer girin (Sınırsız için 0 yazın).',
   desc_alt_speed_limit: 'Alternatif hız profili aktifken kullanılacak limit (varsayılan 500).',
   cli_info_title: 'CLI ve Konsol Hız Komutları',
-  cli_info_desc: "Hız sınırlarını konsoldan veya terminal/CLI üzerinden kontrol edebilirsiniz (Windows'ta <code>HaYTooL YT Downloader.exe &lt;komut&gt;</code> veya <code>haytool &lt;komut&gt;</code> kullanabilirsiniz):<br>• <b>Hız Sınırını Ayarlama:</b> <code>HaYTooL YT Downloader.exe speed &lt;değer&gt;</code> (örn: <code>HaYTooL YT Downloader.exe speed 2500</code>)<br>• <b>Hız Sınırını Açma/Kapatma:</b> <code>HaYTooL YT Downloader.exe speed off</code> (kapatır) / <code>HaYTooL YT Downloader.exe speed on</code> (son değere açar)<br>• <b>Alternatif Sınırı Belirleme:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;değer&gt;</code> (örn: <code>HaYTooL YT Downloader.exe altspeed 500</code>)<br>• <b>Alternatif Sınırı Kesin Aç/Kapat (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleac</code> (açar) / <code>HaYTooL YT Downloader.exe turtleoff / turtlekapat</code> (kapatır)<br>• <b>Alternatif Sınır Profil Geçişi (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code> veya <code>HaYTooL YT Downloader.exe altspeed toggle</code><br>• <b>Panodan / Linkten İndir:</b> <code>HaYTooL YT Downloader.exe pd &lt;link&gt;</code> (örn: <code>HaYTooL YT Downloader.exe pd youtubelinki</code>)<br>• <b>Durum Sorgulama:</b> <code>HaYTooL YT Downloader.exe status</code> (limit durumunu yazdırır)",
-  cli_info_note: "(Tray \"Konsol Çıktısını Göster\" penceresinde 'HaYTooL YT Downloader.exe' veya 'node' yazmadan doğrudan komutu girin: 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' vb.)",
+  cli_info_desc: "Hız sınırlarını konsoldan veya terminal/CLI üzerinden kontrol edebilirsiniz (Windows'ta <code>Multimedia HaYTooL.exe &lt;komut&gt;</code> veya <code>haytool &lt;komut&gt;</code> kullanabilirsiniz):<br>• <b>Hız Sınırını Ayarlama:</b> <code>Multimedia HaYTooL.exe speed &lt;değer&gt;</code> (örn: <code>Multimedia HaYTooL.exe speed 2500</code>)<br>• <b>Hız Sınırını Açma/Kapatma:</b> <code>Multimedia HaYTooL.exe speed off</code> (kapatır) / <code>Multimedia HaYTooL.exe speed on</code> (son değere açar)<br>• <b>Alternatif Sınırı Belirleme:</b> <code>Multimedia HaYTooL.exe altspeed &lt;değer&gt;</code> (örn: <code>Multimedia HaYTooL.exe altspeed 500</code>)<br>• <b>Alternatif Sınırı Kesin Aç/Kapat (Turtle):</b> <code>Multimedia HaYTooL.exe turtleon / turtleac</code> (açar) / <code>Multimedia HaYTooL.exe turtleoff / turtlekapat</code> (kapatır)<br>• <b>Alternatif Sınır Profil Geçişi (Toggle):</b> <code>Multimedia HaYTooL.exe toggle</code> veya <code>Multimedia HaYTooL.exe altspeed toggle</code><br>• <b>Panodan / Linkten İndir:</b> <code>Multimedia HaYTooL.exe pd &lt;link&gt;</code> (örn: <code>Multimedia HaYTooL.exe pd youtubelinki</code>)<br>• <b>Durum Sorgulama:</b> <code>Multimedia HaYTooL.exe status</code> (limit durumunu yazdırır)",
+  cli_info_note: "(Tray \"Konsol Çıktısını Göster\" penceresinde 'Multimedia HaYTooL.exe' veya 'node' yazmadan doğrudan komutu girin: 'speed 2500', 'speed off', 'turtleon', 'turtleoff', 'toggle' vb.)",
   desc_channel_check_interval: 'Tüm kanalları topluca denetlemek için beklenecek süre.',
   desc_rss_limit: 'Kanal başına RSS akışındaki en yeni kaç video kontrol edilsin?',
   desc_auto_delete: 'Kaç gün sonra otomatik silinsin? (Kapatmak için 0 yazın)',
@@ -293,7 +293,7 @@ export const tr = {
   desc_doubleclickaction: 'Tepsi simgesine çift tıklandığında arayüzün nerede açılacağını belirler.',
   opt_doubleclick_system: 'Sistem Varsayılan Tarayıcısı',
   opt_doubleclick_embedded: 'Kendi Tarayıcısı (Edge Uygulama Modu)',
-  opt_doubleclick_player: 'HaYTooL-Player Beta.exe',
+  opt_doubleclick_player: 'HaYTooL-Player.exe',
   label_history_show_live: 'Canlı Yayınları Göster',
   label_alt_thumbnails_hover: 'Alternatif Kapak Döngüsü',
   desc_alt_thumbnails_hover: 'Fare üzerine geldiğinde alternatif kapak resimlerini (HQ anlık kareler) döndür (Aktif İnternet Bağlantısı Gerektirir)',

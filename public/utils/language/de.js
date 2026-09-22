@@ -1,4 +1,4 @@
-export const de = {
+﻿export const de = {
   status_merging: 'Zusammenführen (FFmpeg)...',
   btn_reset_engine: 'Download-Engine zurücksetzen',
   reset_engine_confirm: 'Die Download-Engine und alle hängenden Prozess-Sperren werden zurückgesetzt. Möchten Sie fortfahren?',
@@ -192,7 +192,7 @@ export const de = {
   desc_speed_limit: 'Geschwindigkeit begrenzen (0 für unbegrenzt).',
   desc_alt_speed_limit: 'Alternative Geschwindigkeitsbegrenzung.',
   cli_info_title: 'Konsolen- und CLI-Befehle',
-  cli_info_desc: "Sie können die Geschwindigkeitsbegrenzung über die Konsole oder das Terminal steuern (Sie können <code>HaYTooL YT Downloader.exe &lt;Befehl&gt;</code> oder <code>haytool &lt;Befehl&gt;</code> unter Windows verwenden):<br>• <b>Begrenzung Festlegen:</b> <code>HaYTooL YT Downloader.exe speed &lt;Wert&gt;</code><br>• <b>Begrenzung Ein/Aus:</b> <code>HaYTooL YT Downloader.exe speed off / on</code><br>• <b>Alternative Begrenzung:</b> <code>HaYTooL YT Downloader.exe altspeed &lt;Wert&gt;</code><br>• <b>Alternative Begrenzung Erzwingen (Turtle):</b> <code>HaYTooL YT Downloader.exe turtleon / turtleoff</code><br>• <b>Alternative Begrenzung Umschalten (Toggle):</b> <code>HaYTooL YT Downloader.exe toggle</code><br>• <b>Vom Link Herunterladen:</b> <code>HaYTooL YT Downloader.exe pd &lt;Link&gt;</code> (z. B. <code>HaYTooL YT Downloader.exe pd youtubelinki</code>)<br>• <b>Status Abfragen:</b> <code>HaYTooL YT Downloader.exe status</code>",
+  cli_info_desc: "Sie können die Geschwindigkeitsbegrenzung über die Konsole oder das Terminal steuern (Sie können <code>Multimedia HaYTooL.exe &lt;Befehl&gt;</code> oder <code>haytool &lt;Befehl&gt;</code> unter Windows verwenden):<br>• <b>Begrenzung Festlegen:</b> <code>Multimedia HaYTooL.exe speed &lt;Wert&gt;</code><br>• <b>Begrenzung Ein/Aus:</b> <code>Multimedia HaYTooL.exe speed off / on</code><br>• <b>Alternative Begrenzung:</b> <code>Multimedia HaYTooL.exe altspeed &lt;Wert&gt;</code><br>• <b>Alternative Begrenzung Erzwingen (Turtle):</b> <code>Multimedia HaYTooL.exe turtleon / turtleoff</code><br>• <b>Alternative Begrenzung Umschalten (Toggle):</b> <code>Multimedia HaYTooL.exe toggle</code><br>• <b>Vom Link Herunterladen:</b> <code>Multimedia HaYTooL.exe pd &lt;Link&gt;</code> (z. B. <code>Multimedia HaYTooL.exe pd youtubelinki</code>)<br>• <b>Status Abfragen:</b> <code>Multimedia HaYTooL.exe status</code>",
   cli_info_note: "(Geben Sie Befehle direkt in das Konsolenfenster ein: speed, toggle usw.)",
   desc_channel_check_interval: 'Wartezeit, um alle Kanäle zusammen zu überprüfen.',
   desc_rss_limit: 'Anzahl der RSS-Videos pro Kanal.',
@@ -293,7 +293,7 @@ export const de = {
   desc_doubleclickaction: 'Legt fest, wo das Interface geöffnet wird, wenn Sie doppelt auf das Symbol im Infobereich klicken.',
   opt_doubleclick_system: 'Systemstandard-Browser',
   opt_doubleclick_embedded: 'Eigener Browser (Edge-App-Modus)',
-  opt_doubleclick_player: 'HaYTooL-Player Beta.exe',
+  opt_doubleclick_player: 'HaYTooL-Player.exe',
   label_history_show_live: 'Live-Streams anzeigen',
   label_alt_thumbnails_hover: 'Alternative Vorschaubild-Schleife',
   desc_alt_thumbnails_hover: 'Alternativbilder (HQ-Snapshots) beim Herüberfahren wechseln (Erfordert aktive Internetverbindung)',

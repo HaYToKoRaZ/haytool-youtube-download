@@ -26,7 +26,12 @@ public partial class App : Application
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, ref COPYDATASTRUCT lParam);
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsIconic(IntPtr hWnd);
+
     private const int SW_RESTORE = 9;
+    private const int SW_SHOW = 5;
     private const int WM_COPYDATA = 0x004A;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -57,10 +62,22 @@ public partial class App : Application
                 if (existing != null)
                 {
                     IntPtr hWnd = existing.MainWindowHandle;
-                    ShowWindow(hWnd, SW_RESTORE);
-                    SetForegroundWindow(hWnd);
-
                     string path = (e.Args != null && e.Args.Length > 0) ? e.Args[0] : "/downlist";
+                    bool isSilent = path == "REFRESH_COOKIES" || path == "--silent-cookie-refresh";
+
+                    if (!isSilent)
+                    {
+                        if (IsIconic(hWnd))
+                        {
+                            ShowWindow(hWnd, SW_RESTORE);
+                        }
+                        else
+                        {
+                            ShowWindow(hWnd, SW_SHOW);
+                        }
+                        SetForegroundWindow(hWnd);
+                    }
+
                     COPYDATASTRUCT cds;
                     cds.dwData = IntPtr.Zero;
                     cds.lpData = path;

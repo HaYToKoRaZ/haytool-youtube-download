@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="public/logo.png" alt="HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
+  <img src="public/logo.png" alt="Multimedia HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 HaYTooL - Personal YouTube Library & Automation System (v9.8.24)</p>
+# <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v9.8.28)</p>
 
 <p align="center">
-  <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System</b><br/>
-  <i>Algoritma Dayatmalarından Kurtulun: Gelişmiş, Taşınabilir ve Otomatik YouTube Takip & İndirme Sistemi</i>
+  <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System & Native Player</b><br/>
+  <i>Algoritma Dayatmalarından Kurtulun: Gelişmiş, Taşınabilir ve Otomatik YouTube Takip, İndirme & Yerel Oynatıcı Sistemi</i>
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
   <img src="https://img.shields.io/badge/UI-Vanilla%20CSS3%20%7C%20Lucide%20Icons-1572B6?style=for-the-badge&logo=css3" alt="UI" />
   <img src="https://img.shields.io/badge/Player-Plyr%20%7C%20ArtPlayer-ff0000?style=for-the-badge&logo=youtube" alt="Players" />
   <img src="https://img.shields.io/badge/Downloader-yt--dlp%20%7C%20FFmpeg-4af626?style=for-the-badge" alt="Downloader" />
-  <img src="https://img.shields.io/badge/Version-v9.8.24-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v9.8.28-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&color=blueviolet" alt="GitHub Downloads (latest release)" />
   <a href="https://haytokoraz.github.io/" target="_blank"><img src="https://img.shields.io/badge/🌐_All_Apps-haytokoraz.github.io-FF0000?style=for-the-badge&logo=githubpages&logoColor=white" alt="HaYTo Ecosystem Hub" /></a>
@@ -89,7 +89,7 @@ Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-pac
 * **Double-click Launch:**
   Double-click `HaYTooL YT Downloader.exe` in the root folder to start the application silently in the system tray and open the dashboard in your browser.
 * **Native Desktop & Media Player Window:**
-  Double-click `HaYTooL-Player Beta.exe` to open the application in a dedicated native window (bypassing Chrome/Edge). Playing any downloaded video inside this window opens our integrated high-performance Plyr player to watch files directly from disk (zero-stream lag) with local subtitle base64 auto-loading, double-click fullscreen, mouse wheel volume control, and resume-playback memory.
+  Double-click `HaYTooL-Player.exe` to open the application in a dedicated native window (bypassing Chrome/Edge). Playing any downloaded video inside this window opens our integrated high-performance Plyr player to watch files directly from disk (zero-stream lag) with local subtitle base64 auto-loading, double-click fullscreen, mouse wheel volume control, and resume-playback memory.
 * **Command Line Launch:**
   ```cmd
   "HaYTooL YT Downloader.exe"
@@ -221,6 +221,8 @@ Tüm bağımlılıklar depo içerisinde hazır geldiğinden, indirdikten sonra d
 ### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
 * **Çift Tıklama ile Başlatma:**
   Kök dizindeki `HaYTooL YT Downloader.exe` dosyasına çift tıklayarak uygulamayı arka planda başlatabilir ve arayüzü tarayıcınızda açabilirsiniz.
+* **Masaüstü Oynatıcı Penceresi:**
+  Kök dizindeki `HaYTooL-Player.exe` dosyasına çift tıklayarak uygulamayı harici tarayıcıya ihtiyaç duymadan doğrudan yerleşik pencerede açabilir; indirilen videoları doğrudan diskten sıfır gecikmeyle izleyebilirsiniz.
 * **Komut Satırı ile Başlatma:**
   ```cmd
   "HaYTooL YT Downloader.exe"

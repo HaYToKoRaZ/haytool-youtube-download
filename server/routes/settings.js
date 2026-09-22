@@ -152,10 +152,10 @@ router.post('/open-youtube-login', localhostOnly, (req, res) => {
     const loginUrl = 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com';
 
     if (process.platform === 'win32') {
-      // bin/ içindeki gerçek WPF player'ını tercih et (WebView2 ile oturum cookie'lerini senkronize eder)
       const binPlayerExe = path.resolve(process.cwd(), 'bin', 'HaYTooLPlayer.exe');
-      const rootPlayerExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
-      const targetExe = fs.existsSync(binPlayerExe) ? binPlayerExe : (fs.existsSync(rootPlayerExe) ? rootPlayerExe : null);
+      const rootPlayerExe = path.resolve(process.cwd(), 'HaYTooL-Player.exe');
+      const oldPlayerExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
+      const targetExe = fs.existsSync(rootPlayerExe) ? rootPlayerExe : (fs.existsSync(binPlayerExe) ? binPlayerExe : (fs.existsSync(oldPlayerExe) ? oldPlayerExe : null));
 
       if (targetExe) {
         exec(`"${targetExe}" "${loginUrl}"`, { windowsHide: false }, () => {});
@@ -165,48 +165,42 @@ router.post('/open-youtube-login', localhostOnly, (req, res) => {
       }
     }
 
-    // Fallback: sistem tarayıcısını aç
+    // Platform bağımsız fallback
     open(loginUrl);
-    console.log('[YouTube Login] YouTube oturum açma sayfası tarayıcıda başlatıldı.');
-    res.json({ success: true, message: 'YouTube oturum açma penceresi açıldı.' });
+    res.json({ success: true, message: 'YouTube oturum açma sayfası açıldı.' });
   } catch (err) {
     console.error('[YouTube Login Hatası]:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Oturum sayfası açılamadı: ' + err.message });
   }
 });
 
 /**
- * YouTube oturumunu kapatır ve yerel çerez dosyalarını temizler.
+ * YouTube oturumunu kapatır ve yerel çerezleri temizler.
  * 
  * @name POST /api/logout-youtube
  * @function
  * @inner
- * @returns {void}
  */
 router.post('/logout-youtube', localhostOnly, (req, res) => {
   try {
-    const rootCookiesTxt = path.join(dataRootDir, 'cookies.txt');
-    const binCookiesTxt = path.join(dataRootDir, 'bin', 'cookies.txt');
+    const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
+    const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
 
-    if (fs.existsSync(rootCookiesTxt)) {
-      try { fs.unlinkSync(rootCookiesTxt); } catch (e) {}
-    }
-    if (fs.existsSync(binCookiesTxt)) {
-      try { fs.unlinkSync(binCookiesTxt); } catch (e) {}
+    const cookieFiles = [rootCookiesTxt, binCookiesTxt];
+    for (const cFile of cookieFiles) {
+      if (fs.existsSync(cFile)) {
+        try { fs.unlinkSync(cFile); } catch (e) {}
+      }
     }
 
+    // Windows WebView2 çerez temizliği
     if (process.platform === 'win32') {
-      const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
-      const mainDir = path.join(localAppData, 'HaYTooLPlayer_Main');
-      const ebDir = path.join(mainDir, 'EBWebView');
-
+      const localAppData = process.env.LOCALAPPDATA || '';
       const cookieFiles = [
-        path.join(ebDir, 'Default', 'Network', 'Cookies'),
-        path.join(ebDir, 'Default', 'Cookies'),
-        path.join(mainDir, 'Default', 'Network', 'Cookies'),
-        path.join(mainDir, 'Default', 'Cookies')
+        path.join(localAppData, 'HaYTooLPlayer_Main', 'EBWebView', 'Default', 'Network', 'Cookies'),
+        path.join(localAppData, 'HaYTooLPlayer', 'EBWebView', 'Default', 'Network', 'Cookies'),
+        path.join(localAppData, 'HaYTooLPlayer_Silent', 'EBWebView', 'Default', 'Network', 'Cookies')
       ];
-
       for (const cPath of cookieFiles) {
         if (fs.existsSync(cPath)) {
           try { fs.unlinkSync(cPath); } catch (e) {}
@@ -214,9 +208,11 @@ router.post('/logout-youtube', localhostOnly, (req, res) => {
       }
 
       // Açık olan HaYTooLPlayer varsa bellek çerezlerini temizlemesi için LOGOUT sinyali gönder
-      const launcherExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
-      if (fs.existsSync(launcherExe)) {
-        exec(`"${launcherExe}" LOGOUT`, () => {});
+      const launcherExe = path.resolve(process.cwd(), 'HaYTooL-Player.exe');
+      const oldLauncherExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
+      const activeLauncher = fs.existsSync(launcherExe) ? launcherExe : (fs.existsSync(oldLauncherExe) ? oldLauncherExe : null);
+      if (activeLauncher) {
+        exec(`"${activeLauncher}" LOGOUT`, () => {});
       }
     }
 
@@ -253,11 +249,10 @@ export function triggerSilentCookieRefresh() {
       lastSilentCookieRefreshTime = now;
 
       if (process.platform === 'win32') {
-        const launcherExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
+        const launcherExe = path.resolve(process.cwd(), 'HaYTooL-Player.exe');
+        const oldLauncherExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
         const binPlayerExe = path.resolve(process.cwd(), 'bin', 'HaYTooLPlayer.exe');
-        // Sessiz çerez tazeleme için bin/ içindeki güncel versiyonu tercih et (NavigationCompleted fix'i içerir).
-        // Root'taki launcher yalnızca bin/ bulunamazsa yedek olarak kullanılır.
-        const targetExe = fs.existsSync(binPlayerExe) ? binPlayerExe : (fs.existsSync(launcherExe) ? launcherExe : null);
+        const targetExe = fs.existsSync(launcherExe) ? launcherExe : (fs.existsSync(binPlayerExe) ? binPlayerExe : (fs.existsSync(oldLauncherExe) ? oldLauncherExe : null));
         if (targetExe) {
           exec(`"${targetExe}" --silent-cookie-refresh`, { windowsHide: true }, (err) => {
             resolve(!err);

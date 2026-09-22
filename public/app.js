@@ -601,15 +601,24 @@ function connectSSE() {
 }
 
 /**
- * Sunucudan GitHub güncelleme durumunu sorgular.
+ * Sunucudan GitHub güncelleme durumunu sorgular ve rozeti günceller.
  */
 async function checkApplicationUpdates() {
   try {
     const res = await fetch('/api/updates/check');
     if (!res.ok) return;
     const update = await res.json();
+    const topbarVer = document.getElementById('topbar-version');
     if (update && update.updateAvailable) {
+      if (topbarVer) {
+        topbarVer.classList.add('update-pulsing');
+        topbarVer.title = `Yeni sürüm mevcut (${update.latestVersion})! İndirmek için tıklayın.`;
+      }
       showUpdateNotification(update);
+    } else {
+      if (topbarVer) {
+        topbarVer.classList.remove('update-pulsing');
+      }
     }
   } catch (err) {
     console.warn('Update check failed:', err);
@@ -622,6 +631,7 @@ async function loadAppVersion() {
     const data = await res.json();
     if (data && data.version) {
       const verStr = 'v' + data.version;
+      const releasesUrl = 'https://github.com/HaYToKoRaZ/haytool-youtube-download/releases';
       
       // Topbar version badge
       const topbarVer = document.getElementById('topbar-version');
@@ -629,7 +639,7 @@ async function loadAppVersion() {
         const link = topbarVer.querySelector('a');
         if (link) {
           link.textContent = verStr;
-          link.href = 'https://github.com/HaYToKoRaZ/haytool-youtube-download';
+          link.href = releasesUrl;
         } else {
           topbarVer.textContent = verStr;
         }
@@ -641,7 +651,7 @@ async function loadAppVersion() {
         const link = settingsVer.querySelector('a');
         if (link) {
           link.textContent = verStr;
-          link.href = 'https://github.com/HaYToKoRaZ/haytool-youtube-download';
+          link.href = releasesUrl;
         } else {
           settingsVer.textContent = verStr;
         }

@@ -829,8 +829,9 @@ router.post('/tools/open-subscriptions', localhostOnly, (req, res) => {
   try {
     const subsUrl = 'https://www.youtube.com/feed/channels';
     const binPlayerExe = path.resolve(process.cwd(), 'bin', 'HaYTooLPlayer.exe');
-    const launcherExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
-    const targetExe = fs.existsSync(binPlayerExe) ? binPlayerExe : (fs.existsSync(launcherExe) ? launcherExe : null);
+    const rootPlayerExe = path.resolve(process.cwd(), 'HaYTooL-Player.exe');
+    const oldLauncherExe = path.resolve(process.cwd(), 'HaYTooL-Player Beta.exe');
+    const targetExe = fs.existsSync(rootPlayerExe) ? rootPlayerExe : (fs.existsSync(binPlayerExe) ? binPlayerExe : (fs.existsSync(oldLauncherExe) ? oldLauncherExe : null));
     if (targetExe) {
       exec(`"${targetExe}" "${subsUrl}"`, { windowsHide: false }, () => {});
       console.log('[YouTube Abonelikler] feed/channels sayfası WebView2 oynatıcıda açıldı.');
