@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HaYTooL - YouTube Otomasyon & Çevrimdışı Kütüphane Sistemi</title>
+  <title>Multimedia HaYTooL - YouTube Otomasyon & Çevrimdışı Kütüphane Sistemi</title>
   <meta name="description" content="Algoritmaların pençesinden kurtulun: Gelişmiş, taşınabilir ve otomatik YouTube takip, indirme ve reklamsız kütüphane sistemi.">
   <link rel="icon" type="image/png" href="assets/logo.png">
 
@@ -24,9 +24,8 @@
   <nav class="navbar">
     <div class="nav-container">
       <a href="#" class="nav-brand">
-        <img src="assets/logo.png" alt="HaYTooL Logo" class="nav-logo">
-        <span>HaYTooL</span>
-        <span class="nav-tag">v9.8.18</span>
+        <img src="assets/logo.png" alt="Multimedia HaYTooL Logo" class="nav-logo">
+        <span>Multimedia HaYTooL</span>
       </a>
 
       <ul class="nav-links">
@@ -65,7 +64,7 @@
 
       <div class="hero-actions">
         <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases" target="_blank" rel="noopener" class="btn-primary">
-          <span>📥</span> <span data-i18n="btn_download">Hemen İndir (v9.8.18)</span>
+          <span>📥</span> <span data-i18n="btn_download">Hemen İndir</span>
         </a>
         <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" rel="noopener" class="btn-secondary">
           <span>🐱</span> <span data-i18n="btn_github">GitHub'da İncele</span>
@@ -93,7 +92,7 @@
 
     <!-- Hero Sağ: Sevimli Kedi Maskotu & Etkileşim -->
     <div class="hero-visual">
-      <div class="mascot-container" title="Bana tıkla, miyavlayayım!">
+      <div class="mascot-container" title="Bana tıkla, miyavlayayım! 🐾" data-i18n-title="mascot_tooltip">
         <div class="mascot-glow"></div>
         <img src="assets/cat-mascot.svg" alt="HaYTooL Cat Mascot" class="mascot-img">
         <div class="cat-bubble" data-i18n="cat_quote">Miyav! Reklamsız izlemek harika!</div>
@@ -261,7 +260,7 @@
         <p style="color: var(--text-muted);">
           Veya bağımsız masaüstü C# oynatıcısını çalıştırmak için:
         </p>
-        <div class="code-box">HaYTooL-Player Beta.exe</div>
+        <div class="code-box">HaYTooL-Player.exe</div>
         <p style="color: var(--text-muted); font-size: 0.88rem;">
           Dashboard varsayılan olarak <span style="color: #FFB703;">http://localhost:4141</span> adresinde açılır.
         </p>
@@ -306,6 +305,8 @@
           <li><a href="https://haytokoraz.github.io/" target="_blank" rel="noopener" style="color: var(--cat-gold); font-weight: 600;" data-i18n="footer_portal">🌐 Ana Portföy (Tüm Uygulamalar)</a></li>
           <li><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" rel="noopener">GitHub Reposu</a></li>
           <li><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases" target="_blank" rel="noopener">Sürümler & İndirme</a></li>
+          <li><a href="terms.html" data-i18n="footer_terms">Hizmet Koşulları</a></li>
+          <li><a href="privacy.html" data-i18n="footer_privacy">Gizlilik Politikası</a></li>
           <li><a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/blob/main/LICENSE" target="_blank" rel="noopener">MIT Lisansı</a></li>
         </ul>
       </div>
@@ -334,5 +335,41 @@
   </div>
 
   <script src="app.js"></script>
+  <script>
+    (function() {
+      var PING_URL = 'https://hayto-telemetry.korazhayto.workers.dev/api/ping';
+      var APP_ID = 'web_youtube_download';
+
+      function sendPulse() {
+        if (!navigator.onLine) return;
+        try {
+          var todayStr = new Date().toISOString().slice(0, 10);
+          var sid = localStorage.getItem('hayto_site_sid');
+          var lastDate = localStorage.getItem('hayto_site_last_date');
+          var isNew = false;
+
+          if (!sid) {
+            sid = 's_' + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('hayto_site_sid', sid);
+          }
+          if (lastDate !== todayStr) {
+            isNew = true;
+            localStorage.setItem('hayto_site_last_date', todayStr);
+          }
+
+          fetch(PING_URL, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ app: APP_ID, session_id: sid, is_new_session: isNew }),
+            keepalive: true
+          }).catch(function() {});
+        } catch(e) {}
+      }
+
+      sendPulse();
+      setInterval(sendPulse, 2 * 60 * 1000);
+    })();
+  </script>
 </body>
 </html>

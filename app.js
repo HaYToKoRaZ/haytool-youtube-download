@@ -12,11 +12,13 @@ const i18n = {
     nav_install: "Kurulum",
     nav_portal: "🌟 Tüm Uygulamalar",
     footer_portal: "🌐 Ana Portföy (Tüm Uygulamalar)",
+    footer_terms: "Hizmet Koşulları",
+    footer_privacy: "Gizlilik Politikası",
     hero_badge: "🐱 HaYTooL Meow Edition • Algoritmalara Meydan Okuyun!",
     hero_title_1: "Algoritma Pençesinden Kurtulun,",
     hero_title_2: "Kendi Özel Kütüphanenizi Kurun.",
     hero_sub: "İstenmeyen öneriler ve sonsuz video tuzakları yok! Sadece takip ettiğiniz kanalları arka planda otomatik indirin, %100 reklamsız ve çevrimdışı izleyin.",
-    btn_download: "Hemen İndir (v9.8.18)",
+    btn_download: "Hemen İndir",
     btn_github: "GitHub'da İncele",
     btn_all_apps: "Tüm Uygulamalar",
     stat_adfree: "%100 Reklamsız",
@@ -26,6 +28,7 @@ const i18n = {
     stat_languages: "7 Dil Desteği",
     stat_languages_sub: "Otomatik Altyazı Çevirisi",
     cat_quote: "Miyav! Reklamsız izlemek harika!",
+    mascot_tooltip: "Bana tıkla, miyavlayayım! 🐾",
     features_tag: "🐾 Neden HaYTooL?",
     features_title: "Özgürlüğünüzü Geri Kazanın",
     features_desc: "Tüm kontroller sizin elinizde. Arka planda sessizce çalışan otomasyon motoru.",
@@ -46,11 +49,13 @@ const i18n = {
     nav_install: "Installation",
     nav_portal: "🌟 All Apps",
     footer_portal: "🌐 Main Hub (All Apps)",
+    footer_terms: "Terms of Service",
+    footer_privacy: "Privacy Policy",
     hero_badge: "🐱 HaYTooL Meow Edition • Reclaim Your Feed!",
     hero_title_1: "Break Free from the Algorithm,",
     hero_title_2: "Build Your Private Library.",
     hero_sub: "No distractions, no addictive traps! Monitor followed channels via RSS, auto-download newly released videos, and enjoy 100% ad-free offline playback.",
-    btn_download: "Download Now (v9.8.18)",
+    btn_download: "Download Now",
     btn_github: "View on GitHub",
     btn_all_apps: "All Apps",
     stat_adfree: "100% Ad-Free",
@@ -60,6 +65,7 @@ const i18n = {
     stat_languages: "7 Languages",
     stat_languages_sub: "Auto Subtitle Translation",
     cat_quote: "Meow! Watching ad-free is purrfect!",
+    mascot_tooltip: "Click me to hear a meow! 🐾",
     features_tag: "🐾 Why HaYTooL?",
     features_title: "Reclaim Your Digital Freedom",
     features_desc: "Total control in your hands. A quiet, resilient automation daemon working in the background.",
@@ -76,6 +82,30 @@ const i18n = {
 };
 
 let currentLang = 'tr';
+
+// Kedi Maskotu Tıklama Cümleleri & Pati Sesleri (Dile göre dinamik havuz)
+const catMeowDict = {
+  tr: [
+    'Miyav! 🐾',
+    'Pati gücü! 🐱',
+    'Reklamlar engellendi! 🛡️',
+    'Sıradaki video iniyor! 🚀',
+    'Patili günler! 🐾',
+    'Mırıltı modu aktif! 😻',
+    'Algoritmalar patilendi! ✨',
+    'Kütüphanen güvende! 📦'
+  ],
+  en: [
+    'Meow! 🐾',
+    'Paw power! 🐱',
+    'Ads blocked! 🛡️',
+    'Downloading next video! 🚀',
+    'Purrfect day! 🐾',
+    'Purr mode active! 😻',
+    'Algorithms paw-struck! ✨',
+    'Your library is safe! 📦'
+  ]
+};
 
 // Ekran Görüntüsü Verileri
 const galleryItems = [
@@ -274,19 +304,49 @@ function updateTexts() {
       el.textContent = dict[key];
     }
   });
+
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    if (dict[key]) {
+      el.title = dict[key];
+    }
+  });
+
+  const mascot = document.querySelector('.mascot-container');
+  if (mascot && dict.mascot_tooltip) {
+    mascot.title = dict.mascot_tooltip;
+  }
+
+  // Kedi konuşma baloncuğunu da anında yeni seçilen dile senkronize et
+  const bubble = document.querySelector('.cat-bubble');
+  if (bubble) {
+    const prevLang = currentLang === 'tr' ? 'en' : 'tr';
+    const prevMeows = catMeowDict[prevLang] || [];
+    const currentMeows = catMeowDict[currentLang] || [];
+    const currentText = bubble.textContent.trim();
+    const idx = prevMeows.indexOf(currentText);
+    if (idx !== -1 && currentMeows[idx]) {
+      bubble.textContent = currentMeows[idx];
+    } else {
+      bubble.textContent = dict.cat_quote || currentMeows[0];
+    }
+  }
 }
 
 // Kedi Maskotu Tıklama & Pati Etkileşimi
 function setupMascotInteractions() {
   const mascot = document.querySelector('.mascot-container');
   const bubble = document.querySelector('.cat-bubble');
-  const meows = currentLang === 'tr' 
-    ? ['Miyav! 🐾', 'Pati gücü! 🐱', 'Reklamlar engellendi! 🛡️', 'Sıradaki video iniyor! 🚀', 'Patili günler! 🐾'] 
-    : ['Meow! 🐾', 'Paw power! 🐱', 'Ads blocked! 🛡️', 'Downloading next! 🚀', 'Purrfect day! 🐾'];
 
   if (mascot && bubble) {
     mascot.addEventListener('click', () => {
-      const randomMeow = meows[Math.floor(Math.random() * meows.length)];
+      // O anki aktif dile göre dinamik havuzdan seçim yap
+      const meows = catMeowDict[currentLang] || catMeowDict.tr;
+      const currentText = bubble.textContent.trim();
+      let availableMeows = meows.filter(m => m !== currentText);
+      if (availableMeows.length === 0) availableMeows = meows;
+
+      const randomMeow = availableMeows[Math.floor(Math.random() * availableMeows.length)];
       bubble.textContent = randomMeow;
       bubble.style.transform = 'scale(1.2) rotate(4deg)';
       setTimeout(() => {
