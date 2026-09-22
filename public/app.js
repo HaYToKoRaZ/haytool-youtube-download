@@ -5263,7 +5263,7 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
             }
           });
 
-          // Volume wheel control
+          // Volume wheel control & Double click fullscreen
           const containerSelector = isInline ? '#downloaded-inline-player-container' : '#player-modal';
           const outerContainer = document.querySelector(containerSelector);
           const plyrContainer = outerContainer?.querySelector('.plyr');
@@ -5282,6 +5282,15 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
                 triggerVolumeHUD(newVolume);
               }
             }, { passive: false });
+
+            plyrContainer.addEventListener('dblclick', (e) => {
+              // Buton veya kontroller tıklandıysa yoksay
+              if (e.target.closest('.plyr__controls') || e.target.closest('button') || e.target.closest('input')) return;
+              e.preventDefault();
+              if (videoPlayerInstance && typeof videoPlayerInstance.fullscreen?.toggle === 'function') {
+                videoPlayerInstance.fullscreen.toggle();
+              }
+            });
           }
 
           videoPlayerInstance.on('timeupdate', () => {
@@ -5331,6 +5340,16 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           // HTML5 standard
           player.src = streamUrl;
           player.controls = true;
+          videoPlayerInstance = player;
+
+          player.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            if (!document.fullscreenElement) {
+              player.requestFullscreen().catch(() => {});
+            } else {
+              document.exitFullscreen().catch(() => {});
+            }
+          });
 
           player.addEventListener('loadedmetadata', () => {
             adjustPlayerOrientation(player);

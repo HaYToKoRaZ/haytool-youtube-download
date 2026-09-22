@@ -3,6 +3,15 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.30] - 2026-09-22
+- **Fix & Player (WPF Tam Ekran Görev Çubuğu Çözümü):** C# masaüstü WebView2 oynatıcısında (`MainWindow.xaml.cs` ve `PlayerWindow.xaml.cs`) videoya çift tıklandığında Windows görev çubuğunun altta görünür kalması hatası giderildi; tam ekrana geçilirken pencere önce `WindowState.Normal` durumuna çekilerek çerçevesiz ve en üstte (borderless topmost) modda görev çubuğunu tamamen örtecek şekilde maximize edilmesi sağlandı.
+- **UI & Layout (Oynatıcı ve Kenar Çubuğu Boşluk Dengelemesi):** `.main-content` yatay dolgusu 40px'ten 20px'e düşürülerek sol taraftaki gereksiz boşluk dolduruldu; yerleşik oynatıcı yanındaki `.inline-player-sidebar` genişliği 400px'ten 440px'e ve aralık (gap) 16px'e dengelenerek sağdaki boşluk kapatıldı.
+- **CLI & Website (Kapsamlı Komut Rehberi & İsimlendirme):** Yeni `Multimedia HaYTooL.exe` ismiyle çalışan tüm CLI komutları (`pd`, `status`, `ton`, `toff`, `toggle`, `speed`, `altspeed`) hem `README.md` (TR & EN tabloları) hem de tanıtım web sitesi (`websites/index.html` + `websites/app.js` TR & EN) üzerinden detaylı örneklerle dokümante edildi; eski exe isimleri arındırıldı.
+
+## [9.8.29] - 2026-09-22
+- **Documentation & Consistency (Yeniden Adlandırma Temizliği & CLI Örnekleri):** `README.md` içerisindeki tüm eski `HaYTooL YT Downloader.exe` referansları ve CLI indirme komut satırı örnekleri güncel `Multimedia HaYTooL.exe` olarak düzeltildi; çift dilli resmi web sitesi bağlantısı eklendi.
+- **CI/CD & Paketleme (Actions & Release İsimlendirmeleri):** GitHub Actions (`.github/workflows/release.yml`), yerel Windows paketleyici (`0nogithub/releases-maker.ps1`) ve Linux paketleyici (`0nogithub/linux-releases-maker.ps1`) betiklerindeki eski zip/AppImage çıktı isimleri son kullanıcı dostu `Multimedia-HaYTooL-Win` ve `Multimedia-HaYTooL-Linux` olarak modernize edildi.
+
 ## [9.8.28] - 2026-09-22
 - **Discord RPC (Yeni İstemci Kimliği Entegrasyonu):** Discord Developer Portal üzerinden oluşturulan yeni `Multimedia HaYTooL` uygulamasının istemci kimliği (`1552027056383074314`) `server/services/discord.js` içerisine entegre edildi. Discord aktivite durumu artık doğrudan yeni uygulama üzerinden yayınlanmaktadır.
 

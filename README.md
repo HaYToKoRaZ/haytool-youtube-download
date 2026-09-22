@@ -2,7 +2,7 @@
   <img src="public/logo.png" alt="Multimedia HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v9.8.28)</p>
+# <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v9.8.30)</p>
 
 <p align="center">
   <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System & Native Player</b><br/>
@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="#-english-version"><b>🇬🇧 English Version</b></a> | <a href="#-türkçe-versiyon"><b>🇹🇷 Türkçe Versiyon</b></a> | <a href="https://haytokoraz.github.io/" target="_blank"><b>🌟 All Apps / Tüm Uygulamalar</b></a>
+  <a href="#-english-version"><b>🇬🇧 English Version</b></a> | <a href="#-türkçe-versiyon"><b>🇹🇷 Türkçe Versiyon</b></a> | <a href="https://haytokoraz.github.io/haytool-youtube-download/" target="_blank"><b>🌐 Official Website</b></a> | <a href="https://haytokoraz.github.io/" target="_blank"><b>🌟 All Apps / Tüm Uygulamalar</b></a>
 </p>
 
 <p align="center">
@@ -22,27 +22,20 @@
   <img src="https://img.shields.io/badge/UI-Vanilla%20CSS3%20%7C%20Lucide%20Icons-1572B6?style=for-the-badge&logo=css3" alt="UI" />
   <img src="https://img.shields.io/badge/Player-Plyr%20%7C%20ArtPlayer-ff0000?style=for-the-badge&logo=youtube" alt="Players" />
   <img src="https://img.shields.io/badge/Downloader-yt--dlp%20%7C%20FFmpeg-4af626?style=for-the-badge" alt="Downloader" />
-  <img src="https://img.shields.io/badge/Version-v9.8.28-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v9.8.30-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&color=blueviolet" alt="GitHub Downloads (latest release)" />
   <a href="https://haytokoraz.github.io/" target="_blank"><img src="https://img.shields.io/badge/🌐_All_Apps-haytokoraz.github.io-FF0000?style=for-the-badge&logo=githubpages&logoColor=white" alt="HaYTo Ecosystem Hub" /></a>
 </p>
 
-  <img src="https://img.shields.io/badge/Vanilla_JS-ES6+-yellow?style=flat-square&logo=javascript" alt="JavaScript" />
-  <img src="https://img.shields.io/badge/Node.js-Gömülü_/_Portable-green?style=flat-square&logo=node.js" alt="Node.js" />
-  <img src="https://img.shields.io/badge/yt--dlp-Pre--packaged-red?style=flat-square&logo=youtube" alt="yt-dlp" />
-  <img src="https://img.shields.io/badge/FFmpeg-Included-orange?style=flat-square" alt="FFmpeg" />
-</p>
-
----
 ---
 
 # 🇬🇧 English Version
 
 ## 🎯 Core Philosophy
 
-YouTube's recommendation algorithms are designed to maximize watch time by pushing distracting, addictive, and unwanted content to your feed. **HaYTooL** is built to break this cycle. 
-Instead of logging into YouTube and exposing your data to ads and algorithmic traps, **HaYTooL** acts as your private offline library. You define the exact channels you want to follow. The system continuously runs in the background, monitors their RSS feeds, and automatically downloads new videos as soon as they are uploaded. You watch your chosen content locally, 100% ad-free, offline, and entirely on your own terms.
+YouTube's recommendation algorithms are designed to maximize watch time by pushing distracting, addictive, and unwanted content to your feed. **Multimedia HaYTooL** is built to break this cycle. 
+Instead of logging into YouTube and exposing your data to ads and algorithmic traps, **Multimedia HaYTooL** acts as your private offline library. You define the exact channels you want to follow. The system continuously runs in the background, monitors their RSS feeds, and automatically downloads new videos as soon as they are uploaded. You watch your chosen content locally, 100% ad-free, offline, and entirely on your own terms.
 
 ---
 
@@ -87,12 +80,12 @@ Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-pac
 
 ### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
 * **Double-click Launch:**
-  Double-click `HaYTooL YT Downloader.exe` in the root folder to start the application silently in the system tray and open the dashboard in your browser.
+  Double-click `Multimedia HaYTooL.exe` in the root folder to start the application silently in the system tray and open the dashboard in your browser.
 * **Native Desktop & Media Player Window:**
   Double-click `HaYTooL-Player.exe` to open the application in a dedicated native window (bypassing Chrome/Edge). Playing any downloaded video inside this window opens our integrated high-performance Plyr player to watch files directly from disk (zero-stream lag) with local subtitle base64 auto-loading, double-click fullscreen, mouse wheel volume control, and resume-playback memory.
 * **Command Line Launch:**
   ```cmd
-  "HaYTooL YT Downloader.exe"
+  "Multimedia HaYTooL.exe"
   ```
 
 ### ![Linux](https://img.shields.io/badge/-Linux-FCC624?style=flat-square&logo=linux&logoColor=black) / ![macOS](https://img.shields.io/badge/-macOS-aaaaaa?style=flat-square&logo=apple&logoColor=white) (Unix)
@@ -113,38 +106,52 @@ Access the dashboard at [http://localhost:4141](http://localhost:4141) *(default
 
 When the video player is focused, you can control playback using standard shortcuts:
 
-* **`Space`** or **`k` / `K`**: Toggle play and pause
-* **`f` / `F`**: Toggle full screen
-* **`m` / `M`**: Toggle mute
-* **`Arrow Right`**: Skip forward 5 seconds
-* **`Arrow Left`**: Skip backward 5 seconds
-* **`l` / `L`**: Skip forward 10 seconds
-* **`j` / `J`**: Skip backward 10 seconds
-* **`Arrow Up`**: Increase volume by 5%
-* **`Arrow Down`**: Decrease volume by 5%
-* **`Home`**: Jump to the beginning of the video
-* **`End`**: Jump to the end of the video
-* **`>`** or **`Shift + .`**: Increase playback speed (up to 2x)
-* **`<`** or **`Shift + ,`**: Decrease playback speed
-* **`0` to `9`**: Seek to a specific percentage (e.g., 5 jumps to 50%)
+* **`Space`** or **`k` / `K`**: Play - Pause
+* **`f` / `F`**: Toggle fullscreen
+* **`m` / `M`**: Mute / Unmute
+* **`Arrow Right`**: Seek forward 5s
+* **`Arrow Left`**: Seek backward 5s
+* **`l` / `L`**: Seek forward 10s
+* **`j` / `J`**: Seek backward 10s
+* **`Arrow Up`**: Volume +5%
+* **`Arrow Down`**: Volume -5%
+* **`Home`**: Jump to start
+* **`End`**: Jump to end
+* **`>`** or **`Shift + .`**: Increase speed (up to 2x)
+* **`<`** or **`Shift + ,`**: Decrease speed
+* **`0` - `9`**: Jump to video percentage (e.g. 5 jumps to 50%)
 
 ---
 
 ## 💻 CLI & Console Commands
 
-You can manage speed profiles and queue downloads directly through the CLI or via the Console Input at the bottom of the Tray Log window:
+You can manage download queues, speeds, and background profiles directly through the CLI using `"Multimedia HaYTooL.exe"` or via the interactive Console Input at the bottom of the System Tray log window:
 
-* `status` - Shows current speed limits, active downloads, and queue info.
-* `ton` - Enables alternative speed limit (Turtle Mode).
-* `toff` - Disables alternative speed limit (Turtle Mode).
-* `pd <youtube-url>` - Instantly adds the specified video to the download queue.
-* `clear` - Clears the terminal screen.
-* `help` - Shows the list of available commands.
+| Command | Arguments | Description | Example |
+| :--- | :--- | :--- | :--- |
+| `pd` | `<youtube-url>` | Instantly downloads video/playlist and adds it to queue | `"Multimedia HaYTooL.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ` |
+| `status` | - | Shows active download queue, current limits, and Turtle mode | `"Multimedia HaYTooL.exe" status` |
+| `ton` | - | Enables Turtle Mode (Alternative speed limit profile) | `"Multimedia HaYTooL.exe" ton` |
+| `toff` | - | Disables Turtle Mode (Returns to normal speed limit) | `"Multimedia HaYTooL.exe" toff` |
+| `toggle` | - | Switches between normal and Turtle speed modes | `"Multimedia HaYTooL.exe" toggle` |
+| `speed` | `<kb\|off>` | Sets standard download speed limit in KB/s (or disable) | `"Multimedia HaYTooL.exe" speed 2500` |
+| `altspeed`| `<kb>` | Sets turtle mode speed limit value in KB/s | `"Multimedia HaYTooL.exe" altspeed 500` |
+| `clear` | - | Clears the on-screen log window in the Tray console | `clear` |
+| `help` | - | Displays full list of available commands and parameters | `help` |
 
-**CLI Example:**
-You can call the executable directly from the terminal or command prompt to download a video:
-```bash
-"HaYTooL YT Downloader.exe" pd youtubelinki
+**CLI Usage Examples:**
+```cmd
+:: Download a video directly via Windows Command Prompt / PowerShell:
+"Multimedia HaYTooL.exe" pd "https://www.youtube.com/watch?v=example"
+
+:: Check server status and active downloads:
+"Multimedia HaYTooL.exe" status
+
+:: Enable turtle speed mode (e.g. while gaming or streaming):
+"Multimedia HaYTooL.exe" ton
+
+:: Set custom download speed limit to 3000 KB/s:
+"Multimedia HaYTooL.exe" speed 3000
 ```
 
 ---
@@ -220,12 +227,12 @@ Tüm bağımlılıklar depo içerisinde hazır geldiğinden, indirdikten sonra d
 
 ### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
 * **Çift Tıklama ile Başlatma:**
-  Kök dizindeki `HaYTooL YT Downloader.exe` dosyasına çift tıklayarak uygulamayı arka planda başlatabilir ve arayüzü tarayıcınızda açabilirsiniz.
+  Kök dizindeki `Multimedia HaYTooL.exe` dosyasına çift tıklayarak uygulamayı arka planda başlatabilir ve arayüzü tarayıcınızda açabilirsiniz.
 * **Masaüstü Oynatıcı Penceresi:**
   Kök dizindeki `HaYTooL-Player.exe` dosyasına çift tıklayarak uygulamayı harici tarayıcıya ihtiyaç duymadan doğrudan yerleşik pencerede açabilir; indirilen videoları doğrudan diskten sıfır gecikmeyle izleyebilirsiniz.
 * **Komut Satırı ile Başlatma:**
   ```cmd
-  "HaYTooL YT Downloader.exe"
+  "Multimedia HaYTooL.exe"
   ```
 
 ### ![Linux](https://img.shields.io/badge/-Linux-FCC624?style=flat-square&logo=linux&logoColor=black) / ![macOS](https://img.shields.io/badge/-macOS-aaaaaa?style=flat-square&logo=apple&logoColor=white) (Unix)
@@ -263,21 +270,35 @@ Oynatıcı aktifken, aşağıdaki kısayollar ile oynatımı kontrol edebilirsin
 
 ---
 
-## 💻 Komut Satırı Kontrolleri
+## 💻 Komut Satırı & Konsol Kontrolleri
 
-Hız sınırlarını ve indirmeleri terminalden veya Tepsi uygulamasının Konsol giriş satırından yönetebilirsiniz:
+İndirme kuyruklarını, hız profillerini ve arka plan işlemlerini `"Multimedia HaYTooL.exe"` üzerinden terminalden veya Sistem Tepsisi log ekranının altındaki komut satırından doğrudan yönetebilirsiniz:
 
-* `status` - Hız limitlerini ve aktif kuyruk durumunu gösterir.
-* `ton` - Alternatif hız sınırını (Kaplumbağa Modu) etkinleştirir.
-* `toff` - Alternatif hız sınırını devre dışı bırakır.
-* `pd <youtube-url>` - Belirtilen YouTube videosunu hemen indirme kuyruğuna ekler.
-* `clear` - Konsol log ekranını temizler.
-* `help` - Kullanılabilir komut listesini gösterir.
+| Komut | Parametre | Açıklama | Örnek |
+| :--- | :--- | :--- | :--- |
+| `pd` | `<youtube-linki>` | Belirtilen YouTube video/oynatma listesini anında indirme kuyruğuna ekler | `"Multimedia HaYTooL.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ` |
+| `status` | - | Aktif kuyruğu, anlık hız limitlerini ve Kaplumbağa modu durumunu listeler | `"Multimedia HaYTooL.exe" status` |
+| `ton` | - | Kaplumbağa Modunu (Alternatif hız profilini) aktif hale getirir | `"Multimedia HaYTooL.exe" ton` |
+| `toff` | - | Kaplumbağa Modunu kapatır (Normal hız limitine döner) | `"Multimedia HaYTooL.exe" toff` |
+| `toggle` | - | Normal hız ve Kaplumbağa modu arasında tek komutla geçiş yapar | `"Multimedia HaYTooL.exe" toggle` |
+| `speed` | `<kb\|off>` | Standart indirme hız limitini KB/s cinsinden ayarlar (veya kapatır) | `"Multimedia HaYTooL.exe" speed 2500` |
+| `altspeed`| `<kb>` | Kaplumbağa modu alternatif hız profilini KB/s cinsinden belirler | `"Multimedia HaYTooL.exe" altspeed 500` |
+| `clear` | - | Konsol log penceresindeki ekran çıktılarını anında temizler | `clear` |
+| `help` | - | Kullanılabilir tüm komutların ve açıklamaların listesini yazdırır | `help` |
 
-**CLI Kullanım Örneği:**
-Windows Terminal veya Komut İstemi (CMD) üzerinden indirme komutunu doğrudan tetikleyebilirsiniz:
-```bash
-"HaYTooL YT Downloader.exe" pd youtubelinki
+**CLI Kullanım Örnekleri:**
+```cmd
+:: Bir videoyu veya oynatma listesini terminal üzerinden doğrudan indirme kuyruğuna ekleyin:
+"Multimedia HaYTooL.exe" pd "https://www.youtube.com/watch?v=ornek"
+
+:: Sunucu durumunu, portu ve aktif indirmeleri sorgulayın:
+"Multimedia HaYTooL.exe" status
+
+:: Oyun oynarken veya video izlerken bant genişliğini korumak için Kaplumbağa modunu açın:
+"Multimedia HaYTooL.exe" ton
+
+:: Normal indirme hızını 4000 KB/s olarak sınırlayın:
+"Multimedia HaYTooL.exe" speed 4000
 ```
 
 ---

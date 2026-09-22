@@ -597,6 +597,17 @@ export async function pullGistChannels() {
 }
 window.pullGistChannels = pullGistChannels;
 
+// Türkçe Açıklama: GitHub kişisel erişim tokenı (PAT) alma sayfasını açıklamaya anlık tarih-saat ekleyerek yeni sekmede açar.
+export function openGetGistTokenPage() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+  const desc = encodeURIComponent(`HaYTooL-YT-Downloader (${dateStr})`);
+  const url = `https://github.com/settings/tokens/new?scopes=gist&description=${desc}`;
+  window.open(url, '_blank');
+}
+window.openGetGistTokenPage = openGetGistTokenPage;
+
 export function toggleAutoSyncGist(checked) {
   if (localDb.settings) {
     localDb.settings.autoSyncGist = checked;

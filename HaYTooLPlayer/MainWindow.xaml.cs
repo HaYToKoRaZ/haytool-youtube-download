@@ -531,10 +531,8 @@ namespace HaYTooLPlayer
                     _webPrevResizeMode = this.ResizeMode;
                     _webPrevTopmost = this.Topmost;
 
-                    if (this.WindowState != WindowState.Maximized)
-                    {
-                        this.WindowState = WindowState.Normal;
-                    }
+                    // WPF'te görev çubuğunu tamamen kaplamak için önce Normal sonra Maximized yapılmalıdır
+                    this.WindowState = WindowState.Normal;
                     this.WindowStyle = WindowStyle.None;
                     this.ResizeMode = ResizeMode.NoResize;
                     this.Topmost = true;

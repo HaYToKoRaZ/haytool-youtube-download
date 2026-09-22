@@ -39,7 +39,7 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           $date = Get-Date -Format "yyyy-MM-dd"
-          $ZipName = "$tag-HaYTooL-YD-Win-$date.zip"
+          $ZipName = "$tag-Multimedia-HaYTooL-Win-$date.zip"
           
           # '0nogithub' klasörü .gitignore içinde olduğu için GitHub'a gitmiyor.
           # Bu yüzden paketlemeyi yerel betik yerine burada 7-Zip ile yapıyoruz.
@@ -135,7 +135,7 @@ jobs:
           cat << 'EOF' > AppDir/haytool.desktop
           [Desktop Entry]
           Type=Application
-          Name=HaYTooL YouTube Downloader
+          Name=Multimedia HaYTooL
           Exec=AppRun
           Icon=haytool
           Categories=AudioVideo;
@@ -149,7 +149,7 @@ jobs:
           chmod +x appimagetool-x86_64.AppImage
           
           # AppImage'ı oluştur
-          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run -u "gh-releases-zsync|HaYToKoRaZ|haytool-youtube-download|latest|*AppImage.zsync" AppDir "${{ github.ref_name }}-HaYTooL-YD-$(date +%Y-%m-%d).AppImage"
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run -u "gh-releases-zsync|HaYToKoRaZ|haytool-youtube-download|latest|*AppImage.zsync" AppDir "${{ github.ref_name }}-Multimedia-HaYTooL-Linux-$(date +%Y-%m-%d).AppImage"
           
           # appimagetool'un kendisini sil (Releases sekmesine yüklenmemesi için)
           rm appimagetool-x86_64.AppImage
