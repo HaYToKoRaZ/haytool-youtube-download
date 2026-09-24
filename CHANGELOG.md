@@ -3,6 +3,11 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.56] - 2026-09-24
+- **refactor(ui): Ayarlar Sayfasındaki Geri Bildirim Butonunun Konumu Düzenlendi:**
+  - Ayarlar sayfasının en üstünde yer alan `[Geri Bildirim Gönder]` butonu, sayfa düzenini sadeleştirmek ve form akışını rahatlatmak amacıyla sayfanın en altına (`.form-actions` alanı) taşındı.
+  - Mobil ve masaüstü görünümlerde otomatik kaydetme durum göstergesiyle uyumlu esnek düzen sağlandı.
+
 ## [9.8.55] - 2026-09-24
 - **fix(channels): Kanallar Sekmesinde Kategori ve Filtreleme İşlevlerinin Düzeltilmesi:**
   - Kanallar sekmesinde kategori (`#filter-channel-category`), otomatik indirme ve shorts filtreleri değiştirildiğinde listenin filtrelenmemesi sorunu çözüldü.
