@@ -3,6 +3,131 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.51] - 2026-09-24
+- **refactor(modularization): Video Yorumları Yöneticisi Bağımsız ES Modülüne Taşındı (`public/modules/comments.js`):**
+  - `renderCommentsList`, `loadComments`, `loadMoreComments`, `toggleCommentsPanel` fonksiyonları `public/modules/comments.js` modülüne taşındı.
+  - `public/app.js` içerisinden ~150 satır kod temizlendi, `window.*` köprüleri `comments.js` içinde tanımlandı.
+  - `0nogithub/maps.md` haritasına `comments.js` modülü eklendi.
+
+## [9.8.50] - 2026-09-24
+- **fix(startup): Yarım Kalan Modülerleştirme ve Başlatma Hatası Giderildi:**
+  - `public/app.js` içerisindeki `downloaderUI.js` modülüne taşınmış mükerrer `handleDownloaderStart` sözdizimi hatası temizlendi.
+  - Video kartlarının açılışta yüklenmesini engelleyen script kilidi kaldırıldı, kütüphane ve indirilenler grid render akışı doğrulandı.
+  - `0nogithub/modularization_plan.md` planındaki Adım 1.4 güncellendi ve `maps.md` haritasına `downloaderUI.js` modülü eklendi.
+
+## [9.8.49] - 2026-09-24
+- **refactor(modularization): Sistem Yedek Yöneticisi & yt-dlp Motor Modülleri (`public/modules/backupManager.js`, `public/modules/ytdlpManager.js`):**
+  - `createSystemBackup`, `loadSystemBackupsList`, `downloadSystemBackup`, `deleteSystemBackup`, `triggerUploadBackupFile`, `uploadBackupFile`, `restoreSystemBackup` fonksiyonları `public/modules/backupManager.js` modülüne taşındı.
+  - `fetchYtdlpVersion`, `updateYtdlp` fonksiyonları `public/modules/ytdlpManager.js` modülüne taşındı.
+  - `public/app.js`'den ~313 satır orphan/mükerrer kod temizlendi; `window.*` geriye dönük uyumluluk köprüleri ilgili modüllerde kuruldu.
+  - `0nogithub/maps.md` haritası; `queue.js`, `channels.js`, `terminal.js`, `updater.js`, `backupManager.js`, `ytdlpManager.js` girişleriyle güncellendi.
+
+## [9.8.48] - 2026-09-24
+- **refactor(modularization): Güncelleme Kontrolü & Sürüm Yönetimi Bağımsız ES Modülüne Taşındı (`public/modules/updater.js`):**
+  - `loadAppVersion()`: `/api/version` uç noktasından uygulama sürümünü çeker; `#topbar-version` ve `#settings-version` içerisindeki bağlantı ve metinleri dinamik günceller.
+  - `checkApplicationUpdates()`: `/api/updates/check` uç noktasından GitHub release durumunu sorgular; yeni sürüm varsa üst bar rozetine `update-pulsing` efekti ekler ve bildirim kartını gösterir.
+  - `showUpdateNotification(update)`: Yeni sürüm tespit edildiğinde sağ alt köşede animasyonlu ve butonlu (`GitHub'da İncele`, kapatma butonu `x`) bildirim kartı oluşturur. Kapatıldığında `sessionStorage` ile o oturumda tekrar rahatsız etmemesini sağlar.
+  - `public/app.js` içerisindeki fonksiyon tanımları tamamen kaldırıldı; `window.*` geriye dönük uyumluluk köprüsü `updater.js` içerisinde kuruldu.
+
+## [9.8.47] - 2026-09-24
+- **refactor(modularization): Sistem Konsolu & Terminal Günlükleri Bağımsız ES Modülüne Taşındı (`public/modules/terminal.js`):**
+  - Sistem konsolu açma (`openConsoleModal`), kapatma (`closeConsoleModal`), konsol temizleme (`clearConsoleModal`) ve canlı log renklendirici (`appendLogToConsoleModal`) fonksiyonları `public/modules/terminal.js` modülüne aktarıldı.
+  - İlgili konsol modal ve araçlar buton olay dinleyicileri (`initTerminalEvents`) modüle taşınarak sayfa yüklenişinde otomatik ilklendirildi.
+  - `public/app.js` dosyasından mükerrer konsol kodları temizlenerek `window.*` geriye dönük uyumluluk köprüsüyle bağlandı.
+
+## [9.8.46] - 2026-09-24
+- **refactor(modularization): Kanal, Kategori & Filtre Yönetimi Bağımsız ES Modülüne Taşındı (`public/modules/channels.js`):**
+  - Kanal arama (`triggerChannelSearch`), arama sonuçlarını kapatma (`closeChannelSearchResults`), aramadan kanalı takibe alma (`followChannelFromSearch`) ve kanal ekleme form dinleyicisi (`initAddChannelForm`) modülerleştirildi.
+  - Kanal yönetimi (`deleteChannel`, `updateChannelAvatar`, `updateChannelInfo`, `updateAllChannelInfo`, `syncSingleChannelRss`) ve kanal tercihleri (`changeChannelQuality`, `changeChannelShorts`, `changeChannelAutoDownload`, `changeChannelShortsLimit`) bağımsız ES modülüne aktarıldı.
+  - Kategori filtre dropdown'ı (`updateChannelCategoryFilterOptions`) ve anlık filtreleme/imza denetimi (`handleChannelFilterChange`) modülerleştirildi.
+  - `public/app.js` içerisinden yüzlerce satırlık mükerrer kanal mantığı temizlenerek `window.*` geriye dönük uyumluluk köprüsüyle bağlandı.
+
+## [9.8.45] - 2026-09-24
+- **refactor(cleanup & performance): Klasik Tarama Modu Kaldırıldı, Daimi "Hızlı & Temiz Tarama" Standardizasyonu Sağlandı:**
+  - Ayarlar -> Otomasyon & RSS sekmesindeki gereksiz `settings-channel-scan-mode` ("Klasik Tarama" vs "Hızlı Tarama") seçim alanı kaldırılarak ayarlar penceresi daha derli toplu ve sade bir görünüme kavuşturuldu.
+  - `server/services/rss.js` içerisindeki tekil ve toplu kanal tarama mekanizmalarında yer alan hantal `classic` (yt-dlp birincil) dalları temizlendi; sistem doğrudan yıldırım hızındaki XML RSS taramasına sabitlendi.
+  - **Dahili Yedekleme (Fallback) Korundu:** Herhangi bir kanalın XML beslemesi vermemesi durumunda sistemin otomatik olarak `yt-dlp` yedeğine geçme özelliği kesintisiz çalışmaya devam eder.
+  - `public/app.js`, `server/config.js` ve terminal log çıktıları sadeleştirildi.
+
+## [9.8.44] - 2026-09-24
+- **refactor(modularization): İndirme Kuyruğu ve Sürükle-Bırak Yönetimi Bağımsız ES Modülüne Taşındı (`public/modules/queue.js`):**
+  - `public/app.js` içerisindeki devasa kuyruk motoru, DOM reordering (ok tuşları ve HTML5 Drag & Drop), görünüm modları (`setQueueViewMode`), indirme iptalleri (`cancelDownload`, `cancelAllDownloads`, `cancelQueuedVideo`, `cancelAllQueued`), anlık hız limiti kontrolleri (`toggleAlternativeSpeed`, `updateQueueSpeedLimit`, `toggleQueuePause`) ve hata yönetimi (`retryFailedVideo`, `clearFailedVideo`, `clearAllFailedVideos`) tamamen bağımsız `public/modules/queue.js` modülüne taşındı.
+  - Modül hem modern ES Module dışa aktarımı (`export`) hem de global `window.*` geriye dönük tam uyumluluğu ile yapılandırılarak HTML inline event'lerin sorunsuz çalışması sağlandı.
+  - `public/app.js` dosyası ~600 satır mükerrer koddan arındırılarak okunabilirliği ve performans optimizasyonu artırıldı.
+
+## [9.8.43] - 2026-09-24
+- **fix(ui & layout): Ayarlar Penceresi Düzeni, Kart Dağılımı ve HTML Yapısı Yenilendi:**
+  - `public/partials/tab-settings.html` içerisindeki `subtab-media` kartında kapanış div'i fazlalığı ve `settings-column` kapanış div uyumsuzlukları giderildi.
+  - 2 sütunlu grid (`settings-layout-compact`) üzerinde kartların yükseklik ve işlev dengesi mükemmelleştirildi:
+    - **Sol Sütun (Sistem, Görünüm & İndirme):** Genel & Görünüm Ayarları (Hava Durumu dahil), Oynatıcı & Medya Tercihleri, Sistem & Motor Yapılandırması, İndirme ve Kalite.
+    - **Sağ Sütun (Hesap, Otomasyon & Yedekleme):** YouTube Oturumu, Çerez & Bildirim (Disk Doğrulama & Otomatik Çerez Yenileme dahil), Otomasyon & RSS (Canlı Yayın & Shorts dahil), Sistem Veritabanı & Gist Yedekleme.
+  - Kartların hover animasyonları, bölüm başlıkları (`.settings-section-title`) ve gölge efektleri modern tasarım ilkelerine göre zenginleştirildi; tüm ID ve i18n anahtarları %100 korundu.
+
+## [9.8.42] - 2026-09-24
+- **fix(runtime & syntax): playVideoEmbedded Sözdizimi ve UI Başlatma Hatası Giderildi:** `public/app.js` içerisindeki `playVideoEmbedded` fonksiyonunun kapanışında yer alan fazla parantez bloğu temizlenerek Node.js ve tarayıcı derlemesini durduran `SyntaxError` giderildi. `btnSBToggle.onclick` içerisindeki tanımsız `rawVid`/`pType` değişkenleri yerine geçerli DOM video elemanı ve `playerType` referansları bağlanarak sayfa açılışında tüm modüllerin, video kartlarının ve hava durumunun kusursuz yüklenmesi sağlandı.
+
+## [9.8.41] - 2026-09-24
+- **fix(player & captions): Plyr Altyazı Yarış Durumu (Race Condition) & 'C' Tuşu Kısayol Düzeltmesi:** Oynatıcı başlatılırken arka plandan gelen altyazılar `Promise.race` ile beklenerek Plyr başlatılmadan önce DOM'a `<track>` olarak eklenmesi sağlandı; Plyr captions `active: true, update: true` yapılandırmasıyla güçlendirildi ve 'C' klavye kısayolu ile altyazıların anında açılıp kapanması garanti altına alındı.
+
+## [9.8.40] - 2026-09-24
+- **refactor(modularization): Altyazı ve Çeviri Modülü (`public/modules/player/subtitles.js`):** `public/app.js` içerisindeki altyazı motoru, asenkron altyazı getirme (`fetchVideoSubtitles`), video track ekleme (`applySubtitlesToPlayer`), altyazı çeviri modalı (`openSubtitleTranslateModal`) ve canlı altyazı görünüm stilleri (`initSubtitleStyleControls`) bağımsız ES modülüne taşındı.
+- **refactor(player): SponsorBlock Modülü (`public/modules/player/sponsorBlock.js`):** SponsorBlock zaman çizgisi işaretçileri, segment atlama ve durum kontrolleri modülerleştirildi. Kullanıcı isteği doğrultusunda, SponsorBlock devre dışı bırakılsa dahi zaman çizgisi üzerindeki renkli segment işaretçilerinin görünür kalması sağlandı.
+- **docs(rules): Fırsatçı Modülerleştirme (Opportunistic Modularization):** Anayasaya Kural 13 eklenerek kod okuma/düzenleme esnasında karşılaşılan bağımsız özelliklerin anında modüllere bölünmesi ilkesi bağlayıcı hale getirildi; token tasarrufu için kurallar sadeleştirildi.
+
+## [9.8.39] - 2026-09-24
+- **refactor(modularization): İstemci Modülerleştirme Faz 1 & Faz 2 Başarıldı:** `public/app.js` içerisindeki bağımsız servisler Atomic Design kurallarına göre `public/modules/` altına taşındı:
+  - `public/modules/weather.js` (Hava durumu servisi ve popover'ı),
+  - `public/modules/ffmpeg.js` (FFmpeg durum denetimi ve kurulum modalı),
+  - `public/modules/systemStatus.js` (Sistem disk alanı, klasör boyutu ve diski eşitle aracı),
+  - `public/modules/dnsLookup.js` (Aktif DNS tespiti, genel IP fallback'i ve modalı),
+  - `public/modules/uiDropdowns.js` (Bayraklı dil seçici dropdown ve canlı dil uygulama),
+  - `public/modules/bulkOperations.js` (Kütüphane toplu gizleme ve İndirilenler toplu silme motoru).
+- **feat(backup): Sürüm Bilgili Yedekleme Dosya Adı:** `0nogithub/backup.ps1` scripti güncellenerek yedek arşiv adlarına dinamik uygulama sürüm kodu eklendi (`HaYTooL_Yedek_v9.X.Y_YYYY-MM-DD_HH-mm.ss.7z`).
+- **fix(dns): EDNS İstemci Alt Ağı Fallback'i:** `server/routes/streams.js` içindeki `/api/system-dns` rotasına genel IP tespit fallback'i eklendi; DNS sunucusu ECS'yi gizlediğinde dış IP adresinin boş (`--`) kalması engellendi.
+
+## [9.8.38] - 2026-09-23
+- **fix(subtitles): YouTube Altyazı İndirme ve Biçim Uyumu:** `downloader.js` içindeki yt-dlp komut parametreleri güncellendi. Dil kodu eşleşmeleri `tr.*,tr-orig,en.*,en-orig` esnek şablonuna çekildi; YouTube'un katı SRT taleplerinde döndüğü 429 kısıtlamalarını aşmak için altyazı biçimi `srt/vtt/best` olarak genişletildi.
+- **fix(subtitles): Altyazı Dosya Eşleme & Backend Servisi:** `server/routes/streams.js` içindeki `/api/video/:videoId/subtitles` ve `/api/video/:videoId/subtitle/:lang` rotaları güncellendi. Yeni `findSubtitleFile` yardımcı fonksiyonu eklenerek hem `.vtt` hem `.srt` uzantıları, `tr`, `en`, `tr-orig` varyantları ve `[videoId]` etiketli disk dosyaları eksiksiz tespit edilip oynatıcıya servis edilir hale getirildi.
+- **fix(player & translate): Plyr Dinamik Altyazı Yükleme & Çeviri Modalı:** `public/app.js` içerisindeki `playVideoEmbedded` fonksiyonuna sıfır gecikmeli (0ms) arka plan altyazı getirme (`/api/video/:videoId/subtitles`) ve `applySubtitlesToPlayer` entegrasyonu eklendi. Oynatıcı başlatılırken altyazılar otomatik olarak `<track>` olarak eklenir, kullanıcı diline göre varsayılan seçilir ve "Altyazı Çevirisi" aracı videoya ait mevcut altyazıları kusursuz listeleyip çalıştırır.
+
+## [9.8.37] - 2026-09-23
+- **refactor(player): ArtPlayer kaldırıldı, Plyr tek ve güçlü ana oynatıcı yapıldı:** Karmaşık yapı ve hata riskini ortadan kaldırmak için ArtPlayer bağımlılığı (`artplayer.js`), arayüz ayarları ve seçici menüleri tamamen projeden temizlendi. Tüm gömülü video oynatımları sağlam, optimize edilmiş ve tam özellikli Plyr kütüphanesine devredildi.
+- **clean(settings & i18n): Oynatıcı seçimi ayarlar menüsünden kaldırıldı:** Artık tek oynatıcı standart olduğu için Ayarlar sekmesindeki "Gömülü Oynatıcı Türü" seçeneği ve 7 dildeki ilgili çeviri anahtarları arayüzü sadeleştirmek adına kaldırıldı.
+
+## [9.8.36] - 2026-09-23
+- **fix(player): ArtPlayer constructor DOM element düzeltmesi:** `new Artplayer({ container: '#selector' })` yerine doğrudan `artTargetEl = document.getElementById('embedded-artplayer')` DOM öğesi geçirildi; bu sayede selector bazlı hata ile sessiz çöküş ve HTML5 fallback'e geçiş sorunu kökten giderildi.
+- **fix(player): ArtPlayer constructor try-catch & fallback guard:** Constructor hatalarında konsola açık hata basılacak ve fallback HTML5 player devreye girecek şekilde `try-catch` bloğu eklendi; `videoPlayerInstance.on` çağrıları öncesine `typeof videoPlayerInstance.on === 'function'` guard eklendi.
+- **fix(player): ArtPlayer tam ekran toggle düzeltmesi:** `toggleFullscreen` ArtPlayer modunda `document.fullscreenElement` durumuna göre önce `exitFullscreen`, yoksa `art.fullscreen = true` setter kullanacak şekilde güncellendi; hata durumunda container element üzerinden `requestFullscreen()` yedeklemesi eklendi.
+- **fix(player): ArtPlayer resume seek 150ms guard:** `play` olayında `artPlayChecked` bayrağıyla tek seferlik 150ms gecikmeli kontrol eklendi; `currentTime < 2` iken `initialArtSeekTarget > 3` koşulu sağlanırsa hedef süreye zorunlu seek yapılarak ArtPlayer motorunun başlangıçta sıfırlaması engellendi.
+
+## [9.8.35] - 2026-09-23
+- **Fix & Player (ArtPlayer Tam Ekran Çözümü - F Tuşu):** ArtPlayer üzerinde `f` / `F` tuşuna basıldığında `document.fullscreenElement` durumuna göre ya `document.exitFullscreen()` ya da `#embedded-artplayer` container üzerinden doğrudan HTML5 `requestFullscreen()` çağrısı tetiklenerek tam ekran açma/kapatma hatasız hale getirildi.
+- **Fix & Player (ArtPlayer Kaldığı Yerden Devam Etme - Resume Seek):** Video yüklenirken ilk saniyelerde gelen `currentTime <= 3` değerlerinin kayıtlı süreyi ve `localStorage`'ı sıfırlaması engellendi (`savePlaybackPosition` koruması). ArtPlayer başlatılırken kayıtlı hedef saniye `initialArtSeekTarget` olarak yakalandı, ArtPlayer `autoPlayback` seçeneği ve `performArtSeek` (ArtPlayer setter `art.seek = targetTime` & `rawVideo.currentTime = targetTime`) ile videonun kaldığı yerden kusursuz başlaması sağlandı.
+- **Fix & Player (ArtPlayer SponsorBlock Zaman Çizelgesi & Otomatik Atlama):** SponsorBlock zaman aşımı süresi 1.5s'den 4.0s'ye çıkarıldı. Segmentler çekildiğinde hem ArtPlayer'ın kendi `.art-progress-highlight` çubuğuna işaretçi span'lar eklendi hem de container üzerine canlı renkli bloklar çizildi. Sponsorlu alana gelindiğinde ArtPlayer setter'ı (`videoPlayerInstance.seek = seg.end`) ve `rawVideo.currentTime = seg.end` ile otomatik atlama ve kalkan butonundan anında yeniden çizim/kaldırma devreye alındı.
+
+## [9.8.34] - 2026-09-23
+- **Fix & Player (ArtPlayer Tam Ekran Kısayolu f/F):** ArtPlayer üzerinde `f` / `F` tuşuna basıldığında tam ekrana girememe sorunu çözüldü; `art.fullscreen.toggle()`, boolean `fullscreen` setter, `art.template.$player.requestFullscreen()` ve HTML5 video yedeklerini içeren çok katmanlı tam ekran mekanizması entegre edildi.
+- **Fix & Player (ArtPlayer Kaldığı Yerden Devam Etme — Resume Seek):** ArtPlayer'da videoların başa sarma sorunu giderildi; hedef saniye `canplay`, `loadedmetadata` ve ilk `play` olayında çift teyit edilerek `videoPlayerInstance.seek = targetTime` ve `rawVideo.currentTime = targetTime` ile videonun garantili olarak kaldığı saniyeden başlatılması ve kaldığı yer bildirimi gösterilmesi sağlandı.
+- **Fix & Player (ArtPlayer SponsorBlock Zaman Çubuğu & Otomatik Atlama):** ArtPlayer arayüzündeki progress çubuğu seçicileri (`.art-control-progress-inner`, `.art-control-progress`, `.art-progress`) genişletildi; video yüklenirken SponsorBlock segmentleri çekildiğinde zaman çubuğunda renkli işaretler görünür kılındı ve sponsorlu alana girildiğinde ArtPlayer seek motoruyla anında sonrasına atlaması sağlandı.
+- **Fix & UI (Video Kartları "YouTube'da Aç" Butonu):** Video kartlarındaki tüm `.btn-action-yt` butonlarına `event.stopPropagation();` eklendi; butona tıklandığında kart tıklama eyleminin (gömülü oynatıcıyı tetikleme) devreye girmesi engellendi ve varsa videonun hafızadaki kaldığı saniyesi (`lastPos`) doğrudan YouTube yönlendirmesine aktarıldı.
+- **Feature & Tools (Aktif DNS Sunucusu Tespit Aracı):** Araçlar menüsündeki DNS aracı web sitesi alan adı sorgulayıcısından, kullanıcının bilgisayarının ve internet bağlantısının o an aktif kullandığı DNS sağlayıcısını (Google DNS, Cloudflare, Quad9, AdGuard, Türk Telekom vb.) tespit eden araca dönüştürüldü. `/api/system-dns` rotası üzerinden yerel ağ DNS IP'leri, çıkış çözümleyici IP'si, konum/ASN ve genel IP tek tıkla analiz edilip panoya kopyalanabilir hale getirildi.
+
+## [9.8.33] - 2026-09-23
+- **Fix & Filter (İndirilenler Sekmesi Boş Liste & Kanal Filtreleme Kalıcılığı):** Küçük ekrandan veya karttan kanal filtresi seçildiğinde gizli `<select>` öğesinde `<option>` eksikliğinden kaynaklanan `""` (boş string) filtre değeri sorunu kökten giderildi. `db.json` ve `configwin.ini`ye boş kanal ID'si kaydedilmesi engellendi, `populateChannelFilters()` ve `filterByChannel()` hem custom avatar dropdown hem de HTML `<select>` seçeneklerini eşzamanlı tutacak şekilde güncellendi. `saveDownloadedFilterState()` ve `restoreDownloadedFilterState()` fonksiyonlarına boş string sanitizasyonu eklendi.
+- **Fix & Player (ArtPlayer Klavye Kısayolları & Hız/Tam Ekran Uyumu):** `activePlayer` nesnesi genişletilerek ArtPlayer'ın iç nesneleri (`videoPlayerInstance.video` ve ArtPlayer API) ile tam uyumlu hale getirildi. `Space`, `k/K`, `j/J` (-10s), `l/L` (+10s), `Arrow Left/Right` (-/+5s), `Arrow Up/Down` (ses seviyesi + HUD), `Home`, `End`, `<` / `>` (oynatma hızı + HUD bildirim) ve `0-9` (videonun yüzde dilimine atlama) kısayolları ArtPlayer açıkken kusursuz çalışacak şekilde güvenceye alındı.
+- **Fix & Player (ArtPlayer Kaldığı Yerden Devam Etme — Resume Seek):** ArtPlayer'da süre atlaması `ready` olayına ek olarak `canplay` ve `loadedmetadata` dinleyicilerine bağlandı; `videoPlayerInstance.seek = targetTime` ve `rawVideo.currentTime = targetTime` entegrasyonuyla tarayıcı veya video akış motorunun süreyi başa çekmesi engellendi, kaldığı yerden başlama bildirimi eklendi.
+- **Feature & Player (YouTube'da Aç — O Anki Süreyle Yönlendirme):** Oynatıcı altındaki "YouTube'da Aç" butonuna tıklandığında mevcut oynatma süresi (`timeSeconds`) otomatik tespit ediliyor; `/api/open-youtube` rotası güncellenerek link `&t=${time}s` parametresiyle açılarak videonun doğrudan kalınan saniyeden başlaması sağlandı.
+
+## [9.8.32] - 2026-09-22
+- **Fix & Player (ArtPlayer Global Scope Düzeltmesi):** `app.js` içindeki ArtPlayer başlatma mantığında `window.Artplayer` yerine `Artplayer` (global/parcel scope) kontrolü yapılıyor; her iki scope'u kapsayan `ArtplayerClass` değişkeni eklendi. Constructor artık `try/catch` içinde çalışıyor, hata durumunda konsola detaylı log basılıp HTML5 fallback'e geçiliyor.
+- **UX & Filter (İndirilenler Filtre Kalıcılığı — configwin.ini):** `saveDownloadedFilterState()` fonksiyonu artık `localStorage` yanında `/api/settings` üzerinden `configwin.ini`'ye de yazıyor (kanal, sıralama, görünüm modu, yarım kalan, arama sorgusu). `restoreDownloadedFilterState()` önce `localDb.settings` (configwin.ini kaynaklı) okuyup, yoksa localStorage'a düşüyor. Böylece EXE içi WebView2'de ve tüm portlarda (4141 vb.) filtreler kalıcı.
+- **Feature & Tools (DNS Sorgulayıcı Aracı):** Araçlar açılır menüsüne yeni "DNS Sorgulayıcı" butonu eklendi. Google DoH API (`dns.google/resolve`) ile A, AAAA, MX, TXT, NS, CNAME kayıtları sorgulanabiliyor; ipify API (`api.ipify.org`) ile kullanıcının genel (public) IPv4 adresi gösterilip kopyalanabiliyor. Modal glassmorphism tasarımıyla, dış tıklamada kapanma ve Esc desteğiyle tamamlandı.
+
+## [9.8.31] - 2026-09-22
+- **Fix & Player (ArtPlayer/HTML5 Başlatma Mantığı Düzeltmesi):** `app.js` içindeki `playVideoEmbedded` fonksiyonunda ArtPlayer seçildiğinde container oluşturma ve oynatıcı başlatma mantığı ayrıştırıldı; `window.Artplayer` kontrol doğru scope'a alındı. ArtPlayer veya Plyr kütüphanesi yüklenemediğinde konsola açıklayıcı hata mesajı (`[HaYTooL] Artplayer/Plyr yüklenemedi`) yazılarak HTML5 standart moda sessiz fallback yapılıyor.
+- **UX & Player (İndirilenler Tabı — Küçük Ekran Butonu):** İndirilenler tabındaki inline oynatıcı üst çubuğuna, `Sil` ve `Kapat` butonları arasına yeni `Küçük Ekran` butonu eklendi. Butona basıldığında `switchInlinePlayerToModal()` fonksiyonu çalışarak aktif oynatıcı sağ alttaki yüzen mini modal'a taşınır; video kesintisiz devam eder.
+- **Refactor & Player (`switchInlinePlayerToModal` Ayrı Fonksiyon):** Tab geçişindeki inline→modal taşıma mantığı `window.switchInlinePlayerToModal()` olarak bağımsız bir fonksiyona çıkarıldı; hem sekme geçişinde hem de yeni buton aracılığıyla çağrılıyor.
+
 ## [9.8.30] - 2026-09-22
 - **Fix & Player (WPF Tam Ekran Görev Çubuğu Çözümü):** C# masaüstü WebView2 oynatıcısında (`MainWindow.xaml.cs` ve `PlayerWindow.xaml.cs`) videoya çift tıklandığında Windows görev çubuğunun altta görünür kalması hatası giderildi; tam ekrana geçilirken pencere önce `WindowState.Normal` durumuna çekilerek çerçevesiz ve en üstte (borderless topmost) modda görev çubuğunu tamamen örtecek şekilde maximize edilmesi sağlandı.
 - **UI & Layout (Oynatıcı ve Kenar Çubuğu Boşluk Dengelemesi):** `.main-content` yatay dolgusu 40px'ten 20px'e düşürülerek sol taraftaki gereksiz boşluk dolduruldu; yerleşik oynatıcı yanındaki `.inline-player-sidebar` genişliği 400px'ten 440px'e ve aralık (gap) 16px'e dengelenerek sağdaki boşluk kapatıldı.

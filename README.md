@@ -2,7 +2,7 @@
   <img src="public/logo.png" alt="Multimedia HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v9.8.30)</p>
+# <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v9.8.51)</p>
 
 <p align="center">
   <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System & Native Player</b><br/>
@@ -20,9 +20,9 @@
   <img src="https://img.shields.io/badge/Database-JSON%20(Lowdb%20Logic)-red?style=for-the-badge&logo=json" alt="Database" />
   <br>
   <img src="https://img.shields.io/badge/UI-Vanilla%20CSS3%20%7C%20Lucide%20Icons-1572B6?style=for-the-badge&logo=css3" alt="UI" />
-  <img src="https://img.shields.io/badge/Player-Plyr%20%7C%20ArtPlayer-ff0000?style=for-the-badge&logo=youtube" alt="Players" />
+  <img src="https://img.shields.io/badge/Player-Plyr-ff0000?style=for-the-badge&logo=youtube" alt="Players" />
   <img src="https://img.shields.io/badge/Downloader-yt--dlp%20%7C%20FFmpeg-4af626?style=for-the-badge" alt="Downloader" />
-  <img src="https://img.shields.io/badge/Version-v9.8.30-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v9.8.43-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&color=blueviolet" alt="GitHub Downloads (latest release)" />
   <a href="https://haytokoraz.github.io/" target="_blank"><img src="https://img.shields.io/badge/🌐_All_Apps-haytokoraz.github.io-FF0000?style=for-the-badge&logo=githubpages&logoColor=white" alt="HaYTo Ecosystem Hub" /></a>
@@ -58,7 +58,7 @@ Instead of logging into YouTube and exposing your data to ads and algorithmic tr
 
 * **Background Subscription Automation:** Periodically checks your followed channels via RSS feeds. Downloads new videos automatically the second they are uploaded, creating an offline, local cache of your subscription box.
 * **Algorithmic Liberation:** No distraction, no "Up Next" traps, and no algorithmic rabbit holes. You only see the videos published by the creators you specifically subscribed to.
-* **100% Ad-Free Local Playback:** Plays downloaded videos locally inside a custom dashboard using premium players (Artplayer, Plyr, or HTML5) with full seeking, speed control, and orientation-aware resizing.
+* **100% Ad-Free Local Playback:** Plays downloaded videos locally inside a custom dashboard using premium Plyr player with full seeking, speed control, and orientation-aware resizing.
 * **SponsorBlock Integration:** Automatically skips sponsor segments, intros, outros, and subscription reminders. Includes a session-based shield toggle button under the player and dimmed segments on the timeline.
 * **Advanced Subtitles & Translation:** Automatically grabs English/Turkish subtitles. Features a translation utility supporting 11 target languages with a visual loading overlay, along with customizable subtitle styling (12 colors, 12 background opacities, 13 font sizes).
 * **YouTube-Style Split Playlist View:** The "Downloads" tab features a dual-column layout. Watch the active video on the left while browsing your other downloads in a sidebar playlist on the right, supporting autoplay (sequential video playback) and status HUD overlays.
@@ -205,7 +205,7 @@ YouTube'a girip reklam tuzağına ve algoritma önerilerine maruz kalmak yerine,
 
 * **Arka Planda Otomatik Kanal İzleme:** Takip listenizdeki kanalları RSS akışlarıyla sürekli denetler. Yeni bir video yüklenir yüklenmez arka planda otomatik olarak indirerek yerel abonelik kutunuzu oluşturur.
 * **Algoritma Dayatmasından Kurtuluş:** Öneri algoritmaları, "Sıradaki Video" tuzakları ve dikkat dağıtıcı alakasız içerikler yok. Yalnızca takip etmek için kendi eklediğiniz yayıncıların videolarını görürsünüz.
-* **%100 Reklamsız Yerel Oynatım:** İndirilen videoları arayüzdeki gelişmiş oynatıcılar (Artplayer, Plyr, HTML5) üzerinden sıfır gecikme, HTTP 206 Range desteği ve reklamsız olarak yerel diskinizden oynatır.
+* **%100 Reklamsız Yerel Oynatım:** İndirilen videoları arayüzdeki gelişmiş Plyr oynatıcısı üzerinden sıfır gecikme, HTTP 206 Range desteği ve reklamsız olarak yerel diskinizden oynatır.
 * **SponsorBlock Entegrasyonu:** Video içindeki sponsorlu alanları, intro/outro bölümlerini ve abonelik hatırlatıcılarını otomatik atlar. Oynatıcı altındaki kalkan (shield) butonuyla geçici olarak kapatılabilir.
 * **Gelişmiş Altyazı ve Otomatik Çeviri:** İngilizce/Türkçe altyazıları otomatik indirir. Yerleşik çevirici modülüyle altyazıları 11 dile anlık çevirebilir ve altyazı rengini (12 renk), arka plan opaklığını (12 düzey), yazı boyutunu (13 seçenek) özelleştirebilirsiniz.
 * **YouTube Tarzı Bölünmüş Çalma Listesi:** İndirilenler sekmesi iki sütunlu yerleşim sunar. Solda aktif video oynatılırken sağda indirilmiş diğer videoların çalma listesi listelenir; otomatik sonraki videoya geçiş (autoplay) ve ortada beliren cam tasarımlı durum HUD'ları desteklenir.

@@ -18,6 +18,101 @@ window.openTempFolder = openTempFolder;
 // Dinamik dil ve arayüz çevirisi alt modülü
 import { applyLanguage } from './modules/i18n-apply.js';
 window.applyLanguage = applyLanguage;
+// Hava durumu alt modülü
+import { updateWeatherBadge, initWeatherPopoverEvents } from './modules/weather.js';
+window.updateWeatherBadge = updateWeatherBadge;
+window.initWeatherPopoverEvents = initWeatherPopoverEvents;
+// FFmpeg yönetim alt modülü
+import { checkFfmpegStatus, openFfmpegModal, closeFfmpegModal, updateFfmpegInstallUI, startFfmpegDownload, initFfmpegEvents } from './modules/ffmpeg.js';
+// Sistem ve disk durumu alt modülü
+import { updateDiskSpace, triggerManualDiskSync, initSystemStatusEvents } from './modules/systemStatus.js';
+window.updateDiskSpace = updateDiskSpace;
+window.triggerManualDiskSync = triggerManualDiskSync;
+// Aktif DNS tespit aracı alt modülü
+import { detectActiveDns, openDnsLookupModal, closeDnsLookupModal, copyDnsInfo, initDnsLookupEvents } from './modules/dnsLookup.js';
+window.detectActiveDns = detectActiveDns;
+window.openDnsLookupModal = openDnsLookupModal;
+window.closeDnsLookupModal = closeDnsLookupModal;
+window.copyDnsInfo = copyDnsInfo;
+// Özel dropdown ve bayrak seçici alt modülü
+import { initCustomSelect, setCustomSelectValue } from './modules/uiDropdowns.js';
+window.initCustomSelect = initCustomSelect;
+window.setCustomSelectValue = setCustomSelectValue;
+// Toplu işlem ve modallar alt modülü (Bulk Hide / Bulk Delete)
+import './modules/bulkOperations.js';
+// İndirme kuyruğu ve sıralama yönetimi alt modülü
+import {
+  setQueueViewMode,
+  moveQueueItem,
+  updateQueueOrderDOM,
+  handleDragStart,
+  handleDragOver,
+  handleDrop,
+  handleDragEnd,
+  cancelDownload,
+  cancelAllDownloads,
+  cancelQueuedVideo,
+  cancelAllQueued,
+  pasteAndDownload,
+  toggleQueuePause,
+  toggleAlternativeSpeed,
+  updateQueueSpeedLimit,
+  retryFailedVideo,
+  retryAllFailedVideos,
+  clearFailedVideo,
+  clearAllFailedVideos
+} from './modules/queue.js';
+window.setQueueViewMode = setQueueViewMode;
+window.moveQueueItem = moveQueueItem;
+window.updateQueueOrderDOM = updateQueueOrderDOM;
+window.handleDragStart = handleDragStart;
+window.handleDragOver = handleDragOver;
+window.handleDrop = handleDrop;
+window.handleDragEnd = handleDragEnd;
+window.cancelDownload = cancelDownload;
+window.cancelAllDownloads = cancelAllDownloads;
+window.cancelQueuedVideo = cancelQueuedVideo;
+window.cancelAllQueued = cancelAllQueued;
+window.pasteAndDownload = pasteAndDownload;
+window.toggleQueuePause = toggleQueuePause;
+window.toggleAlternativeSpeed = toggleAlternativeSpeed;
+window.updateQueueSpeedLimit = updateQueueSpeedLimit;
+window.retryFailedVideo = retryFailedVideo;
+window.retryAllFailedVideos = retryAllFailedVideos;
+window.clearFailedVideo = clearFailedVideo;
+window.clearAllFailedVideos = clearAllFailedVideos;
+// SponsorBlock oynatıcı alt modülü
+import {
+  drawSponsorSegmentsOnTimeline,
+  fetchSponsorSegments,
+  updateSponsorBlockStatusUI,
+  updateSBToggleButtonUI,
+  checkAndSkipSponsor,
+  getSponsorSegments,
+  clearSponsorSegments
+} from './modules/player/sponsorBlock.js';
+window.drawSponsorSegmentsOnTimeline = drawSponsorSegmentsOnTimeline;
+window.fetchSponsorSegments = fetchSponsorSegments;
+window.updateSponsorBlockStatusUI = updateSponsorBlockStatusUI;
+window.updateSBToggleButtonUI = updateSBToggleButtonUI;
+window.checkAndSkipSponsor = checkAndSkipSponsor;
+window.getSponsorSegments = getSponsorSegments;
+window.clearSponsorSegments = clearSponsorSegments;
+// Altyazı ve çeviri modülü
+import {
+  applySubtitlesToPlayer,
+  fetchVideoSubtitles,
+  openSubtitleTranslateModal,
+  initSubtitleStyleControls,
+  getCurrentSubtitles,
+  setCurrentSubtitles
+} from './modules/player/subtitles.js';
+window.applySubtitlesToPlayer = applySubtitlesToPlayer;
+window.fetchVideoSubtitles = fetchVideoSubtitles;
+window.openSubtitleTranslateModal = openSubtitleTranslateModal;
+window.initSubtitleStyleControls = initSubtitleStyleControls;
+window.getCurrentSubtitles = getCurrentSubtitles;
+window.setCurrentSubtitles = setCurrentSubtitles;
 // IPTV oynatıcı ve çoklu ekran modülü
 import {
   initIptv,
@@ -33,7 +128,6 @@ import {
   clearIptvSlot,
   playIptvChannel,
   resetIptvSlotStyles,
-  resizeAllArtplayers,
   saveIptvState,
   swapIptvSportModePlayers,
   updateIptvSwapBtnVisibility,
@@ -41,6 +135,65 @@ import {
   updateLoadMoreBtn,
   renderIptvChannels
 } from './modules/iptv.js';
+// Kanal yönetimi, arama ve kategori filtreleri alt modülü
+import {
+  triggerChannelSearch,
+  closeChannelSearchResults,
+  followChannelFromSearch,
+  deleteChannel,
+  updateChannelAvatar,
+  updateChannelInfo,
+  updateAllChannelInfo,
+  syncSingleChannelRss,
+  changeChannelQuality,
+  changeChannelShorts,
+  changeChannelAutoDownload,
+  changeChannelShortsLimit,
+  updateChannelCategoryFilterOptions,
+  handleChannelFilterChange,
+  initAddChannelForm
+} from './modules/channels.js';
+window.triggerChannelSearch = triggerChannelSearch;
+window.closeChannelSearchResults = closeChannelSearchResults;
+window.followChannelFromSearch = followChannelFromSearch;
+window.deleteChannel = deleteChannel;
+window.updateChannelAvatar = updateChannelAvatar;
+window.updateChannelInfo = updateChannelInfo;
+window.updateChannelSubscribers = updateChannelInfo;
+window.updateAllChannelInfo = updateAllChannelInfo;
+window.updateAllChannelAvatars = updateAllChannelInfo;
+window.updateAllChannelSubscribers = updateAllChannelInfo;
+window.syncSingleChannelRss = syncSingleChannelRss;
+window.changeChannelQuality = changeChannelQuality;
+window.changeChannelShorts = changeChannelShorts;
+window.changeChannelAutoDownload = changeChannelAutoDownload;
+window.changeChannelShortsLimit = changeChannelShortsLimit;
+window.updateChannelCategoryFilterOptions = updateChannelCategoryFilterOptions;
+window.handleChannelFilterChange = handleChannelFilterChange;
+window.initAddChannelForm = initAddChannelForm;
+// Sistem konsolu ve canlı terminal logları alt modülü
+import {
+  openConsoleModal,
+  closeConsoleModal,
+  clearConsoleModal,
+  appendLogToConsoleModal,
+  initTerminalEvents
+} from './modules/terminal.js';
+window.openConsoleModal = openConsoleModal;
+window.closeConsoleModal = closeConsoleModal;
+window.clearConsoleModal = clearConsoleModal;
+window.appendLogToConsoleModal = appendLogToConsoleModal;
+window.initTerminalEvents = initTerminalEvents;
+// Güncelleme kontrolü ve sürüm yönetimi alt modülü
+import { loadAppVersion, checkApplicationUpdates, showUpdateNotification } from './modules/updater.js';
+// Sistem yedek yöneticisi alt modülü
+import { createSystemBackup, loadSystemBackupsList, downloadSystemBackup, deleteSystemBackup, triggerUploadBackupFile, uploadBackupFile, restoreSystemBackup } from './modules/backupManager.js';
+// yt-dlp motor sürüm yöneticisi alt modülü
+import { fetchYtdlpVersion, updateYtdlp } from './modules/ytdlpManager.js';
+// İndirici arayüzü alt modülü (tekil/playlist indirme, eksik video kuyruğa ekleme)
+import { handleDownloaderStart, handleDownloaderAll, renderPlaylistResults, downloadMissingVideo } from './modules/downloaderUI.js';
+// Video yorumları ve sayfalama alt modülü
+import { loadComments, loadMoreComments, renderCommentsList, toggleCommentsPanel } from './modules/comments.js';
 
 // Geliştirici log kontrolü. Localhost haricinde tarayıcı konsol çıktısını devre dışı bırakır.
 const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -130,57 +283,9 @@ function switchTab(targetTab, triggerPushState = true) {
     const inlineContainer = document.getElementById('downloaded-inline-player-container');
     const isInlineOpen = inlineContainer && !inlineContainer.classList.contains('hidden');
     if (isInlineOpen && currentPlayingVideoId) {
-      const video = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
-      const isShort = isShortVideo(video?.duration, video?.title, video?.channelId);
-      
-      const inlineBody = document.getElementById('inline-player-body');
-      const modal = document.getElementById('player-modal');
-      const modalBody = modal ? modal.querySelector('.player-modal-body') : null;
-      const modalTitle = document.getElementById('player-modal-title');
-      const modalLogo = document.getElementById('player-modal-logo');
-
-      if (modal && modalBody && inlineBody && inlineBody.firstElementChild) {
-        // Modal başlık ve logoyu güncelle
-        if (modalTitle) modalTitle.textContent = video ? video.title : 'Gömülü Video Oynatıcı';
-        if (modalLogo && video?.channelId) {
-          modalLogo.src = `/api/channels/${video.channelId}/avatar`;
-          modalLogo.style.display = 'block';
-        } else if (modalLogo) {
-          modalLogo.style.display = 'none';
-        }
-
-        // Canlı DOM elementini (Artplayer veya Plyr/Video) doğrudan modala taşı
-        while (inlineBody.firstChild) {
-          modalBody.appendChild(inlineBody.firstChild);
-        }
-
-        // Yerleşik alanı gizle
-        inlineContainer.classList.add('hidden');
-        const listContainer = document.getElementById('downloaded-list-container');
-        if (listContainer) listContainer.classList.remove('hidden');
-
-        // Modalı göster ve boyutlandır
-        modal.classList.remove('hidden');
-        if (typeof resetAndApplyPlayerDimensions === 'function') {
-          resetAndApplyPlayerDimensions(isShort, true); // Minimized modunda aç
-        }
-
-        const minBtn = document.getElementById('minimize-player-modal-btn');
-        if (minBtn) {
-          const icon = minBtn.querySelector('i') || minBtn.querySelector('[data-lucide]');
-          if (icon) icon.setAttribute('data-lucide', 'maximize-2');
-          minBtn.title = localDb.settings && localDb.settings.lang === 'en' ? 'Maximize' : 'Büyüt';
-        }
-        try {
-          if (typeof lucide !== 'undefined') lucide.createIcons();
-        } catch (e) {}
-
-        if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
-          setTimeout(() => videoPlayerInstance.resize(), 50);
-        }
-
+      const didSwitch = window.switchInlinePlayerToModal();
+      if (didSwitch) {
         performTabSwitchUI(targetTab);
-
         if (triggerPushState) {
           const targetPath = tabPathMap[targetTab];
           if (targetPath && window.location.pathname !== targetPath) {
@@ -598,128 +703,6 @@ function connectSSE() {
       appendLogToConsoleModal(data);
     } catch (err) {}
   });
-}
-
-/**
- * Sunucudan GitHub güncelleme durumunu sorgular ve rozeti günceller.
- */
-async function checkApplicationUpdates() {
-  try {
-    const res = await fetch('/api/updates/check');
-    if (!res.ok) return;
-    const update = await res.json();
-    const topbarVer = document.getElementById('topbar-version');
-    if (update && update.updateAvailable) {
-      if (topbarVer) {
-        topbarVer.classList.add('update-pulsing');
-        topbarVer.title = `Yeni sürüm mevcut (${update.latestVersion})! İndirmek için tıklayın.`;
-      }
-      showUpdateNotification(update);
-    } else {
-      if (topbarVer) {
-        topbarVer.classList.remove('update-pulsing');
-      }
-    }
-  } catch (err) {
-    console.warn('Update check failed:', err);
-  }
-}
-
-async function loadAppVersion() {
-  try {
-    const res = await fetch('/api/version');
-    const data = await res.json();
-    if (data && data.version) {
-      const verStr = 'v' + data.version;
-      const releasesUrl = 'https://github.com/HaYToKoRaZ/haytool-youtube-download/releases';
-      
-      // Topbar version badge
-      const topbarVer = document.getElementById('topbar-version');
-      if (topbarVer) {
-        const link = topbarVer.querySelector('a');
-        if (link) {
-          link.textContent = verStr;
-          link.href = releasesUrl;
-        } else {
-          topbarVer.textContent = verStr;
-        }
-      }
-      
-      // Settings version label
-      const settingsVer = document.getElementById('settings-version');
-      if (settingsVer) {
-        const link = settingsVer.querySelector('a');
-        if (link) {
-          link.textContent = verStr;
-          link.href = releasesUrl;
-        } else {
-          settingsVer.textContent = verStr;
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to load version:', err);
-  }
-}
-
-/**
- * Kullanıcıya yeni sürüm olduğunu bildiren animasyonlu bir kart gösterir.
- */
-function showUpdateNotification(update) {
-  if (sessionStorage.getItem('hide_update_notification') === 'true') {
-    return;
-  }
-  
-  const existing = document.getElementById('github-update-notification');
-  if (existing) existing.remove();
-  
-  const isEn = localDb.settings?.lang === 'en';
-  const title = isEn ? 'New Version Available!' : 'Yeni Sürüm Mevcut!';
-  const desc = isEn ? `v${update.latestVersion.replace(/^v/, '')} version is ready to download.` : `v${update.latestVersion.replace(/^v/, '')} sürümü indirilebilir durumda.`;
-  const btnText = isEn ? 'View on GitHub' : 'GitHub\'da İncele';
-  
-  const card = document.createElement('div');
-  card.id = 'github-update-notification';
-  card.className = 'github-update-card';
-  card.innerHTML = `
-    <div class="update-card-content">
-      <div class="update-card-icon">
-        <i data-lucide="sparkles"></i>
-      </div>
-      <div class="update-card-body">
-        <h4>${title}</h4>
-        <p>${desc}</p>
-        <div class="update-card-actions">
-          <a href="${update.releaseUrl}" target="_blank" class="update-btn-action">${btnText}</a>
-          <button class="update-btn-close" id="github-update-close-btn"><i data-lucide="x"></i></button>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(card);
-  
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
-  
-  document.getElementById('github-update-close-btn').addEventListener('click', () => {
-    card.classList.add('fade-out');
-    sessionStorage.setItem('hide_update_notification', 'true');
-    setTimeout(() => card.remove(), 400);
-  });
-
-  // Ayarlar sekmesindeki sürüm numarasının yanına yeşil bir badge ekle
-  const settingsVersion = document.getElementById('settings-version');
-  if (settingsVersion && !document.getElementById('settings-update-badge')) {
-    const badge = document.createElement('span');
-    badge.id = 'settings-update-badge';
-    badge.className = 'update-badge-settings';
-    badge.textContent = isEn ? 'Update Available' : 'Güncelleme Var';
-    badge.style.cssText = 'font-size: 0.75rem; background: #22c55e; color: #fff; padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-weight: 600; display: inline-block; cursor: pointer;';
-    badge.onclick = () => window.open(update.releaseUrl, '_blank');
-    settingsVersion.parentNode.appendChild(badge);
-  }
 }
 
 
@@ -2084,9 +2067,6 @@ function updateUI(db) {
     const settingsCheckOnStartup = document.getElementById('settings-checkonstartup');
     if (settingsCheckOnStartup && document.activeElement !== settingsCheckOnStartup) settingsCheckOnStartup.checked = db.settings.checkChannelsOnStartup === true;
 
-    const settingsChannelScanMode = document.getElementById('settings-channel-scan-mode');
-    if (settingsChannelScanMode && document.activeElement !== settingsChannelScanMode) settingsChannelScanMode.value = db.settings.channelScanMode || 'fast';
-
     const settingsAutoOpenBrowser = document.getElementById('settings-autoopenbrowser');
     if (settingsAutoOpenBrowser && document.activeElement !== settingsAutoOpenBrowser) settingsAutoOpenBrowser.checked = db.settings.autoOpenBrowser !== false;
 
@@ -2102,8 +2082,6 @@ function updateUI(db) {
       settingsPrefAudioLang.value = db.settings.preferredAudioLang || 'auto';
     }
 
-    const settingsPlayerType = document.getElementById('settings-player-type');
-    if (settingsPlayerType && document.activeElement !== settingsPlayerType) settingsPlayerType.value = db.settings.playerType || 'plyr';
 
     const settingsDoubleClickAction = document.getElementById('settings-doubleclickaction');
     if (settingsDoubleClickAction && document.activeElement !== settingsDoubleClickAction) {
@@ -2267,9 +2245,12 @@ window.resetDownloadedChannelFilter = function() {
   const filterSelect = document.getElementById('downloaded-channel-filter');
   if (filterSelect) {
     filterSelect.value = 'all';
-    downloadedFilterChannel = 'all';
-    updateUI(localDb);
   }
+  downloadedFilterChannel = 'all';
+  window.downloadedFilterChannel = 'all';
+  if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
+  if (typeof populateChannelFilters === 'function') populateChannelFilters(localDb);
+  updateUI(localDb);
 };
 
 // Türkçe Açıklama: İndirilenler sekmesinde sadece izlenmesi yarıda bırakılan videoları filtreler
@@ -2288,116 +2269,7 @@ window.toggleDownloadedResumeFilter = function() {
   }
 };
 
-window.deleteChannel = async function(id) {
-  if (!confirm('Bu kanalı takipten çıkarmak istediğinizden emin misiniz?')) return;
-  
-  try {
-    const res = await fetch(`/api/channels/${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.success) {
-      showToast('Kanal takipten çıkarıldı.', 'info');
-    } else {
-      showToast(data.error || 'Hata oluştu.', 'error');
-    }
-  } catch (err) {
-    showToast('Sunucu ile iletişim hatası.', 'error');
-  }
-};
-
-// Türkçe Açıklama: Belirtilen kanalın güncel profil resmini YouTube üzerinden indirip yerel diske kaydetmek üzere backend rotasını tetikler.
-/**
- * Belirtilen kanalın profil resmini (logosunu) YouTube'dan yeniden çözümler ve günceller.
- * 
- * @param {string} id Güncellenecek kanal ID'si
- */
-window.updateChannelAvatar = async function(id) {
-  try {
-    showToast('Kanal logosu güncelleniyor...', 'info');
-    const res = await fetch(`/api/channels/${id}/update-avatar`, { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      showToast('Kanal logosu başarıyla güncellendi.', 'success');
-      // Logo güncellendikten sonra resmi yenilemek için cache-busting yapıyoruz
-      const img = document.getElementById(`ch-avatar-${id}`);
-      if (img) {
-        img.src = `/api/channels/${id}/avatar?t=${Date.now()}`;
-      }
-    } else {
-      showToast(data.error || 'Hata oluştu.', 'error');
-    }
-  } catch (err) {
-    showToast('Sunucu ile iletişim hatası.', 'error');
-  }
-};
-
-/**
- * Takip edilen tüm kanalların logolarını arka planda toplu olarak günceller.
- */
-// Türkçe Açıklama: Arayüzden toplu kanal logosu güncelleme API'sini çağırır.
-window.updateAllChannelInfo = async function() {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  showToast(isEn ? 'Updating subscriber counts & avatars for all channels...' : 'Tüm kanal abone sayıları ve avatarları güncelleniyor...', 'info');
-  
-  const btn = document.getElementById('update-all-channels-btn');
-  if (btn) btn.disabled = true;
-  
-  try {
-    const res = await fetch('/api/channels/update-all-info', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'All channel info updated successfully.' : 'Tüm kanal bilgileri başarıyla güncellendi.', 'success');
-      if (typeof fetchDb === 'function') {
-        await fetchDb();
-      }
-      // (renderChannels/renderHistory tanımsız eski çağrıları kaldırıldı)
-    } else {
-      showToast(data.error || (isEn ? 'Process failed.' : 'İşlem başarısız oldu.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Server connection error.' : 'Sunucu ile iletişim hatası.', 'error');
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-};
-
-window.updateChannelInfo = async function(id) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  try {
-    showToast(isEn ? 'Updating channel info (subscribers & avatar)...' : 'Kanal bilgileri (abone sayısı & avatar) güncelleniyor...', 'info');
-    const res = await fetch(`/api/channels/${id}/update-info`, { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Channel info updated successfully.' : 'Kanal bilgileri başarıyla güncellendi.', 'success');
-      
-      const targetChannel = localDb.channels?.find(c => c.id === id);
-      if (targetChannel) {
-        if (data.subscriberCount) targetChannel.subscriberCount = data.subscriberCount;
-        if (data.avatar) targetChannel.avatar = data.avatar;
-      }
-
-      if (typeof fetchDb === 'function') {
-        await fetchDb();
-      }
-      // (renderChannels/renderHistory tanımsız eski çağrıları kaldırıldı)
-    } else {
-      showToast(data.error || (isEn ? 'Error occurred.' : 'Hata oluştu.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Server communication error.' : 'Sunucu ile iletişim hatası.', 'error');
-  }
-};
-
-window.updateAllChannelAvatars = async function() {
-  return window.updateAllChannelInfo();
-};
-
-window.updateChannelSubscribers = async function(id) {
-  return window.updateChannelInfo(id);
-};
-
-window.updateAllChannelSubscribers = async function() {
-  return window.updateAllChannelInfo();
-};
+// deleteChannel, updateChannelAvatar, updateChannelInfo, updateAllChannelInfo → ./modules/channels.js
 
 /**
  * Belirtilen videoyu manuel olarak indirme sırasına (kuyruğa) ekler.
@@ -2454,43 +2326,7 @@ window.openFolder = async function(channelName) {
   }
 };
 
-// Form Gönderimleri
-if (addChannelForm) {
-  addChannelForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const inputVal = channelInput.value.trim();
-    if (!inputVal) return;
-
-    const downloadShorts = confirm('Bu kanal için Shorts videoları da otomatik indirilsin mi? (İptal seçilirse Shorts videoları otomatik indirilmeyecektir)');
-
-    addChannelBtn.disabled = true;
-    addChannelBtn.querySelector('span').textContent = 'Kanal Çözümleniyor...';
-    showToast('Kanal sorgulanıyor, lütfen bekleyin...', 'info');
-
-    try {
-      const res = await fetch('/api/channels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: inputVal, downloadShorts })
-      });
-      
-      const data = await res.json();
-      
-      if (data.success) {
-        channelInput.value = '';
-        showToast('Kanal başarıyla takip listesine eklendi!', 'success');
-      } else {
-        showToast(data.error || 'Kanal eklenirken bir hata oluştu.', 'error');
-      }
-    } catch (err) {
-      showToast('Bağlantı hatası.', 'error');
-    } finally {
-      addChannelBtn.disabled = false;
-      addChannelBtn.querySelector('span').textContent = 'Kanalı Takip Et';
-      lucide.createIcons();
-    }
-  });
-}
+// addChannelForm → initAddChannelForm() in ./modules/channels.js
 
 let autoSaveTimeout = null;
 
@@ -2534,7 +2370,7 @@ async function performAutoSave() {
     downloadSpeedLimit: parseInt(document.getElementById('settings-speedlimit').value, 10) || 0,
     alternativeSpeedLimit: parseInt(document.getElementById('settings-altspeedlimit').value, 10) || 500,
      port: port,
-    playerType: document.getElementById('settings-player-type').value,
+    playerType: 'plyr',
     subtitleColor: document.getElementById('settings-subtitle-color').value,
     subtitleOpacity: localDb.settings.subtitleOpacity || '0.7',
     subtitleSize: localDb.settings.subtitleSize || '26px',
@@ -2559,7 +2395,7 @@ async function performAutoSave() {
     githubToken: (document.getElementById('gist-token-input') && document.getElementById('gist-token-input').value.trim()) || (localDb.settings && localDb.settings.githubToken) || '',
     githubGistId: (document.getElementById('gist-id-input') && document.getElementById('gist-id-input').value.trim()) || (localDb.settings && localDb.settings.githubGistId) || '',
     autoSyncGist: document.getElementById('gist-auto-sync-checkbox') ? document.getElementById('gist-auto-sync-checkbox').checked : (localDb.settings.autoSyncGist || false),
-    channelScanMode: document.getElementById('settings-channel-scan-mode') ? document.getElementById('settings-channel-scan-mode').value : 'fast',
+    channelScanMode: 'fast',
     weatherEnabled: document.getElementById('settings-weatherenabled') ? document.getElementById('settings-weatherenabled').checked : true,
     weatherCity: document.getElementById('settings-weathercity') ? document.getElementById('settings-weathercity').value.trim() : 'İstanbul',
     weatherUnit: document.getElementById('settings-weatherunit') ? document.getElementById('settings-weatherunit').value : 'celsius',
@@ -2781,61 +2617,8 @@ if (syncNowBtn) {
   });
 }
 
-/**
- * Disk senkronizasyonunu manuel olarak tetikler ve arayüz bildirimlerini yönetir.
- * 
- * @returns {Promise<void>}
- */
-async function triggerManualDiskSync() {
-  const btn = document.getElementById('btn-manual-disk-sync');
-  const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
-  const t = translations[lang] || translations.tr;
-  const isEn = lang === 'en';
-
-  let originalHtml = '';
-  if (btn) {
-    originalHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = `<i data-lucide="loader" class="pulse-animation" style="width:13px;height:13px;"></i> <span>${isEn ? 'Syncing...' : 'Senkronize Ediliyor...'}</span>`;
-    try { lucide.createIcons(); } catch(e) {}
-  }
-
-  showToast(t.msg_disk_sync_started || (isEn ? 'Disk sync started...' : 'Disk senkronizasyonu başlatıldı...'), 'info');
-
-  try {
-    const res = await fetch('/api/settings/sync-disk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-    if (data.success) {
-      if (data.busy) {
-        showToast(data.message || (isEn ? 'Downloads active, sync deferred.' : 'Aktif indirme olduğu için senkronizasyon ertelendi.'), 'warning');
-      } else {
-        const successMsg = isEn 
-          ? `Disk synced: ${data.totalVerified || 0} videos verified, ${data.updatedCount || 0} updated.`
-          : `Disk eşitlendi: ${data.totalVerified || 0} video doğrulandı, ${data.updatedCount || 0} kayıt güncellendi.`;
-        showToast(successMsg, 'success');
-      }
-    } else {
-      showToast(data.error || (isEn ? 'Disk sync failed.' : 'Disk senkronizasyonu başarısız oldu.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = originalHtml;
-      try { lucide.createIcons(); } catch(e) {}
-    }
-  }
-}
-window.triggerManualDiskSync = triggerManualDiskSync;
-
-const btnManualDiskSync = document.getElementById('btn-manual-disk-sync');
-if (btnManualDiskSync) {
-  btnManualDiskSync.onclick = triggerManualDiskSync;
-}
+// triggerManualDiskSync ve ilgili olay dinleyicisi ./modules/systemStatus.js modülünden yönetilmektedir.
+initSystemStatusEvents();
 
 if (openFolderBtn) {
   openFolderBtn.addEventListener('click', openFolder);
@@ -2879,108 +2662,7 @@ if (testFolderBtn) {
   });
 }
 
-/**
- * Belirli bir kanal için varsayılan indirme kalitesini günceller.
- * 
- * @param {string} id Kanal ID'si
- * @param {string} quality Kalite değeri ('default', 'best', '1080p', '720p')
- */
-window.changeChannelQuality = async function(id, quality) {
-  try {
-    const res = await fetch(`/api/channels/${id}/quality`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quality })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast('Kanal kalitesi başarıyla güncellendi.', 'success');
-    } else {
-      showToast(data.error || 'Hata oluştu.', 'error');
-    }
-  } catch (err) {
-    showToast('Sunucu bağlantı hatası.', 'error');
-  }
-};
-
-// Türkçe Açıklama: Belirtilen kanal için Shorts videolarının indirilip indirilmeyeceğini güncelleyen backend rotasını tetikler.
-/**
- * Belirli bir kanal için Shorts videolarının indirilip indirilmeyeceğini günceller.
- * 
- * @param {string} id Kanal ID'si
- * @param {string} downloadShorts Shorts indirme durumu ('true' veya 'false')
- */
-window.changeChannelShorts = async function(id, downloadShorts) {
-  try {
-    const res = await fetch(`/api/channels/${id}/shorts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ downloadShorts: downloadShorts === 'true' })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast('Kanal Shorts indirme ayarı başarıyla güncellendi.', 'success');
-    } else {
-      showToast(data.error || 'Hata oluştu.', 'error');
-    }
-  } catch (err) {
-    showToast('Sunucu bağlantı hatası.', 'error');
-  }
-};
-
-window.changeChannelAutoDownload = async function(id, autoDownload) {
-  try {
-    const res = await fetch(`/api/channels/${id}/auto-download`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ autoDownload: autoDownload === 'true' })
-    });
-    const data = await res.json();
-    if (data.success) {
-      const isEn = localDb.settings && localDb.settings.lang === 'en';
-      showToast(isEn ? 'Channel auto download setting successfully updated.' : 'Kanal otomatik indirme ayarı başarıyla güncellendi.', 'success');
-    } else {
-      showToast(data.error || 'Hata oluştu.', 'error');
-    }
-  } catch (err) {
-    showToast('Sunucu bağlantı hatası.', 'error');
-  }
-};
-
-window.changeChannelShortsLimit = async function(id, limit) {
-  try {
-    const res = await fetch(`/api/channels/${id}/shorts-limit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ limit: parseInt(limit, 10) })
-    });
-    const data = await res.json();
-    if (data.success) {
-      const isEn = localDb.settings && localDb.settings.lang === 'en';
-      showToast(isEn ? 'Channel Shorts duration limit successfully updated.' : 'Kanal Shorts süre sınırı başarıyla güncellendi.', 'success');
-    } else {
-      showToast(data.error || 'Hata oluştu.', 'error');
-    }
-  } catch (err) {
-    showToast('Sunucu bağlantı hatası.', 'error');
-  }
-};
-
-window.syncSingleChannelRss = async function(id) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  showToast(isEn ? 'Checking channel RSS feed...' : 'Kanal RSS yayını taranıyor...', 'info');
-  try {
-    const res = await fetch(`/api/channels/${id}/sync`, { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Channel RSS checked successfully.' : 'Kanal RSS denetimi başarıyla tamamlandı.', 'success');
-    } else {
-      showToast(data.error || (isEn ? 'Error occurred.' : 'Hata oluştu.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-};
+// changeChannelQuality, changeChannelShorts, changeChannelAutoDownload, changeChannelShortsLimit, syncSingleChannelRss → ./modules/channels.js
 
 let videoPlayerInstance = null;
 // currentPlayingVideoId dosya başında global tanımlanmıştır
@@ -3011,13 +2693,18 @@ window.savePlaybackPosition = function(videoId, currentTime, duration = 0, isFin
   const posFloor = Math.floor(currentTime || 0);
   const durFloor = Math.floor(duration || 0);
 
+  // Video henüz açılırken veya ilk saniyelerde gelen 0 sürelerin önceki kayıtlı kaldığı yeri silmesini engelle
+  if (posFloor <= 3 && !isFinal) {
+    return;
+  }
+
   const item = localDb?.history?.find(h => h.id === videoId);
   if (item) {
     if (durFloor > 0 && (posFloor >= durFloor * 0.95 || durFloor - posFloor <= 5)) {
       item.lastPositionSeconds = 0;
     } else if (posFloor > 3) {
       item.lastPositionSeconds = posFloor;
-    } else {
+    } else if (isFinal) {
       item.lastPositionSeconds = 0;
     }
     if (durFloor > 0) item.durationSeconds = durFloor;
@@ -3029,6 +2716,8 @@ window.savePlaybackPosition = function(videoId, currentTime, duration = 0, isFin
       delete resumeData[videoId];
     } else if (posFloor > 3) {
       resumeData[videoId] = posFloor;
+    } else if (isFinal) {
+      delete resumeData[videoId];
     }
     localStorage.setItem('haytool_playback_resume', JSON.stringify(resumeData));
   } catch (e) {}
@@ -3129,96 +2818,64 @@ document.addEventListener('keydown', (e) => {
     if (isTyping) return;
 
     const player = document.getElementById('embedded-video-player');
-    const pType = (localDb.settings && localDb.settings.playerType) || 'plyr';
 
-    // Oynatıcı kontrollerini soyutlayan ortak nesne
+    // Oynatıcı kontrollerini soyutlayan ortak nesne (Plyr)
     const activePlayer = {
       get paused() {
-        if (pType === 'artplayer' && videoPlayerInstance) return videoPlayerInstance.paused;
-        if (pType === 'html5' && player) return player.paused;
         return videoPlayerInstance ? videoPlayerInstance.paused : (player ? player.paused : true);
       },
       play() {
-        if (pType === 'artplayer' && videoPlayerInstance) return videoPlayerInstance.play();
-        if (pType === 'html5' && player) return player.play();
         return videoPlayerInstance ? videoPlayerInstance.play() : (player ? player.play() : Promise.resolve());
       },
       pause() {
-        if (pType === 'artplayer' && videoPlayerInstance) videoPlayerInstance.pause();
-        else if (pType === 'html5' && player) player.pause();
-        else if (videoPlayerInstance) videoPlayerInstance.pause();
+        if (videoPlayerInstance) videoPlayerInstance.pause();
         else if (player) player.pause();
       },
       get duration() {
-        if (pType === 'artplayer' && videoPlayerInstance) return videoPlayerInstance.duration || 0;
-        if (pType === 'html5' && player) return player.duration || 0;
         return videoPlayerInstance ? (videoPlayerInstance.duration || 0) : (player ? (player.duration || 0) : 0);
       },
       get currentTime() {
-        if (pType === 'artplayer' && videoPlayerInstance) return videoPlayerInstance.currentTime || 0;
-        if (pType === 'html5' && player) return player.currentTime || 0;
         return videoPlayerInstance ? (videoPlayerInstance.currentTime || 0) : (player ? (player.currentTime || 0) : 0);
       },
       set currentTime(val) {
-        if (pType === 'artplayer' && videoPlayerInstance) videoPlayerInstance.currentTime = val;
-        else if (pType === 'html5' && player) player.currentTime = val;
-        else if (videoPlayerInstance) videoPlayerInstance.currentTime = val;
+        if (videoPlayerInstance) videoPlayerInstance.currentTime = val;
         else if (player) player.currentTime = val;
       },
       get volume() {
-        if (pType === 'artplayer' && videoPlayerInstance) return videoPlayerInstance.volume || 0;
-        if (pType === 'html5' && player) return player.volume || 0;
         return videoPlayerInstance ? (videoPlayerInstance.volume || 0) : (player ? (player.volume || 0) : 0);
       },
       set volume(val) {
-        if (pType === 'artplayer' && videoPlayerInstance) videoPlayerInstance.volume = val;
-        else if (pType === 'html5' && player) player.volume = val;
-        else if (videoPlayerInstance) videoPlayerInstance.volume = val;
-        else if (player) player.volume = val;
+        const clamped = Math.max(0, Math.min(1, val));
+        if (videoPlayerInstance) videoPlayerInstance.volume = clamped;
+        else if (player) player.volume = clamped;
+        if (typeof triggerVolumeHUD === 'function') {
+          triggerVolumeHUD(clamped);
+        }
       },
       get muted() {
-        if (pType === 'artplayer' && videoPlayerInstance) return videoPlayerInstance.muted || false;
-        if (pType === 'html5' && player) return player.muted || false;
         return videoPlayerInstance ? (videoPlayerInstance.muted || false) : (player ? (player.muted || false) : false);
       },
       set muted(val) {
-        if (pType === 'artplayer' && videoPlayerInstance) videoPlayerInstance.muted = val;
-        else if (pType === 'html5' && player) player.muted = val;
-        else if (videoPlayerInstance) videoPlayerInstance.muted = val;
+        if (videoPlayerInstance) videoPlayerInstance.muted = val;
         else if (player) player.muted = val;
       },
       get speed() {
-        if (pType === 'artplayer' && videoPlayerInstance) return videoPlayerInstance.playbackRate || 1;
-        if (pType === 'html5' && player) return player.playbackRate || 1;
         return videoPlayerInstance ? (videoPlayerInstance.speed || 1) : (player ? (player.playbackRate || 1) : 1);
       },
       set speed(val) {
-        if (pType === 'artplayer' && videoPlayerInstance) videoPlayerInstance.playbackRate = val;
-        else if (pType === 'html5' && player) player.playbackRate = val;
-        else if (videoPlayerInstance) videoPlayerInstance.speed = val;
+        if (videoPlayerInstance) videoPlayerInstance.speed = val;
         else if (player) player.playbackRate = val;
+        if (typeof showPlayerTransientOverlay === 'function') {
+          showPlayerTransientOverlay(`<div class="player-transient-card"><i data-lucide="gauge" style="width:32px;height:32px;color:var(--accent-color);"></i><div class="transient-title">${val}x</div></div>`, 1000);
+        }
       },
       toggleFullscreen() {
-        if (pType === 'artplayer' && videoPlayerInstance) {
-          videoPlayerInstance.fullscreen = !videoPlayerInstance.fullscreen;
-        } else if (pType === 'html5' && player) {
-          if (!document.fullscreenElement) {
-            player.requestFullscreen().catch(err => console.error(err));
-          } else {
-            document.exitFullscreen().catch(err => console.error(err));
-          }
-        } else {
-          if (videoPlayerInstance && videoPlayerInstance.fullscreen) {
-            videoPlayerInstance.fullscreen.toggle();
-          }
+        if (videoPlayerInstance && videoPlayerInstance.fullscreen) {
+          videoPlayerInstance.fullscreen.toggle();
         }
       },
       toggleCaptions() {
-        if (pType === 'artplayer' && videoPlayerInstance) {
-          if (videoPlayerInstance.subtitle) {
-            videoPlayerInstance.subtitle.show = !videoPlayerInstance.subtitle.show;
-          }
-        } else if (pType === 'plyr' && videoPlayerInstance) {
+        if (videoPlayerInstance) {
           if (typeof videoPlayerInstance.toggleCaptions === 'function') {
             videoPlayerInstance.toggleCaptions();
           } else if (videoPlayerInstance.captions) {
@@ -3654,77 +3311,7 @@ function makeElementResizable(modalContent) {
   });
 }
 
-function drawSponsorSegmentsOnTimeline(duration, playerType) {
-  if (!duration || !currentVideoSponsorSegments || currentVideoSponsorSegments.length === 0) return;
-
-  let container = null;
-  if (playerType === 'artplayer') {
-    container = document.querySelector('#embedded-artplayer .art-progress');
-  } else if (playerType === 'plyr') {
-    const inlineContainer = document.getElementById('downloaded-inline-player-container');
-    if (inlineContainer && !inlineContainer.classList.contains('hidden')) {
-      container = inlineContainer.querySelector('.plyr__progress');
-    } else {
-      container = document.querySelector('#player-modal .plyr__progress');
-    }
-  }
-
-  if (!container) return;
-
-  let wrapper = container.querySelector('.player-sponsor-markers-wrapper');
-  if (wrapper) {
-    wrapper.remove();
-  }
-
-  wrapper = document.createElement('div');
-  wrapper.className = 'player-sponsor-markers-wrapper';
-  wrapper.style.position = 'absolute';
-  wrapper.style.left = '0';
-  wrapper.style.right = '0';
-  wrapper.style.top = '0';
-  wrapper.style.bottom = '0';
-  wrapper.style.pointerEvents = 'none';
-  wrapper.style.zIndex = '5';
-
-  if (playerType === 'artplayer') {
-    wrapper.style.height = '100%';
-  } else if (playerType === 'plyr') {
-    wrapper.style.height = '6px';
-    wrapper.style.top = '50%';
-    wrapper.style.transform = 'translateY(-50%)';
-    wrapper.style.borderRadius = '3px';
-    wrapper.style.overflow = 'hidden';
-  }
-
-  const categoryColors = {
-    sponsor: 'rgba(74, 222, 128, 0.65)',      // Green
-    selfpromo: 'rgba(250, 204, 21, 0.65)',     // Yellow
-    interaction: 'rgba(56, 189, 248, 0.65)',   // Blue
-    intro: 'rgba(45, 212, 191, 0.65)',         // Teal
-    outro: 'rgba(192, 132, 252, 0.65)',        // Purple
-    preview: 'rgba(244, 63, 94, 0.65)',        // Pink/Red
-    music_offtopic: 'rgba(244, 63, 94, 0.65)'
-  };
-
-  currentVideoSponsorSegments.forEach(seg => {
-    const leftPercent = (seg.start / duration) * 100;
-    const widthPercent = ((seg.end - seg.start) / duration) * 100;
-    const color = categoryColors[seg.category] || 'rgba(255, 255, 255, 0.5)';
-
-    const marker = document.createElement('div');
-    marker.style.position = 'absolute';
-    marker.style.left = `${leftPercent}%`;
-    marker.style.width = `${widthPercent}%`;
-    marker.style.height = '100%';
-    marker.style.backgroundColor = color;
-    marker.style.pointerEvents = 'none';
-    marker.style.borderRadius = playerType === 'plyr' ? '0' : '2px';
-
-    wrapper.appendChild(marker);
-  });
-
-  container.appendChild(wrapper);
-}
+// drawSponsorSegmentsOnTimeline fonksiyonu ./modules/player/sponsorBlock.js modülünden içe aktarılmıştır.
 
 /**
  * Videonun en-boy oranına göre oynatıcının yönelimini (dikey/yatay) ayarlar.
@@ -3753,10 +3340,11 @@ function adjustPlayerOrientation(videoElement) {
     if (inlineWrapper) {
       if (isVertical) {
         inlineWrapper.classList.add('is-short-player');
+        inlineWrapper.style.aspectRatio = ratio;
       } else {
         inlineWrapper.classList.remove('is-short-player');
+        inlineWrapper.style.aspectRatio = '';
       }
-      inlineWrapper.style.aspectRatio = ratio;
     }
 
     if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
@@ -3765,105 +3353,8 @@ function adjustPlayerOrientation(videoElement) {
   }
 }
 
-async function fetchSponsorSegments(videoId) {
-  currentVideoSponsorSegments = [];
-  lastSkippedSegmentStart = -1;
-  
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1500);
-
-  try {
-    const categories = '["sponsor","selfpromo","interaction","intro","outro","preview"]';
-    const url = `https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${encodeURIComponent(categories)}`;
-    
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        currentVideoSponsorSegments = data.map(item => ({
-          start: item.segment[0],
-          end: item.segment[1],
-          category: item.category
-        }));
-        devLog(`[SponsorBlock] Found ${currentVideoSponsorSegments.length} segments:`, currentVideoSponsorSegments);
-      }
-    }
-  } catch (err) {
-    clearTimeout(timeoutId);
-    devWarn('[SponsorBlock] Failed to fetch segments or request timed out:', err);
-  }
-}
-
-function updateSponsorBlockStatusUI() {
-  const statusEl = document.getElementById('player-sponsorblock-status');
-  if (statusEl) statusEl.style.display = 'none';
-  const inlineStatusEl = document.getElementById('inline-player-sponsorblock-status');
-  if (inlineStatusEl) inlineStatusEl.style.display = 'none';
-}
-
-function updateSBToggleButtonUI() {
-  const btnSBToggle = document.getElementById('inline-btn-sponsorblock-toggle');
-  if (!btnSBToggle) return;
-
-  const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
-  const t = translations[lang] || translations.tr;
-
-  const isActive = localDb.settings && localDb.settings.sponsorBlockEnabled === true;
-
-  if (!isActive) {
-    btnSBToggle.title = t.sponsorblock_disabled || 'SponsorBlock Devre Dışı';
-    btnSBToggle.style.color = '#ef4444';
-    btnSBToggle.style.background = 'rgba(239, 68, 68, 0.1)';
-    btnSBToggle.style.borderColor = 'rgba(239, 68, 68, 0.2)';
-    btnSBToggle.innerHTML = '<i data-lucide="shield-off" style="width: 16px; height: 16px;"></i>';
-  } else {
-    btnSBToggle.title = t.sponsorblock_active || 'SponsorBlock Aktif';
-    btnSBToggle.style.color = '#4ade80';
-    btnSBToggle.style.background = 'rgba(74, 222, 128, 0.1)';
-    btnSBToggle.style.borderColor = 'rgba(74, 222, 128, 0.2)';
-    btnSBToggle.innerHTML = '<i data-lucide="shield" style="width: 16px; height: 16px;"></i>';
-  }
-  try {
-    lucide.createIcons();
-  } catch (e) {}
-
-  const wrappers = document.querySelectorAll('.player-sponsor-markers-wrapper');
-  wrappers.forEach(w => {
-    w.style.opacity = '1';
-  });
-}
-
-function checkAndSkipSponsor(currentTime, videoElementOrPlayer) {
-  if (!currentVideoSponsorSegments || currentVideoSponsorSegments.length === 0) return;
-  if (!localDb.settings || localDb.settings.sponsorBlockEnabled !== true) return;
-
-  let insideAnySegment = false;
-  for (const seg of currentVideoSponsorSegments) {
-    if (currentTime >= seg.start && currentTime < (seg.end - 0.1)) {
-      insideAnySegment = true;
-      if (lastSkippedSegmentStart !== seg.start) {
-        lastSkippedSegmentStart = seg.start;
-        devLog(`[SponsorBlock] Skipping segment from ${seg.start} to ${seg.end}`);
-        showToast(
-          currentLang === 'en' 
-            ? `Skipped sponsor section (${Math.round(seg.start)}s - ${Math.round(seg.end)}s)` 
-            : `Sponsor alanı otomatik atlandı (${Math.round(seg.start)}. sn - ${Math.round(seg.end)}. sn)`, 
-          'info'
-        );
-        videoElementOrPlayer.currentTime = seg.end;
-      } else {
-        videoElementOrPlayer.currentTime = seg.end;
-      }
-      break;
-    }
-  }
-  
-  if (!insideAnySegment) {
-    lastSkippedSegmentStart = -1;
-  }
-}
+// SponsorBlock fonksiyonları (fetchSponsorSegments, updateSponsorBlockStatusUI, updateSBToggleButtonUI, checkAndSkipSponsor)
+// ./modules/player/sponsorBlock.js modülünden içe aktarılmıştır.
 
 window.showPlayerTransientOverlay = function(htmlContent, durationMs = 1200) {
   const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
@@ -3948,6 +3439,72 @@ function sendPlayerActivity(isPlaying) {
 
 let activePlayRequestId = 0;
 
+// Türkçe Açıklama: İndirilenler tabındaki inline oynatıcıyı, diğer tablarda olduğu gibi sağ alttaki yüzen mini modal'a taşır.
+/**
+ * İndirilenler tabındaki inline oynatıcıyı yüzen mini modal'a aktarır.
+ * Tab geçişi sırasında ve "Küçük Ekran" butonuyla çağrılır.
+ * 
+ * @returns {boolean} Taşıma başarılıysa true, değilse false döner.
+ */
+window.switchInlinePlayerToModal = function() {
+  const inlineContainer = document.getElementById('downloaded-inline-player-container');
+  const isInlineOpen = inlineContainer && !inlineContainer.classList.contains('hidden');
+  if (!isInlineOpen || !currentPlayingVideoId) return false;
+
+  const video = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+  const isShort = isShortVideo(video?.duration, video?.title, video?.channelId);
+
+  const inlineBody = document.getElementById('inline-player-body');
+  const modal = document.getElementById('player-modal');
+  const modalBody = modal ? modal.querySelector('.player-modal-body') : null;
+  const modalTitle = document.getElementById('player-modal-title');
+  const modalLogo = document.getElementById('player-modal-logo');
+
+  if (!modal || !modalBody || !inlineBody || !inlineBody.firstElementChild) return false;
+
+  // Modal başlık ve logoyu güncelle
+  if (modalTitle) modalTitle.textContent = video ? video.title : 'Gömülü Video Oynatıcı';
+  if (modalLogo && video?.channelId) {
+    modalLogo.src = `/api/channels/${video.channelId}/avatar`;
+    modalLogo.style.display = 'block';
+  } else if (modalLogo) {
+    modalLogo.style.display = 'none';
+  }
+
+  // Canlı DOM elementini (Plyr/Video) doğrudan modala taşı
+  while (inlineBody.firstChild) {
+    modalBody.appendChild(inlineBody.firstChild);
+  }
+
+  // Yerleşik alanı gizle, listeyi göster
+  inlineContainer.classList.add('hidden');
+  const listContainer = document.getElementById('downloaded-list-container');
+  if (listContainer) listContainer.classList.remove('hidden');
+
+  // Modalı göster ve boyutlandır (minimize modunda aç)
+  modal.classList.remove('hidden');
+  if (typeof resetAndApplyPlayerDimensions === 'function') {
+    resetAndApplyPlayerDimensions(isShort, true);
+  }
+
+  const minBtn = document.getElementById('minimize-player-modal-btn');
+  if (minBtn) {
+    const icon = minBtn.querySelector('i') || minBtn.querySelector('[data-lucide]');
+    if (icon) icon.setAttribute('data-lucide', 'maximize-2');
+    minBtn.title = localDb.settings && localDb.settings.lang === 'en' ? 'Maximize' : 'Büyüt';
+  }
+  try {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } catch (e) {}
+
+  if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
+    setTimeout(() => videoPlayerInstance.resize(), 50);
+  }
+
+  console.log('[HaYTooL] Inline oynatıcı mini modal\'a taşındı.');
+  return true;
+};
+
 window.cleanupAllPlayers = function() {
   sendPlayerActivity(false);
   if (videoPlayerInstance) {
@@ -4015,7 +3572,7 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
 
     const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
     const isInline = (activeTab === 'downloaded');
-    const playerType = (localDb.settings && localDb.settings.playerType) || 'plyr';
+    const playerType = 'plyr';
 
     let video = localDb.history.find(h => h.id === videoId);
     let videoTitle = video ? video.title : '';
@@ -4036,6 +3593,19 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
     }).catch(() => {});
 
     let availableSubtitles = [];
+
+    // Altyazıları modül aracılığıyla arka planda hemen çek ve oynatıcıya uygula
+    const subFetchPromise = fetchVideoSubtitles(videoId)
+      .then(subs => {
+        if (currentRequestId !== activePlayRequestId) return [];
+        availableSubtitles = subs;
+        applySubtitlesToPlayer(subs);
+        return availableSubtitles;
+      })
+      .catch(err => {
+        console.warn('[Subtitles] Fetch error:', err);
+        return [];
+      });
 
     // DOM Fallback
     if (!videoTitle) {
@@ -4213,17 +3783,12 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
         console.error("Error fetching description:", err);
       });
 
-    // Toggle SponsorBlock legend if SponsorBlock is enabled
+    // SponsorBlock renk açıklaması (legend)
     const sbLegend = document.getElementById('inline-player-sponsorblock-legend');
     const sbSep = document.getElementById('inline-player-sb-sep');
     if (sbLegend) {
-      if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
-        sbLegend.style.display = 'flex';
-        if (sbSep) sbSep.style.display = 'inline';
-      } else {
-        sbLegend.style.display = 'none';
-        if (sbSep) sbSep.style.display = 'none';
-      }
+      sbLegend.style.display = 'flex';
+      if (sbSep) sbSep.style.display = 'inline';
     }
 
     // 4. Eylemleri bağla
@@ -4293,199 +3858,13 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
 
       if (isCompleted) {
         btnTranslate.style.display = 'inline-flex';
-        btnTranslate.onclick = async () => {
-          try {
-            const lang = localDb.settings?.lang || currentLang || 'tr';
-            const t = translations[lang] || translations.tr;
-
-            // Defensive helper function for language names
-            const getLangName = (code) => {
-              if (!code) return 'Bilinmeyen Dil / Unknown';
-              const map = {
-                tr: 'Türkçe (TR)',
-                en: 'English (EN)',
-                es: 'Español (ES)',
-                de: 'Deutsch (DE)',
-                pt: 'Português (PT)',
-                ar: 'العربية (AR)',
-                ru: 'Русский (RU)',
-                fr: 'Français (FR)',
-                it: 'Italiano (IT)',
-                ja: '日本語 (JA)',
-                zh: '中文 (ZH)'
-              };
-              const codeLower = String(code).toLowerCase();
-              return map[codeLower] || String(code).toUpperCase();
-            };
-
-            // Create Modal element
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.id = 'translate-sub-modal';
-            modal.style.zIndex = '15000';
-            
-            let modalHtml = `
-              <div class="modal-content" style="border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                <div class="modal-header">
-                  <h3>${t.modal_translate_title || 'Altyazı Çevirisi'}</h3>
-                  <button class="modal-close-btn" id="close-translate-modal-btn">
-                    <i data-lucide="x" style="width: 18px; height: 18px;"></i>
-                  </button>
-                </div>
-                <div class="modal-body">
-            `;
-
-            if (!availableSubtitles || availableSubtitles.length === 0) {
-              modalHtml += `
-                <div style="text-align: center; padding: 12px; color: var(--accent-red); font-size: 0.9rem;">
-                  <i data-lucide="alert-triangle" style="width: 32px; height: 32px; margin-bottom: 8px; stroke: var(--accent-red); display: inline-block;"></i>
-                  <div>${t.modal_translate_no_subs || 'Bu video için indirilmiş altyazı bulunamadı. Çeviri yapabilmek için en az bir altyazı dosyası indirilmiş olmalıdır.'}</div>
-                </div>
-              `;
-            } else {
-              modalHtml += `
-                <div class="form-group" style="margin-bottom: 16px;">
-                  <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px;">
-                    ${t.modal_translate_source || 'Çevrilecek Altyazı (Kaynak)'}
-                  </label>
-                  <select id="translate-source-lang" class="custom-select-trigger" style="width: 100%; height: 40px; background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 0 12px; outline: none; font-size: 0.9rem;">
-                    ${availableSubtitles.map(s => {
-                      const sLang = s && s.lang ? s.lang : '';
-                      const sExt = s && s.ext ? String(s.ext).toUpperCase() : 'SRT';
-                      return `<option value="${sLang}">${getLangName(sLang)} (${sExt})</option>`;
-                    }).join('')}
-                  </select>
-                </div>
-                <div class="form-group" style="margin-bottom: 24px;">
-                  <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px;">
-                    ${t.modal_translate_target || 'Hedef Dil'}
-                  </label>
-                  <select id="translate-target-lang" class="custom-select-trigger" style="width: 100%; height: 40px; background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; padding: 0 12px; outline: none; font-size: 0.9rem;">
-                    <option value="tr" ${lang === 'tr' ? 'selected' : ''}>Türkçe (TR)</option>
-                    <option value="en" ${lang === 'en' ? 'selected' : ''}>English (EN)</option>
-                    <option value="es" ${lang === 'es' ? 'selected' : ''}>Español (ES)</option>
-                    <option value="de" ${lang === 'de' ? 'selected' : ''}>Deutsch (DE)</option>
-                    <option value="pt" ${lang === 'pt' ? 'selected' : ''}>Português (PT)</option>
-                    <option value="ar" ${lang === 'ar' ? 'selected' : ''}>العربية (AR)</option>
-                    <option value="ru" ${lang === 'ru' ? 'selected' : ''}>Русский (RU)</option>
-                    <option value="fr">Français (FR)</option>
-                    <option value="it">Italiano (IT)</option>
-                    <option value="ja">日本語 (JA)</option>
-                    <option value="zh">中文 (ZH)</option>
-                  </select>
-                </div>
-              `;
+        btnTranslate.onclick = () => {
+          openSubtitleTranslateModal(videoId, availableSubtitles, {
+            playerContainer: playerContainer || document.getElementById('inline-player-body'),
+            onComplete: () => {
+              playVideoEmbedded(videoId, videoPlayerInstance ? videoPlayerInstance.currentTime : null);
             }
-
-            modalHtml += `
-                </div>
-                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-                  <button class="btn btn-secondary" id="translate-modal-cancel" style="padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-main);">
-                    ${t.modal_cancel_btn || 'İptal'}
-                  </button>
-                  ${availableSubtitles && availableSubtitles.length > 0 ? `
-                    <button class="btn btn-primary" id="translate-modal-submit" style="padding: 8px 20px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-weight: 600; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: white; border: none;">
-                      ${t.btn_translate_action || 'Çevir'}
-                    </button>
-                  ` : ''}
-                </div>
-              </div>
-            `;
-
-            modal.innerHTML = modalHtml;
-            document.body.appendChild(modal);
-
-            try {
-              lucide.createIcons();
-            } catch (e) {
-              console.warn("Lucide icons rendering failed inside modal:", e);
-            }
-
-            const closeModal = () => {
-              if (modal && modal.parentNode) {
-                modal.parentNode.removeChild(modal);
-              }
-            };
-
-            const closeBtn = document.getElementById('close-translate-modal-btn');
-            if (closeBtn) closeBtn.onclick = closeModal;
-
-            const cancelBtn = document.getElementById('translate-modal-cancel');
-            if (cancelBtn) cancelBtn.onclick = closeModal;
-
-            const submitBtn = document.getElementById('translate-modal-submit');
-            if (submitBtn) {
-              submitBtn.onclick = async () => {
-                try {
-                  const fromLang = document.getElementById('translate-source-lang').value;
-                  const toLang = document.getElementById('translate-target-lang').value;
-
-                  if (fromLang === toLang) {
-                    showToast(lang === 'en' ? 'Source and target languages cannot be the same.' : 'Kaynak ve hedef dil aynı olamaz.', 'error');
-                    return;
-                  }
-
-                  closeModal();
-
-                  btnTranslate.disabled = true;
-                  btnTranslate.style.opacity = '0.5';
-                  const icon = btnTranslate.querySelector('i');
-                  if (icon) icon.style.animation = 'spin 1s linear infinite';
-
-                  // Show Toast for translation start
-                  showToast(lang === 'en' ? 'Translating subtitles...' : 'Altyazılar çevriliyor...', 'info');
-
-                  // Create and append visual loading overlay
-                  const overlay = document.createElement('div');
-                  overlay.className = 'subtitle-translation-overlay';
-                  overlay.innerHTML = `
-                    <div class="subtitle-translation-spinner"></div>
-                    <div style="font-weight: 600; font-size: 1.15rem; margin-bottom: 6px; font-family: 'Outfit', sans-serif;">
-                      ${t.overlay_translating_title || 'Altyazı Çeviriliyor...'}
-                    </div>
-                    <div style="font-size: 0.85rem; opacity: 0.8; color: #a1a1aa; max-width: 80%; text-align: center; line-height: 1.4;">
-                      ${t.overlay_translating_desc || 'Lütfen bekleyin, altyazı çevirisi yapılıyor...'}
-                    </div>
-                  `;
-                  const targetContainer = playerContainer || document.getElementById('inline-player-body');
-                  if (targetContainer) {
-                    targetContainer.appendChild(overlay);
-                  }
-
-                  try {
-                    const res = await fetch(`/api/video/${videoId}/translate-subtitle`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ fromLang, toLang })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                      showToast(lang === 'en' ? 'Subtitles successfully translated!' : 'Altyazılar başarıyla çevrildi!', 'success');
-                      playVideoEmbedded(videoId, videoPlayerInstance ? videoPlayerInstance.currentTime : null);
-                    } else {
-                      showToast(data.error || 'Translation failed.', 'error');
-                    }
-                  } catch (err) {
-                    console.error('Subtitle translation error:', err);
-                    showToast('Translation error occurred.', 'error');
-                  } finally {
-                    btnTranslate.disabled = false;
-                    btnTranslate.style.opacity = '1';
-                    if (icon) icon.style.animation = '';
-                    if (overlay && overlay.parentNode) {
-                      overlay.parentNode.removeChild(overlay);
-                    }
-                  }
-                } catch (submitErr) {
-                  console.error("Submit translation click error:", submitErr);
-                  showToast("Hata: " + submitErr.message, "error");
-                }
-              };
-            }
-          } catch (clickErr) {
-            console.error("Translate click error:", clickErr);
-            showToast(localDb.settings?.lang === 'en' ? 'An error occurred while opening the translation tool.' : 'Çeviri aracı açılırken bir hata oluştu.', 'error');
-          }
+          });
         };
       } else {
         btnTranslate.style.display = 'none';
@@ -4541,6 +3920,12 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
             <div class="transient-desc">${desc}</div>
           </div>
         `;
+        // Kullanıcı isteği: SponsorBlock devre dışı bırakılsa bile ilerleme çubuğundaki renkli segmentler ve legend görünmeye devam etsin (sadece otomatik atlama durdurulsun)
+        const currentVidEl = document.querySelector('#player-modal video, #inline-player-body video') || (videoPlayerInstance?.media || videoPlayerInstance?.video);
+        if (currentVidEl && currentVidEl.duration) {
+          drawSponsorSegmentsOnTimeline(currentVidEl.duration, playerType);
+        }
+
         if (typeof showPlayerTransientOverlay === 'function') {
           showPlayerTransientOverlay(html, 1500);
         }
@@ -4552,6 +3937,16 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
 
     const btnClose = document.getElementById('inline-btn-close');
     if (btnClose) btnClose.onclick = () => closeInlinePlayer();
+
+    // Türkçe Açıklama: "Küçük Ekrana Geç" butonu — inline oynatıcıyı sağ alttaki mini modal'a taşır.
+    /**
+     * İndirilenler tabındaki inline oynatıcıyı yüzen mini modal'a aktarır.
+     * @returns {void}
+     */
+    const btnSwitchMini = document.getElementById('inline-btn-switch-mini');
+    if (btnSwitchMini) {
+      btnSwitchMini.onclick = () => window.switchInlinePlayerToModal();
+    }
 
     // Autoplay toggle button logic
     const btnAutoplay = document.getElementById('inline-btn-autoplay-toggle');
@@ -4756,84 +4151,8 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
       };
     }
 
-    // Subtitle Color & Opacity & Redownload bindings
-    const inlineSubColor = document.getElementById('inline-subtitle-color');
-    if (inlineSubColor) {
-      inlineSubColor.value = (localDb.settings && localDb.settings.subtitleColor) || '#ffffff';
-      inlineSubColor.onchange = async (e) => {
-        const val = e.target.value;
-        localDb.settings.subtitleColor = val;
-        document.documentElement.style.setProperty('--subtitle-color', val);
-        const globalDropdown = document.getElementById('settings-subtitle-color');
-        if (globalDropdown) globalDropdown.value = val;
-        
-        if (videoPlayerInstance && typeof videoPlayerInstance.subtitle?.style === 'function') {
-          videoPlayerInstance.subtitle.style({ color: val });
-        }
-        
-        try {
-          await fetch('/api/settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(localDb.settings)
-          });
-        } catch (err) {
-          console.error('subtitleColor save error:', err);
-        }
-      };
-    }
-
-    const inlineSubOpacity = document.getElementById('inline-subtitle-opacity');
-    if (inlineSubOpacity) {
-      inlineSubOpacity.value = (localDb.settings && localDb.settings.subtitleOpacity) || '0.7';
-      inlineSubOpacity.onchange = async (e) => {
-        const val = e.target.value;
-        localDb.settings.subtitleOpacity = val;
-        document.documentElement.style.setProperty('--subtitle-bg-opacity', val);
-        
-        if (videoPlayerInstance && typeof videoPlayerInstance.subtitle?.style === 'function') {
-          videoPlayerInstance.subtitle.style({
-            backgroundColor: `rgba(0, 0, 0, ${val})`
-          });
-        }
-        
-        try {
-          await fetch('/api/settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(localDb.settings)
-          });
-        } catch (err) {
-          console.error('subtitleOpacity save error:', err);
-        }
-      };
-    }
-
-    const inlineSubSize = document.getElementById('inline-subtitle-size');
-    if (inlineSubSize) {
-      inlineSubSize.value = (localDb.settings && localDb.settings.subtitleSize) || '26px';
-      inlineSubSize.onchange = async (e) => {
-        const val = e.target.value;
-        localDb.settings.subtitleSize = val;
-        document.documentElement.style.setProperty('--subtitle-font-size', val);
-        
-        if (videoPlayerInstance && typeof videoPlayerInstance.subtitle?.style === 'function') {
-          videoPlayerInstance.subtitle.style({
-            fontSize: val
-          });
-        }
-        
-        try {
-          await fetch('/api/settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(localDb.settings)
-          });
-        } catch (err) {
-          console.error('subtitleSize save error:', err);
-        }
-      };
-    }
+    // Subtitle Color & Opacity & Size bindings (Module)
+    initSubtitleStyleControls();
 
     const btnRedownload = document.getElementById('inline-btn-redownload');
     if (btnRedownload) {
@@ -4963,279 +4282,46 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
     }
   } else {
     if (playerContainer) {
-      if (playerType === 'artplayer') {
-        playerContainer.innerHTML = '<div id="embedded-artplayer" style="width: 100%; height: 100%; display: block; outline: none;"></div>';
-      } else {
-        const autoplayAttr = (forcePaused === true) ? '' : 'autoplay';
-        playerContainer.innerHTML = `<video id="embedded-video-player" controls ${autoplayAttr} style="width: 100%; height: 100%; display: block; outline: none;"></video>`;
+      const autoplayAttr = (forcePaused === true) ? '' : 'autoplay';
+      playerContainer.innerHTML = `<video id="embedded-video-player" controls ${autoplayAttr} style="width: 100%; height: 100%; display: block; outline: none;"></video>`;
+    }
+
+    if (playerType === 'plyr' && typeof Plyr === 'undefined') {
+      console.error('[HaYTooL] Plyr kütüphanesi (Plyr) bulunamadı → HTML5 standart moda düşüldü.');
+    }
+    // Altyazıların arka plandan gelmesini bekle (yarış durumunu önler, Plyr altyazıları ilk anda tanır)
+    try {
+      await Promise.race([
+        subFetchPromise,
+        new Promise(resolve => setTimeout(resolve, 350))
+      ]);
+    } catch (e) {}
+
+    const player = document.getElementById('embedded-video-player');
+    if (player) {
+      // Clear old track tags
+      const oldTracks = player.querySelectorAll('track');
+      oldTracks.forEach(t => t.remove());
+
+      // Add track tags if available
+      if (availableSubtitles && availableSubtitles.length > 0) {
+        applySubtitlesToPlayer(availableSubtitles, player);
       }
     }
 
-    if (playerType === 'artplayer' && typeof Artplayer !== 'undefined') {
-      let artHighlight = [];
-      if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
-        artHighlight = currentVideoSponsorSegments.map(seg => ({
-          time: seg.start,
-          text: localDb.settings.lang === 'en' ? `Sponsor Block (${seg.category})` : `Sponsor Alanı (${seg.category})`
-        }));
-      }
-
-      let defaultSubtitle = null;
-      if (availableSubtitles && availableSubtitles.length > 0) {
-        defaultSubtitle = availableSubtitles.find(s => s.lang === 'tr') || 
-                          availableSubtitles.find(s => s.lang === 'en') || 
-                          availableSubtitles[0];
-      }
-
-      const artSettings = [];
-      if (availableSubtitles && availableSubtitles.length > 0) {
-        const isEn = localDb.settings?.lang === 'en';
-        const subtitleSelector = [
-          {
-            default: !defaultSubtitle,
-            html: isEn ? 'Off' : 'Kapalı',
-            url: ''
-          }
-        ];
-        
-        availableSubtitles.forEach(sub => {
-          subtitleSelector.push({
-            default: defaultSubtitle && defaultSubtitle.lang === sub.lang,
-            html: sub.label,
-            url: sub.url
-          });
-        });
-
-        artSettings.push({
-          width: 200,
-          html: isEn ? 'Subtitle' : 'Altyazı',
-          tooltip: defaultSubtitle ? defaultSubtitle.label : (isEn ? 'Off' : 'Kapalı'),
-          selector: subtitleSelector,
-          onSelect: function (item) {
-            if (item.url) {
-              videoPlayerInstance.subtitle.show = true;
-              videoPlayerInstance.subtitle.url = item.url;
-            } else {
-              videoPlayerInstance.subtitle.show = false;
-            }
-            return item.html;
-          }
-        });
-      }
-
-      // Altyazı Rengi Ayarı
-      const artIsEn = localDb.settings?.lang === 'en';
-      const colors = [
-        { value: '#ffffff', nameEn: 'White', nameTr: 'Beyaz' },
-        { value: '#ffff00', nameEn: 'Yellow', nameTr: 'Sarı' },
-        { value: '#00ff00', nameEn: 'Green', nameTr: 'Yeşil' },
-        { value: '#00ffff', nameEn: 'Cyan', nameTr: 'Turkuaz' },
-        { value: '#ff00ff', nameEn: 'Pink', nameTr: 'Pembe' },
-        { value: '#ff0000', nameEn: 'Red', nameTr: 'Kırmızı' },
-        { value: '#0000ff', nameEn: 'Blue', nameTr: 'Mavi' },
-        { value: '#ffa500', nameEn: 'Orange', nameTr: 'Turuncu' },
-        { value: '#800080', nameEn: 'Purple', nameTr: 'Mor' },
-        { value: '#000000', nameEn: 'Black', nameTr: 'Siyah' },
-        { value: '#808080', nameEn: 'Gray', nameTr: 'Gri' },
-        { value: '#ffffe0', nameEn: 'Light Yellow', nameTr: 'Açık Sarı' }
-      ];
-      
-      const currentColor = (localDb.settings && localDb.settings.subtitleColor) || '#ffffff';
-      const colorSelector = colors.map(c => ({
-        default: currentColor === c.value,
-        html: artIsEn ? c.nameEn : c.nameTr,
-        value: c.value
-      }));
-
-      artSettings.push({
-        width: 200,
-        html: artIsEn ? 'Subtitle Color' : 'Altyazı Rengi',
-        tooltip: artIsEn 
-          ? (colors.find(c => c.value === currentColor)?.nameEn || 'White')
-          : (colors.find(c => c.value === currentColor)?.nameTr || 'Beyaz'),
-        selector: colorSelector,
-        onSelect: function (item) {
-          if (videoPlayerInstance && videoPlayerInstance.subtitle) {
-            videoPlayerInstance.subtitle.style({
-              color: item.value,
-              textShadow: '0 0 4px #000000'
-            });
-          }
-          if (localDb && localDb.settings) {
-            localDb.settings.subtitleColor = item.value;
-            const selectEl = document.getElementById('settings-subtitle-color');
-            if (selectEl) selectEl.value = item.value;
-            
-            // Arka planda ayarları kaydet
-            fetch('/api/settings', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...localDb.settings, subtitleColor: item.value })
-            })
-            .catch(err => console.error(err));
-          }
-          return item.html;
-        }
+    if (playerType === 'plyr' && typeof Plyr !== 'undefined') {
+      player.src = streamUrl;
+      videoPlayerInstance = new Plyr('#embedded-video-player', {
+        iconUrl: '/plyr.svg',
+        controls: [
+          'play-large', 'restart', 'rewind', 'play', 'fast-forward',
+          'progress', 'current-time', 'duration', 'mute', 'volume',
+          'captions', 'settings', 'pip', 'fullscreen'
+        ],
+        settings: ['captions', 'speed', 'loop'],
+        captions: { active: true, update: true },
+        speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] }
       });
-
-      videoPlayerInstance = new Artplayer({
-        container: '#embedded-artplayer',
-        url: streamUrl,
-        autoplay: forcePaused === true ? false : true,
-        autoSize: false,
-        autoMini: false,
-        playbackRate: true,
-        aspectRatio: true,
-        setting: true,
-        hotkey: false,
-        pip: true,
-        fullscreen: true,
-        mutex: true,
-        theme: '#ff0055',
-        highlight: artHighlight,
-        subtitle: defaultSubtitle ? {
-          url: defaultSubtitle.url,
-          type: 'vtt',
-          style: {
-            color: (localDb.settings && localDb.settings.subtitleColor) || '#ffffff',
-            backgroundColor: `rgba(0, 0, 0, ${(localDb.settings && localDb.settings.subtitleOpacity) || '0.7'})`,
-            fontSize: (localDb.settings && localDb.settings.subtitleSize) || '26px',
-            textShadow: '0 0 4px #000000',
-          },
-        } : undefined,
-        settings: artSettings
-      });
-
-      if (playerResizeObserver) {
-        playerResizeObserver.disconnect();
-      }
-      playerResizeObserver = new ResizeObserver(() => {
-        if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
-          videoPlayerInstance.resize();
-        }
-      });
-      playerResizeObserver.observe(playerContainer);
-
-      // Volume wheel control
-      const artContainer = document.getElementById('embedded-artplayer');
-      if (artContainer) {
-        artContainer.addEventListener('wheel', (e) => {
-          e.preventDefault();
-          let currentVolume = videoPlayerInstance.volume;
-          let newVolume;
-          if (e.deltaY < 0) {
-            newVolume = Math.min(1, currentVolume + 0.02);
-          } else {
-            newVolume = Math.max(0, currentVolume - 0.02);
-          }
-          videoPlayerInstance.volume = newVolume;
-          if (typeof triggerVolumeHUD === 'function') {
-            triggerVolumeHUD(newVolume);
-          }
-        }, { passive: false });
-      }
-
-      videoPlayerInstance.on('ready', () => {
-        const rawVideo = videoPlayerInstance.video;
-        if (rawVideo) {
-          rawVideo.addEventListener('play', () => sendPlayerActivity(true));
-          rawVideo.addEventListener('pause', () => {
-            // Kullanıcı talebi: Video duraklatıldığında da Discord etkinliği devam etsin
-            autoSyncWatchtimeHelper(currentPlayingVideoId, rawVideo.currentTime, true);
-            window.savePlaybackPosition(currentPlayingVideoId, rawVideo.currentTime, rawVideo.duration, true);
-          });
-          rawVideo.addEventListener('ended', () => {
-            sendPlayerActivity(false);
-            autoSyncWatchtimeHelper(currentPlayingVideoId, rawVideo.currentTime, true);
-            window.savePlaybackPosition(currentPlayingVideoId, 0, rawVideo.duration, true);
-          });
-          adjustPlayerOrientation(rawVideo);
-          if (rawVideo.duration) {
-            drawSponsorSegmentsOnTimeline(rawVideo.duration, 'artplayer');
-          }
-          rawVideo.addEventListener('loadedmetadata', () => {
-            adjustPlayerOrientation(rawVideo);
-            drawSponsorSegmentsOnTimeline(rawVideo.duration, 'artplayer');
-          });
-
-          rawVideo.addEventListener('timeupdate', () => {
-            if (!currentPlayingVideoId) return;
-            const currentTime = rawVideo.currentTime;
-
-            if (localDb.settings && localDb.settings.sponsorBlockEnabled === true) {
-              checkAndSkipSponsor(currentTime, rawVideo);
-            }
-
-            // Periyodik (her 30sn) YouTube izleme süresi senkronizasyonu
-            autoSyncWatchtimeHelper(currentPlayingVideoId, currentTime, false);
-
-            // Yerel kaldığı yer kaydı
-            window.savePlaybackPosition(currentPlayingVideoId, currentTime, rawVideo.duration, false);
-          });
-
-          if (!seekedForCurrentVideo && currentPlayingVideoId) {
-            const item = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
-            const targetTime = (startSeconds !== null) ? startSeconds : (item?.lastPositionSeconds || (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0));
-            if (targetTime > 3) {
-              rawVideo.currentTime = targetTime;
-              window.showResumeNotification(targetTime);
-            }
-            seekedForCurrentVideo = true;
-          }
-          if (forcePaused === true) {
-            videoPlayerInstance.pause();
-          } else if (forcePaused === false) {
-            videoPlayerInstance.play().catch(e => console.warn(e));
-          }
-          
-          rawVideo.addEventListener('ended', () => {
-            const isAutoplayEnabled = localStorage.getItem('inline-autoplay-enabled') === 'true';
-            if (isAutoplayEnabled) {
-              playNextVideoInPlaylist();
-            }
-          });
-        }
-      });
-
-    } else {
-      const player = document.getElementById('embedded-video-player');
-      if (player) {
-        // Clear old track tags
-        const oldTracks = player.querySelectorAll('track');
-        oldTracks.forEach(t => t.remove());
-
-        // Add track tags if available
-        if (availableSubtitles && availableSubtitles.length > 0) {
-          availableSubtitles.forEach(sub => {
-            const track = document.createElement('track');
-            track.kind = 'subtitles';
-            track.label = sub.label;
-            track.srclang = sub.lang;
-            track.src = sub.url;
-            
-            const isDefault = (sub.lang === 'tr' && availableSubtitles.some(s => s.lang === 'tr')) ||
-                              (sub.lang === 'en' && !availableSubtitles.some(s => s.lang === 'tr') && sub.lang === 'en') ||
-                              (!availableSubtitles.some(s => s.lang === 'tr' || s.lang === 'en') && sub === availableSubtitles[0]);
-            
-            if (isDefault) {
-              track.default = true;
-            }
-            player.appendChild(track);
-          });
-        }
-
-        if (playerType === 'plyr' && typeof Plyr !== 'undefined') {
-          player.src = streamUrl;
-          videoPlayerInstance = new Plyr('#embedded-video-player', {
-            iconUrl: '/plyr.svg',
-            controls: [
-              'play-large', 'restart', 'rewind', 'play', 'fast-forward',
-              'progress', 'current-time', 'duration', 'mute', 'volume',
-              'captions', 'settings', 'pip', 'fullscreen'
-            ],
-            settings: ['captions', 'speed', 'loop'],
-            speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] }
-          });
 
           videoPlayerInstance.on('ready', () => {
             adjustPlayerOrientation(videoPlayerInstance.media);
@@ -5431,8 +4517,6 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
           });
         }
       }
-    }
-  }
   } catch (err) {
     console.error('[playVideoEmbedded] HATA:', err);
   }
@@ -5772,19 +4856,41 @@ window.closePlayerModal = function(skipWatchSync = false) {
 
 // Türkçe Açıklama: Belirtilen video ID'sine ait YouTube izleme sayfasını tarayıcıda yeni bir sekmede açar.
 /**
- * Belirtilen videonun YouTube sayfasını yeni tarayıcı sekmesinde açar.
+ * Belirtilen videonun YouTube sayfasını (varsa oynatıcıdaki mevcut zaman ile) tarayıcıda açar.
  * 
  * @param {string} videoId Açılacak video ID'si
+ * @param {number} [currentSeconds] İsteğe bağlı zaman damgası (saniye)
  */
-window.openYouTube = async function(videoId) {
+window.openYouTube = async function(videoId, currentSeconds) {
+  let time = currentSeconds;
+  if (time === undefined && currentPlayingVideoId === videoId) {
+    if (videoPlayerInstance && typeof videoPlayerInstance.currentTime === 'number') {
+      time = videoPlayerInstance.currentTime;
+    } else if (videoPlayerInstance && videoPlayerInstance.video && typeof videoPlayerInstance.video.currentTime === 'number') {
+      time = videoPlayerInstance.video.currentTime;
+    } else {
+      const v = document.querySelector('#inline-player-body video, #player-modal video, #embedded-video-player');
+      if (v && typeof v.currentTime === 'number') {
+        time = v.currentTime;
+      }
+    }
+  }
+
+  const timeNum = Number(time);
+  const timeQuery = (!isNaN(timeNum) && timeNum > 3) ? `&t=${Math.floor(timeNum)}s` : '';
+  const payload = { videoId };
+  if (!isNaN(timeNum) && timeNum > 3) {
+    payload.time = Math.floor(timeNum);
+  }
+
   try {
     await fetch('/api/open-youtube', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoId })
+      body: JSON.stringify(payload)
     });
   } catch (err) {
-    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+    window.open(`https://www.youtube.com/watch?v=${videoId}${timeQuery}`, '_blank');
   }
 };
 
@@ -6181,16 +5287,43 @@ function saveDownloadedFilterState() {
   try {
     const channelSelect = document.getElementById('downloaded-channel-filter');
     const showShortsCb = document.getElementById('downloaded-show-shorts');
+    const searchInput = document.getElementById('downloaded-search-input');
+
+    // Boş string ("") asla kaydedilmemeli; tanımlı kanal yoksa 'all' varsayılan olmalı
+    let chosenChannel = window.downloadedFilterChannel || (channelSelect ? channelSelect.value : 'all');
+    if (!chosenChannel || chosenChannel.trim() === '') {
+      chosenChannel = 'all';
+    }
 
     const state = {
-      channel: channelSelect ? channelSelect.value : 'all',
+      channel: chosenChannel,
       sortVal: typeof downloadedSortVal !== 'undefined' ? downloadedSortVal : 'date-desc',
       showShorts: showShortsCb ? showShortsCb.checked : false,
       viewMode: typeof downloadedViewMode !== 'undefined' ? downloadedViewMode : 'grid',
-      onlyResume: typeof downloadedOnlyPartiallyWatched !== 'undefined' ? !!downloadedOnlyPartiallyWatched : false
+      onlyResume: typeof downloadedOnlyPartiallyWatched !== 'undefined' ? !!downloadedOnlyPartiallyWatched : false,
+      searchQuery: searchInput ? searchInput.value : ''
     };
 
     localStorage.setItem('haytool_downloaded_filters_v2', JSON.stringify(state));
+
+    // Configwin.ini kalıcılığı: indirilenler filtre durumu sunucuya da yazılır
+    // Aynı origin'deki tüm portlar (4141, EXE içi WebView2) bu alanları db.settings üzerinden okur.
+    if (localDb && localDb.settings) {
+      const iniPatch = {
+        ...localDb.settings,
+        downloadedFilterChannel: state.channel,
+        downloadedSortMode: state.sortVal,
+        downloadedShowShorts: state.showShorts,
+        downloadedViewMode: state.viewMode,
+        downloadedOnlyResume: state.onlyResume,
+        downloadedSearchQuery: state.searchQuery
+      };
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(iniPatch)
+      }).catch(err => console.error('[HaYTooL] saveDownloadedFilterState ini hata:', err));
+    }
   } catch (err) {
     console.error('saveDownloadedFilterState error:', err);
   }
@@ -6219,14 +5352,53 @@ function restoreDownloadedFilterState() {
       }
     }
 
+    // configwin.ini öncelikli INI alanlarını oku (tüm portlarda + EXE'de kalıcı)
+    const ini = localDb.settings || {};
+    const hasValidIniChannel = ini.downloadedFilterChannel && typeof ini.downloadedFilterChannel === 'string' && ini.downloadedFilterChannel.trim() !== '' && ini.downloadedFilterChannel !== 'all';
+    const iniHasDl = {
+      channel: hasValidIniChannel,
+      onlyResume: ini.downloadedOnlyResume !== undefined,
+      showShorts: ini.downloadedShowShorts !== undefined,
+      searchQuery: ini.downloadedSearchQuery !== undefined
+    };
+
+    // Kanal filtresi INI'den
+    if (iniHasDl.channel) {
+      window.downloadedFilterChannel = ini.downloadedFilterChannel;
+      downloadedFilterChannel = ini.downloadedFilterChannel;
+      const channelSelectEl = document.getElementById('downloaded-channel-filter');
+      if (channelSelectEl) channelSelectEl.value = ini.downloadedFilterChannel;
+    } else {
+      window.downloadedFilterChannel = 'all';
+      downloadedFilterChannel = 'all';
+      const channelSelectEl = document.getElementById('downloaded-channel-filter');
+      if (channelSelectEl) channelSelectEl.value = 'all';
+    }
+
+    // Yarım kalma filtresi INI'den
+    if (iniHasDl.onlyResume) {
+      downloadedOnlyPartiallyWatched = !!ini.downloadedOnlyResume;
+      window.downloadedOnlyPartiallyWatched = downloadedOnlyPartiallyWatched;
+      const resumeBtn = document.getElementById('downloaded-filter-resume-btn');
+      if (resumeBtn) resumeBtn.classList.toggle('active', downloadedOnlyPartiallyWatched);
+    }
+
+    // Arama sorgusu INI'den
+    if (iniHasDl.searchQuery && ini.downloadedSearchQuery) {
+      const searchInput = document.getElementById('downloaded-search-input');
+      if (searchInput && !searchInput.value) searchInput.value = ini.downloadedSearchQuery;
+    }
+
     const raw = localStorage.getItem('haytool_downloaded_filters_v2');
     if (!raw) return;
     const state = JSON.parse(raw);
 
+    // localStorage alanları yalnızca INI'de tanımlı değilse uygulanır
     const channelSelect = document.getElementById('downloaded-channel-filter');
-    if (channelSelect && state.channel) {
+    if (channelSelect && state.channel && state.channel.trim() !== '' && !iniHasDl.channel) {
       channelSelect.value = state.channel;
       window.downloadedFilterChannel = state.channel;
+      downloadedFilterChannel = state.channel;
     }
 
     if (state.sortVal && !(localDb.settings && localDb.settings.downloadedSortMode)) {
@@ -6260,13 +5432,19 @@ function restoreDownloadedFilterState() {
       }
     }
 
-    if (state.onlyResume !== undefined) {
+    if (state.onlyResume !== undefined && !iniHasDl.onlyResume) {
       downloadedOnlyPartiallyWatched = !!state.onlyResume;
       window.downloadedOnlyPartiallyWatched = downloadedOnlyPartiallyWatched;
       const resumeBtn = document.getElementById('downloaded-filter-resume-btn');
       if (resumeBtn) {
         resumeBtn.classList.toggle('active', downloadedOnlyPartiallyWatched);
       }
+    }
+
+    // Arama sorgusu localStorage'dan (INI yoksa)
+    if (state.searchQuery && !iniHasDl.searchQuery) {
+      const searchInput = document.getElementById('downloaded-search-input');
+      if (searchInput && !searchInput.value) searchInput.value = state.searchQuery;
     }
   } catch (err) {
     console.error('restoreDownloadedFilterState error:', err);
@@ -6676,96 +5854,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Türkçe Açıklama: Devam eden veya kuyrukta bekleyen bir indirme işlemini durdurup iptal etmesi için backend API'sine istek yollar.
-/**
- * Devam etmekte olan aktif bir video indirme işlemini iptal eder.
- * 
- * @param {string} videoId İptal edilecek video ID'si
- */
-window.cancelDownload = async function(videoId) {
-  if (!confirm('Bu indirme işlemini iptal etmek istediğinizden emin misiniz?')) return;
-  
-  try {
-    showToast('İndirme iptal ediliyor...', 'info');
-    const res = await fetch('/api/cancel-download', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoId })
-    });
-    const data = await res.json();
-    if (data.success) {
-      // Başarı durumunda sunucu bildirim gönderecektir
-    } else {
-      showToast(data.error || 'İptal işlemi başarısız oldu.', 'error');
-    }
-  } catch (err) {
-    showToast('Sunucu ile iletişim hatası.', 'error');
-  }
-};
-
-/**
- * Tüm aktif ve kuyruktaki indirmeleri iptal eder.
- */
-window.cancelAllDownloads = async function() {
-  if (!confirm('Tüm aktif ve kuyruktaki indirmeleri iptal etmek istediğinize emin misiniz?')) return;
-  
-  try {
-    showToast('Tüm indirmeler iptal ediliyor...', 'info');
-    const res = await fetch('/api/cancel-all-downloads', {
-      method: 'POST'
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast('Tüm indirmeler iptal edildi.', 'success');
-    } else {
-      showToast(data.error || 'İptal işlemi başarısız oldu.', 'error');
-    }
-  } catch (err) {
-    showToast('Sunucu ile iletişim hatası.', 'error');
-  }
-};
-
-/**
- * İndirme kuyruğunda (sırasında) bekleyen bir videoyu sıradan çıkarır.
- * 
- * @param {string} videoId Sıradan çıkarılacak video ID'si
- */
-window.cancelQueuedVideo = async function(videoId) {
-  try {
-    showToast('Sıradan çıkarılıyor...', 'info');
-    const res = await fetch('/api/cancel-download', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoId })
-    });
-    const data = await res.json();
-    if (data.success) {
-      // Başarı durumunda sunucu bildirim gönderecektir (SSE ile)
-    } else {
-      showToast(data.error || 'İptal işlemi başarısız oldu.', 'error');
-    }
-  } catch (err) {
-    showToast('Sunucu ile iletişim hatası.', 'error');
-  }
-};
-
-window.cancelAllQueued = async function() {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  if (!confirm(isEn ? 'Are you sure you want to cancel all queued videos?' : 'Kuyruktaki tüm videoları iptal etmek istediğinizden emin misiniz?')) return;
-  
-  try {
-    showToast(isEn ? 'Cancelling all queued videos...' : 'Tüm kuyruk iptal ediliyor...', 'info');
-    const res = await fetch('/api/cancel-all-queued', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      // Server broadcasts update
-    } else {
-      showToast(data.error || (isEn ? 'Cancel failed.' : 'İptal işlemi başarısız oldu.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Communication error.' : 'Sunucu ile iletişim hatası.', 'error');
-  }
-};
+// Aktif İndirme ve Kuyruk İptal/Yönetim fonksiyonları ./modules/queue.js modülünden içe aktarılmıştır.
 
 // Aktif İndirme İptal Butonu Dinleyicisi
 document.addEventListener('DOMContentLoaded', () => {
@@ -6800,212 +5889,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Türkçe Açıklama: İndirme yapılan disk bölümündeki boş alan miktarı ile indirme klasörünün toplam boyutunu API'den sorgulayarak sağ üst köşedeki durum çubuğuna yansıtır.
-/**
- * Disk boş alanını ve indirme klasörü boyutunu sunucudan çekip durum çubuğunu günceller.
- * 
- * @returns {Promise<void>}
- */
-async function updateDiskSpace() {
-  const diskStatusFree = document.getElementById('disk-status-free');
-  const diskStatusFolder = document.getElementById('disk-status-folder');
-  if (!diskStatusFree) return;
-  
-  try {
-    const res = await fetch('/api/disk-space');
-    const data = await res.json();
-    if (data.success) {
-      const freeGB = Math.round(data.freeBytes / (1024 * 1024 * 1024));
-      const totalGB = Math.round(data.totalBytes / (1024 * 1024 * 1024));
-      const folderGB = Math.round(data.folderSizeBytes / (1024 * 1024 * 1024));
-      
-      const isEn = localDb.settings && localDb.settings.lang === 'en';
-      diskStatusFree.textContent = `${freeGB} GB`;
-      if (diskStatusFolder) {
-        diskStatusFolder.textContent = `${folderGB} GB`;
-      }
-      
-      diskStatusFree.title = isEn 
-        ? `Drive Free Space: ${freeGB} GB / Total: ${totalGB} GB (${data.driveLetter}:)`
-        : `Sürücü Boş Alanı: ${freeGB} GB / Toplam: ${totalGB} GB (${data.driveLetter}:)`;
-      if (diskStatusFolder) {
-        diskStatusFolder.title = isEn
-          ? `Main Download Folder Total Size: ${folderGB} GB`
-          : `Ana İndirme Klasörü Toplam Boyutu: ${folderGB} GB`;
-      }
-    } else {
-      const isEn = localDb.settings && localDb.settings.lang === 'en';
-      diskStatusFree.textContent = isEn ? 'Unknown' : 'Bilinmiyor';
-      if (diskStatusFolder) diskStatusFolder.textContent = isEn ? 'Unknown' : 'Bilinmiyor';
-    }
-  } catch (err) {
-    const isEn = localDb.settings && localDb.settings.lang === 'en';
-    diskStatusFree.textContent = isEn ? 'Error' : 'Hata';
-    if (diskStatusFolder) diskStatusFolder.textContent = isEn ? 'Error' : 'Hata';
-  }
-}
+// updateDiskSpace fonksiyonu ./modules/systemStatus.js modülünden içe aktarılmıştır.
 
-// Türkçe Açıklama: Üst bardaki hava durumu rozetini ve detay popover kartını API'den çekilen anlık verilerle günceller.
-/**
- * Hava durumu bilgilerini /api/weather üzerinden sorgular, üst bardaki rozete ve popover kartına yansıtır.
- * 
- * @param {boolean} [force=false] Önbelleği atlayarak taze veri isteği
- * @returns {Promise<void>}
- */
-async function updateWeatherBadge(force = false) {
-  const badge = document.getElementById('badge-weather');
-  const display = document.getElementById('weather-display');
-  const iconEl = document.getElementById('weather-icon');
-  const cityLabel = document.getElementById('weather-city-display');
-  if (!badge || !display) return;
-
-  if (localDb.settings && localDb.settings.weatherEnabled === false) {
-    badge.style.display = 'none';
-    return;
-  }
-  badge.style.display = 'inline-flex';
-
-  try {
-    const res = await fetch(`/api/weather${force ? '?force=true' : ''}`);
-    const data = await res.json();
-    if (data.success && data.enabled !== false) {
-      display.textContent = `${data.temp}${data.unit}`;
-      
-      // Badge üzerinde şehir adı göster (max 12 karakter)
-      if (cityLabel && data.city) {
-        const shortCity = data.city.length > 12 ? data.city.substring(0, 11) + '…' : data.city;
-        cityLabel.textContent = shortCity;
-      }
-      
-      if (iconEl) {
-        iconEl.setAttribute('data-lucide', data.icon || 'sun');
-        lucide.createIcons();
-      }
-
-      const langKey = data.descKey || 'weather_partly_cloudy';
-      const t = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t.bind(i18n) : null;
-      const desc = t ? t(langKey) : data.defaultDesc;
-      const feelsLikeLabel = t ? t('weather_feels_like') : 'Hissedilen';
-      const humidityLabel = t ? t('weather_humidity') : 'Nem';
-      const windLabel = t ? t('weather_wind') : 'Rüzgar';
-      const precipLabel = t ? t('weather_precipitation') : 'Yağış İhtimali';
-      const refreshLabel = t ? t('weather_click_refresh') : 'Çift tıklayarak yenileyin';
-      const precipProb = data.precipitationProbability !== undefined ? data.precipitationProbability : 0;
-
-      // Üst bardaki doğrudan yağış ihtimali rozetini güncelle
-      const badgePrecipVal = document.getElementById('weather-precip-val');
-      const badgePrecipWrapper = document.getElementById('weather-precip-badge');
-      if (badgePrecipVal) {
-        badgePrecipVal.textContent = `%${precipProb}`;
-      }
-      if (badgePrecipWrapper) {
-        badgePrecipWrapper.title = `${precipLabel}: %${precipProb}`;
-      }
-
-      badge.title = `${data.city}: ${desc} (${data.temp}${data.unit}, ${precipLabel}: %${precipProb})`;
-
-      // Ayarlar sekmesindeki ipucu metnini güncelle
-      const usageTipEl = document.getElementById('desc-weather-usage-tip');
-      if (usageTipEl && t && t('weather_usage_tip')) {
-        usageTipEl.innerHTML = t('weather_usage_tip');
-      }
-
-      // Popover kartını güncelle
-      const popTemp = document.getElementById('weather-popover-temp');
-      const popDesc = document.getElementById('weather-popover-desc');
-      const popCity = document.getElementById('weather-popover-city');
-      const popFeels = document.getElementById('weather-popover-feels');
-      const popHumidity = document.getElementById('weather-popover-humidity');
-      const popWind = document.getElementById('weather-popover-wind');
-      const popPrecip = document.getElementById('weather-popover-precip');
-      const popFeelsLabel = document.getElementById('weather-popover-feels-label');
-      const popHumidityLabel = document.getElementById('weather-popover-humidity-label');
-      const popWindLabel = document.getElementById('weather-popover-wind-label');
-      const popPrecipLabel = document.getElementById('weather-popover-precip-label');
-      const popRefreshText = document.getElementById('weather-popover-refresh-text');
-      const popIcon = document.getElementById('weather-popover-icon');
-
-      if (popTemp) popTemp.textContent = `${data.temp}${data.unit}`;
-      if (popDesc) popDesc.textContent = desc;
-      if (popCity) popCity.textContent = data.city || '--';
-      if (popFeels) popFeels.textContent = `${data.feelsLike}${data.unit}`;
-      if (popHumidity) popHumidity.textContent = `%${data.humidity}`;
-      if (popWind) popWind.textContent = `${data.windSpeed} km/s`;
-      if (popPrecip) popPrecip.textContent = `%${precipProb}`;
-      if (popFeelsLabel) popFeelsLabel.textContent = feelsLikeLabel;
-      if (popHumidityLabel) popHumidityLabel.textContent = humidityLabel;
-      if (popWindLabel) popWindLabel.textContent = windLabel;
-      if (popPrecipLabel) popPrecipLabel.textContent = precipLabel;
-      if (popRefreshText) popRefreshText.textContent = refreshLabel;
-      if (popIcon) {
-        popIcon.setAttribute('data-lucide', data.icon || 'sun');
-      }
-
-      // İkonları render et
-      if (typeof lucide !== 'undefined' && lucide.createIcons) {
-        lucide.createIcons();
-      }
-
-      // Popover olay dinleyicilerini garantiye al
-      initWeatherPopoverEvents();
-    } else if (data.enabled === false) {
-      badge.style.display = 'none';
-    } else {
-      display.textContent = '--°';
-    }
-  } catch (err) {
-    display.textContent = '--°';
-  }
-}
-
-// Türkçe Açıklama: Hava durumu rozeti tıklama ve popover aç/kapa/yenile mantığını kurar
-function initWeatherPopoverEvents() {
-  const badgeWeather = document.getElementById('badge-weather');
-  const weatherPopover = document.getElementById('weather-popover');
-
-  if (!badgeWeather || !weatherPopover) return;
-  if (badgeWeather._popoverInitialized) return;
-  badgeWeather._popoverInitialized = true;
-
-  // Sol tık: popover aç/kapa
-  badgeWeather.addEventListener('click', (e) => {
-    // Popover içindeki tıklamalarda badge açma-kapama tetiklenmesin
-    if (weatherPopover.contains(e.target)) return;
-
-    e.stopPropagation();
-    const isActive = weatherPopover.classList.contains('active');
-    if (isActive) {
-      weatherPopover.classList.remove('active');
-    } else {
-      weatherPopover.classList.add('active');
-      lucide.createIcons();
-    }
-  });
-
-  // Popover içi tıklama: yayılmayı durdur
-  weatherPopover.addEventListener('click', (e) => {
-    e.stopPropagation();
-  });
-
-  // Dışarı tıklayınca popover'ı kapat
-  document.addEventListener('click', (e) => {
-    if (!badgeWeather.contains(e.target)) {
-      weatherPopover.classList.remove('active');
-    }
-  });
-
-  // Çift tıklama: veriyi yenile
-  badgeWeather.addEventListener('dblclick', async (e) => {
-    e.stopPropagation();
-    showToast('Hava durumu güncelleniyor...', 'info');
-    await updateWeatherBadge(true);
-    showToast('Hava durumu güncellendi.', 'success');
-  });
-}
-
-if (document.readyState !== 'loading') {
-  initWeatherPopoverEvents();
-}
+// Hava durumu fonksiyonları (updateWeatherBadge, initWeatherPopoverEvents) ./modules/weather.js modülünden içe aktarılmıştır.
 
 // Türkçe Açıklama: Hava durumu ayarları ve kontrolleri
 document.addEventListener('DOMContentLoaded', () => {
@@ -7132,230 +6018,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Türkçe Açıklama: Kanal ekleme kutusundaki arama sorgusunu alarak YouTube'da arama yapar ve sonuçları kart yapısında listeler.
-/**
- * YouTube kanal arama işlemini tetikler ve arayüzde sonuçları gösterir.
- */
-window.triggerChannelSearch = async function() {
-  const inputEl = document.getElementById('channel-input');
-  if (!inputEl) return;
-  
-  const query = inputEl.value.trim();
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  
-  if (!query) {
-    showToast(isEn ? 'Please enter a search query.' : 'Lütfen aramak için bir metin girin.', 'error');
-    return;
-  }
-  
-  // Eğer girilen değer bir URL ise doğrudan eklemeyi önerebilir veya aramayı durdurabiliriz
-  if (query.startsWith('http') || query.includes('youtube.com') || query.includes('youtu.be')) {
-    showToast(isEn ? 'This is a URL. Please click "Follow Channel" button instead.' : 'Bu bir adres. Lütfen "Kanalı Takip Et" butonunu kullanın.', 'info');
-    return;
-  }
-  
-  const resultsContainer = document.getElementById('channel-search-results');
-  const resultsList = document.getElementById('search-results-list');
-  const searchBtn = document.getElementById('search-channel-btn');
-  
-  if (!resultsContainer || !resultsList) return;
-  
-  try {
-    if (searchBtn) searchBtn.disabled = true;
-    showToast(isEn ? 'Searching channels on YouTube...' : 'YouTube üzerinde kanallar aranıyor...', 'info');
-    
-    const res = await fetch(`/api/channels/search?q=${encodeURIComponent(query)}`);
-    const data = await res.json();
-    
-    resultsList.innerHTML = '';
-    
-    if (data && data.length > 0) {
-      data.forEach(channel => {
-        const item = document.createElement('div');
-        item.className = 'channel-item card';
-        item.style.display = 'flex';
-        item.style.justifyContent = 'space-between';
-        item.style.alignItems = 'center';
-        item.style.padding = '10px 15px';
-        item.style.background = 'var(--bg-card-hover)';
-        item.style.border = '1px solid var(--border-color)';
-        item.style.borderRadius = '6px';
-        
-        // Kanala daha önce ekli mi kontrolü
-        const isFollowed = localDb.channels.some(c => c.id === channel.id);
-        
-        item.innerHTML = `
-          <div style="display:flex; align-items:center; gap:12px;">
-            <img src="${channel.avatar || '/api/channels/' + channel.id + '/avatar'}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid var(--border-color);" onerror="this.src='https://www.youtube.com/s/desktop/9c83acbb/img/avatar_placeholder_40.png'">
-            <div>
-              <div style="font-weight:600; color:var(--text-color);">${channel.name}</div>
-              <div style="font-size:0.8rem; color:var(--text-muted);">${channel.handle} • ${channel.subscribers}</div>
-            </div>
-          </div>
-          <div>
-            ${isFollowed 
-              ? `<button class="btn btn-secondary btn-sm" disabled style="opacity: 0.6;">${isEn ? 'Following' : 'Takip Ediliyor'}</button>`
-              : `<button class="btn btn-primary btn-sm" onclick="followChannelFromSearch('${channel.id}', '${channel.name.replace(/'/g, "\\'")}', '${channel.handle}', '${channel.avatar}')">${isEn ? 'Follow' : 'Takip Et'}</button>`
-            }
-          </div>
-        `;
-        resultsList.appendChild(item);
-      });
-      resultsContainer.style.display = 'block';
-      showToast(isEn ? 'Search completed.' : 'Arama tamamlandı.', 'success');
-    } else {
-      resultsList.innerHTML = `<div style="text-align:center; padding:15px; color:var(--text-muted);">${isEn ? 'No channels found.' : 'Kanal bulunamadı.'}</div>`;
-      resultsContainer.style.display = 'block';
-      showToast(isEn ? 'No results found.' : 'Sonuç bulunamadı.', 'warning');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Search error.' : 'Arama sırasında hata oluştu.', 'error');
-  } finally {
-    if (searchBtn) searchBtn.disabled = false;
-  }
-};
-
-// Türkçe Açıklama: YouTube arama sonuçları panelini kapatarak görünürlüğünü gizler.
-/**
- * Arama sonuçları panelini kapatır.
- */
-window.closeChannelSearchResults = function() {
-  const resultsContainer = document.getElementById('channel-search-results');
-  if (resultsContainer) {
-    resultsContainer.style.display = 'none';
-  }
-};
-
-// Türkçe Açıklama: Arama sonuçlarındaki kanalı backend'e isim, handle, avatar ve ID ile hızlıca takip listesine eklemek üzere gönderir.
-/**
- * Arama sonuçlarındaki bir kanalı takip listesine ekler.
- * 
- * @param {string} id Kanal ID'si
- * @param {string} name Kanal adı
- * @param {string} handle Kanal handle adı (@ ile başlayan)
- * @param {string} avatar Kanal profil resmi URL'si
- */
-window.followChannelFromSearch = async function(id, name, handle, avatar) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  try {
-    showToast(isEn ? 'Following channel...' : 'Kanal takibe alınıyor...', 'info');
-    const res = await fetch('/api/channels', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        input: id, 
-        name: name,
-        handle: handle,
-        avatar: avatar,
-        downloadShorts: false 
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? `Following ${name}!` : `"${name}" başarıyla takibe alındı!`, 'success');
-      closeChannelSearchResults();
-    } else {
-      showToast(data.error || 'Hata oluştu.', 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-};
-
-// getChannelActiveFilters → db-renderer.js window.getChannelActiveFilters
-
-
-/**
- * Kanallar sekmesindeki Kategori filtresi dropdown seçeneklerini dinamik olarak günceller.
- * 
- * @param {Array<object>} categories Kategori listesi
- * @param {Array<object>} channels Kanal listesi
- * @param {string} lang Geçerli dil kodu
- */
-export function updateChannelCategoryFilterOptions(categories = [], channels = [], lang = 'tr') {
-  const select = document.getElementById('filter-channel-category');
-  if (!select) return;
-
-  // Kullanıcı o an dropdown ile etkileşimdeyse veya liste açıkken seçenekleri bozma
-  if (document.activeElement === select) return;
-
-  const t = translations[lang] || translations.tr || {};
-  const currentVal = select.value || 'all';
-
-  const getCatName = (cat) => getCatTranslatedName(cat, t);
-
-  const safeEscape = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-  // Kategorilere göre kanal sayılarını hesapla
-  const catCountMap = {};
-  let uncategorizedCount = 0;
-
-  (channels || []).forEach(ch => {
-    const ids = (ch.categoryIds && ch.categoryIds.length > 0)
-      ? ch.categoryIds.map(Number)
-      : (ch.categoryId !== undefined ? [Number(ch.categoryId)] : [1]);
-    
-    if (ids.length === 0 || (ids.length === 1 && ids[0] === 1)) {
-      uncategorizedCount++;
-    }
-    ids.forEach(id => {
-      catCountMap[id] = (catCountMap[id] || 0) + 1;
-    });
-  });
-
-  const sortedCats = [...(categories || [])].sort((a, b) => {
-    if (a.id === 1) return -1;
-    if (b.id === 1) return 1;
-    const nameA = getCatName(a);
-    const nameB = getCatName(b);
-    return nameA.localeCompare(nameB, 'tr', { sensitivity: 'base' });
-  });
-
-  const allLabel = t.opt_filter_category_all || 'Tüm Kategoriler';
-  const noneLabel = t.opt_filter_category_none || 'Atanmamış / Kategorisiz';
-
-  let html = `<option value="all">${safeEscape(allLabel)} (${channels.length})</option>`;
-
-  sortedCats.forEach(cat => {
-    const cName = getCatName(cat);
-    const count = catCountMap[cat.id] || 0;
-    html += `<option value="${cat.id}">${safeEscape(cName)} (${count})</option>`;
-  });
-
-  if (uncategorizedCount > 0) {
-    html += `<option value="uncategorized">${safeEscape(noneLabel)} (${uncategorizedCount})</option>`;
-  }
-
-  // Sadece içerik değişmişse DOM'a uygula
-  if (select.dataset.renderedHtml !== html) {
-    select.innerHTML = html;
-    select.dataset.renderedHtml = html;
-    const hasCurrentVal = [...select.options].some(o => o.value === currentVal);
-    select.value = hasCurrentVal ? currentVal : 'all';
-  }
-}
-window.updateChannelCategoryFilterOptions = updateChannelCategoryFilterOptions;
-
-/**
- * Kanallar sekmesinde arama veya filtreler değiştiğinde kanal listesini anlık yeniden render eder.
- */
-export function handleChannelFilterChange() {
-  if (!window.localDb || !window.localDb.channels) return;
-  const channelsList = document.getElementById('channels-list');
-  if (!channelsList) return;
-  const lang = (window.localDb.settings && window.localDb.settings.lang) || currentLang || 'tr';
-  const t = translations[lang] || translations.tr;
-  const filters = getChannelActiveFilters();
-  const sigHelper = typeof getChannelsRenderSignature === 'function' ? getChannelsRenderSignature : (window.getChannelsRenderSignature || (() => ''));
-  window._lastChannelsRenderSignature = sigHelper(window.localDb.channels, window.localDb.categories, filters, lang);
-  renderChannelsList(channelsList, window.localDb.channels, t, window.localDb.categories, filters);
-  try {
-    if (typeof lucide !== 'undefined' && lucide.createIcons) {
-      lucide.createIcons();
-    }
-  } catch (e) {}
-}
-window.handleChannelFilterChange = handleChannelFilterChange;
+// triggerChannelSearch, closeChannelSearchResults, followChannelFromSearch, updateChannelCategoryFilterOptions, handleChannelFilterChange → ./modules/channels.js
 
 // Türkçe Açıklama: Sağ üst köşedeki sistem durumu ikonuna tıklandığında disk/çerez durumu özet menüsünün açılıp kapanmasını sağlar.
 /**
@@ -7382,653 +6045,10 @@ window.addEventListener('click', (e) => {
   }
 });
 
-let dragSrcEl = null;
+// Kuyruk görünümü, sürükle-bırak sıralama, hız limitleri ve hata yönetimi fonksiyonları ./modules/queue.js modülünden içe aktarılmıştır.
 
-// Türkçe Açıklama: Kuyruk sekmesinin görünüm modunu (table veya cards) değiştirir, buton durumunu günceller, ayarları INI'ye kaydeder ve listeyi yeniden çizer.
-/**
- * Kuyruk sekmesi görünüm modunu ayarlar.
- * 
- * @param {'table' | 'cards'} mode Seçilen görünüm modu
- */
-window.setQueueViewMode = function(mode) {
-  if (mode !== 'table' && mode !== 'cards') mode = 'table';
-  
-  const tableBtn = document.getElementById('queue-view-table-btn');
-  const cardsBtn = document.getElementById('queue-view-cards-btn');
-  if (tableBtn && cardsBtn) {
-    tableBtn.classList.toggle('active', mode === 'table');
-    cardsBtn.classList.toggle('active', mode === 'cards');
-  }
+// initCustomSelect ve setCustomSelectValue fonksiyonları ./modules/uiDropdowns.js modülünden içe aktarılmıştır.
 
-  if (window.localDb && window.localDb.settings) {
-    window.localDb.settings.queueViewMode = mode;
-  }
-
-  localStorage.setItem('haytool_queue_view_mode', mode);
-
-  // Arayüzü güncelle
-  if (window.localDb) {
-    updateUI(window.localDb);
-  }
-
-  try {
-    if (typeof lucide !== 'undefined') {
-      lucide.createIcons();
-    }
-  } catch (e) {}
-
-  // Ayarları backend ve config.ini'ye kaydet
-  fetch('/api/settings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...(window.localDb ? window.localDb.settings : {}), queueViewMode: mode })
-  }).catch(err => console.error('Error saving queueViewMode:', err));
-};
-
-// Türkçe Açıklama: Kuyruktaki bir videonun sırasını yukarı veya aşağı yönde bir basamak kaydırır ve sunucuya bildirir.
-// Türkçe Açıklama: Kuyruk listesindeki videoyu en başa, bir yukarı, bir aşağı veya en sona taşır.
-/**
- * Kuyruk listesindeki videoyu taşır.
- * 
- * @param {string} videoId Taşınacak videonun ID'si
- * @param {'top' | 'up' | 'down' | 'bottom'} direction Taşıma yönü
- */
-window.moveQueueItem = function(videoId, direction) {
-  const list = document.getElementById('queue-list');
-  if (!list) return;
-
-  const items = Array.from(list.querySelectorAll('[data-id]'));
-  const currentIndex = items.findIndex(el => el.getAttribute('data-id') === videoId);
-  if (currentIndex === -1) return;
-
-  const currentEl = items[currentIndex];
-
-  // Birleştirme (merging) durumundaki video taşınamaz
-  if (currentEl.classList.contains('queue-item-merging')) {
-    return;
-  }
-
-  if (direction === 'top') {
-    const firstMovableIndex = items.findIndex(el => !el.classList.contains('queue-item-merging'));
-    if (firstMovableIndex === -1 || currentIndex <= firstMovableIndex) return;
-    const firstMovableEl = items[firstMovableIndex];
-    list.insertBefore(currentEl, firstMovableEl);
-  } else if (direction === 'bottom') {
-    if (currentIndex >= items.length - 1) return;
-    list.appendChild(currentEl);
-  } else if (direction === 'up') {
-    const targetIndex = currentIndex - 1;
-    if (targetIndex < 0) return;
-    const targetEl = items[targetIndex];
-    if (targetEl.classList.contains('queue-item-merging')) return;
-    list.insertBefore(currentEl, targetEl);
-  } else if (direction === 'down') {
-    const targetIndex = currentIndex + 1;
-    if (targetIndex >= items.length) return;
-    const targetEl = items[targetIndex];
-    targetEl.after(currentEl);
-  } else {
-    return;
-  }
-
-  const newOrderIds = Array.from(list.querySelectorAll('[data-id]')).map(el => el.getAttribute('data-id'));
-
-  // Sıra numaralarını ve ok butonlarının aktif/pasif durumlarını hemen güncelle
-  updateQueueOrderDOM(list);
-
-  fetch('/api/queue/reorder', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: newOrderIds })
-  }).catch(err => console.error('Error reordering queue via arrow:', err));
-};
-
-// Türkçe Açıklama: DOM üzerindeki sıra numarası rozetlerini (#01, #02..) ve ilk/son elemanın ok butonlarının pasiflik durumunu anında senkronize eder.
-function updateQueueOrderDOM(listEl) {
-  if (!listEl) return;
-  const items = Array.from(listEl.querySelectorAll('[data-id]'));
-  const total = items.length;
-
-  items.forEach((item, idx) => {
-    const badge = item.querySelector('.queue-order-badge');
-    if (badge) {
-      badge.textContent = `#${(idx + 1).toString().padStart(2, '0')}`;
-    }
-    const topBtn = item.querySelector('.queue-btn-top');
-    const upBtn = item.querySelector('.queue-btn-up');
-    const downBtn = item.querySelector('.queue-btn-down');
-    const bottomBtn = item.querySelector('.queue-btn-bottom');
-    const isFirst = (idx === 0);
-    const isLast = (idx === total - 1);
-
-    if (topBtn) {
-      topBtn.disabled = isFirst;
-      topBtn.classList.toggle('disabled', isFirst);
-    }
-    if (upBtn) {
-      upBtn.disabled = isFirst;
-      upBtn.classList.toggle('disabled', isFirst);
-    }
-    if (downBtn) {
-      downBtn.disabled = isLast;
-      downBtn.classList.toggle('disabled', isLast);
-    }
-    if (bottomBtn) {
-      bottomBtn.disabled = isLast;
-      bottomBtn.classList.toggle('disabled', isLast);
-    }
-  });
-}
-window.updateQueueOrderDOM = updateQueueOrderDOM;
-
-// Türkçe Açıklama: Liste elemanı sürüklenmeye başlandığında şeffaflığı azaltarak görsel bildirim verir ve sürükleme verilerini ayarlar.
-/**
- * Sürükleme başladığında tetiklenen olay yöneticisi.
- * 
- * @param {DragEvent} e Sürükleme olayı nesnesi
- */
-function handleDragStart(e) {
-  this.style.opacity = '0.4';
-  dragSrcEl = this;
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/html', this.innerHTML);
-}
-window.handleDragStart = handleDragStart;
-
-// Türkçe Açıklama: Sürüklenen eleman diğer elemanın üzerine geldiğinde tarayıcının varsayılan sürükleme davranışını engelleyerek taşımaya izin verir.
-/**
- * Sürüklenen öğe başka bir öğenin üzerine geldiğinde tetiklenir.
- * 
- * @param {DragEvent} e Sürükleme olayı nesnesi
- */
-function handleDragOver(e) {
-  if (e.preventDefault) {
-    e.preventDefault();
-  }
-  e.dataTransfer.dropEffect = 'move';
-  return false;
-}
-window.handleDragOver = handleDragOver;
-
-// Türkçe Açıklama: Sürüklenen eleman hedef konum üzerine bırakıldığında DOM üzerindeki sırasını değiştirir ve güncel sıralamayı backend API'sine kaydeder.
-/**
- * Sürüklenen öğe bırakıldığında tetiklenen olay yöneticisi.
- * Sıralamayı DOM üzerinde günceller ve sunucuya bildirir.
- * 
- * @param {DragEvent} e Sürükleme olayı nesnesi
- */
-function handleDrop(e) {
-  if (e.stopPropagation) {
-    e.stopPropagation();
-  }
-  
-  if (dragSrcEl !== this) {
-    const list = document.getElementById('queue-list');
-    if (!list) return false;
-    const children = Array.from(list.querySelectorAll('[data-id]'));
-    const fromIndex = children.indexOf(dragSrcEl);
-    const toIndex = children.indexOf(this);
-    
-    if (fromIndex < toIndex) {
-      this.after(dragSrcEl);
-    } else {
-      this.before(dragSrcEl);
-    }
-    
-    const newOrderIds = Array.from(list.querySelectorAll('[data-id]')).map(el => el.getAttribute('data-id'));
-    
-    updateQueueOrderDOM(list);
-
-    fetch('/api/queue/reorder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: newOrderIds })
-    }).catch(err => console.error('Error reordering queue:', err));
-  }
-  
-  return false;
-}
-window.handleDrop = handleDrop;
-
-// Türkçe Açıklama: Sürükleme işlemi bittiğinde elemanların şeffaflıklarını sıfırlayarak görünümü normale döndürür.
-/**
- * Sürükleme işlemi bittiğinde tetiklenen olay yöneticisi.
- * 
- * @param {DragEvent} e Sürükleme olayı nesnesi
- */
-function handleDragEnd(e) {
-  this.style.opacity = '1';
-  document.querySelectorAll('#queue-list [data-id]').forEach(item => {
-    item.style.opacity = '1';
-  });
-}
-window.handleDragEnd = handleDragEnd;
-
-/**
- * Pano içeriğini veya girilen YouTube linkini okuyarak doğrudan indirme kuyruğuna ekler.
- */
-window.pasteAndDownload = async function() {
-  let urlText = '';
-  try {
-    // Tarayıcı panosundaki metni okumayı dene
-    urlText = await navigator.clipboard.readText();
-    urlText = urlText.trim();
-  } catch (err) {
-    console.warn('Pano okuma izni alınamadı:', err);
-  }
-
-  const youtubeRegex = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([^?&"'>\s]{11})/;
-  
-  // Eğer panoda geçerli bir youtube linki yoksa kullanıcıya girdi kutusu göster
-  if (!urlText || !youtubeRegex.test(urlText)) {
-    urlText = prompt('Lütfen indirmek istediğiniz YouTube video linkini buraya yapıştırın:');
-    if (!urlText) return;
-    urlText = urlText.trim();
-  }
-
-  const match = urlText.match(youtubeRegex);
-  if (match) {
-    const videoId = match[1];
-    showToast('Video çözümleniyor ve kuyruğa ekleniyor...', 'info');
-    try {
-      const res = await fetch('/api/download-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast('Video kuyruğa başarıyla eklendi!', 'success');
-        if (window.switchTab) window.switchTab('queue');
-      } else {
-        showToast(data.error || 'İndirme eklenemedi.', 'error');
-      }
-    } catch (err) {
-      showToast('Sunucu ile iletişim hatası.', 'error');
-    }
-  } else {
-    showToast('Geçersiz YouTube video linki girildi.', 'error');
-  }
-};
-
-// Türkçe Açıklama: Kuyruk indirme sırasını duraklatır veya kaldığı yerden devam ettirir. Aktif indirme varsa süreci güvenle durdurup kuyruğun başına alır.
-/**
- * Kuyruk duraklatma ve devam ettirme durumunu değiştirir.
- */
-window.toggleQueuePause = async function() {
-  const isPaused = localDb.settings && localDb.settings.isPaused;
-  const endpoint = isPaused ? '/api/queue/resume' : '/api/queue/pause';
-  const actionText = isPaused 
-    ? (localDb.settings.lang === 'en' ? 'Resuming queue...' : 'Kuyruk devam ettiriliyor...')
-    : (localDb.settings.lang === 'en' ? 'Pausing queue...' : 'Kuyruk duraklatılıyor...');
-    
-  showToast(actionText, 'info');
-  
-  try {
-    const res = await fetch(endpoint, { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      localDb.settings.isPaused = data.isPaused;
-      updateUI(localDb);
-    } else {
-      showToast(data.error || 'İşlem başarısız.', 'error');
-    }
-  } catch (err) {
-    showToast('Sunucu bağlantı hatası.', 'error');
-  }
-};
-
-// Türkçe Açıklama: Alternatif hız sınırı (kaplumbağa) profilini açıp kapatır.
-window.toggleAlternativeSpeed = async function() {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  showToast(isEn ? 'Toggling speed limit profile...' : 'Hız sınırı profili değiştiriliyor...', 'info');
-  try {
-    const res = await fetch('/api/settings/toggle-alt-speed', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Speed profile changed successfully!' : 'Hız profili başarıyla değiştirildi!', 'success');
-    } else {
-      showToast(data.error || 'Hata oluştu.', 'error');
-    }
-  } catch (err) {
-    showToast('Bağlantı hatası.', 'error');
-  }
-};
-
-// Türkçe Açıklama: Kullanıcının girdiği hız limitini (KB/s) sunucuya göndererek kaydeder ve indirme sırasına anlık uygular.
-/**
- * İndirme hız limitini günceller.
- */
-window.updateQueueSpeedLimit = async function() {
-  const input = document.getElementById('queue-speed-limit-input');
-  if (!input) return;
-  
-  const limit = parseInt(input.value, 10);
-  if (isNaN(limit) || limit < 0) {
-    showToast('Lütfen geçerli bir hız sınırı değeri girin (0 veya daha büyük).', 'error');
-    return;
-  }
-  
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  showToast(isEn ? 'Updating speed limit...' : 'Hız sınırı güncelleniyor...', 'info');
-  
-  try {
-    const updatedSettings = { ...localDb.settings };
-    if (localDb.settings.useAlternativeSpeed) {
-      updatedSettings.alternativeSpeedLimit = limit;
-    } else {
-      updatedSettings.downloadSpeedLimit = limit;
-    }
-    
-    const res = await fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedSettings)
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Speed limit updated successfully!' : 'Hız sınırı başarıyla güncellendi!', 'success');
-    } else {
-      showToast(data.error || 'Hata oluştu.', 'error');
-    }
-  } catch (err) {
-    showToast('Bağlantı hatası.', 'error');
-  }
-};
-
-// Türkçe Açıklama: Hata alan veya başarısız olan videoyu tekrar indirme kuyruğuna ekler.
-window.retryFailedVideo = async function(videoId) {
-  if (typeof window.downloadVideoManual === 'function') {
-    window.downloadVideoManual(videoId);
-  } else {
-    try {
-      const res = await fetch(`/api/history/${videoId}/redownload`, { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        showToast('Video tekrar indirme kuyruğuna alındı.', 'success');
-      } else {
-        showToast(data.error || 'İşlem başarısız.', 'error');
-      }
-    } catch (e) {
-      showToast('Sunucu hatası.', 'error');
-    }
-  }
-};
-
-// Türkçe Açıklama: Tüm hata veren videoları sırayla indirme kuyruğuna tekrar ekler (Gizlenenler ve Otomatik İndirmesi Kapalı Kanallar hariç).
-window.retryAllFailedVideos = async function() {
-  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
-  const isEn = currentLang === 'en';
-  const disabledChannelIds = new Set((localDb.channels || []).filter(c => c.autoDownload === false).map(c => c.id));
-  const failedItems = (localDb.history || []).filter(h => h.status === 'failed' && h.hidden !== true && h.status !== 'ignored' && !disabledChannelIds.has(h.channelId));
-  if (failedItems.length === 0) {
-    showToast(isEn ? 'No failed videos to retry.' : 'Tekrar denenecek hata alan video bulunmuyor.', 'info');
-    return;
-  }
-
-  showToast(isEn ? `Retrying ${failedItems.length} failed downloads...` : `${failedItems.length} hata alan video indirmeye ekleniyor...`, 'info');
-  
-  let successCount = 0;
-  for (const item of failedItems) {
-    try {
-      const res = await fetch('/api/download-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          videoId: item.id,
-          title: item.title,
-          channelName: item.channelName,
-          channelId: item.channelId
-        })
-      });
-      const data = await res.json();
-      if (data.success) successCount++;
-    } catch (e) {}
-  }
-
-  if (successCount > 0) {
-    showToast(isEn ? `${successCount} videos added to queue.` : `${successCount} video kuyruğa yeniden eklendi.`, 'success');
-  } else {
-    showToast(isEn ? 'Failed to retry downloads.' : 'Videolar kuyruğa eklenemedi.', 'error');
-  }
-};
-
-// Türkçe Açıklama: Hata veren tek bir videoyu geçmiş listesinden temizler ve tekrar indirilmesini engellemek için göz ardı eder.
-window.clearFailedVideo = async function(videoId) {
-  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
-  const isEn = currentLang === 'en';
-  const db = window.localDb || (typeof localDb !== 'undefined' ? localDb : { history: [] });
-  const itemIndex = (db.history || []).findIndex(h => h.id === videoId && (h.status === 'failed' || h.status === 'waiting_live_processing'));
-  let backup = null;
-  if (itemIndex !== -1) {
-    backup = { ...db.history[itemIndex] };
-    db.history.splice(itemIndex, 1);
-    if (typeof updateUI === 'function') updateUI(db);
-  }
-
-  try {
-    const res = await fetch(`/api/history/${videoId}?deleteFile=false&hideOnDelete=true&markWatched=true`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Failed download removed and ignored.' : 'Hata kaydı temizlendi ve indirilmesi engellendi.', 'success');
-    } else {
-      if (backup) {
-        db.history.push(backup);
-        if (typeof updateUI === 'function') updateUI(db);
-      }
-      showToast(data.error || (isEn ? 'Failed to remove.' : 'Temizlenemedi.'), 'error');
-    }
-  } catch (err) {
-    if (backup) {
-      db.history.push(backup);
-      if (typeof updateUI === 'function') updateUI(db);
-    }
-    showToast('Sunucu hatası.', 'error');
-  }
-};
-
-// Türkçe Açıklama: Tüm hata veren videoları onay alarak toplu biçimde geçmişten temizler (Gizlenenler ve Otomatik İndirmesi Kapalı Kanallar hariç).
-window.clearAllFailedVideos = async function() {
-  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
-  const t = translations[currentLang] || translations.tr;
-  const isEn = currentLang === 'en';
-  const disabledChannelIds = new Set((localDb.channels || []).filter(c => c.autoDownload === false).map(c => c.id));
-  
-  const failedItems = (localDb.history || []).filter(h => (h.status === 'failed' || h.status === 'waiting_live_processing') && h.hidden !== true && h.status !== 'ignored' && !disabledChannelIds.has(h.channelId));
-  if (failedItems.length === 0) {
-    showToast(isEn ? 'No failed videos to clear.' : 'Temizlenecek hata kaydı bulunmuyor.', 'info');
-    return;
-  }
-
-  const confirmMsg = t.btn_clear_failed_confirm || (isEn ? 'Are you sure you want to clear all failed downloads?' : 'Tüm hata veren indirme kayıtlarını temizlemek istediğinize emin misiniz?');
-  if (!confirm(confirmMsg)) return;
-
-  const failedIds = failedItems.map(f => f.id);
-  const failedIdsSet = new Set(failedIds);
-  const backupItems = [...failedItems];
-
-  // Optimistik temizlik (yalnızca seçilen hata kayıtları)
-  localDb.history = localDb.history.filter(h => !failedIdsSet.has(h.id));
-  if (typeof updateUI === 'function') updateUI(localDb);
-
-  try {
-    const res = await fetch('/api/history/bulk-delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: failedIds, deleteFiles: false, hideOnDelete: true })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? `${failedIds.length} failed records cleared and ignored.` : `${failedIds.length} hata kaydı temizlendi ve indirilmesi engellendi.`, 'success');
-    } else {
-      localDb.history.push(...backupItems);
-      if (typeof updateUI === 'function') updateUI(localDb);
-      showToast(data.error || (isEn ? 'Failed to clear records.' : 'Kayıtlar temizlenemedi.'), 'error');
-    }
-  } catch (err) {
-    localDb.history.push(...backupItems);
-    if (typeof updateUI === 'function') updateUI(localDb);
-    showToast('Sunucu bağlantı hatası.', 'error');
-  }
-};
-
-// Custom Select Dropdown with Flags (Windows Compatibility)
-function initCustomSelect() {
-  const trigger = document.getElementById('lang-select-trigger');
-  const optionsContainer = document.getElementById('lang-custom-options');
-  const hiddenInput = document.getElementById('settings-lang');
-  const selectedFlag = document.getElementById('selected-lang-flag');
-  const selectedText = document.getElementById('selected-lang-text');
-
-  if (!trigger || !optionsContainer || !hiddenInput) return;
-
-  // Dil seçeneklerini visual olarak alfabetik sıraya göre sırala
-  const options = Array.from(optionsContainer.querySelectorAll('.custom-option'));
-  options.sort((a, b) => {
-    const textA = a.querySelector('span').innerText.trim();
-    const textB = b.querySelector('span').innerText.trim();
-    return textA.localeCompare(textB, 'tr', { sensitivity: 'base' });
-  });
-
-  // Seçenekleri temizleyip sıralı şekilde yeniden ekle
-  optionsContainer.innerHTML = '';
-  options.forEach(opt => optionsContainer.appendChild(opt));
-
-  trigger.addEventListener('click', (e) => {
-    e.stopPropagation();
-    optionsContainer.classList.toggle('open');
-  });
-
-  document.addEventListener('click', () => {
-    optionsContainer.classList.remove('open');
-  });
-
-  const allOptions = optionsContainer.querySelectorAll('.custom-option');
-  allOptions.forEach(opt => {
-    opt.addEventListener('click', () => {
-      const val = opt.getAttribute('data-value');
-      hiddenInput.value = val;
-      
-      // Update trigger UI
-      selectedFlag.src = opt.querySelector('img').src;
-      selectedText.innerText = opt.querySelector('span').innerText;
-
-      // Update active option class
-      options.forEach(o => o.classList.remove('selected'));
-      opt.classList.add('selected');
-
-      // Close options
-      optionsContainer.classList.remove('open');
-
-      // Dil değişikliğini anında tüm arayüze canlı olarak uygula
-      if (window.localDb && window.localDb.settings) {
-        window.localDb.settings.lang = val;
-      }
-      if (typeof applyLanguage === 'function') {
-        applyLanguage(val);
-      }
-
-      // Otomatik kaydetmeyi tetikle
-      performAutoSave();
-
-      // Üst bildirim mesajı göster
-      const langNames = { tr: 'Türkçe', en: 'English', es: 'Español', de: 'Deutsch', pt: 'Português', ar: 'العربية', ru: 'Русский' };
-      const chosenLangName = langNames[val] || val;
-      const toastMsg = val === 'en' ? `App language updated: ${chosenLangName}` : `Uygulama dili güncellendi: ${chosenLangName}`;
-      showToast(toastMsg, 'success');
-    });
-  });
-}
-
-function setCustomSelectValue(val) {
-  const hiddenInput = document.getElementById('settings-lang');
-  const selectedFlag = document.getElementById('selected-lang-flag');
-  const selectedText = document.getElementById('selected-lang-text');
-  const optionsContainer = document.getElementById('lang-custom-options');
-  if (!hiddenInput || !selectedFlag || !selectedText || !optionsContainer) return;
-
-  hiddenInput.value = val;
-
-  const opt = optionsContainer.querySelector(`.custom-option[data-value="${val}"]`);
-  if (opt) {
-    selectedFlag.src = opt.querySelector('img').src;
-    selectedText.innerText = opt.querySelector('span').innerText;
-    
-    const options = optionsContainer.querySelectorAll('.custom-option');
-    options.forEach(o => o.classList.remove('selected'));
-    opt.classList.add('selected');
-  }
-}
-
-async function checkFfmpegStatus() {
-  const langKey = currentLang || (localDb.settings && localDb.settings.lang) || 'tr';
-  const t = translations[langKey] || translations.tr;
-  try {
-    const res = await fetch('/api/ffmpeg/status');
-    const data = await res.json();
-    
-    const banner = document.getElementById('ffmpeg-info-banner');
-    const statusIndicator = document.getElementById('settings-ffmpeg-status');
-    const settingsBtn = document.getElementById('settings-ffmpeg-btn');
-    const versionBadge = document.getElementById('settings-ffmpeg-version-info');
-    
-    const isEn = langKey === 'en';
-    const isAr = langKey === 'ar';
-    const isEs = langKey === 'es';
-    const isDe = langKey === 'de';
-    const isPt = langKey === 'pt';
-    const isRu = langKey === 'ru';
-
-    let localPrefix = 'Yerel:';
-    let remotePrefix = 'Uzak:';
-    if (isEn) { localPrefix = 'Local:'; remotePrefix = 'Remote:'; }
-    else if (isEs) { localPrefix = 'Local:'; remotePrefix = 'Remoto:'; }
-    else if (isDe) { localPrefix = 'Lokal:'; remotePrefix = 'Remote:'; }
-    else if (isPt) { localPrefix = 'Local:'; remotePrefix = 'Remoto:'; }
-    else if (isAr) { localPrefix = 'المحلي:'; remotePrefix = 'البعيد:'; }
-    else if (isRu) { localPrefix = 'Локально:'; remotePrefix = 'Удаленно:'; }
-
-    if (versionBadge) {
-      if (data.installed && data.localVersion) {
-        versionBadge.style.display = 'inline-block';
-        versionBadge.innerText = `${localPrefix} ${data.localVersion} | ${remotePrefix} ${data.remoteVersion || 'v6.1'}`;
-      } else if (data.remoteVersion) {
-        versionBadge.style.display = 'inline-block';
-        versionBadge.innerText = `${remotePrefix} ${data.remoteVersion}`;
-      } else {
-        versionBadge.style.display = 'none';
-      }
-    }
-
-    if (data.installed) {
-      if (banner) banner.classList.add('hidden');
-      if (statusIndicator) {
-        statusIndicator.innerText = t.ffmpeg_status_installed || 'Kurulu';
-        statusIndicator.className = 'ffmpeg-status-indicator installed';
-      }
-      if (settingsBtn) {
-        settingsBtn.innerText = t.ffmpeg_btn_reinstall || 'Yeniden Kur';
-      }
-    } else {
-      if (banner && localStorage.getItem('ffmpeg_banner_dismissed') !== 'true') {
-        banner.classList.remove('hidden');
-      }
-      if (statusIndicator) {
-        statusIndicator.innerText = t.ffmpeg_status_not_installed || 'Kurulu Değil';
-        statusIndicator.className = 'ffmpeg-status-indicator not-installed';
-      }
-      if (settingsBtn) {
-        settingsBtn.innerText = t.ffmpeg_btn_install || 'Kur';
-      }
-    }
-  } catch (err) {
-    console.error('Error checking FFmpeg status:', err);
-  }
-}
-window.checkFfmpegStatus = checkFfmpegStatus;
 
 async function installPythonDependencies() {
   const isEn = localDb.settings && localDb.settings.lang === 'en';
@@ -8052,115 +6072,8 @@ async function installPythonDependencies() {
   }
 }
 window.installPythonDependencies = installPythonDependencies;
-// FFmpeg Installer Logic
-function openFfmpegModal() {
-  const modal = document.getElementById('ffmpeg-installer-modal');
-  if (modal) {
-    modal.classList.remove('hidden');
-    // Hide close actions until finished or failed
-    const closeActionBtn = document.getElementById('ffmpeg-modal-close-action-btn');
-    if (closeActionBtn) closeActionBtn.classList.add('hidden');
-  }
-}
-
-function closeFfmpegModal() {
-  const modal = document.getElementById('ffmpeg-installer-modal');
-  if (modal) modal.classList.add('hidden');
-}
-
-function updateFfmpegInstallUI(data) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  const progressBar = document.getElementById('ffmpeg-progress-bar');
-  const statusText = document.getElementById('ffmpeg-status-text');
-  const closeActionBtn = document.getElementById('ffmpeg-modal-close-action-btn');
-  
-  if (progressBar) {
-    progressBar.style.width = `${data.progress}%`;
-    progressBar.style.background = ''; // reset color
-  }
-  
-  if (statusText) {
-    if (data.status === 'downloading') {
-      statusText.innerText = isEn ? `Downloading: %${data.progress}` : `İndiriliyor: %${data.progress}`;
-      statusText.style.color = 'var(--primary)';
-    } else if (data.status === 'extracting') {
-      statusText.innerText = isEn ? 'Extracting archive...' : 'Arşivden Çıkarılıyor...';
-      statusText.style.color = 'var(--secondary)';
-    } else if (data.status === 'completed') {
-      statusText.innerText = isEn ? 'Installation Completed Successfully!' : 'Kurulum Başarıyla Tamamlandı!';
-      statusText.style.color = 'var(--success-color)';
-      if (closeActionBtn) closeActionBtn.classList.remove('hidden');
-      checkFfmpegStatus();
-    } else if (data.status === 'failed') {
-      statusText.innerText = isEn ? `Installation Failed: ${data.error}` : `Kurulum Başarısız: ${data.error}`;
-      statusText.style.color = 'var(--danger-color)';
-      if (progressBar) progressBar.style.background = 'var(--danger-color)';
-      if (closeActionBtn) closeActionBtn.classList.remove('hidden');
-    }
-  }
-}
-
-async function startFfmpegDownload() {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  openFfmpegModal();
-  
-  const progressBar = document.getElementById('ffmpeg-progress-bar');
-  const statusText = document.getElementById('ffmpeg-status-text');
-  if (progressBar) progressBar.style.width = '0%';
-  if (statusText) statusText.innerText = isEn ? 'Starting installation...' : 'Kurulum başlatılıyor...';
-  
-  try {
-    const res = await fetch('/api/ffmpeg/download', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      if (data.state) {
-        updateFfmpegInstallUI(data.state);
-      }
-    } else {
-      if (statusText) {
-        statusText.innerText = data.message || (isEn ? 'Failed to start download' : 'İndirme başlatılamadı');
-        statusText.style.color = 'var(--danger-color)';
-      }
-    }
-  } catch (err) {
-    console.error('Error starting FFmpeg download:', err);
-    if (statusText) {
-      statusText.innerText = isEn ? 'Connection error' : 'Bağlantı hatası';
-      statusText.style.color = 'var(--danger-color)';
-    }
-  }
-}
-
-// Event Listeners for FFmpeg UI
-const bannerInstallBtn = document.getElementById('ffmpeg-banner-install-btn');
-const bannerCloseBtn = document.getElementById('ffmpeg-banner-close-btn');
-const settingsFfmpegBtn = document.getElementById('settings-ffmpeg-btn');
-const closeFfmpegModalBtn = document.getElementById('close-ffmpeg-modal-btn');
-const ffmpegModalCloseActionBtn = document.getElementById('ffmpeg-modal-close-action-btn');
-const banner = document.getElementById('ffmpeg-info-banner');
-
-if (bannerInstallBtn) {
-  bannerInstallBtn.addEventListener('click', startFfmpegDownload);
-}
-
-if (bannerCloseBtn) {
-  bannerCloseBtn.addEventListener('click', () => {
-    if (banner) banner.classList.add('hidden');
-    localStorage.setItem('ffmpeg_banner_dismissed', 'true');
-  });
-}
-
-if (settingsFfmpegBtn) {
-  settingsFfmpegBtn.addEventListener('click', startFfmpegDownload);
-}
-
-if (closeFfmpegModalBtn) {
-  closeFfmpegModalBtn.addEventListener('click', closeFfmpegModal);
-}
-
-if (ffmpegModalCloseActionBtn) {
-  ffmpegModalCloseActionBtn.addEventListener('click', closeFfmpegModal);
-}
+// FFmpeg Installer Logic & Event Listeners are modularized in public/modules/ffmpeg.js
+initFfmpegEvents();
 
 // Başlangıç
 connectSSE();
@@ -8187,47 +6100,18 @@ if (modalContent && modalHeader) {
   makeElementResizable(modalContent);
 }
 
-// Türkçe Açıklama: Yorumlar panelini açar/kapatır ve kapatıldığında veya açıldığında yorumları sunucudan çeker.
-window.toggleCommentsPanel = async function() {
-  const container = document.getElementById('inline-player-comments-container');
-  if (!container) return;
-  
-  const isHidden = container.classList.contains('hidden');
-  const btn = document.getElementById('inline-btn-comments');
-  const isEn = localDb.settings?.lang === 'en';
-  
-  if (isHidden) {
-    container.classList.remove('hidden');
-    if (btn) {
-      btn.classList.add('active');
-      btn.title = isEn ? 'Hide Comments' : 'Yorumları Gizle';
-    }
-    await loadComments(currentPlayingVideoId);
-  } else {
-    container.classList.add('hidden');
-    if (btn) {
-      btn.classList.remove('active');
-      btn.title = isEn ? 'Show Comments' : 'Yorumları Göster';
-    }
-  }
-};
+// [comments.js modülüne taşındı: toggleCommentsPanel, loadComments, loadMoreComments, renderCommentsList]
 
 
 /**
- * Türkçe Açıklama: Aktif video oynatıcının süresini belirtilen saniyeye atlatır (Plyr, Artplayer, HTML5 uyumlu).
+ * Türkçe Açıklama: Aktif video oynatıcının süresini belirtilen saniyeye atlatir (Plyr uyumlu).
  * 
  * @param {number} seconds - Atlanacak saniye değeri
  * @returns {void}
  */
 window.seekVideoToSeconds = function(seconds) {
-  const pType = (localDb.settings && localDb.settings.playerType) || 'plyr';
   const player = document.getElementById('embedded-video-player');
-  
-  if (pType === 'artplayer' && videoPlayerInstance) {
-    videoPlayerInstance.currentTime = seconds;
-  } else if (pType === 'html5' && player) {
-    player.currentTime = seconds;
-  } else if (videoPlayerInstance) {
+  if (videoPlayerInstance) {
     videoPlayerInstance.currentTime = seconds;
   } else if (player) {
     player.currentTime = seconds;
@@ -8263,147 +6147,8 @@ window.toggleDescriptionPanel = function() {
   }
 };
 
-let nextCommentsToken = null;
-let loadedCommentsList = [];
+// [comments.js modülüne taşındı: renderCommentsList, loadComments, loadMoreComments]
 
-// Render comments list with sorting
-function renderCommentsList() {
-  const list = document.getElementById('comments-list');
-  if (!list) return;
-  list.innerHTML = '';
-  
-  const sortVal = document.getElementById('comments-sort')?.value || 'default';
-  let sorted = [...loadedCommentsList];
-  
-  if (sortVal === 'likes-desc') {
-    sorted.sort((a, b) => parseLikes(b.likeCount) - parseLikes(a.likeCount));
-  } else if (sortVal === 'date-new') {
-    sorted.sort((a, b) => parseRelativeTime(a.publishedTime) - parseRelativeTime(b.publishedTime));
-  } else if (sortVal === 'date-old') {
-    sorted.sort((a, b) => parseRelativeTime(b.publishedTime) - parseRelativeTime(a.publishedTime));
-  }
-  
-  sorted.forEach(c => {
-    const item = document.createElement('div');
-    item.className = 'comment-item';
-    
-    const avatarUrl = c.authorAvatar || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><circle cx=%2220%22 cy=%2220%22 r=%2220%22 fill=%22%2316142a%22/></svg>';
-    
-    item.innerHTML = `
-      <img class="comment-avatar" src="${avatarUrl}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22><circle cx=%2220%22 cy=%2220%22 r=%2220%22 fill=%22%2316142a%22/></svg>';" />
-      <div class="comment-content">
-        <div class="comment-meta">
-          <span class="comment-author">${escapeHtml(c.author)}</span>
-          <span class="comment-time">${escapeHtml(c.publishedTime)}</span>
-        </div>
-        <div class="comment-text">${escapeHtml(c.text)}</div>
-        <div class="comment-likes-row">
-          <i data-lucide="thumbs-up"></i>
-          <span>${escapeHtml(c.likeCount)}</span>
-        </div>
-      </div>
-    `;
-    list.appendChild(item);
-  });
-  lucide.createIcons();
-}
-
-window.sortAndRenderComments = function() {
-  renderCommentsList();
-};
-
-async function loadComments(videoId) {
-  const list = document.getElementById('comments-list');
-  const loading = document.getElementById('comments-loading');
-  const empty = document.getElementById('comments-list-empty');
-  const moreContainer = document.getElementById('comments-more-container');
-  
-  if (!list || !loading || !empty) return;
-  
-  list.innerHTML = '';
-  loading.style.display = 'block';
-  empty.style.display = 'none';
-  if (moreContainer) moreContainer.style.display = 'none';
-  nextCommentsToken = null;
-  loadedCommentsList = [];
-  
-  // Translation
-  const commentsSort = document.getElementById('comments-sort');
-  if (commentsSort) {
-    const isEn = localDb.settings?.lang === 'en';
-    commentsSort.options[0].text = isEn ? 'Default' : 'Varsayılan';
-    commentsSort.options[1].text = isEn ? 'Likes (High to Low)' : 'Beğeni (Çoktan Aza)';
-    commentsSort.options[2].text = isEn ? 'Newest' : 'En Yeni';
-    commentsSort.options[3].text = isEn ? 'Oldest' : 'En Eski';
-  }
-
-  try {
-    const res = await fetch(`/api/video/${videoId}/comments`);
-    const data = await res.json();
-    loading.style.display = 'none';
-    
-    if (data.success && data.comments && data.comments.length > 0) {
-      loadedCommentsList = data.comments;
-      renderCommentsList();
-      if (data.nextPageToken) {
-        nextCommentsToken = data.nextPageToken;
-        if (moreContainer) moreContainer.style.display = 'block';
-      }
-    } else {
-      empty.style.display = 'block';
-    }
-  } catch (err) {
-    loading.style.display = 'none';
-    empty.style.display = 'block';
-    console.error("Error loading comments:", err);
-  }
-}
-
-window.loadMoreComments = async function() {
-  if (!currentPlayingVideoId || !nextCommentsToken) return;
-  
-  const moreBtn = document.getElementById('btn-load-more-comments');
-  const moreText = document.getElementById('btn-load-more-comments-text');
-  const isEn = localDb.settings?.lang === 'en';
-  
-  if (moreBtn) moreBtn.disabled = true;
-  if (moreText) {
-    moreText.textContent = isEn ? 'Loading...' : 'Yükleniyor...';
-  }
-  
-  try {
-    const res = await fetch(`/api/video/${currentPlayingVideoId}/comments?token=${encodeURIComponent(nextCommentsToken)}`);
-    const data = await res.json();
-    
-    if (data.success && data.comments && data.comments.length > 0) {
-      loadedCommentsList = loadedCommentsList.concat(data.comments);
-      renderCommentsList();
-      if (data.nextPageToken) {
-        nextCommentsToken = data.nextPageToken;
-        if (moreBtn) moreBtn.disabled = false;
-        if (moreText) {
-          moreText.textContent = isEn ? 'Show More' : 'Daha Fazla Göster';
-        }
-      } else {
-        nextCommentsToken = null;
-        const moreContainer = document.getElementById('comments-more-container');
-        if (moreContainer) moreContainer.style.display = 'none';
-      }
-    } else {
-      nextCommentsToken = null;
-      const moreContainer = document.getElementById('comments-more-container');
-      if (moreContainer) moreContainer.style.display = 'none';
-    }
-  } catch (err) {
-    console.error("Error loading more comments:", err);
-    if (moreBtn) moreBtn.disabled = false;
-    if (moreText) {
-      moreText.textContent = isEn ? 'Show More' : 'Daha Fazla Göster';
-    }
-  }
-};
-
-lucide.createIcons();
 
 
 // Initial drag-and-drop list sortable containers setup
@@ -8518,864 +6263,13 @@ function setupSortableContainer(container, itemSelector, storageKey) {
 
 // Araçlar, dosya karşılaştırma ve indirme UI fonksiyonları artık doğrudan './modules/tools.js' modülü üzerinden yönetilmektedir.
 
-// === DOWNLOADED BULK DELETE FUNCTIONS ===
-function toggleDownloadedBulkDeleteMode() {
-  const isEn = localDb.settings?.lang === 'en';
-  const toggleBtn = document.getElementById('downloaded-bulk-delete-toggle-btn');
-  const bar = document.getElementById('downloaded-bulk-delete-bar');
-  
-  window.isDownloadedBulkDeleteMode = !window.isDownloadedBulkDeleteMode;
-  
-  if (window.isDownloadedBulkDeleteMode) {
-    if (toggleBtn) {
-      toggleBtn.classList.add('active');
-      toggleBtn.style.background = 'var(--primary)';
-      toggleBtn.style.color = '#fff';
-    }
-    if (bar) bar.classList.remove('hidden');
-    const filesCb = document.getElementById('downloaded-bulk-delete-files-checkbox');
-    if (filesCb) filesCb.checked = true;
-  } else {
-    if (toggleBtn) {
-      toggleBtn.classList.remove('active');
-      toggleBtn.style.background = '';
-      toggleBtn.style.color = '';
-    }
-    if (bar) bar.classList.add('hidden');
-    // Clear selections
-    const selectAllCb = document.getElementById('downloaded-bulk-delete-select-all');
-    if (selectAllCb) selectAllCb.checked = false;
-  }
-  
-  // Update counts
-  updateDownloadedBulkDeleteCount();
-  
-  // Re-render UI to apply isDownloadedBulkDeleteMode state to cards
-  if (typeof updateUI === 'function') {
-    updateUI(localDb);
-  }
-}
-window.toggleDownloadedBulkDeleteMode = toggleDownloadedBulkDeleteMode;
+// Toplu işlem ve modallar (Bulk Hide / Bulk Delete) ./modules/bulkOperations.js modülünden yönetilmektedir.
 
-function cancelDownloadedBulkDeleteMode() {
-  window.isDownloadedBulkDeleteMode = false;
-  const toggleBtn = document.getElementById('downloaded-bulk-delete-toggle-btn');
-  const bar = document.getElementById('downloaded-bulk-delete-bar');
-  if (toggleBtn) {
-    toggleBtn.classList.remove('active');
-    toggleBtn.style.background = '';
-    toggleBtn.style.color = '';
-  }
-  if (bar) bar.classList.add('hidden');
-  
-  const selectAllCb = document.getElementById('downloaded-bulk-delete-select-all');
-  if (selectAllCb) selectAllCb.checked = false;
-  
-  updateDownloadedBulkDeleteCount();
-  if (typeof updateUI === 'function') {
-    updateUI(localDb);
-  }
-}
-window.cancelDownloadedBulkDeleteMode = cancelDownloadedBulkDeleteMode;
+// [downloaderUI.js modülüne taşındı: handleDownloaderStart, handleDownloaderAll, renderPlaylistResults, downloadMissingVideo]
 
-function toggleSelectAllDownloadedBulkDelete(masterCb) {
-  const cbs = document.querySelectorAll('.downloaded-bulk-delete-cb');
-  cbs.forEach(cb => {
-    cb.checked = masterCb.checked;
-    const card = cb.closest('.video-card');
-    if (card) {
-      card.classList.toggle('bulk-delete-selected', cb.checked);
-    }
-  });
-  updateDownloadedBulkDeleteCount();
-}
-window.toggleSelectAllDownloadedBulkDelete = toggleSelectAllDownloadedBulkDelete;
-
-/**
- * Toplu seçim kartı toggle işlemi — genel yardımcı.
- * @param {string} id - Video ID'si
- * @param {string} cbSelector - Checkbox CSS selector'ı (ör. '.downloaded-bulk-delete-cb')
- * @param {string} cardClass - Seçili kart CSS sınıfı (ör. 'bulk-delete-selected')
- * @param {string} selectAllId - "Tümünü Seç" checkbox element ID'si
- * @param {Function} updateCountFn - Sayaç güncelleme fonksiyonu
- */
-function toggleBulkCardSelection(id, cbSelector, cardClass, selectAllId, updateCountFn) {
-  const cb = document.querySelector(`${cbSelector}[data-id="${id}"]`);
-  if (!cb) return;
-
-  cb.checked = !cb.checked;
-
-  const card = cb.closest('.video-card');
-  if (card) {
-    card.classList.toggle(cardClass, cb.checked);
-  }
-
-  // "Tümünü Seç" checkbox'ını senkronize et
-  const allCbs = document.querySelectorAll(cbSelector);
-  const checkedCbs = document.querySelectorAll(`${cbSelector}:checked`);
-  const selectAllCb = document.getElementById(selectAllId);
-  if (selectAllCb) {
-    selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
-  }
-
-  if (typeof updateCountFn === 'function') updateCountFn();
-}
-
-/** İndirilenlerde toplu silme kart seçimi. */
-function toggleDownloadedCardSelection(id) {
-  toggleBulkCardSelection(
-    id,
-    '.downloaded-bulk-delete-cb',
-    'bulk-delete-selected',
-    'downloaded-bulk-delete-select-all',
-    updateDownloadedBulkDeleteCount
-  );
-}
-window.toggleDownloadedCardSelection = toggleDownloadedCardSelection;
-
-/** Geçmişte toplu gizleme kart seçimi. */
-function toggleHistoryBulkHideCardSelection(id) {
-  toggleBulkCardSelection(
-    id,
-    '.history-bulk-hide-cb',
-    'bulk-hide-selected',
-    'history-bulk-hide-select-all',
-    updateHistoryBulkHideCount
-  );
-}
-window.toggleHistoryBulkHideCardSelection = toggleHistoryBulkHideCardSelection;
-
-function updateDownloadedBulkDeleteCount(e) {
-  if (e) {
-    e.stopPropagation();
-    const cb = e.target;
-    const card = cb.closest('.video-card');
-    if (card) {
-      card.classList.toggle('bulk-delete-selected', cb.checked);
-    }
-    // Sync Select All checkbox
-    const allCbs = document.querySelectorAll('.downloaded-bulk-delete-cb');
-    const checkedCbs = document.querySelectorAll('.downloaded-bulk-delete-cb:checked');
-    const selectAllCb = document.getElementById('downloaded-bulk-delete-select-all');
-    if (selectAllCb) {
-      selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
-    }
-  }
-  const checkedCount = document.querySelectorAll('.downloaded-bulk-delete-cb:checked').length;
-  const countEl = document.getElementById('downloaded-bulk-delete-selected-count');
-  if (countEl) countEl.textContent = checkedCount;
-}
-window.updateDownloadedBulkDeleteCount = updateDownloadedBulkDeleteCount;
-
-async function executeDownloadedBulkDelete() {
-  const isEn = localDb.settings?.lang === 'en';
-  const checked = document.querySelectorAll('.downloaded-bulk-delete-cb:checked');
-  if (checked.length === 0) {
-    showToast(isEn ? 'Please select at least one video to delete.' : 'Lütfen silmek için en az bir video seçin.', 'error');
-    return;
-  }
-  
-  const videoIds = Array.from(checked).map(cb => cb.getAttribute('data-id'));
-  const alsoDeleteFiles = document.getElementById('downloaded-bulk-delete-files-checkbox')?.checked || false;
-  
-  const confirmMsg = isEn 
-    ? `Are you sure you want to delete the selected ${videoIds.length} video(s)?`
-    : `Seçilen ${videoIds.length} videoyu silmek istediğinize emin misiniz?`;
-    
-  if (!confirm(confirmMsg)) return;
-  
-  try {
-    const response = await fetch('/api/history/bulk-delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: videoIds, deleteFiles: alsoDeleteFiles })
-    });
-    
-    if (response.ok) {
-      showToast(isEn ? `${videoIds.length} video(s) deleted successfully.` : `${videoIds.length} video başarıyla silindi.`, 'success');
-      cancelDownloadedBulkDeleteMode();
-      
-      if (typeof loadDb === 'function') {
-        await loadDb();
-      }
-    } else {
-      showToast(isEn ? 'Failed to delete videos.' : 'Videolar silinirken bir hata oluştu.', 'error');
-    }
-  } catch (err) {
-    console.error('[executeDownloadedBulkDelete] Hata:', err);
-    showToast(isEn ? 'An error occurred during deletion.' : 'Silme işlemi sırasında bir hata oluştu.', 'error');
-  }
-}
-window.executeDownloadedBulkDelete = executeDownloadedBulkDelete;
-
-// === HISTORY BULK HIDE FUNCTIONS ===
-function toggleHistoryBulkHideMode() {
-  const toggleBtn = document.getElementById('history-bulk-hide-toggle-btn');
-  const bar = document.getElementById('history-bulk-hide-bar');
-  
-  window.isHistoryBulkHideMode = !window.isHistoryBulkHideMode;
-  
-  if (window.isHistoryBulkHideMode) {
-    if (toggleBtn) {
-      toggleBtn.classList.add('active');
-    }
-    if (bar) bar.classList.remove('hidden');
-  } else {
-    if (toggleBtn) {
-      toggleBtn.classList.remove('active');
-    }
-    if (bar) bar.classList.add('hidden');
-    // Clear selections
-    const selectAllCb = document.getElementById('history-bulk-hide-select-all');
-    if (selectAllCb) selectAllCb.checked = false;
-  }
-  
-  updateHistoryBulkHideCount();
-  
-  // Re-render UI to apply isHistoryBulkHideMode state to history cards
-  if (typeof updateUI === 'function') {
-    updateUI(localDb);
-  }
-}
-window.toggleHistoryBulkHideMode = toggleHistoryBulkHideMode;
-
-function cancelHistoryBulkHideMode() {
-  window.isHistoryBulkHideMode = false;
-  const toggleBtn = document.getElementById('history-bulk-hide-toggle-btn');
-  const bar = document.getElementById('history-bulk-hide-bar');
-  if (toggleBtn) {
-    toggleBtn.classList.remove('active');
-  }
-  if (bar) bar.classList.add('hidden');
-  
-  const selectAllCb = document.getElementById('history-bulk-hide-select-all');
-  if (selectAllCb) selectAllCb.checked = false;
-  
-  updateHistoryBulkHideCount();
-  if (typeof updateUI === 'function') {
-    updateUI(localDb);
-  }
-}
-window.cancelHistoryBulkHideMode = cancelHistoryBulkHideMode;
-
-function toggleSelectAllHistoryBulkHide(masterCb) {
-  const cbs = document.querySelectorAll('.history-bulk-hide-cb');
-  cbs.forEach(cb => {
-    cb.checked = masterCb.checked;
-    const card = cb.closest('.video-card');
-    if (card) {
-      card.classList.toggle('bulk-hide-selected', cb.checked);
-    }
-  });
-  updateHistoryBulkHideCount();
-}
-window.toggleSelectAllHistoryBulkHide = toggleSelectAllHistoryBulkHide;
-
-
-function updateHistoryBulkHideCount(e) {
-  if (e) {
-    e.stopPropagation();
-    const cb = e.target;
-    const card = cb.closest('.video-card');
-    if (card) {
-      card.classList.toggle('bulk-hide-selected', cb.checked);
-    }
-    // Sync Select All checkbox
-    const allCbs = document.querySelectorAll('.history-bulk-hide-cb');
-    const checkedCbs = document.querySelectorAll('.history-bulk-hide-cb:checked');
-    const selectAllCb = document.getElementById('history-bulk-hide-select-all');
-    if (selectAllCb) {
-      selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
-    }
-  }
-  const checkedCount = document.querySelectorAll('.history-bulk-hide-cb:checked').length;
-  const countEl = document.getElementById('history-bulk-hide-selected-count');
-  if (countEl) countEl.textContent = checkedCount;
-}
-window.updateHistoryBulkHideCount = updateHistoryBulkHideCount;
-
-async function executeHistoryBulkHide() {
-  const isEn = localDb.settings?.lang === 'en';
-  const checked = document.querySelectorAll('.history-bulk-hide-cb:checked');
-  if (checked.length === 0) {
-    showToast(isEn ? 'Please select at least one video to hide.' : 'Lütfen gizlemek için en az bir video seçin.', 'warning');
-    return;
-  }
-  
-  const videoIds = Array.from(checked).map(cb => cb.getAttribute('data-id'));
-  
-  const confirmMsg = isEn 
-    ? `Are you sure you want to hide the selected ${videoIds.length} video(s)?`
-    : `Seçilen ${videoIds.length} videoyu gizlemek istediğinize emin misiniz?`;
-    
-  if (!confirm(confirmMsg)) return;
-  
-  try {
-    const response = await fetch('/api/history/bulk-hide', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: videoIds })
-    });
-    
-    const result = await response.json();
-    if (result.success) {
-      const count = result.count || videoIds.length;
-      showToast(isEn ? `${count} video(s) hidden successfully.` : `${count} video başarıyla gizlendi.`, 'success');
-      cancelHistoryBulkHideMode();
-      
-      if (typeof loadDb === 'function') {
-        await loadDb();
-      }
-    } else {
-      showToast(result.error || (isEn ? 'Failed to hide videos.' : 'Videolar gizlenirken bir hata oluştu.'), 'error');
-    }
-  } catch (err) {
-    console.error('[executeHistoryBulkHide] Hata:', err);
-    showToast(isEn ? 'An error occurred while hiding videos.' : 'Gizleme işlemi sırasında bir hata oluştu.', 'error');
-  }
-}
-window.executeHistoryBulkHide = executeHistoryBulkHide;
-
-async function handleDownloaderStart() {
-  const urlInput = document.getElementById('downloader-url-input');
-  if (!urlInput) return;
-
-  const url = urlInput.value.trim();
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-
-  if (!url) {
-    showToast(isEn ? 'Please enter a valid URL.' : 'Lütfen geçerli bir URL girin.', 'error');
-    return;
-  }
-
-  const formatSelect = document.getElementById('downloader-format-select');
-  const bitrateSelect = document.getElementById('downloader-bitrate-select');
-  const format = formatSelect ? formatSelect.value : 'video-best';
-  const bitrate = (format === 'audio-mp3' && bitrateSelect) ? bitrateSelect.value : null;
-
-  const startBtn = document.getElementById('downloader-start-btn');
-  if (startBtn) {
-    startBtn.disabled = true;
-    const originalText = startBtn.innerHTML;
-    startBtn.innerHTML = `<i class="toast-icon spin" data-lucide="loader" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:5px;"></i> <span>${isEn ? 'Processing...' : 'İşleniyor...'}</span>`;
-    lucide.createIcons();
-  }
-
-  try {
-    // Playlist URL kontrolü
-    const isPlaylist = url.includes('list=') && !url.includes('watch?v=');
-    
-    if (isPlaylist) {
-      // Playlist'i çözümle
-      showToast(isEn ? 'Resolving playlist, please wait...' : 'Playlist çözümleniyor, lütfen bekleyin...', 'info');
-      const res = await fetch('/api/downloader/resolve-playlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      const data = await res.json();
-      
-      if (data.success && data.videos && data.videos.length > 0) {
-        activePlaylistVideos = data.videos;
-        renderPlaylistResults(data.videos);
-        showToast(isEn ? `${data.videos.length} videos found.` : `${data.videos.length} video bulundu.`, 'success');
-      } else {
-        showToast(data.error || (isEn ? 'Failed to resolve playlist.' : 'Playlist çözümlenemedi.'), 'error');
-      }
-    } else {
-      // Tekil video indir
-      const res = await fetch('/api/downloader/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, format, bitrate })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(isEn ? 'Added to download queue.' : 'Kuyruğa başarıyla eklendi.', 'success');
-        urlInput.value = '';
-        switchTab('queue');
-      } else {
-        showToast(data.error || (isEn ? 'Failed to start download.' : 'İndirme başlatılamadı.'), 'error');
-      }
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  } finally {
-    if (startBtn) {
-      startBtn.disabled = false;
-      startBtn.innerHTML = `<i data-lucide="download"></i> <span>${isEn ? 'Start Download' : 'İndirmeyi Başlat'}</span>`;
-      lucide.createIcons();
-    }
-  }
-}
-window.handleDownloaderStart = handleDownloaderStart;
-window.initDownloaderUI = initDownloaderUI;
-
-async function handleDownloaderAll() {
-  if (activePlaylistVideos.length === 0) return;
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  
-  const checkboxes = document.querySelectorAll('.playlist-item-checkbox:checked');
-  if (checkboxes.length === 0) {
-    showToast(isEn ? 'Please select at least one video.' : 'Lütfen en az bir video seçin.', 'error');
-    return;
-  }
-
-  const selectedIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-id'));
-  const targetVideos = activePlaylistVideos.filter(v => selectedIds.includes(v.id));
-
-  const formatSelect = document.getElementById('downloader-format-select');
-  const bitrateSelect = document.getElementById('downloader-bitrate-select');
-  const format = formatSelect ? formatSelect.value : 'video-best';
-  const bitrate = (format === 'audio-mp3' && bitrateSelect) ? bitrateSelect.value : null;
-
-  const downloadAllBtn = document.getElementById('downloader-download-all-btn');
-  if (downloadAllBtn) {
-    downloadAllBtn.disabled = true;
-  }
-
-  let addedCount = 0;
-  for (const video of targetVideos) {
-    try {
-      const videoUrl = `https://www.youtube.com/watch?v=${video.id}`;
-      const res = await fetch('/api/downloader/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          url: videoUrl, 
-          format, 
-          bitrate, 
-          title: video.title,
-          channelId: 'manual',
-          channelName: video.uploader || 'Manuel İndirme'
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        addedCount++;
-      }
-    } catch (e) {
-      console.error('Playlist video ekleme hatası:', e);
-    }
-  }
-
-  showToast(isEn ? `${addedCount} videos added to queue.` : `${addedCount} video kuyruğa eklendi.`, 'success');
-  
-  // Temizle ve Kuyruğa yönlendir
-  document.getElementById('downloader-playlist-results').classList.add('hidden');
-  document.getElementById('downloader-url-input').value = '';
-  activePlaylistVideos = [];
-  
-  if (downloadAllBtn) {
-    downloadAllBtn.disabled = false;
-  }
-  
-  switchTab('queue');
-}
-
-function renderPlaylistResults(videos) {
-  const container = document.getElementById('downloader-playlist-results');
-  const listContainer = document.getElementById('downloader-playlist-list');
-  if (!container || !listContainer) return;
-
-  listContainer.innerHTML = '';
-  videos.forEach((video, index) => {
-    const item = document.createElement('div');
-    item.className = 'downloader-playlist-item';
-    item.setAttribute('data-video-id', video.id);
-    
-    let durationStr = '';
-    if (video.duration) {
-      const min = Math.floor(video.duration / 60);
-      const sec = Math.floor(video.duration % 60);
-      durationStr = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
-    }
-
-    const thumbUrl = video.thumbnail || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`;
-
-    item.innerHTML = `
-      <input type="checkbox" class="playlist-item-checkbox" checked data-id="${video.id}" onclick="event.stopPropagation();" />
-      <span class="item-index">${index + 1}</span>
-      <div class="playlist-item-thumb-wrap">
-        <img src="${thumbUrl}" class="playlist-item-thumb" onerror="this.src='logo.png';" />
-      </div>
-      <span class="item-title" title="${escapeHtml(video.title)}">${escapeHtml(video.title)}</span>
-      <span class="item-duration">${durationStr}</span>
-    `;
-
-    item.addEventListener('click', (e) => {
-      if (e.target.tagName !== 'INPUT') {
-        const cb = item.querySelector('.playlist-item-checkbox');
-        if (cb) cb.checked = !cb.checked;
-      }
-    });
-
-    listContainer.appendChild(item);
-  });
-
-  container.classList.remove('hidden');
-}
-
-async function downloadMissingVideo(videoId, title, channelName, channelId) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  try {
-    showToast(isEn ? 'Adding video to download queue...' : 'Video indirme kuyruğuna ekleniyor...', 'info');
-    const res = await fetch('/api/downloader/download', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: videoId,
-        title: title,
-        channelName: channelName,
-        channelId: channelId
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Video added to queue successfully.' : 'Video kuyruğa başarıyla eklendi.', 'success');
-      runFileComparison();
-    } else {
-      showToast(data.error || (isEn ? 'Failed to queue video.' : 'Kuyruğa eklenemedi.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-window.downloadMissingVideo = downloadMissingVideo;
-
-async function createSystemBackup() {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  try {
-    showToast(isEn ? 'Creating compressed system backup...' : 'Sıkıştırılmış sistem yedeği oluşturuluyor...', 'info');
-    const res = await fetch('/api/backup', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? `Backup created successfully (${data.size}).` : `Sıkıştırılmış yedek oluşturuldu (${data.size}).`, 'success');
-      const container = document.getElementById('system-backups-container');
-      if (container && !container.classList.contains('hidden')) {
-        loadSystemBackupsList(true);
-      }
-    } else {
-      showToast(data.error || (isEn ? 'Failed to create backup.' : 'Yedek oluşturulamadı.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-
-async function loadSystemBackupsList(forceOpen = false) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  const container = document.getElementById('system-backups-container');
-  const tbody = document.getElementById('system-backups-list');
-  if (!container || !tbody) return;
-
-  if (!forceOpen && !container.classList.contains('hidden')) {
-    container.classList.add('hidden');
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/backups');
-    const data = await res.json();
-    if (data.success) {
-      tbody.innerHTML = '';
-      if (data.backups.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="padding: 10px; text-align: center; color: var(--text-muted);">${isEn ? 'No backups found.' : 'Henüz saklanan yedek bulunmuyor.'}</td></tr>`;
-      } else {
-        data.backups.forEach(backup => {
-          const tr = document.createElement('tr');
-          tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-          const isAutoBackup = backup.isAuto || backup.filename.startsWith('auto_') || backup.filename.startsWith('daily_');
-          let badgeHtml = '';
-          if (backup.isDailyProtected) {
-            badgeHtml = `<span style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">🛡️ ${isEn ? 'Daily Protected' : 'Günlük Korunan'}</span>`;
-          } else if (isAutoBackup) {
-            badgeHtml = `<span style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #a855f7; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">🤖 ${isEn ? 'Automatic' : 'Otomatik'}</span>`;
-          } else {
-            badgeHtml = `<span style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">🖐️ ${isEn ? 'Manual' : 'Manuel'}</span>`;
-          }
-
-          tr.innerHTML = `
-            <td style="padding: 6px 8px;" title="${backup.filename}">${backup.filename}</td>
-            <td style="padding: 6px 8px; color: var(--text-muted);">${backup.size}</td>
-            <td style="padding: 6px 8px;">${badgeHtml}</td>
-            <td style="padding: 6px 8px; text-align: right; display: flex; gap: 4px; justify-content: flex-end;">
-              <button type="button" class="btn btn-secondary btn-xs" onclick="downloadSystemBackup('${backup.filename}')" title="${isEn ? 'Download' : 'İndir'}" style="padding: 2px 6px; font-size: 0.75rem;">
-                <i data-lucide="download" style="width:12px;height:12px;"></i>
-              </button>
-              <button type="button" class="btn btn-secondary btn-xs" onclick="restoreSystemBackup('${backup.filename}')" title="${isEn ? 'Restore' : 'Geri Yükle'}" style="padding: 2px 6px; font-size: 0.75rem; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.2); color: var(--accent-color);">
-                ${isEn ? 'Geri Yükle' : 'Geri Yükle'}
-              </button>
-              <button type="button" class="btn btn-secondary btn-xs" onclick="deleteSystemBackup('${backup.filename}')" title="${isEn ? 'Delete' : 'Sil'}" style="padding: 2px 6px; font-size: 0.75rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
-                <i data-lucide="trash-2" style="width:12px;height:12px;"></i>
-              </button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-        if (window.lucide) window.lucide.createIcons();
-      }
-      container.classList.remove('hidden');
-    } else {
-      showToast(data.error || (isEn ? 'Failed to load backups list.' : 'Yedek listesi yüklenemedi.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-
-function downloadSystemBackup(filename) {
-  window.open(`/api/backup/download/${encodeURIComponent(filename)}`, '_blank');
-}
-
-async function deleteSystemBackup(filename) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  if (!confirm(isEn ? `Are you sure you want to delete the backup file "${filename}"?` : `"${filename}" yedek dosyasını silmek istediğinize emin misiniz?`)) {
-    return;
-  }
-
-  try {
-    const res = await fetch(`/api/backup/${encodeURIComponent(filename)}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Backup file deleted.' : 'Yedek dosyası silindi.', 'success');
-      loadSystemBackupsList(true);
-    } else {
-      showToast(data.error || (isEn ? 'Failed to delete backup.' : 'Yedek dosyası silinemedi.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-
-function triggerUploadBackupFile() {
-  const input = document.getElementById('backup-file-upload-input');
-  if (input) input.click();
-}
-
-async function uploadBackupFile(event) {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-
-  if (!confirm(isEn ? `Are you sure you want to restore from "${file.name}"? Current settings and database will be replaced.` : `"${file.name}" dosyasındaki yedeği geri yüklemek istediğinize emin misiniz? Mevcut verilerin üzerine yazılacaktır.`)) {
-    event.target.value = '';
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      showToast(isEn ? 'Uploading and restoring backup...' : 'Yedek dosyası aktarılıyor ve geri yükleniyor...', 'info');
-      const fileData = e.target.result;
-      const res = await fetch('/api/restore-upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileData, filename: file.name })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(isEn ? 'Backup restored successfully! Reloading...' : 'Yedek başarıyla yüklendi ve geri yüklendi! Sayfa yenileniyor...', 'success');
-        setTimeout(() => { window.location.reload(); }, 1500);
-      } else {
-        showToast(data.error || (isEn ? 'Failed to restore backup file.' : 'Yedek dosyası geri yüklenemedi.'), 'error');
-      }
-    } catch (err) {
-      showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-    } finally {
-      event.target.value = '';
-    }
-  };
-  reader.readAsDataURL(file);
-}
-
-async function restoreSystemBackup(filename) {
-  const isEn = localDb.settings && localDb.settings.lang === 'en';
-  if (!confirm(isEn ? `Are you sure you want to restore the backup "${filename}"? Current data will be overwritten.` : `"${filename}" yedeğini geri yüklemek istediğinize emin misiniz? Mevcut verilerin üzerine yazılacaktır.`)) {
-    return;
-  }
-
-  try {
-    showToast(isEn ? 'Restoring backup, please wait...' : 'Yedek geri yükleniyor, lütfen bekleyin...', 'info');
-    const res = await fetch('/api/restore', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Backup restored successfully! Reloading page...' : 'Yedek başarıyla geri yüklendi! Sayfa yenileniyor...', 'success');
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } else {
-      showToast(data.error || (isEn ? 'Failed to restore backup.' : 'Yedek geri yüklenemedi.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-
-window.createSystemBackup = createSystemBackup;
-window.loadSystemBackupsList = loadSystemBackupsList;
-window.restoreSystemBackup = restoreSystemBackup;
-window.downloadSystemBackup = downloadSystemBackup;
-window.deleteSystemBackup = deleteSystemBackup;
-window.triggerUploadBackupFile = triggerUploadBackupFile;
-window.uploadBackupFile = uploadBackupFile;
-
-async function updateConcurrentLimit() {
-  const select = document.getElementById('queue-concurrent-limit');
-  if (!select) return;
-
-  const val = parseInt(select.value, 10);
-  const isEn = localDb.settings?.lang === 'en';
-
-  try {
-    const res = await fetch('/api/settings/concurrent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ limit: val })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? `Concurrent downloads limit set to ${val}!` : `Eşzamanlı indirme limiti ${val} olarak ayarlandı!`, 'success');
-    }
-  } catch (err) {
-    console.error('Error updating concurrent limit:', err);
-    showToast(isEn ? 'Failed to update concurrent limit.' : 'Eşzamanlı limit güncellenemedi.', 'error');
-  }
-}
-
-window.updateConcurrentLimit = updateConcurrentLimit;
-
-// Türkçe Açıklama: Mevcut yt-dlp motor sürümünü, kanalını ve tüm GitHub sürümlerini sorgulayarak ayarlar sayfasındaki seçim listesini doldurur.
-/**
- * yt-dlp motor sürümünü ve mevcut tüm sürümleri API'den sorgular, arayüzü günceller.
- */
-async function fetchYtdlpVersion() {
-  const versionEl = document.getElementById('ytdlp-current-version');
-  const latestEl = document.getElementById('ytdlp-latest-version');
-  const badgeEl = document.getElementById('ytdlp-channel-badge');
-  const selectEl = document.getElementById('ytdlp-target-select');
-  const btn = document.getElementById('ytdlp-update-btn');
-  if (!versionEl) return;
-
-  try {
-    const res = await fetch('/api/downloader/ytdlp-version');
-    const data = await res.json();
-    
-    // Yerel Sürüm
-    if (data.version) {
-      versionEl.textContent = data.version;
-    } else {
-      versionEl.textContent = '?';
-    }
-
-    // Kanal Rozeti
-    if (badgeEl) {
-      if (data.channel === 'nightly') {
-        badgeEl.textContent = '🌙 Nightly (Önerilen)';
-        badgeEl.style.background = 'rgba(147, 51, 234, 0.15)';
-        badgeEl.style.color = '#c084fc';
-        badgeEl.style.borderColor = 'rgba(147, 51, 234, 0.3)';
-      } else if (data.channel === 'stable') {
-        badgeEl.textContent = '⭐ Kararlı (Stable)';
-        badgeEl.style.background = 'rgba(59, 130, 246, 0.15)';
-        badgeEl.style.color = '#60a5fa';
-        badgeEl.style.borderColor = 'rgba(59, 130, 246, 0.3)';
-      } else {
-        badgeEl.textContent = 'Bilinmiyor';
-      }
-    }
-
-    // En Son Sürüm (Uzak Sunucu)
-    if (latestEl) {
-      if (data.latestNightly) {
-        latestEl.textContent = data.latestNightly + ' (Nightly)';
-      } else if (data.latestStable) {
-        latestEl.textContent = data.latestStable + ' (Stable)';
-      } else {
-        latestEl.textContent = '-';
-      }
-    }
-
-    // Sürüm Seçim Dropdown'ını Doldur
-    if (selectEl) {
-      const nightlyGroup = document.getElementById('optgroup-nightly-history');
-      const stableGroup = document.getElementById('optgroup-stable-history');
-
-      if (nightlyGroup) {
-        nightlyGroup.innerHTML = '';
-        if (data.recentNightly && data.recentNightly.length > 0) {
-          data.recentNightly.forEach(item => {
-            const opt = document.createElement('option');
-            opt.value = `nightly@${item.tag}`;
-            opt.textContent = `🌙 Nightly ${item.tag}`;
-            nightlyGroup.appendChild(opt);
-          });
-        }
-      }
-
-      if (stableGroup) {
-        stableGroup.innerHTML = '';
-        if (data.recentStable && data.recentStable.length > 0) {
-          data.recentStable.forEach(item => {
-            const opt = document.createElement('option');
-            opt.value = `stable@${item.tag}`;
-            opt.textContent = `⭐ Stable ${item.tag}`;
-            stableGroup.appendChild(opt);
-          });
-        }
-      }
-    }
-  } catch (err) {
-    versionEl.textContent = '?';
-    if (latestEl) latestEl.textContent = '-';
-  }
-}
-
-// Türkçe Açıklama: Seçilen yt-dlp sürümüne veya en güncel sürüme günceller / geri alır.
-/**
- * Seçilen hedef sürüme göre yt-dlp motorunu günceller.
- */
-async function updateYtdlp() {
-  const btn = document.getElementById('ytdlp-update-btn');
-  const selectEl = document.getElementById('ytdlp-target-select');
-  const icon = btn ? btn.querySelector('i') : null;
-  const t = translations[currentLang] || translations.tr;
-
-  const target = selectEl ? selectEl.value : 'nightly';
-
-  if (btn) btn.disabled = true;
-  if (icon) icon.style.animation = 'spin 1s linear infinite';
-
-  showToast(t.toast_ytdlp_updating || 'yt-dlp güncelleniyor...', 'info');
-
-  try {
-    const res = await fetch('/api/downloader/ytdlp-update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target })
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      showToast((t.toast_ytdlp_success || 'yt-dlp başarıyla güncellendi') + (data.newVersion ? ': ' + data.newVersion : ''), 'success');
-      fetchYtdlpVersion();
-    } else {
-      showToast((t.toast_ytdlp_fail || 'yt-dlp güncellemesi başarısız oldu') + (data.error ? ': ' + data.error : ''), 'error');
-    }
-  } catch (err) {
-    showToast((t.toast_ytdlp_fail || 'yt-dlp güncellemesi başarısız oldu') + ': ' + err.message, 'error');
-  } finally {
-    if (btn) btn.disabled = false;
-    if (icon) icon.style.animation = '';
-  }
-}
-
-window.updateYtdlp = updateYtdlp;
-window.fetchYtdlpVersion = fetchYtdlpVersion;
+// [backupManager.js modülüne taşındı: loadSystemBackupsList, downloadSystemBackup,
+//  deleteSystemBackup, triggerUploadBackupFile, uploadBackupFile, restoreSystemBackup]
+// [ytdlpManager.js modülüne taşındı: fetchYtdlpVersion, updateYtdlp]
 
 // Sayfa yüklendiğinde yt-dlp sürümünü ve Gist alanlarını otomatik sorgula
 document.addEventListener('DOMContentLoaded', () => {
@@ -9384,6 +6278,8 @@ document.addEventListener('DOMContentLoaded', () => {
     populateGistFields();
   }, 500);
 });
+
+// [Duplikat DOMContentLoaded bloğu kaldırıldı — tek kayıt yukarıda L6637]
 
 /**
  * Türkçe Açıklama: Video süre stringini (HH:MM:SS, MM:SS, veya saniye) saniyeye çevirir.
@@ -9638,13 +6534,31 @@ window.filterByChannel = function(channelId, gridId) {
     downloadedFilterChannel = channelId;
     window.downloadedFilterChannel = channelId;
     const downloadedChannelFilter = document.getElementById('downloaded-channel-filter');
-    if (downloadedChannelFilter) downloadedChannelFilter.value = channelId;
+    if (downloadedChannelFilter) {
+      let opt = downloadedChannelFilter.querySelector(`option[value="${CSS.escape(channelId)}"]`);
+      if (!opt) {
+        opt = document.createElement('option');
+        opt.value = channelId;
+        opt.textContent = channelId;
+        downloadedChannelFilter.appendChild(opt);
+      }
+      downloadedChannelFilter.value = channelId;
+    }
     saveDownloadedFilterState();
   } else {
     historyFilterChannel = channelId;
     window.historyFilterChannel = channelId;
     const historyChannelFilter = document.getElementById('history-channel-filter');
-    if (historyChannelFilter) historyChannelFilter.value = channelId;
+    if (historyChannelFilter) {
+      let opt = historyChannelFilter.querySelector(`option[value="${CSS.escape(channelId)}"]`);
+      if (!opt) {
+        opt = document.createElement('option');
+        opt.value = channelId;
+        opt.textContent = channelId;
+        historyChannelFilter.appendChild(opt);
+      }
+      historyChannelFilter.value = channelId;
+    }
     saveHistoryFilterState();
   }
 
@@ -9691,13 +6605,28 @@ function selectCustomChannelOption(type, value, event) {
   const selectEl = document.getElementById(`${type}-channel-filter`);
   const dropdown = document.getElementById(`${type}-custom-dropdown`);
 
-  if (selectEl) selectEl.value = value;
+  const safeVal = (!value || value.trim() === '') ? 'all' : value;
+
+  if (selectEl) {
+    let opt = selectEl.querySelector(`option[value="${CSS.escape(safeVal)}"]`);
+    if (!opt) {
+      opt = document.createElement('option');
+      opt.value = safeVal;
+      opt.textContent = safeVal;
+      selectEl.appendChild(opt);
+    }
+    selectEl.value = safeVal;
+  }
   if (dropdown) dropdown.classList.remove('open');
 
   if (type === 'history') {
-    historyFilterChannel = value;
+    historyFilterChannel = safeVal;
+    window.historyFilterChannel = safeVal;
+    if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
   } else if (type === 'downloaded') {
-    downloadedFilterChannel = value;
+    downloadedFilterChannel = safeVal;
+    window.downloadedFilterChannel = safeVal;
+    if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
   }
 
   // Yeniden render et ve arayüzü güncelle
@@ -9722,9 +6651,11 @@ function populateChannelFilters(db) {
     const selectEl = document.getElementById(`${type}-channel-filter`);
     if (!panel) return;
 
-    const currentValue = (type === 'history' ? historyFilterChannel : downloadedFilterChannel) || (selectEl ? selectEl.value : 'all');
+    let currentValue = (type === 'history' ? historyFilterChannel : downloadedFilterChannel) || (selectEl ? selectEl.value : 'all');
+    if (!currentValue || currentValue.trim() === '') currentValue = 'all';
 
     let html = '';
+    let selectOptionsHtml = `<option value="all">${escapeHtml(t.filter_all_channels || 'Tüm Kanallar')}</option>`;
     let activeTriggerHtml = `<i data-lucide="globe" style="width:14px;height:14px;color:var(--accent-color);"></i><span>${escapeHtml(t.filter_all_channels || 'Tüm Kanallar')}</span>`;
 
     // 1. Tüm Kanallar
@@ -9759,6 +6690,7 @@ function populateChannelFilters(db) {
           if (isSel) {
             activeTriggerHtml = `${catIcon}<span>${escapeHtml(catText)}</span>`;
           }
+          selectOptionsHtml += `<option value="${catValue}">${escapeHtml(catText)}</option>`;
           html += `
             <div class="custom-dropdown-item ${isSel ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', '${catValue}', event)">
               ${catIcon}
@@ -9781,6 +6713,7 @@ function populateChannelFilters(db) {
       if (isSel) {
         activeTriggerHtml = `${avatarImgHtml}<span>${escapeHtml(channel.name)}</span>`;
       }
+      selectOptionsHtml += `<option value="${channel.id}">${escapeHtml(channel.name)}</option>`;
 
       html += `
         <div class="custom-dropdown-item ${isSel ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', '${channel.id}', event)">
@@ -9793,6 +6726,10 @@ function populateChannelFilters(db) {
     panel.innerHTML = html;
     if (triggerContent) {
       triggerContent.innerHTML = activeTriggerHtml;
+    }
+    if (selectEl) {
+      selectEl.innerHTML = selectOptionsHtml;
+      selectEl.value = currentValue;
     }
   });
 
@@ -10011,82 +6948,11 @@ window.openSubscriptionsPage = async function() {
   }
 };
 
-// ==========================================
-// SİSTEM KONSOLU MODALI
-// ==========================================
-const consoleModal = document.getElementById('console-modal');
-const consoleOutput = document.getElementById('console-output');
-const closeConsoleBtn = document.getElementById('close-console-modal-btn');
-const clearConsoleBtn = document.getElementById('clear-console-btn');
-const navToolsConsoleBtn = document.getElementById('nav-tools-console-btn');
+// SİSTEM KONSOLU MODALI (openConsoleModal, closeConsoleModal, clearConsoleModal, appendLogToConsoleModal) → ./modules/terminal.js
 
-window.openConsoleModal = function() {
-  if (consoleModal) {
-    consoleModal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-    
-    // Geçmiş logları çek
-    fetch('/api/logs')
-      .then(res => res.json())
-      .then(logs => {
-        if (!consoleOutput) return;
-        consoleOutput.innerHTML = ''; // Temizle
-        if (logs && logs.length > 0) {
-          logs.forEach(log => window.appendLogToConsoleModal(log));
-        } else {
-          consoleOutput.innerHTML = '<div style="color: #a3a3a3; margin-bottom: 8px;">> Geçmiş log bulunamadı, yeni olaylar bekleniyor...</div>';
-        }
-      })
-      .catch(err => console.error('Log geçmişi alınamadı:', err));
-  }
-  // Araçlar menüsünü kapat
-  const toolsMenu = document.getElementById('tools-menu');
-  if (toolsMenu && toolsMenu.classList.contains('show')) {
-    toolsMenu.classList.remove('show');
-  }
-};
+// ===== DNS SORGULAYICI =====
 
-window.closeConsoleModal = function() {
-  if (consoleModal) {
-    consoleModal.classList.add('hidden');
-    document.body.style.overflow = '';
-  }
-};
-
-window.clearConsoleModal = function() {
-  if (consoleOutput) {
-    consoleOutput.innerHTML = '<div style="color: #a3a3a3; margin-bottom: 8px;">> Konsol temizlendi.</div>';
-  }
-};
-
-window.appendLogToConsoleModal = function(log) {
-  if (!consoleOutput) return;
-  const div = document.createElement('div');
-  div.style.marginBottom = '4px';
-  div.style.wordBreak = 'break-all';
-  
-  // Renk kodlaması
-  let color = '#d4d4d4'; // Varsayılan info
-  if (log.type === 'error') color = '#ff4d4d';
-  else if (log.type === 'warning' || log.type === 'warn') color = '#ffcc00';
-  else if (log.type === 'success') color = '#4af626';
-  
-  const timeStr = log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
-  div.innerHTML = `<span style="color: #666;">[${timeStr}]</span> <span style="color: ${color};">${log.message}</span>`;
-  
-  consoleOutput.appendChild(div);
-  
-  // Otomatik aşağı kaydır
-  consoleOutput.scrollTop = consoleOutput.scrollHeight;
-};
-
-if (navToolsConsoleBtn) {
-  navToolsConsoleBtn.addEventListener('click', window.openConsoleModal);
-}
-if (closeConsoleBtn) {
-  closeConsoleBtn.addEventListener('click', window.closeConsoleModal);
-}
-if (clearConsoleBtn) {
-  clearConsoleBtn.addEventListener('click', window.clearConsoleModal);
-}
+// ===== AKTİF DNS SUNUCUSU TESPİTİ =====
+// DNS fonksiyonları ve olay dinleyicileri ./modules/dnsLookup.js modülünden yönetilmektedir.
+initDnsLookupEvents();
 
