@@ -1,4 +1,4 @@
-﻿export const tr = {
+export const tr = {
   status_merging: 'Birleştiriliyor (FFmpeg)...',
   btn_reset_engine: 'İndirme Motorunu Sıfırla',
   reset_engine_confirm: 'İndirme motoru ve askıdaki süreç kilitleri sıfırlanacak. Devam etmek istiyor musunuz?',
@@ -110,11 +110,6 @@
   desc_show_shorts: 'Geçmiş video listesinde Shorts videolarını göster',
   desc_hide_on_delete: 'Silinen videoları Kütüphaneden gizle',
   label_lang: 'Uygulama Dili / App Language',
-  label_settings_player_type: 'Gömülü Oynatıcı Türü',
-  desc_settings_player_type: 'Gömülü video oynatıcı arayüz tipini seçin.',
-  opt_player_plyr: 'Plyr Player (Modern & Özelleştirilmiş)',
-  opt_player_artplayer: 'ArtPlayer (Gelişmiş & Şık Oynatıcı)',
-  opt_player_html5: 'Standart HTML5 Player (Hızlı & Sade - SponsorBlock Görsel Şeritleri Desteklemez)',
   label_sponsorblock: 'SponsorBlock (Oynatıcı)',
   desc_sponsorblock: 'Video oynatılırken sponsorlu veya tanıtım alanlarını otomatik atla.',
   cookie_warning_title: 'Önemli Çerez Kilidi Uyarısı:',
@@ -651,7 +646,9 @@
   resuming_playback: 'Kaldığınız yerden devam ediliyor: {time}',
   resumed_from: 'Kaldığı Yer',
   btn_filter_resume: 'Yarım Kalanlar',
-  btn_filter_resume_title: 'Sadece izlemeyi yarıda bıraktığınız videoları gösterir'
+  btn_filter_resume_title: 'Sadece izlemeyi yarıda bıraktığınız videoları gösterir',
+  card_today: 'Bugün',
+  card_days_ago: '{days} gün önce'
 };
 
 

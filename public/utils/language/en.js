@@ -1,4 +1,4 @@
-﻿export const en = {
+export const en = {
   status_merging: 'Merging (FFmpeg)...',
   btn_reset_engine: 'Reset Download Engine',
   reset_engine_confirm: 'The download engine and lingering process locks will be reset. Do you wish to continue?',
@@ -109,11 +109,6 @@
   desc_show_shorts: 'Show Shorts videos in the history library list',
   desc_hide_on_delete: 'Hide deleted videos from Library',
   label_lang: 'App Language',
-  label_settings_player_type: 'Embedded Player Type',
-  desc_settings_player_type: 'Select the embedded video player interface style.',
-  opt_player_plyr: 'Plyr Player (Modern & Customized)',
-  opt_player_artplayer: 'ArtPlayer (Advanced & Sleek Player)',
-  opt_player_html5: 'Standard HTML5 Player (Fast & Simple - SponsorBlock Visual Timelines Not Supported)',
   label_sponsorblock: 'SponsorBlock (Player)',
   desc_sponsorblock: 'Automatically skip sponsored segments or self-promotions during playback.',
   cookie_warning_title: 'Important Cookie Lock Warning:',
@@ -651,7 +646,9 @@
   resuming_playback: 'Resuming from where you left off: {time}',
   resumed_from: 'Last Position',
   btn_filter_resume: 'Partially Watched',
-  btn_filter_resume_title: 'Show only partially watched videos'
+  btn_filter_resume_title: 'Show only partially watched videos',
+  card_today: 'Today',
+  card_days_ago: '{days} days ago'
 };
 
 

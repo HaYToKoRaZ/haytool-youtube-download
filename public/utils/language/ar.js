@@ -1,4 +1,4 @@
-﻿export const ar = {
+export const ar = {
   status_merging: 'جاري الدمج (FFmpeg)...',
   btn_reset_engine: 'إعادة ضبط محرك التنزيل',
   reset_engine_confirm: 'سيتم إعادة ضبط محرك التنزيل وأقفال العمليات المعلقة. هل تريد الاستمرار؟',
@@ -105,11 +105,6 @@
   desc_show_shorts: 'عرض مقاطع فيديو Shorts في قائمة مكتبة السجل',
   desc_hide_on_delete: 'إخفاء الفيديوهات المحذوفة من المكتبة',
   label_lang: 'لغة التطبيق',
-  label_settings_player_type: 'نوع المشغل المدمج',
-  desc_settings_player_type: 'اختر نمط واجهة مشغل الفيديو المدمج.',
-  opt_player_plyr: 'مشغل Plyr',
-  opt_player_artplayer: 'مشغل ArtPlayer',
-  opt_player_html5: 'مشغل HTML5 القياسي (سريع وبسيط - لا يدعم الأشرطة المرئية لـ SponsorBlock)',
   label_sponsorblock: 'SponsorBlock (المشغل)',
   desc_sponsorblock: 'تخطي المقاطع الإعلانية أو الترويجية تلقائيًا أثناء التشغيل.',
   cookie_warning_title: 'تحذير هام بشأن قفل ملفات تعريف الارتباط:',
@@ -651,5 +646,7 @@
   resuming_playback: 'المتابعة من حيث توقفت: {time}',
   resumed_from: 'الموضع الأخير',
   btn_filter_resume: 'غير المكتملة',
-  btn_filter_resume_title: 'إظهار مقاطع الفيديو غير المكتملة فقط'
+  btn_filter_resume_title: 'إظهار مقاطع الفيديو غير المكتملة فقط',
+  card_today: 'اليوم',
+  card_days_ago: 'منذ {days} يوم'
 };

@@ -37,7 +37,44 @@ export function formatDate(isoString) {
 }
 
 /**
- * Belirtilen tarihin bugünden kaç gün önce olduğunu açıklayan Türkçe veya İngilizce metin döner.
+ * Belirtilen tarihin bugünden kaç gün önce olduğunu hesaplar.
+ * Kart üzerinde sadece sayısal gün değerini (örn: "33" veya "0"),
+ * fare ile üzerine gelindiğinde (tooltip) ise seçili dile göre tam açıklamayı döner.
+ * 
+ * @param {string} dateStr Tarih metni
+ * @param {object} [t={}] Çeviri sözlüğü
+ * @returns {{ count: number|string, tooltip: string }}
+ */
+export function getDaysAgoInfo(dateStr, t = {}) {
+  if (!dateStr) return { count: '', tooltip: '' };
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return { count: '', tooltip: '' };
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 1) {
+      const todayText = t.card_today || 'Bugün';
+      return {
+        count: '0',
+        tooltip: todayText
+      };
+    }
+    
+    const daysAgoTemplate = t.card_days_ago || '{days} gün önce';
+    const tooltipText = daysAgoTemplate.replace('{days}', diffDays);
+    return {
+      count: String(diffDays),
+      tooltip: tooltipText
+    };
+  } catch (e) {
+    return { count: '', tooltip: '' };
+  }
+}
+
+/**
+ * Belirtilen tarihin bugünden kaç gün önce olduğunu açıklayan Türkçe veya İngilizce metin döner (Geriye dönük uyumluluk).
  * 
  * @param {string} dateStr Tarih metni
  * @param {boolean} [isEn=false] İngilizce dil seçeneği

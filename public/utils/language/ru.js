@@ -1,4 +1,4 @@
-﻿export const ru = {
+export const ru = {
   status_merging: 'Объединение (FFmpeg)...',
   btn_reset_engine: 'Сбросить движок загрузки',
   reset_engine_confirm: 'Движок загрузки и зависшие блокировки процессов будут сброшены. Продолжить?',
@@ -106,11 +106,6 @@
   desc_show_shorts: 'Показывать Shorts видео в списке библиотеки',
   desc_hide_on_delete: 'Скрывать удаленные видео из библиотеки',
   label_lang: 'Язык приложения',
-  label_settings_player_type: 'Тип встроенного плеера',
-  desc_settings_player_type: 'Выберите стиль интерфейса встроенного видеоплеера.',
-  opt_player_plyr: 'Плеер Plyr (Модернизированный)',
-  opt_player_artplayer: 'ArtPlayer (Продвинутый и стильный)',
-  opt_player_html5: 'Стандартный HTML5 плеер (Быстрый и простой - визуальные полосы SponsorBlock не поддерживаются)',
   label_sponsorblock: 'SponsorBlock (Плеер)',
   desc_sponsorblock: 'Автоматически пропускать спонсорские сегменты и самопиар во время воспроизведения.',
   cookie_warning_title: 'Важное предупреждение о блокировке куки:',
@@ -651,7 +646,9 @@
   resuming_playback: 'Продолжение с места остановки: {time}',
   resumed_from: 'Место остановки',
   btn_filter_resume: 'Недосмотренные',
-  btn_filter_resume_title: 'Показать только недосмотренные видео'
+  btn_filter_resume_title: 'Показать только недосмотренные видео',
+  card_today: 'Сегодня',
+  card_days_ago: '{days} дн. назад'
 };
 
 

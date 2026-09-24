@@ -1,4 +1,4 @@
-﻿export const es = {
+export const es = {
   status_merging: 'Combinando (FFmpeg)...',
   btn_reset_engine: 'Restablecer motor de descarga',
   reset_engine_confirm: 'Se restablecerán el motor de descarga y los bloqueos de procesos pendientes. ¿Deseas continuar?',
@@ -109,11 +109,6 @@
   desc_show_shorts: 'Mostrar Shorts en el historial',
   desc_hide_on_delete: 'Ocultar videos eliminados de la biblioteca',
   label_lang: 'Idioma de la App',
-  label_settings_player_type: 'Tipo de Reproductor Integrado',
-  desc_settings_player_type: 'Seleccione el estilo del reproductor integrado.',
-  opt_player_plyr: 'Reproductor Plyr',
-  opt_player_artplayer: 'Reproductor ArtPlayer',
-  opt_player_html5: 'Reproductor HTML5 Estándar (Rápido y simple - No admite líneas de tiempo de SponsorBlock)',
   label_sponsorblock: 'SponsorBlock (Reproductor)',
   desc_sponsorblock: 'Omitir automáticamente los segmentos patrocinados durante la reproducción.',
   cookie_warning_title: 'Advertencia Importante de Cookies:',
@@ -651,6 +646,8 @@
   resuming_playback: 'Reanudando desde donde lo dejaste: {time}',
   resumed_from: 'Última posición',
   btn_filter_resume: 'Incompletos',
-  btn_filter_resume_title: 'Mostrar solo videos a medio ver'
+  btn_filter_resume_title: 'Mostrar solo videos a medio ver',
+  card_today: 'Hoy',
+  card_days_ago: 'Hace {days} días'
 };
 

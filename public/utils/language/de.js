@@ -1,4 +1,4 @@
-﻿export const de = {
+export const de = {
   status_merging: 'Zusammenführen (FFmpeg)...',
   btn_reset_engine: 'Download-Engine zurücksetzen',
   reset_engine_confirm: 'Die Download-Engine und alle hängenden Prozess-Sperren werden zurückgesetzt. Möchten Sie fortfahren?',
@@ -108,11 +108,6 @@
   desc_show_shorts: 'Shorts im Verlauf anzeigen',
   desc_hide_on_delete: 'Gelöschte Videos aus der Bibliothek ausblenden',
   label_lang: 'App-Sprache',
-  label_settings_player_type: 'Integrierter Player-Typ',
-  desc_settings_player_type: 'Wählen Sie den Stil des integrierten Players.',
-  opt_player_plyr: 'Plyr-Player',
-  opt_player_artplayer: 'ArtPlayer-Player',
-  opt_player_html5: 'Standard HTML5-Player (Schnell & Einfach - SponsorBlock Visuelle Zeitleisten nicht unterstützt)',
   label_sponsorblock: 'SponsorBlock (Player)',
   desc_sponsorblock: 'Sponsorierte Segmente oder Eigenwerbung während der Wiedergabe automatisch überspringen.',
   cookie_warning_title: 'Wichtiger Cookie-Warnhinweis:',
@@ -651,6 +646,8 @@
   resuming_playback: 'Wiedergabe wird fortgesetzt bei: {time}',
   resumed_from: 'Letzte Position',
   btn_filter_resume: 'Angefangene',
-  btn_filter_resume_title: 'Nur angefangene Videos anzeigen'
+  btn_filter_resume_title: 'Nur angefangene Videos anzeigen',
+  card_today: 'Heute',
+  card_days_ago: 'Vor {days} Tagen'
 };
 

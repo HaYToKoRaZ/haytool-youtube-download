@@ -1,4 +1,4 @@
-import { escapeHtml, formatDate, getDaysAgoText, isShortVideo, isMembersOnlyVideo, parseTimeToSeconds } from '../utils/helpers.js';
+import { escapeHtml, formatDate, getDaysAgoText, getDaysAgoInfo, isShortVideo, isMembersOnlyVideo, parseTimeToSeconds } from '../utils/helpers.js';
 import { translations } from '../utils/i18n.js';
 
 // YouTube SVG İkon Şablonu
@@ -113,6 +113,12 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         card.setAttribute('draggable', 'true');
       }
 
+      let durSeconds = item.durationSeconds || 0;
+      if (!durSeconds && item.duration && typeof parseTimeToSeconds === 'function') {
+        durSeconds = parseTimeToSeconds(item.duration);
+      }
+      const lastPos = item.lastPositionSeconds || (resumeMap && resumeMap[item.id]) || 0;
+
       let statusHtml = '';
       let actionsHtml = '';
 
@@ -134,7 +140,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         const liveTooltip = t.card_live_stream_desc || t.card_watch_live || 'Canlı Yayın';
         statusHtml = `<span class="status-dot-live animate-pulse" title="${escapeHtml(liveTooltip)}"></span>`;
         actionsHtml = `
-          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
             ${youtubeSvgIcon}
           </button>
           <button class="btn-icon btn-action-play" onclick="playVideoEmbedded('${item.id}')" title="${t.card_watch_live || 'Canlı Yayını İzle'}">
@@ -145,7 +151,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         if (isMissing) {
           statusHtml = `<span class="status-dot-warning" title="${t.card_file_missing || 'Dosya disk üzerinde bulunamadı!'}"></span>`;
           actionsHtml = `
-            <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+            <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
               ${youtubeSvgIcon}
             </button>
             <button class="btn-icon" disabled title="${t.card_file_missing_desc || 'Dosya diskte mevcut değil'}" style="opacity:0.35; cursor:not-allowed;">
@@ -158,7 +164,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         } else {
           statusHtml = `<span class="status-dot-completed" title="${t.card_download_completed || 'İndirildi'}"></span>`;
           actionsHtml = `
-            <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+            <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
               ${youtubeSvgIcon}
             </button>
             <button class="btn-icon btn-action-play" onclick="playVideoSystem('${item.id}')" title="${t.card_open_system_player || 'Sistem Oynatıcısında Aç'}">
@@ -175,7 +181,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon btn-action-cancel" onclick="cancelDownload('${item.id}')" title="${t.card_cancel_download || 'İndirmeyi İptal Et'}">
             <i data-lucide="square"></i>
           </button>
-          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
             ${youtubeSvgIcon}
           </button>
         `;
@@ -185,7 +191,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon btn-action-cancel" onclick="cancelQueuedVideo('${item.id}')" title="${t.active_download_cancel || 'İptal Et'}">
             <i data-lucide="square"></i>
           </button>
-          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
             ${youtubeSvgIcon}
           </button>
         `;
@@ -195,7 +201,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon btn-action-cancel" onclick="cancelQueuedVideo('${item.id}')" title="${t.active_download_cancel || 'İptal Et'}">
             <i data-lucide="square"></i>
           </button>
-          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
             ${youtubeSvgIcon}
           </button>
         `;
@@ -203,7 +209,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         const tooltipMsg = t.tooltip_waiting_live_processing || 'Canlı Yayın İşleniyor (Otomatik Yeniden Deneniyor)';
         statusHtml = `<span class="status-pill live-processing-badge" title="${escapeHtml(tooltipMsg)}" style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.3); color: #eab308; padding: 4px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: help;"><i data-lucide="radio" class="pulse-animation" style="width: 14px; height: 14px;"></i></span>`;
         actionsHtml = `
-          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
             ${youtubeSvgIcon}
           </button>
         `;
@@ -239,7 +245,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon btn-action-retry" onclick="downloadVideoManual('${item.id}')" title="${t.card_retry_download || 'Yeniden İndirmeyi Dene'}">
             <i data-lucide="rotate-ccw"></i>
           </button>
-          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
             ${youtubeSvgIcon}
           </button>
         `;
@@ -249,7 +255,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon btn-action-download" onclick="downloadVideoManual('${item.id}')" title="${t.card_download_now || 'Videoyu Şimdi İndir'}">
             <i data-lucide="download"></i>
           </button>
-          <button class="btn-icon btn-action-yt" onclick="openYouTube('${item.id}')" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
             ${youtubeSvgIcon}
           </button>
         `;
@@ -315,11 +321,6 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         : '';
 
       let progressBarHtml = '';
-      let durSeconds = item.durationSeconds || 0;
-      if (!durSeconds && item.duration && typeof parseTimeToSeconds === 'function') {
-        durSeconds = parseTimeToSeconds(item.duration);
-      }
-      const lastPos = item.lastPositionSeconds || (resumeMap[item.id] || 0);
       if (lastPos > 3 && durSeconds > 10 && lastPos < durSeconds * 0.95) {
         const pct = Math.min(100, Math.max(1, Math.round((lastPos / durSeconds) * 100)));
         const mins = Math.floor(lastPos / 60);
@@ -328,6 +329,8 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         const resumeLabel = t.resumed_from || 'Kaldığı Yer';
         progressBarHtml = `<div class="video-playback-progress-container" title="${resumeLabel}: ${posStr} (${pct}%)"><div class="video-playback-progress-bar" style="width: ${pct}%;"></div></div>`;
       }
+
+      const daysInfo = getDaysAgoInfo(item.publishedAt || item.downloadedAt, t);
 
       card.innerHTML = `
         <div class="video-thumbnail-wrapper" data-video-id="${item.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}">
@@ -368,8 +371,8 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           <div class="video-card-bottom">
             <div style="display: flex; align-items: center; gap: 8px;">
               ${statusHtml}
-              <span class="video-card-age-text" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: inline-block;">
-                 ${getDaysAgoText(item.publishedAt || item.downloadedAt, isEn)}
+              <span class="video-card-age-text" title="${escapeHtml(daysInfo.tooltip)}" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: inline-block; cursor: help;">
+                 ${escapeHtml(daysInfo.count)}
               </span>
             </div>
             <div class="video-card-actions">

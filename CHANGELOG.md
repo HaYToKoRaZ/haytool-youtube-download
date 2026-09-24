@@ -3,6 +3,12 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.53] - 2026-09-24
+- **feat(ui): Video Kartlarında Sadeleştirilmiş Gün Sayısı ve Çoklu Dil Tooltip Desteği:**
+  - Video kartlarının altında yer alan "33 gün önce" metni sadeleştirilerek doğrudan sayısal değere (`33`, bugün ise `0`) dönüştürüldü.
+  - Fare üzerine gelindiğinde (hover / tooltip) aktif seçili dile (tr, en, de, es, pt, ru, ar) göre tam açıklama (`33 gün önce`, `33 days ago`, `Vor 33 Tagen`, `Hace 33 días`, `Há 33 dias`, `33 дн. назад`, `منذ 33 يوم`) gösterilmesi sağlandı.
+  - `getDaysAgoInfo` yardımcı fonksiyonu eklenip 7 dil sözlüğü (`card_today`, `card_days_ago`) ile senkronize edildi.
+
 ## [9.8.52] - 2026-09-24
 - **refactor(modularization): Tema Yönetimi & Döngüsel Geçiş Bağımsız ES Modülüne Taşındı (`public/modules/theme.js`):**
   - `applyTheme`, `toggleQuickTheme`, `updateThemeToggleUI` fonksiyonları `public/modules/theme.js` modülüne taşındı.
