@@ -3,6 +3,11 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.54] - 2026-09-24
+- **fix(player): Sekmeler Arası Geçişte ve Kuyruk Oynatmasında Kanal/Metadata Senkronizasyonu:**
+  - Kuyruk sekmesinden veya mini oynatıcıdan İndirilenler sekmesindeki yerleşik büyük oynatıcıya geçildiğinde kanal adı ve avatarının yanlış/eski videoya ait kalması sorunu düzeltildi.
+  - `updateInlinePlayerMetadata(videoObj)` merkezi yardımcı fonksiyonu oluşturularak başlık, kanal adı, avatar ve abone sayısı eşitlemesi anlık ve doğru videoyla senkronize edildi.
+
 ## [9.8.53] - 2026-09-24
 - **feat(ui): Video Kartlarında Sadeleştirilmiş Gün Sayısı ve Çoklu Dil Tooltip Desteği:**
   - Video kartlarının altında yer alan "33 gün önce" metni sadeleştirilerek doğrudan sayısal değere (`33`, bugün ise `0`) dönüştürüldü.

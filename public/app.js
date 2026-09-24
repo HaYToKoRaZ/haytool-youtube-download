@@ -325,6 +325,9 @@ function switchTab(targetTab, triggerPushState = true) {
           const listContainer = document.getElementById('downloaded-list-container');
           if (listContainer) listContainer.classList.add('hidden');
 
+          // Oynatıcı başlık, kanal adı, avatar ve abonelik bilgilerini doğru video ile güncelle
+          updateInlinePlayerMetadata(video);
+
           performTabSwitchUI(targetTab);
 
           if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
@@ -3516,93 +3519,102 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
 
     playerContainer = document.getElementById('inline-player-body');
 
+window.updateInlinePlayerMetadata = function(videoObj) {
+  if (!videoObj) return;
+  const titleText = videoObj.title || 'Yerleşik Oynatıcı';
+  const videoChannelName = videoObj.channelName || '';
+  let videoChannelId = videoObj.channelId || '';
+
+  // Eğer channelId boşsa kanallar listesinden isme göre bul
+  if (!videoChannelId && videoChannelName && window.localDb?.channels) {
+    const matchedChan = window.localDb.channels.find(c => c.name === videoChannelName);
+    if (matchedChan) videoChannelId = matchedChan.id;
+  }
+
+  const titleEl = document.getElementById('inline-player-title');
+  if (titleEl) {
+    titleEl.textContent = titleText;
+    titleEl.title = titleText;
+    if (titleText.length > 80) {
+      titleEl.style.fontSize = '0.85rem';
+    } else if (titleText.length > 60) {
+      titleEl.style.fontSize = '0.95rem';
+    } else if (titleText.length > 40) {
+      titleEl.style.fontSize = '1.1rem';
+    } else {
+      titleEl.style.fontSize = '1.25rem';
+    }
+  }
+
+  const channelNameEl = document.getElementById('inline-player-channel-name');
+  if (channelNameEl) channelNameEl.textContent = videoChannelName || '';
+
+  const avatarEl = document.getElementById('inline-player-channel-avatar');
+  const logoDividerEl = document.getElementById('inline-player-logo-divider');
+  if (avatarEl) {
+    if (videoChannelId) {
+      avatarEl.src = `/api/channels/${videoChannelId}/avatar`;
+      avatarEl.style.display = 'block';
+      if (logoDividerEl) logoDividerEl.style.display = 'inline';
+    } else {
+      avatarEl.style.display = 'none';
+      if (logoDividerEl) logoDividerEl.style.display = 'none';
+    }
+  }
+
+  const subsEl = document.getElementById('inline-player-channel-subs');
+  const subsTextEl = document.getElementById('inline-player-channel-subs-text');
+  const dividerEl = document.getElementById('inline-player-channel-divider');
+  if (subsEl && subsTextEl) {
+    const channel = window.localDb?.channels?.find(c => c.id === videoChannelId || (videoChannelName && c.name === videoChannelName));
+    const subVal = channel && channel.subscriberCount ? channel.subscriberCount : '?';
+    subsTextEl.textContent = subVal;
+    subsEl.style.display = 'inline-flex';
+    if (dividerEl) dividerEl.style.display = 'inline';
+    try {
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    } catch (e) {}
+  }
+
+  const channelContainer = document.querySelector('.inline-player-channel');
+  if (channelContainer) {
+    if (videoChannelId) {
+      channelContainer.style.cursor = 'pointer';
+      channelContainer.title = window.localDb?.settings?.lang === 'en' ? 'Go to Channel Videos' : 'Kanala Git';
+      channelContainer.onclick = (e) => {
+        e.preventDefault();
+        window.open(`https://www.youtube.com/channel/${videoChannelId}/videos`, '_blank');
+      };
+    } else {
+      channelContainer.style.cursor = 'default';
+      channelContainer.title = '';
+      channelContainer.onclick = null;
+    }
+  }
+
+  const publishDateEl = document.getElementById('inline-player-publish-date');
+  if (publishDateEl) {
+    const isEn = window.localDb?.settings?.lang === 'en';
+    const pubDate = videoObj.publishedAt ? formatDate(videoObj.publishedAt) : '--';
+    publishDateEl.textContent = (isEn ? 'Published: ' : 'Yüklenme: ') + pubDate;
+  }
+
+  const downloadDateEl = document.getElementById('inline-player-download-date');
+  if (downloadDateEl) {
+    const isEn = window.localDb?.settings?.lang === 'en';
+    const dlDate = videoObj.downloadedAt ? formatDate(videoObj.downloadedAt) : '--';
+    downloadDateEl.textContent = (isEn ? 'Downloaded: ' : 'İndirilme: ') + dlDate;
+  }
+
+  const fileSizeEl = document.getElementById('inline-player-file-size');
+  if (fileSizeEl) {
+    const isEn = window.localDb?.settings?.lang === 'en';
+    fileSizeEl.textContent = (isEn ? 'Size: ' : 'Boyut: ') + (videoObj.fileSize || '--');
+  }
+};
+
     // 3. Bilgileri yerleştir
-    const titleEl = document.getElementById('inline-player-title');
-    if (titleEl) {
-      const titleText = videoTitle || 'Yerleşik Oynatıcı';
-      titleEl.textContent = titleText;
-      titleEl.title = titleText; // Hover tooltip showing full title
-
-      // Karakter sayısına göre yazı boyutunu dinamik ayarla (2. satıra taşmayı engellemek için)
-      if (titleText.length > 80) {
-        titleEl.style.fontSize = '0.85rem';
-      } else if (titleText.length > 60) {
-        titleEl.style.fontSize = '0.95rem';
-      } else if (titleText.length > 40) {
-        titleEl.style.fontSize = '1.1rem';
-      } else {
-        titleEl.style.fontSize = '1.25rem';
-      }
-    }
-
-    const channelNameEl = document.getElementById('inline-player-channel-name');
-    if (channelNameEl) channelNameEl.textContent = videoChannelName || '';
-
-    const avatarEl = document.getElementById('inline-player-channel-avatar');
-    const logoDividerEl = document.getElementById('inline-player-logo-divider');
-    if (avatarEl) {
-      if (videoChannelId) {
-        avatarEl.src = `/api/channels/${videoChannelId}/avatar`;
-        avatarEl.style.display = 'block';
-        if (logoDividerEl) logoDividerEl.style.display = 'inline';
-      } else {
-        avatarEl.style.display = 'none';
-        if (logoDividerEl) logoDividerEl.style.display = 'none';
-      }
-    }
-
-    const subsEl = document.getElementById('inline-player-channel-subs');
-    const subsTextEl = document.getElementById('inline-player-channel-subs-text');
-    const dividerEl = document.getElementById('inline-player-channel-divider');
-    if (subsEl && subsTextEl) {
-      const channel = localDb.channels?.find(c => c.id === videoChannelId || (videoChannelName && c.name === videoChannelName));
-      const subVal = channel && channel.subscriberCount ? channel.subscriberCount : '?';
-      
-      subsTextEl.textContent = subVal;
-      subsEl.style.display = 'inline-flex';
-      if (dividerEl) dividerEl.style.display = 'inline';
-      try {
-        if (typeof lucide !== 'undefined') {
-          lucide.createIcons();
-        }
-      } catch (e) {}
-    }
-
-    const channelContainer = document.querySelector('.inline-player-channel');
-    if (channelContainer) {
-      if (videoChannelId) {
-        channelContainer.style.cursor = 'pointer';
-        channelContainer.title = localDb.settings?.lang === 'en' ? 'Go to Channel Videos' : 'Kanala Git';
-        channelContainer.onclick = (e) => {
-          e.preventDefault();
-          window.open(`https://www.youtube.com/channel/${videoChannelId}/videos`, '_blank');
-        };
-      } else {
-        channelContainer.style.cursor = 'default';
-        channelContainer.title = '';
-        channelContainer.onclick = null;
-      }
-    }
-
-    const publishDateEl = document.getElementById('inline-player-publish-date');
-    if (publishDateEl) {
-      const isEn = localDb.settings?.lang === 'en';
-      const pubDate = video && video.publishedAt ? formatDate(video.publishedAt) : '--';
-      publishDateEl.textContent = (isEn ? 'Published: ' : 'Yüklenme: ') + pubDate;
-    }
-
-    const downloadDateEl = document.getElementById('inline-player-download-date');
-    if (downloadDateEl) {
-      const isEn = localDb.settings?.lang === 'en';
-      const dlDate = video && video.downloadedAt ? formatDate(video.downloadedAt) : '--';
-      downloadDateEl.textContent = (isEn ? 'Downloaded: ' : 'İndirilme: ') + dlDate;
-    }
-
-    const fileSizeEl = document.getElementById('inline-player-file-size');
-    if (fileSizeEl) {
-      const isEn = localDb.settings?.lang === 'en';
-      fileSizeEl.textContent = (isEn ? 'Size: ' : 'Boyut: ') + (fileSizeStr || '--');
-    }
+    updateInlinePlayerMetadata(video || { id: videoId, title: videoTitle, channelId: videoChannelId, channelName: videoChannelName, fileSize: fileSizeStr, publishedAt: publishDateStr });
 
     // Auto show comments panel
     const commentsContainer = document.getElementById('inline-player-comments-container');
