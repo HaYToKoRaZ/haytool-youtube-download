@@ -13,8 +13,11 @@ import { renderChannelsList, getChannelsRenderSignature } from './components/cha
 // Araçlar ve dosya karşılaştırma alt modülü
 import './modules/tools.js';
 // Ayarlar, yedekleme ve Gist senkronizasyon alt modülü
-import { populateGistFields, checkYouTubeAuthStatus, openTempFolder } from './modules/settings.js';
+import { populateGistFields, checkYouTubeAuthStatus, openTempFolder, openFolder, triggerAutoSave, performAutoSave, initSettingsFormListeners } from './modules/settings.js';
 window.openTempFolder = openTempFolder;
+window.openFolder = openFolder;
+window.triggerAutoSave = triggerAutoSave;
+window.performAutoSave = performAutoSave;
 // Dinamik dil ve arayüz çevirisi alt modülü
 import { applyLanguage } from './modules/i18n-apply.js';
 window.applyLanguage = applyLanguage;
@@ -488,19 +491,7 @@ const hideLibraryCheckbox = document.getElementById('hide-library-checkbox');
 const deleteModalMsg = document.getElementById('delete-modal-msg');
 let videoIdToDelete = null;
 
-// Ayarlar Tab Elemanları
-const settingsForm = document.getElementById('settings-form');
-const settingsDownloadPath = document.getElementById('settings-download-path');
-const settingsQuality = document.getElementById('settings-quality');
-const settingsChannelCheckInterval = document.getElementById('settings-channelcheckinterval');
-const settingsAutoDownload = document.getElementById('settings-autodownload');
-const settingsShortsDurationLimit = document.getElementById('settings-shortsdurationlimit');
-
-// Diğer Butonlar
-const syncNowBtn = document.getElementById('sync-now-btn');
-const openFolderBtn = document.getElementById('open-folder-btn');
-const selectFolderBtn = document.getElementById('select-folder-btn');
-const testFolderBtn = document.getElementById('test-folder-btn');
+// Ayarlar Tab Elemanları ve Butonları ./modules/settings.js içerisinden dinamik olarak yönetilmektedir.
 
 // Türkçe Açıklama: SPA yönlendirmeleri için sekmeler arası gezinme ve HTML5 History API entegrasyonu.
 const tabPathMap = {
@@ -2307,232 +2298,13 @@ window.downloadVideoManual = async function(videoId) {
   }
 };
 
-// Türkçe Açıklama: Sunucuya istek göndererek, indirilen videoların bulunduğu klasörü Windows Dosya Gezgini'nde otomatik olarak açar.
-/**
- * Sunucuya istek atarak indirme klasörünü (varsa kanal klasörünü) Windows Gezgini'nde açar.
- * 
- * @param {string} channelName Açılacak kanal klasörünün ismi
- */
-window.openFolder = async function(channelName) {
-  // Eğer parametre bir PointerEvent vb. ise temizle
-  if (typeof channelName !== 'string') {
-    channelName = '';
-  }
-  try {
-    const res = await fetch('/api/open-folder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channelName })
-    });
-    const data = await res.json();
-    if (!data.success) {
-      showToast(data.error || 'Klasör açılamadı.', 'error');
-    }
-  } catch (err) {
-    showToast('Sunucu ile iletişim hatası.', 'error');
-  }
-};
-
 // addChannelForm → initAddChannelForm() in ./modules/channels.js
-
-let autoSaveTimeout = null;
-
-async function triggerAutoSave(immediate = false) {
-  if (autoSaveTimeout) {
-    clearTimeout(autoSaveTimeout);
-    autoSaveTimeout = null;
-  }
-  
-  if (immediate) {
-    await performAutoSave();
-  } else {
-    autoSaveTimeout = setTimeout(performAutoSave, 500);
-  }
-}
-
-async function performAutoSave() {
-  if (!settingsForm) return;
-  
-  const settingsPortInput = document.getElementById('settings-port');
-  const port = settingsPortInput ? parseInt(settingsPortInput.value, 10) : 4141;
-  
-  const settings = {
-    downloadPath: settingsDownloadPath.value.trim(),
-    tempDirType: document.getElementById('settings-temp-dir-type') ? document.getElementById('settings-temp-dir-type').value : 'system',
-    durationFetchMethod: document.getElementById('settings-duration-fetch-method') ? document.getElementById('settings-duration-fetch-method').value : 'auto',
-    ytdlpRunMode: document.getElementById('settings-ytdlp-run-mode') ? document.getElementById('settings-ytdlp-run-mode').value : 'exe',
-    pythonCmd: document.getElementById('settings-python-cmd') ? document.getElementById('settings-python-cmd').value : 'python',
-    quality: settingsQuality.value,
-    channelCheckInterval: parseInt(settingsChannelCheckInterval.value, 10) || 60,
-    autoDownload: settingsAutoDownload.checked,
-    mergeType: document.getElementById('settings-mergetype').value,
-    writeThumbnail: document.getElementById('settings-writethumbnail').checked,
-    showShorts: document.getElementById('settings-showshorts').checked,
-    hideOnDelete: document.getElementById('settings-hideondelete').checked,
-    theme: document.getElementById('settings-theme').value,
-    autoDeleteDays: parseInt(document.getElementById('settings-autodelete').value, 10) || 0,
-    rssLimit: parseInt(document.getElementById('settings-rsslimit').value, 10) || 5,
-    liveStreamHandling: document.getElementById('settings-livestreamhandling') ? document.getElementById('settings-livestreamhandling').value : 'instant_retry',
-    liveStreamRetryInterval: document.getElementById('settings-livestreamretryinterval') ? (parseInt(document.getElementById('settings-livestreamretryinterval').value, 10) || 30) : 30,
-    downloadSpeedLimit: parseInt(document.getElementById('settings-speedlimit').value, 10) || 0,
-    alternativeSpeedLimit: parseInt(document.getElementById('settings-altspeedlimit').value, 10) || 500,
-     port: port,
-    playerType: 'plyr',
-    subtitleColor: document.getElementById('settings-subtitle-color').value,
-    subtitleOpacity: localDb.settings.subtitleOpacity || '0.7',
-    subtitleSize: localDb.settings.subtitleSize || '26px',
-    sponsorBlockEnabled: document.getElementById('settings-sponsorblock').checked,
-    playSounds: document.getElementById('settings-playsounds').checked,
-    autoSyncWatchtime: document.getElementById('settings-autosync-watchtime') ? document.getElementById('settings-autosync-watchtime').checked : (localDb.settings.autoSyncWatchtime !== false),
-    autoSyncLocalWatchtime: document.getElementById('settings-autosync-local-watchtime') ? document.getElementById('settings-autosync-local-watchtime').checked : (localDb.settings.autoSyncLocalWatchtime !== false),
-    autoDiskSync: document.getElementById('settings-auto-disk-sync') ? document.getElementById('settings-auto-disk-sync').checked : (localDb.settings.autoDiskSync !== false),
-    periodicDiskSyncInterval: document.getElementById('settings-periodic-disk-sync-interval') ? document.getElementById('settings-periodic-disk-sync-interval').value : (localDb.settings.periodicDiskSyncInterval || '360'),
-    autoCookieRefresh: document.getElementById('settings-auto-cookie-refresh') ? document.getElementById('settings-auto-cookie-refresh').checked : (localDb.settings.autoCookieRefresh !== false),
-    cookieRefreshInterval: document.getElementById('settings-cookie-refresh-interval') ? (parseInt(document.getElementById('settings-cookie-refresh-interval').value, 10) || 30) : (localDb.settings.cookieRefreshInterval !== undefined ? localDb.settings.cookieRefreshInterval : 30),
-    showNotifications: document.getElementById('settings-shownotifications').checked,
-    autoOpenBrowser: document.getElementById('settings-autoopenbrowser').checked,
-    checkChannelsOnStartup: document.getElementById('settings-checkonstartup') ? document.getElementById('settings-checkonstartup').checked : false,
-    discordRpcEnabled: document.getElementById('settings-discordrpc').checked,
-    enableAltThumbnailsHover: document.getElementById('settings-alt-thumbnails-hover') ? document.getElementById('settings-alt-thumbnails-hover').checked : true,
-    lang: document.getElementById('settings-lang').value,
-    preferredAudioLang: document.getElementById('settings-preferredaudiolang') ? document.getElementById('settings-preferredaudiolang').value : 'auto',
-    doubleClickAction: document.getElementById('settings-doubleclickaction').value,
-    historyLimitPerChannel: parseInt(document.getElementById('settings-history-limit').value, 10) || 30,
-    shortsDurationLimit: settingsShortsDurationLimit ? (parseInt(settingsShortsDurationLimit.value, 10) || 180) : (localDb.settings.shortsDurationLimit || 180),
-    githubToken: (document.getElementById('gist-token-input') && document.getElementById('gist-token-input').value.trim()) || (localDb.settings && localDb.settings.githubToken) || '',
-    githubGistId: (document.getElementById('gist-id-input') && document.getElementById('gist-id-input').value.trim()) || (localDb.settings && localDb.settings.githubGistId) || '',
-    autoSyncGist: document.getElementById('gist-auto-sync-checkbox') ? document.getElementById('gist-auto-sync-checkbox').checked : (localDb.settings.autoSyncGist || false),
-    channelScanMode: 'fast',
-    weatherEnabled: document.getElementById('settings-weatherenabled') ? document.getElementById('settings-weatherenabled').checked : true,
-    weatherCity: document.getElementById('settings-weathercity') ? document.getElementById('settings-weathercity').value.trim() : 'İstanbul',
-    weatherUnit: document.getElementById('settings-weatherunit') ? document.getElementById('settings-weatherunit').value : 'celsius',
-    weatherLatitude: document.getElementById('settings-weatherlatitude') ? (parseFloat(document.getElementById('settings-weatherlatitude').value) || 41.0082) : 41.0082,
-    weatherLongitude: document.getElementById('settings-weatherlongitude') ? (parseFloat(document.getElementById('settings-weatherlongitude').value) || 28.9784) : 28.9784
-  };
-
-  const oldPort = localDb.settings.port || 4141;
-  const statusSpan = document.getElementById('settings-status');
-  if (statusSpan) {
-    const isEn = localDb.settings && localDb.settings.lang === 'en';
-    statusSpan.innerHTML = `<i data-lucide="loader" class="pulse-animation" style="width:16px; height:16px; margin-right:4px;"></i><span>${isEn ? 'Saving changes...' : 'Ayarlar kaydediliyor...'}</span>`;
-    lucide.createIcons();
-  }
-
-  try {
-    const res = await fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings)
-    });
-    const data = await res.json();
-    if (data.success) {
-      const isEn = localDb.settings && localDb.settings.lang === 'en';
-      if (statusSpan) {
-        statusSpan.innerHTML = `<i data-lucide="check-circle" style="width:16px; height:16px; margin-right:4px; color:var(--success-color);"></i><span style="color:var(--success-color);">${isEn ? 'All changes saved.' : 'Tüm değişiklikler kaydedildi.'}</span>`;
-        lucide.createIcons();
-      }
-      showToast(isEn ? 'Settings saved successfully' : 'Ayarlar başarıyla kaydedildi', 'success');
-      if (port !== oldPort) {
-        showToast(isEn ? 'Port changed. Please restart the app to apply.' : 'Port değiştirildi. Yeni portun aktif olması için uygulamayı yeniden başlatın.', 'warning');
-      }
-      updateDiskSpace();
-      updateWeatherBadge(true);
-    }
-  } catch (err) {
-    console.error('Otomatik kaydetme hatası:', err);
-    if (statusSpan) {
-      const isEn = localDb.settings && localDb.settings.lang === 'en';
-      statusSpan.innerHTML = `<i data-lucide="alert-circle" style="width:16px; height:16px; margin-right:4px; color:var(--danger-color);"></i><span style="color:var(--danger-color);">${isEn ? 'Save error!' : 'Kaydedilemedi!'}</span>`;
-      lucide.createIcons();
-    }
-  }
-}
-
-if (settingsForm) {
-  settingsForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    triggerAutoSave(true);
-  });
-
-  // Form içindeki tüm girdi elemanlarını dinle
-  const inputs = settingsForm.querySelectorAll('input, select, textarea');
-  inputs.forEach(input => {
-    if (input.type === 'checkbox' || input.tagName.toLowerCase() === 'select') {
-      input.addEventListener('change', () => triggerAutoSave(true));
-    } else {
-      input.addEventListener('input', () => triggerAutoSave(false));
-    }
-  });
-}
-
-
-
-if (syncNowBtn) {
-  syncNowBtn.addEventListener('click', async () => {
-    syncNowBtn.disabled = true;
-    const isEn = localDb.settings && localDb.settings.lang === 'en';
-    showToast(isEn ? 'Scanning all channels in the background...' : 'Tüm kanallar arka planda taranıyor...', 'info');
-    
-    try {
-      const res = await fetch('/api/sync', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        showToast(isEn ? 'Channel scan started in the background.' : 'Kanal denetimi arka planda başlatıldı.', 'success');
-      } else {
-        showToast(data.error || (isEn ? 'Error occurred.' : 'Hata oluştu.'), 'error');
-      }
-    } catch (err) {
-      showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-    } finally {
-      syncNowBtn.disabled = false;
-    }
-  });
-}
 
 // triggerManualDiskSync ve ilgili olay dinleyicisi ./modules/systemStatus.js modülünden yönetilmektedir.
 initSystemStatusEvents();
 
-if (openFolderBtn) {
-  openFolderBtn.addEventListener('click', openFolder);
-}
-
-if (selectFolderBtn) {
-  selectFolderBtn.addEventListener('click', async () => {
-    showToast('Klasör seçim penceresi açılıyor, lütfen bekleyin...', 'info');
-    try {
-      const res = await fetch('/api/select-folder', { method: 'POST' });
-      const data = await res.json();
-      if (data.success && data.path) {
-        settingsDownloadPath.value = data.path;
-        showToast(`Yeni indirme dizini seçildi: ${data.path}`, 'success');
-      } else if (data.message) {
-        showToast(data.message, 'warning');
-      }
-    } catch (err) {
-      showToast('Klasör seçilirken bir bağlantı hatası oluştu.', 'error');
-    }
-  });
-}
-
-if (testFolderBtn) {
-  testFolderBtn.addEventListener('click', async () => {
-    // Klasör yolu geçerliliğini test etmek için backend'i tetikleyelim
-    const folder = settingsDownloadPath.value.trim();
-    if (!folder) return showToast('Klasör yolu boş bırakılamaz.', 'error');
-    
-    try {
-      const res = await fetch('/api/open-folder', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        showToast('Klasör yolu geçerli ve başarıyla açıldı!', 'success');
-      } else {
-        showToast(data.error || 'Klasör açılamadı.', 'error');
-      }
-    } catch (err) {
-      showToast('Test hatası.', 'error');
-    }
-  });
-}
+// Ayarlar formu dinleyicileri, otomatik kaydetme ve klasör açma/seçme/test işlevleri ./modules/settings.js tarafından yönetilmektedir.
+initSettingsFormListeners();
 
 // changeChannelQuality, changeChannelShorts, changeChannelAutoDownload, changeChannelShortsLimit, syncSingleChannelRss → ./modules/channels.js
 

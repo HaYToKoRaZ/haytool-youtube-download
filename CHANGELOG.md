@@ -3,6 +3,12 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.57] - 2026-09-24
+- **refactor(modularization): Ayarlar Formu ve Otomatik Kayıt Mantığı Bağımsız ES Modülüne Taşındı (`public/modules/settings.js`):**
+  - Atomic Design refaktörü kapsamında `public/app.js` içerisindeki monolitik ayarlar formu dinleyicileri, 50+ parametreli `performAutoSave` ve `triggerAutoSave` fonksiyonları, indirme dizini seçimi (`selectFolderBtn`), klasör doğrulama (`testFolderBtn`) ve Windows Dosya Gezgini'nde açma (`openFolder`) işlevleri `public/modules/settings.js` içerisine taşındı.
+  - `initSettingsFormListeners()` fonksiyonu ile form ve buton olay dinleyicileri modüler hale getirilerek `public/app.js` dosyasından yaklaşık 230 satır kod temizlendi ve boyutu hafifletildi.
+  - Modüller arası geriye dönük uyumluluk için `window.triggerAutoSave`, `window.performAutoSave` ve `window.openFolder` köprüleri korundu.
+
 ## [9.8.56] - 2026-09-24
 - **refactor(ui): Ayarlar Sayfasındaki Geri Bildirim Butonunun Konumu Düzenlendi:**
   - Ayarlar sayfasının en üstünde yer alan `[Geri Bildirim Gönder]` butonu, sayfa düzenini sadeleştirmek ve form akışını rahatlatmak amacıyla sayfanın en altına (`.form-actions` alanı) taşındı.

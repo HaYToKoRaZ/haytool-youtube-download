@@ -175,13 +175,16 @@ export function initSettingsThemeListener() {
 window.initSettingsThemeListener = initSettingsThemeListener;
 
 // ==========================================
-// Ayarlar Otomatik Kaydetme (Auto-Save)
+// Ayarlar Otomatik Kaydetme (Auto-Save) & Klasör İşlemleri
 // ==========================================
 
 let autoSaveTimer = null;
 
 export function triggerAutoSave(immediate = false) {
-  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+  }
   if (immediate) {
     performAutoSave();
   } else {
@@ -191,58 +194,232 @@ export function triggerAutoSave(immediate = false) {
 window.triggerAutoSave = triggerAutoSave;
 
 export async function performAutoSave() {
-  const settings = localDb.settings || {};
-  const isEn = settings.lang === 'en';
+  const settingsForm = document.getElementById('settings-form');
+  if (!settingsForm) return;
 
-  const downloadPathInput = document.getElementById('settings-download-path');
-  const themeSelect = document.getElementById('settings-theme');
-  const tempDirTypeSelect = document.getElementById('settings-temp-dir-type');
-  const durationFetchMethodSelect = document.getElementById('settings-duration-fetch-method');
-  const ytdlpRunModeSelect = document.getElementById('settings-ytdlp-run-mode');
-  const pythonCmdInput = document.getElementById('settings-python-cmd');
-  const qualitySelect = document.getElementById('settings-quality');
-  const maxResSelect = document.getElementById('settings-max-resolution');
-  const embedSubsCheckbox = document.getElementById('settings-embed-subs');
-  const preferIdSubtitleCheckbox = document.getElementById('settings-prefer-id-subtitle');
-  const checkIntervalInput = document.getElementById('settings-check-interval');
-  const autoDownloadCheckbox = document.getElementById('settings-auto-download');
-  const limitInput = document.getElementById('settings-history-limit');
-  const queueConcurrencySelect = document.getElementById('queue-concurrent-limit');
+  const settingsDownloadPath = document.getElementById('settings-download-path');
+  const settingsQuality = document.getElementById('settings-quality');
+  const settingsChannelCheckInterval = document.getElementById('settings-channelcheckinterval');
+  const settingsAutoDownload = document.getElementById('settings-autodownload');
+  const settingsShortsDurationLimit = document.getElementById('settings-shortsdurationlimit');
+  const settingsPortInput = document.getElementById('settings-port');
+  const port = settingsPortInput ? parseInt(settingsPortInput.value, 10) : 4141;
 
-  if (downloadPathInput) settings.downloadPath = downloadPathInput.value.trim();
-  if (themeSelect) settings.theme = themeSelect.value;
-  if (tempDirTypeSelect) settings.tempDirType = tempDirTypeSelect.value;
-  if (durationFetchMethodSelect) settings.durationFetchMethod = durationFetchMethodSelect.value;
-  if (ytdlpRunModeSelect) settings.ytdlpRunMode = ytdlpRunModeSelect.value;
-  if (pythonCmdInput) settings.pythonCmd = pythonCmdInput.value.trim();
-  if (qualitySelect) settings.quality = qualitySelect.value;
-  if (maxResSelect) settings.maxResolution = maxResSelect.value;
-  if (embedSubsCheckbox) settings.embedSubtitles = embedSubsCheckbox.checked;
-  if (preferIdSubtitleCheckbox) settings.preferIdSubtitle = preferIdSubtitleCheckbox.checked;
-  if (checkIntervalInput) settings.checkInterval = parseInt(checkIntervalInput.value, 10) || 15;
-  if (autoDownloadCheckbox) settings.autoDownload = autoDownloadCheckbox.checked;
-  if (limitInput) settings.historyLimitPerChannel = parseInt(limitInput.value, 10) || 30;
-  if (queueConcurrencySelect) settings.maxConcurrentDownloads = parseInt(queueConcurrencySelect.value, 10) || 2;
+  const settings = {
+    downloadPath: settingsDownloadPath ? settingsDownloadPath.value.trim() : (localDb.settings?.downloadPath || ''),
+    tempDirType: document.getElementById('settings-temp-dir-type') ? document.getElementById('settings-temp-dir-type').value : 'system',
+    durationFetchMethod: document.getElementById('settings-duration-fetch-method') ? document.getElementById('settings-duration-fetch-method').value : 'auto',
+    ytdlpRunMode: document.getElementById('settings-ytdlp-run-mode') ? document.getElementById('settings-ytdlp-run-mode').value : 'exe',
+    pythonCmd: document.getElementById('settings-python-cmd') ? document.getElementById('settings-python-cmd').value : 'python',
+    quality: settingsQuality ? settingsQuality.value : (localDb.settings?.quality || 'best'),
+    channelCheckInterval: settingsChannelCheckInterval ? (parseInt(settingsChannelCheckInterval.value, 10) || 60) : 60,
+    autoDownload: settingsAutoDownload ? settingsAutoDownload.checked : false,
+    mergeType: document.getElementById('settings-mergetype') ? document.getElementById('settings-mergetype').value : 'mkv',
+    writeThumbnail: document.getElementById('settings-writethumbnail') ? document.getElementById('settings-writethumbnail').checked : true,
+    showShorts: document.getElementById('settings-showshorts') ? document.getElementById('settings-showshorts').checked : true,
+    hideOnDelete: document.getElementById('settings-hideondelete') ? document.getElementById('settings-hideondelete').checked : false,
+    theme: document.getElementById('settings-theme') ? document.getElementById('settings-theme').value : 'dark',
+    autoDeleteDays: document.getElementById('settings-autodelete') ? (parseInt(document.getElementById('settings-autodelete').value, 10) || 0) : 0,
+    rssLimit: document.getElementById('settings-rsslimit') ? (parseInt(document.getElementById('settings-rsslimit').value, 10) || 5) : 5,
+    liveStreamHandling: document.getElementById('settings-livestreamhandling') ? document.getElementById('settings-livestreamhandling').value : 'instant_retry',
+    liveStreamRetryInterval: document.getElementById('settings-livestreamretryinterval') ? (parseInt(document.getElementById('settings-livestreamretryinterval').value, 10) || 30) : 30,
+    downloadSpeedLimit: document.getElementById('settings-speedlimit') ? (parseInt(document.getElementById('settings-speedlimit').value, 10) || 0) : 0,
+    alternativeSpeedLimit: document.getElementById('settings-altspeedlimit') ? (parseInt(document.getElementById('settings-altspeedlimit').value, 10) || 500) : 500,
+    port: port,
+    playerType: 'plyr',
+    subtitleColor: document.getElementById('settings-subtitle-color') ? document.getElementById('settings-subtitle-color').value : '#ffff00',
+    subtitleOpacity: localDb.settings?.subtitleOpacity || '0.7',
+    subtitleSize: localDb.settings?.subtitleSize || '26px',
+    sponsorBlockEnabled: document.getElementById('settings-sponsorblock') ? document.getElementById('settings-sponsorblock').checked : false,
+    playSounds: document.getElementById('settings-playsounds') ? document.getElementById('settings-playsounds').checked : true,
+    autoSyncWatchtime: document.getElementById('settings-autosync-watchtime') ? document.getElementById('settings-autosync-watchtime').checked : (localDb.settings?.autoSyncWatchtime !== false),
+    autoSyncLocalWatchtime: document.getElementById('settings-autosync-local-watchtime') ? document.getElementById('settings-autosync-local-watchtime').checked : (localDb.settings?.autoSyncLocalWatchtime !== false),
+    autoDiskSync: document.getElementById('settings-auto-disk-sync') ? document.getElementById('settings-auto-disk-sync').checked : (localDb.settings?.autoDiskSync !== false),
+    periodicDiskSyncInterval: document.getElementById('settings-periodic-disk-sync-interval') ? document.getElementById('settings-periodic-disk-sync-interval').value : (localDb.settings?.periodicDiskSyncInterval || '360'),
+    autoCookieRefresh: document.getElementById('settings-auto-cookie-refresh') ? document.getElementById('settings-auto-cookie-refresh').checked : (localDb.settings?.autoCookieRefresh !== false),
+    cookieRefreshInterval: document.getElementById('settings-cookie-refresh-interval') ? (parseInt(document.getElementById('settings-cookie-refresh-interval').value, 10) || 30) : (localDb.settings?.cookieRefreshInterval !== undefined ? localDb.settings.cookieRefreshInterval : 30),
+    showNotifications: document.getElementById('settings-shownotifications') ? document.getElementById('settings-shownotifications').checked : true,
+    autoOpenBrowser: document.getElementById('settings-autoopenbrowser') ? document.getElementById('settings-autoopenbrowser').checked : true,
+    checkChannelsOnStartup: document.getElementById('settings-checkonstartup') ? document.getElementById('settings-checkonstartup').checked : false,
+    discordRpcEnabled: document.getElementById('settings-discordrpc') ? document.getElementById('settings-discordrpc').checked : false,
+    enableAltThumbnailsHover: document.getElementById('settings-alt-thumbnails-hover') ? document.getElementById('settings-alt-thumbnails-hover').checked : true,
+    lang: document.getElementById('settings-lang') ? document.getElementById('settings-lang').value : 'tr',
+    preferredAudioLang: document.getElementById('settings-preferredaudiolang') ? document.getElementById('settings-preferredaudiolang').value : 'auto',
+    doubleClickAction: document.getElementById('settings-doubleclickaction') ? document.getElementById('settings-doubleclickaction').value : 'play',
+    historyLimitPerChannel: document.getElementById('settings-history-limit') ? (parseInt(document.getElementById('settings-history-limit').value, 10) || 30) : 30,
+    shortsDurationLimit: settingsShortsDurationLimit ? (parseInt(settingsShortsDurationLimit.value, 10) || 180) : (localDb.settings?.shortsDurationLimit || 180),
+    githubToken: (document.getElementById('gist-token-input') && document.getElementById('gist-token-input').value.trim()) || (localDb.settings && localDb.settings.githubToken) || '',
+    githubGistId: (document.getElementById('gist-id-input') && document.getElementById('gist-id-input').value.trim()) || (localDb.settings && localDb.settings.githubGistId) || '',
+    autoSyncGist: document.getElementById('gist-auto-sync-checkbox') ? document.getElementById('gist-auto-sync-checkbox').checked : (localDb.settings?.autoSyncGist || false),
+    channelScanMode: 'fast',
+    weatherEnabled: document.getElementById('settings-weatherenabled') ? document.getElementById('settings-weatherenabled').checked : true,
+    weatherCity: document.getElementById('settings-weathercity') ? document.getElementById('settings-weathercity').value.trim() : 'İstanbul',
+    weatherUnit: document.getElementById('settings-weatherunit') ? document.getElementById('settings-weatherunit').value : 'celsius',
+    weatherLatitude: document.getElementById('settings-weatherlatitude') ? (parseFloat(document.getElementById('settings-weatherlatitude').value) || 41.0082) : 41.0082,
+    weatherLongitude: document.getElementById('settings-weatherlongitude') ? (parseFloat(document.getElementById('settings-weatherlongitude').value) || 28.9784) : 28.9784
+  };
+
+  const oldPort = localDb.settings?.port || 4141;
+  const statusSpan = document.getElementById('settings-status');
+  if (statusSpan) {
+    const isEn = localDb.settings && localDb.settings.lang === 'en';
+    statusSpan.innerHTML = `<i data-lucide="loader" class="pulse-animation" style="width:16px; height:16px; margin-right:4px;"></i><span>${isEn ? 'Saving changes...' : 'Ayarlar kaydediliyor...'}</span>`;
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+  }
 
   try {
     const res = await fetch('/api/settings', {
-      method: 'PUT',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings)
     });
-    const result = await res.json();
-    if (result.success) {
-      const autoSaveIndicator = document.getElementById('settings-auto-save-indicator');
-      if (autoSaveIndicator) {
-        autoSaveIndicator.classList.remove('hidden');
-        setTimeout(() => autoSaveIndicator.classList.add('hidden'), 2000);
+    const data = await res.json();
+    if (data.success) {
+      const isEn = localDb.settings && localDb.settings.lang === 'en';
+      if (statusSpan) {
+        statusSpan.innerHTML = `<i data-lucide="check-circle" style="width:16px; height:16px; margin-right:4px; color:var(--success-color);"></i><span style="color:var(--success-color);">${isEn ? 'All changes saved.' : 'Tüm değişiklikler kaydedildi.'}</span>`;
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
       }
+      showToast(isEn ? 'Settings saved successfully' : 'Ayarlar başarıyla kaydedildi', 'success');
+      if (port !== oldPort) {
+        showToast(isEn ? 'Port changed. Please restart the app to apply.' : 'Port değiştirildi. Yeni portun aktif olması için uygulamayı yeniden başlatın.', 'warning');
+      }
+      if (typeof window.updateDiskSpace === 'function') window.updateDiskSpace();
+      if (typeof window.updateWeatherBadge === 'function') window.updateWeatherBadge(true);
     }
   } catch (err) {
-    console.error('performAutoSave error:', err);
+    console.error('Otomatik kaydetme hatası:', err);
+    if (statusSpan) {
+      const isEn = localDb.settings && localDb.settings.lang === 'en';
+      statusSpan.innerHTML = `<i data-lucide="alert-circle" style="width:16px; height:16px; margin-right:4px; color:var(--danger-color);"></i><span style="color:var(--danger-color);">${isEn ? 'Save error!' : 'Kaydedilemedi!'}</span>`;
+      if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    }
   }
 }
 window.performAutoSave = performAutoSave;
+
+// Türkçe Açıklama: Sunucuya istek göndererek, indirilen videoların bulunduğu klasörü Windows Dosya Gezgini'nde otomatik olarak açar.
+/**
+ * Sunucuya istek atarak indirme klasörünü (varsa kanal klasörünü) Windows Gezgini'nde açar.
+ * 
+ * @param {string} channelName Açılacak kanal klasörünün ismi
+ */
+export async function openFolder(channelName) {
+  if (typeof channelName !== 'string') {
+    channelName = '';
+  }
+  try {
+    const res = await fetch('/api/open-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channelName })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || 'Klasör açılamadı.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+}
+window.openFolder = openFolder;
+
+/**
+ * Ayarlar formundaki input olaylarını ve klasör işlem butonlarını bağlar.
+ */
+export function initSettingsFormListeners() {
+  const settingsForm = document.getElementById('settings-form');
+  if (settingsForm && !settingsForm.dataset.settingsFormInit) {
+    settingsForm.dataset.settingsFormInit = 'true';
+    settingsForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      triggerAutoSave(true);
+    });
+
+    const inputs = settingsForm.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+      if (input.type === 'checkbox' || input.tagName.toLowerCase() === 'select') {
+        input.addEventListener('change', () => triggerAutoSave(true));
+      } else {
+        input.addEventListener('input', () => triggerAutoSave(false));
+      }
+    });
+  }
+
+  const syncNowBtn = document.getElementById('sync-now-btn');
+  if (syncNowBtn && !syncNowBtn.dataset.settingsInit) {
+    syncNowBtn.dataset.settingsInit = 'true';
+    syncNowBtn.addEventListener('click', async () => {
+      syncNowBtn.disabled = true;
+      const isEn = localDb.settings && localDb.settings.lang === 'en';
+      showToast(isEn ? 'Scanning all channels in the background...' : 'Tüm kanallar arka planda taranıyor...', 'info');
+      
+      try {
+        const res = await fetch('/api/sync', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          showToast(isEn ? 'Channel scan started in the background.' : 'Kanal denetimi arka planda başlatıldı.', 'success');
+        } else {
+          showToast(data.error || (isEn ? 'Error occurred.' : 'Hata oluştu.'), 'error');
+        }
+      } catch (err) {
+        showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+      } finally {
+        syncNowBtn.disabled = false;
+      }
+    });
+  }
+
+  const openFolderBtn = document.getElementById('open-folder-btn');
+  if (openFolderBtn && !openFolderBtn.dataset.settingsInit) {
+    openFolderBtn.dataset.settingsInit = 'true';
+    openFolderBtn.addEventListener('click', openFolder);
+  }
+
+  const selectFolderBtn = document.getElementById('select-folder-btn');
+  const settingsDownloadPath = document.getElementById('settings-download-path');
+  if (selectFolderBtn && !selectFolderBtn.dataset.settingsInit) {
+    selectFolderBtn.dataset.settingsInit = 'true';
+    selectFolderBtn.addEventListener('click', async () => {
+      showToast('Klasör seçim penceresi açılıyor, lütfen bekleyin...', 'info');
+      try {
+        const res = await fetch('/api/select-folder', { method: 'POST' });
+        const data = await res.json();
+        if (data.success && data.path) {
+          if (settingsDownloadPath) settingsDownloadPath.value = data.path;
+          showToast(`Yeni indirme dizini seçildi: ${data.path}`, 'success');
+          triggerAutoSave(true);
+        } else if (data.message) {
+          showToast(data.message, 'warning');
+        }
+      } catch (err) {
+        showToast('Klasör seçilirken bir bağlantı hatası oluştu.', 'error');
+      }
+    });
+  }
+
+  const testFolderBtn = document.getElementById('test-folder-btn');
+  if (testFolderBtn && !testFolderBtn.dataset.settingsInit) {
+    testFolderBtn.dataset.settingsInit = 'true';
+    testFolderBtn.addEventListener('click', async () => {
+      const folder = settingsDownloadPath ? settingsDownloadPath.value.trim() : '';
+      if (!folder) return showToast('Klasör yolu boş bırakılamaz.', 'error');
+      
+      try {
+        const res = await fetch('/api/open-folder', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Klasör yolu geçerli ve başarıyla açıldı!', 'success');
+        } else {
+          showToast(data.error || 'Klasör açılamadı.', 'error');
+        }
+      } catch (err) {
+        showToast('Test hatası.', 'error');
+      }
+    });
+  }
+}
+window.initSettingsFormListeners = initSettingsFormListeners;
 
 // ==========================================
 // Ayarlar Alt Sekmeleri (Subtabs)
@@ -873,6 +1050,8 @@ if (typeof document !== 'undefined') {
       btnOpenTemp.dataset.settingsInit = 'true';
       btnOpenTemp.addEventListener('click', openTempFolder);
     }
+
+    initSettingsFormListeners();
   };
 
   if (document.readyState === 'loading') {
