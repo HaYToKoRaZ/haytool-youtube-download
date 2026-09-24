@@ -3,6 +3,12 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.52] - 2026-09-24
+- **refactor(modularization): Tema Yönetimi & Döngüsel Geçiş Bağımsız ES Modülüne Taşındı (`public/modules/theme.js`):**
+  - `applyTheme`, `toggleQuickTheme`, `updateThemeToggleUI` fonksiyonları `public/modules/theme.js` modülüne taşındı.
+  - `public/app.js` içerisinden 138 satır monolitik tema kodu temizlendi; `window.*` köprüleri kuruldu.
+  - `0nogithub/maps.md` haritasına `theme.js` modülü işlendi.
+
 ## [9.8.51] - 2026-09-24
 - **refactor(modularization): Video Yorumları Yöneticisi Bağımsız ES Modülüne Taşındı (`public/modules/comments.js`):**
   - `renderCommentsList`, `loadComments`, `loadMoreComments`, `toggleCommentsPanel` fonksiyonları `public/modules/comments.js` modülüne taşındı.
