@@ -3,6 +3,12 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.55] - 2026-09-24
+- **fix(channels): Kanallar Sekmesinde Kategori ve Filtreleme İşlevlerinin Düzeltilmesi:**
+  - Kanallar sekmesinde kategori (`#filter-channel-category`), otomatik indirme ve shorts filtreleri değiştirildiğinde listenin filtrelenmemesi sorunu çözüldü.
+  - Eksik olan `getChannelActiveFilters()` fonksiyonu `public/modules/channels.js` içinde tanımlandı, `public/app.js` içerisine import edildi ve `window.getChannelActiveFilters` köprüsüyle tam entegrasyon sağlandı.
+  - Kategori seçildiğinde yalnızca seçili kategoriye ait kanalların anlık olarak listelenmesi ve kanal sayacının filtrelenen sayıya göre dinamik güncellenmesi sağlandı.
+
 ## [9.8.54] - 2026-09-24
 - **fix(player): Sekmeler Arası Geçişte ve Kuyruk Oynatmasında Kanal/Metadata Senkronizasyonu:**
   - Kuyruk sekmesinden veya mini oynatıcıdan İndirilenler sekmesindeki yerleşik büyük oynatıcıya geçildiğinde kanal adı ve avatarının yanlış/eski videoya ait kalması sorunu düzeltildi.

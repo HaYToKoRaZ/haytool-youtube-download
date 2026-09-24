@@ -150,6 +150,7 @@ import {
   changeChannelAutoDownload,
   changeChannelShortsLimit,
   updateChannelCategoryFilterOptions,
+  getChannelActiveFilters,
   handleChannelFilterChange,
   initAddChannelForm
 } from './modules/channels.js';
@@ -169,6 +170,7 @@ window.changeChannelShorts = changeChannelShorts;
 window.changeChannelAutoDownload = changeChannelAutoDownload;
 window.changeChannelShortsLimit = changeChannelShortsLimit;
 window.updateChannelCategoryFilterOptions = updateChannelCategoryFilterOptions;
+window.getChannelActiveFilters = getChannelActiveFilters;
 window.handleChannelFilterChange = handleChannelFilterChange;
 window.initAddChannelForm = initAddChannelForm;
 // Sistem konsolu ve canlı terminal logları alt modülü
