@@ -203,10 +203,18 @@ export async function performAutoSave() {
   const settingsAutoDownload = document.getElementById('settings-autodownload');
   const settingsShortsDurationLimit = document.getElementById('settings-shortsdurationlimit');
   const settingsPortInput = document.getElementById('settings-port');
-  const port = settingsPortInput ? parseInt(settingsPortInput.value, 10) : 4141;
+  const port = (settingsPortInput && settingsPortInput.value && settingsPortInput.value.trim() !== '') 
+    ? (parseInt(settingsPortInput.value, 10) || (localDb.settings?.port || 4141)) 
+    : (localDb.settings?.port || 4141);
+  const oldPort = (localDb.settings && localDb.settings.port !== undefined && localDb.settings.port !== null) 
+    ? (parseInt(localDb.settings.port, 10) || 4141) 
+    : (settingsPortInput ? (parseInt(settingsPortInput.defaultValue, 10) || 4141) : 4141);
+
+  const rawDownloadPath = settingsDownloadPath ? settingsDownloadPath.value.trim() : '';
+  const effectiveDownloadPath = rawDownloadPath || (localDb.settings?.downloadPath || '');
 
   const settings = {
-    downloadPath: settingsDownloadPath ? settingsDownloadPath.value.trim() : (localDb.settings?.downloadPath || ''),
+    downloadPath: effectiveDownloadPath,
     tempDirType: document.getElementById('settings-temp-dir-type') ? document.getElementById('settings-temp-dir-type').value : 'system',
     durationFetchMethod: document.getElementById('settings-duration-fetch-method') ? document.getElementById('settings-duration-fetch-method').value : 'auto',
     ytdlpRunMode: document.getElementById('settings-ytdlp-run-mode') ? document.getElementById('settings-ytdlp-run-mode').value : 'exe',
@@ -245,7 +253,7 @@ export async function performAutoSave() {
     enableAltThumbnailsHover: document.getElementById('settings-alt-thumbnails-hover') ? document.getElementById('settings-alt-thumbnails-hover').checked : true,
     lang: document.getElementById('settings-lang') ? document.getElementById('settings-lang').value : 'tr',
     preferredAudioLang: document.getElementById('settings-preferredaudiolang') ? document.getElementById('settings-preferredaudiolang').value : 'auto',
-    doubleClickAction: document.getElementById('settings-doubleclickaction') ? document.getElementById('settings-doubleclickaction').value : 'play',
+    doubleClickAction: document.getElementById('settings-doubleclickaction') ? document.getElementById('settings-doubleclickaction').value : 'player',
     historyLimitPerChannel: document.getElementById('settings-history-limit') ? (parseInt(document.getElementById('settings-history-limit').value, 10) || 30) : 30,
     shortsDurationLimit: settingsShortsDurationLimit ? (parseInt(settingsShortsDurationLimit.value, 10) || 180) : (localDb.settings?.shortsDurationLimit || 180),
     githubToken: (document.getElementById('gist-token-input') && document.getElementById('gist-token-input').value.trim()) || (localDb.settings && localDb.settings.githubToken) || '',
@@ -259,7 +267,6 @@ export async function performAutoSave() {
     weatherLongitude: document.getElementById('settings-weatherlongitude') ? (parseFloat(document.getElementById('settings-weatherlongitude').value) || 28.9784) : 28.9784
   };
 
-  const oldPort = localDb.settings?.port || 4141;
   const statusSpan = document.getElementById('settings-status');
   if (statusSpan) {
     const isEn = localDb.settings && localDb.settings.lang === 'en';
@@ -275,13 +282,16 @@ export async function performAutoSave() {
     });
     const data = await res.json();
     if (data.success) {
+      if (localDb.settings) {
+        Object.assign(localDb.settings, settings);
+      }
       const isEn = localDb.settings && localDb.settings.lang === 'en';
       if (statusSpan) {
         statusSpan.innerHTML = `<i data-lucide="check-circle" style="width:16px; height:16px; margin-right:4px; color:var(--success-color);"></i><span style="color:var(--success-color);">${isEn ? 'All changes saved.' : 'Tüm değişiklikler kaydedildi.'}</span>`;
         if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
       }
       showToast(isEn ? 'Settings saved successfully' : 'Ayarlar başarıyla kaydedildi', 'success');
-      if (port !== oldPort) {
+      if (settingsPortInput && oldPort && port !== oldPort) {
         showToast(isEn ? 'Port changed. Please restart the app to apply.' : 'Port değiştirildi. Yeni portun aktif olması için uygulamayı yeniden başlatın.', 'warning');
       }
       if (typeof window.updateDiskSpace === 'function') window.updateDiskSpace();

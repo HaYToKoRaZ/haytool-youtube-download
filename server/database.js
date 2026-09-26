@@ -144,7 +144,7 @@ export const defaultDb = {
     shortsDurationLimit: 180,
     sponsorBlockEnabled: false,
     discordRpcEnabled: false,
-    doubleClickAction: 'system',
+    doubleClickAction: 'player',
     tempDirType: 'system',
     durationFetchMethod: 'auto',
     ytdlpRunMode: 'exe',
@@ -629,7 +629,11 @@ export function syncWithIni(db) {
     const settingsSection = getCaseInsensitiveKey(iniData, 'Settings') || iniData;
     if (settingsSection) {
       const downloadPath = getCaseInsensitiveKey(settingsSection, 'downloadPath');
-      if (downloadPath !== undefined) db.settings.downloadPath = downloadPath;
+      if (downloadPath !== undefined && downloadPath.trim() !== '') {
+        db.settings.downloadPath = downloadPath.trim();
+      } else if (!db.settings.downloadPath) {
+        db.settings.downloadPath = defaultDownloadDir;
+      }
 
       const quality = getCaseInsensitiveKey(settingsSection, 'quality');
       if (quality !== undefined) db.settings.quality = quality;
@@ -736,6 +740,11 @@ export function syncWithIni(db) {
       const autoOpenBrowser = getCaseInsensitiveKey(settingsSection, 'autoOpenBrowser');
       if (autoOpenBrowser !== undefined) {
         db.settings.autoOpenBrowser = autoOpenBrowser !== 'false';
+      }
+
+      const checkChannelsOnStartup = getCaseInsensitiveKey(settingsSection, 'checkChannelsOnStartup');
+      if (checkChannelsOnStartup !== undefined) {
+        db.settings.checkChannelsOnStartup = checkChannelsOnStartup === 'true';
       }
 
       const sponsorBlockEnabled = getCaseInsensitiveKey(settingsSection, 'sponsorBlockEnabled');
@@ -1102,9 +1111,10 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.isPaused = (db.settings.isPaused === true).toString();
   iniData.Settings.showNotifications = (db.settings.showNotifications !== false).toString();
   iniData.Settings.autoOpenBrowser = (db.settings.autoOpenBrowser !== false).toString();
+  iniData.Settings.checkChannelsOnStartup = (db.settings.checkChannelsOnStartup === true).toString();
   iniData.Settings.sponsorBlockEnabled = (db.settings.sponsorBlockEnabled === true).toString();
   iniData.Settings.discordRpcEnabled = (db.settings.discordRpcEnabled === true).toString();
-  iniData.Settings.doubleClickAction = (db.settings.doubleClickAction || 'system').toString();
+  iniData.Settings.doubleClickAction = (db.settings.doubleClickAction || 'player').toString();
   iniData.Settings.historyDurationFilter = (db.settings.historyDurationFilter || 'off').toString();
   iniData.Settings.enableAltThumbnailsHover = (db.settings.enableAltThumbnailsHover !== false).toString();
   iniData.Settings.weatherEnabled = (db.settings.weatherEnabled !== false).toString();

@@ -4,7 +4,7 @@
  * Açıklama: Koyu, Açık, Matrix, Discord ve YouTube temalarının uygulanması ve döngüsel geçişi.
  */
 
-import { showToast } from './toast.js';
+import { showToast } from '../components/toast.js';
 
 /**
  * Tema Değiştirme ve Uygulama Yardımcı Fonksiyonu

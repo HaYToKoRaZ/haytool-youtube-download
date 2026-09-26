@@ -456,8 +456,8 @@ export class DownloadQueue {
 
     const userLang = settings.lang || 'tr';
     const subLangs = userLang === 'en'
-      ? 'en,en-orig'
-      : `${userLang},${userLang}-orig,en,en-orig`;
+      ? 'en.*,en-orig'
+      : `${userLang}.*,${userLang}-orig,en.*,en-orig`;
 
     const args = [
       video.url,
@@ -474,7 +474,7 @@ export class DownloadQueue {
       '--write-subs',
       '--write-auto-subs',
       '--sub-langs', subLangs,
-      '--sub-format', 'srt'
+      '--sub-format', 'srt/vtt/best'
     ];
 
     if (!isMp3) {
@@ -889,18 +889,53 @@ export class DownloadQueue {
         let resolvedTitle = video.title;
         const skipChannelFolder = video.skipChannelFolder === true;
         try {
-          const targetDir = skipChannelFolder
-            ? settings.downloadPath
-            : path.join(settings.downloadPath, video.channelName);
-          const files = fs.readdirSync(targetDir);
-          const match = files.find(f => {
-            if (!f.includes(`[${video.id}]`)) return false;
-            const ext = path.extname(f).toLowerCase();
-            return !['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt', '.description'].includes(ext);
-          });
-          if (match) {
-            actualPath = path.join(targetDir, match);
-            const baseName = path.basename(match, path.extname(match));
+          const sanitizedChannelName = (video.channelName || '').replace(/[. ]+$/, '#');
+          const candidateDirs = [];
+
+          if (skipChannelFolder) {
+            candidateDirs.push(settings.downloadPath);
+          } else {
+            candidateDirs.push(path.join(settings.downloadPath, video.channelName));
+            if (sanitizedChannelName !== video.channelName) {
+              candidateDirs.push(path.join(settings.downloadPath, sanitizedChannelName));
+            }
+            // Ayrıca settings.downloadPath altındaki klasörlerde arama yap
+            try {
+              const rootEntries = fs.readdirSync(settings.downloadPath, { withFileTypes: true });
+              for (const entry of rootEntries) {
+                if (entry.isDirectory()) {
+                  const fullSubDir = path.join(settings.downloadPath, entry.name);
+                  if (!candidateDirs.includes(fullSubDir)) {
+                    candidateDirs.push(fullSubDir);
+                  }
+                }
+              }
+            } catch (errRoot) {}
+          }
+
+          let matchedFile = null;
+          let matchedDir = '';
+
+          for (const targetDir of candidateDirs) {
+            if (!fs.existsSync(targetDir)) continue;
+            try {
+              const files = fs.readdirSync(targetDir);
+              const match = files.find(f => {
+                if (!f.includes(`[${video.id}]`)) return false;
+                const ext = path.extname(f).toLowerCase();
+                return !['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt', '.description'].includes(ext);
+              });
+              if (match) {
+                matchedFile = match;
+                matchedDir = targetDir;
+                break;
+              }
+            } catch (eDir) {}
+          }
+
+          if (matchedFile && matchedDir) {
+            actualPath = path.join(matchedDir, matchedFile);
+            const baseName = path.basename(matchedFile, path.extname(matchedFile));
             const idPattern = ` [${video.id}]`;
             if (baseName.endsWith(idPattern)) {
               const withoutId = baseName.substring(0, baseName.length - idPattern.length);
@@ -921,9 +956,10 @@ export class DownloadQueue {
               }
             }
           } else {
+            const primaryDir = candidateDirs[0] || settings.downloadPath;
             actualPath = skipChannelFolder
-              ? path.join(targetDir, `${video.title} [${video.id}].mp4`)
-              : path.join(targetDir, `${video.channelName} - ${video.title} [${video.id}].mp4`);
+              ? path.join(primaryDir, `${video.title} [${video.id}].mp4`)
+              : path.join(primaryDir, `${video.channelName} - ${video.title} [${video.id}].mp4`);
           }
         } catch (e) {
           actualPath = skipChannelFolder

@@ -3,6 +3,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import open from 'open';
+import dns from 'dns';
 import { spawn } from 'child_process';
 import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp } from '../services/paths.js';
 import { readDb, findVideoFileInDownloadDir } from '../database.js';
@@ -320,21 +321,32 @@ router.get('/video/:videoId/subtitles', (req, res) => {
     if (fs.existsSync(dir)) {
       const files = fs.readdirSync(dir);
       const escapedName = fileNameWithoutExt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const subRegex = new RegExp(`^${escapedName}\\.([a-z]{2}(?:-[a-z0-9]+)?)\\.(srt|vtt)$`, 'i');
+      const subRegex = new RegExp(`^${escapedName}\\.([a-zA-Z0-9_-]+)\\.(srt|vtt)$`, 'i');
+      const fallbackRegex = new RegExp(`\\[${videoId}\\]\\.([a-zA-Z0-9_-]+)\\.(srt|vtt)$`, 'i');
 
       const foundLangs = new Set();
       for (const file of files) {
-        const match = file.match(subRegex);
+        let match = file.match(subRegex);
+        if (!match) {
+          match = file.match(fallbackRegex);
+        }
+
         if (match) {
           const langCode = match[1].toLowerCase();
+          const ext = match[2].toLowerCase();
+
           if (!foundLangs.has(langCode)) {
             foundLangs.add(langCode);
+            const baseLang = langCode.split(/[-_]/)[0];
             let label = langCode.toUpperCase();
             try {
               const displayNames = new Intl.DisplayNames(['tr', 'en'], { type: 'language' });
-              const name = displayNames.of(langCode);
+              const name = displayNames.of(baseLang);
               if (name) {
                 label = name.charAt(0).toUpperCase() + name.slice(1);
+                if (langCode.includes('orig')) {
+                  label += ' (Orijinal)';
+                }
               }
             } catch (e) {
               const staticMap = {
@@ -342,12 +354,15 @@ router.get('/video/:videoId/subtitles', (req, res) => {
                 es: 'İspanyolca', fr: 'Fransızca', ru: 'Rusça', ja: 'Japonca',
                 pt: 'Portekizce', it: 'İtalyanca', zh: 'Çince', ko: 'Korece'
               };
-              if (staticMap[langCode]) label = staticMap[langCode];
+              if (staticMap[baseLang]) {
+                label = staticMap[baseLang] + (langCode.includes('orig') ? ' (Orijinal)' : '');
+              }
             }
 
             subtitles.push({
               lang: langCode,
               label: label,
+              ext: ext,
               url: `/api/video/${videoId}/subtitle/${langCode}`
             });
           }
@@ -443,6 +458,52 @@ async function translateSrtOrVttContent(content, isVtt = false, fromLang = 'en',
 }
 
 /**
+ * Videoya ait belirli bir dil kodundaki altyazı dosyasını diskte bulur.
+ * Hem tam dosya adı hem de [videoId] etiketi üzerinden .vtt veya .srt arar.
+ * 
+ * @param {string} filePath - Videonun yerel dosya yolu
+ * @param {string} videoId - YouTube video ID
+ * @param {string} lang - Dil kodu (örn: 'tr', 'en', 'tr-orig')
+ * @returns {{ path: string, isVtt: boolean } | null}
+ */
+function findSubtitleFile(filePath, videoId, lang) {
+  const dir = path.dirname(filePath);
+  const ext = path.extname(filePath);
+  const basePath = filePath.slice(0, -ext.length);
+
+  const exactVtt = basePath + `.${lang}.vtt`;
+  const exactSrt = basePath + `.${lang}.srt`;
+  if (fs.existsSync(exactVtt)) return { path: exactVtt, isVtt: true };
+  if (fs.existsSync(exactSrt)) return { path: exactSrt, isVtt: false };
+
+  // Dizin tarayarak esnek eşleme
+  if (fs.existsSync(dir)) {
+    const files = fs.readdirSync(dir);
+    const escapedLang = lang.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const fileNameWithoutExt = path.basename(filePath, ext);
+    const escapedName = fileNameWithoutExt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const exactMatch = files.find(f => 
+      new RegExp(`^${escapedName}\\.${escapedLang}\\.(vtt|srt)$`, 'i').test(f)
+    );
+    if (exactMatch) {
+      const full = path.join(dir, exactMatch);
+      return { path: full, isVtt: exactMatch.toLowerCase().endsWith('.vtt') };
+    }
+
+    const fallbackMatch = files.find(f => 
+      new RegExp(`\\[${videoId}\\]\\.${escapedLang}\\.(vtt|srt)$`, 'i').test(f)
+    );
+    if (fallbackMatch) {
+      const full = path.join(dir, fallbackMatch);
+      return { path: full, isVtt: fallbackMatch.toLowerCase().endsWith('.vtt') };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Belirtilen videonun altyazısını Google Translate aracılığıyla kaynak dilden hedef dile çevirip kaydeder.
  * 
  * @name POST /api/video/:videoId/translate-subtitle
@@ -474,32 +535,17 @@ router.post('/video/:videoId/translate-subtitle', localhostOnly, async (req, res
     const ext = path.extname(filePath);
     const basePath = filePath.slice(0, -ext.length);
 
-    const sourceSrtPath = basePath + `.${fromLang}.srt`;
-    const sourceVttPath = basePath + `.${fromLang}.vtt`;
-    const targetSrtPath = basePath + `.${toLang}.srt`;
-    const targetVttPath = basePath + `.${toLang}.vtt`;
-
-    let sourcePath = null;
-    let targetPath = null;
-    let isVtt = false;
-
-    if (fs.existsSync(sourceVttPath)) {
-      sourcePath = sourceVttPath;
-      targetPath = targetVttPath;
-      isVtt = true;
-    } else if (fs.existsSync(sourceSrtPath)) {
-      sourcePath = sourceSrtPath;
-      targetPath = targetSrtPath;
-      isVtt = false;
-    }
-
-    if (!sourcePath) {
+    const sourceFile = findSubtitleFile(filePath, videoId, fromLang);
+    if (!sourceFile) {
       return res.status(400).json({ success: false, error: `Çevrilecek (${fromLang}) altyazı dosyası bulunamadı.` });
     }
 
-    console.log(`[Subtitle Translation] Translating ${sourcePath} (${fromLang}) to ${targetPath} (${toLang})...`);
-    const content = await fs.promises.readFile(sourcePath, 'utf8');
-    const translatedContent = await translateSrtOrVttContent(content, isVtt, fromLang, toLang);
+    const targetExt = sourceFile.isVtt ? 'vtt' : 'srt';
+    const targetPath = basePath + `.${toLang}.${targetExt}`;
+
+    console.log(`[Subtitle Translation] Translating ${sourceFile.path} (${fromLang}) to ${targetPath} (${toLang})...`);
+    const content = await fs.promises.readFile(sourceFile.path, 'utf8');
+    const translatedContent = await translateSrtOrVttContent(content, sourceFile.isVtt, fromLang, toLang);
     await fs.promises.writeFile(targetPath, translatedContent, 'utf8');
     console.log(`[Subtitle Translation] Successfully saved translated subtitle to ${targetPath}`);
 
@@ -532,27 +578,22 @@ router.get('/video/:videoId/subtitle/:lang', (req, res) => {
   }
 
   try {
-    const filePath = video.filePath;
-    const ext = path.extname(filePath);
-    const basePath = filePath.slice(0, -ext.length);
-    const srtPath = basePath + `.${lang}.srt`;
-    const vttPath = basePath + `.${lang}.vtt`;
-
-    if (fs.existsSync(vttPath)) {
-      res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
-      return fs.createReadStream(vttPath).pipe(res);
+    const subFile = findSubtitleFile(video.filePath, videoId, lang);
+    if (!subFile) {
+      return res.status(404).send('Altyazı dosyası bulunamadı.');
     }
 
-    if (fs.existsSync(srtPath)) {
-      const srtContent = fs.readFileSync(srtPath, 'utf8');
-      const timestampRegex = /(\d{2}:\d{2}:\d{2}),(\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}),(\d{3})/g;
-      const vttContent = 'WEBVTT\n\n' + srtContent.replace(timestampRegex, '$1.$2 --> $3.$4');
-      
+    if (subFile.isVtt) {
       res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
-      return res.send(vttContent);
+      return fs.createReadStream(subFile.path).pipe(res);
     }
 
-    return res.status(404).send('Altyazı dosyası bulunamadı.');
+    const srtContent = fs.readFileSync(subFile.path, 'utf8');
+    const timestampRegex = /(\d{2}:\d{2}:\d{2}),(\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}),(\d{3})/g;
+    const vttContent = 'WEBVTT\n\n' + srtContent.replace(timestampRegex, '$1.$2 --> $3.$4');
+    
+    res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
+    return res.send(vttContent);
   } catch (err) {
     console.error('[Get Subtitle Track Error]:', err.message);
     res.status(500).send('Altyazı okunurken hata oluştu.');
@@ -709,10 +750,12 @@ router.get('/video/:videoId/comments', async (req, res) => {
  * @returns {void}
  */
 router.post('/open-youtube', localhostOnly, (req, res) => {
-  const { videoId } = req.body;
+  const { videoId, time } = req.body;
   if (!videoId) return res.status(400).json({ error: 'Video ID gereklidir.' });
   
-  open(`https://www.youtube.com/watch?v=${videoId}`);
+  const timeNum = Number(time);
+  const timeQuery = (!isNaN(timeNum) && timeNum > 0) ? `&t=${Math.floor(timeNum)}s` : '';
+  open(`https://www.youtube.com/watch?v=${videoId}${timeQuery}`);
   res.json({ success: true });
 });
 
@@ -753,5 +796,109 @@ router.post('/play-video', localhostOnly, (req, res) => {
     const errorMsg = `Video dosyası bulunamadı. Aranan Konum: ${fileToPlay || path.join(db.settings.downloadPath, `*[${videoId}]*`)}`;
     console.error(`[Play Video Hatası] ${errorMsg}`);
     res.status(404).json({ error: errorMsg });
+  }
+});
+
+/**
+ * Kullanıcının sisteminde yapılandırılmış olan yerel DNS sunucularını ve internet çıkışında aktif olarak kullanılan
+ * üst DNS çözümleyicisini (Google DNS, Cloudflare, Quad9, AdGuard, ISP vb.) tespit ederek döndürür.
+ * 
+ * @name GET /api/system-dns
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.get('/system-dns', localhostOnly, async (req, res) => {
+  try {
+    const localServers = dns.getServers() || [];
+    let resolverIp = '';
+    let resolverGeo = '';
+    let resolverHost = '';
+    let clientIp = '';
+    let providerName = 'Bilinmeyen Sağlayıcı';
+
+    // 1. EDNS servisi ile gerçek DNS çözümleyici IP ve çıkış noktası tespiti
+    try {
+      const ednsRes = await fetch('https://edns.ip-api.com/json', {
+        signal: AbortSignal.timeout(4000)
+      });
+      if (ednsRes.ok) {
+        const ednsData = await ednsRes.json();
+        if (ednsData.dns) {
+          resolverIp = ednsData.dns.ip || '';
+          resolverGeo = ednsData.dns.geo || '';
+        }
+        if (ednsData.edns && ednsData.edns.ip) {
+          clientIp = ednsData.edns.ip;
+        }
+      }
+    } catch (e) {
+      console.warn('[System DNS] EDNS sorgusu zaman aşımı veya hata:', e.message);
+    }
+
+    // 1.1 EDNS istemci alt ağını gizlediyse veya boş döndüyse doğrudan genel IP tespiti fallback'i
+    if (!clientIp) {
+      try {
+        const ipRes = await Promise.any([
+          fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(3000) }).then(r => r.json()).then(d => d.ip),
+          fetch('https://ifconfig.me/ip', { signal: AbortSignal.timeout(3000) }).then(r => r.text())
+        ]);
+        if (ipRes) clientIp = String(ipRes).trim();
+      } catch (e) {
+        console.warn('[System DNS] Genel IP tespiti fallback hatası:', e.message);
+      }
+    }
+
+    // 2. Çözümleyici IP'sine ters DNS (PTR) sorgusu yaparak ana makine adını bul
+    if (resolverIp) {
+      try {
+        const hostnames = await dns.promises.reverse(resolverIp);
+        if (hostnames && hostnames.length > 0) {
+          resolverHost = hostnames[0];
+        }
+      } catch (e) {}
+    }
+
+    // 3. Tespit edilen yerel IP, çözümleyici IP, konum ve ana makine adına göre tanınan sağlayıcıyı eşle
+    const combinedStr = `${resolverIp} ${resolverHost} ${resolverGeo} ${localServers.join(' ')}`.toLowerCase();
+
+    if (combinedStr.includes('adguard') || resolverHost.includes('adguard-dns')) {
+      providerName = 'AdGuard DNS';
+    } else if (combinedStr.includes('cloudflare') || combinedStr.includes('1.1.1.1') || resolverHost.includes('one.one.one.one')) {
+      providerName = 'Cloudflare DNS';
+    } else if (combinedStr.includes('dns.google') || combinedStr.includes('google') || combinedStr.includes('8.8.8.8') || combinedStr.includes('8.8.4.4')) {
+      providerName = 'Google Public DNS';
+    } else if (combinedStr.includes('quad9') || resolverHost.includes('quad9')) {
+      providerName = 'Quad9 DNS';
+    } else if (combinedStr.includes('opendns') || combinedStr.includes('208.67.222.222')) {
+      providerName = 'Cisco OpenDNS';
+    } else if (combinedStr.includes('comodo') || combinedStr.includes('secureanywhere')) {
+      providerName = 'Comodo Secure DNS';
+    } else if (combinedStr.includes('ttnet') || combinedStr.includes('turk telekom') || combinedStr.includes('turktelekom')) {
+      providerName = 'Türk Telekom DNS (İSS)';
+    } else if (combinedStr.includes('superonline') || combinedStr.includes('turkcell')) {
+      providerName = 'Turkcell Superonline DNS (İSS)';
+    } else if (combinedStr.includes('vodafone')) {
+      providerName = 'Vodafone DNS (İSS)';
+    } else if (combinedStr.includes('turknet')) {
+      providerName = 'TurkNet DNS (İSS)';
+    } else if (resolverGeo) {
+      providerName = resolverGeo.split('-').pop()?.trim() || resolverGeo;
+    }
+
+    res.json({
+      success: true,
+      provider: providerName,
+      resolverIp: resolverIp || (localServers[0] || '127.0.0.1'),
+      resolverGeo: resolverGeo || 'Yerel Ağ / Bilinmiyor',
+      resolverHost: resolverHost || '-',
+      localServers,
+      clientIp: clientIp || ''
+    });
+  } catch (err) {
+    console.error('[System DNS] Genel Hata:', err);
+    res.status(500).json({ error: 'DNS bilgisi alınamadı: ' + err.message });
   }
 });

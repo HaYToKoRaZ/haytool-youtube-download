@@ -546,17 +546,76 @@ router.post('/settings', localhostOnly, (req, res) => {
   const oldSpeedLimit = getEffectiveSpeedLimit(db.settings);
   const oldDownloadPath = db.settings.downloadPath;
 
+  // 1. Sayısal Ayarlar ve Aralık (Min/Max Clamp) Korumaları
   if (req.body.downloadSpeedLimit !== undefined) {
-    req.body.downloadSpeedLimit = parseInt(req.body.downloadSpeedLimit, 10) || 0;
+    const val = parseInt(req.body.downloadSpeedLimit, 10);
+    req.body.downloadSpeedLimit = isNaN(val) ? 0 : Math.max(0, Math.min(val, 1000000));
   }
   if (req.body.alternativeSpeedLimit !== undefined) {
-    req.body.alternativeSpeedLimit = parseInt(req.body.alternativeSpeedLimit, 10) || 500;
+    const val = parseInt(req.body.alternativeSpeedLimit, 10);
+    req.body.alternativeSpeedLimit = isNaN(val) ? 500 : Math.max(1, Math.min(val, 1000000));
   }
-  if (req.body.useAlternativeSpeed !== undefined) {
-    req.body.useAlternativeSpeed = req.body.useAlternativeSpeed === true || req.body.useAlternativeSpeed === 'true';
+  if (req.body.port !== undefined) {
+    const val = parseInt(req.body.port, 10);
+    req.body.port = (isNaN(val) || val < 80 || val > 65535) ? (db.settings.port || 4141) : val;
   }
-  if (req.body.sponsorBlockEnabled !== undefined) {
-    req.body.sponsorBlockEnabled = req.body.sponsorBlockEnabled === true || req.body.sponsorBlockEnabled === 'true';
+  if (req.body.channelCheckInterval !== undefined) {
+    const val = parseInt(req.body.channelCheckInterval, 10);
+    req.body.channelCheckInterval = isNaN(val) ? 1800 : Math.max(5, Math.min(val, 86400));
+  }
+  if (req.body.rssLimit !== undefined) {
+    const val = parseInt(req.body.rssLimit, 10);
+    req.body.rssLimit = isNaN(val) ? 15 : Math.max(1, Math.min(val, 50));
+  }
+  if (req.body.autoDeleteDays !== undefined) {
+    const val = parseInt(req.body.autoDeleteDays, 10);
+    req.body.autoDeleteDays = isNaN(val) ? 0 : Math.max(0, Math.min(val, 3650));
+  }
+  if (req.body.historyLimitPerChannel !== undefined) {
+    const val = parseInt(req.body.historyLimitPerChannel, 10);
+    req.body.historyLimitPerChannel = isNaN(val) ? 30 : Math.max(1, Math.min(val, 10000));
+  }
+  if (req.body.shortsDurationLimit !== undefined) {
+    const val = parseInt(req.body.shortsDurationLimit, 10);
+    req.body.shortsDurationLimit = isNaN(val) ? 180 : Math.max(1, Math.min(val, 7200));
+  }
+  if (req.body.cookieRefreshInterval !== undefined) {
+    const val = parseInt(req.body.cookieRefreshInterval, 10);
+    req.body.cookieRefreshInterval = isNaN(val) ? 30 : Math.max(5, Math.min(val, 1440));
+  }
+  if (req.body.liveStreamRetryInterval !== undefined) {
+    const val = parseInt(req.body.liveStreamRetryInterval, 10);
+    req.body.liveStreamRetryInterval = isNaN(val) ? 30 : Math.max(5, Math.min(val, 1440));
+  }
+  if (req.body.weatherLatitude !== undefined) {
+    const val = parseFloat(req.body.weatherLatitude);
+    req.body.weatherLatitude = isNaN(val) ? 41.0082 : Math.max(-90, Math.min(val, 90));
+  }
+  if (req.body.weatherLongitude !== undefined) {
+    const val = parseFloat(req.body.weatherLongitude);
+    req.body.weatherLongitude = isNaN(val) ? 28.9784 : Math.max(-180, Math.min(val, 180));
+  }
+
+  // 2. Boolean (Açık/Kapalı) Güvenlik Doğrulamaları
+  const booleanFields = [
+    'useAlternativeSpeed', 'sponsorBlockEnabled', 'checkChannelsOnStartup',
+    'autoDownload', 'writeThumbnail', 'showShorts', 'hideOnDelete',
+    'playSounds', 'showNotifications', 'autoOpenBrowser', 'discordRpcEnabled',
+    'enableAltThumbnailsHover', 'autoSyncWatchtime', 'autoSyncLocalWatchtime',
+    'autoDiskSync', 'autoCookieRefresh', 'weatherEnabled', 'autoSyncGist'
+  ];
+  for (const field of booleanFields) {
+    if (req.body[field] !== undefined) {
+      req.body[field] = req.body[field] === true || req.body[field] === 'true';
+    }
+  }
+
+  // 3. İndirme Yolu ve Dize Doğrulamaları
+  if (req.body.downloadPath !== undefined && typeof req.body.downloadPath === 'string') {
+    req.body.downloadPath = req.body.downloadPath.trim();
+    if (!req.body.downloadPath && db.settings.downloadPath) {
+      req.body.downloadPath = db.settings.downloadPath;
+    }
   }
 
   db.settings = { ...db.settings, ...req.body };

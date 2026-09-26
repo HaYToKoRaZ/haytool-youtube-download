@@ -736,32 +736,15 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
     const rssLimit = db.settings.rssLimit || 5;
     let feed = null;
 
-    const scanMode = db.settings.channelScanMode || 'fast';
-    if (scanMode === 'fast') {
-      try {
-        feed = await fetchChannelVideosXml(channel.id);
-      } catch (xmlErr) {
-        console.log(`[RSS Hızlı] "${channel.name}" için XML denemesi başarısız (${xmlErr.message}), doğrudan yt-dlp yedeğine geçiliyor...`);
-        try {
-          feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
-        } catch (ytdlpErr) {
-          console.error(`[RSS] [HATA] ${channel.name} taranamadı:`, ytdlpErr.message);
-          addTerminalLog(`[RSS] "${channel.name}" taranamadı (${ytdlpErr.message}).`, 'warn');
-        }
-      }
-    } else {
-      console.log(`[RSS] ${channel.name} denetleniyor (yt-dlp Klasik)...`);
-      addTerminalLog(`[RSS] ${channel.name} yt-dlp ile denetleniyor...`, 'info');
+    try {
+      feed = await fetchChannelVideosXml(channel.id);
+    } catch (xmlErr) {
+      console.log(`[RSS] "${channel.name}" için XML denemesi başarısız (${xmlErr.message}), yt-dlp yedeğine geçiliyor...`);
       try {
         feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
       } catch (ytdlpErr) {
-        console.log(`[RSS] "${channel.name}" için doğrudan XML beslemesi deneniyor (${ytdlpErr.message})...`);
-        try {
-          feed = await fetchChannelVideosXml(channel.id);
-        } catch (rssErr) {
-          console.error(`[RSS] [HATA] ${channel.name} taranamadı:`, rssErr.message);
-          addTerminalLog(`[RSS] "${channel.name}" taranamadı (${rssErr.message}).`, 'warn');
-        }
+        console.error(`[RSS] [HATA] ${channel.name} taranamadı:`, ytdlpErr.message);
+        addTerminalLog(`[RSS] "${channel.name}" taranamadı (${ytdlpErr.message}).`, 'warn');
       }
     }
 
@@ -1245,37 +1228,22 @@ export async function checkAllChannelsRssParallel() {
   }
 
   const total = db.channels.length;
-  const scanMode = db.settings.channelScanMode || 'fast';
-  const modeLabel = (scanMode === 'classic' || scanMode === 'slow') ? '🐢 Klasik Tarama (yt-dlp)' : '⚡ Hızlı Tarama (XML RSS)';
   
-  addTerminalLog(`[RSS] ${total} kanal için ${modeLabel} başlatılıyor...`, 'info');
-  console.log(`[RSS] ${total} kanal için ${modeLabel} başlatılıyor...`);
+  addTerminalLog(`[RSS] ${total} kanal için ⚡ Hızlı Tarama başlatılıyor...`, 'info');
+  console.log(`[RSS] ${total} kanal için ⚡ Hızlı Tarama başlatılıyor...`);
 
   const rssLimit = db.settings.rssLimit || 5;
   
   const checkSingleChannel = async (channel) => {
     let feed = null;
-    if (scanMode === 'fast') {
-      try {
-        feed = await fetchChannelVideosXml(channel.id);
-      } catch (xmlErr) {
-        try {
-          feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
-        } catch (ytdlpErr) {
-          console.log(`[RSS] "${channel.name}" atlandı (${ytdlpErr.message})`);
-          addTerminalLog(`[RSS] "${channel.name}" atlandı (${ytdlpErr.message}).`, 'warn');
-        }
-      }
-    } else {
+    try {
+      feed = await fetchChannelVideosXml(channel.id);
+    } catch (xmlErr) {
       try {
         feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
       } catch (ytdlpErr) {
-        try {
-          feed = await fetchChannelVideosXml(channel.id);
-        } catch (xmlErr) {
-          console.log(`[RSS] "${channel.name}" atlandı (${xmlErr.message})`);
-          addTerminalLog(`[RSS] "${channel.name}" atlandı (${xmlErr.message}).`, 'warn');
-        }
+        console.log(`[RSS] "${channel.name}" atlandı (${ytdlpErr.message})`);
+        addTerminalLog(`[RSS] "${channel.name}" atlandı (${ytdlpErr.message}).`, 'warn');
       }
     }
     return { channel, feed };
@@ -1606,9 +1574,8 @@ export async function checkAllChannelsRssParallel() {
   }
 
   const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
-  const modeText = (scanMode === 'classic' || scanMode === 'slow') ? 'Klasik Tarama' : 'Hızlı Tarama';
-  addTerminalLog(`[RSS] ${modeText} tamamlandı: ${total} kanal ${durationSec} saniyede kontrol edildi. ${newVideosCount} yeni video bulundu.`, 'success');
-  console.log(`[RSS] ${modeText} tamamlandı: ${total} kanal ${durationSec} saniyede kontrol edildi. ${newVideosCount} yeni video bulundu.`);
+  addTerminalLog(`[RSS] Hızlı Tarama tamamlandı: ${total} kanal ${durationSec} saniyede kontrol edildi. ${newVideosCount} yeni video bulundu.`, 'success');
+  console.log(`[RSS] Hızlı Tarama tamamlandı: ${total} kanal ${durationSec} saniyede kontrol edildi. ${newVideosCount} yeni video bulundu.`);
 
   return {
     success: true,
@@ -1697,10 +1664,8 @@ export async function triggerChannelCheck(source = 'manual') {
       manual: 'Manuel Tetikleme'
     };
     const label = sourceLabels[source] || source;
-    const scanMode = db.settings?.channelScanMode || 'fast';
-    const modeLabel = (scanMode === 'classic' || scanMode === 'slow') ? '🐢 Klasik (yt-dlp)' : '⚡ Hızlı (XML RSS)';
-    console.log(`[Kanal Kontrolü] Tüm kanallar denetleniyor (Kaynak: ${label} | Mod: ${modeLabel})...`);
-    addTerminalLog(`[Kanal Kontrolü] Tüm kanallar denetleniyor (${label} | Mod: ${modeLabel})...`, 'info');
+    console.log(`[Kanal Kontrolü] Tüm kanallar denetleniyor (Kaynak: ${label})...`);
+    addTerminalLog(`[Kanal Kontrolü] Tüm kanallar denetleniyor (${label})...`, 'info');
 
     const result = await checkAllChannelsRssParallel();
     

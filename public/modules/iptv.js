@@ -733,8 +733,7 @@ function toggleIptvMute(slotIndex) {
   if (!cur) return;
   const muteBtn = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"] .mute-btn`);
   let isMuted = false;
-  if (cur.type === 'artplayer' && cur.player) { isMuted = cur.player.muted; cur.player.muted = !isMuted; isMuted = !isMuted; }
-  else if (cur.type === 'plyr' && cur.player) { isMuted = cur.player.muted; cur.player.muted = !isMuted; isMuted = !isMuted; }
+  if (cur.type === 'plyr' && cur.player) { isMuted = cur.player.muted; cur.player.muted = !isMuted; isMuted = !isMuted; }
   else if (cur.videoElement) { isMuted = cur.videoElement.muted; cur.videoElement.muted = !isMuted; isMuted = !isMuted; }
   if (muteBtn) { muteBtn.innerHTML = isMuted ? '<i data-lucide="volume-x"></i>' : '<i data-lucide="volume-2"></i>'; lucide.createIcons(); }
 }
@@ -745,8 +744,7 @@ function clearIptvSlot(slotIndex) {
   const cur = iptvPlayers[slotIndex];
   if (cur) {
     try {
-      if (cur.type === 'artplayer' && cur.player) cur.player.destroy();
-      else if (cur.type === 'plyr' && cur.player) cur.player.destroy();
+      if (cur.type === 'plyr' && cur.player) cur.player.destroy();
       if (cur.hls) cur.hls.destroy();
       if (cur.videoElement) { cur.videoElement.pause(); cur.videoElement.src = ''; cur.videoElement.load(); }
     } catch (e) { console.error(`[IPTV] Slot ${slotIndex} temizleme hatası:`, e); }
@@ -790,7 +788,7 @@ function playIptvChannel(slotIndex, streamUrl, displayName) {
   if (muteBtn) { muteBtn.innerHTML = '<i data-lucide="volume-x"></i>'; lucide.createIcons(); }
 
   const localDb = getLocalDb();
-  const playerType = localDb.settings?.playerType || 'plyr';
+  const playerType = 'plyr';
   let hlsInstance = null;
   let playerInstance = null;
 
@@ -805,21 +803,7 @@ function playIptvChannel(slotIndex, streamUrl, displayName) {
     video.src = streamUrl;
   }
 
-  if (playerType === 'artplayer' && typeof Artplayer !== 'undefined') {
-    playerContainer.innerHTML = `<div id="iptv-artplayer-${slotIndex}" style="width:100%;height:100%;"></div>`;
-    playerInstance = new Artplayer({
-      container: `#iptv-artplayer-${slotIndex}`, url: streamUrl,
-      autoplay: true, muted: true, controls: true, setting: false,
-      hotkey: false, pip: false, fullscreen: true, mutex: false, type: 'm3u8',
-      customType: { m3u8: (videoEl, url, art) => {
-        if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-          if (art.hls) art.hls.destroy();
-          const hls = new Hls(); hls.loadSource(url); hls.attachMedia(videoEl);
-          art.hls = hls; hlsInstance = hls; art.on('destroy', () => hls.destroy());
-        } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) { videoEl.src = url; }
-      }}
-    });
-  } else if (playerType === 'plyr' && typeof Plyr !== 'undefined') {
+  if (typeof Plyr !== 'undefined') {
     playerInstance = new Plyr(video, { controls: ['play', 'mute', 'volume', 'fullscreen'], keyboard: { global: false, focused: false } });
   } else {
     playerInstance = video;
@@ -868,11 +852,7 @@ function resetIptvSlotStyles(slotIdx = null) {
 }
 
 function resizeAllArtplayers() {
-  iptvPlayers.forEach(p => {
-    if (p && p.type === 'artplayer' && p.player && typeof p.player.resize === 'function') {
-      setTimeout(() => p.player.resize(), 100);
-    }
-  });
+  // ArtPlayer kaldırıldı — stub korundu (çağrı zinciri için)
 }
 
 function saveIptvState() {

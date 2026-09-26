@@ -130,7 +130,7 @@ export const settingComments = {
 
   playerPreference: '# Video Oynatıcı Tercihi / Video Player Preference\n# Açıklama: Videoların hangi oynatıcı mekanizmasıyla açılacağı.\n# Description: Preferred playback mechanism for opening videos.\n# Seçenekler / Options: system (İşletim sistemi varsayılanı / System default), embedded (Web gömülü oynatıcı / Embedded player)\n# Varsayılan / Default: system',
 
-  playerType: '# Gömülü Oynatıcı Türü / Embedded Player Type\n# Açıklama: Web arayüzü içinde gömülü oynatma seçildiğinde kullanılacak oynatıcı kütüphanesi.\n# Description: Video player engine used when embedded playback is selected.\n# Seçenekler / Options: plyr, artplayer, html5\n# Varsayılan / Default: plyr',
+  playerType: '# Gömülü Oynatıcı Türü / Embedded Player Type\n# Açıklama: Web arayüzü içinde gömülü oynatma seçildiğinde kullanılacak oynatıcı kütüphanesi.\n# Description: Video player engine used when embedded playback is selected.\n# Seçenekler / Options: plyr, html5\n# Varsayılan / Default: plyr',
 
   subtitleColor: '# Altyazı Yazı Rengi / Subtitle Font Color\n# Açıklama: Gömülü video oynatıcıdaki altyazıların metin rengi HEX kodu.\n# Description: HEX color code for subtitle text in the embedded video player.\n# Seçenekler / Options: HEX renk kodu (örn: #ffffff, #ffff00, #00ffcc)\n# Varsayılan / Default: #ffffff',
 
@@ -176,7 +176,7 @@ export const settingComments = {
 
   autoDiskSync: '# Otomatik Disk Senkronizasyonu / Automatic Disk Sync\n# Açıklama: Açılışta yerel diskteki indirme klasörü ile veritabanını eşitleyerek silinmiş dosyaları günceller.\n# Description: Reconciles local download directory with database on startup for deleted files.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
 
-  channelScanMode: '# Kanal Tarama Modu / Channel Scan Mode\n# Açıklama: Kanalların taranma yöntemi (XML RSS ile yıldırım hızında veya yt-dlp ile klasik).\n# Description: Channel scanning method (lightning fast with XML RSS or classic with yt-dlp).\n# Seçenekler / Options: fast (⚡ Hızlı / XML RSS), classic (🐢 Klasik / yt-dlp)\n# Varsayılan / Default: fast',
+  channelScanMode: '# Kanal Tarama Modu / Channel Scan Mode\n# Açıklama: Kanalların taranma yöntemi (XML RSS ile yıldırım hızında ve yt-dlp yedeğiyle).\n# Description: Channel scanning method (lightning fast XML RSS with yt-dlp fallback).\n# Varsayılan / Default: fast',
 
   checkChannelsOnStartup: '# Başlangıçta Kanalları Otomatik Tara / Check Channels on Startup\n# Açıklama: Sunucu ilk açıldığında tüm takip edilen kanalları otomatik denetler.\n# Description: Automatically triggers a full channel scan on application startup.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: false',
 

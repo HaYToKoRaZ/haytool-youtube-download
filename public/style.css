@@ -4282,8 +4282,6 @@ body.light-theme .nav-item.pd-btn {
 
 /* Oynatıcı Container ve Video Elementleri */
 #player-modal .player-modal-body video,
-#player-modal .player-modal-body #embedded-artplayer,
-#player-modal .player-modal-body .artplayer-app,
 #player-modal .player-modal-body .plyr {
   width: 100% !important;
   height: 100% !important;
@@ -4296,7 +4294,7 @@ body.light-theme .nav-item.pd-btn {
   object-fit: contain !important;
 }
 
-/* Dikey Shorts Modunda Plyr ve ArtPlayer Kontrol Uyumluluğu */
+/* Dikey Shorts Modunda Plyr Kontrol Uyumluluğu */
 #player-modal.is-short-player .plyr__controls {
   padding: 4px 8px !important;
   gap: 4px !important;
@@ -4308,13 +4306,6 @@ body.light-theme .nav-item.pd-btn {
 
 #player-modal.is-short-player .plyr__time {
   font-size: 0.72rem !important;
-}
-
-#embedded-artplayer, .artplayer-app {
-  width: 100% !important;
-  height: 100% !important;
-  flex: 1 1 auto !important;
-  align-self: stretch !important;
 }
 
 /* Çerez kilitleme uyarı kutusu */
@@ -4553,22 +4544,28 @@ body.light-theme .nav-item.pd-btn {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 16px 20px;
+  padding: 18px 22px;
   backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
-  transition: all var(--transition-speed) ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease, border-color var(--transition-speed) ease;
+}
+
+.settings-card:hover {
+  border-color: rgba(0, 210, 255, 0.25);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
 }
 
 .settings-section-title {
-  margin-bottom: 12px;
-  color: var(--primary);
+  margin-bottom: 14px;
+  color: var(--accent-primary, #00f2fe);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 1.05rem;
   font-weight: 700;
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 8px;
+  padding-bottom: 10px;
+  letter-spacing: 0.2px;
 }
 
 .settings-card .form-group {
@@ -4757,9 +4754,7 @@ body.light-theme .nav-item.pd-btn {
 .inline-player-body iframe,
 .inline-player-body video,
 .inline-player-body .plyr,
-.inline-player-body .plyr__video-wrapper,
-.inline-player-body #embedded-artplayer,
-.inline-player-body #embedded-artplayer video {
+.inline-player-body .plyr__video-wrapper {
   width: 100% !important;
   height: 100% !important;
   border: none;
@@ -5560,7 +5555,6 @@ body.light-theme .subtitle-translation-overlay {
   opacity: 0;
 }
 
-.slot-player-instance .artplayer,
 .slot-player-instance .plyr {
   width: 100% !important;
   height: 100% !important;

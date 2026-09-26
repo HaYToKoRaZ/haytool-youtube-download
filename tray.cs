@@ -1442,7 +1442,7 @@ namespace HaYTooLTray
                 catch {}
             }
 
-            return "system";
+            return "player";
         }
 
         // Türkçe Açıklama: Seçili çift tıklama / başlatıcı ortam ayarına (player, embedded, system) göre istenen sayfayı açar.
@@ -2224,13 +2224,19 @@ namespace HaYTooLTray
             try
             {
                 RegistryKey rk = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
-                if (start)
+                if (rk != null)
                 {
-                    rk.SetValue("HaYTooL", "\"" + Application.ExecutablePath + "\"");
-                }
-                else
-                {
-                    rk.DeleteValue("HaYTooL", false);
+                    if (start)
+                    {
+                        rk.SetValue("Multimedia HaYTooL", "\"" + Application.ExecutablePath + "\"");
+                        // Eski kısa isimli girdiyi temizle (çift kayıt oluşmaması için)
+                        try { rk.DeleteValue("HaYTooL", false); } catch {}
+                    }
+                    else
+                    {
+                        rk.DeleteValue("Multimedia HaYTooL", false);
+                        rk.DeleteValue("HaYTooL", false);
+                    }
                 }
             }
             catch (Exception ex)
@@ -2245,7 +2251,8 @@ namespace HaYTooLTray
             try
             {
                 RegistryKey rk = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", false);
-                return rk.GetValue("HaYTooL") != null;
+                if (rk == null) return false;
+                return rk.GetValue("Multimedia HaYTooL") != null || rk.GetValue("HaYTooL") != null;
             }
             catch
             {

@@ -3,6 +3,55 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.64] - 2026-09-25
+- **fix(tray & settings): Windows Başlangıç Kaydı Adı ve Tepsi Çift Tıklama Varsayılanı Güncellendi:**
+  - `tray.cs` içerisindeki Windows Kayıt Defteri başlangıç anahtarı adı `"HaYTooL"` yerine tam isim olan `"Multimedia HaYTooL"` olarak güncellendi.
+  - Eski `"HaYTooL"` anahtarının geride kalmaması ve çift başlangıç kaydı oluşturmaması için otomatik temizleme mekanizması eklendi; okuma fonksiyonuna geriye dönük uyumluluk kazandırıldı.
+  - "Tepsi Çift Tıklama Eylemi" (`doubleClickAction`) varsayılan değeri sistem tarayıcısı yerine `player` (HaYTooL-Player) olarak ayarlandı; `tray.cs`, `server/database.js`, `public/app.js` ve `public/modules/settings.js` senkronize edildi.
+
+## [9.8.63] - 2026-09-25
+- **fix(downloader): Windows Uyumlu Karakter Dönüşümü (#) ve Dinamik Klasör Arama Desteği Eklendi:**
+  - YouTube kanallarının isminde yer alan ve Windows dosya sistemi tarafından yasaklanan son nokta (`.`) veya boşluk (` `) karakterleri `yt-dlp` tarafından otomatik olarak `#` işaretine dönüştürüldüğünde (`G.O.R.A.` -> `G.O.R.A#`), indirilen videonun bulunamaması (`Video dosyası bulunamadı`) sorunu giderildi.
+  - `server/services/downloader.js` içerisine hem orijinal kanal adı, hem `#` sterilizasyonlu kanal adı (`sanitizedChannelName`), hem de indirme kök dizini altındaki alt klasörleri kapsayan dinamik hedef dizin tarayıcısı eklendi.
+  - Hata alan `Işınlanma Varsa Direkt Evdeyim | G.O.R.A.` videosunun durumu veritabanında `completed` ve gerçek dosya yoluyla (`G.O.R.A#`) onarıldı.
+
+## [9.8.62] - 2026-09-25
+- **sec(settings): Tüm Ayar Parametreleri İçin Tür Dönüşümü, Sterilizasyon ve Aralık Sınır Korumaları (Min/Max Clamp) Eklendi:**
+  - `server/routes/settings.js` içerisindeki `POST /api/settings` uç noktasına katı veri tipi kontrolleri ve sınırlandırmalar (clamp) getirildi:
+    - Hız limitleri (`downloadSpeedLimit`, `alternativeSpeedLimit`): Negatif değerler engellendi, 0-1.000.000 KB/s aralığına sabitlendi.
+    - Port numarası (`port`): Geçersiz veya 80 altı / 65535 üstü değerler otomatik reddedilip mevcut geçerli porta veya varsayılan 4141'e düşürüldü.
+    - Zaman ve limit değerleri (`channelCheckInterval`, `rssLimit`, `autoDeleteDays`, `historyLimitPerChannel`, `shortsDurationLimit`, `cookieRefreshInterval`, `liveStreamRetryInterval`): Negatif veya uçuk sayılara karşı güvenli mantıksal aralıklara sınırlandı.
+    - Koordinat verileri (`weatherLatitude`, `weatherLongitude`): Enlem (-90..90) ve boylam (-180..180) coğrafi sınırlarıyla korundu.
+    - Boolean alanlar (`useAlternativeSpeed`, `sponsorBlockEnabled`, `checkChannelsOnStartup`, vb.): Katı boolean tür dönüşümü (`=== true || === 'true'`) ile sterilize edildi.
+  - `public/partials/tab-settings.html` içerisindeki varsayılan HTML öznitelikleri (`settings-autodownload`, `settings-hideondelete`) veritabanı varsayılanlarıyla (`defaultDb.settings`) tam senkron hale getirilerek ilk yüklemedeki olası görsel titremeler önlendi.
+
+## [9.8.61] - 2026-09-25
+- **feat(settings): İlk Kez Yükleyen Kullanıcılar İçin Standart İndirme Dizini ve Akıllı Fallback Tanımlandı:**
+  - Uygulamayı ilk kez yükleyen kullanıcılar için varsayılan indirme konumu işletim sisteminin standart indirilenler klasörü (`~/Downloads/HaYTooLYouTubeAutoDownloads` / `C:\Users\<Kullanıcı>\Downloads\HaYTooLYouTubeAutoDownloads`) olarak belirlendi.
+  - `server/database.js` içinde `syncWithIni()` fonksiyonuna akıllı koruma eklendi: INI dosyasında `downloadPath` tanımlanmamış veya boş olsa dahi sistem otomatik olarak kullanıcının `Downloads` klasörüne bağlanır, boş kalarak uygulamanın kilitlenmesi veya dosya yazma hatası vermesi engellenir.
+  - İndirme motoru klasör mevcut değilse otomatik olarak klasör ağacını (`mkdirSync`) hatasız oluşturur.
+
+## [9.8.60] - 2026-09-25
+- **fix(settings): İndirme Klasörü Konumunun (downloadPath) Boşlukla Ezilmesi Engellendi ve Yapılandırma Geri Yüklendi:**
+  - `F:\Downloads\YouTubeAutoDownloads` indirme dizini yolu `configwin.ini` ve `db.json` dosyalarına yeniden yazıldı.
+  - `server/routes/settings.js` içinde `POST /api/settings` uç noktasına koruma eklendi: Eğer gelen istekte `downloadPath` boş metin ise veritabanında tanımlı mevcut geçerli klasör yolunun ezilmesi engellendi.
+  - `public/modules/settings.js` içerisindeki `performAutoSave()` fonksiyonunda, form alanı henüz doldurulmamış veya boş olsa dahi `localDb.settings.downloadPath` değerini koruyan fallback mekanizması eklendi.
+
+## [9.8.59] - 2026-09-25
+- **fix(settings): Başlangıç Taraması ve Port Numarasının Sayfa Yenilendiğinde Kaybolması/Doldurulamaması Sorunu Giderildi:**
+  - `public/app.js` içerisindeki `updateUI()` fonksiyonunda, modülerleştirme sonrası kapsam dışı kalan `settingsDownloadPath`, `settingsQuality`, `settingsChannelCheckInterval`, `settingsAutoDownload`, `settingsShortsDurationLimit` değişkenlerinin tanımsız referans hatası (`ReferenceError`) vererek ayar doldurma akışını erken sonlandırması ve `settings-port` ile `settings-checkonstartup` alanlarının hiç güncellenememesi sorunu `document.getElementById` sorguları güvenli hale getirilerek düzeltildi.
+  - `server/database.js` içinde `checkChannelsOnStartup` ayarının `syncWithIni()` ve `saveSettingsToIni()` fonksiyonlarına entegrasyonu tamamlandı; böylece `configwin.ini` / `configunix.ini` dosyalarında eksiksiz saklanıp sunucu yeniden başladığında veya INI eşitlemesinde kalıcı kalması sağlandı.
+  - `server/routes/settings.js` içinde `POST /api/settings` uç noktasına `port` ve `checkChannelsOnStartup` tipleri için sterilizasyon eklendi; boş metin veya hatalı girdilerin veritabanındaki geçerli portu ezmesi engellendi.
+  - `public/modules/settings.js` içinde `performAutoSave()` fonksiyonundaki port hesaplaması `localDb.settings.port` yedeği ile güçlendirildi.
+  - `public/modules/i18n-apply.js` içinde `label[for="settings-checkonstartup"]` seçicisine `:not(.toggle-label)` filtresi eklenerek anahtar düğmesinin arayüz stilinin bozulması önlendi.
+
+## [9.8.58] - 2026-09-25
+- **fix(settings): Ayarlar Sekmesinde Yanıltıcı Port Değiştirildi Uyarısı ve State Köprüsü Düzeltildi:**
+  - `public/modules/settings.js` içinde `_getState` köprüsünün `app.js` tarafından bağlanmaması nedeniyle `localDb.settings.port` değerinin okunamayıp formdaki mevcut portu yanlışlıkla "değiştirilmiş port" algılaması ve her ayar değişiminde haksız yere *"Port değiştirildi. Yeni portun aktif olması için uygulamayı yeniden başlatın."* uyarısı vermesi sorunu çözüldü.
+  - `app.js` içerisine `initSettings(() => ({ localDb, currentLang }))` çağrısı entegre edilerek `settings.js` modülünün veritabanı durumuna doğrudan erişmesi sağlandı.
+  - `performAutoSave` içinde eski port tespiti ve port uyarısı kontrolü yalnızca port gerçekten değiştirildiğinde çalışacak şekilde güçlendirildi; kaydedilen yeni ayarlar anında yerel `localDb.settings` nesnesi ile senkronize edildi.
+  - "Otomasyon & RSS" ve diğer ayar kartlarındaki toggle, sayı ve seçim alanları artık port uyarısı vermeden anında arka planda kaydedilir.
+
 ## [9.8.57] - 2026-09-24
 - **refactor(modularization): Ayarlar Formu ve Otomatik Kayıt Mantığı Bağımsız ES Modülüne Taşındı (`public/modules/settings.js`):**
   - Atomic Design refaktörü kapsamında `public/app.js` içerisindeki monolitik ayarlar formu dinleyicileri, 50+ parametreli `performAutoSave` ve `triggerAutoSave` fonksiyonları, indirme dizini seçimi (`selectFolderBtn`), klasör doğrulama (`testFolderBtn`) ve Windows Dosya Gezgini'nde açma (`openFolder`) işlevleri `public/modules/settings.js` içerisine taşındı.

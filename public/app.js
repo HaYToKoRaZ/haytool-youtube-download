@@ -13,7 +13,7 @@ import { renderChannelsList, getChannelsRenderSignature } from './components/cha
 // Araçlar ve dosya karşılaştırma alt modülü
 import './modules/tools.js';
 // Ayarlar, yedekleme ve Gist senkronizasyon alt modülü
-import { populateGistFields, checkYouTubeAuthStatus, openTempFolder, openFolder, triggerAutoSave, performAutoSave, initSettingsFormListeners } from './modules/settings.js';
+import { initSettings, populateGistFields, checkYouTubeAuthStatus, openTempFolder, openFolder, triggerAutoSave, performAutoSave, initSettingsFormListeners } from './modules/settings.js';
 window.openTempFolder = openTempFolder;
 window.openFolder = openFolder;
 window.triggerAutoSave = triggerAutoSave;
@@ -256,6 +256,8 @@ let currentLang = 'tr';
 
 // IPTV modülünü başlat ve durum köprüsünü kur
 initIptv(() => ({ localDb, currentLang }));
+// Ayarlar modülünü başlat ve durum köprüsünü kur
+initSettings(() => ({ localDb, currentLang }));
 
 window.isDownloadedBulkDeleteMode = false;
 window.isHistoryBulkHideMode = false;
@@ -1967,6 +1969,7 @@ function updateUI(db) {
 
   // 7. Ayarlar Değerleri (Sadece alan odaklanılmamışsa doldur)
   if (db.settings) {
+    const settingsDownloadPath = document.getElementById('settings-download-path');
     if (settingsDownloadPath && document.activeElement !== settingsDownloadPath) settingsDownloadPath.value = db.settings.downloadPath || '';
     const settingsTempDirType = document.getElementById('settings-temp-dir-type');
     if (settingsTempDirType && document.activeElement !== settingsTempDirType) settingsTempDirType.value = db.settings.tempDirType || 'system';
@@ -1989,9 +1992,13 @@ function updateUI(db) {
     if (typeof window.togglePythonSettingsVisibility === 'function') {
       window.togglePythonSettingsVisibility();
     }
+    const settingsQuality = document.getElementById('settings-quality');
     if (settingsQuality && document.activeElement !== settingsQuality) settingsQuality.value = db.settings.quality || 'best';
+    const settingsChannelCheckInterval = document.getElementById('settings-channelcheckinterval');
     if (settingsChannelCheckInterval && document.activeElement !== settingsChannelCheckInterval) settingsChannelCheckInterval.value = db.settings.channelCheckInterval || 60;
+    const settingsAutoDownload = document.getElementById('settings-autodownload');
     if (settingsAutoDownload && document.activeElement !== settingsAutoDownload) settingsAutoDownload.checked = !!db.settings.autoDownload;
+    const settingsShortsDurationLimit = document.getElementById('settings-shortsdurationlimit');
     if (settingsShortsDurationLimit && document.activeElement !== settingsShortsDurationLimit) settingsShortsDurationLimit.value = db.settings.shortsDurationLimit || 180;
 
     const settingsMergeType = document.getElementById('settings-mergetype');
@@ -2083,7 +2090,7 @@ function updateUI(db) {
 
     const settingsDoubleClickAction = document.getElementById('settings-doubleclickaction');
     if (settingsDoubleClickAction && document.activeElement !== settingsDoubleClickAction) {
-      settingsDoubleClickAction.value = db.settings.doubleClickAction || 'system';
+      settingsDoubleClickAction.value = db.settings.doubleClickAction || 'player';
     }
 
     const settingsSubtitleColor = document.getElementById('settings-subtitle-color');

@@ -185,7 +185,7 @@ export function applyLanguage(lang) {
   elQuery('label[for="settings-shownotifications"] + span', 'desc_show_notifications');
   elQuery('label[for="settings-autoopenbrowser"]:not(.toggle-label)', 'label_auto_open_browser');
   elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
-  elQuery('label[for="settings-checkonstartup"]', 'label_check_on_startup');
+  elQuery('label[for="settings-checkonstartup"]:not(.toggle-label)', 'label_check_on_startup');
   elQuery('label[for="settings-checkonstartup"] + span', 'desc_check_on_startup');
   elQuery('label[for="settings-discordrpc"]:not(.toggle-label)', 'label_discord_rpc');
   elQuery('label[for="settings-discordrpc"] + span', 'desc_discord_rpc');
@@ -291,7 +291,7 @@ export function applyLanguage(lang) {
   elQuery('label[for="settings-shownotifications"] + span', 'desc_show_notifications');
   elQuery('label[for="settings-autoopenbrowser"]:not(.toggle-label)', 'label_auto_open_browser');
   elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
-  elQuery('label[for="settings-checkonstartup"]', 'label_check_on_startup');
+  elQuery('label[for="settings-checkonstartup"]:not(.toggle-label)', 'label_check_on_startup');
   elQuery('label[for="settings-checkonstartup"] + span', 'desc_check_on_startup');
   elQuery('label[for="settings-discordrpc"]:not(.toggle-label)', 'label_discord_rpc');
   elQuery('label[for="settings-discordrpc"] + span', 'desc_discord_rpc');
@@ -326,12 +326,6 @@ export function applyLanguage(lang) {
   el('opt-doubleclick-embedded', 'opt_doubleclick_embedded');
   el('opt-doubleclick-player', 'opt_doubleclick_player');
   
-  // Oynatıcı tipi ve Çerez kilitleme uyarısı çevirileri
-  el('label-settings-player-type', 'label_settings_player_type');
-  el('desc-settings-player-type', 'desc_settings_player_type');
-  el('opt-player-plyr', 'opt_player_plyr');
-  el('opt-player-artplayer', 'opt_player_artplayer');
-  el('opt-player-html5', 'opt_player_html5');
   el('cookie-warning-title', 'cookie_warning_title');
   el('cookie-warning-desc', 'cookie_warning_desc');
 

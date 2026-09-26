@@ -1,16 +1,19 @@
 # Codebase Memory Ignore Rules for HaYTooL YT Downloader
 
-# Anayasa Yasaklı Alanı ve Yerel Kılavuzlar
+# Anayasa Yasaklı Alanı, Yerel Kılavuzlar ve Editör Ayarları
 0nogithub/
 yapilacaklar.txt
+.github/
+.vscode/
 
-# Bağımlılıklar ve Harici Paketler
+# Bağımlılıklar, Kütüphaneler ve Minified Dosyalar
 node_modules/
+package-lock.json
 *.min.js
 *.min.css
 public/*.min.js
 public/*.min.css
-public/artplayer.js
+public/plyr.svg
 
 # Derleme Çıktıları ve Geçici Klasörler
 dist/
@@ -19,14 +22,14 @@ Temp/
 scratch/
 logs/
 
-# .NET / C# Derleme Çıktıları ve Araçları
+# .NET / C# Derleme Çıktıları ve Proje Varlıkları
 HaYTooLPlayer/bin/
 HaYTooLPlayer/obj/
 HaYTooLPlayer/.vs/
 HaYTooLPlayer/packages/
-HaYTooLPlayer/HaYTooLPlayer.csproj.user
+HaYTooLPlayer/*.user
 
-# Web Sitesi (Ayrı Dal / Dal Yönetimi)
+# Web Sitesi (GitHub Pages Dalı)
 websites/
 
 # Büyük Binary Araçlar ve Çalıştırılabilir Dosyalar
@@ -45,32 +48,34 @@ Microsoft.Web.WebView2.*.xml
 db.json
 db.json*
 *.json.bak
+*.tmp
 cookies.txt
 iptv_cache.json
 mutex_lock.txt
 
 # Arşiv ve Sıkıştırılmış Dosyalar
+*.7z
 *.zip
 *.gz
-*.7z
 *.tar
 *.rar
 
-# Medya, Görsel ve Büyük Statik Varlıklar
+# Medya, İkon, Bayrak ve Görseller
+public/flags/
 *.ico
 *.png
 *.jpg
 *.jpeg
 *.gif
 *.webp
+*.svg
 *.mp4
 *.m4a
 *.webm
 *.part
 *.ytdl
 
-# Log Dosyaları ve Geçici Dosyalar
+# Log ve Yedek Dosyaları
 *.log
-*.tmp
 *.bak
 [Dd]esktop.ini
