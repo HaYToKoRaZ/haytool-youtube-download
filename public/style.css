@@ -9850,6 +9850,45 @@ body.light-theme .video-card-unlisted-tag {
   border-color: #c084fc;
 }
 
+/* Açık Tema: Yarım Kalanlar filtresi ve sayı rozeti okunabilirlik düzeltmesi */
+body.light-theme #downloaded-filter-resume-btn {
+  background: rgba(124, 58, 237, 0.06);
+  border-color: rgba(124, 58, 237, 0.3);
+  color: #3b0764;
+}
+
+body.light-theme #downloaded-filter-resume-btn:hover {
+  background: rgba(124, 58, 237, 0.14);
+  border-color: rgba(124, 58, 237, 0.55);
+  color: #5b21b6;
+}
+
+body.light-theme #downloaded-filter-resume-btn.active {
+  background: rgba(124, 58, 237, 0.18) !important;
+  border-color: #7c3aed !important;
+  color: #3b0764 !important;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.3);
+}
+
+body.light-theme #downloaded-filter-resume-btn i,
+body.light-theme #downloaded-filter-resume-btn svg,
+body.light-theme #downloaded-filter-resume-btn.active i,
+body.light-theme #downloaded-filter-resume-btn.active svg {
+  color: #6d28d9 !important;
+}
+
+body.light-theme #badge-resume-count {
+  background: #6d28d9;
+  color: #ffffff;
+  border-color: #5b21b6;
+}
+
+body.light-theme #downloaded-filter-resume-btn.active #badge-resume-count {
+  background: #4c1d95;
+  color: #ffffff;
+  border-color: #3b0764;
+}
+
 /* ==========================================================================
    Downloader & Araçlar Sekmeleri (UX/UI Tasarım Standardı Entegrasyonu)
    ========================================================================== */

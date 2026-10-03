@@ -3,6 +3,13 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [10.1] - 2026-10-03
+- **fix(ui): Açık Tema "Yarım Kalanlar" Filtre Sayı Rozeti Okunabilirliği:**
+  - `#badge-resume-count` rozeti açık temada arka plana çok yakın açık mor tonundaydı; koyu mor zemin + beyaz yazı ile okunur hale getirildi. Buton metni ve ikon renkleri de açık temaya uyarlandı.
+- **perf(release): GitHub Actions Windows ZIP Boyutu Küçültme:**
+  - Kullanılmayan eski self-contained oynatıcı çıktısı `bin/win-x64/` (141 MB, 408 dosya), `*.pdb`, `Microsoft.Web.WebView2.*.xml`, geçici `*.tmp` ve CI'ın zaten indirdiği `yt-dlp` ikilileri git takibinden çıkarıldı (`git rm --cached`; yerel dosyalar yerinde kalır) ve `.gitignore`'a eklendi.
+  - Uygulamanın çalışması için gerekli `bin/HaYTool-Backend.exe` ve `bin/HaYTooLPlayer.*` dosyaları repoda tutulmaya devam eder. `ffprobe.exe` video çözünürlük analizinde kullanıldığı için pakette kalır.
+
 ## [10.0] - 2026-10-03
 - **feat(core & release): Sürüm Numaralandırması 2 Haneli Standart Sisteme Geçişi (v10.0 Milestone):**
   - **Sürüm Numaralandırması:** Sürüm semantiği 3 haneli mikro-yapıdan (`9.8.x`), kullanıcı isteğiyle sadeleştirilmiş 2 haneli standart düzene (`10.0`) yükseltildi.
