@@ -3,6 +3,12 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [11.0.1] - 2026-10-03
+- **fix(disk): Temp sürücüsü dolu uyarısı eklendi:**
+  - `server/services/diskGuard.js`: Temp boş alan denetimi (varsayılan eşik 500 MB, `minTempFreeMB` ayarıyla değiştirilebilir) ve yt-dlp PyInstaller açılış hatası tanıma.
+  - İndirme başlamadan önce kontrol; disk doluysa kuyruk duraklatılır ve anlaşılır hata gösterilir.
+  - `public/modules/diskWarning.js`: 7 dilde kapatılabilir uyarı bannerı ve Ayarlar'daki yt-dlp sürüm alanında 'DİSK DOLU' göstergesi.
+
 ## [11.0] - 2026-10-03
 - **feat(release): Sürüm 11.0.0 Milestone Sürümüne Yükseltildi:**
   - `public/modules/tools.js` dosyasındaki `ReferenceError: cats` hatası giderildi, kategori yönetimi ve filtreleme hatasız hale getirildi.

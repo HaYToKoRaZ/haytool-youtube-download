@@ -31,6 +31,8 @@ import { checkFfmpegStatus, openFfmpegModal, closeFfmpegModal, updateFfmpegInsta
 import { updateDiskSpace, triggerManualDiskSync, initSystemStatusEvents } from './modules/systemStatus.js';
 window.updateDiskSpace = updateDiskSpace;
 window.triggerManualDiskSync = triggerManualDiskSync;
+// Temp disk doluluk uyarı alt modülü
+import { checkTempSpace, showDiskWarning } from './modules/diskWarning.js';
 // Aktif DNS tespit aracı alt modülü
 import { detectActiveDns, openDnsLookupModal, closeDnsLookupModal, copyDnsInfo, initDnsLookupEvents } from './modules/dnsLookup.js';
 window.detectActiveDns = detectActiveDns;
@@ -652,6 +654,11 @@ function connectSSE() {
   eventSource.addEventListener('channel_scan_progress', (e) => {
     const data = JSON.parse(e.data);
     updateScanProgressToast(data);
+  });
+
+  // Temp sürücüsü dolu uyarısı (yt-dlp açılamaz)
+  eventSource.addEventListener('disk_warning', (e) => {
+    showDiskWarning(JSON.parse(e.data));
   });
 
   // Sistem Log Bildirimi (Toast ve Masaüstü Bildirimi)
@@ -6190,6 +6197,7 @@ connectSSE();
 initCustomSelect();
 checkFfmpegStatus();
 updateDiskSpace();
+checkTempSpace();
 updateWeatherBadge();
 loadAppVersion();
 checkApplicationUpdates();

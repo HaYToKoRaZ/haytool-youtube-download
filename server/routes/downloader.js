@@ -8,6 +8,7 @@ import { readDb } from '../database.js';
 import { fetchVideoDuration, resolveMissingDurations } from '../services/rss.js';
 import { addTerminalLog } from '../services/sse.js';
 import { localhostOnly } from '../middleware/security.js';
+import { getTempSpaceInfo, isTempExtractionError } from '../services/diskGuard.js';
 
 export const router = express.Router();
 
@@ -222,6 +223,11 @@ router.post('/resolve-playlist', localhostOnly, (req, res) => {
   });
 });
 
+// Türkçe Açıklama: Temp sürücüsünün boş alan durumunu döner (yt-dlp açılışı için gerekli); arayüz uyarı bannerı bunu kullanır.
+router.get('/temp-space', localhostOnly, (req, res) => {
+  res.json({ success: true, ...getTempSpaceInfo() });
+});
+
 // Türkçe Açıklama: Mevcut yt-dlp sürümünü, kanalını (nightly/stable) ve GitHub üzerindeki en güncel sürümleri sorgular ve döner.
 /**
   * Gömülü yt-dlp motorunun yerel sürümünü, kanalını ve uzak sürümleri döndürür.
@@ -233,6 +239,8 @@ router.get('/ytdlp-version', localhostOnly, (req, res) => {
   execYtdlp(`"${ytdlpPath}" --version`, { timeout: 10000 }, async (err, stdout, stderr) => {
     if (err && !fs.existsSync(ytdlpPath)) {
       return res.json({ version: 'Yüklü Değil', channel: 'none', latestNightly: null, latestStable: null, recentNightly: [], recentStable: [] });
+    } else if (err && (isTempExtractionError(stderr) || isTempExtractionError(err.message))) {
+      return res.json({ version: 'DISK_FULL', channel: 'none', diskFull: true, tempInfo: getTempSpaceInfo(), latestNightly: null, latestStable: null, recentNightly: [], recentStable: [] });
     } else if (err) {
       return res.status(500).json({ error: 'yt-dlp sürümü alınamadı: ' + (err.message || '') });
     }

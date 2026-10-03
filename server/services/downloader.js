@@ -14,6 +14,7 @@ import {
 import { broadcast, addTerminalLog } from './sse.js';
 import { ytdlpPath, testFfmpegSync, getFfmpegPath, getLocalTempDir, getStagingTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp, getVideoResolution } from './paths.js';
 import { getWorkingProxy, rotateProxy } from './proxyManager.js';
+import { getTempSpaceInfo, isTempExtractionError, buildDiskFullMessage, DISK_FULL_ERROR_CODE } from './diskGuard.js';
 
 // Türkçe Açıklama: İndirmeleri gerçekleştiren yt-dlp motorunun varlığını kontrol eder, yoksa GitHub üzerinden otomatik indirir.
 export async function ensureYtdlp() {
@@ -570,6 +571,20 @@ export class DownloadQueue {
 
     const db = readDb();
     const settings = db.settings;
+
+    // Türkçe Açıklama: Temp sürücüsü doluysa yt-dlp açılamaz; indirmeyi başlatmadan uyar ve kuyruğu duraklat (toplu hata zincirini önler).
+    const tempInfo = getTempSpaceInfo();
+    if (tempInfo.low) {
+      const diskMsg = buildDiskFullMessage(settings.lang, tempInfo);
+      updateHistoryItem(video.id, { status: 'failed', progress: 0, speed: '', eta: '', error: diskMsg, errorCode: DISK_FULL_ERROR_CODE });
+      this.isPaused = true;
+      this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+      this.notifyTrayState();
+      addTerminalLog(`[Kuyruk] ${diskMsg}`, 'error');
+      broadcast('disk_warning', tempInfo);
+      broadcast('db_update', readDb());
+      return;
+    }
 
     updateHistoryItem(video.id, { status: 'downloading', progress: 0 });
     addTerminalLog(`[Kuyruk] "${video.title}" videosu için indirme süreci başlatıldı.`, 'info');
@@ -1193,6 +1208,12 @@ export class DownloadQueue {
       } else {
         // Gerçek hata satırları toplandıysa onları kullan; yoksa ham stderr'e düş (güvenli geri dönüş)
         let userFriendlyError = realErrorLines.length > 0 ? realErrorLines.join('\n') : errorOutput.trim();
+        if (isTempExtractionError(userFriendlyError) || isTempExtractionError(errorOutput)) {
+          const diskInfo = getTempSpaceInfo();
+          userFriendlyError = buildDiskFullMessage(settings.lang, diskInfo);
+          this.isPaused = true;
+          broadcast('disk_warning', diskInfo);
+        }
         if (userFriendlyError.includes('Could not copy Chrome cookie database') || userFriendlyError.includes('Could not copy Edge cookie database')) {
           userFriendlyError = `Tarayıcı çerez dosyası kilitli! Edge/Chrome tarayıcınız arka planda çalışmaya devam ediyor olabilir. Lütfen tarayıcınızı tamamen kapatıp tekrar deneyin veya Ayarlar sekmesinden çerez seçeneğini 'Çerez Kullanma (Sadece Açık Videolar)' olarak ayarlayın.`;
         } else if ((userFriendlyError.includes('Could not find browser') || userFriendlyError.includes('cookie')) && !/no longer valid|cookies? are? (no longer valid|expired)|WARNING:/i.test(userFriendlyError)) {

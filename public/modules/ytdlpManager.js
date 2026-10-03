@@ -14,6 +14,7 @@
 
 import { translations } from '../utils/i18n.js';
 import { showToast } from '../components/toast.js';
+import { showDiskWarning } from './diskWarning.js';
 
 /**
  * yt-dlp motor sürümünü ve mevcut tüm sürümleri API'den sorgular, arayüzü günceller.
@@ -28,6 +29,15 @@ export async function fetchYtdlpVersion() {
   try {
     const res = await fetch('/api/downloader/ytdlp-version');
     const data = await res.json();
+
+    if (data.diskFull) {
+      const lang = window.localDb?.settings?.lang || localStorage.getItem('haytool_user_lang') || 'tr';
+      const t = translations[lang] || translations.tr;
+      versionEl.textContent = t.ytdlp_disk_full || 'DISK FULL';
+      if (latestEl) latestEl.textContent = '-';
+      showDiskWarning(data.tempInfo);
+      return;
+    }
 
     // Yerel Sürüm
     if (data.version) {
