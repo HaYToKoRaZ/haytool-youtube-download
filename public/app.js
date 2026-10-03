@@ -4567,19 +4567,22 @@ function renderDownloadedPlaylist(currentVideoId) {
       </div>
       <div class="playlist-item-details">
         <h5 class="playlist-item-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h5>
-        <div class="playlist-item-channel" style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(item.channelName || '')} • ${item.fileSize || '-- MB'} • ${formatDate(item.publishedAt || item.downloadedAt)}">
-          ${escapeHtml(item.channelName || '')} • ${item.fileSize || '-- MB'} • ${formatDate(item.publishedAt || item.downloadedAt)}
+        <div class="playlist-item-channel" title="${escapeHtml(item.channelName || '')} • ${item.fileSize || '-- MB'} • ${formatDate(item.publishedAt || item.downloadedAt)}">
+          ${item.channelId ? `<img src="/api/channels/${item.channelId}/avatar" class="playlist-item-channel-avatar" onerror="this.style.display='none';" alt="" />` : ''}
+          <span class="playlist-item-channel-name">${escapeHtml(item.channelName || '')}</span>
+          <span class="playlist-item-meta-sep">•</span>
+          <span class="playlist-item-meta-info">${item.fileSize || '-- MB'} • ${formatDate(item.publishedAt || item.downloadedAt)}</span>
         </div>
       </div>
       <div class="playlist-item-actions">
         <button class="playlist-item-action-btn btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}')" title="${currentLang === 'en' ? 'Open on YouTube' : 'YouTube\'da Aç'}" aria-label="${currentLang === 'en' ? 'Open on YouTube' : 'YouTube\'da Aç'}">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z"/></svg>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z"/></svg>
         </button>
         <button class="playlist-item-action-btn btn-action-folder" onclick="event.stopPropagation(); window.openVideoLocation('${item.id}', '${encodeURIComponent(item.filePath || '')}', '${encodeURIComponent(item.channelName || '')}')" title="${currentLang === 'en' ? 'Open Video Location' : 'Video Konumunu Aç'}" aria-label="${currentLang === 'en' ? 'Open Video Location' : 'Video Konumunu Aç'}">
-          <i data-lucide="folder-open" style="width: 14px; height: 14px;"></i>
+          <i data-lucide="folder-open" style="width: 13px; height: 13px;"></i>
         </button>
         <button class="playlist-item-delete-btn" onclick="event.stopPropagation(); (window.showDeleteModal || showDeleteModal)('${item.id}')" title="${currentLang === 'en' ? 'Delete Video' : 'Videoyu Sil'}" aria-label="${currentLang === 'en' ? 'Delete Video' : 'Videoyu Sil'}">
-          <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+          <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
         </button>
       </div>
     `;

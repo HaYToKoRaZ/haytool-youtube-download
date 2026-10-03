@@ -6230,8 +6230,9 @@ body.light-theme .inline-player-sidebar {
 /* Playlist Items */
 .playlist-item {
   display: flex;
+  align-items: center;
   gap: 10px;
-  padding: 8px;
+  padding: 6px 8px;
   border-radius: 10px;
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.02);
@@ -6255,12 +6256,13 @@ body.light-theme .inline-player-sidebar {
 
 .playlist-item-thumbnail-wrapper {
   position: relative;
-  width: 100px;
-  height: 56px;
+  width: 96px;
+  height: 54px;
   flex-shrink: 0;
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--border-color);
+  align-self: center;
 }
 
 .playlist-item-thumbnail {
@@ -6289,9 +6291,11 @@ body.light-theme .inline-player-sidebar {
 .playlist-item-details {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 3px;
   overflow: hidden;
   flex: 1;
+  min-width: 0;
 }
 
 .playlist-item-title {
@@ -6309,10 +6313,47 @@ body.light-theme .inline-player-sidebar {
 .playlist-item-channel {
   font-size: 0.72rem;
   color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
+  margin-top: 1px;
+}
+
+.playlist-item-channel-avatar {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+body.light-theme .playlist-item-channel-avatar {
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.playlist-item-channel-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playlist-item-meta-sep {
+  opacity: 0.5;
+  font-size: 0.68rem;
+}
+
+.playlist-item-meta-info {
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Yan liste aksiyon sütunu: YouTube'da Aç / Video Konumunu Aç / Sil (üstten alta) */
@@ -6321,9 +6362,9 @@ body.light-theme .inline-player-sidebar {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   flex-shrink: 0;
-  margin-left: 4px;
+  margin-left: 2px;
 }
 
 .playlist-item-action-btn,
@@ -6331,12 +6372,12 @@ body.light-theme .inline-player-sidebar {
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  min-height: 26px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
   padding: 0;
-  border-radius: 6px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;

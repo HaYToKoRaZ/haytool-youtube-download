@@ -3,6 +3,14 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [10.7] - 2026-10-03
+- **feat(ui/ux): İndirilenler Yerleşik Oynatıcı Yan Listesi (`.inline-player-sidebar`) Kompaktlaştırıldı & Kanal Logosu Eklendi:**
+  - `.playlist-item` dikey yüksekliği ve iç dolgusu optimize edildi (`align-items: center`, `padding: 6px 8px`).
+  - Thumbnail boyutu ideal 16:9 oranına çekildi (`96px x 54px`), dikeyde ortalanarak video resimlerinin altındaki gereksiz boşluk kaldırıldı.
+  - Video başlığı ve kanal/meta bilgileri arasına `gap: 3px` ile dikey ortalama (`justify-content: center`) eklendi, boşluklar sıkılaştırıldı.
+  - Kanal isminin soluna kütüphane kartlarındaki gibi 15x15px yuvarlak kanal avatarı (`.playlist-item-channel-avatar`) entegre edildi; kanal adı ve dosya boyutu/tarih bilgisi zarif bir şekilde ayrıştırıldı.
+  - Sağdaki 3 aksiyon butonu (YouTube'da Aç, Video Konumunu Aç, Sil) 24x24px kompakt ölçülere ve 3px aralığa kavuşturularak kartın dikey dengesi kusursuzlaştırıldı.
+
 ## [10.6] - 2026-10-03
 - **fix(ui): Hava Durumu Rozetine Tıklayınca Açılan Detay Popover'ı Onarıldı:**
   - `.status-badge` için eklenen `overflow: hidden` kuralı, `#badge-weather` içine gömülü açılır hava durumu detay kartının (`.weather-popover`) kapsayıcı sınırları tarafından kesilmesine sebep oluyordu.
