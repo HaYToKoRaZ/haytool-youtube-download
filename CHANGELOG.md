@@ -3,11 +3,11 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
-## [10.10] - 2026-10-03
-- **fix(core/render): Kütüphane ve İndirilenler Video Kartlarının Render Edilmeme Sorunu Çözüldü (ReferenceError cats):**
-  - `public/modules/tools.js` dosyasındaki `loadCategoriesToTools` fonksiyonunda tanımsız olan `cats` değişkeni (`const cats = categories || localDb?.categories || [];`) tanımlanarak tarayıcıda oluşan `ReferenceError: cats is not defined` kritik çalışma zamanı hatası tamamen giderildi.
-  - `public/app.js` içerisindeki `loadCategoriesToTools` çağrısı `try/catch` koruması altına alınarak, araçlar sekmesindeki hiçbir hatanın ana UI ve video grid (`renderVideoGrid`) akışını kesintiye uğratmaması sağlandı.
-  - Kütüphane (`tab-history`) ve İndirilenler (`tab-downloaded`) sekmelerinde video kartlarının sayfa açılışında anında, eksiksiz ve pürüzsüz yüklenmesi temin edildi.
+## [11.0] - 2026-10-03
+- **feat(release): Sürüm 11.0.0 Milestone Sürümüne Yükseltildi:**
+  - `public/modules/tools.js` dosyasındaki `ReferenceError: cats` hatası giderildi, kategori yönetimi ve filtreleme hatasız hale getirildi.
+  - Video kartlarının (`renderVideoGrid`) kütüphane ve indirilenler sekmelerinde ilk yükleme ve sekme geçişlerinde kararlı ve hatasız render edilmesi sağlandı.
+  - İndirilenler sekmesi hızlı kategori hap butonları (quick pills) ve Araçlar sekmesindeki sabitleme (pin/pin-off) yönetimi v11.0 ile tam stabiliteye ulaştırıldı.
 
 ## [10.9] - 2026-10-03
 - **fix(ui/core): Video Kartlarının Çizilmesini Engelleyen Filtre Hatası Giderildi:**
