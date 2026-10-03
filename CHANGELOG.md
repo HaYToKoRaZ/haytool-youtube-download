@@ -3,6 +3,11 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [10.0] - 2026-10-03
+- **feat(core & release): Sürüm Numaralandırması 2 Haneli Standart Sisteme Geçişi (v10.0 Milestone):**
+  - **Sürüm Numaralandırması:** Sürüm semantiği 3 haneli mikro-yapıdan (`9.8.x`), kullanıcı isteğiyle sadeleştirilmiş 2 haneli standart düzene (`10.0`) yükseltildi.
+  - **Eşzamanlı Güncelleme:** `package.json`, `public/partials/header.html`, `README.md`, `CHANGELOG.md` ve tanıtım web sitesi mockup etiketleri `10.0` sürümüyle tam senkronize edildi.
+
 ## [9.8.100] - 2026-10-03
 - **feat(web & design): xiaopu-ai/web-design Disiplini ile Tanıtım Web Sitesi Modernizasyonu:**
   - **Şartname (DESIGN.md):** `websites/DESIGN.md` oluşturularak "spec-first, code-second" yaklaşımıyla sitenin görsel ve teknik standartları (renk tokenları, cam moru, obsidian palet, tipografi, mikro-animasyonlar) belgelendi.
