@@ -3,6 +3,14 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [10.4] - 2026-10-03
+- **feat(ui/ux): Üst Bar Eylem Butonları (`.topbar-actions .btn-icon-only`) Tam Uyumlu Hale Getirildi:**
+  - Hızlı tema değiştirme butonu ile yanındaki 3 buton (İndirilenler Klasörünü Aç `#open-downloads-folder-btn`, Ayarlar `#header-settings-btn`, Kanalları Şimdi Denetle `#sync-now-btn`) aynı görsel tasarım diline kavuşturuldu.
+  - Tüm butonlar 36x36px kusursuz yuvarlak hatlara (`border-radius: 50%`), aktif temanın `--primary` / `--secondary` dinamik gradyan zeminine, cam derinliği ve üst ışık vurgusuna (`inset 0 1px 0`) sahip oldu.
+  - Hover durumunda ışık süpürmesi (`::after`), hafif büyüme/yükselme ve her butona özel anlamlı mikro-etkileşimler eklendi (Klasör için -12° eğilme, Tema için 18° eğilme, Ayarlar için 60° dişli dönüşü, Denetleme için 180° sync dönüşü).
+  - Açık tema (canlı mor/mavi gradyan + beyaz ikon), Matrix teması (siber koyu yeşil mürekkep ikon + neon yeşil gradyan), Discord ve YouTube temalarında kusursuz kontrast ve erişilebilirlik sağlandı.
+  - Kanal denetleme işlemi sırasında (`#sync-now-btn:disabled`) otomatik akıcı dönüş animasyonu (`topbarSpin`) entegre edildi.
+
 ## [10.3] - 2026-10-03
 - **feat(ui/ux): Hızlı Tema Butonu (`#quick-theme-toggle-btn`) Yeniden Tasarlandı:**
   - Buton artık aktif temanın `--primary` / `--secondary` renklerinden otomatik oluşan gradyan bir disk (renk örneği); Koyu (mor→camgöbeği), Açık (mor→gök mavisi), Matrix (yeşil), Discord (blurple→yeşil), YouTube (kırmızı) temalarında kendi rengiyle görünür ve mevcut temayı bir bakışta gösterir.
