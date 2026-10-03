@@ -31,7 +31,42 @@
       </div>
     </div>
   </div>
-
+  <!-- Otomatik Silme Toplu Onay ve Erteleme Modalı -->
+  <div id="auto-delete-confirm-modal" class="modal hidden" style="z-index: 10005;">
+    <div class="modal-content card" style="max-width: 650px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+        <h3 style="display: flex; align-items: center; gap: 8px; color: var(--accent-red); margin: 0; font-size: 1.15rem;">
+          <i data-lucide="alert-triangle"></i>
+          <span id="auto-delete-modal-title">Süresi Dolan Videolar Silinecek</span>
+        </h3>
+        <button class="modal-close-btn" id="close-auto-delete-modal-btn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 16px 0; overflow-y: auto; flex: 1;">
+        <p id="auto-delete-modal-desc" style="color: var(--text-color); margin-bottom: 14px; font-size: 0.9rem; line-height: 1.4;">
+          Aşağıdaki videoların otomatik silme süresi doldu. Diskten kalıcı olarak silinmesini onaylıyor musunuz?
+        </p>
+        <div id="auto-delete-pending-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; padding-right: 4px;">
+          <!-- JS ile doldurulacak video kartları -->
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 6px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;" id="lbl-postpone-title">Ertele:</span>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-1" onclick="postponeAutoDelete(1)" title="1 Gün Ertele">1 Gün</button>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-2" onclick="postponeAutoDelete(2)" style="background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.3); color: var(--accent-primary); font-weight: 600;" title="2 Gün Ertele (Varsayılan)">2 Gün</button>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-3" onclick="postponeAutoDelete(3)" title="3 Gün Ertele">3 Gün</button>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-primary" id="btn-confirm-auto-delete-all" onclick="confirmAutoDeleteAll()" style="background: linear-gradient(135deg, var(--accent-red), #ff4d88); box-shadow: 0 4px 15px var(--accent-red-glow);">
+            <i data-lucide="trash-2"></i>
+            <span id="btn-text-confirm-auto-delete">Tümünü Şimdi Sil</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
   <!-- Gömülü Oynatıcı Modalı (Floating PiP Player) -->
   <div id="player-modal" class="modal hidden">
     <div class="modal-content card player-modal-content">

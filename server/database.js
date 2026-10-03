@@ -120,6 +120,7 @@ export const defaultDb = {
     showShorts: false,
     rssLimit: 15,
     autoDeleteDays: 0,
+    autoDeleteRequireConfirmation: true,
     theme: 'dark',
     shortsMigrationDone: true,
     cookieDefaultMigrationDone: true,
@@ -146,6 +147,7 @@ export const defaultDb = {
     discordRpcEnabled: false,
     doubleClickAction: 'player',
     tempDirType: 'system',
+    useTempDownloadStaging: false,
     durationFetchMethod: 'auto',
     ytdlpRunMode: 'exe',
     liveStreamHandling: 'instant_retry',
@@ -161,6 +163,8 @@ export const defaultDb = {
     autoCookieRefresh: true,
     cookieRefreshInterval: 30,
     checkChannelsOnStartup: false,
+    checkYtdlpOnStartup: false,
+    ytdlpStartupTarget: 'nightly',
     enableAltThumbnailsHover: true,
     githubToken: '',
     githubGistId: '',
@@ -172,7 +176,8 @@ export const defaultDb = {
     weatherLongitude: 28.9784,
     weatherUnit: 'celsius',
     queueViewMode: 'table'
-  }
+  },
+  deletedVideos: []
 };
 
 let cachedDb = null;
@@ -671,6 +676,11 @@ export function syncWithIni(db) {
         db.settings.autoDeleteDays = parseInt(autoDeleteDays, 10) || 0;
       }
 
+      const autoDeleteRequireConfirmation = getCaseInsensitiveKey(settingsSection, 'autoDeleteRequireConfirmation');
+      if (autoDeleteRequireConfirmation !== undefined) {
+        db.settings.autoDeleteRequireConfirmation = autoDeleteRequireConfirmation === true || autoDeleteRequireConfirmation === 'true';
+      }
+
       const downloadSpeedLimit = getCaseInsensitiveKey(settingsSection, 'downloadSpeedLimit');
       if (downloadSpeedLimit !== undefined) {
         db.settings.downloadSpeedLimit = parseInt(downloadSpeedLimit, 10) || 0;
@@ -747,6 +757,16 @@ export function syncWithIni(db) {
         db.settings.checkChannelsOnStartup = checkChannelsOnStartup === 'true';
       }
 
+      const checkYtdlpOnStartup = getCaseInsensitiveKey(settingsSection, 'checkYtdlpOnStartup');
+      if (checkYtdlpOnStartup !== undefined) {
+        db.settings.checkYtdlpOnStartup = checkYtdlpOnStartup === 'true';
+      }
+
+      const ytdlpStartupTarget = getCaseInsensitiveKey(settingsSection, 'ytdlpStartupTarget');
+      if (ytdlpStartupTarget !== undefined && ytdlpStartupTarget.trim()) {
+        db.settings.ytdlpStartupTarget = ytdlpStartupTarget.trim();
+      }
+
       const sponsorBlockEnabled = getCaseInsensitiveKey(settingsSection, 'sponsorBlockEnabled');
       if (sponsorBlockEnabled !== undefined) {
         db.settings.sponsorBlockEnabled = sponsorBlockEnabled === 'true';
@@ -760,6 +780,11 @@ export function syncWithIni(db) {
       const doubleClickAction = getCaseInsensitiveKey(settingsSection, 'doubleClickAction');
       if (doubleClickAction !== undefined) {
         db.settings.doubleClickAction = doubleClickAction;
+      }
+
+      const useTempDownloadStaging = getCaseInsensitiveKey(settingsSection, 'useTempDownloadStaging');
+      if (useTempDownloadStaging !== undefined) {
+        db.settings.useTempDownloadStaging = useTempDownloadStaging === 'true';
       }
 
       const historyDurationFilter = getCaseInsensitiveKey(settingsSection, 'historyDurationFilter');
@@ -955,7 +980,26 @@ export function syncWithIni(db) {
       let categoryIds = [1];
 
       let subscriberCountFromIni = '?';
-      if (parts.length >= 10) {
+      let autoDeleteDays = 'never';
+      if (parts.length >= 11) {
+        autoDeleteDays = parts[parts.length - 1];
+        subscriberCountFromIni = parts[parts.length - 2];
+        const catPart = parts[parts.length - 3];
+        if (catPart.includes(',')) {
+          categoryIds = catPart.split(',').map(x => parseInt(x.trim(), 10) || 1);
+        } else {
+          categoryIds = [parseInt(catPart, 10) || 1];
+        }
+        categoryId = categoryIds[0] || 1;
+        autoDownload = parts[parts.length - 4] === 'true';
+        shortsDurationLimit = parseInt(parts[parts.length - 5], 10) || 180;
+        avatar = parts[parts.length - 6];
+        downloadShorts = parts[parts.length - 7] === 'true';
+        quality = parts[parts.length - 8];
+        addedAt = parts[parts.length - 9];
+        handleOrUrl = parts[parts.length - 10];
+        name = parts.slice(0, parts.length - 10).join(' | ');
+      } else if (parts.length === 10) {
         subscriberCountFromIni = parts[parts.length - 1];
         const catPart = parts[parts.length - 2];
         if (catPart.includes(',')) {
@@ -1037,8 +1081,9 @@ export function syncWithIni(db) {
       if (!handleOrUrl) handleOrUrl = `@${name.replace(/\s+/g, '')}`;
       
       const existingChannel = db.channels.find(c => c.id === id);
+      const isAvatarValid = (url) => url && typeof url === 'string' && (url.startsWith('http') || url.startsWith('/') || url.startsWith('data:'));
       const dbAvatar = existingChannel ? (existingChannel.avatar || '') : '';
-      const finalAvatar = avatar || dbAvatar;
+      const finalAvatar = isAvatarValid(avatar) ? avatar : (isAvatarValid(dbAvatar) ? dbAvatar : '');
       const dbSubCount = existingChannel ? existingChannel.subscriberCount : '';
       const finalSubscriberCount = (dbSubCount && dbSubCount !== '?')
         ? dbSubCount 
@@ -1049,6 +1094,10 @@ export function syncWithIni(db) {
       const finalCategoryIds = existingChannel && existingChannel.categoryIds !== undefined 
          ? existingChannel.categoryIds 
          : (existingChannel && existingChannel.categoryId ? [existingChannel.categoryId] : categoryIds);
+       
+      const finalAutoDeleteDays = existingChannel && existingChannel.autoDeleteDays !== undefined 
+         ? existingChannel.autoDeleteDays 
+         : autoDeleteDays;
        
        updatedChannels.push({ 
          id, 
@@ -1062,7 +1111,8 @@ export function syncWithIni(db) {
          shortsDurationLimit: finalShortsLimit, 
          autoDownload: finalAutoDownload, 
          categoryId: finalCategoryId,
-         categoryIds: finalCategoryIds 
+         categoryIds: finalCategoryIds,
+         autoDeleteDays: finalAutoDeleteDays
        });
     }
     db.channels = updatedChannels;
@@ -1096,6 +1146,7 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.showShorts = (db.settings.showShorts !== false).toString();
   iniData.Settings.rssLimit = (db.settings.rssLimit !== undefined ? db.settings.rssLimit : 15).toString();
   iniData.Settings.autoDeleteDays = (db.settings.autoDeleteDays || 0).toString();
+  iniData.Settings.autoDeleteRequireConfirmation = (db.settings.autoDeleteRequireConfirmation !== false).toString();
   iniData.Settings.theme = (db.settings.theme || 'dark').toString();
   iniData.Settings.downloadSpeedLimit = (db.settings.downloadSpeedLimit || 0).toString();
   iniData.Settings.useAlternativeSpeed = (db.settings.useAlternativeSpeed === true).toString();
@@ -1112,9 +1163,12 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.showNotifications = (db.settings.showNotifications !== false).toString();
   iniData.Settings.autoOpenBrowser = (db.settings.autoOpenBrowser !== false).toString();
   iniData.Settings.checkChannelsOnStartup = (db.settings.checkChannelsOnStartup === true).toString();
+  iniData.Settings.checkYtdlpOnStartup = (db.settings.checkYtdlpOnStartup === true).toString();
+  iniData.Settings.ytdlpStartupTarget = (db.settings.ytdlpStartupTarget || 'nightly').toString();
   iniData.Settings.sponsorBlockEnabled = (db.settings.sponsorBlockEnabled === true).toString();
   iniData.Settings.discordRpcEnabled = (db.settings.discordRpcEnabled === true).toString();
   iniData.Settings.doubleClickAction = (db.settings.doubleClickAction || 'player').toString();
+  iniData.Settings.useTempDownloadStaging = (db.settings.useTempDownloadStaging === true).toString();
   iniData.Settings.historyDurationFilter = (db.settings.historyDurationFilter || 'off').toString();
   iniData.Settings.enableAltThumbnailsHover = (db.settings.enableAltThumbnailsHover !== false).toString();
   iniData.Settings.weatherEnabled = (db.settings.weatherEnabled !== false).toString();
@@ -1191,7 +1245,8 @@ export async function saveChannelsToIni(db) {
       (channel.categoryIds && channel.categoryIds.length > 0 
         ? channel.categoryIds.join(',') 
         : (channel.categoryId !== undefined ? channel.categoryId : 1).toString()).toString(),
-      channel.subscriberCount || '?'
+      channel.subscriberCount || '?',
+      (channel.autoDeleteDays !== undefined ? channel.autoDeleteDays : 'never').toString()
     ].join(' | ');
     iniData.Channels[channel.id] = info;
   }
@@ -1279,8 +1334,23 @@ export function buildVideoFilesMap(downloadPath) {
  * @param {boolean} [forceManual=false] - Ayar kapalı olsa bile manuel olarak çalıştırmaya zorla
  * @returns {Promise<object>} Senkronizasyon sonuçları
  */
-export async function syncDbWithDisk(forceManual = false) {
+/**
+ * Diskteki video dosyaları ile veritabanını senkronize eder.
+ * @param {boolean} forceManual - Kullanıcı tarafından manuel mi tetiklendi?
+ * @param {string|boolean} syncMode - 'fast' (yalnızca varlık), 'smart' (yalnızca çözünürlüğü eksikler), 'full' (tüm videoları FFprobe ile zorla oku)
+ */
+export async function syncDbWithDisk(forceManual = false, syncMode = 'fast') {
   try {
+    // Geriye dönük boolean uyumluluğu (deep true ise 'smart' veya 'full')
+    let mode = 'fast';
+    if (syncMode === true || syncMode === 'smart') {
+      mode = 'smart';
+    } else if (syncMode === 'full') {
+      mode = 'full';
+    } else {
+      mode = 'fast';
+    }
+
     const db = readDb();
     if (!forceManual && db.settings && db.settings.autoDiskSync === false) {
       return { success: true, skipped: true, message: 'Otomatik disk senkronizasyonu ayarlardan devre dışı bırakılmış.' };
@@ -1295,7 +1365,7 @@ export async function syncDbWithDisk(forceManual = false) {
       return { success: false, busy: true, message: 'Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.' };
     }
 
-    return performDiskSync(forceManual);
+    return performDiskSync(forceManual, mode);
   } catch (err) {
     console.error('[Disk Sync Error]', err.message);
     addTerminalLog(`[Disk Sync Error] ${err.message}`, 'error');
@@ -1303,7 +1373,7 @@ export async function syncDbWithDisk(forceManual = false) {
   }
 }
 
-function performDiskSync(forceManual = false) {
+function performDiskSync(forceManual = false, mode = 'fast') {
   try {
     let db = defaultDb;
     if (fs.existsSync(dbPath)) {
@@ -1317,7 +1387,13 @@ function performDiskSync(forceManual = false) {
     }
 
     if (forceManual) {
-      addTerminalLog('[Disk Sync] Disk senkronizasyonu ve video doğrulama başlatıldı...', 'info');
+      let startMsg = '[Disk Sync] Hızlı disk senkronizasyonu ve varlık denetimi başlatıldı...';
+      if (mode === 'full') {
+        startMsg = '[Disk Sync] Tam medya analizi başlatıldı (Tüm videolar FFprobe ile taranıyor)...';
+      } else if (mode === 'smart') {
+        startMsg = '[Disk Sync] Akıllı medya analizi başlatıldı (Yalnızca çözünürlüğü eksik videolar taranıyor)...';
+      }
+      addTerminalLog(startMsg, 'info');
     }
 
     let dbUpdated = false;
@@ -1345,17 +1421,74 @@ function performDiskSync(forceManual = false) {
                 updatedCount++;
               }
 
-              if (item.fileMissing === true) {
-                delete item.fileMissing;
-                dbUpdated = true;
-                updatedCount++;
+              // Dosya boyutunu kontrol et (fs.statSync - MFT / RAM'den çok hızlı okunur)
+              let fileSizeBytes = 0;
+              try {
+                const stat = fs.statSync(diskFile);
+                fileSizeBytes = stat.size || 0;
+              } catch (stErr) {
+                fileSizeBytes = 0;
               }
 
-              const res = getVideoResolution(diskFile);
-              if (res && item.actualQuality !== res) {
-                item.actualQuality = res;
-                dbUpdated = true;
-                updatedCount++;
+              // 0 Byte dosya tespiti (Chkdsk temizliği veya kesintide içi boşalan dosyalar)
+              if (fileSizeBytes === 0) {
+                if (item.fileCorrupted !== true || item.fileMissing !== true) {
+                  item.fileCorrupted = true;
+                  item.fileMissing = true;
+                  item.fileSize = '0 MB';
+                  dbUpdated = true;
+                  updatedCount++;
+                }
+              } else {
+                // Dosya boyutu dolu; formatlı boyutu güncelle
+                let formattedSize = '';
+                if (fileSizeBytes >= 1024 * 1024 * 1024) {
+                  formattedSize = Math.round(fileSizeBytes / (1024 * 1024 * 1024)) + ' GB';
+                } else {
+                  formattedSize = Math.round(fileSizeBytes / (1024 * 1024)) + ' MB';
+                }
+
+                if (formattedSize && item.fileSize !== formattedSize) {
+                  item.fileSize = formattedSize;
+                  dbUpdated = true;
+                  updatedCount++;
+                }
+
+                // Önceden missing veya corrupted kaldıysa temizle (kullanıcı dosyayı yenilediyse)
+                if (item.fileMissing === true && item.fileCorrupted !== true) {
+                  delete item.fileMissing;
+                  dbUpdated = true;
+                  updatedCount++;
+                }
+              }
+
+              // FFprobe çalıştırma kararı:
+              // mode === 'full' -> Kayıtlı olsa da olmasa da diski baştan oku
+              // mode === 'smart' -> Sadece actualQuality boş veya eksik ise oku
+              const shouldProbe = (mode === 'full') || (mode === 'smart' && (!item.actualQuality || item.actualQuality === ''));
+              if (shouldProbe && fileSizeBytes > 0) {
+                const res = getVideoResolution(diskFile);
+                if (res) {
+                  if (item.actualQuality !== res) {
+                    item.actualQuality = res;
+                    dbUpdated = true;
+                    updatedCount++;
+                  }
+                  if (item.fileCorrupted === true) {
+                    delete item.fileCorrupted;
+                    delete item.fileMissing;
+                    dbUpdated = true;
+                    updatedCount++;
+                  }
+                } else {
+                  // FFprobe geçerli bir akış okuyamadı (moov atom / invalid data hasarı)
+                  if (item.fileCorrupted !== true) {
+                    item.fileCorrupted = true;
+                    item.fileMissing = true;
+                    dbUpdated = true;
+                    updatedCount++;
+                  }
+                }
               }
               newHistory.push(item);
             } catch (err) {
@@ -1382,7 +1515,11 @@ function performDiskSync(forceManual = false) {
       }
     }
 
-    const summaryMsg = `Disk senkronizasyonu tamamlandı: ${totalVerified} video doğrulandı, ${updatedCount} kayıt güncellendi.`;
+    let modeLabel = 'Hızlı Mod';
+    if (mode === 'full') modeLabel = 'Tam FFprobe Modu';
+    else if (mode === 'smart') modeLabel = 'Akıllı FFprobe Modu';
+
+    const summaryMsg = `Disk senkronizasyonu tamamlandı (${modeLabel}): ${totalVerified} video doğrulandı, ${updatedCount} kayıt güncellendi.`;
     
     // Manuel tetiklendiğinde veya arka planda dosya güncellendiğinde logla & bildirim gönder
     if (forceManual || updatedCount > 0) {
@@ -1582,6 +1719,52 @@ export function updateHistoryItem(videoId, updates, options = {}) {
     }
   }
 }
+
+/**
+ * Otomatik veya manuel silinen videoları son 100 kayıt sınırıyla db.deletedVideos listesine ekler.
+ * 
+ * @param {object} item - Silinen video nesnesi
+ * @param {'auto'|'manual'} deleteReason - Silinme nedeni
+ * @param {object} [targetDb] - Eğer bir işlem içinde db zaten yüklenmişse doğrudan o nesneye ekler
+ * @returns {void}
+ */
+export function recordDeletedVideo(item, deleteReason = 'manual', targetDb = null) {
+  if (!item || !item.id) return;
+  const db = targetDb || readDb();
+  if (!Array.isArray(db.deletedVideos)) {
+    db.deletedVideos = [];
+  }
+
+  // Aynı ID varsa listeden çıkar (en başa en güncel silinme olarak eklenecek)
+  db.deletedVideos = db.deletedVideos.filter(d => d.id !== item.id);
+
+  const deletedRecord = {
+    id: item.id,
+    title: item.title || item.id,
+    channelId: item.channelId || '',
+    channelName: item.channelName || '',
+    downloadedAt: item.downloadedAt || '',
+    publishedAt: item.publishedAt || '',
+    deletedAt: new Date().toISOString(),
+    deleteReason: deleteReason, // 'auto' veya 'manual'
+    fileSize: item.fileSize || '',
+    filePath: item.filePath || '',
+    duration: item.duration || '',
+    thumbnail: `/api/video/${item.id}/thumbnail`
+  };
+
+  db.deletedVideos.unshift(deletedRecord);
+
+  // Son 100 video sınırı
+  if (db.deletedVideos.length > 100) {
+    db.deletedVideos = db.deletedVideos.slice(0, 100);
+  }
+
+  if (!targetDb) {
+    writeDb(db);
+  }
+}
+
 
 
 

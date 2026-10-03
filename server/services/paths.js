@@ -235,6 +235,29 @@ export function getLocalTempDir() {
   return tempDir;
 }
 
+export function getStagingTempDir() {
+  let stagingDir;
+  try {
+    const db = readDb();
+    if (db.settings && db.settings.tempDirType === 'local') {
+      stagingDir = path.join(rootDir, 'Temp', 'HaYTooL-Convert');
+    } else {
+      stagingDir = path.join(os.tmpdir(), 'HaYTooL-YT-Downloader-Convert');
+    }
+  } catch (e) {
+    stagingDir = path.join(os.tmpdir(), 'HaYTooL-YT-Downloader-Convert');
+  }
+
+  if (!fs.existsSync(stagingDir)) {
+    try {
+      fs.mkdirSync(stagingDir, { recursive: true });
+    } catch (e) {
+      console.error('[Staging Temp] Convert/Staging klasörü oluşturulamadı:', e.message);
+    }
+  }
+  return stagingDir;
+}
+
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**

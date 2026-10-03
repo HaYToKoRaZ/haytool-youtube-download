@@ -49,14 +49,32 @@ export async function updateDiskSpace() {
 }
 
 /**
- * Ayarlar sekmesindeki "Diski Şimdi Eşitle" butonunun tetikleyicisi.
+ * Ayarlar sekmesindeki Disk Eşitle butonlarının tetikleyicisi.
+ * @param {string} mode - 'fast' (varlık), 'smart' (eksikler), 'full' (tüm videolar FFprobe ile)
  * @returns {Promise<void>}
  */
-export async function triggerManualDiskSync() {
-  const btn = document.getElementById('btn-manual-disk-sync');
+export async function triggerDiskSync(mode = 'fast') {
+  // Geriye dönük boolean desteği
+  if (mode === true) mode = 'full';
+  if (mode === false) mode = 'fast';
+
+  let btnId = 'btn-manual-disk-sync';
+  if (mode === 'smart') btnId = 'btn-smart-disk-sync';
+  else if (mode === 'full') btnId = 'btn-deep-disk-sync';
+
+  const btn = document.getElementById(btnId);
   const lang = (window.localDb?.settings?.lang) || window.currentLang || 'tr';
   const t = window.translations?.[lang] || window.translations?.tr || {};
   const isEn = lang === 'en';
+
+  if (mode === 'full') {
+    const confirmMsg = isEn
+      ? "Full Media Analysis will force FFprobe inspection on ALL videos on disk. On mechanical HDDs, this will cause heavy disk read activity and may take several minutes. Do you want to proceed?"
+      : "Tam FFprobe Analizi, diskteki TÜM videoları tek tek baştan sona okuyarak FFprobe ile tarar. Mekanik HDD sürücülerde yoğun disk okuması oluşturur ve birkaç dakika sürebilir. Devam etmek istiyor musunuz?";
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+  }
 
   let originalHtml = '';
   if (btn) {
@@ -66,12 +84,19 @@ export async function triggerManualDiskSync() {
     try { window.lucide?.createIcons(); } catch(e) {}
   }
 
-  showToast(t.msg_disk_sync_started || (isEn ? 'Disk sync started...' : 'Disk senkronizasyonu başlatıldı...'), 'info');
+  let startMsg = t.msg_disk_sync_started || (isEn ? 'Disk sync started...' : 'Disk senkronizasyonu başlatıldı...');
+  if (mode === 'full') {
+    startMsg = isEn ? 'Full media analysis started (FFprobe - all videos)...' : 'Tam medya analizi başlatıldı (FFprobe - tüm videolar)...';
+  } else if (mode === 'smart') {
+    startMsg = isEn ? 'Smart media analysis started (FFprobe - missing only)...' : 'Akıllı medya analizi başlatıldı (FFprobe - sadece eksikler)...';
+  }
+  showToast(startMsg, 'info');
 
   try {
     const res = await fetch('/api/settings/sync-disk', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode })
     });
     const data = await res.json();
     if (data.success) {
@@ -97,16 +122,28 @@ export async function triggerManualDiskSync() {
   }
 }
 
+export const triggerManualDiskSync = () => triggerDiskSync('fast');
+
 /**
  * Disk ve sistem durumu olay dinleyicilerini başlatır.
  */
 export function initSystemStatusEvents() {
   const btnManualDiskSync = document.getElementById('btn-manual-disk-sync');
   if (btnManualDiskSync) {
-    btnManualDiskSync.onclick = triggerManualDiskSync;
+    btnManualDiskSync.onclick = () => triggerDiskSync('fast');
+  }
+  const btnSmartDiskSync = document.getElementById('btn-smart-disk-sync');
+  if (btnSmartDiskSync) {
+    btnSmartDiskSync.onclick = () => triggerDiskSync('smart');
+  }
+  const btnDeepDiskSync = document.getElementById('btn-deep-disk-sync');
+  if (btnDeepDiskSync) {
+    btnDeepDiskSync.onclick = () => triggerDiskSync('full');
   }
 }
 
 // Global window bindings for inline HTML or SSE handlers
 window.updateDiskSpace = updateDiskSpace;
+window.triggerDiskSync = triggerDiskSync;
 window.triggerManualDiskSync = triggerManualDiskSync;
+

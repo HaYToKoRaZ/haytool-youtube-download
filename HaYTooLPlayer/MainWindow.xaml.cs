@@ -135,6 +135,23 @@ namespace HaYTooLPlayer
                                     return;
                                 }
 
+                                // Tepsi menüsünden SPA sekme yönlendirmeleri: tam sayfa navigate yapmak yerine
+                                // JavaScript switchTab() çağrısı kullan — video mini oynatıcıya geçer, kesilmez.
+                                string tabName = null;
+                                if (path == "/settings") tabName = "settings";
+                                else if (path == "/home") tabName = "history";
+                                else if (path == "/channels") tabName = "channels";
+                                else if (path == "/download") tabName = "download";
+                                else if (path == "/iptv") tabName = "iptv";
+                                else if (path == "/tools") tabName = "tools";
+
+                                if (tabName != null)
+                                {
+                                    string script = $"if(typeof window.switchTab==='function'){{window.switchTab('{tabName}');}}";
+                                    webView.CoreWebView2.ExecuteScriptAsync(script);
+                                    return;
+                                }
+
                                 string url;
                                 if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                                 {
@@ -294,12 +311,12 @@ namespace HaYTooLPlayer
                     return;
                 }
 
-                // Sunucu URL'sine Yönlendir (Varsayılan olarak İndirilenler sekmesinde aç)
-                string url = GetAppUrl().TrimEnd('/') + "/downlist";
-
                 // Komut satırı argümanı (örn: tam URL, /settings veya /downlist) varsa yönlendir
                 string[] args = Environment.GetCommandLineArgs();
                 string initialLoginUrl = null;
+                string targetPath = "/downlist";
+                string url = null;
+
                 if (args.Length > 1)
                 {
                     string pathArg = args[1].Trim();
@@ -315,8 +332,13 @@ namespace HaYTooLPlayer
                     }
                     else if (pathArg.StartsWith("/"))
                     {
-                        url = url.TrimEnd('/') + pathArg;
+                        targetPath = pathArg;
                     }
+                }
+
+                if (string.IsNullOrEmpty(url))
+                {
+                    url = GetAppUrl().TrimEnd('/') + targetPath;
                 }
 
                 // Backend sunucusunun hazır olmasını bekle (race condition ve bağlantı reddi hatalarını engeller)
@@ -429,10 +451,18 @@ namespace HaYTooLPlayer
 
                 if (trayProcesses.Length == 0)
                 {
+                    // HaYTooL-Player.exe kök dizinde olabilir veya bin/ alt klasöründe.
+                    // BaseDirectory = exe'nin bulunduğu klasör.
+                    // Multimedia HaYTooL.exe kök dizindedir → hem BaseDirectory hem de parent'ı dene.
                     string binDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
-                    string appRootDir = Path.GetDirectoryName(binDir) ?? binDir;
-                    string trayPath = Path.Combine(appRootDir, "Multimedia HaYTooL.exe");
-                    if (!File.Exists(trayPath)) trayPath = Path.Combine(appRootDir, "HaYTooL YT Downloader.exe");
+                    string parentDir = Path.GetDirectoryName(binDir) ?? binDir;
+
+                    string trayPath = Path.Combine(binDir, "Multimedia HaYTooL.exe");
+                    if (!File.Exists(trayPath)) trayPath = Path.Combine(binDir, "HaYTooL YT Downloader.exe");
+                    if (!File.Exists(trayPath)) trayPath = Path.Combine(parentDir, "Multimedia HaYTooL.exe");
+                    if (!File.Exists(trayPath)) trayPath = Path.Combine(parentDir, "HaYTooL YT Downloader.exe");
+
+                    string appRootDir = File.Exists(trayPath) ? Path.GetDirectoryName(trayPath) : binDir;
 
                     if (File.Exists(trayPath))
                     {

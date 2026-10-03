@@ -62,6 +62,11 @@
                   <i data-lucide="bookmark-check" style="width: 16px; height: 16px;"></i>
                 </button>
 
+                <!-- Aktif Videoyu Sil Butonu (Çöp Kutusu) -->
+                <button class="btn btn-secondary btn-sm btn-action-danger" id="inline-btn-delete-active" title="Videoyu Sil" data-i18n-title="btn_delete_history" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--accent-red); background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.25);">
+                  <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                </button>
+
                 <!-- Altyazı Rengi Seçici -->
                 <select id="inline-subtitle-color" class="btn btn-secondary btn-sm" style="margin-left: auto; padding: 2px 8px; font-size: 0.8rem; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; border-radius: 6px; outline: none; height: 32px;" title="Altyazı Rengi">
                   <option value="#ffffff">Beyaz</option>
@@ -142,6 +147,19 @@
                   <span id="inline-player-download-date">İndirilme: --</span>
                   <span class="meta-sep" style="color: rgba(255, 255, 255, 0.15);">•</span>
                   <span id="inline-player-file-size">Boyut: --</span>
+                  <span id="inline-player-ryd-sep" class="meta-sep" style="color: rgba(255, 255, 255, 0.15); display: none;">•</span>
+                  <!-- Return YouTube Dislike (RYD) Rozeti & Oy Butonları -->
+                  <div id="inline-player-ryd-pill" class="inline-ryd-pill" style="display: none;" title="Return YouTube Dislike İstatistikleri ve Oy Katkısı">
+                    <button type="button" class="ryd-btn ryd-like-btn" id="ryd-like-btn" title="RYD Veritabanına Beğeni Gönder">
+                      <i data-lucide="thumbs-up"></i>
+                      <span id="ryd-likes-count">--</span>
+                    </button>
+                    <span class="ryd-bar-track"><span id="ryd-bar-fill" class="ryd-bar-fill"></span></span>
+                    <button type="button" class="ryd-btn ryd-dislike-btn" id="ryd-dislike-btn" title="RYD Veritabanına Beğenmeme (Dislike) Gönder">
+                      <i data-lucide="thumbs-down"></i>
+                      <span id="ryd-dislikes-count">--</span>
+                    </button>
+                  </div>
                   <span id="inline-player-sb-sep" class="meta-sep" style="color: rgba(255, 255, 255, 0.15); display: none;">•</span>
                   <div class="inline-player-sponsorblock-legend" id="inline-player-sponsorblock-legend" style="display: none; flex-wrap: wrap; gap: 8px; font-size: 0.72rem; color: var(--text-muted); align-items: center;">
                     <span style="font-weight: 600; margin-right: 4px;">SponsorBlock:</span>
@@ -277,6 +295,7 @@
               <button type="button" class="sort-btn" data-sort="date-asc" id="sort-btn-date-asc" title="Tarih: Eskiden Yeniye">Tarih ▲</button>
               <button type="button" class="sort-btn" data-sort="size-desc" id="sort-btn-size-desc" title="Boyut: Büyükten Küçüğe">Boyut ▼</button>
               <button type="button" class="sort-btn" data-sort="size-asc" id="sort-btn-size-asc" title="Boyut: Küçükten Büyüğe">Boyut ▲</button>
+              <button type="button" class="sort-btn" data-sort="auto-delete" id="sort-btn-auto-delete" title="Silinmesi Yaklaşanlar (Vadesi Dolanlar Önce)" style="color: #f59e0b;">⏳ Vadesi Dolanlar</button>
               <button type="button" class="sort-btn" data-sort="user" id="sort-btn-user" title="Kullanıcı Tanımlı Sıralama">Kullanıcı</button>
             </div>
             <div class="filter-group" style="display: flex; align-items: center; gap: 8px; margin-left: 15px;">

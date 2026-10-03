@@ -1,4 +1,4 @@
-import { escapeHtml, formatDate, getDaysAgoText, getDaysAgoInfo, isShortVideo, isMembersOnlyVideo, parseTimeToSeconds } from '../utils/helpers.js';
+import { escapeHtml, formatDate, getDaysAgoText, getDaysAgoInfo, isShortVideo, isMembersOnlyVideo, parseTimeToSeconds, getVideoRemainingInfo } from '../utils/helpers.js';
 import { translations } from '../utils/i18n.js';
 
 // YouTube SVG İkon Şablonu
@@ -109,6 +109,12 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         + (isBulkHideMode ? ' bulk-hide-active' : '')
         + (isBulkHideMode && !isHideEligible ? ' bulk-hide-ineligible' : '');
       card.setAttribute('data-id', item.id);
+      card.onmouseenter = function() {
+        if (typeof handleThumbMouseEnter === 'function') handleThumbMouseEnter(card);
+      };
+      card.onmouseleave = function() {
+        if (typeof handleThumbMouseLeave === 'function') handleThumbMouseLeave(card);
+      };
       if (sortVal === 'user' && gridElement === window.downloadedGrid) {
         card.setAttribute('draggable', 'true');
       }
@@ -149,15 +155,23 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         `;
       } else if (item.status === 'completed') {
         if (isMissing) {
-          statusHtml = `<span class="status-dot-warning" title="${t.card_file_missing || 'Dosya disk üzerinde bulunamadı!'}"></span>`;
+          const isCorrupted = item.fileCorrupted === true;
+          const missingDotClass = isCorrupted ? 'status-dot-danger' : 'status-dot-warning';
+          const missingTitle = isCorrupted
+            ? (t.card_file_corrupted || 'Dosya disk üzerinde bozuk/hasarlı (0 KB veya geçersiz veri)!')
+            : (t.card_file_missing || 'Dosya disk üzerinde bulunamadı!');
+          statusHtml = `<span class="${missingDotClass}" title="${escapeHtml(missingTitle)}"></span>`;
           actionsHtml = `
+            <button class="btn-icon btn-action-retry" onclick="downloadVideoManual('${item.id}')" title="${t.card_redownload_corrupted || 'Bozuk Dosyayı Tekrar İndir'}" style="color: #ef4444;">
+              <i data-lucide="rotate-ccw"></i>
+            </button>
             <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
               ${youtubeSvgIcon}
             </button>
-            <button class="btn-icon" disabled title="${t.card_file_missing_desc || 'Dosya diskte mevcut değil'}" style="opacity:0.35; cursor:not-allowed;">
+            <button class="btn-icon" disabled title="${isCorrupted ? (t.card_file_corrupted || 'Dosya bozuk') : (t.card_file_missing_desc || 'Dosya diskte mevcut değil')}" style="opacity:0.35; cursor:not-allowed;">
               <i data-lucide="monitor-play"></i>
             </button>
-            <button class="btn-icon" disabled title="${t.card_file_missing_desc || 'Dosya diskte mevcut değil'}" style="opacity:0.35; cursor:not-allowed;">
+            <button class="btn-icon" disabled title="${isCorrupted ? (t.card_file_corrupted || 'Dosya bozuk') : (t.card_file_missing_desc || 'Dosya diskte mevcut değil')}" style="opacity:0.35; cursor:not-allowed;">
               <i data-lucide="folder-open"></i>
             </button>
           `;
@@ -332,8 +346,16 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
 
       const daysInfo = getDaysAgoInfo(item.publishedAt || item.downloadedAt, t);
 
+      const currentDb = window.localDb || {};
+      const expireInfo = (item.status === 'completed' && !isMissing) ? getVideoRemainingInfo(item, currentDb) : null;
+      const expireBadgeHtml = expireInfo ? `
+        <span class="video-card-expire-badge ${expireInfo.isExpired ? 'is-expired' : ''}" title="${escapeHtml(expireInfo.tooltip)}" style="font-size: 0.72rem; padding: 1px 5px; border-radius: 4px; background: ${expireInfo.isExpired ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.15)'}; color: ${expireInfo.isExpired ? '#ef4444' : '#f59e0b'}; font-weight: 600; cursor: help; border: 1px solid ${expireInfo.isExpired ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.3)'};">
+          ${escapeHtml(expireInfo.badgeText)}
+        </span>
+      ` : '';
+
       card.innerHTML = `
-        <div class="video-thumbnail-wrapper" data-video-id="${item.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}">
+        <div class="video-thumbnail-wrapper" data-video-id="${item.id}" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}">
           <img class="video-thumbnail" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
           ${qualityBadgeHtml}
           ${unlistedBadgeHtml}
@@ -374,6 +396,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
               <span class="video-card-age-text" title="${escapeHtml(daysInfo.tooltip)}" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; display: inline-block; cursor: help;">
                  ${escapeHtml(daysInfo.count)}
               </span>
+              ${expireBadgeHtml}
             </div>
             <div class="video-card-actions">
               ${actionsHtml}

@@ -88,6 +88,18 @@ export function initTools(getState) {
       document.getElementById('tools-dropdown')?.classList.remove('open');
     });
   }
+
+  const toolsDeletedBtn = document.getElementById('nav-tools-deleted-btn');
+  if (toolsDeletedBtn && !toolsDeletedBtn.dataset.toolsInit) {
+    toolsDeletedBtn.dataset.toolsInit = 'true';
+    toolsDeletedBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.currentToolsSubSection = 'deleted';
+      if (window.switchTab) window.switchTab('tools');
+      showToolsSubSection('deleted');
+      document.getElementById('tools-dropdown')?.classList.remove('open');
+    });
+  }
 }
 
 if (typeof window !== 'undefined') {
@@ -683,6 +695,19 @@ export function initDownloaderUI() {
     });
   }
 
+  const toolsDeletedBtn2 = document.getElementById('nav-tools-deleted-btn');
+  if (toolsDeletedBtn2) {
+    toolsDeletedBtn2.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.currentToolsSubSection = 'deleted';
+      if (window.switchTab) window.switchTab('tools');
+      else if (typeof switchTab === 'function') switchTab('tools');
+      showToolsSubSection('deleted');
+      const dropdown = document.getElementById('tools-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+    });
+  }
+
   const formatSelect = document.getElementById('downloader-format-select');
   const bitrateGroup = document.getElementById('downloader-bitrate-group');
   if (formatSelect && bitrateGroup) {
@@ -724,6 +749,7 @@ export function showToolsSubSection(section) {
   const categoriesContainer = document.getElementById('tools-categories-container');
   const apeContainer = document.getElementById('tools-ape-container');
   const subsContainer = document.getElementById('tools-subscriptions-container');
+  const deletedContainer = document.getElementById('tools-deleted-videos-container');
   const toolsHeaderTitle = document.querySelector('#tab-tools .content-header h2 span');
   const toolsHeaderDesc = document.getElementById('tools-modal-desc');
   const toolsHeaderIcon = document.getElementById('tools-modal-icon');
@@ -733,6 +759,7 @@ export function showToolsSubSection(section) {
   if (categoriesContainer) categoriesContainer.classList.add('hidden');
   if (apeContainer) apeContainer.classList.add('hidden');
   if (subsContainer) subsContainer.classList.add('hidden');
+  if (deletedContainer) deletedContainer.classList.add('hidden');
 
   const isEn = localDb.settings?.lang === 'en';
 
@@ -757,6 +784,12 @@ export function showToolsSubSection(section) {
     if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Bulk Video Deletion' : 'Toplu Video Silme';
     if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'List and bulk delete your downloaded videos along with their physical files from disk.' : 'Kütüphanenizdeki indirilen videoları seçerek diskten veya veritabanından toplu olarak silebilirsiniz.';
     if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'trash-2');
+  } else if (section === 'deleted' && deletedContainer) {
+    deletedContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Deleted Videos' : 'Silinen Videolar';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'List of last 100 auto-deleted and manually deleted videos with one-click re-download.' : 'Otomatik veya manuel olarak silinen son 100 videoyu listeleyebilir ve dilediğinizi tek tıkla tekrar indirebilirsiniz.';
+    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'trash-2');
+    if (typeof window.loadDeletedVideosList === 'function') window.loadDeletedVideosList();
   } else {
     if (compareContainer) compareContainer.classList.remove('hidden');
     if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Advanced File Comparison & Sync' : 'Gelişmiş Dosya Karşılaştırma & Senkronizasyon';
@@ -1284,3 +1317,168 @@ export async function openSubscriptionsPage() {
   }
 }
 window.openSubscriptionsPage = openSubscriptionsPage;
+
+// ─── 5. BÖLÜM: SİLİNEN VİDEOLAR MODÜLÜ ───
+
+let cachedDeletedVideos = [];
+
+/**
+ * Sunucudan son 100 silinen videoyu çeker ve tabloyu günceller.
+ */
+export async function loadDeletedVideosList() {
+  const tbody = document.getElementById('deleted-videos-list');
+  const emptyBox = document.getElementById('deleted-videos-empty');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch('/api/deleted-videos');
+    const data = await res.json();
+    if (data.success && Array.isArray(data.videos)) {
+      cachedDeletedVideos = data.videos;
+      renderDeletedVideosTable(cachedDeletedVideos);
+    } else {
+      cachedDeletedVideos = [];
+      renderDeletedVideosTable([]);
+    }
+  } catch (err) {
+    console.error('Silinen videolar yüklenemedi:', err);
+    showToast('Silinen videolar listesi alınamadı.', 'error');
+  }
+}
+window.loadDeletedVideosList = loadDeletedVideosList;
+
+/**
+ * Silinen videolar listesini tabloya çizer.
+ */
+export function renderDeletedVideosTable(videos) {
+  const tbody = document.getElementById('deleted-videos-list');
+  const emptyBox = document.getElementById('deleted-videos-empty');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+  if (!videos || videos.length === 0) {
+    if (emptyBox) emptyBox.classList.remove('hidden');
+    return;
+  }
+  if (emptyBox) emptyBox.classList.add('hidden');
+
+  const isEn = localDb.settings?.lang === 'en';
+
+  videos.forEach((video, idx) => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border-color)';
+    tr.style.transition = 'background 0.15s ease';
+
+    const downloadDate = video.downloadedAt ? new Date(video.downloadedAt).toLocaleString(isEn ? 'en-US' : 'tr-TR') : '-';
+    const deleteDate = video.deletedAt ? new Date(video.deletedAt).toLocaleString(isEn ? 'en-US' : 'tr-TR') : '-';
+    const isAuto = video.deleteReason === 'auto';
+    const typeBadge = isAuto
+      ? `<span style="background: rgba(234, 179, 8, 0.15); color: #eab308; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">${isEn ? 'Auto' : 'Otomatik'}</span>`
+      : `<span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">${isEn ? 'Manual' : 'Manuel'}</span>`;
+
+    tr.innerHTML = `
+      <td style="padding: 10px 12px; color: var(--text-muted);">${idx + 1}</td>
+      <td style="padding: 10px 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <img src="${video.thumbnail}" alt="" style="width: 54px; height: 32px; object-fit: cover; border-radius: 4px; background: var(--bg-card);" onerror="this.src='icon.ico'">
+          <div style="display: flex; flex-direction: column; max-width: 320px;">
+            <a href="https://www.youtube.com/watch?v=${video.id}" target="_blank" style="color: var(--text-main); font-weight: 500; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${video.title}">${video.title}</a>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">${video.id}</span>
+          </div>
+        </div>
+      </td>
+      <td style="padding: 10px 12px; color: var(--text-main);">${video.channelName || '-'}</td>
+      <td style="padding: 10px 12px; color: var(--text-muted); font-size: 0.8rem;">${video.fileSize || '-'}</td>
+      <td style="padding: 10px 12px; color: var(--text-muted); font-size: 0.8rem;">${downloadDate}</td>
+      <td style="padding: 10px 12px; color: var(--text-muted); font-size: 0.8rem;">${deleteDate}</td>
+      <td style="padding: 10px 12px;">${typeBadge}</td>
+      <td style="padding: 10px 12px; text-align: right;">
+        <button type="button" class="btn btn-primary btn-xs" onclick="redownloadDeletedVideo('${video.id}')" style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; font-size: 0.78rem;">
+          <i data-lucide="download" style="width: 13px; height: 13px;"></i>
+          <span>${isEn ? 'Re-Download' : 'Tekrar İndir'}</span>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  try {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+  } catch (e) {}
+}
+window.renderDeletedVideosTable = renderDeletedVideosTable;
+
+/**
+ * Arama ve tür seçimine göre silinen videolar tablosunu filtreler.
+ */
+export function filterDeletedVideosTable() {
+  const query = (document.getElementById('deleted-videos-search')?.value || '').toLowerCase().trim();
+  const filterType = document.getElementById('deleted-videos-filter-type')?.value || 'all';
+
+  const filtered = cachedDeletedVideos.filter(v => {
+    const matchesQuery = !query ||
+      (v.title && v.title.toLowerCase().includes(query)) ||
+      (v.channelName && v.channelName.toLowerCase().includes(query)) ||
+      (v.id && v.id.toLowerCase().includes(query));
+
+    const matchesType = (filterType === 'all') ||
+      (filterType === 'auto' && v.deleteReason === 'auto') ||
+      (filterType === 'manual' && v.deleteReason === 'manual');
+
+    return matchesQuery && matchesType;
+  });
+
+  renderDeletedVideosTable(filtered);
+}
+window.filterDeletedVideosTable = filterDeletedVideosTable;
+
+/**
+ * Silinen videoyu sunucudan tekrar indirme kuyruğuna aldırır.
+ */
+export async function redownloadDeletedVideo(videoId) {
+  if (!videoId) return;
+  const isEn = localDb.settings?.lang === 'en';
+  try {
+    const res = await fetch('/api/deleted-videos/redownload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Video added to download queue!' : 'Video tekrar indirme kuyruğuna eklendi!', 'success');
+      if (window.switchTab) window.switchTab('queue');
+    } else {
+      showToast(data.error || (isEn ? 'Failed to queue video.' : 'Kuyruğa eklenemedi.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Network error.' : 'İletişim hatası.', 'error');
+  }
+}
+window.redownloadDeletedVideo = redownloadDeletedVideo;
+
+/**
+ * Silinen videolar listesini sıfırlar.
+ */
+export async function clearDeletedVideosList() {
+  const isEn = localDb.settings?.lang === 'en';
+  if (!confirm(isEn ? 'Are you sure you want to clear the deleted videos history?' : 'Silinen videolar listesini temizlemek istediğinizden emin misiniz?')) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/deleted-videos/clear', { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Deleted videos list cleared.' : 'Silinen videolar listesi temizlendi.', 'info');
+      cachedDeletedVideos = [];
+      renderDeletedVideosTable([]);
+    } else {
+      showToast(data.error || 'Hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast('İletişim hatası.', 'error');
+  }
+}
+window.clearDeletedVideosList = clearDeletedVideosList;
+

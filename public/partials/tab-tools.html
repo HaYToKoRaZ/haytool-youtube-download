@@ -210,4 +210,63 @@
           </div>
         </div>
 
+        <!-- 5. BÖLÜM: Silinen Videolar (Otomatik & Manuel Silinmiş Son 100 Video) -->
+        <div class="card hidden" id="tools-deleted-videos-container" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <h3 id="tools-deleted-title" style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.05rem;">
+                <i data-lucide="trash-2" style="width: 20px; height: 20px; color: var(--accent-red);"></i>
+                <span id="tools-deleted-heading-text">Silinen Videolar Listesi</span>
+              </h3>
+              <span id="tools-deleted-badge" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">Son 100 Video</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="loadDeletedVideosList()" id="btn-refresh-deleted-videos" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+                <span id="btn-refresh-deleted-text">Yenile</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="clearDeletedVideosList()" id="btn-clear-deleted-videos" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.25); color: var(--accent-red);">
+                <i data-lucide="trash" style="width: 14px; height: 14px;"></i>
+                <span id="btn-clear-deleted-text">Listeyi Temizle</span>
+              </button>
+            </div>
+          </div>
+
+          <p id="tools-deleted-desc" style="margin: 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.55;">Otomatik veya manuel olarak silinen videoların son 100 kaydı. Yanlışlıkla silinen veya tekrar indirmek istediğiniz videoları tek tıkla yeniden kuyruğa alabilirsiniz.</p>
+
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="deleted-videos-search" placeholder="Silinen videolarda ara..." oninput="filterDeletedVideosTable()" style="flex: 1; min-width: 220px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 0.88rem;">
+            <select id="deleted-videos-filter-type" onchange="filterDeletedVideosTable()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 0.88rem;">
+              <option value="all" id="opt-deleted-filter-all">Tüm Silinmeler</option>
+              <option value="auto" id="opt-deleted-filter-auto">Otomatik Silinenler</option>
+              <option value="manual" id="opt-deleted-filter-manual">Manuel Silinenler</option>
+            </select>
+          </div>
+
+          <div class="table-container" style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; max-height: 480px;">
+            <table class="tools-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+              <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 2;">
+                <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted);">
+                  <th style="padding: 10px 12px; width: 45px;">#</th>
+                  <th style="padding: 10px 12px;" id="col-del-video">Video</th>
+                  <th style="padding: 10px 12px;" id="col-del-channel">Kanal</th>
+                  <th style="padding: 10px 12px;" id="col-del-size">Boyut</th>
+                  <th style="padding: 10px 12px;" id="col-del-download-date">İndirme Tarihi</th>
+                  <th style="padding: 10px 12px;" id="col-del-date">Silinme Tarihi</th>
+                  <th style="padding: 10px 12px;" id="col-del-type">Tür</th>
+                  <th style="padding: 10px 12px; text-align: right;" id="col-del-actions">Eylemler</th>
+                </tr>
+              </thead>
+              <tbody id="deleted-videos-list">
+                <!-- JS ile dinamik doldurulur -->
+              </tbody>
+            </table>
+          </div>
+
+          <div id="deleted-videos-empty" class="hidden text-center" style="padding: 30px; background: rgba(56, 189, 248, 0.04); border: 1px dashed var(--border-color); border-radius: 12px; color: var(--text-muted);">
+            <i data-lucide="archive" style="width: 36px; height: 36px; margin-bottom: 8px; opacity: 0.5;"></i>
+            <p style="font-weight: 500; margin: 0; font-size: 0.95rem;" id="msg-no-deleted-videos">Kayıtlı silinen video bulunmuyor.</p>
+          </div>
+        </div>
+
       </section>

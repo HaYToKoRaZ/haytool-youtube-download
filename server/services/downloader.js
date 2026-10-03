@@ -12,7 +12,7 @@ import {
   defaultDownloadDir 
 } from '../database.js';
 import { broadcast, addTerminalLog } from './sse.js';
-import { ytdlpPath, testFfmpegSync, getFfmpegPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp, getVideoResolution } from './paths.js';
+import { ytdlpPath, testFfmpegSync, getFfmpegPath, getLocalTempDir, getStagingTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp, getVideoResolution } from './paths.js';
 import { getWorkingProxy, rotateProxy } from './proxyManager.js';
 
 // Türkçe Açıklama: İndirmeleri gerçekleştiren yt-dlp motorunun varlığını kontrol eder, yoksa GitHub üzerinden otomatik indirir.
@@ -54,6 +54,150 @@ export async function ensureYtdlp() {
     addTerminalLog(`[yt-dlp] Motor indirme hatası: ${err.message}`, 'error');
     throw err;
   }
+}
+
+/**
+ * yt-dlp motorunu belirtilen hedefe günceller.
+ * 
+ * @param {string} [target='nightly'] 'nightly' | 'stable' | 'nightly@tag' | 'stable@tag'
+ * @returns {Promise<{ success: boolean, output: string, newVersion?: string, error?: string }>}
+ */
+export async function performYtdlpUpdate(target = 'nightly') {
+  const isWin = os.platform() === 'win32';
+  const targetDir = path.dirname(ytdlpPath);
+  const cleanTarget = (target || 'nightly').trim();
+
+  const db = readDb();
+  const runMode = db.settings?.ytdlpRunMode || 'exe';
+
+  if (!fs.existsSync(targetDir)) {
+    try { fs.mkdirSync(targetDir, { recursive: true }); } catch (e) {}
+  }
+
+  let pipOutput = '';
+  if (runMode === 'python') {
+    const pythonCmd = db.settings?.pythonCmd || (isWin ? 'python' : 'python3');
+    let pipTarget = 'yt-dlp';
+    if (cleanTarget === 'nightly' || cleanTarget.startsWith('nightly')) {
+      pipTarget = '--pre yt-dlp';
+    } else if (cleanTarget.includes('@')) {
+      const tag = cleanTarget.split('@')[1];
+      pipTarget = `yt-dlp==${tag}`;
+    }
+    const pipCmd = `"${pythonCmd}" -m pip install -U ${pipTarget}`;
+    console.log(`[yt-dlp Pip Update] Komut çalıştırılıyor: ${pipCmd}`);
+    addTerminalLog(`[yt-dlp] Python pip üzerinden güncelleniyor: ${pipTarget}...`, 'info');
+
+    try {
+      await new Promise((resolve) => {
+        exec(pipCmd, { timeout: 120000 }, (err, stdout, stderr) => {
+          pipOutput = ((stdout || '') + '\n' + (stderr || '')).trim();
+          resolve();
+        });
+      });
+    } catch (_) {}
+  }
+
+  let binaryUpdated = false;
+  if (fs.existsSync(ytdlpPath)) {
+    try {
+      const updateCmd = `"${ytdlpPath}" --update-to ${cleanTarget}`;
+      console.log(`[yt-dlp Binary Update] Komut çalıştırılıyor: ${updateCmd}`);
+      addTerminalLog(`[yt-dlp] Yerel motor güncelleniyor (${cleanTarget})...`, 'info');
+
+      await new Promise((resolve, reject) => {
+        exec(updateCmd, { timeout: 120000 }, (err, stdout, stderr) => {
+          if (err) return reject(new Error((stderr || stdout || err.message).trim()));
+          binaryUpdated = true;
+          resolve();
+        });
+      });
+    } catch (selfUpdateErr) {
+      console.warn('[yt-dlp] --update-to başarısız oldu, doğrudan indirme deneniyor:', selfUpdateErr.message);
+    }
+  }
+
+  if (!binaryUpdated) {
+    let dlUrl = '';
+    if (cleanTarget === 'nightly' || cleanTarget === 'latest' || !cleanTarget) {
+      dlUrl = isWin
+        ? 'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp.exe'
+        : 'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp';
+    } else if (cleanTarget === 'stable') {
+      dlUrl = isWin
+        ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
+        : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+    } else if (cleanTarget.startsWith('nightly@')) {
+      const tag = cleanTarget.replace('nightly@', '');
+      dlUrl = isWin
+        ? `https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/${tag}/yt-dlp.exe`
+        : `https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/${tag}/yt-dlp`;
+    } else if (cleanTarget.startsWith('stable@')) {
+      const tag = cleanTarget.replace('stable@', '');
+      dlUrl = isWin
+        ? `https://github.com/yt-dlp/yt-dlp/releases/download/${tag}/yt-dlp.exe`
+        : `https://github.com/yt-dlp/yt-dlp/releases/download/${tag}/yt-dlp`;
+    } else {
+      dlUrl = isWin
+        ? `https://github.com/yt-dlp/yt-dlp/releases/download/${cleanTarget}/yt-dlp.exe`
+        : `https://github.com/yt-dlp/yt-dlp/releases/download/${cleanTarget}/yt-dlp`;
+    }
+
+    try {
+      const response = await fetch(dlUrl, {
+        headers: { 'User-Agent': 'HaYTooL-YT-Downloader' },
+        redirect: 'follow'
+      });
+
+      if (!response.ok) {
+        throw new Error(`GitHub HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      if (buffer.length < 100000) {
+        throw new Error('İndirilen dosya boyutu beklenenden çok küçük.');
+      }
+
+      const tempFilePath = `${ytdlpPath}.downloading_${Date.now()}`;
+      fs.writeFileSync(tempFilePath, buffer);
+
+      if (fs.existsSync(ytdlpPath)) {
+        try {
+          fs.unlinkSync(ytdlpPath);
+        } catch (_) {
+          const oldBackupPath = `${ytdlpPath}.old_${Date.now()}`;
+          try { fs.renameSync(ytdlpPath, oldBackupPath); } catch (e) {}
+        }
+      }
+
+      try {
+        fs.renameSync(tempFilePath, ytdlpPath);
+      } catch (rnErr) {
+        fs.copyFileSync(tempFilePath, ytdlpPath);
+        try { fs.unlinkSync(tempFilePath); } catch (_) {}
+      }
+
+      if (!isWin) {
+        try { fs.chmodSync(ytdlpPath, '755'); } catch (e) {}
+      }
+    } catch (dlErr) {
+      if (runMode !== 'python') {
+        return { success: false, error: 'Güncelleme başarısız: ' + dlErr.message };
+      }
+    }
+  }
+
+  return new Promise((resolve) => {
+    execYtdlp(`"${ytdlpPath}" --version`, { timeout: 10000 }, (verErr, verStdout) => {
+      const newVersion = verErr ? '' : (verStdout || '').trim();
+      const successMsg = `yt-dlp başarıyla ${newVersion || cleanTarget} sürümüne güncellendi.`;
+      console.log(`[yt-dlp Update] ${successMsg}`);
+      addTerminalLog(`[yt-dlp] ${successMsg}`, 'success');
+      resolve({ success: true, output: successMsg + (pipOutput ? '\n' + pipOutput : ''), newVersion });
+    });
+  });
 }
 
 // Türkçe Açıklama: İndirme durumlarına göre özel melodik bip seslerini (başlama, başarı, hata) ses kartı üzerinden çalar.
@@ -224,6 +368,13 @@ export class DownloadQueue {
       }
     }
     return null;
+  }
+
+  notifyTrayState() {
+    try {
+      const active = (typeof this.activeDownloads === 'number') ? this.activeDownloads : 0;
+      console.log(`[TRAY_CMD] download_state=${active}`);
+    } catch (e) {}
   }
 
   async add(video) {
@@ -398,6 +549,7 @@ export class DownloadQueue {
 
     const nextVideo = this.queue.shift();
     this.activeDownloads++;
+    this.notifyTrayState();
     this.download(nextVideo);
   }
 
@@ -410,6 +562,7 @@ export class DownloadQueue {
         error: 'yt-dlp motoru yüklenemedi.'
       });
       this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+      this.notifyTrayState();
       broadcast('db_update', readDb());
       this.process();
       return;
@@ -448,9 +601,9 @@ export class DownloadQueue {
       } catch (e) {}
     }
 
-    const outputTemplate = skipChannelFolder
-      ? path.join(outputDir, `%(title)s [${video.id}].%(ext)s`)
-      : path.join(outputDir, `${video.channelName} - %(title)s [${video.id}].%(ext)s`);
+    const outputFilename = skipChannelFolder
+      ? `%(title)s [${video.id}].%(ext)s`
+      : `${video.channelName} - %(title)s [${video.id}].%(ext)s`;
     
     const isMp3 = (video.customFormat === 'audio-mp3');
 
@@ -469,13 +622,22 @@ export class DownloadQueue {
       '--js-runtimes', `node:${process.execPath}`,
       '--replace-in-metadata', 'title', '[#?%]', '',
       '--replace-in-metadata', 'title', '[/\\\\:\\*\\?\"<>|｜|]', '-',
-      '-o', outputTemplate,
       '--newline',
       '--write-subs',
       '--write-auto-subs',
       '--sub-langs', subLangs,
       '--sub-format', 'srt/vtt/best'
     ];
+
+    // SSD / Hızlı Geçici Klasörde İndir ve Birleştir (Tamamlanınca Hedefe Taşı)
+    if (settings.useTempDownloadStaging === true) {
+      const stagingDir = getStagingTempDir();
+      args.push('-P', `home:${outputDir}`);
+      args.push('-P', `temp:${stagingDir}`);
+      args.push('-o', outputFilename);
+    } else {
+      args.push('-o', path.join(outputDir, outputFilename));
+    }
 
     if (!isMp3) {
       args.push('--write-description');
@@ -871,6 +1033,7 @@ export class DownloadQueue {
       this.activeProcesses.delete(video.id);
 
       this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+      this.notifyTrayState();
 
       const db = readDb();
       const currentItem = db.history.find(h => h.id === video.id);

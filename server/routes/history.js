@@ -11,7 +11,8 @@ import {
   writeDb, 
   writeDbFast,
   acquireDbLock, 
-  updateHistoryItem 
+  updateHistoryItem,
+  recordDeletedVideo 
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
 import { downloadQueue, getCookieArgs } from '../services/downloader.js';
@@ -22,6 +23,7 @@ import { triggerSilentCookieRefresh } from './settings.js';
 import { updateChannelFullInfo } from './channels.js';
 import { buildCookieHeader } from '../services/cookieHealth.js';
 import { closeActiveVideoStreams } from './streams.js';
+import { physicallyDeleteVideoFiles, getVideoRemainingMs } from '../services/autoDeleteService.js';
 
 export const router = express.Router();
 
@@ -1712,7 +1714,18 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
       duration: duration,
       hidden: hideOnDelete
     });
-    console.log(`BİLGİ: Video '${videoTitle}' RSS'in tekrar indirmemesi için 'ignored' olarak işaretlendi (Gizleme: ${hideOnDelete}).`);
+    // Silinen videolar listesine kaydet
+    recordDeletedVideo(existingItem || {
+      id: id,
+      title: videoTitle,
+      channelId: channelId,
+      channelName: channelName,
+      downloadedAt: existingItem?.downloadedAt || new Date().toISOString(),
+      publishedAt: publishedAt,
+      fileSize: existingItem?.fileSize || '',
+      filePath: existingItem?.filePath || '',
+      duration: duration
+    }, 'manual', latestDb);
 
     await writeDbFast(latestDb);
     broadcast('db_update', latestDb);
@@ -2227,4 +2240,206 @@ router.post('/tools/refresh-metadata', localhostOnly, async (req, res) => {
 
   res.json({ success: true, message: 'İndirilen videoların metadata taraması arka planda başlatıldı.' });
 });
+
+/**
+ * Süresi dolmuş ve onay bekleyen videoların listesini döner.
+ */
+router.get('/auto-delete/pending', localhostOnly, (req, res) => {
+  const db = readDb();
+  const expiredItems = [];
+  for (const item of (db.history || [])) {
+    const remainingMs = getVideoRemainingMs(item, db);
+    if (remainingMs !== null && remainingMs <= 0) {
+      expiredItems.push({
+        id: item.id,
+        title: item.title,
+        channelName: item.channelName,
+        filePath: item.filePath,
+        fileSize: item.fileSize || '',
+        thumbnail: `/api/video/${item.id}/thumbnail`
+      });
+    }
+  }
+  res.json({ success: true, videos: expiredItems });
+});
+
+/**
+ * Onaylanan süresi dolmuş videoları diskten ve geçmişten temizler.
+ */
+router.post('/auto-delete/confirm', localhostOnly, async (req, res) => {
+  const { videoIds } = req.body;
+  const release = await acquireDbLock();
+  try {
+    const db = readDb();
+    const idsToDelete = Array.isArray(videoIds) && videoIds.length > 0 
+      ? new Set(videoIds) 
+      : null;
+
+    let deletedCount = 0;
+    for (const item of (db.history || [])) {
+      if (item.status === 'completed' && item.filePath) {
+        if (!idsToDelete || idsToDelete.has(item.id)) {
+          const remainingMs = getVideoRemainingMs(item, db);
+          if (remainingMs !== null && remainingMs <= 0) {
+            physicallyDeleteVideoFiles(item);
+            item.status = 'ignored';
+            item.filePath = '';
+            item.fileSize = '';
+            item.hidden = true; // Kütüphanede gizlenenlere ekle
+            deletedCount++;
+            addTerminalLog(`[Oto-Silme Onaylandı] "${item.title}" videosu diskten kalıcı olarak silindi ve kütüphanede gizlenenlere eklendi.`, 'info');
+          }
+        }
+      }
+    }
+
+    if (deletedCount > 0) {
+      writeDb(db);
+      broadcast('db_update', db);
+    }
+    res.json({ success: true, count: deletedCount });
+  } finally {
+    release();
+  }
+});
+
+/**
+ * Süresi dolmuş videoların silinmesini belirtilen gün kadar (1, 2, 3 gün) erteler.
+ */
+router.post('/auto-delete/postpone', localhostOnly, async (req, res) => {
+  const { videoIds, days } = req.body;
+  const postponeDays = Math.max(1, Math.min(parseInt(days, 10) || 2, 30));
+  const postponeUntil = Date.now() + (postponeDays * 24 * 60 * 60 * 1000);
+
+  const release = await acquireDbLock();
+  try {
+    const db = readDb();
+    const targetIds = Array.isArray(videoIds) && videoIds.length > 0 ? new Set(videoIds) : null;
+    let postponedCount = 0;
+
+    for (const item of (db.history || [])) {
+      if (item.status === 'completed') {
+        const isTarget = targetIds ? targetIds.has(item.id) : (getVideoRemainingMs(item, db) <= 0);
+        if (isTarget) {
+          item.autoDeletePostponedUntil = postponeUntil;
+          postponedCount++;
+        }
+      }
+    }
+
+    if (postponedCount > 0) {
+      writeDb(db);
+      broadcast('db_update', db);
+      addTerminalLog(`[Oto-Silme Ertelendi] ${postponedCount} adet videonun silinmesi ${postponeDays} gün ertelendi.`, 'info');
+    }
+    res.json({ success: true, count: postponedCount, days: postponeDays });
+  } finally {
+    release();
+  }
+});
+
+/**
+ * Son 100 silinen videonun listesini döner.
+ */
+router.get('/deleted-videos', (req, res) => {
+  const db = readDb();
+  const deletedVideos = Array.isArray(db.deletedVideos) ? db.deletedVideos : [];
+  res.json({ success: true, videos: deletedVideos });
+});
+
+/**
+ * Silinen videoyu tekrar indirme kuyruğuna ekler.
+ */
+router.post('/deleted-videos/redownload', localhostOnly, async (req, res) => {
+  const { videoId } = req.body;
+  if (!videoId) {
+    return res.status(400).json({ success: false, error: 'Video ID zorunludur.' });
+  }
+
+  const release = await acquireDbLock();
+  try {
+    const db = readDb();
+    const deletedList = Array.isArray(db.deletedVideos) ? db.deletedVideos : [];
+    const item = deletedList.find(v => v.id === videoId);
+
+    // Kütüphane / History'deki kaydı da bul
+    const historyIndex = (db.history || []).findIndex(h => h.id === videoId);
+    const videoTitle = item?.title || (historyIndex !== -1 ? db.history[historyIndex].title : videoId);
+    const channelId = item?.channelId || (historyIndex !== -1 ? db.history[historyIndex].channelId : '');
+    const channelName = item?.channelName || (historyIndex !== -1 ? db.history[historyIndex].channelName : '');
+    const duration = item?.duration || (historyIndex !== -1 ? db.history[historyIndex].duration : '');
+
+    const videoObj = {
+      id: videoId,
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      title: videoTitle,
+      channelId: channelId,
+      channelName: channelName,
+      duration: duration,
+      publishedAt: item?.publishedAt || new Date().toISOString(),
+      downloadedAt: new Date().toISOString(),
+      status: 'waiting',
+      progress: 0,
+      fileSize: '',
+      filePath: '',
+      speed: '',
+      eta: '',
+      isStandalone: true
+    };
+
+    if (historyIndex !== -1) {
+      db.history[historyIndex] = {
+        ...db.history[historyIndex],
+        ...videoObj,
+        status: 'waiting',
+        progress: 0,
+        hidden: false
+      };
+    } else {
+      db.history = db.history || [];
+      db.history.unshift(videoObj);
+    }
+
+    // Silinenler listesinden isteğe göre tutulabilir veya güncellenebilir
+    await writeDbFast(db);
+    broadcast('db_update', db);
+
+    // İndirme kuyruğuna ekle
+    downloadQueue.add(videoObj);
+    downloadQueue.process();
+
+    const logMsg = `[Tekrar İndir] Silinen video kuyruğa eklendi: "${videoTitle}"`;
+    console.log(logMsg);
+    addTerminalLog(logMsg, 'info');
+
+    res.json({ success: true, message: 'Video tekrar indirme kuyruğuna eklendi.', video: videoObj });
+  } catch (err) {
+    console.error('[deleted-videos/redownload Hata]:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    release();
+  }
+});
+
+/**
+ * Silinen videolar listesini temizler.
+ */
+router.delete('/deleted-videos/clear', localhostOnly, async (req, res) => {
+  const release = await acquireDbLock();
+  try {
+    const db = readDb();
+    const count = (db.deletedVideos || []).length;
+    db.deletedVideos = [];
+    await writeDbFast(db);
+    broadcast('db_update', db);
+    addTerminalLog(`[Silinen Videolar] Silinen videolar listesi temizlendi (${count} kayıt).`, 'info');
+    res.json({ success: true, count });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    release();
+  }
+});
+
+
 

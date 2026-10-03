@@ -6,7 +6,7 @@
  */
 
 import { translations } from './utils/i18n.js';
-import { escapeHtml, formatDate, getDaysAgoText, parseSizeToBytes, isShortVideo, parseTimeToSeconds, formatDescriptionTimestamps, parseLikes, parseRelativeTime, debounce, isMembersOnlyVideo, getCatTranslatedName } from './utils/helpers.js';
+import { escapeHtml, formatDate, getDaysAgoText, parseSizeToBytes, isShortVideo, parseTimeToSeconds, formatDescriptionTimestamps, parseLikes, parseRelativeTime, debounce, isMembersOnlyVideo, getCatTranslatedName, getVideoRemainingInfo } from './utils/helpers.js';
 import { showToast, toastSuccess, toastError, toastWarning, toastInfo } from './components/toast.js';
 import { renderVideoGrid } from './components/videoCard.js';
 import { renderChannelsList, getChannelsRenderSignature } from './components/channelRow.js';
@@ -194,7 +194,10 @@ import { loadAppVersion, checkApplicationUpdates, showUpdateNotification } from 
 // Sistem yedek yöneticisi alt modülü
 import { createSystemBackup, loadSystemBackupsList, downloadSystemBackup, deleteSystemBackup, triggerUploadBackupFile, uploadBackupFile, restoreSystemBackup } from './modules/backupManager.js';
 // yt-dlp motor sürüm yöneticisi alt modülü
-import { fetchYtdlpVersion, updateYtdlp } from './modules/ytdlpManager.js';
+import { fetchYtdlpVersion, updateYtdlp, initYtdlpEvents } from './modules/ytdlpManager.js';
+window.fetchYtdlpVersion = fetchYtdlpVersion;
+window.updateYtdlp = updateYtdlp;
+window.initYtdlpEvents = initYtdlpEvents;
 // İndirici arayüzü alt modülü (tekil/playlist indirme, eksik video kuyruğa ekleme)
 import { handleDownloaderStart, handleDownloaderAll, renderPlaylistResults, downloadMissingVideo } from './modules/downloaderUI.js';
 // Video yorumları ve sayfalama alt modülü
@@ -387,6 +390,11 @@ function switchTab(targetTab, triggerPushState = true) {
     if (typeof showToolsSubSection === 'function') {
       showToolsSubSection(window.currentToolsSubSection || 'compare');
     }
+  }
+
+  if (targetTab === 'settings') {
+    if (typeof fetchYtdlpVersion === 'function') fetchYtdlpVersion();
+    if (typeof initYtdlpEvents === 'function') initYtdlpEvents();
   }
 
   if (triggerPushState) {
@@ -586,6 +594,11 @@ function connectSSE() {
     if (statusText) statusText.textContent = t.connection_active;
     if (badgeConn) badgeConn.title = t.connection_active;
     updateDiskSpace();
+
+    // Sayfa açıldığında veya yenilendiğinde bekleyen süresi dolmuş video kontrolü
+    if (typeof checkPendingAutoDeleteOnLoad === 'function') {
+      checkPendingAutoDeleteOnLoad();
+    }
   };
 
   eventSource.onerror = (err) => {
@@ -693,6 +706,18 @@ function connectSSE() {
       }
     } catch (err) {
       console.error('Update status event parse error:', err);
+    }
+  });
+
+  // Otomatik Silme Onay Bildirimi
+  eventSource.addEventListener('auto_delete_pending', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data && Array.isArray(data.videos) && data.videos.length > 0) {
+        showAutoDeleteConfirmModal(data.videos);
+      }
+    } catch (err) {
+      console.error('auto_delete_pending parse error:', err);
     }
   });
 
@@ -1948,6 +1973,12 @@ function updateUI(db) {
         if (indexB === -1) return 1;
         
         return indexA - indexB;
+      } else if (sortVal === 'auto-delete') {
+        const infoA = getVideoRemainingInfo(a, localDb);
+        const infoB = getVideoRemainingInfo(b, localDb);
+        const remA = infoA ? infoA.remainingMs : Infinity;
+        const remB = infoB ? infoB.remainingMs : Infinity;
+        return remA - remB;
       } else if (sortVal.startsWith('size-')) {
         const sizeA = parseSizeToBytes(a.fileSize);
         const sizeB = parseSizeToBytes(b.fileSize);
@@ -1973,6 +2004,11 @@ function updateUI(db) {
     if (settingsDownloadPath && document.activeElement !== settingsDownloadPath) settingsDownloadPath.value = db.settings.downloadPath || '';
     const settingsTempDirType = document.getElementById('settings-temp-dir-type');
     if (settingsTempDirType && document.activeElement !== settingsTempDirType) settingsTempDirType.value = db.settings.tempDirType || 'system';
+
+    const settingsUseTempStaging = document.getElementById('settings-use-temp-staging');
+    if (settingsUseTempStaging && document.activeElement !== settingsUseTempStaging) {
+      settingsUseTempStaging.checked = db.settings.useTempDownloadStaging === true;
+    }
 
     const settingsDurationFetchMethod = document.getElementById('settings-duration-fetch-method');
     if (settingsDurationFetchMethod && document.activeElement !== settingsDurationFetchMethod) {
@@ -2029,6 +2065,10 @@ function updateUI(db) {
     const settingsAltSpeedLimit = document.getElementById('settings-altspeedlimit');
     if (settingsTheme && document.activeElement !== settingsTheme) settingsTheme.value = db.settings.theme || 'dark';
     if (settingsAutoDelete && document.activeElement !== settingsAutoDelete) settingsAutoDelete.value = db.settings.autoDeleteDays || 0;
+    const settingsAutoDeleteRequireConfirm = document.getElementById('settings-autodelete-require-confirmation');
+    if (settingsAutoDeleteRequireConfirm && document.activeElement !== settingsAutoDeleteRequireConfirm) {
+      settingsAutoDeleteRequireConfirm.checked = db.settings.autoDeleteRequireConfirmation !== false;
+    }
     if (settingsRssLimit && document.activeElement !== settingsRssLimit) settingsRssLimit.value = db.settings.rssLimit || 5;
     if (settingsSpeedLimit && document.activeElement !== settingsSpeedLimit) settingsSpeedLimit.value = db.settings.downloadSpeedLimit || 0;
     if (settingsAltSpeedLimit && document.activeElement !== settingsAltSpeedLimit) settingsAltSpeedLimit.value = db.settings.alternativeSpeedLimit || 500;
@@ -2071,6 +2111,14 @@ function updateUI(db) {
 
     const settingsCheckOnStartup = document.getElementById('settings-checkonstartup');
     if (settingsCheckOnStartup && document.activeElement !== settingsCheckOnStartup) settingsCheckOnStartup.checked = db.settings.checkChannelsOnStartup === true;
+
+    const settingsCheckYtdlpOnStartup = document.getElementById('settings-check-ytdlp-on-startup');
+    if (settingsCheckYtdlpOnStartup && document.activeElement !== settingsCheckYtdlpOnStartup) settingsCheckYtdlpOnStartup.checked = db.settings.checkYtdlpOnStartup === true;
+
+    const ytdlpTargetSelect = document.getElementById('ytdlp-target-select');
+    if (ytdlpTargetSelect && document.activeElement !== ytdlpTargetSelect && db.settings.ytdlpStartupTarget) {
+      ytdlpTargetSelect.value = db.settings.ytdlpStartupTarget;
+    }
 
     const settingsAutoOpenBrowser = document.getElementById('settings-autoopenbrowser');
     if (settingsAutoOpenBrowser && document.activeElement !== settingsAutoOpenBrowser) settingsAutoOpenBrowser.checked = db.settings.autoOpenBrowser !== false;
@@ -2163,9 +2211,9 @@ function updateUI(db) {
         speedLimitLabel.style.color = 'var(--accent-color)';
       }
       if (altSpeedToggleBtn) {
-        altSpeedToggleBtn.classList.add('btn-warning');
+        altSpeedToggleBtn.classList.add('btn-warning', 'active');
         altSpeedToggleBtn.classList.remove('btn-secondary');
-        altSpeedToggleBtn.setAttribute('title', isEn ? 'Disable Alternative Speed Limit' : 'Alternatif Hız Sınırını Kapat');
+        altSpeedToggleBtn.setAttribute('title', isEn ? 'Disable Alternative Speed Limit (Active)' : 'Alternatif Hız Sınırını Kapat (Açık 🐢)');
       }
     } else {
       if (queueSpeedLimitInput && document.activeElement !== queueSpeedLimitInput) {
@@ -2176,9 +2224,9 @@ function updateUI(db) {
         speedLimitLabel.style.color = 'var(--text-muted)';
       }
       if (altSpeedToggleBtn) {
-        altSpeedToggleBtn.classList.remove('btn-warning');
+        altSpeedToggleBtn.classList.remove('btn-warning', 'active');
         altSpeedToggleBtn.classList.add('btn-secondary');
-        altSpeedToggleBtn.setAttribute('title', isEn ? 'Enable Alternative Speed Limit' : 'Alternatif Hız Sınırını Aç');
+        altSpeedToggleBtn.setAttribute('title', isEn ? 'Enable Alternative Speed Limit (Inactive)' : 'Alternatif Hız Sınırını Aç (Kapalı)');
       }
     }
 
@@ -3068,12 +3116,13 @@ window.triggerVolumeHUD = function(volume) {
  * @param {boolean} isPlaying - Oynatım durumu (true: oynatılıyor, false: durduruldu)
  * @returns {void}
  */
-function sendPlayerActivity(isPlaying) {
+function sendPlayerActivity(isPlaying, customTitle = null, customChannel = null) {
   if (localDb.settings && localDb.settings.discordRpcEnabled === false) return;
 
-  let title = null;
-  let channelName = null;
-  if (isPlaying && currentPlayingVideoId) {
+  let title = customTitle || null;
+  let channelName = customChannel || null;
+
+  if (isPlaying && !title && currentPlayingVideoId) {
     const video = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
     if (video) {
       title = video.title || null;
@@ -3084,9 +3133,10 @@ function sendPlayerActivity(isPlaying) {
   fetch('/api/player/activity', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, channelName })
+    body: JSON.stringify({ title: isPlaying ? title : null, channelName: isPlaying ? channelName : null })
   }).catch(e => console.error('[Discord RPC] Durum gönderim hatası:', e));
 }
+window.sendPlayerActivity = sendPlayerActivity;
 
 let activePlayRequestId = 0;
 
@@ -3364,7 +3414,14 @@ window.updateInlinePlayerMetadata = function(videoObj) {
       channelContainer.title = window.localDb?.settings?.lang === 'en' ? 'Go to Channel Videos' : 'Kanala Git';
       channelContainer.onclick = (e) => {
         e.preventDefault();
-        window.open(`https://www.youtube.com/channel/${videoChannelId}/videos`, '_blank');
+        const channelUrl = `https://www.youtube.com/channel/${videoChannelId}/videos`;
+        fetch('/api/open-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: channelUrl })
+        }).catch(() => {
+          window.open(channelUrl, '_blank', 'noopener,noreferrer');
+        });
       };
     } else {
       channelContainer.style.cursor = 'default';
@@ -3391,6 +3448,135 @@ window.updateInlinePlayerMetadata = function(videoObj) {
   if (fileSizeEl) {
     const isEn = window.localDb?.settings?.lang === 'en';
     fileSizeEl.textContent = (isEn ? 'Size: ' : 'Boyut: ') + (videoObj.fileSize || '--');
+  }
+
+  // Return YouTube Dislike (RYD) İstatistiklerini Getir ve Oy Verme Mantığı
+  const rydPill = document.getElementById('inline-player-ryd-pill');
+  const rydSep = document.getElementById('inline-player-ryd-sep');
+  const rydLikeBtn = document.getElementById('ryd-like-btn');
+  const rydDislikeBtn = document.getElementById('ryd-dislike-btn');
+  const likesCountEl = document.getElementById('ryd-likes-count');
+  const dislikesCountEl = document.getElementById('ryd-dislikes-count');
+  const barFillEl = document.getElementById('ryd-bar-fill');
+
+  if (rydPill) {
+    rydPill.style.display = 'none';
+    if (rydSep) rydSep.style.display = 'none';
+    if (rydLikeBtn) {
+      rydLikeBtn.classList.remove('voted');
+      rydLikeBtn.onclick = null;
+    }
+    if (rydDislikeBtn) {
+      rydDislikeBtn.classList.remove('voted');
+      rydDislikeBtn.onclick = null;
+    }
+
+    if (videoObj.id) {
+      fetch(`/api/video/${videoObj.id}/votes`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.available) {
+            let currentLikes = Number(data.likes) || 0;
+            let currentDislikes = Number(data.dislikes) || 0;
+
+            const fmt = (num) => {
+              if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+              if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+              return num.toLocaleString();
+            };
+
+            const updateRydDisplay = () => {
+              if (likesCountEl) likesCountEl.textContent = fmt(currentLikes);
+              if (dislikesCountEl) dislikesCountEl.textContent = fmt(currentDislikes);
+              const total = currentLikes + currentDislikes;
+              const ratio = total > 0 ? ((currentLikes / total) * 100) : 50;
+              if (barFillEl) barFillEl.style.width = ratio.toFixed(1) + '%';
+            };
+
+            updateRydDisplay();
+
+            // Kullanıcının daha önceki oyunu yerel hafızadan kontrol et
+            const storageVoteKey = `ryd_vote_${videoObj.id}`;
+            let userVote = parseInt(localStorage.getItem(storageVoteKey) || '0', 10);
+            if (userVote === 1 && rydLikeBtn) rydLikeBtn.classList.add('voted');
+            if (userVote === -1 && rydDislikeBtn) rydDislikeBtn.classList.add('voted');
+
+            // Oy Gönderme İşleyicisi
+            let isVoting = false;
+            const handleVote = async (targetValue) => {
+              if (isVoting) return;
+              isVoting = true;
+
+              // Aynı oya tekrar tıklanırsa iptal et (0 gönder), farklıysa oyu güncelle
+              const finalValue = userVote === targetValue ? 0 : targetValue;
+              const isEn = window.localDb?.settings?.lang === 'en';
+
+              try {
+                const res = await fetch(`/api/video/${videoObj.id}/vote`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ value: finalValue })
+                });
+                const resData = await res.json();
+
+                if (resData.success) {
+                  // Önceki durumu geri al
+                  if (userVote === 1) currentLikes = Math.max(0, currentLikes - 1);
+                  if (userVote === -1) currentDislikes = Math.max(0, currentDislikes - 1);
+
+                  // Yeni durumu ekle
+                  if (finalValue === 1) currentLikes++;
+                  if (finalValue === -1) currentDislikes++;
+
+                  userVote = finalValue;
+                  localStorage.setItem(storageVoteKey, finalValue.toString());
+
+                  if (rydLikeBtn) rydLikeBtn.classList.toggle('voted', userVote === 1);
+                  if (rydDislikeBtn) rydDislikeBtn.classList.toggle('voted', userVote === -1);
+
+                  updateRydDisplay();
+
+                  if (finalValue === 1) {
+                    showToast(isEn ? 'Liked on RYD network! 👍' : 'RYD ağına Beğeni gönderildi! 👍', 'success');
+                  } else if (finalValue === -1) {
+                    showToast(isEn ? 'Disliked on RYD network! 👎' : 'RYD ağına Dislike gönderildi! 👎', 'info');
+                  } else {
+                    showToast(isEn ? 'Vote removed from RYD.' : 'RYD oyunuz geri çekildi.', 'info');
+                  }
+                } else {
+                  showToast(resData.error || (isEn ? 'Failed to submit vote to RYD' : 'RYD oyu gönderilemedi'), 'error');
+                }
+              } catch (voteErr) {
+                console.error('[RYD Vote Error]', voteErr);
+                showToast(isEn ? 'Connection error while voting' : 'Oy gönderilirken bağlantı hatası oluştu', 'error');
+              } finally {
+                isVoting = false;
+              }
+            };
+
+            if (rydLikeBtn) {
+              rydLikeBtn.onclick = (e) => {
+                e.stopPropagation();
+                handleVote(1);
+              };
+            }
+
+            if (rydDislikeBtn) {
+              rydDislikeBtn.onclick = (e) => {
+                e.stopPropagation();
+                handleVote(-1);
+              };
+            }
+
+            rydPill.style.display = 'inline-flex';
+            if (rydSep) rydSep.style.display = 'inline';
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+              window.lucide.createIcons();
+            }
+          }
+        })
+        .catch(() => {});
+    }
   }
 };
 
@@ -3808,6 +3994,16 @@ window.updateInlinePlayerMetadata = function(videoObj) {
           showToast(isEn ? 'Communication error.' : 'Sunucu ile iletişim hatası.', 'error');
         }
         try { lucide.createIcons(); } catch(e) {}
+      };
+    }
+
+    // Aktif Videoyu Sil Butonu (Çöp Kutusu)
+    const btnDeleteActive = document.getElementById('inline-btn-delete-active');
+    if (btnDeleteActive) {
+      btnDeleteActive.onclick = () => {
+        if (typeof showDeleteModal === 'function') {
+          showDeleteModal(videoId);
+        }
       };
     }
 
@@ -4323,6 +4519,12 @@ function renderDownloadedPlaylist(currentVideoId) {
       if (indexB === -1) return 1;
       
       return indexA - indexB;
+    } else if (sortVal === 'auto-delete') {
+      const infoA = getVideoRemainingInfo(a, localDb);
+      const infoB = getVideoRemainingInfo(b, localDb);
+      const remA = infoA ? infoA.remainingMs : Infinity;
+      const remB = infoB ? infoB.remainingMs : Infinity;
+      return remA - remB;
     } else if (sortVal.startsWith('size-')) {
       const sizeA = parseSizeToBytes(a.fileSize);
       const sizeB = parseSizeToBytes(b.fileSize);
@@ -4369,9 +4571,18 @@ function renderDownloadedPlaylist(currentVideoId) {
           ${escapeHtml(item.channelName || '')} • ${item.fileSize || '-- MB'} • ${formatDate(item.publishedAt || item.downloadedAt)}
         </div>
       </div>
+      <button class="playlist-item-delete-btn" onclick="event.stopPropagation(); (window.showDeleteModal || showDeleteModal)('${item.id}')" title="${currentLang === 'en' ? 'Delete Video' : 'Videoyu Sil'}">
+        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+      </button>
     `;
     playlistGrid.appendChild(itemEl);
   });
+
+  try {
+    if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+      lucide.createIcons({ root: playlistGrid });
+    }
+  } catch (e) {}
 }
 
 // Türkçe Açıklama: İndirilen video dosyasını işletim sisteminin (Windows) varsayılan medya oynatıcısında (VLC, Windows Media Player vb.) açar.
@@ -4397,10 +4608,15 @@ window.playVideoSystem = async function(videoId) {
   }
 };
 
-// Türkçe Açıklama: Fare video kapağı üzerine geldiğinde yüksek çözünürlüklü (HQ) 7 farklı kapak karesi arasında 400ms aralıklarla akıcı geçiş yapar.
-window.handleThumbMouseEnter = function(wrapperEl) {
-  if (!wrapperEl || (window.dbSettings && window.dbSettings.enableAltThumbnailsHover === false)) return;
-  const videoId = wrapperEl.getAttribute('data-video-id');
+// Türkçe Açıklama: Fare video kartı veya kapak üzerine geldiğinde yüksek çözünürlüklü (HQ) alternatif kapak karesi döngüsünü çalıştırır.
+window.handleThumbMouseEnter = function(targetEl) {
+  if (!targetEl || (window.dbSettings && window.dbSettings.enableAltThumbnailsHover === false)) return;
+  const wrapperEl = targetEl.classList.contains('video-thumbnail-wrapper')
+    ? targetEl
+    : targetEl.querySelector('.video-thumbnail-wrapper');
+  if (!wrapperEl) return;
+
+  const videoId = wrapperEl.getAttribute('data-video-id') || targetEl.getAttribute('data-id');
   if (!videoId) return;
 
   const imgEl = wrapperEl.querySelector('.video-thumbnail');
@@ -4438,8 +4654,13 @@ window.handleThumbMouseEnter = function(wrapperEl) {
   }, 666);
 };
 
-window.handleThumbMouseLeave = function(wrapperEl) {
+window.handleThumbMouseLeave = function(targetEl) {
+  if (!targetEl) return;
+  const wrapperEl = targetEl.classList.contains('video-thumbnail-wrapper')
+    ? targetEl
+    : targetEl.querySelector('.video-thumbnail-wrapper');
   if (!wrapperEl) return;
+
   if (wrapperEl._thumbTimer) {
     clearInterval(wrapperEl._thumbTimer);
     wrapperEl._thumbTimer = null;
@@ -4779,6 +5000,185 @@ if (confirmDeleteBtn) {
     }
   });
 }
+
+// === OTOMATİK SİLME ONAY VE ERTELEME SİSTEMİ ===
+let pendingAutoDeleteVideos = [];
+window.pendingAutoDeleteVideos = pendingAutoDeleteVideos;
+
+/**
+ * Sayfa açıldığında veya SSE bağlandığında bekleyen süresi dolmuş video kontrolü yapar.
+ */
+async function checkPendingAutoDeleteOnLoad() {
+  try {
+    const res = await fetch('/api/auto-delete/pending');
+    const data = await res.json();
+    if (data.success && Array.isArray(data.videos) && data.videos.length > 0) {
+      showAutoDeleteConfirmModal(data.videos);
+    }
+  } catch (err) {
+    console.warn('[Auto-Delete] Bekleyen video kontrolü yapılamadı:', err.message);
+  }
+}
+window.checkPendingAutoDeleteOnLoad = checkPendingAutoDeleteOnLoad;
+
+/**
+ * Süresi dolmuş videolar için toplu silme onay modalını açar ve videoları listeler.
+ * 
+ * @param {Array<object>} videos Silinmesi beklenen video listesi
+ */
+function showAutoDeleteConfirmModal(videos) {
+  const modal = document.getElementById('auto-delete-confirm-modal');
+  const listEl = document.getElementById('auto-delete-pending-list');
+  const countEl = document.getElementById('auto-delete-modal-title');
+  if (!modal || !listEl) return;
+
+  pendingAutoDeleteVideos = Array.isArray(videos) ? videos : [];
+  window.pendingAutoDeleteVideos = pendingAutoDeleteVideos;
+  if (pendingAutoDeleteVideos.length === 0) return;
+
+  const isEn = (localDb.settings && localDb.settings.lang === 'en') || (window.currentLang === 'en');
+  if (countEl) {
+    countEl.textContent = isEn 
+      ? `${pendingAutoDeleteVideos.length} Expired Videos to Delete`
+      : `${pendingAutoDeleteVideos.length} Adet Süresi Dolan Video Silinecek`;
+  }
+
+  listEl.innerHTML = '';
+  pendingAutoDeleteVideos.forEach(v => {
+    const itemEl = document.createElement('div');
+    itemEl.style.cssText = 'display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px;';
+    itemEl.innerHTML = `
+      <img src="${v.thumbnail || '/api/video/' + v.id + '/thumbnail'}" style="width: 60px; height: 34px; object-fit: cover; border-radius: 4px; flex-shrink: 0;" onerror="this.src='/logo.png'" />
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(v.title || '')}">${escapeHtml(v.title || '')}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; margin-top: 2px;">
+          <span>${escapeHtml(v.channelName || '')}</span>
+          ${v.fileSize ? `<span>• ${escapeHtml(v.fileSize)}</span>` : ''}
+        </div>
+      </div>
+    `;
+    listEl.appendChild(itemEl);
+  });
+
+  modal.classList.remove('hidden');
+}
+window.showAutoDeleteConfirmModal = showAutoDeleteConfirmModal;
+
+function hideAutoDeleteConfirmModal() {
+  const modal = document.getElementById('auto-delete-confirm-modal');
+  if (modal) modal.classList.add('hidden');
+}
+window.hideAutoDeleteConfirmModal = hideAutoDeleteConfirmModal;
+
+const closeAutoDeleteModalBtn = document.getElementById('close-auto-delete-modal-btn');
+if (closeAutoDeleteModalBtn) {
+  closeAutoDeleteModalBtn.addEventListener('click', hideAutoDeleteConfirmModal);
+}
+
+/**
+ * Süresi dolan videoların tamamının silinmesini onaylar.
+ */
+async function confirmAutoDeleteAll() {
+  const isEn = (localDb.settings && localDb.settings.lang === 'en') || (window.currentLang === 'en');
+  const btn = document.getElementById('btn-confirm-auto-delete-all');
+  if (btn) btn.disabled = true;
+
+  try {
+    let ids = (window.pendingAutoDeleteVideos || pendingAutoDeleteVideos || []).map(v => v?.id || v).filter(Boolean);
+    if (ids.length === 0) {
+      try {
+        const pRes = await fetch('/api/auto-delete/pending');
+        const pData = await pRes.json();
+        if (pData.success && Array.isArray(pData.videos)) {
+          ids = pData.videos.map(v => v.id);
+        }
+      } catch (e) {}
+    }
+
+    const res = await fetch('/api/auto-delete/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoIds: ids })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? `${data.count} videos deleted permanently.` : `${data.count} adet video diskten başarıyla silindi.`, 'success');
+      hideAutoDeleteConfirmModal();
+      pendingAutoDeleteVideos = [];
+      window.pendingAutoDeleteVideos = [];
+      if (typeof updateDiskSpace === 'function') setTimeout(updateDiskSpace, 1500);
+    } else {
+      showToast(data.error || (isEn ? 'Deletion failed.' : 'Silme işlemi başarısız oldu.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Server communication error.' : 'Sunucu ile iletişim hatası.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+window.confirmAutoDeleteAll = confirmAutoDeleteAll;
+
+/**
+ * Süresi dolan videoların silinmesini 1, 2 veya 3 gün erteler.
+ * 
+ * @param {number} days Erteleme gün sayısı
+ */
+async function postponeAutoDelete(days = 2) {
+  const isEn = (localDb.settings && localDb.settings.lang === 'en') || (window.currentLang === 'en');
+  try {
+    let ids = (window.pendingAutoDeleteVideos || pendingAutoDeleteVideos || []).map(v => v?.id || v).filter(Boolean);
+    if (ids.length === 0) {
+      try {
+        const pRes = await fetch('/api/auto-delete/pending');
+        const pData = await pRes.json();
+        if (pData.success && Array.isArray(pData.videos)) {
+          ids = pData.videos.map(v => v.id);
+        }
+      } catch (e) {}
+    }
+
+    const res = await fetch('/api/auto-delete/postpone', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        videoIds: ids,
+        days: days
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? `Deletion postponed by ${data.days} days.` : `Silme işlemi ${data.days} gün ertelendi.`, 'info');
+      hideAutoDeleteConfirmModal();
+      pendingAutoDeleteVideos = [];
+      window.pendingAutoDeleteVideos = [];
+    } else {
+      showToast(data.error || (isEn ? 'Postpone failed.' : 'Erteleme başarısız oldu.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Server communication error.' : 'Sunucu ile iletişim hatası.', 'error');
+  }
+}
+window.postponeAutoDelete = postponeAutoDelete;
+
+// Doğrudan buton dinleyicilerini bağla (güvenlik ve yedek katman)
+function initAutoDeleteModalButtons() {
+  ['btn-postpone-1', 'btn-postpone-2', 'btn-postpone-3'].forEach((btnId, idx) => {
+    const pBtn = document.getElementById(btnId);
+    if (pBtn && !pBtn.dataset.bound) {
+      pBtn.dataset.bound = 'true';
+      pBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        postponeAutoDelete(idx + 1);
+      });
+    }
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAutoDeleteModalButtons);
+} else {
+  initAutoDeleteModalButtons();
+}
+
 
 // === FILTER PERSISTENCE SYSTEM (KÜTÜPHANE & İNDİRİLENLER) ===
 function saveHistoryFilterState() {
@@ -5852,6 +6252,12 @@ function playNextVideoInPlaylist() {
       if (indexB === -1) return 1;
       
       return indexA - indexB;
+    } else if (sortVal === 'auto-delete') {
+      const infoA = getVideoRemainingInfo(a, localDb);
+      const infoB = getVideoRemainingInfo(b, localDb);
+      const remA = infoA ? infoA.remainingMs : Infinity;
+      const remB = infoB ? infoB.remainingMs : Infinity;
+      return remA - remB;
     } else if (sortVal.startsWith('size-')) {
       const sizeA = parseSizeToBytes(a.fileSize);
       const sizeB = parseSizeToBytes(b.fileSize);
@@ -5931,9 +6337,10 @@ function setupSortableContainer(container, itemSelector, storageKey) {
 //  deleteSystemBackup, triggerUploadBackupFile, uploadBackupFile, restoreSystemBackup]
 // [ytdlpManager.js modülüne taşındı: fetchYtdlpVersion, updateYtdlp]
 
-// Sayfa yüklendiğinde yt-dlp sürümünü ve Gist alanlarını otomatik sorgula
+// Sayfa yüklendiğinde yt-dlp sürümünü, dinleyicilerini ve Gist alanlarını otomatik sorgula
 document.addEventListener('DOMContentLoaded', () => {
   fetchYtdlpVersion();
+  initYtdlpEvents();
   setTimeout(() => {
     populateGistFields();
   }, 500);
@@ -6615,4 +7022,11 @@ window.openSubscriptionsPage = async function() {
 // ===== AKTİF DNS SUNUCUSU TESPİTİ =====
 // DNS fonksiyonları ve olay dinleyicileri ./modules/dnsLookup.js modülünden yönetilmektedir.
 initDnsLookupEvents();
+
+// Sayfa ilk yüklendiğinde süresi dolmuş video onayı var mı kontrol et
+setTimeout(() => {
+  if (typeof checkPendingAutoDeleteOnLoad === 'function') {
+    checkPendingAutoDeleteOnLoad();
+  }
+}, 1200);
 

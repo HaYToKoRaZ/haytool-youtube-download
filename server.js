@@ -162,7 +162,7 @@ import {
   ytdlpPath,
   cleanLocalTempDir 
 } from './server/services/paths.js';
-import { downloadQueue, getEffectiveSpeedLimit } from './server/services/downloader.js';
+import { downloadQueue, getEffectiveSpeedLimit, performYtdlpUpdate } from './server/services/downloader.js';
 import { 
   triggerChannelCheck,
   resolveMissingDurations, 
@@ -175,6 +175,7 @@ import { startNetworkHealthCheck } from './server/services/networkHealth.js';
 import { gzipSync } from 'zlib';
 import { discordRpc } from './server/services/discord.js';
 import { setIptvChannels, downloadHlsJsIfNeeded } from './server/services/iptv.js';
+import { checkAndProcessAutoDelete } from './server/services/autoDeleteService.js';
 import { configIniPath, parseIni } from './server/config.js';
 import { appVersion } from './server/version.js';
 
@@ -507,71 +508,9 @@ function cleanOldLogs() {
   }
 }
 
-// Süresi dolmuş videoları otomatik sil
+// Süresi dolmuş videoları otomatik sil / onaya sun
 function autoDeleteOldVideos() {
-  if (downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
-    return; // Aktif indirme veya FFmpeg birleştirmesi varken oto-silmeyi ertele
-  }
-
-  const db = readDb();
-  const autoDeleteDays = db.settings.autoDeleteDays || 0;
-  if (autoDeleteDays <= 0) return;
-
-  const thresholdMs = autoDeleteDays * 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  let updated = false;
-
-  for (const item of db.history) {
-    if (item.status === 'completed' && item.filePath) {
-      if (fs.existsSync(item.filePath)) {
-        try {
-          const stats = fs.statSync(item.filePath);
-          const fileTime = stats.birthtimeMs || stats.mtimeMs || stats.ctimeMs;
-          const ageMs = now - fileTime;
-
-          if (ageMs > thresholdMs) {
-            console.log(`[Auto-Delete] Video süresi doldu, siliniyor: ${item.title}`);
-            fs.unlinkSync(item.filePath);
-            
-            const ext = path.extname(item.filePath);
-            const thumbJpg = item.filePath.replace(ext, '.jpg');
-            const thumbWebp = item.filePath.replace(ext, '.webp');
-            const descFile = item.filePath.replace(ext, '.description');
-            if (fs.existsSync(thumbJpg)) fs.unlinkSync(thumbJpg);
-            if (fs.existsSync(thumbWebp)) fs.unlinkSync(thumbWebp);
-            if (fs.existsSync(descFile)) fs.unlinkSync(descFile);
-
-            const trSrt = item.filePath.replace(ext, '.tr.srt');
-            const enSrt = item.filePath.replace(ext, '.en.srt');
-            const trVtt = item.filePath.replace(ext, '.tr.vtt');
-            const enVtt = item.filePath.replace(ext, '.en.vtt');
-            if (fs.existsSync(trSrt)) fs.unlinkSync(trSrt);
-            if (fs.existsSync(enSrt)) fs.unlinkSync(enSrt);
-            if (fs.existsSync(trVtt)) fs.unlinkSync(trVtt);
-            if (fs.existsSync(enVtt)) fs.unlinkSync(enVtt);
-
-            item.status = 'ignored';
-            item.filePath = '';
-            item.fileSize = '';
-            updated = true;
-            addTerminalLog(`[Oto-Silme] ${autoDeleteDays} günü aşan "${item.title}" videosu diskten otomatik olarak silindi.`, 'info');
-          }
-        } catch (err) {
-          console.error(`[Auto-Delete] Dosya silme hatası (${item.title}):`, err.message);
-        }
-      } else {
-        item.status = 'ignored';
-        item.filePath = '';
-        item.fileSize = '';
-        updated = true;
-      }
-    }
-  }
-
-  if (updated) {
-    writeDb(db);
-    broadcast('db_update', db);
-  }
+  checkAndProcessAutoDelete(downloadQueue);
 }
 
 // Konsoldan alternatif hız limitini değiştirince aktif indirmeyi yeniden başlat
@@ -931,6 +870,23 @@ if (process.argv.length <= 2) {
       checkGithubUpdates().catch(err => console.error('GitHub güncelleme kontrolü yenilenemedi:', err.message));
     }, 12 * 60 * 60 * 1000);
 
+    // Açılışta yt-dlp Motor Sürümü Güncelleme Kontrolü (Ayarlarda aktifse)
+    setTimeout(async () => {
+      try {
+        const currentDb = readDb();
+        if (currentDb.settings && currentDb.settings.checkYtdlpOnStartup === true) {
+          const target = currentDb.settings.ytdlpStartupTarget || 'nightly';
+          addTerminalLog(`[Sistem Açılışı] yt-dlp motor güncellemesi denetleniyor ve uygulanıyor (${target})...`, 'info');
+          const res = await performYtdlpUpdate(target);
+          if (res && res.success) {
+            addTerminalLog(`[Sistem Açılışı] yt-dlp motoru güncel (${res.newVersion || target}).`, 'success');
+          }
+        }
+      } catch (err) {
+        console.error('[Sistem Açılışı] yt-dlp açılış güncelleme hatası:', err.message);
+      }
+    }, 4500);
+
     // Sunucu açılış yaşam döngüsü: Disk Senkronizasyonu -> Açılış Kanal Taraması
     // NOT: Çerez tazeleme (triggerSilentCookieRefresh) bağımsız olarak 2s'de çalışmaktadır.
     setTimeout(async () => {
@@ -961,11 +917,28 @@ if (process.argv.length <= 2) {
       triggerSilentCookieRefresh();
     }, 30 * 60 * 1000);
 
-    // Tarayıcıyı aç
+    // Tarayıcıyı / Oynatıcıyı aç (Kullanıcı tercihi veya varsayılan /downlist)
     const currentDbState = readDb();
     if (currentDbState.settings.autoOpenBrowser !== false) {
-      const targetUrl = `http://localhost:${PORT}`;
-      if (process.platform === 'linux') {
+      const targetUrl = `http://localhost:${PORT}/downlist`;
+      const actionPref = (currentDbState.settings.doubleClickAction || 'player').toLowerCase();
+      const baseDir = process.cwd();
+      const playerPath = path.join(baseDir, 'HaYTooL-Player.exe');
+      const binPlayerPath = path.join(baseDir, 'bin', 'HaYTooLPlayer.exe');
+      const playerExists = fs.existsSync(playerPath) ? playerPath : (fs.existsSync(binPlayerPath) ? binPlayerPath : null);
+
+      if (process.platform === 'win32' && actionPref === 'player' && playerExists) {
+        try {
+          exec(`"${playerExists}" "/downlist"`, { cwd: baseDir, windowsHide: false }, (err) => {
+            if (err) {
+              console.log(`HaYTooL-Player açılamadı, sistem tarayıcısına yönlendiriliyor: ${err.message}`);
+              open(targetUrl).catch(() => {});
+            }
+          });
+        } catch (e) {
+          open(targetUrl).catch(() => {});
+        }
+      } else if (process.platform === 'linux') {
         const browsers = ['google-chrome', 'chromium', 'chromium-browser', 'brave-browser', 'microsoft-edge'];
         let appBrowser = null;
         for (const b of browsers) {
@@ -1000,7 +973,7 @@ if (process.argv.length <= 2) {
         }
       }
     } else {
-      console.log(`Otomatik tarayıcı açılışı devre dışı bırakıldı. Lütfen http://localhost:${PORT} adresine el ile gidin.`);
+      console.log(`Otomatik tarayıcı açılışı devre dışı bırakıldı. Lütfen http://localhost:${PORT}/downlist adresine el ile gidin.`);
     }
   });
 

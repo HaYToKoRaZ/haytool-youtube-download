@@ -759,6 +759,12 @@ function clearIptvSlot(slotIndex) {
   if (muteBtn) { muteBtn.innerHTML = '<i data-lucide="volume-x"></i>'; lucide.createIcons(); }
   updateIptvPlayingStatus();
   if (!isRestoringIptv) saveIptvState();
+
+  // Başka aktif IPTV oynatıcı yoksa Discord durumunu sıfırla
+  const hasActiveIptv = iptvPlayers.some(p => p !== null);
+  if (!hasActiveIptv && typeof window.sendPlayerActivity === 'function') {
+    window.sendPlayerActivity(false);
+  }
 }
 
 function stopAllIptvPlayers() {
@@ -767,6 +773,9 @@ function stopAllIptvPlayers() {
   isRestoringIptv = true;
   try { for (let i = 0; i < 4; i++) clearIptvSlot(i); }
   finally { isRestoringIptv = prev; }
+  if (typeof window.sendPlayerActivity === 'function') {
+    window.sendPlayerActivity(false);
+  }
 }
 
 function playIptvChannel(slotIndex, streamUrl, displayName) {
@@ -841,6 +850,15 @@ function playIptvChannel(slotIndex, streamUrl, displayName) {
 
   updateIptvPlayingStatus();
   if (!isRestoringIptv) saveIptvState();
+
+  // Discord Rich Presence'a IPTV Canlı Yayın Bilgisini Gönder
+  try {
+    if (typeof window.sendPlayerActivity === 'function') {
+      window.sendPlayerActivity(true, displayName, 'IPTV Canlı Yayın');
+    }
+  } catch (e) {
+    console.error('[IPTV Discord RPC Hatası]:', e);
+  }
 }
 
 function resetIptvSlotStyles(slotIdx = null) {

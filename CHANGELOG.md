@@ -3,6 +3,244 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [9.8.100] - 2026-10-03
+- **feat(web & design): xiaopu-ai/web-design Disiplini ile Tanıtım Web Sitesi Modernizasyonu:**
+  - **Şartname (DESIGN.md):** `websites/DESIGN.md` oluşturularak "spec-first, code-second" yaklaşımıyla sitenin görsel ve teknik standartları (renk tokenları, cam moru, obsidian palet, tipografi, mikro-animasyonlar) belgelendi.
+  - **Yeni Vitrin Kartları:** Uygulamaya son eklenen IPTV Çoklu Canlı TV, Return YouTube Dislike (RYD) oylama motoru ve 5 Farklı Dinamik Tema motoru özellikleri web sitesinin özellikler gridine (`.highlight-card` cam ışıma efektiyle) eklendi.
+  - **Çok Dilli Sözlük:** `websites/app.js` içine TR ve EN yeni özellik çevirileri eklendi.
+
+## [9.8.99] - 2026-10-03
+- **fix(ui & queue): Kuyruk Sekmesi Alternatif Hız Sınırı (Turtle) Butonu Görünürlüğü:**
+  - **Açık Tema Kontrastı:** Açık temada `#alt-speed-toggle-btn` butonunun aktif veya kapalı olduğu fark edilmiyordu.
+  - **Yeni Belirgin Durumlar:**
+    - **Kapalı Durumda:** Soluk gri tonu, `%65` şeffaflık ve hafif grileşme (grayscale) ile kapalı olduğu net olarak anlaşılır.
+    - **Açık (Aktif) Durumda:** Parlak amber/turuncu degrade (`#f59e0b` → `#ea580c`), beyaz ikon, hafif büyüme (`scale(1.05)`) ve turuncu parlama (`box-shadow`) ile anında fark edilir hale getirildi.
+  - Buton ipucu metinleri (title) durumuna göre `"Alternatif Hız Sınırını Kapat (Açık 🐢)"` ve `"Alternatif Hız Sınırını Aç (Kapalı)"` olarak güncellendi.
+
+## [9.8.98] - 2026-10-03
+- **feat(database & auto-delete): Otomatik Silinen Videoların Kütüphanede Gizlenenlere Eklenmesi:**
+  - **Gizleme Entegrasyonu:** Kanala özel veya genel "Videoları Otomatik Sil (Gün)" kuralı ile süresi dolup otomatik olarak silinen videolar (hem sessiz modda hem de onaylı modda) artık doğrudan `item.hidden = true` olarak işaretlenir.
+  - **Kütüphane Görünümü:** Elle silme işlemindeki gibi, otomatik silinen videolar da kütüphanenin ana listesinde kalabalık yapmaz; yalnızca "Gizlenenler" filtre çipi seçildiğinde listelenir ve RSS/otomasyon tarafından tekrar indirilmez (`status = 'ignored'`).
+
+## [9.8.97] - 2026-10-03
+- **feat(iptv & discord): IPTV Canlı Yayınları İçin Discord Rich Presence Desteği:**
+  - IPTV sekmesinde herhangi bir TV kanalına tıklandığında, Discord RPC aktivite durumu otomatik olarak güncellenir.
+  - Discord profilinde:
+    1. **Oynatılan:** `Multimedia HaYTooL`
+    2. **1. Satır (Başlık):** Kanalın adı (örn. `TRT 1`, `Eurosport 1`)
+    3. **2. Satır (Detay):** `IPTV Canlı Yayın`
+  - IPTV kanalı durdurulduğunda veya kapatıldığında Discord durumu otomatik olarak temizlenir.
+
+## [9.8.96] - 2026-10-03
+- **fix(discord): Discord Rich Presence Alt Satır Sadeleştirmesi:**
+  - Discord'un "Oynuyor" aktivite başlığı olarak en başta zaten uygulama adını göstermesi nedeniyle, alt satırdaki (`state`) gereksiz `• Multimedia HaYTooL` eki kaldırıldı.
+  - Artık tam istenen temiz sıralama sağlandı:
+    1. **Uygulama Adı:** En başta Discord'un yerleşik oyun/uygulama başlığı (`Multimedia HaYTooL Oynuyor`).
+    2. **Video Adı:** 1. Satırda kalın metin olarak (`details`).
+    3. **Kanal Adı:** 2. Satırda net ve sade olarak (`state`).
+
+## [9.8.95] - 2026-10-03
+- **feat(discord): Discord Rich Presence Sıralama Düzeni Yenilendi:**
+  - **Yeni Hiyerarşi:** Discord profilinde durum görüntülendiğinde sıralama isteğiniz doğrultusunda güncellendi:
+    1. **1. Satır (Ana Başlık - `details`):** Video Adı (Oynatılan medyanın tam başlığı).
+    2. **2. Satır (Alt Başlık - `state`):** Kanal Adı (`Kanal Adı • Multimedia HaYTooL`).
+    3. **En Alt & Logo (`assets` & buton):** Büyük uygulama logosu üzerinde ve indirme butonunda uygulama adı (`Multimedia HaYTooL`).
+
+## [9.8.94] - 2026-10-03
+- **fix(ui & iptv): IPTV Açık Tema TV İsimleri Okunabilirliği ve Bayraklar Satırı Sadeleştirmesi:**
+  - **Açık Tema TV İsimleri (`.iptv-channel-name`, `.slot-title`):** Beyaz zeminle çakışan ve okunmayan beyaz yazı rengi yerine açık temada yüksek kontrastlı koyu renk `#0f172a` tanımlandı; boş yuva başlıklarının zemin kontrastı artırıldı.
+  - **Hızlı Bayraklar Başlığı:** `.iptv-quick-flags-row` satırındaki gereksiz "Hızlı:" metin etiketi kaldırılarak alan tamamen doğrudan ülke bayrak butonlarına ayrıldı.
+
+## [9.8.93] - 2026-10-03
+- **fix(ui & weather): Açık Tema (Light Theme) Hava Durumu Kartı Metin Okunabilirliği:**
+  - **Kontrast & Metin Rengi Düzeltmesi:** Açık temada hava durumu popover penceresi (`.weather-popover`) açıldığında beyaz zemin üzerinde açık gri/beyaz kalan metinler düzeltildi.
+  - Sıcaklık derecesi (`.weather-popover-temp`) ve parametre değerleri (`.wpop-value`) net koyu renk `#0f172a` yapıldı.
+  - Açıklama (`.weather-popover-desc`) ve etiketler (`.wpop-label`, `.weather-popover-footer`) kurşuni koyu gri `#475569` ve `#64748b` olarak ayarlandı.
+  - Matrix, Discord ve YouTube temaları için de popover kartı zeminleri ve yazı tipleri temaların kendi özgün renk paletlerine tam uyumlu hale getirildi.
+
+## [9.8.92] - 2026-10-03
+- **fix(ui & themes): Hava Durumu Rozeti ve Kanal Filtre Açılır Menüleri Tema Uyumluluğu:**
+  - **Hava Durumu Rozeti (`.status-badge.weather-badge-wrapper`):** Sabit ve şeffaf renklerden arındırılarak tüm temaların arka plan (`var(--bg-card)`) ve sınır (`var(--border-color)`) renklerine bağlandı. Açık (Light), Siber Yeşil (Matrix), Koyu Blurple (Discord) ve Koyu Kırmızı (YouTube) temalarında metin rengi (`var(--text-main)`), şehir etiketi ve yağış oranı belirgin ve yüksek kontrastlı hale getirildi.
+  - **Kanal Filtre Tetikleyicileri & Açılır Menüler (`#downloaded-channel-trigger`, `#history-channel-trigger`, `.custom-dropdown-menu`):** Açık tema dahil tüm temalarda metinlerin silik kalması veya okunmaması problemi giderildi. Açık temada temiz beyaz zemin ve koyu yazı tipi (`#0f172a`), Matrix temasında siber yeşil, Discord temasında koyu kömür, YouTube temasında obsidian kırmızı kontrastı uygulandı.
+
+## [9.8.91] - 2026-10-03
+- **feat(player & ryd): RYD Oylama Sistemi (Like / Dislike) ve Dinamik Tema Uyumu:**
+  - **Doğrudan RYD Oylama Entegrasyonu:** Oynatıcıdaki RYD rozetine tıklanabilir Beğeni (`#ryd-like-btn`) ve Beğenmeme (`#ryd-dislike-btn`) butonları eklendi.
+  - **PoW & API Desteği:** `POST /api/video/:videoId/vote` uç noktası üzerinden Proof-of-Work (SHA-512) algoritması arka planda çözülerek anonim RYD veritabanına doğrudan +1 (beğeni) ve -1 (dislike) oyu iletilebilir hale getirildi.
+  - **Yerel Durum & Geri Çekme:** Verilen oylar `localStorage` üzerinde saklanıp aynı butona tekrar tıklandığında oy geri çekilmekte, arayüzdeki sayılar ve oran çubuğu gerçek zamanlı güncellenmektedir.
+  - **Tüm Temalarla Tam Uyum:** `.inline-ryd-pill` sabit renklerden arındırılarak Dark, Light, Matrix (Siber Yeşil), Discord (Blurple) ve YouTube (Koyu Kırmızı) temaları için kontrastlı ve dinamik CSS değişkenlerine (`var(--bg-card)`, `var(--border-color)`, `var(--primary)`) bağlandı.
+
+## [9.8.90] - 2026-10-03
+- **feat(player & api): Return YouTube Dislike (RYD) Entegrasyonu:**
+  - `server/routes/streams.js` içine `GET /api/video/:videoId/votes` vekil API rotası eklendi; 15 dakikalık akıllı önbellek mekanizması (`rydCache`) ve zaman aşımı koruması ile YouTube dislike/like verileri güvenli şekilde sağlandı.
+  - Dahili video oynatıcı bilgi çubuğuna (`.inline-player-stats`) modern cam-neon görünümlü RYD kapsülü (`.inline-ryd-pill`) yerleştirildi. Yeşil beğeni sayısı, kırmızı dislike sayısı ve gerçek zamanlı oran çubuğu (`.ryd-bar-track`) entegre edildi.
+  - Video oynatılmaya başladığında dislike oranları arka planda otomatik olarak yüklenip şık bir mikro animasyonla gösterilmektedir.
+
+## [9.8.89] - 2026-10-03
+- **feat(ui & ux-ui-agent-skills): Araçlar Açılır Menüsü, Downloader, Ayarlar ve Hava Durumu Kartı Yenilemesi:**
+  - **Hava Durumu Popover Kartı (`.weather-popover`):** Çift katmanlı sinematik cam degrade (`linear-gradient(145deg, rgba(22, 19, 42, 0.96)...)`), üst neon mor-cyan ayraç çizgisi, 16px kavis, 24px blur cam derinliği ve hava parametre kartlarında dinamik neon hover efektleri uygulandı.
+  - **Ayarlar Sekmesi (`.settings-card`):** Tüm ayar modül kartlarına sinematik cam mor zemin, üst neon ışık kılavuzu, hover durumunda süzülme (`translateY(-2px)`) ve neon mor parlama (`0 0 20px rgba(138, 43, 226, 0.3)`) kazandırıldı.
+  - **Downloader & Araçlar Sekmeleri:** URL giriş alanına (`.downloader-input-group input`), format seçicilere ve indirme butonuna (`#downloader-start-btn`) 48px/46px ergonomik dokunma hedefleri, mor/cyan degrade ve parlama efektleri uygulandı; karşılaştırma paneli (`#tools-compare-container`) cam-neon standardına yükseltildi.
+
+## [9.8.88] - 2026-10-03
+- **feat(ui & ux-ui-agent-skills): Kuyruk ve Kanallar Sekmeleri Tasarım Yenilemesi:**
+  - **Kuyruk Sekmesi (`tab-queue`):** Aktif indirme kahraman kartına (`.card-hero`) sinematik cam degrade (`linear-gradient(145deg, rgba(28, 25, 54, 0.92)...)`), üst neon ayraç çizgisi ve 20px blur cam efekti uygulandı; indirme hızı göstergesi neon cyan parlama ve rozet stiline kavuşturuldu; kuyruk öğeleri (`.queue-item`) süzülen hover geçişi (`translateY(-2px)`), neon sınır ışığı ve şık taşıma okları (`.queue-move-btn`) ile modernize edildi.
+  - **Kanallar Sekmesi (`tab-channels`):** Kanal ekleme form kartına (`.channel-action-row`) ve filtreler çubuğuna (`.channel-filters-bar`) cam degrade ve neon mor sınırlar uygulandı; kanal arama kutusuna odaklanıldığında mor neon parlama entegre edildi; kanal listesi (`.channels-list-container`) ve kanal satırları (`.channel-list-item`) mikro kayma (`translateX(4px)`) ve mor vurgu ile donatıldı.
+
+## [9.8.87] - 2026-10-03
+- **feat(ui & ux-ui-agent-skills): IPTV Sekmesi (tab-iptv) Tasarım Yenilemesi:**
+  - IPTV sağ kenar çubuğuna (`.iptv-sidebar`) ve araç çubuğuna (`.iptv-view-toolbar`) sinematik degrade (`linear-gradient(145deg, rgba(28, 25, 54, 0.92)...)`), üst neon mor/cyan ayraç çizgisi, 16px border-radius ve 20px blur cam efekti uygulandı.
+  - Kanal arama kutusuna (`.iptv-search-box input`) 38px ergonomik yükseklik, odaklanıldığında neon mor parlama (`0 0 14px rgba(138, 43, 226, 0.3)`), hızlı bayrak butonlarına (`.iptv-quick-flag-btn`) ve özel seçim menülerine (`.iptv-custom-select-trigger`) mikro süzülme ve derinlik kazandırıldı.
+  - Kanal listesi öğeleri (`.iptv-channel-item`) süzülen hover geçişi (`translateX(4px)`), neon sınır ışığı ve oynatılan kanal durumunda mor-cyan gradient aydınlatması ile modernize edildi.
+
+## [9.8.86] - 2026-10-03
+- **feat(ui & ux-ui-agent-skills): Kütüphane & İndirilenler Araç Çubukları ve Filtre Kontrolleri:**
+  - Kütüphane ve İndirilenler sekmelerinin ana araç çubuğuna (`.history-toolbar`) sinematik degrade (`linear-gradient(145deg, ...)`), iç kontur ışığı ve yumuşak kenar kavisi (`border-radius: 14px`) uygulandı.
+  - Özel kanal seçici butonuna (`.custom-dropdown-trigger`), açılır menülere ve filtre kontrollerine 38px hedef yüksekliği, cam efekti, hover neon mor ışıması ve çift tema renk uyumu kazandırıldı.
+
+## [9.8.85] - 2026-10-03
+- **feat(ui & ux-ui-agent-skills): Oynatıcı Bilgi, Açıklama ve Yorum Panelleri Modernizasyonu:**
+  - `.inline-player-info` bilgi kutusuna 22px ferah iç dolgu, 18px blur cam efekti ve ince iç kontur (`inset 1px rgba(255,255,255,0.05)`) uygulandı.
+  - Açıklama paneline (`.inline-player-description-container`) ve açıklama metnine (`#description-content`) modern yarı saydam arkaplan, yuvarlatılmış köşeler, rahat satır aralığı (`line-height: 1.65`) ve bağlantı vurguları entegre edildi.
+  - Yorumlar paneli (`.inline-player-comments-container`) ve her bir yorum kartı (`.comment-card`) mikro hover yükselmesi ve neon sınır ışığıyla zenginleştirildi.
+
+## [9.8.84] - 2026-10-03
+- **feat(ui & player): Dahili Oynatıcı ve Oynatma Listesine Hızlı Silme (Çöp Kutusu) Butonları:**
+  - Oynatıcı yan panelindeki her bir çalma listesi öğesinin (`.playlist-item`) sağına hover durumunda beliren hafif ve şık çöp kutusu butonu (`.playlist-item-delete-btn`) eklendi; doğrudan tıklanarak video onaylı silme modalı çağrılabiliyor.
+  - Video bilgi çubuğundaki eylem butonları arasına aktif videoyu tek tıkla silmeye yarayan kırmızı vurgulu çöp kutusu butonu (`#inline-btn-delete-active`) eklendi.
+
+## [9.8.83] - 2026-10-03
+- **feat(ui & player): Dahili Oynatıcı Yan Paneline (inline-player-sidebar) UX/UI Standartları Uygulaması:**
+  - Yerleşik video oynatıcı yan paneline (`.inline-player-sidebar`) ve video bilgi kartına (`.inline-player-info`) sinematik cam degrade (`linear-gradient(145deg, ...)`), `backdrop-filter: blur(16px)` ve derin neon gölge uygulandı.
+  - Playlist elemanları (`.playlist-item`) mikro hover kayması (`translateX(4px)`), neon sınırları ve aktif video çalmada mor/cyan gradient vurgusu ile donatıldı.
+
+## [9.8.82] - 2026-10-03
+- **feat(ui & theme): Belirgin Neon-Cam Derinliği & Topbar / Kart Kontrast Yükseltmesi:**
+  - Video kartları (`.video-card`) çift katmanlı degrade arkaplan (`linear-gradient(145deg, ...)`), iç ışık halkası (`inset 1px rgba(255,255,255,0.05)`), koyu tema kontrastı ve hover anında belirgin neon mor (`rgba(138, 43, 226, 0.65)`) ışıma çizgisi ile donatıldı.
+  - Üst gezinme çubuğu (`.topbar`) belirgin sinematik degrade ve neon mor alt ayraç çizgisi (`border-bottom: 1px solid rgba(138, 43, 226, 0.25)`) ile gözle görülür şekilde vurgulandı.
+
+## [9.8.81] - 2026-10-03
+- **feat(ui & interactions): Topbar Görsel Yenilemesi & Kart Geneli Alternatif Kapak Döngüsü:**
+  - **Topbar Modernizasyonu:** Üst gezinme çubuğuna (`.topbar`) cam efekti (`backdrop-filter: blur(16px)`), gölge ve iç kenarlık uygulandı. Durum rozetleri (`.status-badge`) ve üst butonlar (`.btn-icon-only`) 36px hedef ölçüleri, mikro hover yükselmeleri ve çift tema uyumuyla donatıldı.
+  - **Kart Geneli Kapak Döngüsü:** Alternatif kapak geçişi (`handleThumbMouseEnter` / `handleThumbMouseLeave`), sadece resim üzerine gelme şartından çıkarılıp tüm `.video-card` gövdesini kapsayacak şekilde genişletildi. Kullanıcı kartın herhangi bir yerine geldiğinde HQ kare döngüsü anında tetikleniyor.
+
+## [9.8.80] - 2026-10-03
+- **feat(ui & ux-ui-agent-skills): UX/UI Agent Skills Disiplini ile Modernize Edilmiş Video Kartları:**
+  - `plugin87/ux-ui-agent-skills` mimari ve görsel standartları proje anayasasına (`0nogithub/clinerules.md`) 6. Bölüm olarak entegre edildi.
+  - Video kartlarının (`.video-card`) görsel derinliği, cam efekti (`backdrop-filter: blur(14px)`), iç kenar çizgisi ve hover durumları pürüzsüz bezier geçişleriyle (`cubic-bezier(0.16, 1, 0.3, 1)`) yenilendi.
+  - Video kapaklarına (thumbnail) zarif sinematik alt gradyan kaplama (`linear-gradient(180deg, ...)`) eklendi; kapak resmi ile metin arasındaki görsel geçiş akıcılaştırıldı.
+  - Kart içi aksiyon butonları (`.video-card-actions .btn-icon`) hafif arkaplan, kenarlık ve mikro etkileşimli hover animasyonlarıyla donatıldı.
+  - Hem karanlık hem açık tema (`body.light-theme`) için gölge ve kontrast dengeleri WCAG 2.2 ve DTCG token standartlarına göre mükemmelleştirildi.
+
+## [9.8.79] - 2026-09-30
+- **feat(storage & performance): Harici HDD Aşırı Yüklenmesini & Isınmasını Önleyen SSD/Hızlı Disk Tamponlama (Staging) Özelliği:**
+  - YouTube videoları indirilirken ses ve görüntü akışlarının eşzamanlı parçalı indirilmesi ve FFmpeg ile birleştirilmesi (muxing) işleminin doğrudan mekanik harici disklerde (HDD) disk kullanımını %100'e vurması ve diski yıpratması sorununu kökten çözen **"İndirmeleri Hızlı Diskte Tamponla (SSD Staging)"** ayarı (`settings.useTempDownloadStaging`) eklendi.
+  - Açılışta silinme riskine karşı güvenli ayrı tampon dizini (`HaYTooL-YT-Downloader-Convert` / `Temp\HaYTooL-Convert`) mimarisi oluşturuldu (`getStagingTempDir`). Bu klasör uygulama açılışında otomatik temizlenen geçici klasörden ayrı tutularak yarım kalan `.part` indirmelerinin sistem yeniden başladığında kaldığı yerden devam edebilmesi güvenceye alındı.
+  - yt-dlp motoruna `--paths temp:<stagingDir>` parametresi bağlanarak tüm parçalı indirme ve birleştirme işlemleri SSD'de ışık hızında tamamlandıktan sonra, tek parça bitmiş video dosyası hedef harici diske ardışık ve kesintisiz tek bir yazma operasyonuyla aktarılacak şekilde entegre edildi.
+  - Ayarlar sekmesine (`tab-settings.html`) açma/kapatma anahtarı (`#settings-use-temp-staging`) ve detaylı rehber kutusu (`#desc-use-temp-staging-info`) eklendi.
+  - 7 dilde (`tr`, `en`, `de`, `es`, `pt`, `ru`, `ar`) sözlük ve arayüz entegrasyonu tamamlandı.
+
+## [9.8.78] - 2026-09-30
+- **fix(storage & disk sync): 0 Byte / Hasarlı Dosyaları Otomatik Tespit Etme, Gerçek Boyut Eşitleme ve Tek Tıkla Tekrar İndirme Desteği:**
+  - `server/database.js` içerisindeki tüm disk senkronizasyon modlarına (`fast`, `smart`, `full`) hafif `fs.statSync` boyut doğrulaması eklendi. Disk çökmelerinde veya Chkdsk onarımlarında içi boşalan (0 Byte) dosyalar RAM seviyesinde diski hiç yormadan anında tespit ediliyor.
+  - Dosya boyutu 0 Byte olan veya FFprobe tarafından `Invalid data / moov atom not found` hatası verilen videolar otomatik olarak `fileCorrupted: true` ve `fileMissing: true` şeklinde işaretleniyor.
+  - Video kartlarında (`public/components/videoCard.js` & `style.css`), bozuk dosyalar için kırmızı parlak durum rozeti (`status-dot-danger`) ve doğrudan kart üzerinde kırmızı **"Bozuk Dosyayı Tekrar İndir"** (`btn-action-retry`) butonu entegre edildi.
+  - 7 dilde (`tr`, `en`, `de`, `es`, `pt`, `ru`, `ar`) ilgili sözlük anahtarları eklendi.
+
+## [9.8.77] - 2026-09-30
+- **feat(settings & disk sync): Disk Senkronizasyonu 3 Bağımsız Moda Ayrıldı (Hızlı, Akıllı FFprobe ve Tam Analiz):**
+  - Kullanıcının ihtiyacına ve disk tipine (SSD vs HDD) göre 3 farklı senkronizasyon modu entegre edildi:
+    1. **Hızlı Doğrulama (Varlık)** (`mode: 'fast'`): Açılışta ve varsayılanda çalışır; videoların içeriğini okumadan sadece diskteki varlığını doğrular, sıfır disk yükü oluşturur.
+    2. **Akıllı FFprobe (Eksikler)** (`mode: 'smart'`): Yalnızca veritabanında çözünürlük bilgisi eksik/boş kalan yeni veya taşınmış videoları FFprobe ile tarar; bilinenleri atlayarak diski korur.
+    3. **Tam FFprobe Analizi (Tümü)** (`mode: 'full'`): Çözünürlüğü kayıtlı olsun ya da olmasın, diskteki tüm videoları baştan sona tek tek FFprobe ile tarayarak veritabanını baştan günceller.
+  - Ayarlar sekmesine (`tab-settings.html`) her üç mod için bağımsız butonlar ve detaylı rehber kutusu (`#desc-disk-sync-notice-title`) eklendi.
+  - Tam analiz öncesinde mekanik disk kullanıcıları için onay penceresi (`window.confirm`) korundu.
+  - 7 dilde (`tr`, `en`, `de`, `es`, `pt`, `ru`, `ar`) sözlük ve arayüz entegrasyonu tamamlandı.
+
+## [9.8.76] - 2026-09-30
+- **perf(storage & database): Açılış Disk Senkronizasyonunun Mekanik HDD'leri Yormasını Önleyecek Hafif Doğrulama & Manuel Derin FFprobe Analizi:**
+  - `server/database.js` içerisindeki açılış ve periyodik disk senkronizasyonu (`syncDbWithDisk`, `performDiskSync`), videolar üzerinde ağır disk I/O ve işlemci yükü oluşturan `getVideoResolution` (`ffprobe.exe`) çalıştırma adımından arındırılarak yalnızca hafif dosya varlığı (`fs.existsSync`) kontrolü yapacak şekilde optimize edildi.
+  - Orijinal derin FFprobe analizi korunarak Ayarlar sekmesine isteğe bağlı manuel buton olarak eklendi: **"Derin Medya Analizi (FFprobe)"** (`#btn-deep-disk-sync`).
+  - Hızlı kontrol için **"Hızlı Doğrulama (Varlık)"** (`#btn-manual-disk-sync`) butonu ve mekanik HDD kullanıcılarını bilgilendiren uyarı notu (`#desc-disk-sync-mode-notice`) eklendi.
+  - Derin analiz çalıştırılmadan önce mekanik disk kullanıcıları için onay penceresi (`window.confirm`) entegre edildi.
+  - 7 dilde (`tr`, `en`, `de`, `es`, `pt`, `ru`, `ar`) sözlük anahtarları ve dinamik arayüz eşlemeleri tamamlandı.
+
+## [9.8.75] - 2026-09-29
+- **feat(tools): Araçlar Sekmesine "Silinen Videolar" Paneli ve Tekrar İndirme Özelliği Eklendi:**
+  - Veritabanına (`db.deletedVideos`) otomatik ve manuel silinen videoları son 100 kayıt sınırı ile kaydeden `recordDeletedVideo` mekanizması entegre edildi.
+  - Kanala özel süre aşımıyla silinen videolar (`autoDeleteService.js`) ve kullanıcı tarafından kütüphaneden/indirilenlerden silinen videolar (`history.js`) silinme sebebi (`auto`/`manual`), tarih ve dosya boyutuyla kayıt altına alındı.
+  - Araçlar sekmesine (`public/partials/tab-tools.html`) ve açılır menüye (`header.html`) "Silinen Videolar" menüsü (`nav-tools-deleted-btn`) eklendi.
+  - Yanlışlıkla silinen veya tekrar indirilmek istenen videolar için tek tıkla "Tekrar İndir" butonu ve arama/filtreleme araçları entegre edildi.
+  - 7 dilde (`tr`, `en`, `de`, `es`, `pt`, `ru`, `ar`) eksiksiz sözlük anahtarları eklendi.
+
+## [9.8.74] - 2026-09-28
+- **feat(settings & startup): Sistem Açılışında yt-dlp Motorunu Otomatik Denetleme ve Güncelleme Seçeneği Eklendi:**
+  - `server/services/downloader.js` içerisine bağımsız ve yeniden kullanılabilir `performYtdlpUpdate(target)` motor güncelleme fonksiyonu entegre edildi.
+  - `server.js` açılış yaşam döngüsüne 4.5 saniyelik zamanlayıcı ile `checkYtdlpOnStartup` kontrolü eklendi; seçenek aktifse seçilen yt-dlp hedefi (`ytdlpStartupTarget`) arka planda otomatik denetlenip güncelleniyor.
+  - Veritabanı ve INI yapılandırma senkronizasyonuna (`database.js`, `settings.js`) `checkYtdlpOnStartup` ve `ytdlpStartupTarget` alanları eklendi.
+  - Ayarlar sekmesinde (`tab-settings.html`) yt-dlp sürüm kartına zarif bir açılış güncelleme anahtarı (`#settings-check-ytdlp-on-startup`) eklendi ve 7 dilde (`tr`, `en`, `de`, `es`, `pt`, `ru`, `ar`) yerelleştirildi.
+
+## [9.8.73] - 2026-09-28
+- **fix(settings): yt-dlp Motor Sürümü Güncelle Butonunun Tepki Vermeme Hatası Giderildi:**
+  - `public/modules/ytdlpManager.js` modülünde eksik olan `showToast` ve `translations` importları eklendi.
+  - `updateYtdlp` içerisindeki `currentLang` referans hatası dinamik `localStorage.getItem('haytool_user_lang')` ile çözüldü.
+  - Sadece inline `onclick` çağrısına bağlı kalmayıp DOM yüklendiğinde ve sekmeler arası geçişte (`tab-settings`) `#ytdlp-update-btn` elementine doğrudan `addEventListener('click')` bağlayan `initYtdlpEvents()` fonksiyonu eklendi.
+  - `app.js` modül köprüsünde `window.fetchYtdlpVersion`, `window.updateYtdlp` ve `window.initYtdlpEvents` global pencere kapsamına (`window`) eksiksiz olarak kaydedildi.
+
+## [9.8.72] - 2026-09-28
+- **fix(tray): Tepsi İkonu Parlama ve Nabız Animasyonu Görselleşmeme Hatası Giderildi:**
+  - `tray.cs` içerisindeki `CreateRenderedIcon()` fonksiyonunda `bmp.GetHicon()` sonrası çağrılan erken `DestroyIcon(hIcon)` kaldırıldı. .NET `Icon.Clone()` yüzeysel kopya ürettiğinden `DestroyIcon` handle'ı sildiğinde NotifyIcon simgeyi çizemiyordu; kalıcı handle referansı korunarak parlama/nabız simgesinin görünür olması sağlandı.
+  - İndirme tetiklendiği anda timer döngüsü beklenmeden anlık `AnimateTrayPulse()` çağrısı yapılarak tepsi simgesinin gecikmesiz olarak neon cyan halka ve yeşil durum noktasına geçmesi garanti edildi.
+
+## [9.8.71] - 2026-09-28
+- **fix(tray): Tepsi İkonu Parlama / Nabız Animasyonu Event-Driven Olarak Entegre Edildi:**
+  - `tray.cs` ve `server/services/downloader.js` arasında HTTP polling bağımlılığı kaldırıldı; Node.js indirme başladığında doğrudan stdout üzerinden `[TRAY_CMD] download_state=1` (bittiğinde `0`) sinyali gönderiyor.
+  - `tray.cs` stdout dinleyicisi `isDownloadingActive` durumunu anında tetikleyerek bağımsız Windows Forms UI timer'ı ile 900ms aralıklarla kesintisiz ve akıcı bir şekilde simgeyi parlatıp söndürüyor.
+  - `Multimedia HaYTooL.exe` derlendi ve aktif hale getirildi.
+
+## [9.8.70] - 2026-09-28
+- **fix(tray): İndirme Esnasında Tepsi İkonu Parlama ve Nabız Animasyonu Garanti Altına Alındı:**
+  - `tray.cs`'de `CreateRenderedIcon()` metodu oluşturuldu. 32x32 boyutunda ölçeklendirilmiş parlama halkası (cyan/mavi kontur) ve sağ alt köşedeki aktif yeşil nokta ile standart ikon arasında net nabız döngüsü (`isGlowState`) sağlandı.
+  - Windows Forms GDI+ `bmp.GetHicon()` sonrası oluşan GDI simge işaretçisi `DestroyIcon` P/Invoke çağrısıyla güvenli biçimde serbest bırakılarak işletim sistemi kaynak sızıntısı önlendi.
+  - İndirme bittiğinde ikon temiz bir biçimde varsayılan simgeye dönecek şekilde optimize edildi.
+
+## [9.8.69] - 2026-09-28
+- **fix(player): HaYTooL-Player.exe Açıldığında Multimedia HaYTooL.exe Başlamıyordu:**
+  - `HaYTooLPlayer/MainWindow.xaml.cs` `EnsureBackendRunning()` metodunda dizin hesabı hatalıydı. `AppDomain.CurrentDomain.BaseDirectory` kök dizini döndürürken `Path.GetDirectoryName()` bir üst klasörü (`D:\Program Files\`) işaret ediyordu. Artık `binDir` ve `parentDir` her ikisi de kontrol edilerek `Multimedia HaYTooL.exe` doğru konumda aranıyor.
+- **build: Tray ve Player EXE'leri Yeniden Derlendi (Rebuild):**
+  - `Multimedia HaYTooL.exe` → 9.8.67'de eklenen tray ikon parlama animasyonu (`CreateGlowingIcon`, `downloadMonitorTimer`) artık aktif binary'ye yansıdı.
+  - `HaYTooL-Player.exe` / `bin/HaYTooLPlayer.dll` → Tray sağ tık sekme geçişi `ExecuteScriptAsync(switchTab)` fix'i ve EnsureBackendRunning dizin fix'i aktif binary'ye yansıdı.
+
+## [9.8.68] - 2026-09-28
+- **fix(player): Kanal Adı Tıklaması Varsayılan Tarayıcıda Açılıyor:**
+  - İndirilenler tabındaki inline oynatıcıda kanal adına tıklandığında YouTube kanal URL'si artık uygulamanın kendi içinde değil, kullanıcının varsayılan tarayıcısında açılıyor. `app.js`'de `window.open()` yerine `POST /api/open-url` fetch çağrısı yapılıyor; `server/routes/streams.js`'e yeni `POST /api/open-url` endpoint'i eklendi.
+- **fix(tray): Tray Sağ Tık → Ayarlar / Sekmeler Video'yu Kesmez:**
+  - `HaYTooLPlayer/MainWindow.xaml.cs` WM_COPYDATA handler'ı güncellendi: `/settings`, `/home`, `/channels`, `/download`, `/iptv`, `/tools` path'leri geldiğinde artık tam sayfa `Navigate()` yerine `ExecuteScriptAsync("window.switchTab('...')")` çağrısı yapılıyor. Bu sayede inline oynatıcıdaki video mini oynatıcıya sorunsuz geçiş yapıyor ve video kesilmiyor.
+
+## [9.8.67] - 2026-09-27
+- **fix(player): HaYTooL-Player.exe Çift Tıklama URL Çiftleşme Hatası Onarıldı:**
+  - `MainWindow.xaml.cs` dosyasındaki başlatma argümanı parsing mantığı yeniden düzenlenerek argümansız başlatmada veya `/downlist` parametresi geldiğinde oluşan `Cannot GET /downlist/downlist` 404 rota hatası kökten giderildi.
+- **fix(server): Tarayıcıyı Otomatik Aç Seçeneğinin /downlist ve Oynatıcı Uyumuna Getirilmesi:**
+  - `server.js` başlangıç bloğunda `autoOpenBrowser` tetiklenirken doğrudan `/home` yerine `/downlist` hedeflendi; `doubleClickAction === 'player'` ayarı aktif olduğunda sistem tarayıcısı yerine `HaYTooL-Player.exe` başlatılarak İndirilenler sekmesinin açılması sağlandı.
+- **feat(tray): Aktif İndirme Sırasında Sistem Tepsisi Simgesinde Parlama / Nabız Animasyonu:**
+  - `server/routes/downloader.js` içerisine sıfır ek yükle çalışan `GET /api/downloader/active-status` endpoint'i eklendi.
+  - `tray.cs` içerisine arka plan timer'ı (`downloadMonitorTimer`) ve GDI+ tabanlı yumuşak parıltı çizen `CreateGlowingIcon` metodu entegre edildi. Aktif indirme sürerken simge ritmik olarak mavi-cyan parıldamakta ve durum çubuğu metni (tooltip) aktif indirme sayısını anlık göstermektedir; indirme bittiğinde orijinal simgeye sorunsuz dönülmektedir.
+
+## [9.8.66] - 2026-09-26
+- **fix(autodelete): Otomatik Silme Onay Penceresi Erteleme ve Silme Eylemleri Onarıldı:**
+  - **API Uç Noktası Rotası Düzeltildi:** Frontend'in (`public/app.js`) çağırdığı `/api/history/auto-delete/...` adresi, sunucudaki gerçek yönlendirici eşleşmesi olan `/api/auto-delete/...` (`/pending`, `/confirm`, `/postpone`) rotasına çekilerek `404 Cannot GET/POST` ve *"Sunucu ile iletişim hatası"* uyarısı kökten çözüldü.
+  - **Erteleme Butonları (1-2-3 Gün):** `public/partials/modals.html` içerisindeki erteleme butonlarına doğrudan ID tanımlandı (`btn-postpone-1`, `btn-postpone-2`, `btn-postpone-3`) ve hem DOMContentLoaded hem de inline erişim dinleyicileri eklendi.
+  - **Açılışta Otomatik Denetim:** Sayfa ilk açıldığında veya SSE canlı bağlantısı kurulduğunda bekleyen süresi dolmuş video varsa anında kontrol edilip onay penceresinin (`auto-delete-confirm-modal`) ekrana düşmesi sağlandı (`checkPendingAutoDeleteOnLoad`).
+  - **Backend Güvencesi:** `server/routes/history.js` `/api/auto-delete/postpone` uç noktasında ID listesi boş geldiğinde veya filtrelendiğinde süresi dolmuş tüm videolar (`getVideoRemainingMs <= 0`) bulunup ertelenecek şekilde güçlendirildi.
+
+## [9.8.65] - 2026-09-26
+- **feat(autodelete): Kanala Özel Otomatik Silme, Onay Penceresi ve Erteleme Sistemi Eklendi:**
+  - **Kanala Özel Süre Kuralı:** Kanallar sekmesinde her kanal kartına özel otomatik video silme kuralı seçicisi eklendi (`Asla Silinmesin [Varsayılan]`, `Genel Ayarı Kullan`, `1, 2, 3, 7, 14, 30, 60, 90 gün`). `channels.ini` dosya formatı geriye dönük uyumlu olarak 11. parametreyle genişletildi.
+  - **Silme Onay Penceresi:** Süresi dolan videoların sessizce silinmesi yerine kullanıcıya liste halinde sunulduğu toplu onay modalı (`auto-delete-confirm-modal`) geliştirildi; Ayarlar sekmesine bu onayı açıp kapatabilen `autoDeleteRequireConfirmation` seçeneği eklendi.
+  - **1-2-3 Gün Erteleme:** Onay penceresine süresi dolan videoların silinmesini 1, 2 veya 3 gün ileriye öteleyen erteleme butonları eklendi. Süre dolduğunda aynı onay penceresi tekrar açılır.
+  - **İndirilenler Sekmesinde Vade Sıralaması:** İndirilenler sekmesine "⏳ Vadesi Dolanlar" sıralama butonu eklendi; süresi önce dolacak videolar en üstte listelenir, ayrıca video kartlarına kalan süreyi belirten durum rozeti yerleştirildi.
+  - **Açıklayıcı Ayar Metinleri:** Ayarlar sekmesindeki "Videoları Otomatik Sil (Gün)" ve "RSS Denetleme Limiti (Video)" başlıklarına işlevlerini ve sistem performansına etkilerini net açıklayan kılavuz metinler eklendi.
+
 ## [9.8.64] - 2026-09-25
 - **fix(tray & settings): Windows Başlangıç Kaydı Adı ve Tepsi Çift Tıklama Varsayılanı Güncellendi:**
   - `tray.cs` içerisindeki Windows Kayıt Defteri başlangıç anahtarı adı `"HaYTooL"` yerine tam isim olan `"Multimedia HaYTooL"` olarak güncellendi.

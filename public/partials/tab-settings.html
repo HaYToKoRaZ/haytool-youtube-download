@@ -247,20 +247,39 @@
                     <small class="form-text" id="desc-download-path">Videoların kaydedileceği bilgisayarınızdaki klasör yolu.</small>
                   </div>
                   
-                  <div class="form-group" style="margin-top: 12px;">
-                    <label for="settings-temp-dir-type" id="label-temp-dir-type">Geçici Dosyalar (Temp) Klasörü Konumu</label>
-                    <div class="input-action-row" style="display: flex; gap: 8px; align-items: center;">
-                      <select id="settings-temp-dir-type" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem; flex: 1;">
-                        <option value="system" id="opt-temp-system" selected>Windows Varsayılanı (Sistem Geçici Klasörü)</option>
-                        <option value="local" id="opt-temp-local">Uygulama İçi (Uygulama klasöründeki Temp dizini)</option>
-                      </select>
-                      <button type="button" id="open-temp-folder-btn" onclick="openTempFolder()" class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px;">
-                        <i data-lucide="folder-open"></i>
-                        <span id="btn-open-temp-text">Temp Klasörünü Aç</span>
-                      </button>
+                    <div class="form-group" style="margin-top: 12px;">
+                      <label for="settings-temp-dir-type" id="label-temp-dir-type">Geçici Dosyalar (Temp) Klasörü Konumu</label>
+                      <div class="input-action-row" style="display: flex; gap: 8px; align-items: center;">
+                        <select id="settings-temp-dir-type" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem; flex: 1;">
+                          <option value="system" id="opt-temp-system" selected>Windows Varsayılanı (Sistem Geçici Klasörü)</option>
+                          <option value="local" id="opt-temp-local">Uygulama İçi (Uygulama klasöründeki Temp dizini)</option>
+                        </select>
+                        <button type="button" id="open-temp-folder-btn" onclick="openTempFolder()" class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px;">
+                          <i data-lucide="folder-open"></i>
+                          <span id="btn-open-temp-text">Temp Klasörünü Aç</span>
+                        </button>
+                      </div>
+                      <small class="form-text" id="desc-temp-dir-type">yt-dlp indirme esnasındaki geçici dosyaların konumu.</small>
                     </div>
-                    <small class="form-text" id="desc-temp-dir-type">yt-dlp indirme esnasındaki geçici dosyaların konumu.</small>
-                  </div>
+
+                    <!-- SSD / Geçici Klasörde İndir ve Birleştir (Tamamlanınca Taşı) -->
+                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <label for="settings-use-temp-staging" id="label-use-temp-staging" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0; cursor: pointer;">
+                          <i data-lucide="hard-drive-download" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
+                          <span id="text-use-temp-staging-title">SSD Tamponlama: Geçici Klasörde İndir & Birleştir</span>
+                        </label>
+                        <div class="toggle-container">
+                          <input type="checkbox" id="settings-use-temp-staging" class="toggle-input">
+                          <label for="settings-use-temp-staging" class="toggle-label"></label>
+                        </div>
+                      </div>
+                      <div class="adv-disadv-box" style="margin-top: 8px; padding: 8px 10px; border-radius: 6px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.15); font-size: 0.76rem; line-height: 1.45; color: var(--text-muted);">
+                        <span id="desc-use-temp-staging-info">
+                          <strong>Mekanik Harici HDD Koruma Modu:</strong> Açıldığında indirme ve FFmpeg ses/video birleştirme işlemleri sistemin hızlı geçici klasöründe (SSD / Temp) yürütülür. Video tamamen bittiğinde hedef indirme klasörüne tek parça halinde taşınır. Mekanik harici disklerin indirme ve birleştirme esnasında %100 kullanıma ulaşıp kilitlenmesini ve aşırı ısınmasını önler.
+                        </span>
+                      </div>
+                    </div>
                   
                   <div class="form-group" style="margin-top: 12px;">
                     <label for="settings-duration-fetch-method" id="label-duration-fetch-method">Süre Sorgulama Yöntemi</label>
@@ -331,6 +350,16 @@
                     <small class="form-text" id="desc-ytdlp-version" style="font-size: 0.74rem; color: var(--text-muted); margin-top: 5px; display: block;">
                       YouTube'un getirdiği yeni 403 ve akış kısıtlamalarını aşmak için <strong>Nightly (Geliştirici)</strong> kanalını kullanmanız tavsiye edilir.
                     </small>
+                    <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+                      <div style="display: flex; flex-direction: column;">
+                        <span id="label-check-ytdlp-on-startup" style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">Sistem Açılışında yt-dlp Güncelle</span>
+                        <small id="desc-check-ytdlp-on-startup" style="font-size: 0.72rem; color: var(--text-muted);">Uygulama her başladığında seçilen yt-dlp kanalını arka planda otomatik denetler ve günceller.</small>
+                      </div>
+                      <div class="toggle-container" style="margin-left: 10px;">
+                        <input type="checkbox" id="settings-check-ytdlp-on-startup" class="toggle-input">
+                        <label for="settings-check-ytdlp-on-startup" class="toggle-label"></label>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -508,10 +537,32 @@
                           <i data-lucide="hard-drive" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
                           <span id="text-auto-disk-sync-title">Disk Senkronizasyonu & Doğrulama</span>
                         </label>
-                        <button type="button" id="btn-manual-disk-sync" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.75rem; border-radius: 6px;">
-                          <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
-                          <span id="btn-sync-disk-now-text">Diski Şimdi Senkronize Et</span>
-                        </button>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                          <button type="button" id="btn-manual-disk-sync" onclick="triggerDiskSync('fast')" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.75rem; border-radius: 6px;">
+                            <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
+                            <span id="btn-sync-disk-now-text">Hızlı Doğrulama (Varlık)</span>
+                          </button>
+                          <button type="button" id="btn-smart-disk-sync" onclick="triggerDiskSync('smart')" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.75rem; border-radius: 6px; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.25); color: var(--accent-color);">
+                            <i data-lucide="scan" style="width: 13px; height: 13px;"></i>
+                            <span id="btn-sync-disk-smart-text">Akıllı FFprobe (Eksikler)</span>
+                          </button>
+                          <button type="button" id="btn-deep-disk-sync" onclick="triggerDiskSync('full')" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 0.75rem; border-radius: 6px; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3); color: #f59e0b;">
+                            <i data-lucide="cpu" style="width: 13px; height: 13px;"></i>
+                            <span id="btn-sync-disk-deep-text">Tam FFprobe Analizi (Tümü)</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style="padding: 10px 14px; margin-bottom: 12px; border-radius: 8px; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.2); font-size: 0.75rem; color: var(--text-muted); line-height: 1.5;">
+                        <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #eab308; margin-bottom: 4px;">
+                          <i data-lucide="alert-triangle" style="width: 14px; height: 14px;"></i>
+                          <span id="desc-disk-sync-notice-title">Disk Senkronizasyon Modları Rehberi:</span>
+                        </div>
+                        <ul id="desc-disk-sync-mode-notice" style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px;">
+                          <li><strong>Hızlı Doğrulama:</strong> Açılışta çalışır; sadece dosya varlığını yoklar, diski yormaz.</li>
+                          <li><strong>Akıllı FFprobe (Eksikler):</strong> Yalnızca çözünürlük bilgisi veritabanında henüz yazılmamış videoları FFprobe ile analiz eder. Zaten bilinenleri atlar.</li>
+                          <li><strong>Tam FFprobe Analizi (Tümü):</strong> Bütün videoları baştan sona tek tek FFprobe ile doğrudan diskten okur. Mekanik HDD'lerde yavaşlayabilir, SSD'ler için uygundur.</li>
+                        </ul>
                       </div>
 
                       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
@@ -596,14 +647,26 @@
                   <div class="form-grid">
                     <div class="form-group">
                       <label for="settings-rsslimit" id="label-rss-limit">RSS Limiti (Video)</label>
-                      <input type="number" id="settings-rsslimit" min="1" max="15" required>
-                      <small class="form-text" id="desc-rss-limit">RSS'te kaç yeni video bakılsın?</small>
+                      <input type="number" id="settings-rsslimit" min="1" max="50" required>
+                      <small class="form-text" id="desc-rss-limit">Kanal başına taranacak en güncel video sayısı. Kota ve ağ kullanımını korur (Varsayılan: 15).</small>
                     </div>
 
                     <div class="form-group">
                       <label for="settings-autodelete" id="label-auto-delete">Otomatik Sil (Gün)</label>
                       <input type="number" id="settings-autodelete" min="0" max="365" required>
-                      <small class="form-text" id="desc-auto-delete">Kaç gün sonra silinsin? (0: kapalı)</small>
+                      <small class="form-text" id="desc-auto-delete">İndirilen videoların kaç gün sonra silineceğini belirler (0: kapalı). Kanallar sekmesinden kanala özel kural atanabilir.</small>
+                    </div>
+                  </div>
+
+                  <div class="form-group" style="margin-top: 10px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <label for="settings-autodelete-require-confirmation" id="label-autodelete-require-confirm" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                      <i data-lucide="shield-check" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
+                      <span id="text-autodelete-require-confirm-title">Otomatik Silme Öncesi Onay & Erteleme Penceresi</span>
+                    </label>
+                    <div class="toggle-container" style="margin-top: 8px;">
+                      <input type="checkbox" id="settings-autodelete-require-confirmation" class="toggle-input" checked>
+                      <label for="settings-autodelete-require-confirmation" class="toggle-label"></label>
+                      <span id="desc-autodelete-require-confirm">Süresi dolan videoları silmeden önce liste halinde sor; şimdi silme veya 1-3 gün erteleme seçeneği sun</span>
                     </div>
                   </div>
 

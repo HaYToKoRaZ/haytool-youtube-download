@@ -196,22 +196,22 @@ export class DiscordRPC {
 
     let payload;
     if (title) {
-      let detailsText = channelName || 'YouTube';
+      let channelText = channelName || 'YouTube';
 
       payload = JSON.stringify({
         cmd: 'SET_ACTIVITY',
         args: {
           pid: process.pid,
           activity: {
-            state: title,
-            details: detailsText,
+            details: title,          // 1. Satır: Video Adı (Üstte kalın başlık)
+            state: channelText,      // 2. Satır: Sadece Kanal Adı
             assets: {
               large_image: 'logo',
-              large_text: 'Multimedia HaYTooL'
+              large_text: 'Multimedia HaYTooL' // Logo üzerine gelince Uygulama Adı
             },
             buttons: [
               {
-                label: 'Uygulamayı İndir / Download',
+                label: 'Multimedia HaYTooL İndir',
                 url: 'https://github.com/HaYToKoRaZ/haytool-youtube-download'
               }
             ]

@@ -370,6 +370,73 @@ export function getCatTranslatedName(cat, translationsDict = null) {
   }
   return catName;
 }
+/**
+ * Bir videonun otomatik silinmesine kalan süreyi hesaplar.
+ * 
+ * @param {object} item db.history video nesnesi
+ * @param {object} db Yerel db nesnesi
+ * @returns {{ remainingMs: number|null, isExpired: boolean, badgeText: string, tooltip: string }|null}
+ */
+export function getVideoRemainingInfo(item, db) {
+  if (!item || item.status !== 'completed' || !db) return null;
+  const channel = (db.channels || []).find(c => c.id === item.channelId);
+  const chRule = channel ? channel.autoDeleteDays : 'never';
+
+  let effectiveDays = 0;
+  if (chRule === 'never') {
+    return null;
+  } else if (chRule === 'global' || !chRule) {
+    effectiveDays = db.settings?.autoDeleteDays || 0;
+  } else {
+    effectiveDays = parseInt(chRule, 10) || 0;
+  }
+
+  if (effectiveDays <= 0) return null;
+
+  let fileTime = 0;
+  if (item.completedAt) {
+    fileTime = new Date(item.completedAt).getTime();
+  } else if (item.publishedAt) {
+    fileTime = new Date(item.publishedAt).getTime();
+  } else if (item.downloadedAt) {
+    fileTime = new Date(item.downloadedAt).getTime();
+  } else {
+    fileTime = Date.now();
+  }
+
+  const baseExpireMs = fileTime + (effectiveDays * 24 * 60 * 60 * 1000);
+  let finalExpireMs = baseExpireMs;
+  if (item.autoDeletePostponedUntil && item.autoDeletePostponedUntil > finalExpireMs) {
+    finalExpireMs = item.autoDeletePostponedUntil;
+  }
+
+  const remainingMs = finalExpireMs - Date.now();
+  const remainingHours = Math.round(remainingMs / (1000 * 60 * 60));
+  const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+
+  let badgeText = '';
+  let tooltip = '';
+  const isExpired = remainingMs <= 0;
+
+  if (isExpired) {
+    badgeText = '⏳ Süresi Doldu';
+    tooltip = 'Otomatik silme süresi doldu, silinmeyi bekliyor';
+  } else if (remainingDays <= 1) {
+    badgeText = `⏳ ${Math.max(1, remainingHours)}s`;
+    tooltip = `Silinmeye ${Math.max(1, remainingHours)} saat kaldı`;
+  } else {
+    badgeText = `⏳ ${remainingDays}g`;
+    tooltip = `Silinmeye ${remainingDays} gün kaldı`;
+  }
+
+  return {
+    remainingMs,
+    isExpired,
+    remainingDays,
+    badgeText,
+    tooltip
+  };
+}
 if (typeof window !== 'undefined') {
-  window.getCatTranslatedName = getCatTranslatedName;
+  window.getVideoRemainingInfo = getVideoRemainingInfo;
 }

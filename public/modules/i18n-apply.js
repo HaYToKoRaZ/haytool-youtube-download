@@ -151,6 +151,9 @@ export function applyLanguage(lang) {
   el('opt-disk-sync-6h', 'opt_disk_sync_6h');
   el('opt-disk-sync-24h', 'opt_disk_sync_24h');
   el('btn-sync-disk-now-text', 'btn_sync_disk_now');
+  el('btn-sync-disk-smart-text', 'btn_sync_disk_smart');
+  el('btn-sync-disk-deep-text', 'btn_sync_disk_deep');
+  el('desc-disk-sync-notice-title', 'desc_disk_sync_notice_title');
   elQuery('label[for="settings-quality"]', 'label_quality');
   elQuery('label[for="settings-mergetype"]', 'label_merge_type');
   elQuery('label[for="settings-channelcheckinterval"]', 'label_interval');
@@ -215,6 +218,8 @@ export function applyLanguage(lang) {
   el('opt-temp-local', 'opt_temp_local');
   el('opt-temp-system', 'opt_temp_system');
   el('btn-open-temp-text', 'btn_open_temp_text');
+  el('text-use-temp-staging-title', 'text_use_temp_staging_title');
+  el('desc-use-temp-staging-info', 'desc_use_temp_staging_info', 'innerHTML');
   el('label-duration-fetch-method', 'label_duration_fetch_method');
   el('opt-duration-auto', 'opt_duration_auto');
   el('opt-duration-waterfall', 'opt_duration_waterfall');
@@ -237,6 +242,8 @@ export function applyLanguage(lang) {
   el('opt-ytdlp-stable', 'opt_ytdlp_stable');
   el('btn-ytdlp-update-text', 'btn_ytdlp_update_text');
   el('desc-ytdlp-version', 'desc_ytdlp_version', 'innerHTML');
+  el('label-check-ytdlp-on-startup', 'label_check_ytdlp_on_startup');
+  el('desc-check-ytdlp-on-startup', 'desc_check_ytdlp_on_startup');
 
   // Hava Durumu Çevirileri
   el('badge-weather', 'badge_weather_title', 'title');
@@ -474,6 +481,11 @@ export function applyLanguage(lang) {
   if (sortBtnSizeAsc) {
     sortBtnSizeAsc.textContent = t.sort_btn_size_asc;
     sortBtnSizeAsc.title = currentLang === 'en' ? 'Size: Smallest to Largest' : 'Boyut: Küçükten Büyüğe';
+  }
+  const sortBtnAutoDelete = document.getElementById('sort-btn-auto-delete');
+  if (sortBtnAutoDelete) {
+    sortBtnAutoDelete.textContent = t.sort_btn_auto_delete || (currentLang === 'en' ? '⏳ Expiring Soon' : '⏳ Vadesi Dolanlar');
+    sortBtnAutoDelete.title = t.sort_btn_auto_delete_title || (currentLang === 'en' ? 'Expiring Soonest First' : 'Silinmesi Yaklaşanlar (Vadesi Dolanlar Önce)');
   }
 
   // Ayarlar alt sekmeleri ve açıklamaları

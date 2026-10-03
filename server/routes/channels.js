@@ -180,6 +180,7 @@ router.post('/', localhostOnly, async (req, res) => {
         avatar: channelInfo.avatar || '',
         shortsDurationLimit: 180,
         autoDownload: true,
+        autoDeleteDays: 'never',
         subscriberCount: channelInfo.subscriberCount || ''
       };
       db.channels.push(newChannel);
@@ -461,6 +462,25 @@ router.post('/:id/shorts-limit', localhostOnly, (req, res) => {
   if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
 
   channel.shortsDurationLimit = parseInt(limit, 10) || 180;
+  writeDb(db);
+  broadcast('db_update', db);
+  res.json({ success: true });
+});
+
+/**
+ * Belirtilen kanal için otomatik video silme kuralını (never, global, gün sayısı) günceller.
+ */
+router.post('/:id/auto-delete', localhostOnly, (req, res) => {
+  const { id } = req.params;
+  if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
+    return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
+  }
+  const { autoDeleteDays } = req.body;
+  const db = readDb();
+  const channel = db.channels.find(c => c.id === id);
+  if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
+
+  channel.autoDeleteDays = String(autoDeleteDays || 'never').trim();
   writeDb(db);
   broadcast('db_update', db);
   res.json({ success: true });

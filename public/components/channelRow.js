@@ -336,6 +336,20 @@ export function renderChannelsList(channelsList, channels, translations, categor
             <option value="5400" ${channel.shortsDurationLimit == 5400 ? 'selected' : ''}>Shorts &lt; 1.5 ${t.shorts_limit_hours || 'sa'} (90 ${t.shorts_limit_minutes || 'dk'})</option>
           </select>
 
+          <!-- Kanala Özel Otomatik Silme -->
+          <select onchange="changeChannelAutoDelete('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_autodelete_title || 'Otomatik Video Silme Kuralı'}">
+            <option value="never" ${(!channel.autoDeleteDays || channel.autoDeleteDays === 'never' || channel.autoDeleteDays === '0') ? 'selected' : ''}>${t.opt_autodelete_never || 'Asla Silme (Kalıcı)'}</option>
+            <option value="global" ${channel.autoDeleteDays === 'global' ? 'selected' : ''}>${t.opt_autodelete_global || 'Genel Ayara Uy'}</option>
+            <option value="1" ${channel.autoDeleteDays === '1' ? 'selected' : ''}>1 ${t.unit_days || 'Gün'}</option>
+            <option value="2" ${channel.autoDeleteDays === '2' ? 'selected' : ''}>2 ${t.unit_days || 'Gün'}</option>
+            <option value="3" ${channel.autoDeleteDays === '3' ? 'selected' : ''}>3 ${t.unit_days || 'Gün'}</option>
+            <option value="7" ${channel.autoDeleteDays === '7' ? 'selected' : ''}>7 ${t.unit_days || 'Gün'}</option>
+            <option value="14" ${channel.autoDeleteDays === '14' ? 'selected' : ''}>14 ${t.unit_days || 'Gün'}</option>
+            <option value="30" ${channel.autoDeleteDays === '30' ? 'selected' : ''}>30 ${t.unit_days || 'Gün'}</option>
+            <option value="60" ${channel.autoDeleteDays === '60' ? 'selected' : ''}>60 ${t.unit_days || 'Gün'}</option>
+            <option value="90" ${channel.autoDeleteDays === '90' ? 'selected' : ''}>90 ${t.unit_days || 'Gün'}</option>
+          </select>
+
           <!-- Kategoriler Badgeleri -->
           <div class="channel-card-categories-list" style="display: flex; flex-wrap: wrap; gap: 4px; width: 100%; margin-bottom: 6px; padding: 0 4px;">
             ${categoryBadges || `<span style="font-size: 0.68rem; color: var(--text-muted); font-style: italic;">Kategorisiz</span>`}

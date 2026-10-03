@@ -445,6 +445,36 @@ export async function changeChannelShortsLimit(id, limit) {
 window.changeChannelShortsLimit = changeChannelShortsLimit;
 
 /**
+ * Belirli bir kanal için otomatik video silme kuralını günceller.
+ */
+export async function changeChannelAutoDelete(id, autoDeleteDays) {
+  const db = window.localDb || {};
+  const isEn = db.settings && db.settings.lang === 'en';
+  try {
+    const res = await fetch(`/api/channels/${id}/auto-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ autoDeleteDays })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (typeof showToast === 'function') {
+        showToast(isEn ? 'Channel auto-delete rule updated.' : 'Kanal otomatik video silme kuralı güncellendi.', 'success');
+      }
+    } else {
+      if (typeof showToast === 'function') {
+        showToast(data.error || 'Hata oluştu.', 'error');
+      }
+    }
+  } catch (err) {
+    if (typeof showToast === 'function') {
+      showToast(isEn ? 'Server connection error.' : 'Sunucu bağlantı hatası.', 'error');
+    }
+  }
+}
+window.changeChannelAutoDelete = changeChannelAutoDelete;
+
+/**
  * Kanallar sekmesindeki Kategori filtresi dropdown seçeneklerini dinamik olarak günceller.
  */
 export function updateChannelCategoryFilterOptions(categories = [], channels = [], lang = 'tr') {

@@ -760,6 +760,26 @@ router.post('/open-youtube', localhostOnly, (req, res) => {
 });
 
 /**
+ * Belirtilen harici URL'yi işletim sisteminin varsayılan web tarayıcısında açar.
+ * 
+ * @name POST /api/open-url
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.body.url - Açılacak tam URL (https://...)
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/open-url', localhostOnly, (req, res) => {
+  const { url } = req.body;
+  if (!url || (!url.startsWith('https://') && !url.startsWith('http://'))) {
+    return res.status(400).json({ error: 'Geçerli bir URL gereklidir.' });
+  }
+  open(url);
+  res.json({ success: true });
+});
+
+/**
  * İndirilmiş olan videoyu işletim sisteminin varsayılan yerel medya oynatıcısında (örn. VLC, Windows Media Player) başlatır.
  * 
  * @name POST /api/play-video
@@ -900,5 +920,199 @@ router.get('/system-dns', localhostOnly, async (req, res) => {
   } catch (err) {
     console.error('[System DNS] Genel Hata:', err);
     res.status(500).json({ error: 'DNS bilgisi alınamadı: ' + err.message });
+  }
+});
+
+/**
+ * Return YouTube Dislike (RYD) API entegrasyonu.
+ * Verilen videoya ait tahmini dislike, like, rating ve görüntülenme oranlarını getirir.
+ * 
+ * @name GET /api/video/:videoId/votes
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.videoId - YouTube video ID
+ * @param {object} res - Express yanıt nesnesi
+ */
+const rydCache = new Map();
+router.get('/video/:videoId/votes', async (req, res) => {
+  const { videoId } = req.params;
+  if (!videoId || videoId.length < 5) {
+    return res.status(400).json({ error: 'Geçersiz Video ID.' });
+  }
+
+  const cached = rydCache.get(videoId);
+  if (cached && (Date.now() - cached.timestamp < 1000 * 60 * 15)) { // 15 dakika önbellek
+    return res.json(cached.data);
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const rydRes = await fetch(`https://returnyoutubedislikeapi.com/votes?videoId=${encodeURIComponent(videoId)}`, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'HaYTooL-YT-Downloader/1.0'
+      }
+    });
+    clearTimeout(timeout);
+
+    if (!rydRes.ok) {
+      if (rydRes.status === 404) {
+        return res.json({ available: false, message: 'Dislike verisi bulunamadı.' });
+      }
+      return res.status(rydRes.status).json({ error: 'RYD API hatası: ' + rydRes.statusText });
+    }
+
+    const data = await rydRes.json();
+    const result = {
+      available: true,
+      id: data.id,
+      likes: data.likes || 0,
+      dislikes: data.dislikes || 0,
+      rating: data.rating ? Number(data.rating.toFixed(2)) : null,
+      viewCount: data.viewCount || 0
+    };
+
+    rydCache.set(videoId, { timestamp: Date.now(), data: result });
+    res.json(result);
+  } catch (err) {
+    res.json({ available: false, error: err.message });
+  }
+});
+
+/**
+ * Return YouTube Dislike (RYD) Sistemine Oy Gönderme (PoW Korumalı)
+ * @name POST /api/video/:videoId/vote
+ * @param {number} req.body.value - 1 (Like), -1 (Dislike), 0 (Nötr)
+ */
+let storedRydUserId = null;
+
+function generateRydUserId(length = 36) {
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const values = new Uint32Array(length);
+  globalThis.crypto.getRandomValues(values);
+  let result = '';
+  for (const v of values) {
+    result += charset[v % charset.length];
+  }
+  return result;
+}
+
+function countLeadingZeroes(bytes, limit = Infinity) {
+  let zeroes = 0;
+  for (const originalValue of bytes) {
+    let value = originalValue;
+    if (value === 0) {
+      zeroes += 8;
+    } else {
+      let count = 1;
+      if (value >>> 4 === 0) { count += 4; value <<= 4; }
+      if (value >>> 6 === 0) { count += 2; value <<= 2; }
+      zeroes += count - (value >>> 7);
+      break;
+    }
+    if (zeroes >= limit) break;
+  }
+  return zeroes;
+}
+
+async function solveRydPuzzle(puzzle, maxAttempts) {
+  const challenge = Uint8Array.from(atob(puzzle.challenge), c => c.charCodeAt(0));
+  const attempts = maxAttempts ?? Math.pow(2, puzzle.difficulty) * 10;
+  const buffer = new ArrayBuffer(20);
+  const byteView = new Uint8Array(buffer);
+  const integerView = new Uint32Array(buffer);
+  byteView.set(challenge, 4);
+
+  for (let counter = 0; counter < attempts; counter++) {
+    integerView[0] = counter;
+    const hash = await globalThis.crypto.subtle.digest('SHA-512', buffer);
+    if (countLeadingZeroes(new Uint8Array(hash), puzzle.difficulty) >= puzzle.difficulty) {
+      return { solution: btoa(String.fromCharCode(...byteView.slice(0, 4))) };
+    }
+  }
+  return null;
+}
+
+async function ensureRydRegistration(force = false) {
+  if (!force && storedRydUserId) {
+    return storedRydUserId;
+  }
+  const userId = generateRydUserId(36);
+  const regRes = await fetch(`https://returnyoutubedislikeapi.com/puzzle/registration?userId=${encodeURIComponent(userId)}`, {
+    headers: { 'Accept': 'application/json' }
+  });
+  if (!regRes.ok) throw new Error('RYD kayıt bulmacası alınamadı: ' + regRes.status);
+  const puzzle = await regRes.json();
+  const solved = await solveRydPuzzle(puzzle);
+  if (!solved) throw new Error('RYD kayıt bulmacası çözülemedi');
+
+  const confirmRes = await fetch(`https://returnyoutubedislikeapi.com/puzzle/registration?userId=${encodeURIComponent(userId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(solved)
+  });
+  if (!confirmRes.ok) throw new Error('RYD kayıt onayı başarısız');
+  storedRydUserId = userId;
+  return storedRydUserId;
+}
+
+router.post('/video/:videoId/vote', async (req, res) => {
+  const { videoId } = req.params;
+  const value = parseInt(req.body.value, 10); // 1 = Like, -1 = Dislike, 0 = Nötr
+  if (!videoId || isNaN(value)) {
+    return res.status(400).json({ error: 'Geçersiz parametreler.' });
+  }
+
+  try {
+    let userId = await ensureRydRegistration();
+
+    // 1. Oy Gönderme (İlk aşama)
+    let voteRes = await fetch('https://returnyoutubedislikeapi.com/interact/vote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, videoId, value })
+    });
+
+    if (voteRes.status === 401) {
+      // Token/kayıt düşmüşse yeniden kaydol
+      userId = await ensureRydRegistration(true);
+      voteRes = await fetch('https://returnyoutubedislikeapi.com/interact/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, videoId, value })
+      });
+    }
+
+    if (!voteRes.ok) {
+      return res.status(voteRes.status).json({ error: 'RYD oy isteği reddedildi.' });
+    }
+
+    // 2. Oy Bulmacası Çözme (İkinci aşama)
+    const votePuzzle = await voteRes.json();
+    const solvedVote = await solveRydPuzzle(votePuzzle);
+    if (!solvedVote) {
+      return res.status(500).json({ error: 'Oy doğrulama bulmacası çözülemedi.' });
+    }
+
+    // 3. Oyu Onaylama (Üçüncü aşama)
+    const confirmRes = await fetch('https://returnyoutubedislikeapi.com/interact/confirmVote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...solvedVote, userId, videoId })
+    });
+
+    if (!confirmRes.ok) {
+      return res.status(confirmRes.status).json({ error: 'Oy onaylanamadı.' });
+    }
+
+    // Önbelleği temizle ki güncel veriler yeniden çekilebilsin
+    rydCache.delete(videoId);
+
+    res.json({ success: true, message: 'Oy başarıyla RYD sistemine iletildi!', value });
+  } catch (err) {
+    console.error('[RYD Vote Error]:', err);
+    res.status(500).json({ error: 'Oy iletilemedi: ' + err.message });
   }
 });

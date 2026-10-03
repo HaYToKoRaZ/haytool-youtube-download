@@ -599,10 +599,12 @@ router.post('/settings', localhostOnly, (req, res) => {
   // 2. Boolean (Açık/Kapalı) Güvenlik Doğrulamaları
   const booleanFields = [
     'useAlternativeSpeed', 'sponsorBlockEnabled', 'checkChannelsOnStartup',
+    'checkYtdlpOnStartup',
     'autoDownload', 'writeThumbnail', 'showShorts', 'hideOnDelete',
     'playSounds', 'showNotifications', 'autoOpenBrowser', 'discordRpcEnabled',
     'enableAltThumbnailsHover', 'autoSyncWatchtime', 'autoSyncLocalWatchtime',
-    'autoDiskSync', 'autoCookieRefresh', 'weatherEnabled', 'autoSyncGist'
+    'autoDiskSync', 'autoCookieRefresh', 'weatherEnabled', 'autoSyncGist',
+    'autoDeleteRequireConfirmation'
   ];
   for (const field of booleanFields) {
     if (req.body[field] !== undefined) {
@@ -1872,7 +1874,13 @@ router.post('/settings/install-python-dep', localhostOnly, (req, res) => {
  */
 router.post('/settings/sync-disk', localhostOnly, async (req, res) => {
   try {
-    const result = await syncDbWithDisk(true);
+    let mode = req.body?.mode || req.query?.mode;
+    if (!mode) {
+      // Geriye dönük uyumluluk: deep true ise 'smart' kabul et
+      const deep = req.body?.deep === true || req.query?.deep === 'true';
+      mode = deep ? 'smart' : 'fast';
+    }
+    const result = await syncDbWithDisk(true, mode);
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

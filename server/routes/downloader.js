@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { exec, spawn } from 'child_process';
 import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp } from '../services/paths.js';
-import { downloadQueue } from '../services/downloader.js';
+import { downloadQueue, performYtdlpUpdate } from '../services/downloader.js';
 import { readDb } from '../database.js';
 import { fetchVideoDuration, resolveMissingDurations } from '../services/rss.js';
 import { addTerminalLog } from '../services/sse.js';
@@ -328,143 +328,32 @@ router.get('/ytdlp-version', localhostOnly, (req, res) => {
   * @returns {{ success: boolean, output: string, newVersion?: string }}
   */
 router.post('/ytdlp-update', localhostOnly, async (req, res) => {
-  const isWin = process.platform === 'win32';
-  const targetDir = path.dirname(ytdlpPath);
   const target = (req.body && req.body.target) ? req.body.target.trim() : 'nightly';
-
-  const db = readDb();
-  const runMode = db.settings?.ytdlpRunMode || 'exe';
-
-  if (!fs.existsSync(targetDir)) {
-    try { fs.mkdirSync(targetDir, { recursive: true }); } catch (e) {}
+  try {
+    const result = await performYtdlpUpdate(target);
+    res.json(result);
+  } catch (err) {
+    res.json({ success: false, error: err.message });
   }
+});
 
-  // 1. Python modunda ise pip ile güncelle
-  let pipOutput = '';
-  if (runMode === 'python') {
-    const pythonCmd = db.settings?.pythonCmd || (isWin ? 'python' : 'python3');
-    let pipTarget = 'yt-dlp';
-    if (target === 'nightly' || target.startsWith('nightly')) {
-      pipTarget = '--pre yt-dlp';
-    } else if (target.includes('@')) {
-      const tag = target.split('@')[1];
-      pipTarget = `yt-dlp==${tag}`;
-    }
-    const pipCmd = `"${pythonCmd}" -m pip install -U ${pipTarget}`;
-    console.log(`[yt-dlp Pip Update] Komut çalıştırılıyor: ${pipCmd}`);
-    addTerminalLog(`[yt-dlp] Python pip üzerinden güncelleniyor: ${pipTarget}...`, 'info');
-
-    try {
-      await new Promise((resolve) => {
-        exec(pipCmd, { timeout: 120000 }, (err, stdout, stderr) => {
-          pipOutput = ((stdout || '') + '\n' + (stderr || '')).trim();
-          resolve();
-        });
-      });
-    } catch (_) {}
-  }
-
-  // 2. Bağımsız binary dosyasını (yt-dlp.exe) güncelle
-  // Windows'ta yerel updater (yt-dlp --update-to) dosya kilitlerini en temiz çözen yöntemdir
-  let binaryUpdated = false;
-  if (fs.existsSync(ytdlpPath)) {
-    try {
-      const updateCmd = `"${ytdlpPath}" --update-to ${target}`;
-      console.log(`[yt-dlp Binary Update] Komut çalıştırılıyor: ${updateCmd}`);
-      addTerminalLog(`[yt-dlp] Yerel motor güncelleniyor (${target})...`, 'info');
-
-      await new Promise((resolve, reject) => {
-        exec(updateCmd, { timeout: 120000 }, (err, stdout, stderr) => {
-          if (err) return reject(new Error((stderr || stdout || err.message).trim()));
-          binaryUpdated = true;
-          resolve();
-        });
-      });
-    } catch (selfUpdateErr) {
-      console.warn('[yt-dlp] --update-to başarısız oldu, doğrudan indirme deneniyor:', selfUpdateErr.message);
-    }
-  }
-
-  // 3. Binary yoksa veya self-update başarısız olduysa GitHub'dan doğrudan indir
-  if (!binaryUpdated) {
-    let dlUrl = '';
-    if (target === 'nightly' || target === 'latest' || !target) {
-      dlUrl = isWin
-        ? 'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp.exe'
-        : 'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp';
-    } else if (target === 'stable') {
-      dlUrl = isWin
-        ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
-        : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
-    } else if (target.startsWith('nightly@')) {
-      const tag = target.replace('nightly@', '');
-      dlUrl = isWin
-        ? `https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/${tag}/yt-dlp.exe`
-        : `https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/${tag}/yt-dlp`;
-    } else if (target.startsWith('stable@')) {
-      const tag = target.replace('stable@', '');
-      dlUrl = isWin
-        ? `https://github.com/yt-dlp/yt-dlp/releases/download/${tag}/yt-dlp.exe`
-        : `https://github.com/yt-dlp/yt-dlp/releases/download/${tag}/yt-dlp`;
-    } else {
-      dlUrl = isWin
-        ? `https://github.com/yt-dlp/yt-dlp/releases/download/${target}/yt-dlp.exe`
-        : `https://github.com/yt-dlp/yt-dlp/releases/download/${target}/yt-dlp`;
-    }
-
-    try {
-      const response = await fetch(dlUrl, {
-        headers: { 'User-Agent': 'HaYTooL-YT-Downloader' },
-        redirect: 'follow'
-      });
-
-      if (!response.ok) {
-        throw new Error(`GitHub HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      if (buffer.length < 100000) {
-        throw new Error('İndirilen dosya boyutu beklenenden çok küçük.');
-      }
-
-      const tempFilePath = `${ytdlpPath}.downloading_${Date.now()}`;
-      fs.writeFileSync(tempFilePath, buffer);
-
-      if (fs.existsSync(ytdlpPath)) {
-        try {
-          fs.unlinkSync(ytdlpPath);
-        } catch (_) {
-          const oldBackupPath = `${ytdlpPath}.old_${Date.now()}`;
-          try { fs.renameSync(ytdlpPath, oldBackupPath); } catch (e) {}
-        }
-      }
-
-      try {
-        fs.renameSync(tempFilePath, ytdlpPath);
-      } catch (rnErr) {
-        // Yeniden adlandırma başarısız olursa doğrudan yazmayı dene
-        fs.copyFileSync(tempFilePath, ytdlpPath);
-        try { fs.unlinkSync(tempFilePath); } catch (_) {}
-      }
-
-      if (!isWin) {
-        try { fs.chmodSync(ytdlpPath, '755'); } catch (e) {}
-      }
-    } catch (dlErr) {
-      if (runMode !== 'python') {
-        return res.json({ success: false, error: 'Güncelleme başarısız: ' + dlErr.message });
-      }
-    }
-  }
-
-  // 4. Nihai güncel sürümü kontrol et ve yanıt dön
-  execYtdlp(`"${ytdlpPath}" --version`, { timeout: 10000 }, (verErr, verStdout) => {
-    const newVersion = verErr ? '' : (verStdout || '').trim();
-    const successMsg = `yt-dlp başarıyla ${newVersion || target} sürümüne güncellendi.`;
-    console.log(`[yt-dlp Update] ${successMsg}`);
-    addTerminalLog(`[yt-dlp] ${successMsg}`, 'success');
-    res.json({ success: true, output: successMsg + (pipOutput ? '\n' + pipOutput : ''), newVersion });
+/**
+ * Tray ve harici istemciler için anlık aktif indirme sayısını ve indirme durumunu döner.
+ * 
+ * @route GET /api/downloader/active-status
+ * @returns {{ activeDownloads: number, isDownloading: boolean, queueLength: number }}
+ */
+router.get('/active-status', (req, res) => {
+  const activeDownloads = (downloadQueue && typeof downloadQueue.activeDownloads === 'number') 
+    ? downloadQueue.activeDownloads 
+    : 0;
+  const queueLength = (downloadQueue && Array.isArray(downloadQueue.queue))
+    ? downloadQueue.queue.length
+    : 0;
+  res.json({
+    activeDownloads,
+    isDownloading: activeDownloads > 0,
+    queueLength
   });
 });
+

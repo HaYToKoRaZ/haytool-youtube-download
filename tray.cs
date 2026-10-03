@@ -46,6 +46,14 @@ namespace HaYTooLTray
         }
 
         private NotifyIcon trayIcon;
+        private Icon defaultTrayIcon;
+        private Icon normalTrayIcon;
+        private Icon glowingTrayIcon;
+        private System.Windows.Forms.Timer downloadMonitorTimer;
+        private bool isGlowState = false;
+        private int currentActiveDownloads = 0;
+        private bool isDownloadingActive = false;
+        private bool isQueryingStatus = false;
         private Process nodeProcess;
 
         private StringBuilder consoleBuffer = new StringBuilder();
@@ -129,6 +137,9 @@ namespace HaYTooLTray
         private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, uint dwExtraInfo);
         private const byte VK_RETURN = 0x0D;
         private const uint KEYEVENTF_KEYUP = 0x0002;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern bool DestroyIcon(IntPtr hIcon);
 
         [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
         private static extern IntPtr CreateJobObject(IntPtr lpJobAttributes, string lpName);
@@ -455,16 +466,19 @@ namespace HaYTooLTray
                 {
                     try
                     {
-                        trayIcon.Icon = new Icon(iconPath);
+                        defaultTrayIcon = new Icon(iconPath);
+                        trayIcon.Icon = defaultTrayIcon;
                     }
                     catch
                     {
-                        trayIcon.Icon = SystemIcons.Application;
+                        defaultTrayIcon = SystemIcons.Application;
+                        trayIcon.Icon = defaultTrayIcon;
                     }
                 }
                 else
                 {
-                    trayIcon.Icon = SystemIcons.Application;
+                    defaultTrayIcon = SystemIcons.Application;
+                    trayIcon.Icon = defaultTrayIcon;
                 }
 
                 // Çift tıklama olayını bağla
@@ -542,6 +556,7 @@ namespace HaYTooLTray
             {
                 trayIcon.ContextMenu = contextMenu;
                 trayIcon.Visible = !IsSilentMode;
+                StartDownloadMonitor();
             }
 
             // Node Sunucusunu Başlat
@@ -1107,6 +1122,22 @@ namespace HaYTooLTray
                                 });
                                 soundThread.IsBackground = true;
                                 soundThread.Start();
+                            }
+                            else if (e.Data.StartsWith("[TRAY_CMD] download_state="))
+                            {
+                                string rawCount = e.Data.Substring("[TRAY_CMD] download_state=".Length).Trim();
+                                int count = 0;
+                                int.TryParse(rawCount, out count);
+                                if (syncForm != null && syncForm.IsHandleCreated)
+                                {
+                                    syncForm.BeginInvoke(new Action(() => {
+                                        UpdateTrayDownloadAnimation(count, count > 0);
+                                    }));
+                                }
+                                else
+                                {
+                                    UpdateTrayDownloadAnimation(count, count > 0);
+                                }
                             }
                             else
                             {
@@ -2200,6 +2231,17 @@ namespace HaYTooLTray
                 CloseHandle(jobHandle);
                 jobHandle = IntPtr.Zero;
             }
+            if (downloadMonitorTimer != null)
+            {
+                downloadMonitorTimer.Stop();
+                downloadMonitorTimer.Dispose();
+                downloadMonitorTimer = null;
+            }
+            if (glowingTrayIcon != null)
+            {
+                glowingTrayIcon.Dispose();
+                glowingTrayIcon = null;
+            }
             if (trayIcon != null)
             {
                 trayIcon.Visible = false;
@@ -2580,5 +2622,208 @@ namespace HaYTooLTray
                 return false;
             }
         }
+
+        // Türkçe Açıklama: Aktif indirmeleri belirli aralıklarla denetler ve indirme sürerken simgeyi parlatır / nabız efekti verir.
+        private void StartDownloadMonitor()
+        {
+            if (IsSilentMode || trayIcon == null) return;
+
+            // Nabız/parlama animasyonu için yerel UI zamanlayıcısı (900ms)
+            downloadMonitorTimer = new System.Windows.Forms.Timer();
+            downloadMonitorTimer.Interval = 900;
+            downloadMonitorTimer.Tick += (s, e) => {
+                // UI iş parçacığında doğrudan çalışır, ikon değiştirirken kilitlenmez
+                AnimateTrayPulse();
+
+                // Yedek yoklama (Polling): Her 4 saniyede bir HTTP ile durumu da doğrula
+                if (!isQueryingStatus)
+                {
+                    isQueryingStatus = true;
+                    ThreadPool.QueueUserWorkItem(state => {
+                        int active = 0;
+                        bool downloading = false;
+                        try
+                        {
+                            string url = GetAppUrl("/api/downloader/active-status");
+                            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                            request.Timeout = 1500;
+                            request.Method = "GET";
+                            using (WebResponse response = request.GetResponse())
+                            using (Stream stream = response.GetResponseStream())
+                            using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+                            {
+                                string json = reader.ReadToEnd();
+                                var matchActive = System.Text.RegularExpressions.Regex.Match(json, "\"activeDownloads\"\\s*:\\s*(\\d+)");
+                                if (matchActive.Success && matchActive.Groups.Count > 1)
+                                {
+                                    int.TryParse(matchActive.Groups[1].Value, out active);
+                                }
+                                var matchDownloading = System.Text.RegularExpressions.Regex.Match(json, "\"isDownloading\"\\s*:\\s*(true|false)");
+                                if (matchDownloading.Success && matchDownloading.Groups.Count > 1)
+                                {
+                                    bool.TryParse(matchDownloading.Groups[1].Value, out downloading);
+                                }
+                            }
+                        }
+                        catch {}
+                        finally
+                        {
+                            isQueryingStatus = false;
+                        }
+
+                        // Durumu güncelle
+                        if (syncForm != null && syncForm.IsHandleCreated)
+                        {
+                            try
+                            {
+                                syncForm.BeginInvoke(new Action(() => UpdateTrayDownloadAnimation(active, downloading)));
+                            }
+                            catch {}
+                        }
+                        else
+                        {
+                            UpdateTrayDownloadAnimation(active, downloading);
+                        }
+                    });
+                }
+            };
+            downloadMonitorTimer.Start();
+        }
+
+        // Türkçe Açıklama: Aktif indirme durumuna göre bayrakları ve metni günceller.
+        private void UpdateTrayDownloadAnimation(int active, bool downloading)
+        {
+            if (trayIcon == null) return;
+
+            currentActiveDownloads = active;
+            bool wasActive = isDownloadingActive;
+            isDownloadingActive = (downloading && active > 0);
+
+            if (isDownloadingActive)
+            {
+                string tipText = "Multimedia HaYTooL (" + active + " indirme aktif)";
+                if (tipText.Length > 63) tipText = tipText.Substring(0, 63);
+                trayIcon.Text = tipText;
+
+                // İndirme yeni başladıysa animasyonu hemen tetikle
+                if (!wasActive)
+                {
+                    AnimateTrayPulse();
+                }
+            }
+            else
+            {
+                isGlowState = false;
+                Icon fallback = defaultTrayIcon ?? SystemIcons.Application;
+                if (fallback != null && trayIcon.Icon != fallback)
+                {
+                    trayIcon.Icon = fallback;
+                }
+                trayIcon.Text = "Multimedia HaYTooL";
+            }
+        }
+
+        // Türkçe Açıklama: Her timer periyodunda parlama ile normal ikon arasında geçiş yapar.
+        private void AnimateTrayPulse()
+        {
+            if (trayIcon == null) return;
+
+            if (isDownloadingActive)
+            {
+                if (normalTrayIcon == null)
+                {
+                    normalTrayIcon = CreateRenderedIcon(defaultTrayIcon ?? trayIcon.Icon, false);
+                }
+                if (glowingTrayIcon == null)
+                {
+                    glowingTrayIcon = CreateRenderedIcon(defaultTrayIcon ?? trayIcon.Icon, true);
+                }
+
+                isGlowState = !isGlowState;
+                Icon target = isGlowState ? (glowingTrayIcon ?? defaultTrayIcon) : (normalTrayIcon ?? defaultTrayIcon);
+                if (target != null)
+                {
+                    trayIcon.Icon = target;
+                }
+            }
+            else
+            {
+                if (isGlowState)
+                {
+                    isGlowState = false;
+                    Icon fallback = defaultTrayIcon ?? SystemIcons.Application;
+                    if (fallback != null && trayIcon.Icon != fallback)
+                    {
+                        trayIcon.Icon = fallback;
+                    }
+                }
+            }
+        }
+
+        // Türkçe Açıklama: 32x32 boyutunda ölçeklendirilmiş, parlama halkalı veya standart tepsi ikonu üretir.
+        private Icon CreateRenderedIcon(Icon baseIcon, bool withGlow)
+        {
+            if (baseIcon == null) return null;
+            try
+            {
+                int size = 32;
+                using (Bitmap bmp = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+                {
+                    using (Graphics g = Graphics.FromImage(bmp))
+                    {
+                        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+
+                        if (withGlow)
+                        {
+                            // Belirgin Cyan-Mavi Dış Parlama Halkası
+                            using (System.Drawing.Drawing2D.GraphicsPath path = new System.Drawing.Drawing2D.GraphicsPath())
+                            {
+                                path.AddEllipse(1, 1, size - 3, size - 3);
+                                using (Pen glowOuter = new Pen(Color.FromArgb(230, 0, 220, 255), 3f))
+                                {
+                                    g.DrawPath(glowOuter, path);
+                                }
+                                using (Pen glowInner = new Pen(Color.FromArgb(240, 255, 255, 255), 1.5f))
+                                {
+                                    g.DrawPath(glowInner, path);
+                                }
+                            }
+                        }
+
+                        // İkonu ortalayarak çiz
+                        int offset = withGlow ? 3 : 1;
+                        int drawSize = size - (offset * 2);
+                        Rectangle destRect = new Rectangle(offset, offset, drawSize, drawSize);
+                        using (Bitmap baseBmp = baseIcon.ToBitmap())
+                        {
+                            g.DrawImage(baseBmp, destRect);
+                        }
+
+                        if (withGlow)
+                        {
+                            // İndirme yapıldığını belli eden canlı yeşil nokta
+                            using (SolidBrush dotBrush = new SolidBrush(Color.FromArgb(255, 0, 240, 120)))
+                            {
+                                g.FillEllipse(dotBrush, size - 9, size - 9, 7, 7);
+                            }
+                            using (Pen dotBorder = new Pen(Color.FromArgb(230, 10, 25, 47), 1f))
+                            {
+                                g.DrawEllipse(dotBorder, size - 9, size - 9, 7, 7);
+                            }
+                        }
+                    }
+
+                    // Windows HICON üretimi: Handle'ı hemen yok etmiyoruz çünkü Icon nesnesi handle üzerinde yaşar.
+                    IntPtr hIcon = bmp.GetHicon();
+                    return Icon.FromHandle(hIcon);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }
+

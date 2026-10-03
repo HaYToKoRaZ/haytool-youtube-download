@@ -4,12 +4,16 @@
  * Sorumluluklar:
  *   - fetchYtdlpVersion() : Mevcut yt-dlp sürümünü, kanalını ve GitHub sürüm listesini sorgular
  *   - updateYtdlp()       : Seçilen hedef sürüme göre yt-dlp motorunu günceller / geri alır
+ *   - initYtdlpEvents()   : Güncelle butonuna ve form elemanlarına doğrudan click dinleyicisi bağlar
  *
- * Bağımlılıklar: showToast (global), translations (global), currentLang (global)
+ * Bağımlılıklar: showToast (components/toast.js), translations (utils/i18n.js)
  *
  * Yapımcı: HaYTo
  * İletişim: korazhayto@gmail.com
  */
+
+import { translations } from '../utils/i18n.js';
+import { showToast } from '../components/toast.js';
 
 /**
  * yt-dlp motor sürümünü ve mevcut tüm sürümleri API'den sorgular, arayüzü günceller.
@@ -102,6 +106,7 @@ export async function updateYtdlp() {
   const btn = document.getElementById('ytdlp-update-btn');
   const selectEl = document.getElementById('ytdlp-target-select');
   const icon = btn ? btn.querySelector('i') : null;
+  const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
   const t = translations[currentLang] || translations.tr;
 
   const target = selectEl ? selectEl.value : 'nightly';
@@ -133,6 +138,48 @@ export async function updateYtdlp() {
   }
 }
 
+/**
+ * Ayarlar sekmesindeki yt-dlp güncelleme butonu için doğrudan DOM dinleyicisini bağlar.
+ */
+export function initYtdlpEvents() {
+  const btn = document.getElementById('ytdlp-update-btn');
+  if (btn && !btn._hasYtdlpListener) {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      updateYtdlp();
+    });
+    btn._hasYtdlpListener = true;
+  }
+
+  const startupToggle = document.getElementById('settings-check-ytdlp-on-startup');
+  if (startupToggle && !startupToggle._hasYtdlpListener) {
+    startupToggle.addEventListener('change', () => {
+      if (typeof window.triggerAutoSave === 'function') {
+        window.triggerAutoSave(true);
+      }
+    });
+    startupToggle._hasYtdlpListener = true;
+  }
+
+  const targetSelect = document.getElementById('ytdlp-target-select');
+  if (targetSelect && !targetSelect._hasYtdlpListener) {
+    targetSelect.addEventListener('change', () => {
+      if (typeof window.triggerAutoSave === 'function') {
+        window.triggerAutoSave(true);
+      }
+    });
+    targetSelect._hasYtdlpListener = true;
+  }
+}
+
 // Geriye dönük window.* köprüsü (HTML inline onclick bağlamı için)
 window.fetchYtdlpVersion = fetchYtdlpVersion;
 window.updateYtdlp = updateYtdlp;
+window.initYtdlpEvents = initYtdlpEvents;
+
+// DOM hazır olduğunda dinleyiciyi doğrudan bağla
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initYtdlpEvents);
+} else {
+  initYtdlpEvents();
+}

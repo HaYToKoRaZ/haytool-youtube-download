@@ -10,6 +10,7 @@ import { localhostOnly } from '../middleware/security.js';
 import { downloadQueue } from '../services/downloader.js';
 import { testFfmpegSync } from '../services/paths.js';
 import { broadcast, addTerminalLog, addClient, removeClient } from '../services/sse.js';
+import { getPendingAutoDeleteVideos } from '../services/autoDeleteService.js';
 
 export const router = express.Router();
 
@@ -32,6 +33,14 @@ router.get('/events', (req, res) => {
   addClient(res);
   
   res.write(`event: db_update\ndata: ${JSON.stringify(readDb())}\n\n`);
+
+  // Sayfa açıldığında veya SSE bağlandığında bekleyen silme onayı varsa anında bildir
+  try {
+    const pendingVideos = getPendingAutoDeleteVideos();
+    if (pendingVideos.length > 0) {
+      res.write(`event: auto_delete_pending\ndata: ${JSON.stringify({ videos: pendingVideos, count: pendingVideos.length })}\n\n`);
+    }
+  } catch (err) {}
 
   // SSE bağlantı canlılığı: 25 saniyede bir heartbeat yorum satırı gönder
   // (proxy / ara katman zaman aşımlarının bağlantıyı koparmasını önler)
