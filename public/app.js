@@ -1684,7 +1684,11 @@ function updateUI(db) {
   }
 
   // 6. Kanal Filtresi Seçeneklerini Doldur (Standart Doğal Seçim Listesi)
-  populateChannelFilters(db);
+  try {
+    populateChannelFilters(db);
+  } catch (err) {
+    console.error('Kanal filtresi doldurulurken hata oluştu:', err);
+  }
 
 
 
@@ -6842,7 +6846,7 @@ function populateChannelFilters(db) {
     }
 
     if (type === 'downloaded') {
-      renderDownloadedCategoryQuickPills(currentValue);
+      renderDownloadedCategoryQuickPills(currentValue, targetDb);
     }
   });
 
@@ -6855,82 +6859,87 @@ window.populateChannelFilters = populateChannelFilters;
  * Kullanıcı araçlar sekmesinden pinlediyse pinlenenleri (max 5),
  * henüz seçim yapılmamışsa varsayılan popüler kategorileri (max 5) listeler.
  * @param {string} [activeVal] Aktif seçili filtre değeri ('all', 'category:X', vs.)
+ * @param {object} [dbParam] Veritabanı veri nesnesi
  */
-function renderDownloadedCategoryQuickPills(activeVal) {
-  const container = document.getElementById('downloaded-category-quick-pills');
-  if (!container) return;
-
-  const targetDb = window.localDb || {};
-  const categories = targetDb.categories || [];
-  const channels = targetDb.channels || [];
-  const lang = localDb.settings?.lang || currentLang || 'tr';
-  const t = translations[lang] || translations.tr;
-
-  const currentFilter = activeVal || window.downloadedFilterChannel || 'all';
-
-  // 1. Kullanıcının pinlediği kategorileri al
-  let pins = [];
+function renderDownloadedCategoryQuickPills(activeVal, dbParam) {
   try {
-    pins = JSON.parse(localStorage.getItem('haytool_quick_category_pins') || '[]');
-    if (!Array.isArray(pins)) pins = [];
-  } catch (e) {
-    pins = [];
-  }
+    const container = document.getElementById('downloaded-category-quick-pills');
+    if (!container) return;
 
-  let selectedCats = [];
+    const targetDb = dbParam || window.localDb || {};
+    const categories = Array.isArray(targetDb.categories) ? targetDb.categories : [];
+    const channels = Array.isArray(targetDb.channels) ? targetDb.channels : [];
+    const lang = targetDb.settings?.lang || window.localDb?.settings?.lang || currentLang || 'tr';
+    const t = translations[lang] || translations.tr || {};
 
-  if (pins.length > 0) {
-    // Pinlenen kategorileri sırayla bul
-    selectedCats = pins
-      .map(id => categories.find(c => c.id === id))
-      .filter(Boolean);
-  }
+    const currentFilter = activeVal || window.downloadedFilterChannel || 'all';
 
-  // Eğer kullanıcı henüz pinleme yapmamışsa: En popüler/kanalı olan ilk 5 kategoriyi otomatik seç (Genel hariç veya dahil)
-  if (selectedCats.length === 0) {
-    // Podcast (17), Müzik (4), Teknoloji (5), Oyun (2), Eğitim (3) gibi öncelikli kategoriler
-    const defaultPriority = [17, 4, 5, 2, 3, 10, 7, 8, 9, 1];
-    const presentCats = [];
-    for (const pid of defaultPriority) {
-      const found = categories.find(c => c.id === pid);
-      if (found && !presentCats.some(c => c.id === found.id)) {
-        presentCats.push(found);
-      }
-      if (presentCats.length >= 5) break;
+    // 1. Kullanıcının pinlediği kategorileri al
+    let pins = [];
+    try {
+      pins = JSON.parse(localStorage.getItem('haytool_quick_category_pins') || '[]');
+      if (!Array.isArray(pins)) pins = [];
+    } catch (e) {
+      pins = [];
     }
-    // Hâlâ 5 olmadıysa mevcut diğer kategorilerden tamamla
-    for (const cat of categories) {
-      if (!presentCats.some(c => c.id === cat.id)) {
-        presentCats.push(cat);
-      }
-      if (presentCats.length >= 5) break;
+
+    let selectedCats = [];
+
+    if (pins.length > 0) {
+      // Pinlenen kategorileri sırayla bul
+      selectedCats = pins
+        .map(id => categories.find(c => c && c.id === id))
+        .filter(c => c && typeof c.id !== 'undefined');
     }
-    selectedCats = presentCats;
+
+    // Eğer kullanıcı henüz pinleme yapmamışsa: En popüler/kanalı olan ilk 5 kategoriyi otomatik seç
+    if (selectedCats.length === 0 && categories.length > 0) {
+      // Podcast (17), Müzik (4), Teknoloji (5), Oyun (2), Eğitim (3) gibi öncelikli kategoriler
+      const defaultPriority = [17, 4, 5, 2, 3, 10, 7, 8, 9, 1];
+      const presentCats = [];
+      for (const pid of defaultPriority) {
+        const found = categories.find(c => c && c.id === pid);
+        if (found && !presentCats.some(c => c.id === found.id)) {
+          presentCats.push(found);
+        }
+        if (presentCats.length >= 5) break;
+      }
+      // Hâlâ 5 olmadıysa mevcut diğer kategorilerden tamamla
+      for (const cat of categories) {
+        if (cat && !presentCats.some(c => c.id === cat.id)) {
+          presentCats.push(cat);
+        }
+        if (presentCats.length >= 5) break;
+      }
+      selectedCats = presentCats;
+    }
+
+    // Maksimum 5 adetle sınırla ve geçersiz öğeleri temizle
+    selectedCats = selectedCats.filter(c => c && typeof c.id !== 'undefined').slice(0, 5);
+
+    let pillsHtml = '';
+    selectedCats.forEach(cat => {
+      const catName = (typeof getCatTranslatedName === 'function') ? getCatTranslatedName(cat, t) : (cat.name || 'Kategori');
+      const catValue = `category:${cat.id}`;
+      const isActive = currentFilter === catValue;
+      const catIcon = cat.id === 17 ? 'mic' : (cat.id === 4 ? 'music' : (cat.id === 2 ? 'gamepad-2' : (cat.id === 5 ? 'cpu' : 'folder')));
+
+      pillsHtml += `
+        <button type="button" 
+                class="downloaded-cat-pill-btn ${isActive ? 'active' : ''}" 
+                onclick="selectCustomChannelOption('downloaded', '${catValue}', event)" 
+                title="${escapeHtml(catName)}">
+          <i data-lucide="${catIcon}" style="width:12px; height:12px;"></i>
+          <span class="pill-label">${escapeHtml(catName)}</span>
+        </button>
+      `;
+    });
+
+    container.innerHTML = pillsHtml;
+    try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
+  } catch (err) {
+    console.warn('[renderDownloadedCategoryQuickPills] Hata yakalandı:', err);
   }
-
-  // Maksimum 5 adetle sınırla
-  selectedCats = selectedCats.slice(0, 5);
-
-  let pillsHtml = '';
-  selectedCats.forEach(cat => {
-    const catName = getCatTranslatedName(cat, t);
-    const catValue = `category:${cat.id}`;
-    const isActive = currentFilter === catValue;
-    const catIcon = cat.id === 17 ? 'mic' : (cat.id === 4 ? 'music' : (cat.id === 2 ? 'gamepad-2' : (cat.id === 5 ? 'cpu' : 'folder')));
-
-    pillsHtml += `
-      <button type="button" 
-              class="downloaded-cat-pill-btn ${isActive ? 'active' : ''}" 
-              onclick="selectCustomChannelOption('downloaded', '${catValue}', event)" 
-              title="${escapeHtml(catName)}">
-        <i data-lucide="${catIcon}" style="width:12px; height:12px;"></i>
-        <span class="pill-label">${escapeHtml(catName)}</span>
-      </button>
-    `;
-  });
-
-  container.innerHTML = pillsHtml;
-  try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
 }
 window.renderDownloadedCategoryQuickPills = renderDownloadedCategoryQuickPills;
 

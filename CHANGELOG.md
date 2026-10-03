@@ -3,6 +3,13 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [10.9] - 2026-10-03
+- **fix(ui/core): Video Kartlarının Çizilmesini Engelleyen Filtre Hatası Giderildi:**
+  - `updateUI` akışında `populateChannelFilters` çağrısı `try/catch` koruması altına alındı; böylece filtre çubuğunda oluşabilecek hiçbir istisnanın video kartlarının (`renderVideoGrid`) render edilmesini engellemeyeceği garanti altına alındı.
+  - `renderDownloadedCategoryQuickPills` fonksiyonuna doğrudan güncel veritabanı parametresi (`targetDb`) aktarıldı ve `localDb` tanımsızlık riski ortadan kaldırıldı.
+  - Sabitlenen kategorilerde geçersiz veya silinmiş kategori referanslarının `TypeError` fırlatmasını önlemek için sıkı `cat && cat.id` doğrulamaları ve güvenli fallback çeviri mekanizması eklendi.
+  - Fonksiyon baştan sona `try/catch` bloğuna alınarak kütüphane ve indirilenler sekmesindeki video kartlarının ilk açılışta ve sekme geçişlerinde anında ve eksiksiz gelmesi sağlandı.
+
 ## [10.8] - 2026-10-03
 - **feat(ui/ux): İndirilenler Üst Çubuğuna Hızlı Kategori Butonları & Araçlar Sekmesine Sabitleme Yönetimi Eklendi:**
   - İndirilenler araç çubuğunda (`.history-toolbar`), kanal açılır menüsü ile "Yarım Kalanlar" butonu arasına 5 adede kadar dinamik hızlı kategori hap butonu (`.downloaded-category-quick-pills`) yerleştirildi.
