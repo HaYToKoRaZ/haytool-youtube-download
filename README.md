@@ -24,7 +24,8 @@
   <img src="https://img.shields.io/badge/Downloader-yt--dlp%20%7C%20FFmpeg-4af626?style=for-the-badge" alt="Downloader" />
   <img src="https://img.shields.io/badge/Version-v9.8.100-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
-  <img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&color=blueviolet" alt="GitHub Downloads (latest release)" />
+  <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases/latest"><img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&logo=github&color=2ea44f&label=LATEST%20DOWNLOADS" alt="Latest Release Downloads" /></a>
+  <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases"><img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/total?style=for-the-badge&logo=github&color=0969da&label=TOTAL%20DOWNLOADS" alt="Total Downloads" /></a>
   <a href="https://haytokoraz.github.io/" target="_blank"><img src="https://img.shields.io/badge/🌐_All_Apps-haytokoraz.github.io-FF0000?style=for-the-badge&logo=githubpages&logoColor=white" alt="HaYTo Ecosystem Hub" /></a>
 </p>
 
