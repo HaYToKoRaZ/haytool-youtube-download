@@ -46,7 +46,7 @@
 1. **Glassmorphic Navigation Bar**: Sabit, logo rozeti, çoklu dil seçici (TR/EN), doğrudan GitHub & İndir butonları.
 2. **Hero Presentation**:
    - Etkileyici tipografi + hareketli ışık lekesi (radial glow).
-   - "v9.8.100 - Tam Bağımsız Medya Gücü" canlı rozeti.
+   - "v10.0 - Tam Bağımsız Medya Gücü" canlı rozeti.
    - Doğrudan İndirme CTA + Ekran Görüntüleri Keşif butonu.
    - Canlı İstatistik Şeridi: Süper hızlı indirme, 1080p/4K/8K, IPTV Entegre, 5 Özel Tema.
 3. **Yeni Nesil Yetenekler (Featured Innovations - Grid)**:
