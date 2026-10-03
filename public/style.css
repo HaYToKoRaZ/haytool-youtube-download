@@ -1063,8 +1063,17 @@ body.light-theme .nav-item[data-tab="queue"].active .queue-nav-badge {
   cursor: default;
 }
 
+/* Hava durumu rozeti içerisindeki açılır popover penceresinin kesilmemesi için overflow: visible yapılır */
+.status-badge.weather-badge-wrapper {
+  overflow: visible !important;
+}
+
+.status-badge.weather-badge-wrapper::after {
+  display: none !important;
+}
+
 /* Hover'da ışık süpürmesi */
-.status-badge::after {
+.status-badge:not(.weather-badge-wrapper)::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -1179,6 +1188,7 @@ body.youtube-theme .status-badge:hover {
 /* Hava Durumu Badge Wrapper & Popover */
 .weather-badge-wrapper {
   position: relative;
+  overflow: visible !important;
   cursor: pointer !important;
 }
 

@@ -3,6 +3,11 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [10.6] - 2026-10-03
+- **fix(ui): Hava Durumu Rozetine Tıklayınca Açılan Detay Popover'ı Onarıldı:**
+  - `.status-badge` için eklenen `overflow: hidden` kuralı, `#badge-weather` içine gömülü açılır hava durumu detay kartının (`.weather-popover`) kapsayıcı sınırları tarafından kesilmesine sebep oluyordu.
+  - `.status-badge.weather-badge-wrapper` ve `.weather-badge-wrapper` seçicilerine `overflow: visible !important` atanarak tıklandığında popover kartının tam boyutta, 3D cam efektleri ve hava durumu detay ızgarasıyla görünmesi sağlandı.
+
 ## [10.5] - 2026-10-03
 - **feat(ui/ux): Üst Bar Durum Rozetleri (`.topbar-status-badges`) ux-ui-agent-skills Standardına Kavuşturuldu:**
   - Tüm durum rozetleri (`#badge-weather`, `#badge-status-duo`, `#badge-quality`, `#badge-disk`) eylem butonlarıyla (36px) tam hizada, 18px radius ile modern pill (kapsül) silüetine dönüştürüldü.
