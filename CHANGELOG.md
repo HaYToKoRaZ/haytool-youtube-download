@@ -3,6 +3,13 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [10.3] - 2026-10-03
+- **feat(ui/ux): Hızlı Tema Butonu (`#quick-theme-toggle-btn`) Yeniden Tasarlandı:**
+  - Buton artık aktif temanın `--primary` / `--secondary` renklerinden otomatik oluşan gradyan bir disk (renk örneği); Koyu (mor→camgöbeği), Açık (mor→gök mavisi), Matrix (yeşil), Discord (blurple→yeşil), YouTube (kırmızı) temalarında kendi rengiyle görünür ve mevcut temayı bir bakışta gösterir.
+  - İkon artık **mevcut** temayı gösterir (ay / güneş / terminal / mesaj / oynat); başlık ve `aria-label` "Tema: X • Sonraki: Y (tıkla)" biçimindedir. Her temada ikon kontrastı için yazı rengi (`--theme-ink`) ve gölge ayarlandı (Matrix'te koyu ikon).
+  - Hover'da ışık süpürmesi ve parlama, tıklamada basılma efekti, tema değişince ikon dönüş animasyonu, klavye odak halkası eklendi; `prefers-reduced-motion` tercihine uyulur.
+  - `settings.js` ve `theme.js` içindeki iki ayrı `applyTheme` butonu birbirinden farklı ikonlarla eziyordu; buton arayüzü tek kaynağa (`updateThemeToggleUI`) bağlandı.
+
 ## [10.2] - 2026-10-03
 - **fix(i18n): İlk Kurulumda Arayüz Dili Sistem Diline Göre Belirlenir:**
   - Release ZIP'i yeni bir klasörde ilk kez açıldığında `db.json` olmadığından varsayılan dil sabit `en` oluyordu; Türkçe sistemde bile uygulama İngilizce açılıyordu.

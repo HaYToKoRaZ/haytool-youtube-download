@@ -127,22 +127,30 @@ export function updateThemeToggleUI(themeName) {
     currentTheme = 'youtube';
   }
 
-  if (currentTheme === 'light') {
-    btn.setAttribute('title', isEn ? 'Switch to Matrix Theme (Cyber Green)' : 'Matrix Temasına Geç (Siber Yeşil)');
-    btn.innerHTML = `<i data-lucide="terminal" id="quick-theme-icon"></i>`;
-  } else if (currentTheme === 'matrix') {
-    btn.setAttribute('title', isEn ? 'Switch to Discord Theme (Blurple)' : 'Discord Temasına Geç (Blurple)');
-    btn.innerHTML = `<i data-lucide="message-square" id="quick-theme-icon"></i>`;
-  } else if (currentTheme === 'discord') {
-    btn.setAttribute('title', isEn ? 'Switch to YouTube Theme (Obsidian Red)' : 'YouTube Temasına Geç (Koyu Kırmızı)');
-    btn.innerHTML = `<i data-lucide="play-circle" id="quick-theme-icon"></i>`;
-  } else if (currentTheme === 'youtube') {
-    btn.setAttribute('title', isEn ? 'Switch to Dark Theme' : 'Koyu Temaya Geç (Karanlık)');
-    btn.innerHTML = `<i data-lucide="moon" id="quick-theme-icon"></i>`;
-  } else {
-    btn.setAttribute('title', isEn ? 'Switch to Light Theme' : 'Açık Temaya Geç (Aydınlık)');
-    btn.innerHTML = `<i data-lucide="sun" id="quick-theme-icon"></i>`;
-  }
+  // Döngü sırası toggleQuickTheme ile aynıdır: Koyu -> Açık -> Matrix -> Discord -> YouTube -> Koyu
+  const order = ['dark', 'light', 'matrix', 'discord', 'youtube'];
+  const icons = { dark: 'moon', light: 'sun', matrix: 'terminal', discord: 'message-square', youtube: 'play' };
+  const namesTr = { dark: 'Koyu', light: 'Açık', matrix: 'Matrix', discord: 'Discord', youtube: 'YouTube' };
+  const namesEn = { dark: 'Dark', light: 'Light', matrix: 'Matrix', discord: 'Discord', youtube: 'YouTube' };
+  const names = isEn ? namesEn : namesTr;
+
+  if (!order.includes(currentTheme)) currentTheme = 'dark';
+  const nextTheme = order[(order.indexOf(currentTheme) + 1) % order.length];
+
+  const label = isEn
+    ? `Theme: ${names[currentTheme]} • Next: ${names[nextTheme]} (click)`
+    : `Tema: ${names[currentTheme]} • Sonraki: ${names[nextTheme]} (tıkla)`;
+
+  btn.setAttribute('title', label);
+  btn.setAttribute('aria-label', label);
+  btn.setAttribute('data-theme-current', currentTheme);
+  btn.innerHTML = `<i data-lucide="${icons[currentTheme]}" id="quick-theme-icon"></i>`;
+
+  // Geçiş animasyonunu her değişimde yeniden tetikle
+  btn.classList.remove('theme-toggle-spin');
+  void btn.offsetWidth;
+  btn.classList.add('theme-toggle-spin');
+
   try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
 }
 

@@ -57,7 +57,11 @@ export function applyTheme(themeName) {
     btn.classList.toggle('active', btn.getAttribute('data-theme') === themeName);
   });
 
-  // Header hızlı tema butonu ve ikonu
+  // Header hızlı tema butonu ve ikonu: tek kaynak theme.js içindeki updateThemeToggleUI'dır
+  if (typeof window.updateThemeToggleUI === 'function') {
+    window.updateThemeToggleUI(themeName);
+    return;
+  }
   const quickThemeBtn = document.getElementById('quick-theme-toggle-btn') || document.getElementById('btn-header-theme-toggle');
   const quickThemeIcon = document.getElementById('quick-theme-icon') || (quickThemeBtn ? quickThemeBtn.querySelector('i') : null);
 

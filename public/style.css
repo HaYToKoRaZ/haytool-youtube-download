@@ -1748,6 +1748,106 @@ body.light-theme .btn-icon-only:hover {
   box-shadow: 0 4px 10px rgba(124, 58, 237, 0.15) !important;
 }
 
+/* ============================================================
+   Hızlı Tema Butonu (#quick-theme-toggle-btn)
+   Aktif temanın --primary / --secondary renklerinden otomatik
+   gradyan disk üretir; böylece buton her temada o temanın
+   "renk örneği" (swatch) olur ve mevcut durumu gösterir.
+   ============================================================ */
+#quick-theme-toggle-btn.btn-icon-only {
+  --theme-ink: #ffffff;
+  position: relative;
+  overflow: hidden;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, var(--primary), var(--secondary)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  color: var(--theme-ink) !important;
+  box-shadow: 0 2px 10px var(--primary-glow, rgba(138, 43, 226, 0.45)),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Parlak neon zeminlerde (Matrix) beyaz ikon okunmaz: koyu mürekkep kullan */
+body.matrix-theme #quick-theme-toggle-btn.btn-icon-only {
+  --theme-ink: #021b08;
+}
+
+body.matrix-theme #quick-theme-toggle-btn.btn-icon-only svg,
+body.matrix-theme #quick-theme-toggle-btn.btn-icon-only i {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.35));
+}
+
+#quick-theme-toggle-btn.btn-icon-only svg,
+#quick-theme-toggle-btn.btn-icon-only i {
+  width: 18px;
+  height: 18px;
+  position: relative;
+  z-index: 1;
+  color: var(--theme-ink);
+  stroke: var(--theme-ink);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hover'da ışık süpürmesi */
+#quick-theme-toggle-btn.btn-icon-only::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.45) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+}
+
+#quick-theme-toggle-btn.btn-icon-only:hover {
+  background: linear-gradient(135deg, var(--primary), var(--secondary)) !important;
+  color: var(--theme-ink) !important;
+  border-color: rgba(255, 255, 255, 0.7) !important;
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 6px 18px var(--primary-glow, rgba(138, 43, 226, 0.55)),
+              0 0 0 3px rgba(255, 255, 255, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+#quick-theme-toggle-btn.btn-icon-only:hover::after {
+  transform: translateX(120%);
+}
+
+#quick-theme-toggle-btn.btn-icon-only:hover svg,
+#quick-theme-toggle-btn.btn-icon-only:hover i {
+  transform: rotate(18deg) scale(1.1);
+}
+
+#quick-theme-toggle-btn.btn-icon-only:active {
+  transform: scale(0.93);
+}
+
+#quick-theme-toggle-btn.btn-icon-only:focus-visible {
+  outline: 2px solid var(--text-main);
+  outline-offset: 3px;
+}
+
+/* Tema değişince ikon kısa bir dönüş/açılma animasyonu yapar */
+#quick-theme-toggle-btn.theme-toggle-spin svg,
+#quick-theme-toggle-btn.theme-toggle-spin i {
+  animation: themeToggleSpin 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes themeToggleSpin {
+  0%   { transform: rotate(-120deg) scale(0.4); opacity: 0; }
+  100% { transform: rotate(0deg) scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #quick-theme-toggle-btn.btn-icon-only,
+  #quick-theme-toggle-btn.btn-icon-only::after,
+  #quick-theme-toggle-btn.btn-icon-only svg,
+  #quick-theme-toggle-btn.btn-icon-only i {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
 /* Main Content Styling */
 .main-content {
   flex-grow: 1;
