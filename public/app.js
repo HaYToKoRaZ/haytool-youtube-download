@@ -1679,8 +1679,12 @@ function updateUI(db) {
   }
 
   // Kategori Yönetimi Arayüzünü Yükle (Araçlar Sekmesinde)
-  if (typeof loadCategoriesToTools === 'function') {
-    loadCategoriesToTools(db.categories);
+  try {
+    if (typeof loadCategoriesToTools === 'function') {
+      loadCategoriesToTools(db.categories);
+    }
+  } catch (err) {
+    console.error('loadCategoriesToTools çalıştırılırken hata:', err);
   }
 
   // 6. Kanal Filtresi Seçeneklerini Doldur (Standart Doğal Seçim Listesi)

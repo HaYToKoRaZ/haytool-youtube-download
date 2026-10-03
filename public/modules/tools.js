@@ -887,6 +887,7 @@ export function loadCategoriesToTools(categories) {
   const listEl = document.getElementById('tools-categories-list');
   if (!listEl) return;
 
+  const cats = categories || localDb?.categories || [];
   const isEn = localDb.settings && localDb.settings.lang === 'en';
   const lang = localDb.settings?.lang || currentLang || 'tr';
   const t = translations[lang] || translations.tr;
