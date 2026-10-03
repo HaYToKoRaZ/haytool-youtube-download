@@ -29,7 +29,7 @@ const i18n = {
     stat_languages_sub: "Otomatik Altyazı Çevirisi",
     cat_quote: "Miyav! Reklamsız izlemek harika!",
     mascot_tooltip: "Bana tıkla, miyavlayayım! 🐾",
-    features_tag: "🐾 Neden HaYTooL?",
+    features_tag: "🐾 Neden Multimedia HaYTooL?",
     features_title: "Özgürlüğünüzü Geri Kazanın",
     features_desc: "Tüm kontroller sizin elinizde. Arka planda sessizce çalışan otomasyon motoru.",
     gallery_tag: "📸 Arayüz & Görseller",
@@ -53,8 +53,13 @@ const i18n = {
     cli_pd_desc: "Verilen video veya çalma listesini doğrudan indirme sırasına ekler.",
     cli_status_desc: "Aktif indirmeleri, hız sınırlarını ve kuyruk durumunu listeler.",
     cli_turtle_desc: "Kaplumbağa modunu (alternatif düşük hız profilini) açar, kapatır veya değiştirir.",
-    cli_speed_desc: "Normal veya kaplumbağa indirme hız sınırını KB/s olarak anında ayarlar.",
-    cli_example_label: "Terminalden doğrudan indirme başlatma örneği:"
+    cli_example_label: "Terminalden doğrudan indirme başlatma örneği:",
+    feat_iptv_title: "IPTV Çoklu Canlı TV",
+    feat_iptv_desc: "4 ekrana kadar eşzamanlı canlı yayın izleme, otomatik m3u8 oynatıcı ve özel kategori filtreleme ile televizyon deneyimi.",
+    feat_ryd_title: "Return YouTube Dislike",
+    feat_ryd_desc: "YouTube'un gizlediği dislike istatistiklerini RYD API ile anında görün, topluluk beğeni oranlarını doğrudan takip edin.",
+    feat_themes_title: "5 Farklı Dinamik Tema",
+    feat_themes_desc: "Matrix, Discord, YouTube Koyu, Aydınlık ve Koyu temalar arasında tek tıkla geçiş yapın, tam kontrast konforunu yaşayın."
   },
   en: {
     nav_features: "Features",
@@ -80,7 +85,7 @@ const i18n = {
     stat_languages_sub: "Auto Subtitle Translation",
     cat_quote: "Meow! Watching ad-free is purrfect!",
     mascot_tooltip: "Click me to hear a meow! 🐾",
-    features_tag: "🐾 Why HaYTooL?",
+    features_tag: "🐾 Why Multimedia HaYTooL?",
     features_title: "Reclaim Your Digital Freedom",
     features_desc: "Total control in your hands. A quiet, resilient automation daemon working in the background.",
     gallery_tag: "📸 Interface & Snapshots",
@@ -105,7 +110,13 @@ const i18n = {
     cli_status_desc: "Displays active downloads, speed limits, and queue status.",
     cli_turtle_desc: "Turns on, turns off, or toggles Turtle Mode (alternative low-speed profile).",
     cli_speed_desc: "Sets standard or turtle download speed limit in KB/s on the fly.",
-    cli_example_label: "Example CLI download command directly from terminal:"
+    cli_example_label: "Example CLI download command directly from terminal:",
+    feat_iptv_title: "IPTV Multi-Screen Live TV",
+    feat_iptv_desc: "Watch up to 4 concurrent live streams, automatic m3u8 player, and custom category filtering for a true TV experience.",
+    feat_ryd_title: "Return YouTube Dislike",
+    feat_ryd_desc: "Reveal hidden YouTube dislike metrics via RYD API integration and monitor community sentiment directly.",
+    feat_themes_title: "5 Dynamic Interface Themes",
+    feat_themes_desc: "Seamlessly switch between Matrix, Discord, YouTube Dark, Light, and Dark themes with full high-contrast readability."
   }
 };
 
