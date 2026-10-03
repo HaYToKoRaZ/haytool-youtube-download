@@ -3,6 +3,14 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [10.8] - 2026-10-03
+- **feat(ui/ux): İndirilenler Üst Çubuğuna Hızlı Kategori Butonları & Araçlar Sekmesine Sabitleme Yönetimi Eklendi:**
+  - İndirilenler araç çubuğunda (`.history-toolbar`), kanal açılır menüsü ile "Yarım Kalanlar" butonu arasına 5 adede kadar dinamik hızlı kategori hap butonu (`.downloaded-category-quick-pills`) yerleştirildi.
+  - Tıklandığında ilgili kategoriyi filtreleyip seçili durumu (`.active`) vurgular ve filtre menüsünü senkronize eder.
+  - Hangi kategorilerin hızlı buton olacağı Araçlar -> Kategori Yönetimi sekmesinde yeni eklenen "Hızlı Buton" sabitleme (pin/pin-off) sütunu üzerinden kolayca yönetilebilir hale getirildi (maksimum 5 adet korumasıyla).
+  - Kullanıcı özel seçim yapmadığında Podcast, Müzik, Teknoloji vb. popüler kategoriler akıllı varsayılan olarak sunulur.
+  - Açık tema, Koyu tema ve Matrix temalarında ux-ui-agent-skills standartlarına tam uyumlu gradyan, gölge ve mikro-etkileşimler eklendi; 7 dilde çeviri anahtarları tamamlandı.
+
 ## [10.7] - 2026-10-03
 - **feat(ui/ux): İndirilenler Yerleşik Oynatıcı Yan Listesi (`.inline-player-sidebar`) Kompaktlaştırıldı & Kanal Logosu Eklendi:**
   - `.playlist-item` dikey yüksekliği ve iç dolgusu optimize edildi (`align-items: center`, `padding: 6px 8px`).

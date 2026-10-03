@@ -648,6 +648,7 @@ export function applyLanguage(lang) {
   el('btn-add-category-text', 'btn_add_category');
   el('col-category-id', 'category_id_col');
   el('col-category-name', 'category_name_col');
+  el('col-category-quick', 'category_quick_col');
   el('col-category-actions', 'category_actions_col');
 
   // APE Aracı i18n

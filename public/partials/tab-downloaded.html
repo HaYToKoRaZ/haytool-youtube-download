@@ -273,6 +273,11 @@
               <select id="downloaded-channel-filter" style="display:none;" onchange="onDownloadedChannelFilterChange()">
                 <option value="all">Tüm Kanallar</option>
               </select>
+
+              <!-- Hızlı Kategori Filtre Hapları (Maksimum 5 Adet, Kompakt & UX/UI Uyumlu) -->
+              <div class="downloaded-category-quick-pills" id="downloaded-category-quick-pills" role="toolbar" aria-label="Hızlı Kategori Filtreleri">
+                <!-- JS (renderDownloadedCategoryQuickPills) ile dinamik oluşturulacak -->
+              </div>
             </div>
             <div class="filter-group" style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
               <button class="btn btn-secondary" id="downloaded-filter-resume-btn" onclick="toggleDownloadedResumeFilter()" title="Sadece izlemeyi yarıda bıraktığınız videoları gösterir">

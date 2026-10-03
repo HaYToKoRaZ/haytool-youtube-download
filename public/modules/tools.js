@@ -891,8 +891,13 @@ export function loadCategoriesToTools(categories) {
   const lang = localDb.settings?.lang || currentLang || 'tr';
   const t = translations[lang] || translations.tr;
 
-  const cats = categories || [];
-  const catSig = `${lang}##${cats.map(c => `${c.id}:${c.name}`).join(';')}`;
+  let quickPins = [];
+  try {
+    quickPins = JSON.parse(localStorage.getItem('haytool_quick_category_pins') || '[]');
+  } catch (e) {
+    quickPins = [];
+  }
+  const catSig = `${lang}##${quickPins.sort().join(',')}##${cats.map(c => `${c.id}:${c.name}`).join(';')}`;
   if (window._lastToolsCategoriesSignature === catSig && listEl.children.length > 0) {
     return;
   }
@@ -910,7 +915,8 @@ export function loadCategoriesToTools(categories) {
   });
 
   sortedCats.forEach(cat => {
-    const catName = getCatTranslatedName(cat);
+    const catName = getCatTranslatedName(cat, t);
+    const isPinned = quickPins.includes(cat.id);
 
     const tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid var(--border-color)';
@@ -920,6 +926,11 @@ export function loadCategoriesToTools(categories) {
     tr.innerHTML = `
       <td style="padding:10px 12px; font-weight: 600; color: var(--text-muted);">${cat.id}</td>
       <td style="padding:10px 12px;" id="cat-name-text-${cat.id}">${escapeHtml(catName)}</td>
+      <td style="padding:10px 12px; text-align:center;">
+        <button type="button" class="btn-icon ${isPinned ? 'active-quick-pin' : ''}" onclick="toggleQuickCategoryPin(${cat.id})" title="${isPinned ? (t.category_quick_unpinned || 'Hızlı bardan kaldır') : (t.category_quick_pinned || 'Hızlı bara sabitle (Max 5)')}" style="width:28px; height:28px; border-radius:6px; border:1px solid ${isPinned ? 'var(--accent-color)' : 'var(--border-color)'}; background:${isPinned ? 'rgba(56, 189, 248, 0.15)' : 'transparent'}; color:${isPinned ? 'var(--accent-color)' : 'var(--text-muted)'}; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s ease;">
+          <i data-lucide="${isPinned ? 'pin' : 'pin-off'}" style="width: 14px; height: 14px;"></i>
+        </button>
+      </td>
       <td style="padding:10px 12px; text-align:right;">
         <div style="display:flex; justify-content:flex-end; gap:8px;">
           <button class="btn-icon" onclick="editCategoryName(${cat.id}, '${escapeHtml(cat.name)}')" title="${t.category_edit_tooltip || 'Kategoriyi Düzenle'}">
@@ -939,6 +950,45 @@ export function loadCategoriesToTools(categories) {
   } catch (e) {}
 }
 window.loadCategoriesToTools = loadCategoriesToTools;
+
+/**
+ * Türkçe Açıklama: İndirilenler üst barındaki hızlı kategori buton sabitlemesini açar/kapatır (Maks 5).
+ * @param {number} catId Kategori ID
+ */
+export function toggleQuickCategoryPin(catId) {
+  const lang = localDb.settings?.lang || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
+  const numId = parseInt(catId, 10);
+  let pins = [];
+  try {
+    pins = JSON.parse(localStorage.getItem('haytool_quick_category_pins') || '[]');
+    if (!Array.isArray(pins)) pins = [];
+  } catch (e) {
+    pins = [];
+  }
+
+  const idx = pins.indexOf(numId);
+  if (idx >= 0) {
+    pins.splice(idx, 1);
+    showToast(t.category_quick_unpinned || 'İndirilenler üst barından kaldırıldı', 'info');
+  } else {
+    if (pins.length >= 5) {
+      showToast(t.category_quick_limit_warning || 'En fazla 5 kategori hızlı buton olarak seçilebilir.', 'warning');
+      return;
+    }
+    pins.push(numId);
+    showToast(t.category_quick_pinned || 'İndirilenler üst barına sabitlendi', 'success');
+  }
+
+  localStorage.setItem('haytool_quick_category_pins', JSON.stringify(pins));
+  window._lastToolsCategoriesSignature = null;
+  loadCategoriesToTools(localDb.categories);
+
+  if (typeof renderDownloadedCategoryQuickPills === 'function') {
+    renderDownloadedCategoryQuickPills();
+  }
+}
+window.toggleQuickCategoryPin = toggleQuickCategoryPin;
 
 /**
  * Araçlar sekmesinden yeni kategori ekler.

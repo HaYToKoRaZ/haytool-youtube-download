@@ -6840,11 +6840,99 @@ function populateChannelFilters(db) {
       selectEl.innerHTML = selectOptionsHtml;
       selectEl.value = currentValue;
     }
+
+    if (type === 'downloaded') {
+      renderDownloadedCategoryQuickPills(currentValue);
+    }
   });
 
   try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
 }
 window.populateChannelFilters = populateChannelFilters;
+
+/**
+ * Türkçe Açıklama: İndirilenler üst barındaki hızlı kategori hap butonlarını render eder.
+ * Kullanıcı araçlar sekmesinden pinlediyse pinlenenleri (max 5),
+ * henüz seçim yapılmamışsa varsayılan popüler kategorileri (max 5) listeler.
+ * @param {string} [activeVal] Aktif seçili filtre değeri ('all', 'category:X', vs.)
+ */
+function renderDownloadedCategoryQuickPills(activeVal) {
+  const container = document.getElementById('downloaded-category-quick-pills');
+  if (!container) return;
+
+  const targetDb = window.localDb || {};
+  const categories = targetDb.categories || [];
+  const channels = targetDb.channels || [];
+  const lang = localDb.settings?.lang || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
+
+  const currentFilter = activeVal || window.downloadedFilterChannel || 'all';
+
+  // 1. Kullanıcının pinlediği kategorileri al
+  let pins = [];
+  try {
+    pins = JSON.parse(localStorage.getItem('haytool_quick_category_pins') || '[]');
+    if (!Array.isArray(pins)) pins = [];
+  } catch (e) {
+    pins = [];
+  }
+
+  let selectedCats = [];
+
+  if (pins.length > 0) {
+    // Pinlenen kategorileri sırayla bul
+    selectedCats = pins
+      .map(id => categories.find(c => c.id === id))
+      .filter(Boolean);
+  }
+
+  // Eğer kullanıcı henüz pinleme yapmamışsa: En popüler/kanalı olan ilk 5 kategoriyi otomatik seç (Genel hariç veya dahil)
+  if (selectedCats.length === 0) {
+    // Podcast (17), Müzik (4), Teknoloji (5), Oyun (2), Eğitim (3) gibi öncelikli kategoriler
+    const defaultPriority = [17, 4, 5, 2, 3, 10, 7, 8, 9, 1];
+    const presentCats = [];
+    for (const pid of defaultPriority) {
+      const found = categories.find(c => c.id === pid);
+      if (found && !presentCats.some(c => c.id === found.id)) {
+        presentCats.push(found);
+      }
+      if (presentCats.length >= 5) break;
+    }
+    // Hâlâ 5 olmadıysa mevcut diğer kategorilerden tamamla
+    for (const cat of categories) {
+      if (!presentCats.some(c => c.id === cat.id)) {
+        presentCats.push(cat);
+      }
+      if (presentCats.length >= 5) break;
+    }
+    selectedCats = presentCats;
+  }
+
+  // Maksimum 5 adetle sınırla
+  selectedCats = selectedCats.slice(0, 5);
+
+  let pillsHtml = '';
+  selectedCats.forEach(cat => {
+    const catName = getCatTranslatedName(cat, t);
+    const catValue = `category:${cat.id}`;
+    const isActive = currentFilter === catValue;
+    const catIcon = cat.id === 17 ? 'mic' : (cat.id === 4 ? 'music' : (cat.id === 2 ? 'gamepad-2' : (cat.id === 5 ? 'cpu' : 'folder')));
+
+    pillsHtml += `
+      <button type="button" 
+              class="downloaded-cat-pill-btn ${isActive ? 'active' : ''}" 
+              onclick="selectCustomChannelOption('downloaded', '${catValue}', event)" 
+              title="${escapeHtml(catName)}">
+        <i data-lucide="${catIcon}" style="width:12px; height:12px;"></i>
+        <span class="pill-label">${escapeHtml(catName)}</span>
+      </button>
+    `;
+  });
+
+  container.innerHTML = pillsHtml;
+  try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
+}
+window.renderDownloadedCategoryQuickPills = renderDownloadedCategoryQuickPills;
 
 // Gist ve YouTube oturum/çerez yönetim fonksiyonları './modules/settings.js' modülü tarafından yönetilmektedir.
 
