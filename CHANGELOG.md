@@ -3,6 +3,14 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [10.5] - 2026-10-03
+- **feat(ui/ux): Üst Bar Durum Rozetleri (`.topbar-status-badges`) ux-ui-agent-skills Standardına Kavuşturuldu:**
+  - Tüm durum rozetleri (`#badge-weather`, `#badge-status-duo`, `#badge-quality`, `#badge-disk`) eylem butonlarıyla (36px) tam hizada, 18px radius ile modern pill (kapsül) silüetine dönüştürüldü.
+  - Arka plana çok katmanlı cam derinliği (`backdrop-filter: blur(12px) saturate(1.2)`), üst parlaklık çizgisi (`inset 0 1px 0`) ve hover anında butonlardan tanıdık ışık süpürmesi (`::after`) eklendi.
+  - Açık tema (opak cam + mor ışıma), Matrix teması (siber yeşil cam + neon ışıma), Discord ve YouTube temalarında kusursuz kontrast sağlandı.
+  - Tipografi hiyerarşisi oluşturuldu: Meta etiketler (Kalite, Boş, Alan) `%88` şeffaflıkta 0.70rem subdued, değerler ise 0.78rem bold olarak vurgulandı.
+  - Hava durumu ikonuna güneş ışıması ve hover dönüşü, sistem bağlantı noktasına akıcı nefes alma/nabız animasyonu (`statusDotPulse`) entegre edildi.
+
 ## [10.4] - 2026-10-03
 - **feat(ui/ux): Üst Bar Eylem Butonları (`.topbar-actions .btn-icon-only`) Tam Uyumlu Hale Getirildi:**
   - Hızlı tema değiştirme butonu ile yanındaki 3 buton (İndirilenler Klasörünü Aç `#open-downloads-folder-btn`, Ayarlar `#header-settings-btn`, Kanalları Şimdi Denetle `#sync-now-btn`) aynı görsel tasarım diline kavuşturuldu.
