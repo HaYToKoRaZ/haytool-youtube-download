@@ -238,7 +238,7 @@ export const en = {
   opt_sub_lightyellow: 'Light Yellow',
   inline_btn_youtube: 'Open on YouTube',
   inline_btn_system: 'Open in System Player',
-  inline_btn_folder: 'Open Folder',
+  inline_btn_folder: 'Open Video Location',
   inline_btn_comments: 'Show Comments',
   inline_btn_translate_sub: 'Translate Subtitle',
   opt_sub_opacity_0: 'Transparent (%0)',
@@ -355,6 +355,8 @@ export const en = {
   card_download_completed: 'Downloaded',
   card_open_system_player: 'Open in System Player',
   card_open_channel_folder: 'Open Channel Folder',
+
+  card_open_video_location: 'Open Video Location',
   card_cancel_download: 'Cancel Download',
   card_in_queue: 'In Queue',
   card_waiting_duration: 'Duration Check',

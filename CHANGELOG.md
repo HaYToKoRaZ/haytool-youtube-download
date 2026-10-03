@@ -3,6 +3,15 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [10.2] - 2026-10-03
+- **fix(i18n): İlk Kurulumda Arayüz Dili Sistem Diline Göre Belirlenir:**
+  - Release ZIP'i yeni bir klasörde ilk kez açıldığında `db.json` olmadığından varsayılan dil sabit `en` oluyordu; Türkçe sistemde bile uygulama İngilizce açılıyordu.
+  - `server/database.js` içine `detectSystemLang()` eklendi: işletim sistemi dilini (`Intl` + `LANG` ortam değişkenleri) algılar, desteklenen 7 dilden (`tr, en, es, de, pt, ar, ru`) birine eşler, desteklenmiyorsa `en` kullanır. Mevcut kullanıcıların kayıtlı dil ayarı değişmez.
+- **feat(ui): İndirilenler Yan Listesinde (`.inline-player-sidebar`) "YouTube'da Aç" ve "Video Konumunu Aç" Butonları:**
+  - Her video satırında çöp kutusunun üstüne, video kartlarıyla aynı renk ve ikon diliyle iki yeni buton eklendi (dikey aksiyon sütunu, `aria-label`, klavye odak halkası, açık tema uyumlu).
+- **fix(ui): "Kanal Klasörünü Aç" → "Video Konumunu Aç":**
+  - Video kartındaki ve gömülü oynatıcıdaki klasör butonu artık kanal klasörünü değil, videonun diskteki konumunu Gezgin'de **dosyayı seçili** olarak açar (`window.openVideoLocation`, `/api/tools/open-file-location`). Dosya yolu yoksa kanal klasörüne geri döner. Başlıklar 7 dilde güncellendi (`card_open_video_location`, `inline_btn_folder`).
+
 ## [10.1] - 2026-10-03
 - **fix(ui): Açık Tema "Yarım Kalanlar" Filtre Sayı Rozeti Okunabilirliği:**
   - `#badge-resume-count` rozeti açık temada arka plana çok yakın açık mor tonundaydı; koyu mor zemin + beyaz yazı ile okunur hale getirildi. Buton metni ve ikon renkleri de açık temaya uyarlandı.

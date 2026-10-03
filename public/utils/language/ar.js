@@ -234,7 +234,7 @@ export const ar = {
   opt_sub_lightyellow: 'أصفر فاتح',
   inline_btn_youtube: 'فتح في YouTube',
   inline_btn_system: 'فتح في مشغل النظام',
-  inline_btn_folder: 'فتح المجلد',
+  inline_btn_folder: 'فتح موقع الفيديو',
   inline_btn_comments: 'عرض التعليقات',
   inline_btn_translate_sub: 'ترجمة التسميات التوضيحية',
   opt_sub_opacity_0: 'شفاف (%0)',
@@ -355,6 +355,8 @@ export const ar = {
   card_download_completed: 'تم التنزيل',
   card_open_system_player: 'فتح في مشغل النظام',
   card_open_channel_folder: 'فتح مجلد القناة',
+
+  card_open_video_location: 'فتح موقع الفيديو',
   card_cancel_download: 'إلغاء التنزيل',
   card_in_queue: 'في قائمة الانتظار',
   card_waiting_duration: 'فحص المدة',

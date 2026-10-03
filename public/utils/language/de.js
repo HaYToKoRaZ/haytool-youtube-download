@@ -237,7 +237,7 @@ export const de = {
   opt_sub_lightyellow: 'Hellgelb',
   inline_btn_youtube: 'Auf YouTube öffnen',
   inline_btn_system: 'Im Systemplayer öffnen',
-  inline_btn_folder: 'Ordner öffnen',
+  inline_btn_folder: 'Videospeicherort öffnen',
   inline_btn_comments: 'Kommentare anzeigen',
   inline_btn_translate_sub: 'Untertitel übersetzen',
   opt_sub_opacity_0: 'Transparent (%0)',
@@ -355,6 +355,8 @@ export const de = {
   card_download_completed: 'Heruntergeladen',
   card_open_system_player: 'Im System-Player öffnen',
   card_open_channel_folder: 'Kanalordner öffnen',
+
+  card_open_video_location: 'Videospeicherort öffnen',
   card_cancel_download: 'Download abbrechen',
   card_in_queue: 'In Warteschlange',
   card_waiting_duration: 'Dauerprüfung',

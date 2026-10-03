@@ -238,7 +238,7 @@ export const tr = {
   opt_sub_lightyellow: 'Açık Sarı',
   inline_btn_youtube: 'YouTube\'da Aç',
   inline_btn_system: 'Sistem Oynatıcısında Aç',
-  inline_btn_folder: 'Klasör Aç',
+  inline_btn_folder: 'Video Konumunu Aç',
   inline_btn_comments: 'Yorumları Göster',
   inline_btn_translate_sub: 'Altyazı Çevir',
   opt_sub_opacity_0: 'Saydam (%0)',
@@ -355,6 +355,8 @@ export const tr = {
   card_download_completed: 'İndirildi',
   card_open_system_player: 'Sistem Oynatıcısında Aç',
   card_open_channel_folder: 'Kanal Klasörünü Aç',
+
+  card_open_video_location: 'Video Konumunu Aç',
   card_cancel_download: 'İndirmeyi İptal Et',
   card_in_queue: 'Kuyrukta',
   card_waiting_duration: 'Süre Analizi',

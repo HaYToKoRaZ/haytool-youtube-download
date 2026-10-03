@@ -184,7 +184,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
             <button class="btn-icon btn-action-play" onclick="playVideoSystem('${item.id}')" title="${t.card_open_system_player || 'Sistem Oynatıcısında Aç'}">
               <i data-lucide="monitor-play"></i>
             </button>
-            <button class="btn-icon btn-action-folder" onclick="openFolder(decodeURIComponent('${encodeURIComponent(item.channelName)}'))" title="${t.card_open_channel_folder || 'Kanal Klasörünü Aç'}">
+            <button class="btn-icon btn-action-folder" onclick="event.stopPropagation(); (window.openVideoLocation || openVideoLocation)('${item.id}', '${encodeURIComponent(item.filePath || '')}', '${encodeURIComponent(item.channelName || '')}')" title="${t.card_open_video_location || 'Video Konumunu Aç'}">
               <i data-lucide="folder-open"></i>
             </button>
           `;

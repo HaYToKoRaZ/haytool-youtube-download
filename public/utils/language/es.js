@@ -238,7 +238,7 @@ export const es = {
   opt_sub_lightyellow: 'Amarillo Claro',
   inline_btn_youtube: 'Abrir en YouTube',
   inline_btn_system: 'Abrir en el Reproductor del Sistema',
-  inline_btn_folder: 'Abrir Carpeta',
+  inline_btn_folder: 'Abrir ubicación del vídeo',
   inline_btn_comments: 'Mostrar Comentarios',
   inline_btn_translate_sub: 'Traducir subtítulo',
   opt_sub_opacity_0: 'Transparente (%0)',
@@ -355,6 +355,8 @@ export const es = {
   card_download_completed: 'Descargado',
   card_open_system_player: 'Abrir en el reproductor del sistema',
   card_open_channel_folder: 'Abrir carpeta del canal',
+
+  card_open_video_location: 'Abrir ubicación del vídeo',
   card_cancel_download: 'Cancelar descarga',
   card_in_queue: 'En cola',
   card_waiting_duration: 'Chequeo de Duración',

@@ -3665,7 +3665,7 @@ window.updateInlinePlayerMetadata = function(videoObj) {
         btnFolder.disabled = false;
         btnFolder.style.opacity = '1';
         btnFolder.style.cursor = 'pointer';
-        btnFolder.onclick = () => openFolder(decodeURIComponent(encodeURIComponent(videoChannelName)));
+        btnFolder.onclick = () => window.openVideoLocation(videoId, encodeURIComponent(video.filePath || ''), encodeURIComponent(videoChannelName || ''));
       } else {
         btnFolder.disabled = true;
         btnFolder.style.opacity = '0.4';
@@ -4571,9 +4571,17 @@ function renderDownloadedPlaylist(currentVideoId) {
           ${escapeHtml(item.channelName || '')} • ${item.fileSize || '-- MB'} • ${formatDate(item.publishedAt || item.downloadedAt)}
         </div>
       </div>
-      <button class="playlist-item-delete-btn" onclick="event.stopPropagation(); (window.showDeleteModal || showDeleteModal)('${item.id}')" title="${currentLang === 'en' ? 'Delete Video' : 'Videoyu Sil'}">
-        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
-      </button>
+      <div class="playlist-item-actions">
+        <button class="playlist-item-action-btn btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}')" title="${currentLang === 'en' ? 'Open on YouTube' : 'YouTube\'da Aç'}" aria-label="${currentLang === 'en' ? 'Open on YouTube' : 'YouTube\'da Aç'}">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z"/></svg>
+        </button>
+        <button class="playlist-item-action-btn btn-action-folder" onclick="event.stopPropagation(); window.openVideoLocation('${item.id}', '${encodeURIComponent(item.filePath || '')}', '${encodeURIComponent(item.channelName || '')}')" title="${currentLang === 'en' ? 'Open Video Location' : 'Video Konumunu Aç'}" aria-label="${currentLang === 'en' ? 'Open Video Location' : 'Video Konumunu Aç'}">
+          <i data-lucide="folder-open" style="width: 14px; height: 14px;"></i>
+        </button>
+        <button class="playlist-item-delete-btn" onclick="event.stopPropagation(); (window.showDeleteModal || showDeleteModal)('${item.id}')" title="${currentLang === 'en' ? 'Delete Video' : 'Videoyu Sil'}" aria-label="${currentLang === 'en' ? 'Delete Video' : 'Videoyu Sil'}">
+          <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+        </button>
+      </div>
     `;
     playlistGrid.appendChild(itemEl);
   });
@@ -4605,6 +4613,37 @@ window.playVideoSystem = async function(videoId) {
     }
   } catch (err) {
     showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+};
+
+// Türkçe Açıklama: Videonun diskteki konumunu işletim sisteminin dosya yöneticisinde (Explorer/Finder/Dolphin) açar ve video dosyasını seçili gösterir.
+// Dosya yolu bilinmiyorsa kanal klasörünü açmaya geri döner.
+/**
+ * Videonun diskteki konumunu dosya yöneticisinde açar ve dosyayı seçili gösterir.
+ *
+ * @param {string} videoId Video ID'si (log/yedek amaçlı)
+ * @param {string} encodedFilePath encodeURIComponent ile kodlanmış mutlak dosya yolu
+ * @param {string} encodedChannelName encodeURIComponent ile kodlanmış kanal adı (yedek yol)
+ */
+window.openVideoLocation = async function(videoId, encodedFilePath, encodedChannelName) {
+  const filePath = decodeURIComponent(encodedFilePath || '');
+  const channelName = decodeURIComponent(encodedChannelName || '');
+  if (!filePath) {
+    if (typeof window.openFolder === 'function') window.openFolder(channelName);
+    return;
+  }
+  try {
+    const res = await fetch('/api/tools/open-file-location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      showToast(data.error || (currentLang === 'en' ? 'Video location could not be opened.' : 'Video konumu açılamadı.'), 'error');
+    }
+  } catch (err) {
+    showToast(currentLang === 'en' ? 'Server communication error.' : 'Sunucu ile iletişim hatası.', 'error');
   }
 };
 

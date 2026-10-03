@@ -6053,27 +6053,50 @@ body.light-theme .inline-player-sidebar {
   margin-top: 2px;
 }
 
+/* Yan liste aksiyon sütunu: YouTube'da Aç / Video Konumunu Aç / Sil (üstten alta) */
+.playlist-item-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.playlist-item-action-btn,
 .playlist-item-delete-btn {
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-muted);
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  align-self: center;
-  margin-left: 4px;
-  opacity: 0.5;
+  opacity: 0.7;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.playlist-item:hover .playlist-item-action-btn,
 .playlist-item:hover .playlist-item-delete-btn {
   opacity: 1;
+}
+
+.playlist-item-action-btn:focus-visible,
+.playlist-item-delete-btn:focus-visible {
+  outline: 2px solid var(--accent-primary, #8a2be2);
+  outline-offset: 1px;
+  opacity: 1;
+}
+
+.playlist-item-action-btn:hover {
+  transform: scale(1.1);
 }
 
 .playlist-item-delete-btn:hover {
@@ -6081,6 +6104,11 @@ body.light-theme .inline-player-sidebar {
   color: var(--accent-red) !important;
   transform: scale(1.1);
   box-shadow: 0 0 8px var(--accent-red-glow);
+}
+
+[data-theme="light"] .playlist-item-delete-btn,
+body.light-theme .playlist-item-delete-btn {
+  color: #475569;
 }
 
 .inline-player-actions .btn-action-danger:hover {

@@ -26,6 +26,32 @@ const isAppImage = process.env.APPIMAGE;
 export const dbPath = path.join(dataRootDir, 'db.json');
 export const defaultDownloadDir = path.join(os.homedir(), 'Downloads', 'HaYTooLYouTubeAutoDownloads');
 
+/**
+ * İşletim sisteminin dilini algılayıp uygulamanın desteklediği dillerden birine eşler.
+ * İlk kurulumda (db.json yokken) varsayılan arayüz dili olarak kullanılır.
+ * Desteklenmeyen sistem dillerinde 'en' döner.
+ *
+ * @returns {string} 'tr' | 'en' | 'es' | 'de' | 'pt' | 'ar' | 'ru'
+ */
+export function detectSystemLang() {
+  const supported = ['tr', 'en', 'es', 'de', 'pt', 'ar', 'ru'];
+  try {
+    const candidates = [
+      Intl.DateTimeFormat().resolvedOptions().locale,
+      process.env.LC_ALL,
+      process.env.LC_MESSAGES,
+      process.env.LANG,
+      process.env.LANGUAGE
+    ];
+    for (const raw of candidates) {
+      if (!raw || typeof raw !== 'string') continue;
+      const code = raw.toLowerCase().split(/[-_.:@]/)[0];
+      if (supported.includes(code)) return code;
+    }
+  } catch (e) {}
+  return 'en';
+}
+
 // Makineye özel AES-256 şifreleme tohumu ve anahtarı
 const machineSeed = `${os.hostname()}|${os.userInfo().username}|${os.homedir()}`;
 const machineSecretKey = crypto.createHash('sha256').update(machineSeed).digest();
@@ -133,7 +159,7 @@ export const defaultDb = {
     subtitleColor: '#ffffff',
     subtitleOpacity: '0.7',
     subtitleSize: '26px',
-    lang: 'en',
+    lang: detectSystemLang(),
     preferredAudioLang: 'tr',
     isPaused: false,
     showNotifications: true,

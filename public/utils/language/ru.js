@@ -235,7 +235,7 @@ export const ru = {
   opt_sub_lightyellow: 'Светло-желтый',
   inline_btn_youtube: 'Открыть на YouTube',
   inline_btn_system: 'Открыть в системном плеере',
-  inline_btn_folder: 'Открыть папку',
+  inline_btn_folder: 'Открыть расположение видео',
   inline_btn_comments: 'Показать комментарии',
   inline_btn_translate_sub: 'Перевести субтитры',
   opt_sub_opacity_0: 'Прозрачный (%0)',
@@ -355,6 +355,8 @@ export const ru = {
   card_download_completed: 'Загружено',
   card_open_system_player: 'Открыть в системном плеере',
   card_open_channel_folder: 'Открыть папку канала',
+
+  card_open_video_location: 'Открыть расположение видео',
   card_cancel_download: 'Отменить загрузку',
   card_in_queue: 'В очереди',
   card_waiting_duration: 'Проверка длительности',
