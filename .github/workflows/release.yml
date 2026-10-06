@@ -42,6 +42,25 @@ jobs:
       - name: Prepare Windows runtime dependencies
         run: npm ci --prefix main --omit=dev
 
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build Windows tray application
+        run: |
+          dotnet publish main\HaYTooLPlayer\HaYTooLPlayer.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o tray-publish
+          if ($LASTEXITCODE -ne 0) { throw "Tray uygulaması derlenemedi." }
+          $trayExe = Join-Path $PWD 'tray-publish\Multimedia HaYTooL.exe'
+          if (-not (Test-Path $trayExe)) { throw "Derlenmiş tray EXE bulunamadı." }
+          Copy-Item -LiteralPath $trayExe -Destination 'main\Multimedia HaYTooL.exe' -Force
+
       - name: Build Windows Portable ZIP
         run: |
           $tag = "${{ github.ref_name }}"

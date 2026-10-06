@@ -3,6 +3,17 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.1.9] - 2026-10-07
+- **fix(ui/video-cards):** Hover durumunda başlığa uygulanan ayrı büyütme kaldırıldı; kart ölçeği `1.06` yapılarak kart biraz daha büyütüldü.
+
+## [12.1.8] - 2026-10-07
+- **fix(ui/video-cards):** Başlık hover büyümesi önceki görünümüne döndü; kanal bağlantısı genişleyen başlığın üzerinde tıklanabilir kalır.
+- **fix(release/windows):** Tray uygulaması, başarılı `build_all.ps1` ile aynı tek dosya .NET derleme seçenekleriyle paketlenir.
+
+## [12.1.7] - 2026-10-07
+- **fix(ui/video-cards):** Uzayan başlık kartın üstünde açılır ve fare olaylarını yakalamaz; kanal adı bağlantısı tıklanabilir kalır.
+- **fix(release/windows):** Windows paketlerinden önce tray uygulaması .NET 10 ile kendiliğinden derlenir; konsol renkleri ve son C# değişiklikleri yayınlanan EXE'ye taşınır.
+
 ## [12.1.6] - 2026-10-07
 - **fix(ui/video-cards):** Hover sırasında grid yüksekliği değişmez; yalnızca işaretçi üzerindeki kart büyür ve uzun başlık üst katmanda açılır.
 - **fix(ui/channels):** Kanal kategorisi ekleme ve kaldırma işlemleri sonrası sayaçlar ve kanal kartları anında güncellenir.
