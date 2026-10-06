@@ -880,19 +880,40 @@ namespace HaYTooLPlayer
 
             Color bodyColor = Color.FromArgb(220, 220, 220);
 
-            if (bodyPart.Contains("[RSS]"))
+            // Error and warning tags take precedence over their subsystem tag (for example [RSS] [HATA]).
+            if (bodyPart.Contains("[HATA]") || bodyPart.Contains("[ERROR]") || bodyPart.Contains("[RSS HATA]"))
+            {
+                bodyColor = Color.FromArgb(255, 105, 105);
+            }
+            else if (bodyPart.Contains("[WARN]") || bodyPart.Contains("[WARNING]") || bodyPart.Contains("[UYARI]") || bodyPart.Contains("[yt-dlp Uyarı]") || bodyPart.Contains("WARNING"))
+            {
+                bodyColor = Color.FromArgb(255, 190, 90);
+            }
+            else if (bodyPart.Contains("[SUCCESS]") || bodyPart.Contains("[İndirme Başarılı]") || bodyPart.Contains("[DOWNLOAD OK]") || bodyPart.Contains("İndirme Tamamlandı"))
+            {
+                bodyColor = Color.FromArgb(105, 230, 155);
+            }
+            else if (bodyPart.Contains("[INFO]"))
+            {
+                bodyColor = Color.FromArgb(115, 185, 255);
+            }
+            else if (bodyPart.Contains("[API]"))
+            {
+                bodyColor = Color.FromArgb(110, 165, 255);
+            }
+            else if (bodyPart.Contains("[RSS Fallback]"))
+            {
+                bodyColor = Color.FromArgb(205, 135, 255);
+            }
+            else if (bodyPart.Contains("[RSS]"))
             {
                 if (bodyPart.Contains("Manuel tetikleme")) bodyColor = Color.FromArgb(255, 140, 0);
                 else if (bodyPart.Contains("Sunucu başlangıcı")) bodyColor = Color.FromArgb(186, 85, 211);
-                else bodyColor = Color.FromArgb(255, 0, 255);
+                else bodyColor = Color.FromArgb(225, 145, 255);
             }
             else if (bodyPart.Contains("[403 Koruması]") || bodyPart.Contains("[Kuyruk Auto-Retry]") || bodyPart.Contains("[İndirme Fallback]"))
             {
                 bodyColor = Color.FromArgb(255, 185, 0);
-            }
-            else if (bodyPart.Contains("[İndirme Başarılı]") || bodyPart.Contains("[DOWNLOAD OK]") || bodyPart.Contains("İndirme Tamamlandı"))
-            {
-                bodyColor = Color.FromArgb(46, 204, 113);
             }
             else if (bodyPart.Contains("[CANLI]") || bodyPart.Contains("[CANLI YAYIN]"))
             {
@@ -906,10 +927,6 @@ namespace HaYTooLPlayer
             {
                 bodyColor = Color.FromArgb(245, 200, 50);
             }
-            else if (bodyPart.Contains("[yt-dlp Uyarı]") || bodyPart.Contains("WARNING"))
-            {
-                bodyColor = Color.FromArgb(255, 160, 50);
-            }
             else if (bodyPart.Contains("[DATABASE]"))
             {
                 bodyColor = Color.FromArgb(255, 255, 0);
@@ -918,13 +935,13 @@ namespace HaYTooLPlayer
             {
                 bodyColor = Color.FromArgb(100, 149, 237);
             }
-            else if (bodyPart.Contains("[SYSTEM]") || bodyPart.Contains("[TRAY]"))
+            else if (bodyPart.Contains("[SYSTEM]") || bodyPart.Contains("[Sistem]") || bodyPart.Contains("[TRAY]"))
             {
                 bodyColor = Color.FromArgb(50, 205, 50);
             }
-            else if (bodyPart.Contains("[HATA]") || bodyPart.Contains("[ERROR]"))
+            else if (bodyPart.Contains("[TRAY_CMD]") || bodyPart.Contains("[GİRDİ]"))
             {
-                bodyColor = Color.FromArgb(255, 60, 60);
+                bodyColor = Color.FromArgb(255, 215, 105);
             }
 
             if (!string.IsNullOrEmpty(timestampPart))

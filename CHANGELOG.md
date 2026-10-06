@@ -3,6 +3,19 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.1.6] - 2026-10-07
+- **fix(ui/video-cards):** Hover sırasında grid yüksekliği değişmez; yalnızca işaretçi üzerindeki kart büyür ve uzun başlık üst katmanda açılır.
+- **fix(ui/channels):** Kanal kategorisi ekleme ve kaldırma işlemleri sonrası sayaçlar ve kanal kartları anında güncellenir.
+- **feat(ui/channels):** İsteğe bağlı düğmeyle kanal klasör boyutları hesaplanıp her kanal kartında gösterilir; normal sekme açılışında disk taraması yapılmaz.
+
+## [12.1.5] - 2026-10-07
+- **feat(ui/console):** Sağ tık konsolunda bilgi, başarı, uyarı, API ve kullanıcı komutu satırları ayrı renklerle gösterilir; hata rengi alt sistem etiketlerinden önce değerlendirilir.
+- **fix(ui/video-cards):** Video başlıkları büyütüldü; hover sırasında başlık kesilmeden, saydam arka planla gösterilir.
+
+## [12.1.4] - 2026-10-07
+- **fix(installer):** Kullanıcı verisi onayı kaldırma anında uygulanır; kullanıcı “Evet” dediğinde seçili yapılandırma, çerez, `wv2_debug.log`, `logs/` ve `backup/` verileri temizlenir.
+- **fix(linux):** AppImage üretimi Node.js bağımlılıklarını ve aynı Node.js sürümünü paketler; çalışma sırasında değiştirilen veriler kullanıcı dizininde tutulur.
+
 ## [12.1.3] - 2026-10-07
 - **fix(release):** Gereksiz Windows Setup ZIP kaldırıldı; Windows Setup EXE ve Linux AppImage dosyaları HaYTooL-sürüm-platform-tarih adıyla yayınlanır.
 - **fix(installer):** Kaldırmada yalnızca bu kurulumun uygulama verileri için silme onayı sorulur; üst HaYTooL klasörü ve diğer uygulamalar korunur.

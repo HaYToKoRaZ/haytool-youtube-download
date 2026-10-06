@@ -242,6 +242,12 @@ export function renderChannelsList(channelsList, channels, translations, categor
 
       // Çoklu Kategori Badgelerini Oluştur
       const channelCatIds = channel.categoryIds || (channel.categoryId !== undefined ? [channel.categoryId] : [1]);
+      const folderSizeBytes = Number.isFinite(Number(channel.folderSizeBytes))
+        ? Number(channel.folderSizeBytes)
+        : null;
+      const folderSizeText = folderSizeBytes === null
+        ? (t.channel_folder_size_not_calculated || 'Hesaplanmadı')
+        : formatChannelFolderSize(folderSizeBytes);
       const categoryBadges = channelCatIds.map(catId => {
         const cat = cats.find(c => c.id == catId);
         if (!cat) return '';
@@ -369,6 +375,11 @@ export function renderChannelsList(channelsList, channels, translations, categor
           <div class="channel-card-categories-list" style="display: flex; flex-wrap: wrap; gap: 4px; width: 100%; margin-bottom: 6px; padding: 0 4px;">
             ${categoryBadges || `<span style="font-size: 0.68rem; color: var(--text-muted); font-style: italic;">Kategorisiz</span>`}
           </div>
+          <div class="channel-card-folder-size">
+            <i data-lucide="hard-drive" aria-hidden="true"></i>
+            <span>${escapeHtml(t.channel_folder_size_label || 'Klasör boyutu')}:</span>
+            <strong>${escapeHtml(folderSizeText)}</strong>
+          </div>
 
           <!-- Kategori Ekleme Dropdown -->
           <select onchange="changeChannelCategory('${channel.id}', this.value); this.value='';" class="channel-card-select" title="${t.category_select_label || 'Kategori Ekle'}">
@@ -407,5 +418,17 @@ export function renderChannelsList(channelsList, channels, translations, categor
   } catch (e) {
     // Kasıtlı sessiz
   }
+}
+
+function formatChannelFolderSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let size = bytes / 1024;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
 }
 

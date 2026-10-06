@@ -711,6 +711,7 @@ export async function changeChannelCategory(channelId, categoryId) {
     });
     const result = await res.json();
     if (result.success) {
+      updateChannelCategoryState(channel, newIds);
       showToast(isEn ? 'Category added to channel.' : 'Kategori kanala eklendi.', 'success');
     } else {
       showToast(result.error || (isEn ? 'Failed to add category.' : 'Kategori eklenemedi.'), 'error');
@@ -721,6 +722,18 @@ export async function changeChannelCategory(channelId, categoryId) {
   }
 }
 window.changeChannelCategory = changeChannelCategory;
+
+function updateChannelCategoryState(channel, categoryIds) {
+  channel.categoryIds = [...categoryIds];
+  channel.categoryId = categoryIds[0] || 1;
+
+  const db = window.localDb;
+  if (!db) return;
+
+  const lang = db.settings?.lang || 'tr';
+  window.updateChannelCategoryFilterOptions?.(db.categories || [], db.channels || [], lang);
+  window.handleChannelFilterChange?.();
+}
 
 /**
  * Kanaldan kategori kaldırır (Çoklu Kategori).
@@ -748,6 +761,7 @@ export async function removeChannelCategory(channelId, catId) {
     });
     const result = await res.json();
     if (result.success) {
+      updateChannelCategoryState(channel, newIds);
       showToast(isEn ? 'Category removed from channel.' : 'Kategori kanaldan kaldırıldı.', 'success');
     } else {
       showToast(result.error || (isEn ? 'Failed to remove category.' : 'Kategori kaldırılamadı.'), 'error');

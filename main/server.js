@@ -60,9 +60,10 @@ function colorizeText(text) {
 
 import fs from 'fs';
 import path from 'path';
+import { dataRootDir } from './server/config.js';
 
 // Oturum Log Yönetimi ve Otomatik Rotasyon (Son 30 oturum logu saklanır)
-const logsDir = path.join(process.cwd(), 'logs');
+const logsDir = path.join(dataRootDir, 'logs');
 if (!fs.existsSync(logsDir)) {
   try { fs.mkdirSync(logsDir, { recursive: true }); } catch (e) {}
 } else {
@@ -198,7 +199,7 @@ const settingsSection = config.Settings || config;
 const PORT = parseInt(settingsSection.port || settingsSection.Port || 4141, 10);
 
 // Dizin Tanımları
-const iptvCachePath = path.join(process.cwd(), 'iptv_cache.json');
+const iptvCachePath = path.join(dataRootDir, 'iptv_cache.json');
 
 // Express Uygulaması Kurulumu
 const app = express();

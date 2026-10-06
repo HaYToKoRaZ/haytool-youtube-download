@@ -181,8 +181,8 @@ router.post('/open-youtube-login', localhostOnly, (req, res) => {
  */
 router.post('/logout-youtube', localhostOnly, (req, res) => {
   try {
-    const rootCookiesTxt = path.resolve(process.cwd(), 'cookies.txt');
-    const binCookiesTxt = path.resolve(process.cwd(), 'bin', 'cookies.txt');
+    const rootCookiesTxt = path.join(dataRootDir, 'cookies.txt');
+    const binCookiesTxt = path.join(dataRootDir, 'bin', 'cookies.txt');
 
     const cookieFiles = [rootCookiesTxt, binCookiesTxt];
     for (const cFile of cookieFiles) {
@@ -718,7 +718,7 @@ export async function downloadFfmpegAsync() {
   ffmpegDownloadState = { status: 'downloading', progress: 0, error: null };
   broadcast('ffmpeg_download', ffmpegDownloadState);
   
-  const rootDir = path.resolve(process.cwd());
+  const rootDir = process.env.APPIMAGE && process.platform === 'linux' ? dataRootDir : path.resolve(process.cwd());
   const ffmpegDir = path.join(rootDir, 'ffmpeg');
   if (!fs.existsSync(ffmpegDir)) {
     fs.mkdirSync(ffmpegDir, { recursive: true });
@@ -1054,19 +1054,7 @@ export function testCookiesValidity() {
 }
 
 function getLocalFfmpegInfo() {
-  const isWin = os.platform() === 'win32';
-  const ext = isWin ? '.exe' : '';
-  const rootDir = path.resolve(process.cwd());
-  const pathInSubfolder = path.join(rootDir, 'ffmpeg', `ffmpeg${ext}`);
-  const pathInRoot = path.join(rootDir, `ffmpeg${ext}`);
-
-  let targetPath = null;
-
-  if (fs.existsSync(pathInSubfolder)) {
-    targetPath = pathInSubfolder;
-  } else if (fs.existsSync(pathInRoot)) {
-    targetPath = pathInRoot;
-  }
+  const targetPath = getFfmpegPath();
 
   if (!targetPath) {
     return { installed: false, version: null };

@@ -4,10 +4,12 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { execSync, execFileSync, spawn, exec } from 'child_process';
+import { dataRootDir } from '../config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..', '..');
+const writableRootDir = process.env.APPIMAGE && process.platform === 'linux' ? dataRootDir : rootDir;
 
 /**
  * Sistemdeki yt-dlp ikili dosyasının konumunu işletim sistemine göre belirler ve çalıştırma izni verir.
@@ -18,6 +20,20 @@ export function getYtdlpPath() {
   const isWin = os.platform() === 'win32';
   const filename = isWin ? 'yt-dlp.exe' : 'yt-dlp';
   const localPath = path.join(rootDir, 'yt-dlp', filename);
+
+  if (process.env.APPIMAGE && process.platform === 'linux') {
+    const writablePath = path.join(dataRootDir, 'bin', filename);
+    if (!fs.existsSync(writablePath) && fs.existsSync(localPath)) {
+      try {
+        fs.mkdirSync(path.dirname(writablePath), { recursive: true });
+        fs.copyFileSync(localPath, writablePath);
+        fs.chmodSync(writablePath, 0o755);
+      } catch (e) {
+        console.warn('[AppImage] yt-dlp kullanıcı dizinine kopyalanamadı:', e.message);
+      }
+    }
+    if (fs.existsSync(writablePath)) return writablePath;
+  }
   
   if (fs.existsSync(localPath)) {
     if (!isWin) {
@@ -47,6 +63,11 @@ export const ytdlpPath = getYtdlpPath();
 export function getBinaryPath(binaryName) {
   const isWin = os.platform() === 'win32';
   const ext = isWin ? '.exe' : '';
+  const writablePath = path.join(dataRootDir, 'ffmpeg', `${binaryName}${ext}`);
+  if (process.env.APPIMAGE && process.platform === 'linux' && fs.existsSync(writablePath)) {
+    try { fs.chmodSync(writablePath, 0o755); } catch (e) {}
+    return writablePath;
+  }
   const pathInSubfolder = path.join(rootDir, 'ffmpeg', `${binaryName}${ext}`);
   
   if (fs.existsSync(pathInSubfolder)) {
@@ -235,7 +256,7 @@ export function getLocalTempDir() {
   try {
     const db = readDb();
     if (db.settings && db.settings.tempDirType === 'local') {
-      tempDir = path.join(rootDir, 'Temp');
+      tempDir = path.join(writableRootDir, 'Temp');
     } else {
       tempDir = path.join(os.tmpdir(), 'HaYTooL-YT-Downloader');
     }
@@ -258,7 +279,7 @@ export function getStagingTempDir() {
   try {
     const db = readDb();
     if (db.settings && db.settings.tempDirType === 'local') {
-      stagingDir = path.join(rootDir, 'Temp', 'HaYTooL-Convert');
+      stagingDir = path.join(writableRootDir, 'Temp', 'HaYTooL-Convert');
     } else {
       stagingDir = path.join(os.tmpdir(), 'HaYTooL-YT-Downloader-Convert');
     }

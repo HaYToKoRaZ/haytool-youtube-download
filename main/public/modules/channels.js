@@ -591,6 +591,12 @@ export function initAddChannelForm() {
   const addChannelForm = document.getElementById('add-channel-form');
   const channelInput = document.getElementById('channel-input');
   const addChannelBtn = document.getElementById('add-channel-btn');
+  const folderSizesBtn = document.getElementById('calculate-channel-folder-sizes-btn');
+
+  if (folderSizesBtn && !folderSizesBtn.dataset.initialized) {
+    folderSizesBtn.dataset.initialized = 'true';
+    folderSizesBtn.addEventListener('click', calculateChannelFolderSizes);
+  }
 
   if (addChannelForm && !addChannelForm.dataset.initialized) {
     addChannelForm.dataset.initialized = 'true';
@@ -648,6 +654,51 @@ export function initAddChannelForm() {
     });
   }
 }
+
+async function calculateChannelFolderSizes() {
+  const button = document.getElementById('calculate-channel-folder-sizes-btn');
+  const db = window.localDb || {};
+  const lang = db.settings?.lang || 'tr';
+  const t = window.translations?.[lang] || window.translations?.tr || {};
+  if (!button || button.disabled) return;
+
+  button.disabled = true;
+  const label = button.querySelector('[data-i18n]');
+  const originalText = label?.textContent || '';
+  if (label) label.textContent = t.channel_folder_size_calculating || 'Hesaplanıyor...';
+
+  try {
+    const response = await fetch('/api/channels/folder-sizes');
+    const result = await response.json();
+    if (!response.ok || !result.success || !Array.isArray(result.sizes)) {
+      throw new Error(result.error || 'Channel folder sizes could not be calculated.');
+    }
+
+    const sizesByChannel = new Map(result.sizes.map(item => [item.channelId, item.sizeBytes]));
+    const currentDb = window.localDb || db;
+    (currentDb.channels || []).forEach(channel => {
+      if (sizesByChannel.has(channel.id)) {
+        channel.folderSizeBytes = sizesByChannel.get(channel.id);
+      }
+    });
+
+    handleChannelFilterChange();
+    if (typeof showToast === 'function') {
+      showToast(t.channel_folder_sizes_calculated || 'Kanal klasör boyutları güncellendi.', 'success');
+    }
+  } catch (error) {
+    console.error('calculateChannelFolderSizes error:', error);
+    if (typeof showToast === 'function') {
+      showToast(t.channel_folder_sizes_failed || 'Klasör boyutları hesaplanamadı.', 'error');
+    }
+  } finally {
+    button.disabled = false;
+    const currentLang = window.localDb?.settings?.lang || 'tr';
+    const currentTranslations = window.translations?.[currentLang] || window.translations?.tr || {};
+    if (label) label.textContent = currentTranslations.btn_calculate_channel_folder_sizes || originalText || 'Kanal Boyutlarını Hesapla';
+  }
+}
+
 window.initAddChannelForm = initAddChannelForm;
 
 document.addEventListener('DOMContentLoaded', () => {

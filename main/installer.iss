@@ -41,8 +41,10 @@ Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 [CustomMessages]
 english.WelcomeLinks=Explore: <a href="https://haytokoraz.github.io/haytool-youtube-download/">Website</a>  ·  <a href="https://haytokoraz.github.io/">HaYTooL Portal</a>
 turkish.WelcomeLinks=Ziyaret edin: <a href="https://haytokoraz.github.io/haytool-youtube-download/">Web Sitesi</a>  ·  <a href="https://haytokoraz.github.io/">HaYTooL Portalı</a>
-english.DeleteUserDataPrompt=Permanently delete this installation's user data? This removes db.json, cookies.txt, bin\cookies.txt, configwin.ini, channels.ini, categories.ini, logs, and backup from this Multimedia HaYTooL folder only. Other HaYTooL applications are not affected.
-turkish.DeleteUserDataPrompt=Bu kurulumun kullanıcı verileri kalıcı olarak silinsin mi? Yalnızca bu Multimedia HaYTooL klasöründeki db.json, cookies.txt, bin\cookies.txt, configwin.ini, channels.ini, categories.ini, logs ve backup silinir. Diğer HaYTooL uygulamaları etkilenmez.
+english.DeleteUserDataPrompt=Permanently delete this installation's user data? This removes db.json, cookies.txt, bin\cookies.txt, configwin.ini, channels.ini, categories.ini, wv2_debug.log, logs, and backup from this Multimedia HaYTooL folder only. Other HaYTooL applications are not affected.
+turkish.DeleteUserDataPrompt=Bu kurulumun kullanıcı verileri kalıcı olarak silinsin mi? Yalnızca bu Multimedia HaYTooL klasöründeki db.json, cookies.txt, bin\cookies.txt, configwin.ini, channels.ini, categories.ini, wv2_debug.log, logs ve backup silinir. Diğer HaYTooL uygulamaları etkilenmez.
+english.DeleteUserDataFailure=Some selected user data could not be deleted. Close Multimedia HaYTooL and try uninstalling again, or remove the remaining files manually.
+turkish.DeleteUserDataFailure=Seçilen bazı kullanıcı verileri silinemedi. Multimedia HaYTooL'u kapatıp kaldırmayı yeniden deneyin veya kalan dosyaları elle silin.
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
@@ -58,22 +60,13 @@ Name: "{autodesktop}\Multimedia HaYTooL"; Filename: "{app}\Multimedia HaYTooL.ex
 Filename: "{app}\Multimedia HaYTooL.exe"; Description: "Launch Multimedia HaYTooL"; Flags: postinstall nowait skipifsilent
 
 [UninstallDelete]
-Type: files; Name: "{app}\db.json"; Check: ShouldDeleteUserData
-Type: files; Name: "{app}\cookies.txt"; Check: ShouldDeleteUserData
-Type: files; Name: "{app}\bin\cookies.txt"; Check: ShouldDeleteUserData
-Type: files; Name: "{app}\configwin.ini"; Check: ShouldDeleteUserData
-Type: files; Name: "{app}\channels.ini"; Check: ShouldDeleteUserData
-Type: files; Name: "{app}\categories.ini"; Check: ShouldDeleteUserData
-Type: filesandordirs; Name: "{app}\logs"; Check: ShouldDeleteUserData
-Type: filesandordirs; Name: "{app}\backup"; Check: ShouldDeleteUserData
-Type: dirifempty; Name: "{app}"; Check: ShouldDeleteUserData
+Type: dirifempty; Name: "{app}"
 Type: dirifempty; Name: "{localappdata}\Programs\HaYTooL"
 
 [Code]
 var
   WelcomeLinksLabel: TNewLinkLabel;
   UninstallLinksLabel: TNewLinkLabel;
-  DeleteUserDataOnUninstall: Boolean;
 
 procedure WelcomeLinksClick(Sender: TObject; const Link: String; LinkType: TSysLinkType);
 var
@@ -98,24 +91,69 @@ begin
     FileExists(AppDir + '\configwin.ini') or
     FileExists(AppDir + '\channels.ini') or
     FileExists(AppDir + '\categories.ini') or
+    FileExists(AppDir + '\wv2_debug.log') or
     DirExists(AppDir + '\logs') or
     DirExists(AppDir + '\backup');
 end;
 
-function ShouldDeleteUserData: Boolean;
+procedure DeleteUserDataFile(const RelativePath: String; var Failed: Boolean);
+var
+  FullPath: String;
 begin
-  Result := DeleteUserDataOnUninstall;
+  FullPath := ExpandConstant('{app}\') + RelativePath;
+  if FileExists(FullPath) then
+  begin
+    FileSetAttr(FullPath, 0);
+    if not DeleteFile(FullPath) then
+    begin
+      Log('Could not delete user data file: ' + FullPath);
+      Failed := True;
+    end;
+  end;
+end;
+
+procedure DeleteUserDataDirectory(const RelativePath: String; var Failed: Boolean);
+var
+  FullPath: String;
+begin
+  FullPath := ExpandConstant('{app}\') + RelativePath;
+  if DirExists(FullPath) then
+  begin
+    if not DelTree(FullPath, True, True, True) then
+    begin
+      Log('Could not delete user data directory: ' + FullPath);
+      Failed := True;
+    end;
+  end;
+end;
+
+procedure DeleteSelectedUserData;
+var
+  Failed: Boolean;
+begin
+  Failed := False;
+  DeleteUserDataFile('db.json', Failed);
+  DeleteUserDataFile('cookies.txt', Failed);
+  DeleteUserDataFile('bin\cookies.txt', Failed);
+  DeleteUserDataFile('configwin.ini', Failed);
+  DeleteUserDataFile('channels.ini', Failed);
+  DeleteUserDataFile('categories.ini', Failed);
+  DeleteUserDataFile('wv2_debug.log', Failed);
+  DeleteUserDataDirectory('logs', Failed);
+  DeleteUserDataDirectory('backup', Failed);
+
+  if Failed and not UninstallSilent then
+    MsgBox(ExpandConstant('{cm:DeleteUserDataFailure}'), mbError, MB_OK);
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
   begin
-    DeleteUserDataOnUninstall := False;
     if (not UninstallSilent) and HasUserDataToDelete then
-      DeleteUserDataOnUninstall :=
-        MsgBox(ExpandConstant('{cm:DeleteUserDataPrompt}'), mbConfirmation,
-          MB_YESNO or MB_DEFBUTTON2) = IDYES;
+      if MsgBox(ExpandConstant('{cm:DeleteUserDataPrompt}'), mbConfirmation,
+        MB_YESNO or MB_DEFBUTTON2) = IDYES then
+        DeleteSelectedUserData;
   end;
 end;
 

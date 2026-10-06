@@ -3681,6 +3681,7 @@ body.light-theme .history-toolbar {
 
 .video-card:hover {
   z-index: 20;
+  overflow: visible;
   background: linear-gradient(145deg, rgba(38, 33, 75, 0.92) 0%, rgba(22, 19, 44, 0.98) 100%);
   transform: translateY(-6px) scale(1.04);
   border-color: rgba(138, 43, 226, 0.65);
@@ -3777,7 +3778,7 @@ body.light-theme .video-card:hover {
 
 .video-card-title {
   font-family: var(--font-title);
-  font-size: 0.96rem;
+  font-size: 1rem;
   font-weight: 600;
   line-height: 1.42;
   margin: 0;
@@ -3797,35 +3798,24 @@ body.light-theme .video-card:hover {
   position: absolute;
   top: 0;
   left: 0;
-  width: calc(100% + 14px);
-  margin-left: -7px;
+  width: 100%;
   height: auto;
-  min-height: 2.84em;
-  max-height: 6.2em;
-  font-size: 1.05rem;
+  min-height: 0;
+  max-height: none;
+  font-size: 1.08rem;
   font-weight: 700;
-  line-height: 1.36;
-  letter-spacing: -0.01em;
-  color: #ffffff;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  background: rgba(22, 19, 44, 0.97);
-  padding: 4px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(138, 43, 226, 0.6);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), 0 0 16px rgba(138, 43, 226, 0.35);
+  line-height: 1.45;
+  color: var(--text-main);
+  display: block;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+  overflow: visible;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
   z-index: 30;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
-}
-
-body.light-theme .video-card:hover .video-card-title {
-  color: #0f172a;
-  background: rgba(255, 255, 255, 0.98);
-  border-color: rgba(124, 58, 237, 0.55);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .video-card-metadata {
@@ -4185,16 +4175,24 @@ body.light-theme .video-card-actions .btn-icon:hover {
 }
 
 .history-grid.compact-list .video-card:hover .video-card-title {
-  position: static;
-  width: auto;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
   height: auto;
+  min-height: 0;
+  max-height: none;
   background: none;
   border: none;
   box-shadow: none;
   padding: 0;
   margin-left: 0;
-  -webkit-line-clamp: 1;
-  font-size: 0.98rem;
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  font-size: 1.02rem;
 }
 
 .history-grid.compact-list .video-card-bottom {
@@ -8484,6 +8482,30 @@ body.youtube-theme .toast-warning .toast-icon { color: #fbc02d; background: rgba
   margin-bottom: 10px;
 }
 
+.channel-card-folder-size {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  margin: -5px 0 10px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.channel-card-folder-size i,
+.channel-card-folder-size svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  color: var(--accent-primary);
+}
+
+.channel-card-folder-size strong {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
 .channel-card-select {
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--border-color);
@@ -10001,6 +10023,8 @@ body.light-theme .video-card-unlisted-tag {
 .channel-filters-right {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
 }
 

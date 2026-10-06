@@ -55,6 +55,86 @@ router.get('/', (req, res) => {
   res.json(db.channels || []);
 });
 
+async function calculateDirectorySize(directory) {
+  let totalBytes = 0;
+  const pendingDirectories = [directory];
+
+  while (pendingDirectories.length > 0) {
+    const currentDirectory = pendingDirectories.pop();
+    let entries;
+    try {
+      entries = await fs.promises.readdir(currentDirectory, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      const entryPath = path.join(currentDirectory, entry.name);
+      if (entry.isDirectory()) {
+        pendingDirectories.push(entryPath);
+      } else if (entry.isFile()) {
+        try {
+          totalBytes += (await fs.promises.stat(entryPath)).size;
+        } catch {}
+      }
+    }
+  }
+
+  return totalBytes;
+}
+
+function isPathWithin(rootDirectory, candidatePath) {
+  const relativePath = path.relative(rootDirectory, candidatePath);
+  return relativePath !== '' && relativePath !== '..' && !relativePath.startsWith(`..${path.sep}`) && !path.isAbsolute(relativePath);
+}
+
+router.get('/folder-sizes', localhostOnly, async (req, res) => {
+  try {
+    const db = readDb();
+    const downloadRoot = path.resolve(db.settings?.downloadPath || 'download');
+    const historyByChannel = new Map();
+
+    (db.history || []).forEach(item => {
+      if (item.status !== 'completed' || !item.filePath) return;
+      const key = item.channelId || item.channelName;
+      if (!key) return;
+      if (!historyByChannel.has(key)) historyByChannel.set(key, []);
+      historyByChannel.get(key).push(item.filePath);
+    });
+
+    const sizes = [];
+    for (const channel of db.channels || []) {
+      let sizeBytes = 0;
+      let channelDirectory = null;
+      try {
+        channelDirectory = path.resolve(downloadRoot, channel.name || '');
+        if (isPathWithin(downloadRoot, channelDirectory)) {
+          sizeBytes = await calculateDirectorySize(channelDirectory);
+        } else {
+          channelDirectory = null;
+        }
+      } catch {}
+
+      const historyPaths = historyByChannel.get(channel.id) || historyByChannel.get(channel.name) || [];
+      for (const filePath of new Set(historyPaths)) {
+        try {
+          const resolvedFile = path.resolve(filePath);
+          if (!isPathWithin(downloadRoot, resolvedFile)) continue;
+          if (channelDirectory && isPathWithin(channelDirectory, resolvedFile)) continue;
+          sizeBytes += (await fs.promises.stat(resolvedFile)).size;
+        } catch {}
+      }
+
+      sizes.push({ channelId: channel.id, sizeBytes });
+    }
+
+    res.json({ success: true, sizes });
+  } catch (error) {
+    console.error('[CHANNELS] Klasör boyutları hesaplanamadı:', error);
+    res.status(500).json({ success: false, error: 'Kanal klasör boyutları hesaplanamadı.' });
+  }
+});
+
 /**
  * channels.ini yapılandırma dosyasını istemciye indirilebilir olarak gönderir.
  * 

@@ -47,6 +47,8 @@ export function applyLanguage(lang) {
   // Kanallar Sekmesi
   elQuery('#tab-channels .content-header h2', 'channels_title');
   elQuery('#tab-channels .content-header p', 'channels_desc');
+  elQuery('#calculate-channel-folder-sizes-btn span', 'btn_calculate_channel_folder_sizes');
+  el('calculate-channel-folder-sizes-btn', 'btn_calculate_channel_folder_sizes_title', 'title');
   const channelInput = document.getElementById('channel-input');
   if (channelInput) channelInput.placeholder = t.input_channel_placeholder;
   elQuery('#add-channel-btn span', 'btn_follow_channel');
