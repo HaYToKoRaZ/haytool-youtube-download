@@ -64,9 +64,6 @@ Type: dirifempty; Name: "{app}"
 Type: dirifempty; Name: "{localappdata}\Programs\HaYTooL"
 
 [Code]
-const
-  FILE_ATTRIBUTE_NORMAL = $80;
-
 var
   WelcomeLinksLabel: TNewLinkLabel;
   UninstallLinksLabel: TNewLinkLabel;

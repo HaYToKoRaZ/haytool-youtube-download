@@ -3,6 +3,9 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.2.1] - 2026-10-07
+- **fix(release/installer):** Inno Setup’ta zaten yerleşik olan `FILE_ATTRIBUTE_NORMAL` sabiti tekrar tanımlanmadığından Setup derlemesi sürer.
+
 ## [12.2.0] - 2026-10-07
 - **fix(release/installer):** Kullanıcı verisi temizliğinde Inno Setup’ın tanımadığı `FileSetAttr` yerine Windows `SetFileAttributesW` API'si kullanılır; Setup derlemesi düzeltilir.
 - **feat(ui/channels):** Kanal kartı işlemlerine kanalın indirme klasörünü açan, 7 dilde etiketli yeni düğme eklendi.
