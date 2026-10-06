@@ -395,6 +395,9 @@ export function renderChannelsList(channelsList, channels, translations, categor
           <button class="btn-icon channel-info-update-btn" onclick="updateChannelInfo('${channel.id}')" title="${t.channel_btn_update_info_title || 'Abone ve Avatarları Güncelle'}">
             <i data-lucide="user-check" style="width: 14px; height: 14px; color:#10b981;"></i>
           </button>
+          <button type="button" class="btn-icon channel-folder-open-btn" onclick="event.stopPropagation(); openFolder(this.dataset.channelFolderName)" data-channel-folder-name="${escapeHtml(channel.name || '')}" title="${escapeHtml(t.card_open_channel_folder || 'Kanal Klasörünü Aç')}" aria-label="${escapeHtml(t.card_open_channel_folder || 'Kanal Klasörünü Aç')}">
+            <i data-lucide="folder-open" aria-hidden="true"></i>
+          </button>
           <a href="${channelUrl}" target="_blank" rel="noopener noreferrer" class="btn-icon channel-open-btn" title="${t.inline_btn_youtube || 'YouTube\'da Aç'}">
             ${youtubeSvgIcon}
           </a>

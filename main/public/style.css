@@ -8514,6 +8514,15 @@ body.youtube-theme .toast-warning .toast-icon { color: #fbc02d; background: rgba
   border-color: rgba(255, 0, 85, 0.2);
 }
 
+.channel-card-actions .channel-folder-open-btn {
+  color: var(--accent-primary);
+}
+
+.channel-card-actions .channel-folder-open-btn:hover {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
 /* Sağ Menü Alfabetik İndeks */
 .channels-alpha-sidebar {
   display: flex;

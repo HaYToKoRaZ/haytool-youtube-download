@@ -64,9 +64,15 @@ Type: dirifempty; Name: "{app}"
 Type: dirifempty; Name: "{localappdata}\Programs\HaYTooL"
 
 [Code]
+const
+  FILE_ATTRIBUTE_NORMAL = $80;
+
 var
   WelcomeLinksLabel: TNewLinkLabel;
   UninstallLinksLabel: TNewLinkLabel;
+
+function SetFileAttributesW(lpFileName: String; dwFileAttributes: DWORD): BOOL;
+external 'SetFileAttributesW@kernel32.dll stdcall';
 
 procedure WelcomeLinksClick(Sender: TObject; const Link: String; LinkType: TSysLinkType);
 var
@@ -103,7 +109,7 @@ begin
   FullPath := ExpandConstant('{app}\') + RelativePath;
   if FileExists(FullPath) then
   begin
-    FileSetAttr(FullPath, 0);
+    SetFileAttributesW(FullPath, FILE_ATTRIBUTE_NORMAL);
     if not DeleteFile(FullPath) then
     begin
       Log('Could not delete user data file: ' + FullPath);
