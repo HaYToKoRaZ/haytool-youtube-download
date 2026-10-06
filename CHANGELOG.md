@@ -3,6 +3,10 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.1.2] - 2026-10-07
+- **fix(release):** Windows Portable ZIP, Setup ZIP ve Linux AppImage üretimi sıralı hale getirildi; ZIP adları sürüm ve Windows hedefini belirtir.
+- **fix(installer):** Dil seçimi ekranında açık lavanta arka planla metin kontrastı artırıldı; kullanıcıya Başlat menüsü klasörü oluşturma seçeneği eklendi.
+
 ## [12.1.1] - 2026-10-07
 - Fixed Windows Setup compilation by using a WizardStyle supported by the CI Inno Setup compiler.
 
