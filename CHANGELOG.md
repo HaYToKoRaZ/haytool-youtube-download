@@ -3,6 +3,9 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.1.1] - 2026-10-07
+- Fixed Windows Setup compilation by using a WizardStyle supported by the CI Inno Setup compiler.
+
 ## [12.1.0] - 2026-10-07
 - **fix(release/windows):** npm bağımlılık kilidi `package.json` ile eşitlendi; Action eksiksiz bağımlılıkları ZIP ve Setup paketlerine ekler.
 - **feat(installer):** Kurulum ve kaldırma sihirbazına mor HaYTooL markası, logo ve web/portal bağlantıları eklendi; Windows uygulama kaldırma kaydına website/destek bağlantıları eklendi. Başlat menüsünde HaYTooL grubu, varsayılan yol `%LOCALAPPDATA%\Programs\HaYTooL\Multimedia HaYTooL`.
