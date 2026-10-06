@@ -689,6 +689,8 @@ export const de = {
   tools_deleted_col_type: 'Typ',
   tools_deleted_col_actions: 'Aktionen',
   tools_deleted_btn_redownload: 'Erneut herunterladen',
-  tools_deleted_empty: 'Keine gelöschten Videos gefunden.'
+  tools_deleted_empty: 'Keine gelöschten Videos gefunden.',
+  setting_network_retry_interval_label: 'Intervall für erneuten Verbindungsversuch (Sekunden)',
+  setting_network_retry_interval_desc: 'Wie oft die Download-Warteschlange bei getrennter Verbindung die Internetverbindung prüft (Standard: 120 Sekunden / 2 Minuten).'
 };
 

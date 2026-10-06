@@ -101,12 +101,16 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
       const isMissingCheck = item.fileMissing === true;
       const isCompletedCheck = item.status === 'completed';
       const isHideEligible = isBulkHideMode && (!isCompletedCheck || item.duration === 'live') && item.hidden !== true;
+      const isHistorySelected = isBulkHideMode && window.selectedHistoryBulkHideIds && window.selectedHistoryBulkHideIds.has(item.id);
+      const isDownloadedSelected = isBulkMode && window.selectedDownloadedBulkDeleteIds && window.selectedDownloadedBulkDeleteIds.has(item.id);
 
       const card = document.createElement('div');
       card.className = 'video-card'
         + (isShort ? ' is-short' : '')
         + (isBulkMode ? ' bulk-delete-active' : '')
+        + (isDownloadedSelected ? ' bulk-delete-selected' : '')
         + (isBulkHideMode ? ' bulk-hide-active' : '')
+        + (isHistorySelected ? ' bulk-hide-selected' : '')
         + (isBulkHideMode && !isHideEligible ? ' bulk-hide-ineligible' : '');
       card.setAttribute('data-id', item.id);
       card.onmouseenter = function() {
@@ -364,12 +368,12 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           ${progressBarHtml}
           ${isBulkMode ? `
           <label class="downloaded-bulk-delete-checkbox-wrap" onclick="event.stopPropagation()">
-            <input type="checkbox" class="downloaded-bulk-delete-cb" data-id="${item.id}" onchange="updateDownloadedBulkDeleteCount(event)" onclick="event.stopPropagation()">
+            <input type="checkbox" class="downloaded-bulk-delete-cb" data-id="${item.id}" ${isDownloadedSelected ? 'checked' : ''} onchange="updateDownloadedBulkDeleteCount(event)" onclick="event.stopPropagation()">
           </label>
           ` : ''}
           ${isHideEligible ? `
           <label class="history-bulk-hide-checkbox-wrap" onclick="event.stopPropagation()">
-            <input type="checkbox" class="history-bulk-hide-cb" data-id="${item.id}" onchange="updateHistoryBulkHideCount(event)" onclick="event.stopPropagation()">
+            <input type="checkbox" class="history-bulk-hide-cb" data-id="${item.id}" ${isHistorySelected ? 'checked' : ''} onchange="updateHistoryBulkHideCount(event)" onclick="event.stopPropagation()">
           </label>
           ` : ''}
         </div>
@@ -440,5 +444,11 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
   gridElement._renderNextChunk = renderNextChunk;
   // İlk 50 kartı hemen (<10ms) çiz
   renderNextChunk(50);
+
+  if (gridElement.id === 'history-grid' && typeof window.updateHistoryBulkHideCount === 'function') {
+    window.updateHistoryBulkHideCount();
+  } else if (gridElement.id === 'downloaded-grid' && typeof window.updateDownloadedBulkDeleteCount === 'function') {
+    window.updateDownloadedBulkDeleteCount();
+  }
 }
 

@@ -689,7 +689,9 @@ export const ru = {
   tools_deleted_col_type: 'Тип',
   tools_deleted_col_actions: 'Действия',
   tools_deleted_btn_redownload: 'Скачать снова',
-  tools_deleted_empty: 'Нет записей об удалённых видео.'
+  tools_deleted_empty: 'Нет записей об удалённых видео.',
+  setting_network_retry_interval_label: 'Интервал повторной проверки сети (секунды)',
+  setting_network_retry_interval_desc: 'Как часто очередь проверяет восстановление интернета при обрыве связи (по умолчанию: 120 секунд / 2 минуты).'
 };
 
 

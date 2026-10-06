@@ -3,6 +3,7 @@ import fs from 'fs';
 import { dataRootDir } from '../config.js';
 import path from 'path';
 import os from 'os';
+import dns from 'dns';
 import { spawn, exec } from 'child_process';
 import { 
   readDb, 
@@ -318,6 +319,48 @@ export function getEffectiveSpeedLimit(settings) {
   return settings.downloadSpeedLimit || 0;
 }
 
+/**
+ * Verilen hata metninin internet/ağ kesintisi olup olmadığını denetler.
+ * Windows WSA socket kodları, DNS çözümleme hataları, TransportError ve Türkçe yerel Windows soket hata mesajlarını kapsar.
+ * @param {string} text - Hata metni
+ * @returns {boolean}
+ */
+export function isNetworkDisconnectError(text) {
+  if (!text || typeof text !== 'string') return false;
+  return /getaddrinfo failed|WinError (10013|10014|10022|10035|10036|10037|10038|10040|10048|10049|10050|10051|10052|10053|10054|10055|10056|10057|10058|10060|10061|10064|10065|11001|11002|11003|11004)|Errno (10013|10048|10049|10051|10053|10054|10060|10065|11001|11002|11003|11004)|WSAE\w+|Failed to establish a new connection|Failed to resolve|Giving up after \d+ retries|TransportError|Eri[sş\uFFFD]im izinlerince|yuvaya eri[sş\uFFFD]ilmeye|Network is unreachable|Temporary failure in name resolution|Name or service not known|Connection refused|Connection reset|Unable to download API page|Unable to download webpage|urlopen error|socket\.gaierror|RemoteDisconnected|IncompleteRead|Read timed out|ENETUNREACH|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EHOSTUNREACH|No route to host/i.test(text);
+}
+
+/**
+ * Gerçek internet bağlantısının aktif olup olmadığını doğrular (<1-3.5sn).
+ * @returns {Promise<boolean>}
+ */
+export async function checkInternetConnection() {
+  try {
+    const res = await fetch('http://connectivitycheck.gstatic.com/generate_204', {
+      method: 'GET',
+      signal: AbortSignal.timeout(3500)
+    });
+    if (res.ok || res.status === 204) return true;
+  } catch (e) {}
+
+  try {
+    const res2 = await fetch('http://detectportal.firefox.com/success.txt', {
+      method: 'GET',
+      signal: AbortSignal.timeout(3500)
+    });
+    if (res2.ok) return true;
+  } catch (e) {}
+
+  return new Promise((resolve) => {
+    dns.lookup('dns.google', (err) => {
+      if (!err) return resolve(true);
+      dns.lookup('one.one.one.one', (err2) => {
+        resolve(!err2);
+      });
+    });
+  });
+}
+
 export class DownloadQueue {
   constructor() {
     this.queue = [];
@@ -325,6 +368,8 @@ export class DownloadQueue {
     this.maxConcurrent = 1;
     this.activeProcesses = new Map(); // videoId -> { process, status, video }
     this.isPaused = false;
+    this.isNetworkWaiting = false;
+    this.networkRecoveryTimer = null;
   }
 
   get activeProcess() {
@@ -519,9 +564,115 @@ export class DownloadQueue {
     }
   }
 
+  handleNetworkDisconnection(video) {
+    if (this.activeProcesses.has(video.id)) {
+      const procInfo = this.activeProcesses.get(video.id);
+      if (procInfo && procInfo.timeoutTimer) clearTimeout(procInfo.timeoutTimer);
+      this.activeProcesses.delete(video.id);
+    }
+    this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+    this.notifyTrayState();
+
+    // Videoyu kuyruğun en başına iade et (sırasını kaybetmesin)
+    if (!this.queue.some(item => item.id === video.id)) {
+      this.queue.unshift(video);
+    }
+
+    const db = readDb();
+    const settings = db?.settings || {};
+    const lang = settings.lang || 'tr';
+
+    const waitMsg = lang === 'en'
+      ? 'Waiting for internet connection...'
+      : 'İnternet bağlantısı bekleniyor...';
+
+    updateHistoryItem(video.id, {
+      status: 'waiting',
+      progress: 0,
+      speed: '',
+      eta: '',
+      error: waitMsg
+    });
+
+    this.isNetworkWaiting = true;
+
+    const notifyMsg = lang === 'en'
+      ? 'Internet connection lost. Download queue paused, will auto-resume when online.'
+      : 'İnternet bağlantısı kesildi. İndirme kuyruğu beklemeye alındı, bağlantı gelince otomatik devam edecek.';
+
+    console.warn(`[Kuyruk Ağ Koruma] ${notifyMsg}`);
+    addTerminalLog(`[Kuyruk Ağ Koruma] ${notifyMsg}`, 'warning');
+    broadcast('status_log', { message: notifyMsg, type: 'warning' });
+    broadcast('db_update', readDb());
+    playSystemSound('warning');
+    showWindowsNotification(
+      lang === 'en' ? 'Internet Disconnected' : 'İnternet Bağlantısı Kesildi',
+      notifyMsg
+    );
+
+    try {
+      const skipChannelFolder = video.skipChannelFolder === true;
+      const targetDir = skipChannelFolder
+        ? settings.downloadPath
+        : path.join(settings.downloadPath, video.channelName);
+      if (fs.existsSync(targetDir)) {
+        const files = fs.readdirSync(targetDir);
+        for (const file of files) {
+          if (file.includes(`[${video.id}]`) && (file.endsWith('.part') || file.endsWith('.ytdl') || file.includes('.part-Frag'))) {
+            try { fs.unlinkSync(path.join(targetDir, file)); } catch (e) {}
+          }
+        }
+      }
+    } catch (e) {}
+
+    this.startNetworkRecoveryMonitor();
+  }
+
+  startNetworkRecoveryMonitor() {
+    if (this.networkRecoveryTimer) return;
+    const db = readDb();
+    const intervalSec = parseInt(db?.settings?.networkRetryIntervalSeconds, 10) || 120;
+    const intervalMs = Math.max(5, intervalSec) * 1000;
+    console.log(`[Kuyruk Ağ Koruma] Otomatik kurtarma monitörü devrede. ${intervalSec} saniyede bir bağlantı denetlenecek...`);
+
+    this.networkRecoveryTimer = setInterval(async () => {
+      try {
+        const online = await checkInternetConnection();
+        if (online) {
+          console.log('[Kuyruk Ağ Koruma] İnternet bağlantısı yeniden sağlandı! İndirmeler devam ettiriliyor.');
+          clearInterval(this.networkRecoveryTimer);
+          this.networkRecoveryTimer = null;
+          this.isNetworkWaiting = false;
+
+          const currentDb = readDb();
+          const lang = currentDb?.settings?.lang || 'tr';
+          const resumeMsg = lang === 'en'
+            ? 'Internet connection restored! Resuming download queue...'
+            : 'İnternet bağlantısı geri geldi! İndirme kuyruğu kaldığı yerden devam ediyor...';
+
+          addTerminalLog(`[Kuyruk Ağ Koruma] ${resumeMsg}`, 'success');
+          broadcast('status_log', { message: resumeMsg, type: 'success' });
+          broadcast('db_update', readDb());
+          playSystemSound('success');
+          showWindowsNotification(
+            lang === 'en' ? 'Internet Restored' : 'İnternet Bağlantısı Sağlandı',
+            resumeMsg
+          );
+
+          this.process();
+        }
+      } catch (e) {}
+    }, intervalMs);
+  }
+
   process() {
     if (this.isPaused) {
       console.log('[Kuyruk] Queue paused. Bir sonraki indirme bekliyor.');
+      return;
+    }
+
+    if (this.isNetworkWaiting) {
+      console.log('[Kuyruk Ağ Koruma] İnternet bağlantısı bekleniyor. Kuyruk beklemeye alındı.');
       return;
     }
 
@@ -1227,6 +1378,30 @@ export class DownloadQueue {
         let isLiveProcessingError = /live stream (has ended|recording is still processing|is currently live)|this live event will begin|this video is a live stream|processing stream|The downloaded file is empty|Post-Live Manifestless mode|No such file or directory.*\.part-Frag|canl[ıi] etkinlik.*ba[şs]layacak|canl[ıi] yay[ıi]n.*(ba[şs]layacak|i[şs]leniyor|i[şs]len|devam ediyor|s[üu]r[üu]yor)|bu canl[ıi]|yay[ıi]n.*sonra ba[şs]layacak/i.test(userFriendlyError);
         let isTransientHttpError = /HTTP Error 403|HTTP Error 503|HTTP Error 429|Service Unavailable|Forbidden/i.test(userFriendlyError);
         let isGeoBlockedVideo = (/yasal|alan ad|country\'s domain|not available in your country|Geo-blocked|b[öo\uFFFD]lge|unavailable|kullan[ıi\uFFFD]lam/i.test(userFriendlyError) || /yasal|alan ad|country\'s domain|not available in your country|Geo-blocked|unavailable/i.test(errorOutput)) && !/Private video|Gizli video|This is a private video/i.test(userFriendlyError);
+        let isNetworkDisconnected = isNetworkDisconnectError(userFriendlyError) || isNetworkDisconnectError(errorOutput);
+
+        // Ağ kesintisi koruması:
+        // Eğer hata ağ kesintisi/soket hatası ise VEYA kuyruk zaten internet bekliyor durumundaysa:
+        // Video ASLA 'failed' statüsüne düşürülmez! Kuyruğa geri konur ve bağlantı beklenir.
+        if (isNetworkDisconnected || this.isNetworkWaiting) {
+          const isStillOnline = await checkInternetConnection();
+          if (!isStillOnline || this.isNetworkWaiting) {
+            console.warn(`[Kuyruk Ağ Koruma] "${video.title}" videosu indirilirken internet bağlantısı kesildi!`);
+            this.handleNetworkDisconnection(video);
+            return;
+          } else {
+            // İnternet şu an aktif görünüyor ancak indirme sırasında anlık kopma/dalgalanma yaşanmış:
+            // 5 saniye sonra kuyruk başına tekrar eklenip denenir; ASLA 'failed' yapılmaz.
+            video.networkRetryCount = (video.networkRetryCount || 0) + 1;
+            console.warn(`[Kuyruk Ağ Dalgalanması] "${video.title}" için anlık bağlantı hatası algılandı. 5 saniye sonra yeniden denenecek (${video.networkRetryCount})...`);
+            addTerminalLog(`[Ağ Koruması] "${video.title}" anlık ağ dalgalanması sonrası yeniden deneniyor (${video.networkRetryCount})...`, 'warning');
+            setTimeout(() => {
+              this.add(video);
+              this.process();
+            }, 5000);
+            return;
+          }
+        }
 
         if (isLiveProcessingError) {
           updateHistoryItem(video.id, {

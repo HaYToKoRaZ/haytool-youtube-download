@@ -201,7 +201,8 @@ export const defaultDb = {
     weatherLatitude: 41.0082,
     weatherLongitude: 28.9784,
     weatherUnit: 'celsius',
-    queueViewMode: 'table'
+    queueViewMode: 'table',
+    networkRetryIntervalSeconds: 120
   },
   deletedVideos: []
 };
@@ -798,6 +799,11 @@ export function syncWithIni(db) {
         db.settings.sponsorBlockEnabled = sponsorBlockEnabled === 'true';
       }
 
+      const networkRetryIntervalSeconds = getCaseInsensitiveKey(settingsSection, 'networkRetryIntervalSeconds');
+      if (networkRetryIntervalSeconds !== undefined) {
+        db.settings.networkRetryIntervalSeconds = parseInt(networkRetryIntervalSeconds, 10) || 120;
+      }
+
       const discordRpcEnabled = getCaseInsensitiveKey(settingsSection, 'discordRpcEnabled');
       if (discordRpcEnabled !== undefined) {
         db.settings.discordRpcEnabled = discordRpcEnabled === 'true';
@@ -1220,6 +1226,7 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.periodicDiskSyncInterval = (db.settings.periodicDiskSyncInterval || '360').toString();
   iniData.Settings.autoCookieRefresh = (db.settings.autoCookieRefresh !== false).toString();
   iniData.Settings.cookieRefreshInterval = (db.settings.cookieRefreshInterval !== undefined ? db.settings.cookieRefreshInterval : 30).toString();
+  iniData.Settings.networkRetryIntervalSeconds = (db.settings.networkRetryIntervalSeconds !== undefined ? db.settings.networkRetryIntervalSeconds : 120).toString();
 
   await writeIni(configIniPath, iniData);
 }

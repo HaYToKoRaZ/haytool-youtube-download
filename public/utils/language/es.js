@@ -689,6 +689,8 @@ export const es = {
   tools_deleted_col_type: 'Tipo',
   tools_deleted_col_actions: 'Acciones',
   tools_deleted_btn_redownload: 'Volver a descargar',
-  tools_deleted_empty: 'No hay videos eliminados registrados.'
+  tools_deleted_empty: 'No hay videos eliminados registrados.',
+  setting_network_retry_interval_label: 'Intervalo de reintento de conexión (Segundos)',
+  setting_network_retry_interval_desc: 'Frecuencia con la que la cola comprueba si volvió internet al desconectarse (Predeterminado: 120 segundos / 2 minutos).'
 };
 

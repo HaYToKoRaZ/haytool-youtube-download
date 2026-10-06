@@ -697,7 +697,9 @@ export const en = {
   tools_deleted_col_type: 'Type',
   tools_deleted_col_actions: 'Actions',
   tools_deleted_btn_redownload: 'Re-Download',
-  tools_deleted_empty: 'No recorded deleted videos found.'
+  tools_deleted_empty: 'No recorded deleted videos found.',
+  setting_network_retry_interval_label: 'Internet Recovery Check Interval (Seconds)',
+  setting_network_retry_interval_desc: 'How often the download queue probes for internet restoration when offline (Default: 120 seconds / 2 minutes).'
 };
 
 

@@ -3,6 +3,51 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [11.0.9] - 2026-10-06
+- **style(ui/videocard): Ana Video Kartı Başlık ve Meta Hover Okunabilirlik Güçlendirmesi:**
+  - `public/style.css`: `.video-card-title` kuralına pürüzsüz tipografi geçişi (`transition: color, font-size, font-weight, text-shadow, max-height`) eklendi.
+  - Kart üzerine gelindiğinde (`.video-card:hover .video-card-title`) yazı boyutu `0.96rem`'den `1.04rem`'e yükseltildi, kalınlık `700` yapıldı, `-webkit-line-clamp` sınırı 2'den 3 satıra genişletilerek uzun başlıkların kırpılması engellendi, koyu temada `text-shadow` ve açık temada yüksek kontrastlı `#0f172a` rengi ile kristal okunurluk sağlandı.
+  - Kart üzerine gelindiğinde kanal adı ve meta bilgisi (`.video-card-metadata`, `.video-card-channel`) parlaklığı artırılarak netlik optimize edildi.
+
+## [11.0.8] - 2026-10-06
+- **style(player/sidebar): Kenar Çubuğu Video Başlığı Okunurluk ve Genişleme Modu (Hover Tipografi):**
+  - `public/style.css`: `.playlist-item-title` taban yazı boyutu `0.84rem` yapıldı. Fareyle üzerine gelindiğinde (hover) yazı boyutu `0.96rem`'e çıkarıldı, `-webkit-line-clamp` sınırı 2'den 4 satıra yükseltildi (başlığın tamamının kırpılmadan açılması sağlandı), kalınlık (`font-weight: 700`) ve metin gölgesi (`text-shadow`) eklenerek okuma konforu maksimize edildi.
+
+## [11.0.7] - 2026-10-06
+- **style(player/sidebar): Kenar Çubuğu Video Kartı Hover Büyüme Oranı Artırıldı (scale 1.065):**
+  - `public/style.css`: `.playlist-item:hover` kuralında büyüme ölçeği `scale(1.028)` değerinden `scale(1.065)` değerine yükseltildi; sağa kayma payı `translateX(6px)` ve gölge vurgusu `0 10px 28px rgba(0,0,0,0.45)` olarak güçlendirildi. Grid iç boşluğu taşmayı önleyecek şekilde optimize edildi.
+
+## [11.0.6] - 2026-10-06
+- **style(player/sidebar): Gömülü Oynatıcı Kenar Çubuğu Video Kartlarına Hover Büyüme (Scale) Efekti Eklendi:**
+  - `public/style.css`: `.playlist-item:hover` kuralına `transform: scale(1.028) translateX(4px)` büyüme animasyonu, z-index yükseltmesi ve pürüzsüz GPU hızlandırmalı geçiş (`will-change: transform`, 0.24s cubic-bezier) eklendi; açık/koyu temalar için gölge derinliği artırıldı.
+
+## [11.0.5] - 2026-10-06
+- **feat(settings/network): Yapılandırılabilir İnternet Kurtarma Denetim Sıklığı (Varsayılan 120 sn / 2 dk):**
+  - `server/database.js` & `configwin.ini` / `configunix.ini`: Yeni `networkRetryIntervalSeconds` ayarı eklendi; varsayılan değer 120 saniye (2 dakika) olarak belirlendi. INI çift yönlü senkronizasyonu tamamlandı.
+  - `server/services/downloader.js`: `startNetworkRecoveryMonitor` fonksiyonu sabit süre yerine `db.settings.networkRetryIntervalSeconds` ayarını dinamik olarak okuyacak şekilde güncellendi.
+  - `public/partials/tab-settings.html`, `public/modules/settings.js`, `public/app.js`: Ayarlar arayüzüne "İnternet Kesintisinde Tekrar Deneme Sıklığı (Saniye)" giriş alanı eklendi ve 7 dilde yerelleştirildi.
+
+## [11.0.4] - 2026-10-06
+- **fix(downloader/network): Windows Ağ Kesintisi Hataları (WinError 10013 / WSA) & Kesintisiz Kurtarma Güçlendirildi:**
+  - `server/services/downloader.js`: `isNetworkDisconnectError` fonksiyonuna Windows'ta ağ kapalıyken üretilen `[WinError 10013]` (WSAEACCES / yetki soketi hatası), `Failed to establish a new connection`, `Failed to resolve`, `TransportError`, `Giving up after retries` ve tüm `WSAE*` hata desenleri eklendi.
+  - Ağ kesintisi veya soket hatası yaşayan indirmelerin kesinlikle `failed` ("Hata Alanlar & Denenenler") statüsüne düşmesi engellendi; kuyrukta beklemede tutularak (`waiting`) ağ kontrol döngüsüne bağlandı.
+  - Ağ kurtarma denetimi (`startNetworkRecoveryMonitor`) 5 saniyeye optimize edildi ve çoklu probe (`gstatic generate_204`, `firefox detectportal`, `dns lookup`) ile doğrulanması sağlandı.
+  - Daha önce internet kesintisi sırasında hata alan videolar kuyruk bekleme durumuna (`waiting`) geri alındı.
+
+## [11.0.3] - 2026-10-06
+- **feat(downloader/network): İnternet Kesintisinde Kuyruk Koruma & Otomatik Devam Sistemi Eklendi:**
+  - `server/services/downloader.js`: `isNetworkDisconnectError` regex ve gstatic 204 / DNS tabanlı `checkInternetConnection` denetimi eklendi.
+  - İnternet koptuğunda indirilen video `failed` yapılmaz, listeden silinmez; kuyruğun en başına iade edilerek (`waiting`) korunur.
+  - Kuyruk diğer videolara geçmeyerek zincirleme hata vermeyi durdurur (`isNetworkWaiting = true`); kullanıcıya sistem tepsisinden ve web arayüzünden sesli/görsel uyarı verilir.
+  - Arka planda 8 saniyede bir çalışan otomatik kurtarma monitörü (`startNetworkRecoveryMonitor`) devreye girer; internet bağlantısı geri geldiği an kuyruk indirmeleri kaldığı yerden otomatik olarak sürdürür.
+  - `server/routes/queue.js`: Manuel kuyruk devam ettirme (`resume`) ve motor sıfırlama (`reset-engine`) rotalarında ağ bekleme kilidi ve zamanlayıcı temizliği entegre edildi.
+
+## [11.0.2] - 2026-10-06
+- **fix(library/bulk): Kuyrukta İndirme Sürerken Kütüphane Toplu Gizleme Seçimlerinin Kaybolması Giderildi:**
+  - `public/modules/bulkOperations.js`: Toplu gizleme ve silme için seçilen video kimlikleri `window.selectedHistoryBulkHideIds` ve `window.selectedDownloadedBulkDeleteIds` (Set) hafızasına alındı; DOM sıfırlansa dahi seçim durumu korunur hale getirildi.
+  - `public/components/videoCard.js`: Kart ve checkbox render süreçlerinde bellekteki Set kontrol edilerek `checked` niteliği ve `.bulk-hide-selected` sınıfı otomatik bağlandı.
+  - `public/app.js`: Anlık indirme ilerleme metriklerinin (`progress`, `speed`, `eta`, `fileSize`) tetiklediği SSE `history_updated` olaylarında tüm Kütüphane / İndirilenler ızgarasını (grid) her 400 ms'de sıfırlayıp baştan render etmesi engellendi; kuyruk ilerleme rozeti ve aktif indirme çubuğu yerinde (in-place) güncellenerek gereksiz DOM yıkımı ve sayfa titremesi sonlandırıldı.
+
 ## [11.0.1] - 2026-10-03
 - **fix(disk): Temp sürücüsü dolu uyarısı eklendi:**
   - `server/services/diskGuard.js`: Temp boş alan denetimi (varsayılan eşik 500 MB, `minTempFreeMB` ayarıyla değiştirilebilir) ve yt-dlp PyInstaller açılış hatası tanıma.

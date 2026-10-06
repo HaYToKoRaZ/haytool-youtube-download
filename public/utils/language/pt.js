@@ -689,6 +689,8 @@ export const pt = {
   tools_deleted_col_type: 'Tipo',
   tools_deleted_col_actions: 'Ações',
   tools_deleted_btn_redownload: 'Baixar novamente',
-  tools_deleted_empty: 'Nenhum vídeo excluído registrado.'
+  tools_deleted_empty: 'Nenhum vídeo excluído registrado.',
+  setting_network_retry_interval_label: 'Intervalo de nova tentativa de conexão (Segundos)',
+  setting_network_retry_interval_desc: 'Frequência com que a fila verifica se a internet retornou após desconexão (Padrão: 120 segundos / 2 minutos).'
 };
 

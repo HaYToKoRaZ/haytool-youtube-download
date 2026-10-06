@@ -135,6 +135,11 @@ router.post('/queue/pause', localhostOnly, (req, res) => {
  */
 router.post('/queue/resume', localhostOnly, (req, res) => {
   downloadQueue.isPaused = false;
+  downloadQueue.isNetworkWaiting = false;
+  if (downloadQueue.networkRecoveryTimer) {
+    clearInterval(downloadQueue.networkRecoveryTimer);
+    downloadQueue.networkRecoveryTimer = null;
+  }
   
   const db = readDb();
   db.settings.isPaused = false;
@@ -542,6 +547,11 @@ router.post('/queue/reset-engine', localhostOnly, (req, res) => {
 
   downloadQueue.activeDownloads = 0;
   downloadQueue.isPaused = false;
+  downloadQueue.isNetworkWaiting = false;
+  if (downloadQueue.networkRecoveryTimer) {
+    clearInterval(downloadQueue.networkRecoveryTimer);
+    downloadQueue.networkRecoveryTimer = null;
+  }
 
   testFfmpegSync(true);
 

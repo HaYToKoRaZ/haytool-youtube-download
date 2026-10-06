@@ -238,6 +238,7 @@ export async function performAutoSave() {
     liveStreamHandling: document.getElementById('settings-livestreamhandling') ? document.getElementById('settings-livestreamhandling').value : 'instant_retry',
     liveStreamRetryInterval: document.getElementById('settings-livestreamretryinterval') ? (parseInt(document.getElementById('settings-livestreamretryinterval').value, 10) || 30) : 30,
     downloadSpeedLimit: document.getElementById('settings-speedlimit') ? (parseInt(document.getElementById('settings-speedlimit').value, 10) || 0) : 0,
+    networkRetryIntervalSeconds: document.getElementById('settings-network-retry-interval') ? (parseInt(document.getElementById('settings-network-retry-interval').value, 10) || 120) : 120,
     alternativeSpeedLimit: document.getElementById('settings-altspeedlimit') ? (parseInt(document.getElementById('settings-altspeedlimit').value, 10) || 500) : 500,
     port: port,
     playerType: 'plyr',

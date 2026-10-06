@@ -689,5 +689,7 @@ export const ar = {
   tools_deleted_col_type: 'النوع',
   tools_deleted_col_actions: 'الإجراءات',
   tools_deleted_btn_redownload: 'إعادة التحميل',
-  tools_deleted_empty: 'لا توجد مقاطع فيديو محذوفة مسجلة.'
+  tools_deleted_empty: 'لا توجد مقاطع فيديو محذوفة مسجلة.',
+  setting_network_retry_interval_label: 'فاصل إعادة فحص الاتصال بالإنترنت (بالثواني)',
+  setting_network_retry_interval_desc: 'كم مرة تتحقق قائمة الانتظار من عودة الإنترنت عند انقطاع الاتصال (افتراضي: 120 ثانية / دقيقتان).'
 };

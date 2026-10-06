@@ -8,9 +8,11 @@
 
 import { showToast } from '../components/toast.js';
 
-// Global state flags initialization
+// Global state flags and selected IDs initialization
 window.isDownloadedBulkDeleteMode = window.isDownloadedBulkDeleteMode || false;
 window.isHistoryBulkHideMode = window.isHistoryBulkHideMode || false;
+window.selectedDownloadedBulkDeleteIds = window.selectedDownloadedBulkDeleteIds || new Set();
+window.selectedHistoryBulkHideIds = window.selectedHistoryBulkHideIds || new Set();
 
 // === DOWNLOADED BULK DELETE FUNCTIONS ===
 
@@ -19,6 +21,8 @@ export function toggleDownloadedBulkDeleteMode() {
   const bar = document.getElementById('downloaded-bulk-delete-bar');
   
   window.isDownloadedBulkDeleteMode = !window.isDownloadedBulkDeleteMode;
+  if (!window.selectedDownloadedBulkDeleteIds) window.selectedDownloadedBulkDeleteIds = new Set();
+  window.selectedDownloadedBulkDeleteIds.clear();
   
   if (window.isDownloadedBulkDeleteMode) {
     if (toggleBtn) {
@@ -52,6 +56,7 @@ export function toggleDownloadedBulkDeleteMode() {
 
 export function cancelDownloadedBulkDeleteMode() {
   window.isDownloadedBulkDeleteMode = false;
+  if (window.selectedDownloadedBulkDeleteIds) window.selectedDownloadedBulkDeleteIds.clear();
   const toggleBtn = document.getElementById('downloaded-bulk-delete-toggle-btn');
   const bar = document.getElementById('downloaded-bulk-delete-bar');
   if (toggleBtn) {
@@ -71,14 +76,28 @@ export function cancelDownloadedBulkDeleteMode() {
 }
 
 export function toggleSelectAllDownloadedBulkDelete(masterCb) {
+  if (!window.selectedDownloadedBulkDeleteIds) window.selectedDownloadedBulkDeleteIds = new Set();
   const cbs = document.querySelectorAll('.downloaded-bulk-delete-cb');
-  cbs.forEach(cb => {
-    cb.checked = masterCb.checked;
-    const card = cb.closest('.video-card');
-    if (card) {
-      card.classList.toggle('bulk-delete-selected', cb.checked);
-    }
-  });
+  if (masterCb.checked) {
+    cbs.forEach(cb => {
+      const id = cb.getAttribute('data-id');
+      if (id) window.selectedDownloadedBulkDeleteIds.add(id);
+      cb.checked = true;
+      const card = cb.closest('.video-card');
+      if (card) {
+        card.classList.add('bulk-delete-selected');
+      }
+    });
+  } else {
+    window.selectedDownloadedBulkDeleteIds.clear();
+    cbs.forEach(cb => {
+      cb.checked = false;
+      const card = cb.closest('.video-card');
+      if (card) {
+        card.classList.remove('bulk-delete-selected');
+      }
+    });
+  }
   updateDownloadedBulkDeleteCount();
 }
 
@@ -91,22 +110,23 @@ export function toggleSelectAllDownloadedBulkDelete(masterCb) {
  * @param {Function} updateCountFn - Sayaç güncelleme fonksiyonu
  */
 export function toggleBulkCardSelection(id, cbSelector, cardClass, selectAllId, updateCountFn) {
-  const cb = document.querySelector(`${cbSelector}[data-id="${id}"]`);
-  if (!cb) return;
+  const isHistory = cbSelector.includes('history');
+  const stateSet = isHistory ? window.selectedHistoryBulkHideIds : window.selectedDownloadedBulkDeleteIds;
+  if (!stateSet) return;
 
-  cb.checked = !cb.checked;
-
-  const card = cb.closest('.video-card');
-  if (card) {
-    card.classList.toggle(cardClass, cb.checked);
+  const isNowSelected = !stateSet.has(id);
+  if (isNowSelected) {
+    stateSet.add(id);
+  } else {
+    stateSet.delete(id);
   }
 
-  // "Tümünü Seç" checkbox'ını senkronize et
-  const allCbs = document.querySelectorAll(cbSelector);
-  const checkedCbs = document.querySelectorAll(`${cbSelector}:checked`);
-  const selectAllCb = document.getElementById(selectAllId);
-  if (selectAllCb) {
-    selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
+  const cb = document.querySelector(`${cbSelector}[data-id="${id}"]`);
+  if (cb) cb.checked = isNowSelected;
+
+  const card = cb ? cb.closest('.video-card') : document.querySelector(`.video-card[data-id="${id}"]`);
+  if (card) {
+    card.classList.toggle(cardClass, isNowSelected);
   }
 
   if (typeof updateCountFn === 'function') updateCountFn();
@@ -135,35 +155,47 @@ export function toggleHistoryBulkHideCardSelection(id) {
 }
 
 export function updateDownloadedBulkDeleteCount(e) {
+  if (!window.selectedDownloadedBulkDeleteIds) window.selectedDownloadedBulkDeleteIds = new Set();
   if (e) {
     e.stopPropagation();
     const cb = e.target;
+    const id = cb.getAttribute('data-id');
+    if (id) {
+      if (cb.checked) {
+        window.selectedDownloadedBulkDeleteIds.add(id);
+      } else {
+        window.selectedDownloadedBulkDeleteIds.delete(id);
+      }
+    }
     const card = cb.closest('.video-card');
     if (card) {
       card.classList.toggle('bulk-delete-selected', cb.checked);
     }
-    // Sync Select All checkbox
-    const allCbs = document.querySelectorAll('.downloaded-bulk-delete-cb');
-    const checkedCbs = document.querySelectorAll('.downloaded-bulk-delete-cb:checked');
-    const selectAllCb = document.getElementById('downloaded-bulk-delete-select-all');
-    if (selectAllCb) {
-      selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
-    }
   }
-  const checkedCount = document.querySelectorAll('.downloaded-bulk-delete-cb:checked').length;
+
+  // Sync Select All checkbox
+  const allCbs = document.querySelectorAll('.downloaded-bulk-delete-cb');
+  const selectAllCb = document.getElementById('downloaded-bulk-delete-select-all');
+  if (selectAllCb) {
+    selectAllCb.checked = allCbs.length > 0 && Array.from(allCbs).every(cb => cb.checked);
+  }
+
   const countEl = document.getElementById('downloaded-bulk-delete-selected-count');
-  if (countEl) countEl.textContent = checkedCount;
+  if (countEl) countEl.textContent = window.selectedDownloadedBulkDeleteIds.size;
 }
 
 export async function executeDownloadedBulkDelete() {
   const isEn = window.localDb?.settings?.lang === 'en';
-  const checked = document.querySelectorAll('.downloaded-bulk-delete-cb:checked');
-  if (checked.length === 0) {
+  let videoIds = Array.from(window.selectedDownloadedBulkDeleteIds || []);
+  if (videoIds.length === 0) {
+    const checked = document.querySelectorAll('.downloaded-bulk-delete-cb:checked');
+    videoIds = Array.from(checked).map(cb => cb.getAttribute('data-id'));
+  }
+  if (videoIds.length === 0) {
     showToast(isEn ? 'Please select at least one video to delete.' : 'Lütfen silmek için en az bir video seçin.', 'error');
     return;
   }
   
-  const videoIds = Array.from(checked).map(cb => cb.getAttribute('data-id'));
   const alsoDeleteFiles = document.getElementById('downloaded-bulk-delete-files-checkbox')?.checked || false;
   
   const confirmMsg = isEn 
@@ -181,6 +213,7 @@ export async function executeDownloadedBulkDelete() {
     
     if (response.ok) {
       showToast(isEn ? `${videoIds.length} video(s) deleted successfully.` : `${videoIds.length} video başarıyla silindi.`, 'success');
+      if (window.selectedDownloadedBulkDeleteIds) window.selectedDownloadedBulkDeleteIds.clear();
       cancelDownloadedBulkDeleteMode();
       
       if (typeof window.loadDb === 'function') {
@@ -202,6 +235,8 @@ export function toggleHistoryBulkHideMode() {
   const bar = document.getElementById('history-bulk-hide-bar');
   
   window.isHistoryBulkHideMode = !window.isHistoryBulkHideMode;
+  if (!window.selectedHistoryBulkHideIds) window.selectedHistoryBulkHideIds = new Set();
+  window.selectedHistoryBulkHideIds.clear();
   
   if (window.isHistoryBulkHideMode) {
     if (toggleBtn) {
@@ -228,6 +263,7 @@ export function toggleHistoryBulkHideMode() {
 
 export function cancelHistoryBulkHideMode() {
   window.isHistoryBulkHideMode = false;
+  if (window.selectedHistoryBulkHideIds) window.selectedHistoryBulkHideIds.clear();
   const toggleBtn = document.getElementById('history-bulk-hide-toggle-btn');
   const bar = document.getElementById('history-bulk-hide-bar');
   if (toggleBtn) {
@@ -245,47 +281,72 @@ export function cancelHistoryBulkHideMode() {
 }
 
 export function toggleSelectAllHistoryBulkHide(masterCb) {
+  if (!window.selectedHistoryBulkHideIds) window.selectedHistoryBulkHideIds = new Set();
   const cbs = document.querySelectorAll('.history-bulk-hide-cb');
-  cbs.forEach(cb => {
-    cb.checked = masterCb.checked;
-    const card = cb.closest('.video-card');
-    if (card) {
-      card.classList.toggle('bulk-hide-selected', cb.checked);
-    }
-  });
+  if (masterCb.checked) {
+    cbs.forEach(cb => {
+      const id = cb.getAttribute('data-id');
+      if (id) window.selectedHistoryBulkHideIds.add(id);
+      cb.checked = true;
+      const card = cb.closest('.video-card');
+      if (card) {
+        card.classList.add('bulk-hide-selected');
+      }
+    });
+  } else {
+    window.selectedHistoryBulkHideIds.clear();
+    cbs.forEach(cb => {
+      cb.checked = false;
+      const card = cb.closest('.video-card');
+      if (card) {
+        card.classList.remove('bulk-hide-selected');
+      }
+    });
+  }
   updateHistoryBulkHideCount();
 }
 
 export function updateHistoryBulkHideCount(e) {
+  if (!window.selectedHistoryBulkHideIds) window.selectedHistoryBulkHideIds = new Set();
   if (e) {
     e.stopPropagation();
     const cb = e.target;
+    const id = cb.getAttribute('data-id');
+    if (id) {
+      if (cb.checked) {
+        window.selectedHistoryBulkHideIds.add(id);
+      } else {
+        window.selectedHistoryBulkHideIds.delete(id);
+      }
+    }
     const card = cb.closest('.video-card');
     if (card) {
       card.classList.toggle('bulk-hide-selected', cb.checked);
     }
-    // Sync Select All checkbox
-    const allCbs = document.querySelectorAll('.history-bulk-hide-cb');
-    const checkedCbs = document.querySelectorAll('.history-bulk-hide-cb:checked');
-    const selectAllCb = document.getElementById('history-bulk-hide-select-all');
-    if (selectAllCb) {
-      selectAllCb.checked = allCbs.length > 0 && allCbs.length === checkedCbs.length;
-    }
   }
-  const checkedCount = document.querySelectorAll('.history-bulk-hide-cb:checked').length;
+
+  // Sync Select All checkbox
+  const allCbs = document.querySelectorAll('.history-bulk-hide-cb');
+  const selectAllCb = document.getElementById('history-bulk-hide-select-all');
+  if (selectAllCb) {
+    selectAllCb.checked = allCbs.length > 0 && Array.from(allCbs).every(cb => cb.checked);
+  }
+
   const countEl = document.getElementById('history-bulk-hide-selected-count');
-  if (countEl) countEl.textContent = checkedCount;
+  if (countEl) countEl.textContent = window.selectedHistoryBulkHideIds.size;
 }
 
 export async function executeHistoryBulkHide() {
   const isEn = window.localDb?.settings?.lang === 'en';
-  const checked = document.querySelectorAll('.history-bulk-hide-cb:checked');
-  if (checked.length === 0) {
+  let videoIds = Array.from(window.selectedHistoryBulkHideIds || []);
+  if (videoIds.length === 0) {
+    const checked = document.querySelectorAll('.history-bulk-hide-cb:checked');
+    videoIds = Array.from(checked).map(cb => cb.getAttribute('data-id'));
+  }
+  if (videoIds.length === 0) {
     showToast(isEn ? 'Please select at least one video to hide.' : 'Lütfen gizlemek için en az bir video seçin.', 'warning');
     return;
   }
-  
-  const videoIds = Array.from(checked).map(cb => cb.getAttribute('data-id'));
   
   const confirmMsg = isEn 
     ? `Are you sure you want to hide the selected ${videoIds.length} video(s)?`
@@ -304,6 +365,7 @@ export async function executeHistoryBulkHide() {
     if (result.success) {
       const count = result.count || videoIds.length;
       showToast(isEn ? `${count} video(s) hidden successfully.` : `${count} video başarıyla gizlendi.`, 'success');
+      if (window.selectedHistoryBulkHideIds) window.selectedHistoryBulkHideIds.clear();
       cancelHistoryBulkHideMode();
       
       if (typeof window.loadDb === 'function') {

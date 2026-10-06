@@ -636,6 +636,21 @@ function connectSSE() {
       if (item) Object.assign(item, updates);
     }
 
+    // Eğer güncelleme yalnızca anlık indirme ilerleme metrikleriyse (progress, speed, eta, fileSize):
+    // Tüm Kütüphane / İndirilenler grid'ini sıfırdan render etmek DOM'u ve kullanıcı seçimlerini bozar.
+    // Bu metrikler için sadece aktif indirme başlığı ve kuyruk rozeti güncellenir, grid render edilmez.
+    const updateKeys = Object.keys(updates);
+    const isOnlyProgressMetrics = updateKeys.length > 0 && updateKeys.every(k => ['progress', 'speed', 'eta', 'fileSize'].includes(k));
+    if (isOnlyProgressMetrics) {
+      if (typeof updateActiveDownloadProgress === 'function') {
+        updateActiveDownloadProgress({ id, ...updates });
+      }
+      const queueBadge = document.querySelector(`.queue-table-row[data-id="${id}"] .queue-item-status-badge span, .queue-item[data-id="${id}"] .queue-item-status-badge span`);
+      if (queueBadge && updates.progress !== undefined) {
+        queueBadge.textContent = `%${updates.progress}`;
+      }
+      return;
+    }
 
     if (historyUiUpdateTimer) clearTimeout(historyUiUpdateTimer);
     historyUiUpdateTimer = setTimeout(() => {
@@ -2093,6 +2108,11 @@ function updateUI(db) {
 
     const settingsLiveStreamRetryInterval = document.getElementById('settings-livestreamretryinterval');
     if (settingsLiveStreamRetryInterval && document.activeElement !== settingsLiveStreamRetryInterval) settingsLiveStreamRetryInterval.value = String(db.settings.liveStreamRetryInterval || 30);
+
+    const settingsNetworkRetryInterval = document.getElementById('settings-network-retry-interval');
+    if (settingsNetworkRetryInterval && document.activeElement !== settingsNetworkRetryInterval) {
+      settingsNetworkRetryInterval.value = db.settings.networkRetryIntervalSeconds !== undefined ? db.settings.networkRetryIntervalSeconds : 120;
+    }
 
     const settingsPort = document.getElementById('settings-port');
     if (settingsPort && document.activeElement !== settingsPort) settingsPort.value = db.settings.port || 4141;

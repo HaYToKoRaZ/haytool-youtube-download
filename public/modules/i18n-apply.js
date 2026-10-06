@@ -521,6 +521,8 @@ export function applyLanguage(lang) {
   el('desc-merge-type', 'desc_merge_type');
   el('desc-speed-limit', 'desc_speed_limit');
   el('desc-alt-speed-limit', 'desc_alt_speed_limit');
+  el('label-network-retry-interval', 'setting_network_retry_interval_label');
+  el('desc-network-retry-interval', 'setting_network_retry_interval_desc');
   el('cli-info-title', 'cli_info_title');
   el('desc-channel-check-interval', 'desc_channel_check_interval');
   el('desc-rss-limit', 'desc_rss_limit');

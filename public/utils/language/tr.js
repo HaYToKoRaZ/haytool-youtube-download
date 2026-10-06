@@ -697,7 +697,9 @@ export const tr = {
   tools_deleted_col_type: 'Tür',
   tools_deleted_col_actions: 'Eylemler',
   tools_deleted_btn_redownload: 'Tekrar İndir',
-  tools_deleted_empty: 'Kayıtlı silinen video bulunmuyor.'
+  tools_deleted_empty: 'Kayıtlı silinen video bulunmuyor.',
+  setting_network_retry_interval_label: 'İnternet Kesintisinde Tekrar Deneme Sıklığı (Saniye)',
+  setting_network_retry_interval_desc: 'İnternet bağlantısı koptuğunda kuyruğun bağlantıyı yeniden deneme sıklığı (Varsayılan: 120 saniye / 2 dakika).'
 };
 
 
