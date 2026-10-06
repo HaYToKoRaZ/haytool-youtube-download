@@ -1,0 +1,367 @@
+import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import { exec, spawn } from 'child_process';
+import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp } from '../services/paths.js';
+import { downloadQueue, performYtdlpUpdate } from '../services/downloader.js';
+import { readDb } from '../database.js';
+import { fetchVideoDuration, resolveMissingDurations } from '../services/rss.js';
+import { addTerminalLog } from '../services/sse.js';
+import { localhostOnly } from '../middleware/security.js';
+import { getTempSpaceInfo, isTempExtractionError } from '../services/diskGuard.js';
+
+export const router = express.Router();
+
+// Helper to extract video ID from YouTube URL
+/**
+ * YouTube video bağlantısından veya adresinden 11 karakterli video ID'sini ayıklar.
+ * 
+ * @param {string} url - YouTube video bağlantı adresi
+ * @returns {string|null} Bulunan video ID'si veya null
+ */
+function extractVideoId(url) {
+  if (!url) return null;
+  const youtubeRegex = /(?:youtu\.be\/|(?:music\.)?youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([^?&"'>\s]{11})/;
+  const match = url.match(youtubeRegex);
+  return match ? match[1] : null;
+}
+
+/**
+ * yt-dlp kullanarak videonun başlık, kanal adı ve kanal ID bilgilerini çeker.
+ * 
+ * @param {string} videoId YouTube Video ID'si
+ * @returns {Promise<object|null>} Çözümlenen bilgiler veya null
+ */
+function fetchMetadataViaYtdlp(videoId) {
+  return new Promise((resolve) => {
+    const args = [
+      '--no-playlist',
+      '--skip-download',
+      '--print', '%(title)s|%(uploader)s|%(channel_id)s|%(duration_string)s',
+      `https://www.youtube.com/watch?v=${videoId}`
+    ];
+    const localTemp = getLocalTempDir();
+    const spawnOptions = {
+      env: { ...process.env, TEMP: localTemp, TMP: localTemp },
+      ...(process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {})
+    };
+    
+    const proc = spawnYtdlp(args, spawnOptions);
+    let stdout = '';
+    proc.stdout.on('data', (data) => { stdout += data.toString(); });
+    proc.on('close', (code) => {
+      cleanMeiForPid(proc.pid);
+      if (code === 0 && stdout.trim()) {
+        const parts = stdout.trim().split('|');
+        if (parts.length >= 3) {
+          return resolve({
+            title: parts[0]?.trim(),
+            channelName: parts[1]?.trim(),
+            channelId: parts[2]?.trim(),
+            duration: parts[3]?.trim()
+          });
+        }
+      }
+      resolve(null);
+    });
+    proc.on('error', () => resolve(null));
+  });
+}
+
+/**
+ * Belirtilen YouTube videosunu elle (manuel) indirme kuyruğuna ekler.
+ * 
+ * @name POST /api/downloader/download
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.body.url - YouTube video URL'si veya video ID'si
+ * @param {string} [req.body.format] - İstenen video formatı (örn. 'video-best', 'mp3')
+ * @param {string} [req.body.bitrate] - MP3 formatı için ses bit hızı (örn. '320', '192')
+ * @param {string} [req.body.title] - Özel video başlığı
+ * @param {string} [req.body.channelName] - Kanal adı
+ * @param {string} [req.body.channelId] - Kanal ID'si
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.post('/download', localhostOnly, async (req, res) => {
+  const { url, format, bitrate } = req.body;
+  let { title, channelName, channelId } = req.body;
+
+  let targetVideoId = extractVideoId(url);
+  if (!targetVideoId) {
+    // URL'in kendisi 11 haneli bir video ID'si olabilir
+    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
+      targetVideoId = url;
+    }
+  }
+
+  if (!targetVideoId) {
+    return res.status(400).json({ error: 'Geçersiz YouTube URL veya Video ID.' });
+  }
+
+  // Eğer başlık veya kanal bilgisi yoksa veya başlık hatalı bir URL ise YouTube'dan çekmeye çalışalım
+  if (!title || !channelName || title.startsWith('http')) {
+    try {
+      const details = await fetchVideoDuration(targetVideoId);
+      if (details && details.title && !details.title.startsWith('http')) {
+        title = title || details.title;
+        channelName = channelName || details.channelName;
+        channelId = channelId || details.channelId;
+      }
+      
+      // Eğer hâlâ başlık yoksa veya URL ise yt-dlp ile çözmeyi dene
+      if (!title || !channelName || title.startsWith('http')) {
+        const metadata = await fetchMetadataViaYtdlp(targetVideoId);
+        if (metadata) {
+          title = metadata.title || title;
+          channelName = metadata.channelName || channelName;
+          channelId = metadata.channelId || channelId;
+        }
+      }
+    } catch (err) {
+      console.error(`[Downloader API] Video detayları çekilemedi:`, err.message);
+    }
+  }
+
+  // Eğer kuyruk duraklatılmışsa, manuel indirme isteğinde otomatik devam ettir
+  if (downloadQueue.isPaused) {
+    downloadQueue.isPaused = false;
+    try {
+      const db = readDb();
+      if (db && db.settings) {
+        db.settings.isPaused = false;
+        writeDb(db);
+      }
+    } catch (e) {}
+  }
+
+  // Kuyruğa ekle
+  downloadQueue.add({
+    id: targetVideoId,
+    title: title || 'Bilinmeyen Video',
+    channelId: channelId || 'manual',
+    channelName: channelName || 'Manuel İndirme',
+    url: `https://www.youtube.com/watch?v=${targetVideoId}`,
+    publishedAt: new Date().toISOString(),
+    skipChannelFolder: true,
+    customFormat: format || 'video-best',
+    audioBitrate: bitrate || '192',
+    isStandalone: true
+  });
+
+  // Eksik süreleri tamamla
+  if (typeof resolveMissingDurations === 'function') {
+    resolveMissingDurations();
+  }
+
+  res.json({ success: true, message: 'İndirme kuyruğuna eklendi.', videoId: targetVideoId });
+});
+
+/**
+ * Gönderilen YouTube oynatma listesini (playlist) hızlıca çözümler ve videoları listeler.
+ * 
+ * @name POST /api/downloader/resolve-playlist
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.body.url - Oynatma listesi (playlist) bağlantı adresi
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {void}
+ */
+router.post('/resolve-playlist', localhostOnly, (req, res) => {
+  const { url } = req.body;
+
+  if (!url) {
+    return res.status(400).json({ error: 'Playlist URL gereklidir.' });
+  }
+
+  const db = readDb();
+  const settings = db.settings || {};
+  let langArg = '';
+  if (settings.lang) {
+    langArg = `--extractor-args "youtube:lang=${settings.lang}"`;
+  }
+
+  // flat-playlist ve dump-json ile hızlıca playlist içeriğini alıyoruz
+  const cmd = `"${ytdlpPath}" ${langArg} --flat-playlist --dump-json --ignore-errors "${url}"`;
+
+  const localTemp = getLocalTempDir();
+  const execProc = execYtdlp(cmd, { maxBuffer: 1024 * 1024 * 10, env: { ...process.env, TEMP: localTemp, TMP: localTemp } }, (error, stdout, stderr) => {
+    cleanMeiForPid(execProc.pid);
+    if (error) {
+      console.error(`[Playlist Resolve Error]:`, error);
+      return res.status(500).json({ error: 'Playlist çözümlenirken bir hata oluştu.' });
+    }
+
+    const lines = stdout.split('\n').filter(line => line.trim() !== '');
+    const videos = [];
+
+    for (const line of lines) {
+      try {
+        const item = JSON.parse(line);
+        // yt-dlp flat-playlist modunda genelde id, title, duration ve uploader alanlarını döner
+        if (item.id) {
+          videos.push({
+            id: item.id,
+            title: item.title || 'Bilinmeyen Video',
+            duration: item.duration || 0,
+            uploader: item.uploader || 'Bilinmeyen Kanal',
+            thumbnail: item.thumbnail || `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`
+          });
+        }
+      } catch (e) {
+        // Hatalı satırları yoksay
+      }
+    }
+
+    if (videos.length === 0) {
+      return res.status(400).json({ error: 'Playlist içerisinde geçerli video bulunamadı.' });
+    }
+
+    res.json({ success: true, videos });
+  });
+});
+
+// Türkçe Açıklama: Temp sürücüsünün boş alan durumunu döner (yt-dlp açılışı için gerekli); arayüz uyarı bannerı bunu kullanır.
+router.get('/temp-space', localhostOnly, (req, res) => {
+  res.json({ success: true, ...getTempSpaceInfo() });
+});
+
+// Türkçe Açıklama: Mevcut yt-dlp sürümünü, kanalını (nightly/stable) ve GitHub üzerindeki en güncel sürümleri sorgular ve döner.
+/**
+  * Gömülü yt-dlp motorunun yerel sürümünü, kanalını ve uzak sürümleri döndürür.
+  * 
+  * @route GET /api/downloader/ytdlp-version
+  * @returns {{ version: string, channel: string, latestVersion: string|null, latestNightly: string|null, latestStable: string|null, recentNightly: Array, recentStable: Array }}
+  */
+router.get('/ytdlp-version', localhostOnly, (req, res) => {
+  execYtdlp(`"${ytdlpPath}" --version`, { timeout: 10000 }, async (err, stdout, stderr) => {
+    if (err && !fs.existsSync(ytdlpPath)) {
+      return res.json({ version: 'Yüklü Değil', channel: 'none', latestNightly: null, latestStable: null, recentNightly: [], recentStable: [] });
+    } else if (err && (isTempExtractionError(stderr) || isTempExtractionError(err.message))) {
+      return res.json({ version: 'DISK_FULL', channel: 'none', diskFull: true, tempInfo: getTempSpaceInfo(), latestNightly: null, latestStable: null, recentNightly: [], recentStable: [] });
+    } else if (err) {
+      return res.status(500).json({ error: 'yt-dlp sürümü alınamadı: ' + (err.message || '') });
+    }
+    
+    const localVersion = (stdout || '').trim();
+    let latestStable = null;
+    let latestNightly = null;
+    let recentNightly = [];
+    let recentStable = [];
+
+    const isNightlyLocal = localVersion.includes('.') && (localVersion.split('.').length >= 4 || localVersion.includes('dev') || localVersion.length > 10);
+    const currentChannel = isNightlyLocal ? 'nightly' : 'stable';
+
+    try {
+      const db = readDb();
+      const token = db.settings?.githubToken;
+      const headers = { 'User-Agent': 'HaYTooL-YT-Downloader' };
+      if (token) headers['Authorization'] = `Bearer ${token.trim()}`;
+
+      // 1. En son Nightly sürümleri çek (Tavsiye Edilen kanal)
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const nightlyRes = await fetch('https://api.github.com/repos/yt-dlp/yt-dlp-nightly-builds/releases?per_page=6', {
+          headers,
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (nightlyRes.ok) {
+          const nightlyData = await nightlyRes.json();
+          if (Array.isArray(nightlyData)) {
+            recentNightly = nightlyData.map(r => ({
+              tag: r.tag_name ? r.tag_name.replace(/^v/, '') : '',
+              name: r.name || r.tag_name,
+              publishedAt: r.published_at
+            })).filter(r => r.tag);
+            if (recentNightly.length > 0) {
+              latestNightly = recentNightly[0].tag;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[yt-dlp] Nightly releases could not be fetched:', e.message);
+      }
+
+      // 2. En son Stable sürümleri çek
+      try {
+        const controller2 = new AbortController();
+        const timeoutId2 = setTimeout(() => controller2.abort(), 6000);
+        const stableRes = await fetch('https://api.github.com/repos/yt-dlp/yt-dlp/releases?per_page=6', {
+          headers,
+          signal: controller2.signal
+        });
+        clearTimeout(timeoutId2);
+        if (stableRes.ok) {
+          const stableData = await stableRes.json();
+          if (Array.isArray(stableData)) {
+            recentStable = stableData.map(r => ({
+              tag: r.tag_name ? r.tag_name.replace(/^v/, '') : '',
+              name: r.name || r.tag_name,
+              publishedAt: r.published_at
+            })).filter(r => r.tag);
+            if (recentStable.length > 0) {
+              latestStable = recentStable[0].tag;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[yt-dlp] Stable releases could not be fetched:', e.message);
+      }
+    } catch (apiErr) {
+      console.warn('[yt-dlp] GitHub API error:', apiErr.message);
+    }
+
+    res.json({
+      version: localVersion,
+      channel: currentChannel,
+      latestNightly,
+      latestStable,
+      latestVersion: latestNightly || latestStable,
+      recentNightly,
+      recentStable
+    });
+  });
+});
+
+// Türkçe Açıklama: yt-dlp motorunu seçilen kanala veya belirtilen özel sürüme günceller / geri alır.
+/**
+  * Gömülü yt-dlp motorunu belirtilen hedefe (Nightly, Stable veya spesifik tag) günceller.
+  * 
+  * @route POST /api/downloader/ytdlp-update
+  * @param {string} target - 'nightly' | 'stable' | 'nightly@tag' | 'stable@tag'
+  * @returns {{ success: boolean, output: string, newVersion?: string }}
+  */
+router.post('/ytdlp-update', localhostOnly, async (req, res) => {
+  const target = (req.body && req.body.target) ? req.body.target.trim() : 'nightly';
+  try {
+    const result = await performYtdlpUpdate(target);
+    res.json(result);
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Tray ve harici istemciler için anlık aktif indirme sayısını ve indirme durumunu döner.
+ * 
+ * @route GET /api/downloader/active-status
+ * @returns {{ activeDownloads: number, isDownloading: boolean, queueLength: number }}
+ */
+router.get('/active-status', (req, res) => {
+  const activeDownloads = (downloadQueue && typeof downloadQueue.activeDownloads === 'number') 
+    ? downloadQueue.activeDownloads 
+    : 0;
+  const queueLength = (downloadQueue && Array.isArray(downloadQueue.queue))
+    ? downloadQueue.queue.length
+    : 0;
+  res.json({
+    activeDownloads,
+    isDownloading: activeDownloads > 0,
+    queueLength
+  });
+});
+

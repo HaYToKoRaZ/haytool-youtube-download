@@ -1,0 +1,1476 @@
+/**
+ * Araçlar (Tools) Modülü - HaYTooL YouTube Downloader
+ *
+ * Yapımcı: HaYTo
+ * Açıklama: Dosya Karşılaştırma & Senkronizasyon, Kategori Yönetimi,
+ *            APE İzlendi İşaretleme ve Araçlar Sekmesi Mantığı.
+ * Bağımlılıklar: app.js getState() fonksiyonu ile localDb, currentLang, translations erişimi sağlanır.
+ */
+
+import { translations } from '../utils/i18n.js';
+import { escapeHtml, getCatTranslatedName } from '../utils/helpers.js';
+import { showToast } from '../components/toast.js';
+
+let _getState = null;
+let toolsInitialized = false;
+let downloaderUiInitialized = false;
+
+let untrackedFilesList = [];
+let unrelatedFilesList = [];
+let missingFilesList = [];
+let scanProgressToast = null;
+
+export function initTools(getState) {
+  if (getState) _getState = getState;
+  if (toolsInitialized) return;
+  toolsInitialized = true;
+
+  const compareBtn = document.getElementById('start-compare-btn');
+  if (compareBtn) {
+    compareBtn.addEventListener('click', runFileComparison);
+  }
+
+  const toolsBtn = document.getElementById('tools-btn');
+  if (toolsBtn) {
+    toolsBtn.addEventListener('click', toggleToolsDropdown);
+  }
+
+  document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('tools-dropdown');
+    if (dropdown && !dropdown.contains(e.target)) {
+      dropdown.classList.remove('open');
+    }
+  });
+
+  const sections = [
+    ['nav-tools-compare-btn', 'compare'],
+    ['nav-tools-categories-btn', 'categories'],
+    ['nav-tools-ape-btn', 'ape'],
+    ['nav-tools-subs-btn', 'subscriptions'],
+    ['nav-tools-deleted-btn', 'deleted']
+  ];
+
+  sections.forEach(([buttonId, section]) => {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.currentToolsSubSection = section;
+      if (window.switchTab) {
+        window.switchTab('tools');
+      } else {
+        showToolsSubSection(section);
+      }
+      if (section === 'compare') runFileComparison();
+      document.getElementById('tools-dropdown')?.classList.remove('open');
+    });
+  });
+
+  const headerSettingsBtn = document.getElementById('header-settings-btn');
+  if (headerSettingsBtn) {
+    headerSettingsBtn.addEventListener('click', () => window.switchTab?.('settings'));
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.initTools = initTools;
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => initTools());
+    } else {
+      initTools();
+    }
+  }
+}
+
+let currentLang = 'tr';
+
+export async function runFileComparison() {
+  const compareBtn = document.getElementById('start-compare-btn');
+  const compareLoading = document.getElementById('compare-loading');
+  const noIssuesFound = document.getElementById('compare-no-issues');
+  const untrackedSection = document.getElementById('untracked-section');
+  const unrelatedSection = document.getElementById('unrelated-section');
+  const missingSection = document.getElementById('missing-section');
+  const compareResults = document.getElementById('compare-results');
+  
+  if (!compareBtn) return;
+  compareBtn.disabled = true;
+  
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
+  
+  // Show toast when starting comparison
+  showToast(isEn ? 'Folder comparison started, scanning physical files...' : 'Dosya karşılaştırması başlatıldı, fiziksel dosyalar taranıyor...', 'info');
+  
+  // Set button state to comparing
+  const compareBtnText = compareBtn.querySelector('#compare-btn-text');
+  if (compareBtnText) {
+    compareBtnText.textContent = t.compare_btn_running || 'Comparing...';
+  }
+  if (compareLoading) compareLoading.classList.remove('hidden');
+  if (compareResults) compareResults.classList.add('hidden');
+  if (noIssuesFound) noIssuesFound.classList.add('hidden');
+  if (untrackedSection) untrackedSection.classList.add('hidden');
+  if (unrelatedSection) unrelatedSection.classList.add('hidden');
+  if (missingSection) missingSection.classList.add('hidden');
+  
+  try {
+    const res = await fetch('/api/tools/compare-files');
+    const data = await res.json();
+    if (data.success) {
+      untrackedFilesList = data.untrackedFiles || [];
+      unrelatedFilesList = data.unrelatedFiles || [];
+      missingFilesList = data.missingFiles || [];
+      
+      renderComparisonResults();
+    } else {
+      showToast(data.error || (isEn ? 'Comparison failed.' : 'Karşılaştırma başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  } finally {
+    compareBtn.disabled = false;
+    if (compareBtnText) {
+      compareBtnText.textContent = t.compare_btn || 'Start Comparison';
+    }
+    if (compareLoading) compareLoading.classList.add('hidden');
+  }
+}
+
+export async function openFileLocation(filePath) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  try {
+    const res = await fetch('/api/tools/open-file-location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || (isEn ? 'Could not open folder.' : 'Klasör açılamadı.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+export async function deleteAllUnrelated() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (unrelatedFilesList.length === 0) return;
+  if (!confirm(isEn ? 'Are you sure you want to delete all unrelated files from disk?' : 'Tüm alakasız dosyaları diskten silmek istediğinize emin misiniz?')) {
+    return;
+  }
+  
+  try {
+    const res = await fetch('/api/tools/fix-files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'delete-untracked-file',
+        filePaths: unrelatedFilesList.map(f => f.filePath)
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+export function renderComparisonResults() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
+  
+  const noIssuesFound = document.getElementById('compare-no-issues');
+  const untrackedSection = document.getElementById('untracked-section');
+  const unrelatedSection = document.getElementById('unrelated-section');
+  const missingSection = document.getElementById('missing-section');
+  const compareResults = document.getElementById('compare-results');
+  
+  const untrackedBody = document.getElementById('untracked-files-list');
+  const unrelatedBody = document.getElementById('unrelated-files-list');
+  const missingBody = document.getElementById('missing-files-list');
+  
+  if (untrackedBody) untrackedBody.innerHTML = '';
+  if (unrelatedBody) unrelatedBody.innerHTML = '';
+  if (missingBody) missingBody.innerHTML = '';
+  
+  if (compareResults) compareResults.classList.remove('hidden');
+  
+  if (untrackedFilesList.length === 0 && unrelatedFilesList.length === 0 && missingFilesList.length === 0) {
+    if (noIssuesFound) noIssuesFound.classList.remove('hidden');
+    if (untrackedSection) untrackedSection.classList.add('hidden');
+    if (unrelatedSection) unrelatedSection.classList.add('hidden');
+    if (missingSection) missingSection.classList.add('hidden');
+    showToast(isEn ? 'Folder comparison completed. No issues found!' : 'Dosya karşılaştırması tamamlandı. Sorun bulunamadı!', 'success');
+    return;
+  }
+  
+  if (noIssuesFound) noIssuesFound.classList.add('hidden');
+  
+  const summaryBox = document.getElementById('compare-summary-box');
+  if (summaryBox) {
+    summaryBox.innerHTML = isEn 
+      ? `Found ${untrackedFilesList.length} untracked files, ${unrelatedFilesList.length} unrelated files, and ${missingFilesList.length} missing records.`
+      : `${untrackedFilesList.length} yetim dosya, ${unrelatedFilesList.length} alakasız dosya ve ${missingFilesList.length} eksik kayıt bulundu.`;
+  }
+  
+  showToast(isEn ? 'Folder comparison completed.' : 'Dosya karşılaştırması tamamlandı.', 'success');
+  
+  // Untracked Files (Orphans)
+  if (untrackedFilesList.length > 0) {
+    if (untrackedSection) untrackedSection.classList.remove('hidden');
+    untrackedFilesList.forEach(file => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="file-name-cell" title="${file.filePath}">
+            <i data-lucide="file-video" class="file-icon"></i>
+            <span>${file.filename}</span>
+          </div>
+        </td>
+        <td>${file.channelName || '<span class="text-muted">--</span>'}</td>
+        <td class="text-nowrap">${file.fileSize || '--'}</td>
+        <td>
+          <div class="action-buttons-cell" style="text-align: right;">
+            <button class="btn btn-secondary btn-sm" onclick="openFileLocation('${file.filePath.replace(/\\/g, '\\\\')}')" title="${isEn ? 'Open File Location' : 'Dosya Konumunu Aç'}">
+              <i data-lucide="external-link"></i>
+              <span>${isEn ? 'Open Location' : 'Konumu Aç'}</span>
+            </button>
+            ${file.id ? `
+              <button class="btn btn-primary btn-sm" onclick="fixFileIssue('import', '${file.filePath.replace(/\\/g, '\\\\')}', '${file.id}')">
+                <i data-lucide="plus"></i>
+                <span>${t.btn_import || 'Import'}</span>
+              </button>
+            ` : ''}
+            <button class="btn btn-danger btn-sm" onclick="fixFileIssue('delete', '${file.filePath.replace(/\\/g, '\\\\')}', '')">
+              <i data-lucide="trash-2"></i>
+              <span>${t.btn_delete_file || 'Delete'}</span>
+            </button>
+          </div>
+        </td>
+      `;
+      untrackedBody.appendChild(tr);
+    });
+  } else {
+    if (untrackedSection) untrackedSection.classList.add('hidden');
+  }
+  
+  // Unrelated Files
+  if (unrelatedFilesList.length > 0) {
+    if (unrelatedSection) unrelatedSection.classList.remove('hidden');
+    unrelatedFilesList.forEach(file => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="file-name-cell" title="${file.filePath}">
+            <i data-lucide="file" class="file-icon" style="color: var(--text-muted);"></i>
+            <span>${file.filename}</span>
+          </div>
+        </td>
+        <td class="text-nowrap">${file.fileSize || '--'}</td>
+        <td>
+          <div class="action-buttons-cell" style="text-align: right;">
+            <button class="btn btn-secondary btn-sm" onclick="openFileLocation('${file.filePath.replace(/\\/g, '\\\\')}')" title="${isEn ? 'Open File Location' : 'Dosya Konumunu Aç'}">
+              <i data-lucide="external-link"></i>
+              <span>${isEn ? 'Open Location' : 'Konumu Aç'}</span>
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="fixFileIssue('delete', '${file.filePath.replace(/\\/g, '\\\\')}', '')">
+              <i data-lucide="trash-2"></i>
+              <span>${t.btn_delete_file || 'Delete'}</span>
+            </button>
+          </div>
+        </td>
+      `;
+      unrelatedBody.appendChild(tr);
+    });
+  } else {
+    if (unrelatedSection) unrelatedSection.classList.add('hidden');
+  }
+  
+  // Missing Files
+  if (missingFilesList.length > 0) {
+    if (missingSection) missingSection.classList.remove('hidden');
+    missingFilesList.forEach(file => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="file-name-cell" title="${file.filePath || ''}">
+            <i data-lucide="video-off" class="file-icon"></i>
+            <span>${file.title}</span>
+          </div>
+        </td>
+        <td>${file.channelName || '<span class="text-muted">--</span>'}</td>
+        <td>
+          <div class="action-buttons-cell" style="text-align: right;">
+            <button class="btn btn-primary btn-sm" onclick="downloadMissingVideo('${file.id}', '${escapeHtml(file.title)}', '${escapeHtml(file.channelName || '')}', '${file.channelId || ''}')" title="${isEn ? 'Redownload Video' : 'Videoyu Tekrar İndir'}">
+              <i data-lucide="download"></i>
+              <span>${isEn ? 'Redownload' : 'Tekrar İndir'}</span>
+            </button>
+            <button class="btn btn-warning btn-sm" onclick="fixFileIssue('mark_not_downloaded', '', '${file.id}')">
+              <i data-lucide="refresh-cw"></i>
+              <span>${t.btn_mark_not_downloaded || 'Mark Not Downloaded'}</span>
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="fixFileIssue('delete_history', '', '${file.id}')">
+              <i data-lucide="trash-2"></i>
+              <span>${t.btn_delete_history || 'Delete History'}</span>
+            </button>
+          </div>
+        </td>
+      `;
+      missingBody.appendChild(tr);
+    });
+  } else {
+    if (missingSection) missingSection.classList.add('hidden');
+  }
+  
+  lucide.createIcons();
+}
+
+export async function fixFileIssue(actionType, filePath, id) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  let body = {};
+  
+  if (actionType === 'import') {
+    const file = untrackedFilesList.find(f => f.filePath === filePath);
+    if (!file) return;
+    body = {
+      action: 'import-untracked-file',
+      filesToImport: [{
+        id: file.id,
+        title: file.title,
+        channelName: file.channelName,
+        fileSize: file.fileSize,
+        filePath: file.filePath
+      }]
+    };
+  } else if (actionType === 'delete') {
+    body = {
+      action: 'delete-untracked-file',
+      filePaths: [filePath]
+    };
+  } else if (actionType === 'mark_not_downloaded') {
+    body = {
+      action: 'mark-missing-as-not-downloaded',
+      videoIds: [id]
+    };
+  } else if (actionType === 'delete_history') {
+    body = {
+      action: 'delete-history-item',
+      videoIds: [id]
+    };
+  }
+  
+  try {
+    const res = await fetch('/api/tools/fix-files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
+      // Refresh comparison
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+export async function fixAllUntracked(actionType) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (untrackedFilesList.length === 0) return;
+  
+  let body = {};
+  if (actionType === 'import') {
+    // Only import files that have a valid ID
+    const filesToImport = untrackedFilesList.filter(f => f.id).map(file => ({
+      id: file.id,
+      title: file.title,
+      channelName: file.channelName,
+      fileSize: file.fileSize,
+      filePath: file.filePath
+    }));
+    if (filesToImport.length === 0) {
+      showToast(isEn ? 'No files with valid video IDs to import.' : 'İçe aktarılacak geçerli video ID\'sine sahip dosya yok.', 'info');
+      return;
+    }
+    body = {
+      action: 'import-untracked-file',
+      filesToImport
+    };
+  } else if (actionType === 'delete') {
+    if (!confirm(isEn ? 'Are you sure you want to delete all untracked files from disk?' : 'Tüm yetim dosyaları diskten silmek istediğinize emin misiniz?')) {
+      return;
+    }
+    body = {
+      action: 'delete-untracked-file',
+      filePaths: untrackedFilesList.map(f => f.filePath)
+    };
+  }
+  
+  try {
+    const res = await fetch('/api/tools/fix-files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+export async function fixAllMissing(actionType) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (missingFilesList.length === 0) return;
+  
+  let body = {};
+  if (actionType === 'mark' || actionType === 'mark_not_downloaded') {
+    body = {
+      action: 'mark-missing-as-not-downloaded',
+      videoIds: missingFilesList.map(f => f.id)
+    };
+  } else if (actionType === 'delete') {
+    if (!confirm(isEn ? 'Are you sure you want to delete all missing videos from history?' : 'Tüm eksik videoları geçmişten silmek istediğinize emin misiniz?')) {
+      return;
+    }
+    body = {
+      action: 'delete-history-item',
+      videoIds: missingFilesList.map(f => f.id)
+    };
+  }
+  
+  try {
+    const res = await fetch('/api/tools/fix-files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (isEn ? 'Operation successful.' : 'İşlem başarılı.'), 'success');
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+// Hide video from library
+window.hideVideo = async function(videoId) {
+  if (!videoId) return;
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  try {
+    const res = await fetch(`/api/history/${videoId}/hide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Video hidden from library.' : 'Video kütüphaneden gizlendi.', 'success');
+    } else {
+      showToast(data.error || (isEn ? 'Failed to hide video.' : 'Video gizlenemedi.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+};
+
+// Unhide video from library
+window.unhideVideo = async function(videoId) {
+  if (!videoId) return;
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  try {
+    const res = await fetch(`/api/history/${videoId}/unhide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Video is now visible in library.' : 'Video kütüphanede tekrar görünür yapıldı.', 'success');
+    } else {
+      showToast(data.error || (isEn ? 'Failed to unhide video.' : 'Video görünür yapılamadı.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+};
+
+
+// SSE Channel Scan progress toast
+export function updateScanProgressToast(data) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (!data.active) {
+    if (scanProgressToast) {
+      scanProgressToast.style.animation = 'slideIn 0.3s reverse forwards';
+      const toastRef = scanProgressToast;
+      setTimeout(() => toastRef.remove(), 300);
+      scanProgressToast = null;
+      showToast(isEn ? 'Channel scan completed.' : 'Kanal denetimi tamamlandı.', 'success');
+    }
+    return;
+  }
+
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const msg = isEn 
+    ? `${data.current}/${data.total} - Checking ${data.channelName}` 
+    : `${data.current}/${data.total} - ${data.channelName} denetleniyor`;
+
+  if (!scanProgressToast) {
+    scanProgressToast = document.createElement('div');
+    scanProgressToast.className = 'toast toast-info toast-persistent';
+    container.appendChild(scanProgressToast);
+  }
+
+  scanProgressToast.innerHTML = `
+    <i data-lucide="loader" class="toast-icon spin"></i>
+    <div class="toast-message">${msg}</div>
+  `;
+  lucide.createIcons();
+}
+
+// Make functions globally accessible
+window.fixFileIssue = fixFileIssue;
+window.fixAllUntracked = fixAllUntracked;
+window.fixAllMissing = fixAllMissing;
+window.runFileComparison = runFileComparison;
+window.openFileLocation = openFileLocation;
+window.deleteAllUnrelated = deleteAllUnrelated;
+window.updateScanProgressToast = updateScanProgressToast;
+
+// === DOWNLISTER / DOWNLOADER FRONTEND MANTIĞI ===
+let activePlaylistVideos = [];
+
+export function toggleToolsDropdown(e) {
+  e.stopPropagation();
+  const dropdown = document.getElementById('tools-dropdown');
+  if (dropdown) {
+    dropdown.classList.toggle('open');
+  }
+}
+
+export function initDownloaderUI() {
+  if (downloaderUiInitialized) return;
+  downloaderUiInitialized = true;
+
+  const downloaderActionBtn = document.getElementById('downloader-action-btn');
+  if (downloaderActionBtn) {
+    downloaderActionBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchTab('downloader');
+      const dropdown = document.getElementById('tools-dropdown');
+      if (dropdown) dropdown.classList.remove('open');
+    });
+  }
+
+  const formatSelect = document.getElementById('downloader-format-select');
+  const bitrateGroup = document.getElementById('downloader-bitrate-group');
+  if (formatSelect && bitrateGroup) {
+    formatSelect.addEventListener('change', () => {
+      if (formatSelect.value === 'audio-mp3') {
+        bitrateGroup.style.display = 'block';
+      } else {
+        bitrateGroup.style.display = 'none';
+      }
+    });
+  }
+
+  const startBtn = document.getElementById('downloader-start-btn');
+  if (startBtn) {
+    startBtn.addEventListener('click', handleDownloaderStart);
+  }
+
+  const downloadAllBtn = document.getElementById('downloader-download-all-btn');
+  if (downloadAllBtn) {
+    downloadAllBtn.addEventListener('click', handleDownloaderAll);
+  }
+
+  const toggleAllCheckbox = document.getElementById('downloader-toggle-all-checkbox');
+  if (toggleAllCheckbox) {
+    toggleAllCheckbox.addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      document.querySelectorAll('.playlist-item-checkbox').forEach(cb => {
+        cb.checked = checked;
+      });
+    });
+  }
+}
+window.initDownloaderUI = initDownloaderUI;
+window.toggleToolsDropdown = toggleToolsDropdown;
+
+export function showToolsSubSection(section) {
+  const known = ['compare', 'categories', 'ape', 'subscriptions', 'deleted', 'bulk-delete'];
+  window.currentToolsSubSection = known.includes(section) ? section : 'compare';
+
+  const compareContainer = document.getElementById('tools-compare-container');
+  const bulkContainer = document.getElementById('tools-bulk-delete-container');
+  const categoriesContainer = document.getElementById('tools-categories-container');
+  const apeContainer = document.getElementById('tools-ape-container');
+  const subsContainer = document.getElementById('tools-subscriptions-container');
+  const deletedContainer = document.getElementById('tools-deleted-videos-container');
+  const toolsHeaderTitle = document.querySelector('#tab-tools .content-header h2 span');
+  const toolsHeaderDesc = document.getElementById('tools-modal-desc');
+  const toolsHeaderIcon = document.getElementById('tools-modal-icon');
+
+  if (compareContainer) compareContainer.classList.add('hidden');
+  if (bulkContainer) bulkContainer.classList.add('hidden');
+  if (categoriesContainer) categoriesContainer.classList.add('hidden');
+  if (apeContainer) apeContainer.classList.add('hidden');
+  if (subsContainer) subsContainer.classList.add('hidden');
+  if (deletedContainer) deletedContainer.classList.add('hidden');
+
+  const isEn = localDb.settings?.lang === 'en';
+
+  if (section === 'categories' && categoriesContainer) {
+    categoriesContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Edit Channel Categories' : 'Kanal Kategorilerini Düzenleme';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Create, edit, or delete categories to group your channels.' : 'Kanallarınızı gruplandırmak için kategoriler oluşturabilir, düzenleyebilir veya silebilirsiniz.';
+    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'tag');
+    if (typeof loadCategoriesToTools === 'function') loadCategoriesToTools(localDb.categories);
+  } else if (section === 'ape' && apeContainer) {
+    apeContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'APE (Direct Video/Channel Watched Marker)' : 'APE (Hızlı İzlendi İşaretleme Aracı)';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Mark videos as watched in library and YouTube history by entering video or channel links.' : 'Video veya kanal linki girerek kütüphanede ve YouTube geçmişinizde videoları anında izlendi olarak işaretleyin.';
+    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'check-check');
+  } else if (section === 'subscriptions' && subsContainer) {
+    subsContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Import YouTube Subscriptions' : 'YouTube Aboneliklerini İçe Aktar';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Fetch your subscribed channels from YouTube and bulk-add them to your follow list.' : 'YouTube hesabınızdaki abone kanallarını getirip takip listenize toplu ekleyin.';
+    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'users');
+  } else if (section === 'bulk-delete' && bulkContainer) {
+    bulkContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Bulk Video Deletion' : 'Toplu Video Silme';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'List and bulk delete your downloaded videos along with their physical files from disk.' : 'Kütüphanenizdeki indirilen videoları seçerek diskten veya veritabanından toplu olarak silebilirsiniz.';
+    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'trash-2');
+  } else if (section === 'deleted' && deletedContainer) {
+    deletedContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Deleted Videos' : 'Silinen Videolar';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'List of last 100 auto-deleted and manually deleted videos with one-click re-download.' : 'Otomatik veya manuel olarak silinen son 100 videoyu listeleyebilir ve dilediğinizi tek tıkla tekrar indirebilirsiniz.';
+    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'trash-2');
+    if (typeof window.loadDeletedVideosList === 'function') window.loadDeletedVideosList(false);
+  } else {
+    if (compareContainer) compareContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Advanced File Comparison & Sync' : 'Gelişmiş Dosya Karşılaştırma & Senkronizasyon';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Compares physical files in your download folder with database records.' : 'İndirme klasörünüzdeki fiziksel dosyaları veritabanı kayıtları ile karşılaştırarak eksik, yetim veya alakasız dosyaları listeler.';
+    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'folder-sync');
+  }
+
+  try {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+  } catch (e) {}
+}
+window.showToolsSubSection = showToolsSubSection;
+
+
+
+
+// ─── KATEGORİ YÖNETİMİ VE APE FONKSİYONLARI ───
+
+export async function changeChannelCategory(channelId, categoryId) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const catInt = parseInt(categoryId, 10);
+  if (!catInt) return;
+
+  const channel = localDb.channels.find(c => c.id === channelId);
+  if (!channel) return;
+
+  let currentIds = channel.categoryIds || (channel.categoryId !== undefined ? [channel.categoryId] : [1]);
+  if (currentIds.includes(catInt)) return; // Zaten ekliyse ekleme
+
+  let newIds = [...currentIds, catInt];
+  if (catInt !== 1 && newIds.includes(1)) {
+    newIds = newIds.filter(id => id !== 1);
+  }
+
+  try {
+    const res = await fetch(`/api/channels/${channelId}/category`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categoryIds: newIds })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast(isEn ? 'Category added to channel.' : 'Kategori kanala eklendi.', 'success');
+    } else {
+      showToast(result.error || (isEn ? 'Failed to add category.' : 'Kategori eklenemedi.'), 'error');
+    }
+  } catch (err) {
+    console.error('changeChannelCategory error:', err);
+    showToast(isEn ? 'Failed to add category.' : 'Kategori eklenemedi.', 'error');
+  }
+}
+window.changeChannelCategory = changeChannelCategory;
+
+/**
+ * Kanaldan kategori kaldırır (Çoklu Kategori).
+ */
+export async function removeChannelCategory(channelId, catId) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const catInt = parseInt(catId, 10);
+  if (!catInt) return;
+
+  const channel = localDb.channels.find(c => c.id === channelId);
+  if (!channel) return;
+
+  let currentIds = channel.categoryIds || (channel.categoryId !== undefined ? [channel.categoryId] : [1]);
+  let newIds = currentIds.filter(id => id !== catInt);
+
+  if (newIds.length === 0) {
+    newIds = [1];
+  }
+
+  try {
+    const res = await fetch(`/api/channels/${channelId}/category`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categoryIds: newIds })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast(isEn ? 'Category removed from channel.' : 'Kategori kanaldan kaldırıldı.', 'success');
+    } else {
+      showToast(result.error || (isEn ? 'Failed to remove category.' : 'Kategori kaldırılamadı.'), 'error');
+    }
+  } catch (err) {
+    console.error('removeChannelCategory error:', err);
+    showToast(isEn ? 'Failed to remove category.' : 'Kategori kaldırılamadı.', 'error');
+  }
+}
+window.removeChannelCategory = removeChannelCategory;
+
+/**
+ * Araçlar sekmesindeki kategori listesini render eder.
+ */
+export function loadCategoriesToTools(categories) {
+  const listEl = document.getElementById('tools-categories-list');
+  if (!listEl) return;
+
+  const cats = categories || localDb?.categories || [];
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const lang = localDb.settings?.lang || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
+
+  let quickPins = [];
+  try {
+    quickPins = JSON.parse(localStorage.getItem('haytool_quick_category_pins') || '[]');
+  } catch (e) {
+    quickPins = [];
+  }
+  const catSig = `${lang}##${quickPins.sort().join(',')}##${cats.map(c => `${c.id}:${c.name}`).join(';')}`;
+  if (window._lastToolsCategoriesSignature === catSig && listEl.children.length > 0) {
+    return;
+  }
+  if (listEl.contains(document.activeElement)) {
+    return;
+  }
+  window._lastToolsCategoriesSignature = catSig;
+  listEl.innerHTML = '';
+  const sortedCats = [...cats].sort((a, b) => {
+    if (a.id === 1) return -1;
+    if (b.id === 1) return 1;
+    const nameA = getCatTranslatedName(a, t);
+    const nameB = getCatTranslatedName(b, t);
+    return nameA.localeCompare(nameB, lang, { sensitivity: 'base' });
+  });
+
+  sortedCats.forEach(cat => {
+    const catName = getCatTranslatedName(cat, t);
+    const isPinned = quickPins.includes(cat.id);
+
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border-color)';
+    
+    const deleteBtnDisabled = cat.id === 1 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+    
+    tr.innerHTML = `
+      <td style="padding:10px 12px; font-weight: 600; color: var(--text-muted);">${cat.id}</td>
+      <td style="padding:10px 12px;" id="cat-name-text-${cat.id}">${escapeHtml(catName)}</td>
+      <td style="padding:10px 12px; text-align:center;">
+        <button type="button" class="btn-icon ${isPinned ? 'active-quick-pin' : ''}" onclick="toggleQuickCategoryPin(${cat.id})" title="${isPinned ? (t.category_quick_unpinned || 'Hızlı bardan kaldır') : (t.category_quick_pinned || 'Hızlı bara sabitle (Max 5)')}" style="width:28px; height:28px; border-radius:6px; border:1px solid ${isPinned ? 'var(--accent-color)' : 'var(--border-color)'}; background:${isPinned ? 'rgba(56, 189, 248, 0.15)' : 'transparent'}; color:${isPinned ? 'var(--accent-color)' : 'var(--text-muted)'}; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s ease;">
+          <i data-lucide="${isPinned ? 'pin' : 'pin-off'}" style="width: 14px; height: 14px;"></i>
+        </button>
+      </td>
+      <td style="padding:10px 12px; text-align:right;">
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button class="btn-icon" onclick="editCategoryName(${cat.id}, '${escapeHtml(cat.name)}')" title="${t.category_edit_tooltip || 'Kategoriyi Düzenle'}">
+            <i data-lucide="edit-3" style="width: 14px; height: 14px; color: var(--accent-color);"></i>
+          </button>
+          <button class="btn-icon" onclick="deleteCategory(${cat.id})" ${deleteBtnDisabled} title="${t.category_delete_tooltip || 'Kategoriyi Sil'}">
+            <i data-lucide="trash-2" style="width: 14px; height: 14px; color: var(--accent-red);"></i>
+          </button>
+        </div>
+      </td>
+    `;
+    listEl.appendChild(tr);
+  });
+
+  try {
+    lucide.createIcons();
+  } catch (e) {}
+}
+window.loadCategoriesToTools = loadCategoriesToTools;
+
+/**
+ * Türkçe Açıklama: İndirilenler üst barındaki hızlı kategori buton sabitlemesini açar/kapatır (Maks 5).
+ * @param {number} catId Kategori ID
+ */
+export function toggleQuickCategoryPin(catId) {
+  const lang = localDb.settings?.lang || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
+  const numId = parseInt(catId, 10);
+  let pins = [];
+  try {
+    pins = JSON.parse(localStorage.getItem('haytool_quick_category_pins') || '[]');
+    if (!Array.isArray(pins)) pins = [];
+  } catch (e) {
+    pins = [];
+  }
+
+  const idx = pins.indexOf(numId);
+  if (idx >= 0) {
+    pins.splice(idx, 1);
+    showToast(t.category_quick_unpinned || 'İndirilenler üst barından kaldırıldı', 'info');
+  } else {
+    if (pins.length >= 5) {
+      showToast(t.category_quick_limit_warning || 'En fazla 5 kategori hızlı buton olarak seçilebilir.', 'warning');
+      return;
+    }
+    pins.push(numId);
+    showToast(t.category_quick_pinned || 'İndirilenler üst barına sabitlendi', 'success');
+  }
+
+  localStorage.setItem('haytool_quick_category_pins', JSON.stringify(pins));
+  window._lastToolsCategoriesSignature = null;
+  loadCategoriesToTools(localDb.categories);
+
+  if (typeof renderDownloadedCategoryQuickPills === 'function') {
+    renderDownloadedCategoryQuickPills();
+  }
+}
+window.toggleQuickCategoryPin = toggleQuickCategoryPin;
+
+/**
+ * Araçlar sekmesinden yeni kategori ekler.
+ */
+export async function addCategoryFromTools() {
+  const input = document.getElementById('new-category-input');
+  if (!input) return;
+  const name = input.value.trim();
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+
+  if (!name) {
+    showToast(isEn ? 'Category name cannot be empty.' : 'Kategori adı boş olamaz.', 'warning');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/channels/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const result = await res.json();
+    if (result.success) {
+      input.value = '';
+      showToast(isEn ? 'Category added.' : 'Kategori başarıyla eklendi.', 'success');
+    } else {
+      showToast(result.error || (isEn ? 'Failed to add category.' : 'Kategori eklenemedi.'), 'error');
+    }
+  } catch (err) {
+    console.error('addCategoryFromTools error:', err);
+    showToast(isEn ? 'Failed to add category.' : 'Kategori eklenemedi.', 'error');
+  }
+}
+window.addCategoryFromTools = addCategoryFromTools;
+
+/**
+ * Kategori adını düzenler (inline input alanı oluşturarak).
+ */
+export function editCategoryName(id, currentName) {
+  const cell = document.getElementById(`cat-name-text-${id}`);
+  if (!cell) return;
+
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentName;
+  input.style.cssText = 'padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 0.85rem; width: 80%;';
+  
+  const saveBtn = document.createElement('button');
+  saveBtn.innerHTML = '✓';
+  saveBtn.className = 'btn btn-primary';
+  saveBtn.style.cssText = 'padding: 4px 8px; margin-left: 6px; font-size: 0.8rem;';
+  
+  cell.innerHTML = '';
+  cell.appendChild(input);
+  cell.appendChild(saveBtn);
+  input.focus();
+
+  const performSave = async () => {
+    const newName = input.value.trim();
+    if (!newName) {
+      showToast(isEn ? 'Category name cannot be empty.' : 'Kategori adı boş olamaz.', 'warning');
+      cell.textContent = currentName;
+      return;
+    }
+    if (newName === currentName) {
+      cell.textContent = currentName;
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/channels/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName })
+      });
+      const result = await res.json();
+      if (result.success) {
+        showToast(isEn ? 'Category updated.' : 'Kategori güncellendi.', 'success');
+      } else {
+        showToast(result.error || (isEn ? 'Failed to update category.' : 'Kategori güncellenemedi.'), 'error');
+        cell.textContent = currentName;
+      }
+    } catch (err) {
+      console.error('editCategoryName error:', err);
+      showToast(isEn ? 'Failed to update category.' : 'Kategori güncellenemedi.', 'error');
+      cell.textContent = currentName;
+    }
+  };
+
+  saveBtn.onclick = performSave;
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') performSave();
+    if (e.key === 'Escape') cell.textContent = currentName;
+  };
+}
+window.editCategoryName = editCategoryName;
+
+/**
+ * Kategoriyi siler.
+ */
+export async function deleteCategory(id) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const confirmMsg = isEn 
+    ? 'Are you sure you want to delete this category? Channels in this category will be moved to General.' 
+    : 'Bu kategoriyi silmek istediğinize emin misiniz? Bu kategorideki kanallar Genel kategorisine taşınacaktır.';
+  
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const res = await fetch(`/api/channels/categories/${id}`, {
+      method: 'DELETE'
+    });
+    const result = await res.json();
+    if (result.success) {
+      showToast(isEn ? 'Category deleted.' : 'Kategori silindi.', 'success');
+    } else {
+      showToast(result.error || (isEn ? 'Failed to delete category.' : 'Kategori silinemedi.'), 'error');
+    }
+  } catch (err) {
+    console.error('deleteCategory error:', err);
+    showToast(isEn ? 'Failed to delete category.' : 'Kategori silinemedi.', 'error');
+  }
+}
+window.deleteCategory = deleteCategory;
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof restoreHistoryFilterState === 'function') restoreHistoryFilterState();
+  if (typeof restoreDownloadedFilterState === 'function') restoreDownloadedFilterState();
+
+  const durationFilterEl = document.getElementById('history-duration-filter');
+  if (durationFilterEl) {
+    durationFilterEl.addEventListener('change', onHistoryDurationFilterChange);
+  }
+
+  // Kanal Filtrelerini Sayfa Yüklenince Otomatik Doldur
+  setTimeout(() => {
+    if (typeof populateChannelFilters === 'function') {
+      populateChannelFilters(localDb);
+    }
+  }, 300);
+});
+
+/**
+ * APE Aracı: Girilen video veya kanal linkindeki videoları izlendi/gizlendi işaretler.
+ */
+export async function handleApeMarkWatched() {
+  const inputEl = document.getElementById('ape-target-input');
+  const syncCb = document.getElementById('ape-sync-youtube-checkbox');
+  const limitEl = document.getElementById('ape-limit-input');
+  const resultBox = document.getElementById('ape-result-box');
+  const resultText = document.getElementById('ape-result-text');
+  const resultIcon = document.getElementById('ape-result-icon');
+  const btn = document.getElementById('btn-ape-mark-watched');
+
+  if (!inputEl) return;
+  const target = inputEl.value.trim();
+  const limit = limitEl ? parseInt(limitEl.value, 10) || 50 : 50;
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+
+  if (!target) {
+    showToast(t.ape_empty_input || 'Lütfen bir video veya kanal linki girin.', 'warning');
+    if (inputEl) inputEl.focus();
+    return;
+  }
+
+  const syncYouTube = syncCb ? syncCb.checked : true;
+
+  try {
+    if (btn) btn.disabled = true;
+    showToast(t.ape_processing || 'İşleniyor...', 'info');
+
+    const res = await fetch('/api/tools/ape-mark-watched', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target, syncYouTube, limit })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'Başarıyla işaretlendi.', 'success');
+      if (resultBox && resultText) {
+        resultBox.classList.remove('hidden');
+        resultBox.style.background = 'rgba(34, 197, 94, 0.1)';
+        resultBox.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+        resultBox.style.color = '#22c55e';
+        resultText.innerHTML = `<strong>${t.ape_success_title || 'Başarılı:'}</strong> ${escapeHtml(data.message)}`;
+        if (resultIcon) resultIcon.setAttribute('data-lucide', 'check-circle');
+      }
+      inputEl.value = '';
+    } else {
+      showToast(data.error || 'İşlem başarısız oldu.', 'error');
+      if (resultBox && resultText) {
+        resultBox.classList.remove('hidden');
+        resultBox.style.background = 'rgba(239, 68, 68, 0.1)';
+        resultBox.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        resultBox.style.color = '#ef4444';
+        resultText.innerHTML = `<strong>${t.ape_error_title || 'Hata:'}</strong> ${escapeHtml(data.error || 'Bilinmeyen hata')}`;
+        if (resultIcon) resultIcon.setAttribute('data-lucide', 'alert-triangle');
+      }
+    }
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+  } catch (err) {
+    showToast(err.message || 'Bağlantı hatası.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+};
+
+/**
+ * Araçlar sekmesindeki akordiyon menü ögelerinin açılıp kapanmasını kontrol eder.
+ * @param {'compare'|'categories'|'ape'} itemKey Akordiyon öge anahtarı
+ */
+export function toggleToolsAccordion(itemKey) {
+  const itemEl = document.getElementById(`accordion-item-${itemKey}`);
+  if (!itemEl) return;
+  const isCurrentlyActive = itemEl.classList.contains('active');
+  
+  if (isCurrentlyActive) {
+    itemEl.classList.remove('active');
+  } else {
+    itemEl.classList.add('active');
+  }
+  try {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+  } catch (e) {}
+};
+
+
+
+window.handleApeMarkWatched = handleApeMarkWatched;
+window.toggleToolsAccordion = toggleToolsAccordion;
+
+// === YOUTUBE ABONELİKLERİNİ İÇE AKTAR ===
+// Türkçe Açıklama: YouTube abone kanallarını backend'den çekip seçmeli takip listesi listeler.
+let subscriptionsCache = [];
+
+export async function fetchYouTubeSubscriptions() {
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+  const listEl = document.getElementById('subs-list');
+  const loadingEl = document.getElementById('subs-loading');
+  const btn = document.getElementById('btn-subs-fetch');
+  const resultBox = document.getElementById('subs-result-box');
+  const resultText = document.getElementById('subs-result-text');
+  const resultIcon = document.getElementById('subs-result-icon');
+  const importBtn = document.getElementById('btn-subs-import');
+
+  if (loadingEl) loadingEl.classList.remove('hidden');
+  if (listEl) listEl.innerHTML = '';
+  if (importBtn) importBtn.style.display = 'none';
+  if (resultBox) resultBox.classList.add('hidden');
+  if (btn) btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/tools/subscriptions');
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || 'Abonelikler çekilemedi.', 'error');
+      if (resultBox && resultText) {
+        resultBox.classList.remove('hidden');
+        resultBox.style.background = 'rgba(239, 68, 68, 0.1)';
+        resultBox.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        resultBox.style.color = '#ef4444';
+        resultText.innerHTML = `<strong>${t.ape_error_title || 'Hata:'}</strong> ${escapeHtml(data.error || 'Bilinmeyen hata')}`;
+        if (resultIcon) resultIcon.setAttribute('data-lucide', 'alert-triangle');
+      }
+      return;
+    }
+
+    subscriptionsCache = data.channels || [];
+    if (subscriptionsCache.length === 0) {
+      if (resultBox && resultText) {
+        resultBox.classList.remove('hidden');
+        resultBox.style.background = 'rgba(239, 68, 68, 0.1)';
+        resultBox.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        resultBox.style.color = '#ef4444';
+        resultText.innerHTML = `<strong>${t.ape_error_title || 'Hata:'}</strong> ${escapeHtml(data.message || 'Abone kanalı bulunamadı.')}`;
+        if (resultIcon) resultIcon.setAttribute('data-lucide', 'alert-triangle');
+      }
+      return;
+    }
+
+    listEl.innerHTML = subscriptionsCache.map(ch => `
+      <label style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:6px; cursor:${ch.followed ? 'default' : 'pointer'}; ${ch.followed ? 'opacity:0.55;' : ''}" title="${escapeHtml(ch.id)}">
+        <input type="checkbox" class="subs-check" data-id="${escapeHtml(ch.id)}" data-name="${escapeHtml(ch.name)}" ${ch.followed ? 'disabled' : ''} onchange="updateSubsImportButton()">
+        <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.9rem;">${escapeHtml(ch.name)}</span>
+        ${ch.followed ? '<span style="font-size:0.72rem; color:var(--text-muted); flex-shrink:0;">' + (t.subs_followed || 'Takip ediliyor ✓') + '</span>' : ''}
+      </label>
+    `).join('');
+
+    if (importBtn) importBtn.style.display = 'none';
+    if (resultBox && resultText) {
+      resultBox.classList.remove('hidden');
+      resultBox.style.background = 'rgba(34, 197, 94, 0.1)';
+      resultBox.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+      resultBox.style.color = '#22c55e';
+      resultText.innerHTML = `<strong>${t.subs_found_title || 'Bulundu:'}</strong> ${subscriptionsCache.length} ${t.subs_channel_count || 'abone kanalı'}`;
+      if (resultIcon) resultIcon.setAttribute('data-lucide', 'check-circle');
+    }
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  } finally {
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (btn) btn.disabled = false;
+  }
+}
+window.fetchYouTubeSubscriptions = fetchYouTubeSubscriptions;
+
+// Türkçe Açıklama: Seçilen abone sayısına göre "Ekle" butonunu ve sayacı günceller.
+export function updateSubsImportButton() {
+  const checked = document.querySelectorAll('.subs-check:checked').length;
+  const importBtn = document.getElementById('btn-subs-import');
+  const countEl = document.getElementById('subs-selected-count');
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+  if (importBtn) importBtn.style.display = checked > 0 ? 'inline-flex' : 'none';
+  if (countEl) countEl.textContent = checked > 0 ? `${checked} ${t.subs_selected || 'kanal seçildi'}` : '';
+}
+window.updateSubsImportButton = updateSubsImportButton;
+
+// Türkçe Açıklama: Seçilen abone kanallarını takip listesine toplu ekler.
+export async function importSelectedSubscriptions() {
+  const checked = [...document.querySelectorAll('.subs-check:checked')];
+  if (checked.length === 0) return;
+  const lang = localStorage.getItem('haytool_user_lang') || 'tr';
+  const t = translations[lang] || translations.tr;
+  const channels = checked.map(cb => ({ id: cb.dataset.id, name: cb.dataset.name }));
+  const btn = document.getElementById('btn-subs-import');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/tools/subscriptions/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channels })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`${data.addedCount} ${t.subs_added_toast || 'kanal takip listesine eklendi'}${data.skippedCount ? ` (${data.skippedCount} ${t.subs_skipped || 'atlandı'})` : ''}.`, 'success');
+      checked.forEach(cb => { cb.checked = false; cb.disabled = true; });
+      const resultBox = document.getElementById('subs-result-box');
+      const resultText = document.getElementById('subs-result-text');
+      const resultIcon = document.getElementById('subs-result-icon');
+      if (resultBox && resultText) {
+        resultBox.classList.remove('hidden');
+        resultBox.style.background = 'rgba(34, 197, 94, 0.1)';
+        resultBox.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+        resultBox.style.color = '#22c55e';
+        resultText.innerHTML = `<strong>${t.subs_success_title || 'Başarılı:'}</strong> ${data.addedCount} ${t.subs_added_detail || 'kanal eklendi. Kanal bilgileri (avatar, abone sayısı) Kanallar sekmesinden "Bilgileri Güncelle" ile doldurulabilir.'}`;
+        if (resultIcon) resultIcon.setAttribute('data-lucide', 'check-circle');
+      }
+      updateSubsImportButton();
+    } else {
+      showToast(data.error || 'Ekleme başarısız.', 'error');
+    }
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+window.importSelectedSubscriptions = importSelectedSubscriptions;
+
+// Türkçe Açıklama: YouTube feed/channels (abonelikler) sayfasını WebView2 oynatıcıda açar.
+export async function openSubscriptionsPage() {
+  try {
+    const res = await fetch('/api/tools/open-subscriptions', { method: 'POST' });
+    const data = await res.json();
+    showToast(data.message || 'YouTube abonelik sayfası açılıyor...', 'info');
+  } catch (err) {
+    showToast('Sunucu ile iletişim hatası.', 'error');
+  }
+}
+window.openSubscriptionsPage = openSubscriptionsPage;
+
+// ─── 5. BÖLÜM: SİLİNEN VİDEOLAR MODÜLÜ ───
+
+let cachedDeletedVideos = [];
+let deletedVideosLoaded = false;
+let deletedVideosLoadPromise = null;
+
+/**
+ * Silinen videoları bellekte önbelleğe alır; yenileme düğmesi sunucudan zorla çeker.
+ */
+export async function loadDeletedVideosList(force = true) {
+  const list = document.getElementById('deleted-videos-list');
+  const refreshButton = document.getElementById('btn-refresh-deleted-videos');
+  if (!list) return;
+
+  if (!force && deletedVideosLoaded) return;
+  if (deletedVideosLoadPromise) return deletedVideosLoadPromise;
+
+  refreshButton?.setAttribute('aria-busy', 'true');
+  refreshButton?.classList.add('is-loading');
+  if (refreshButton) refreshButton.disabled = true;
+
+  deletedVideosLoadPromise = (async () => {
+    const response = await fetch('/api/deleted-videos');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    cachedDeletedVideos = data.success && Array.isArray(data.videos) ? data.videos : [];
+    deletedVideosLoaded = true;
+    renderDeletedVideosTable(cachedDeletedVideos);
+  })();
+
+  try {
+    await deletedVideosLoadPromise;
+  } catch (err) {
+    console.error('Silinen videolar yüklenemedi:', err);
+    showToast('Silinen videolar listesi alınamadı.', 'error');
+  } finally {
+    deletedVideosLoadPromise = null;
+    refreshButton?.removeAttribute('aria-busy');
+    refreshButton?.classList.remove('is-loading');
+    if (refreshButton) refreshButton.disabled = false;
+  }
+}
+window.loadDeletedVideosList = loadDeletedVideosList;
+
+/**
+ * Kart listesini tek DOM eklemesiyle kurar; filtreleme kartları yeniden oluşturmadan yapılır.
+ */
+export function renderDeletedVideosTable(videos) {
+  const list = document.getElementById('deleted-videos-list');
+  if (!list) return;
+
+  const lang = localDb.settings?.lang || 'tr';
+  const t = translations[lang] || translations.tr;
+  document.getElementById('deleted-videos-search')?.setAttribute('aria-label', t.tools_deleted_search_placeholder);
+  document.getElementById('deleted-videos-filter-type')?.setAttribute('aria-label', t.tools_deleted_filter_all);
+  const fragment = document.createDocumentFragment();
+  const formatDate = value => value
+    ? new Date(value).toLocaleString(lang === 'en' ? 'en-US' : lang)
+    : '-';
+  const createMeta = (label, value) => {
+    const item = document.createElement('span');
+    item.className = 'deleted-video-meta';
+    const labelNode = document.createElement('span');
+    labelNode.className = 'deleted-video-meta-label';
+    labelNode.textContent = `${label}: `;
+    const valueNode = document.createElement('span');
+    valueNode.className = 'deleted-video-meta-value';
+    valueNode.textContent = value || '-';
+    item.append(labelNode, valueNode);
+    return item;
+  };
+
+  (videos || []).forEach(video => {
+    const card = document.createElement('article');
+    card.className = 'deleted-video-card';
+    card.setAttribute('role', 'listitem');
+    card.dataset.deleteReason = video.deleteReason === 'auto' ? 'auto' : 'manual';
+    card.dataset.searchText = `${video.title || ''} ${video.channelName || ''} ${video.id || ''}`.toLocaleLowerCase(lang);
+
+    const videoUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(video.id || '')}`;
+    const previewLink = document.createElement('a');
+    previewLink.className = 'deleted-video-preview-link';
+    previewLink.href = videoUrl;
+    previewLink.target = '_blank';
+    previewLink.rel = 'noopener noreferrer';
+    previewLink.setAttribute('aria-label', video.title || video.id || t.tools_deleted_col_video);
+
+    const image = document.createElement('img');
+    image.className = 'deleted-video-thumbnail';
+    image.src = video.thumbnail || '/logo.png';
+    image.alt = '';
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.addEventListener('error', () => { image.src = '/logo.png'; }, { once: true });
+    previewLink.appendChild(image);
+
+    const content = document.createElement('div');
+    content.className = 'deleted-video-content';
+    const topLine = document.createElement('div');
+    topLine.className = 'deleted-video-topline';
+
+    const title = document.createElement('a');
+    title.className = 'deleted-video-title';
+    title.href = videoUrl;
+    title.target = '_blank';
+    title.rel = 'noopener noreferrer';
+    title.textContent = video.title || video.id || t.tools_deleted_col_video;
+    title.title = title.textContent;
+
+    const type = document.createElement('span');
+    type.className = `deleted-video-type ${card.dataset.deleteReason}`;
+    type.textContent = card.dataset.deleteReason === 'auto' ? t.tools_deleted_filter_auto : t.tools_deleted_filter_manual;
+    topLine.append(title, type);
+
+    const metadata = document.createElement('div');
+    metadata.className = 'deleted-video-meta-grid';
+    metadata.append(
+      createMeta(t.tools_deleted_col_channel, video.channelName),
+      createMeta(t.tools_deleted_col_size, video.fileSize),
+      createMeta(t.tools_deleted_col_download_date, formatDate(video.downloadedAt)),
+      createMeta(t.tools_deleted_col_delete_date, formatDate(video.deletedAt))
+    );
+
+    const footer = document.createElement('div');
+    footer.className = 'deleted-video-footer';
+    const identifier = document.createElement('span');
+    identifier.className = 'deleted-video-id';
+    identifier.textContent = video.id || '-';
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'btn btn-primary btn-sm deleted-video-redownload';
+    action.textContent = t.tools_deleted_btn_redownload;
+    action.setAttribute('aria-label', `${t.tools_deleted_btn_redownload}: ${title.textContent}`);
+    action.addEventListener('click', () => redownloadDeletedVideo(video.id));
+    footer.append(identifier, action);
+
+    content.append(topLine, metadata, footer);
+    card.append(previewLink, content);
+    fragment.appendChild(card);
+  });
+
+  list.replaceChildren(fragment);
+  filterDeletedVideosTable();
+}
+window.renderDeletedVideosTable = renderDeletedVideosTable;
+
+/**
+ * Arama ve tür seçimine göre mevcut kartları yeniden oluşturmadan filtreler.
+ */
+export function filterDeletedVideosTable() {
+  const lang = localDb.settings?.lang || 'tr';
+  const query = (document.getElementById('deleted-videos-search')?.value || '').toLocaleLowerCase(lang).trim();
+  const filterType = document.getElementById('deleted-videos-filter-type')?.value || 'all';
+  const list = document.getElementById('deleted-videos-list');
+  if (!list) return;
+
+  let visibleCount = 0;
+  list.querySelectorAll('.deleted-video-card').forEach(card => {
+    const matchesQuery = !query || card.dataset.searchText.includes(query);
+    const matchesType = filterType === 'all' || card.dataset.deleteReason === filterType;
+    card.hidden = !(matchesQuery && matchesType);
+    if (!card.hidden) visibleCount += 1;
+  });
+
+  const emptyBox = document.getElementById('deleted-videos-empty');
+  const emptyMessage = document.getElementById('msg-no-deleted-videos');
+  const t = translations[localDb.settings?.lang] || translations.tr;
+  if (emptyMessage) {
+    emptyMessage.textContent = cachedDeletedVideos.length && !visibleCount
+      ? t.tools_deleted_no_results
+      : t.tools_deleted_empty;
+  }
+  if (emptyBox) emptyBox.classList.toggle('hidden', visibleCount > 0);
+}
+window.filterDeletedVideosTable = filterDeletedVideosTable;
+
+/**
+ * Silinen videoyu sunucudan tekrar indirme kuyruğuna aldırır.
+ */
+export async function redownloadDeletedVideo(videoId) {
+  if (!videoId) return;
+  const isEn = localDb.settings?.lang === 'en';
+  try {
+    const res = await fetch('/api/deleted-videos/redownload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Video added to download queue!' : 'Video tekrar indirme kuyruğuna eklendi!', 'success');
+      if (window.switchTab) window.switchTab('queue');
+    } else {
+      showToast(data.error || (isEn ? 'Failed to queue video.' : 'Kuyruğa eklenemedi.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Network error.' : 'İletişim hatası.', 'error');
+  }
+}
+window.redownloadDeletedVideo = redownloadDeletedVideo;
+
+/**
+ * Silinen videolar listesini sıfırlar.
+ */
+export async function clearDeletedVideosList() {
+  const isEn = localDb.settings?.lang === 'en';
+  if (!confirm(isEn ? 'Are you sure you want to clear the deleted videos history?' : 'Silinen videolar listesini temizlemek istediğinizden emin misiniz?')) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/deleted-videos/clear', { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(isEn ? 'Deleted videos list cleared.' : 'Silinen videolar listesi temizlendi.', 'info');
+      cachedDeletedVideos = [];
+      deletedVideosLoaded = true;
+      renderDeletedVideosTable([]);
+    } else {
+      showToast(data.error || 'Hata oluştu.', 'error');
+    }
+  } catch (err) {
+    showToast('İletişim hatası.', 'error');
+  }
+}
+window.clearDeletedVideosList = clearDeletedVideosList;
+

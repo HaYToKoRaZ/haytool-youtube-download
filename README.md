@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="public/logo.png" alt="Multimedia HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
+  <img src="main/public/logo.png" alt="Multimedia HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v11.0.9)</p>
+# <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v12.0.5)</p>
 
 <p align="center">
   <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System & Native Player</b><br/>
@@ -22,7 +22,7 @@
   <img src="https://img.shields.io/badge/UI-Vanilla%20CSS3%20%7C%20Lucide%20Icons-1572B6?style=for-the-badge&logo=css3" alt="UI" />
   <img src="https://img.shields.io/badge/Player-Plyr-ff0000?style=for-the-badge&logo=youtube" alt="Players" />
   <img src="https://img.shields.io/badge/Downloader-yt--dlp%20%7C%20FFmpeg-4af626?style=for-the-badge" alt="Downloader" />
-  <img src="https://img.shields.io/badge/Version-v11.0.9-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v12.0.5-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases/latest"><img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&logo=github&color=2ea44f&label=LATEST%20DOWNLOADS" alt="Latest Release Downloads" /></a>
   <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases"><img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/total?style=for-the-badge&logo=github&color=0969da&label=TOTAL%20DOWNLOADS" alt="Total Downloads" /></a>
@@ -80,13 +80,19 @@ Instead of logging into YouTube and exposing your data to ads and algorithmic tr
 Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-packaged in the repository, you can run the application immediately after downloading.
 
 ### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
-* **Double-click Launch:**
-  Double-click `Multimedia HaYTooL.exe` in the root folder to start the application silently in the system tray and open the dashboard in your browser.
-* **Native Desktop & Media Player Window:**
-  Double-click `HaYTooL-Player.exe` to open the application in a dedicated native window (bypassing Chrome/Edge). Playing any downloaded video inside this window opens our integrated high-performance Plyr player to watch files directly from disk (zero-stream lag) with local subtitle base64 auto-loading, double-click fullscreen, mouse wheel volume control, and resume-playback memory.
-* **Command Line Launch:**
+* **Unified Launch (Single Executable):**
+  Double-click `Multimedia HaYTooL.exe` in the root folder. It starts the background engine, system tray icon, and opens the native media player window directly (zero-stream lag disk playback, custom WebView2 browser, and full desktop integration in one single lightweight executable).
+* **Command Line Launch Options:**
   ```cmd
+  :: Standard launch (Starts background server, system tray icon, and player window):
   "Multimedia HaYTooL.exe"
+
+  :: Silent mode (Runs completely in background as a silent service; NO tray icon, NO window):
+  "Multimedia HaYTooL.exe" silent
+  :: (Also accepts --silent, /silent, -silent, --headless)
+
+  :: Tray-only mode (Minimizes directly to tray without popping up player window):
+  "Multimedia HaYTooL.exe" --tray-only
   ```
 
 ### ![Linux](https://img.shields.io/badge/-Linux-FCC624?style=flat-square&logo=linux&logoColor=black) / ![macOS](https://img.shields.io/badge/-macOS-aaaaaa?style=flat-square&logo=apple&logoColor=white) (Unix)
@@ -126,10 +132,12 @@ When the video player is focused, you can control playback using standard shortc
 
 ## 💻 CLI & Console Commands
 
-You can manage download queues, speeds, and background profiles directly through the CLI using `"Multimedia HaYTooL.exe"` or via the interactive Console Input at the bottom of the System Tray log window:
+You can manage download queues, speeds, background profiles, or launch modes directly through the CLI using `"Multimedia HaYTooL.exe"` or via the interactive Console Input at the bottom of the System Tray log window:
 
 | Command | Arguments | Description | Example |
 | :--- | :--- | :--- | :--- |
+| `silent` | - | Starts app as silent background service (NO tray icon, NO UI window) | `"Multimedia HaYTooL.exe" silent` |
+| `--tray-only`| - | Starts app minimized directly to tray without opening UI window | `"Multimedia HaYTooL.exe" --tray-only` |
 | `pd` | `<youtube-url>` | Instantly downloads video/playlist and adds it to queue | `"Multimedia HaYTooL.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ` |
 | `status` | - | Shows active download queue, current limits, and Turtle mode | `"Multimedia HaYTooL.exe" status` |
 | `ton` | - | Enables Turtle Mode (Alternative speed limit profile) | `"Multimedia HaYTooL.exe" ton` |
@@ -137,11 +145,18 @@ You can manage download queues, speeds, and background profiles directly through
 | `toggle` | - | Switches between normal and Turtle speed modes | `"Multimedia HaYTooL.exe" toggle` |
 | `speed` | `<kb\|off>` | Sets standard download speed limit in KB/s (or disable) | `"Multimedia HaYTooL.exe" speed 2500` |
 | `altspeed`| `<kb>` | Sets turtle mode speed limit value in KB/s | `"Multimedia HaYTooL.exe" altspeed 500` |
+| `stop` / `exit` | - | Safely shuts down the background server and terminates application | `"Multimedia HaYTooL.exe" stop` |
 | `clear` | - | Clears the on-screen log window in the Tray console | `clear` |
 | `help` | - | Displays full list of available commands and parameters | `help` |
 
 **CLI Usage Examples:**
 ```cmd
+:: Launch completely silent without tray icon or window (silent service mode):
+"Multimedia HaYTooL.exe" silent
+
+:: Safely stop/terminate running background service and player from terminal:
+"Multimedia HaYTooL.exe" stop
+
 :: Download a video directly via Windows Command Prompt / PowerShell:
 "Multimedia HaYTooL.exe" pd "https://www.youtube.com/watch?v=example"
 
@@ -227,13 +242,19 @@ YouTube'a girip reklam tuzağına ve algoritma önerilerine maruz kalmak yerine,
 Tüm bağımlılıklar depo içerisinde hazır geldiğinden, indirdikten sonra doğrudan çalıştırabilirsiniz.
 
 ### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
-* **Çift Tıklama ile Başlatma:**
-  Kök dizindeki `Multimedia HaYTooL.exe` dosyasına çift tıklayarak uygulamayı arka planda başlatabilir ve arayüzü tarayıcınızda açabilirsiniz.
-* **Masaüstü Oynatıcı Penceresi:**
-  Kök dizindeki `HaYTooL-Player.exe` dosyasına çift tıklayarak uygulamayı harici tarayıcıya ihtiyaç duymadan doğrudan yerleşik pencerede açabilir; indirilen videoları doğrudan diskten sıfır gecikmeyle izleyebilirsiniz.
-* **Komut Satırı ile Başlatma:**
+* **Tekil Başlatma (Tek Bir EXE):**
+  Kök dizindeki `Multimedia HaYTooL.exe` dosyasına çift tıklayın. Sistem tepsisi simgesi, arka plan sunucusu ve masaüstü yerel oynatıcı penceresi tek bir hafif exe dosyasında birleştirilmiştir. İndirilen videoları diskten doğrudan sıfır gecikmeyle izleyebilirsiniz.
+* **Komut Satırı Başlatma Seçenekleri:**
   ```cmd
+  :: Standart Başlatma (Arka plan sunucusu, saat yanı tepsi simgesi ve oynatıcı penceresi açılır):
   "Multimedia HaYTooL.exe"
+
+  :: Sessiz (Silent) Mod (Tamamen arka planda sessiz servis olarak çalışır; tepsi simgesi YOK, pencere YOK):
+  "Multimedia HaYTooL.exe" silent
+  :: (Ayrıca --silent, /silent, -silent, --headless parametreleri de geçerlidir)
+
+  :: Yalnızca Tepsi Modu (Pencere açmadan doğrudan sistem tepsisine simge olarak küçültülmüş başlar):
+  "Multimedia HaYTooL.exe" --tray-only
   ```
 
 ### ![Linux](https://img.shields.io/badge/-Linux-FCC624?style=flat-square&logo=linux&logoColor=black) / ![macOS](https://img.shields.io/badge/-macOS-aaaaaa?style=flat-square&logo=apple&logoColor=white) (Unix)
@@ -273,10 +294,12 @@ Oynatıcı aktifken, aşağıdaki kısayollar ile oynatımı kontrol edebilirsin
 
 ## 💻 Komut Satırı & Konsol Kontrolleri
 
-İndirme kuyruklarını, hız profillerini ve arka plan işlemlerini `"Multimedia HaYTooL.exe"` üzerinden terminalden veya Sistem Tepsisi log ekranının altındaki komut satırından doğrudan yönetebilirsiniz:
+İndirme kuyruklarını, hız profillerini, arka plan servis modunu veya başlatma seçeneklerini `"Multimedia HaYTooL.exe"` üzerinden terminalden ya da Sistem Tepsisi log ekranının altındaki komut satırından doğrudan yönetebilirsiniz:
 
 | Komut | Parametre | Açıklama | Örnek |
 | :--- | :--- | :--- | :--- |
+| `silent` | - | Uygulamayı sessiz arka plan servisi olarak başlatır (Tepsi simgesi YOK, pencere YOK) | `"Multimedia HaYTooL.exe" silent` |
+| `--tray-only`| - | Pencere açmadan doğrudan sistem tepsisine simge olarak başlar | `"Multimedia HaYTooL.exe" --tray-only` |
 | `pd` | `<youtube-linki>` | Belirtilen YouTube video/oynatma listesini anında indirme kuyruğuna ekler | `"Multimedia HaYTooL.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ` |
 | `status` | - | Aktif kuyruğu, anlık hız limitlerini ve Kaplumbağa modu durumunu listeler | `"Multimedia HaYTooL.exe" status` |
 | `ton` | - | Kaplumbağa Modunu (Alternatif hız profilini) aktif hale getirir | `"Multimedia HaYTooL.exe" ton` |
@@ -284,11 +307,18 @@ Oynatıcı aktifken, aşağıdaki kısayollar ile oynatımı kontrol edebilirsin
 | `toggle` | - | Normal hız ve Kaplumbağa modu arasında tek komutla geçiş yapar | `"Multimedia HaYTooL.exe" toggle` |
 | `speed` | `<kb\|off>` | Standart indirme hız limitini KB/s cinsinden ayarlar (veya kapatır) | `"Multimedia HaYTooL.exe" speed 2500` |
 | `altspeed`| `<kb>` | Kaplumbağa modu alternatif hız profilini KB/s cinsinden belirler | `"Multimedia HaYTooL.exe" altspeed 500` |
+| `stop` / `exit` | - | Arka plan sunucusunu ve çalışan uygulamayı güvenle kapatıp sonlandırır | `"Multimedia HaYTooL.exe" stop` |
 | `clear` | - | Konsol log penceresindeki ekran çıktılarını anında temizler | `clear` |
 | `help` | - | Kullanılabilir tüm komutların ve açıklamaların listesini yazdırır | `help` |
 
 **CLI Kullanım Örnekleri:**
 ```cmd
+:: Uygulamayı saat yanında simge ve pencere olmadan tamamen sessiz arka plan servisi olarak başlatın:
+"Multimedia HaYTooL.exe" silent
+
+:: Çalışan arka plan servisini ve uygulamayı terminalden tek komutla kapatın:
+"Multimedia HaYTooL.exe" stop
+
 :: Bir videoyu veya oynatma listesini terminal üzerinden doğrudan indirme kuyruğuna ekleyin:
 "Multimedia HaYTooL.exe" pd "https://www.youtube.com/watch?v=ornek"
 

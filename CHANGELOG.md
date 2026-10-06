@@ -3,6 +3,136 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.0.5] - 2026-10-06
+- **fix(channels/auto-delete):** Kanal bazlı süre seçenekleri 1–15 gün arasında eksiksiz ve sıralı hale getirildi; daha uzun süreler korundu.
+
+## [12.0.4] - 2026-10-06
+- **feat(channels/auto-delete):** Kanala özel otomatik silme süresi seçenekleri 5, 10, 21, 45, 120, 180 ve 365 gün olarak genişletildi.
+
+## [12.0.3] - 2026-10-06
+- **fix(auto-delete):** Onay verilerek otomatik silinen videolar artık Silinen Videolar listesine `auto` nedeni ve dosya bilgileriyle kaydediliyor; kütüphanede gizli kalıyor.
+
+## [12.0.2] - 2026-10-06
+- **perf(ui/tools):** Silinen Videolar ekranı açılışta önbelleği kullanıyor; yenileme dışında tekrar ağ isteği yapmıyor. Kartlar tek parçada oluşturuluyor, filtreleme mevcut DOM üzerinde çalışıyor ve küçük resimler görünür oldukça yükleniyor.
+- **feat(ui/tools):** Tablo yerine koyu/açık tema uyumlu, mobilde tek sütuna geçen kart listesi eklendi; filtre sonucu boş kaldığında doğru açıklama gösteriliyor.
+
+## [12.0.1] - 2026-10-06
+- **fix(startup):** Silent modda çalışan uygulama normal başlatıldığında doğru ana pencere tanımlanıp güvenli mesaj iletimiyle görünür duruma getiriliyor.
+- **refactor(backend):** Node backend çalıştırılabilir dosyası Multimedia HaYTooL Backend.exe olarak yeniden adlandırıldı; başlatma ve kapatma yolları yeni ada uyarlandı.
+
+## [12.0.0] - 2026-10-06
+- **release:** Kullanıcı talebiyle uygulama sürümü 12.0.0 olarak belirlendi.
+
+## [11.2.16] - 2026-10-06
+- **feat(ui/tools): Silinen Videolar listesindeki dikey sınır kaldırıldı; satırın üzerine gelince video önizlemesi büyüyor.**
+
+## [11.2.15] - 2026-10-06
+- **fix(ui/tools): Silinen Videolar filtresinde tema değişkeni bulunmadığı için oluşan düşük kontrast giderildi; açılır seçeneklerde de tema uyumlu renkler tanımlandı.**
+
+## [11.2.14] - 2026-10-06
+- **fix(spa/assets): Araçlar alt sayfaları yenilendiğinde yerel JS ve CSS dosyalarının 404 alması giderildi; yerel varlık yolları kök dizine sabitlendi.**
+
+## [11.2.13] - 2026-10-06
+- **fix(tools): Araçlar menüsündeki yinelenen olay bağlama kaldırıldı; yenileme, alt sayfa geçişleri ve Silinen Videolar ekranının etkileşimleri tutarlı hale getirildi.**
+
+## [11.2.12] - 2026-10-06
+- **fix(tools/spa): Araçlar Alt Sayfalarının Yenilemede Kaybolması Giderildi:**
+  - Silinen Videolar, Kategoriler, APE ve Abonelikler tek `/tools` adresinde tutulduğu için F5 sonrası varsayılan “Gelişmiş Dosya Karşılaştırma” açılıyordu.
+  - Alt görünümler artık kalıcı URL taşır (`/tools/deleted`, `/tools/compare`, `/tools/categories`, `/tools/ape`, `/tools/subscriptions`); sunucu SPA rotası ve History API buna göre güncellendi.
+
+## [11.2.11] - 2026-10-06
+- **fix(silent/lifecycle): Sessiz Modda Pencere ve Dispatcher Yaşam Döngüsü Garantiye Alındı:**
+  - `MainWindow` referansı statik `App.RootWindow` alanında tutularak Garbage Collector tarafından erken temizlenmesi engellendi.
+  - Sessiz başlatmada pencere arka planda görünmez şekilde (`Opacity = 0`, `ShowInTaskbar = false`) bir kere `Show()` ve ardından `Hide()` edilerek tam teşekküllü WPF ve Win32 pencere tanıtıcısı (HWND) işletim sistemine tescil edildi.
+  - Kullanıcı normal `Multimedia HaYTooL.exe` dosyasına tıkladığında gizli pencere anında öne gelir (`Opacity = 1`, `ShowInTaskbar = true`, `Activate()`, `Focus()`) ve tepsi simgesi görünür kılınır.
+
+## [11.2.10] - 2026-10-06
+- **fix(ipc/wndproc): Gizli Başlatılan 'silent' Sürecin Win32 Mesajlarını Dinleyememe Sorunu Çözüldü:**
+  - `OnSourceInitialized` olayının yalnızca pencere ilk kez ekranda `Show()` edildiğinde tetiklenmesi nedeniyle, sessiz başlatılan süreçte `HwndSource.AddHook(WndProc)` dinleyicisinin hiçbir zaman takılmaması sorunu tespit edildi ve giderildi.
+  - Artık `MainWindow` kurucusunda (constructor) pencere tanıtıcısı (`EnsureHandle`) alındığı anda `WndProc` kancası (`AddHook`) derhal takılır.
+  - İkinci kopyadan gelen pencereleri tespit etmek için `EnumThreadWindows` Win32 API'si entegre edildi.
+  - Böylece `"Multimedia HaYTooL.exe" silent` ile arka planda çalışırken normal `Multimedia HaYTooL.exe` dosyasına tıklandığında arka plandaki süreç anında mesajı yakalar, saatin yanındaki tepsi simgesini görünür yapar ve arayüzü ekrana getirir.
+
+## [11.2.9] - 2026-10-06
+- **fix(silent/launch): 'silent' Modda Başlatıldıktan Sonra Normal Açılışın Tetiklenememesi Sorunu Giderildi:**
+  - Uygulama sessiz (`silent`) modda başlatıldığında ana pencere hiç gösterilmediği için Windows API `Process.MainWindowHandle` değerinin `IntPtr.Zero` dönmesi ve ikinci kopyanın ana süreci bulamadan kapanması sorunu çözüldü.
+  - `EnumWindows` Win32 API destekli `FindWindowForProcess` metodu entegre edilerek gizli/arka plandaki ana pencerenin handle'ı eksiksiz şekilde yakalandı.
+  - Uygulama silent modda çalışırken kullanıcı `"Multimedia HaYTooL.exe"` dosyasına tıkladığında veya çalıştırdığında, ana süreç bunu anında algılayarak saatin oradaki sistem tepsisi simgesini görünür kılar (`EnsureTrayVisible`) ve kullanıcının tercih ettiği arayüzü (Oynatıcı penceresi veya Edge/sistem tarayıcısı) öne getirir.
+
+## [11.2.8] - 2026-10-06
+- **feat(cli/shutdown): Uygulama ve Arka Plan Servisini Kapatma Komutları Eklendi (`stop` / `exit`):**
+  - Sessiz (`silent`) modda saatin yanında simge ve ekranda pencere bulunmadığı için kullanıcıların arka plan servisini terminalden tek komutla kapatabilmesini sağlayan `"Multimedia HaYTooL.exe" stop` (veya `exit`, `quit`, `kill`, `close`, `--stop`, `/stop`) komutu eklendi.
+  - İkinci bir kopya bu komutla çalıştırıldığında ilk sürece `WM_COPYDATA` ile kapanma talimatı gönderir, tüm alt backend (`HaYTool-Backend`) ve `Multimedia HaYTooL` süreçlerini güvenle sonlandırıp kapanır.
+  - Tepsi konsol penceresindeki komut kutusuna veya Node stdin dinleyicisine `stop`, `exit` veya `quit` yazıldığında da uygulamanın tüm süreçleri derhal kapatılır.
+- **docs(readme): Kapatma Komutları Belgeleri Güncellendi:**
+  - `README.md` dosyasında İngilizce ve Türkçe CLI komut tablolarına ve örneklerine `stop` / `exit` komutları eklendi.
+
+## [11.2.7] - 2026-10-06
+- **feat(cli/silent): 'silent' Başlatma Modu Eklendi (Tepsi Simgesi ve Pencere Olmadan Arka Plan Servisi):**
+  - `"Multimedia HaYTooL.exe" silent` (veya `--silent`, `/silent`, `-silent`, `--headless`) parametresi ile başlatıldığında, saatin yanındaki sistem tepsisi (`_trayIcon`) simgesi oluşturulmaz/gösterilmez (`Visible = false`) ve hiçbir pencere açılmaz.
+  - Uygulama Node.js sunucusunu arka planda tam teşekküllü bir Windows arka plan servisi gibi sessizce çalıştırmaya devam eder.
+- **feat(cli/ipc): Komut Satırı Parametrelerinin Tekil Sürece (Single-Instance) İletilmesi:**
+  - İkinci bir kopya CLI üzerinden (`pd <url>`, `status`, `ton`, `toff`, `toggle`, vb.) çalıştırıldığında, komutlar ilk çalışan ana sürece `WM_COPYDATA` üzerinden kayıpsız iletilerek doğrudan Node.js sunucusuna aktarılır ve sessizce sonlanır.
+- **docs(readme): Komut Satırı ve Sessiz Başlatma Modu Dokümantasyonu Güncellendi:**
+  - `README.md` dosyasında İngilizce ve Türkçe bölümlerde Windows başlatma opsiyonları ve CLI komut tablosuna `silent` ve `--tray-only` modları ile kullanım örnekleri eklendi.
+
+## [11.2.6] - 2026-10-06
+- **refactor(tray/menu): Tepsi Sağ Tık Menüsünde "Sunucuyu Yeniden Başlat" ve "Konsol Çıktısını Göster" Sıralaması Değiştirildi:**
+  - Kullanıcı isteği doğrultusunda sistem tepsisi sağ tık menüsünde "Sunucuyu Yeniden Başlat" seçeneği bir üst sıraya, "Konsol Çıktısını Göster" seçeneği ise onun hemen altına taşındı.
+
+## [11.2.5] - 2026-10-06
+- **fix(tray/playback): Tepsi Simgesine Çift Tıklandığında Sayfanın Yenilenmesi ve Videonun Kapanması Engellendi:**
+  - Video oynatılırken sistem tepsisindeki (`_trayIcon`) simgeye çift tıklandığında `ShowMainWindow` ve `NavigatePath` fonksiyonlarının gereksiz yere `/downlist` adresine tam sayfa `Navigate()` yönlendirmesi yaparak videoyu kesmesi ve sayfayı sıfırlaması sorunu giderildi.
+  - Uygulama açıkken veya arka planda video oynatırken tepsi simgesine çift tıklandığında yalnızca pencere öne getirilip odaklanır (`Show()`, `Activate()`, `Focus()`); mevcut oynatılan video ve sekme kesintisiz akmaya devam eder.
+
+## [11.2.4] - 2026-10-06
+- **feat(ui/card-title): Video Kartı Başlığı Üzerine Gelindiğinde (Hover) Büyüyen ve 4 Satıra Genişleyen Yüzen Başlık Kartı:**
+  - Kart başlık alanı sabit bir çapa konteyneri (`.video-card-title-wrap`) içine alınarak kartın ızgaradaki fiziksel yüksekliği tamamen sabitlendi.
+  - Fare ile kartın üzerine gelindiğinde başlık metni `font-size: 1.05rem` boyutuna büyür, `font-weight: 700` olur ve 4 satıra kadar (`-webkit-line-clamp: 4`) çok daha fazla karakteri gösteren yüzen şık bir cam katman (`position: absolute; z-index: 30`) olarak açılır.
+  - Alttaki satırlar ve komşu kartlar bu büyümeden etkilenmeden tamamen sabit kalır.
+
+## [11.2.3] - 2026-10-06
+- **fix(ui/grid): Video Kartı Üzerine Gelindiğinde (Hover) Alttaki Satırların Kayması Engellendi:**
+  - Fare ile video kartının üzerine gelindiğinde başlık alanının dikeyde genişleyerek tüm ızgara satırını ve altındaki kartları aşağı itmesi/titretmesi sorunu giderildi.
+  - Kart başlık yüksekliği ve satır sayısı sabit tutuldu; kartın büyüme efekti tamamen GPU destekli `transform: translateY(-6px) scale(1.04)` ve `z-index: 20` katmanına aktarıldı.
+  - Böylece fareyle üzerine gelinen video kartı öne çıkıp pürüzsüzce büyürken çevresindeki ve altındaki hiçbir kart veya satır yerinden oynamaz.
+
+## [11.2.2] - 2026-10-06
+- **fix(tray/startup): "Tarayıcıyı Otomatik Aç" Kapalıyken Ekrana Gelme Sorunu Giderildi:**
+  - `autoOpenBrowser` ayarı `false` (kapalı) olduğunda uygulama başladığında WPF penceresi veya tarayıcının ekrana gelmesi tamamen engellendi; uygulama sadece saat alanındaki sistem tepsisine (`_trayIcon`) simge olarak yerleşecek ve sunucu arka planda sessizce çalışacak şekilde yapılandırıldı.
+- **feat(tray/double-click): "Tepsi Çift Tıklama Eylemi" Tercihlerine Tam Entegrasyon:**
+  - Tepsi simgesine çift tıklandığında ve başlangıçta otomatik açılış esnasında kullanıcının seçtiği ortam eksiksiz olarak devreye girecek şekilde revize edildi:
+    - `embedded` ("Kendi Tarayıcısı (Edge Uygulama Modu)"): `msedge --app=http://localhost:PORT/downlist` olarak açar, WPF penceresi gizli kalır.
+    - `system` ("Sistem Varsayılan Tarayıcısı"): Sistemde tanımlı varsayılan web tarayıcısını açar, WPF penceresi gizli kalır.
+    - `player` ("Multimedia HaYTooL (WPF / WebView2)"): Yerleşik tam teşekküllü WPF oynatıcı penceresini öne getirir.
+  - `TrayManager` ile `server.js` arasındaki açılış çakışması `HAYTOOL_MANAGED_BY_TRAY` bayrağı ile izole edilerek çift açılma ve zorunlu pencere fırlatma sorunları çözüldü.
+
+## [11.2.1] - 2026-10-06
+- **refactor(architecture/branches): 'main' ve 'websites' Klasör & Dal Simetrisi:**
+  - Tıpkı `websites` dalının `websites/` klasöründe olması gibi, `main` dalına ait tüm masaüstü ve sunucu kodları (`server.js`, `public/`, `server/`, `ffmpeg/`, `yt-dlp/`, `HaYTooLPlayer/`, `bin/`, `Multimedia HaYTooL.exe`) doğrudan `main/` klasörü altında yapılandırıldı. Kök dizin tertemiz tutuldu.
+- **security(releases/privacy): cookies.txt ve Çerez Dosyalarının Dağıtım Dışı Bırakılması Güvenceye Alındı:**
+  - `cookies.txt` ve `*cookies*.txt` dosyaları `0nogithub/releases-maker.ps1`, `linux-releases-maker.ps1` ve `.github/workflows/release.yml` filtrelerine eklenerek hiçbir son kullanıcı paketine veya Git reposuna sızmaması kesin olarak güvenceye alındı.
+- **chore(cleanup): baslat-alternatif.bat Dosyası Kaldırıldı:**
+  - Artık ihtiyaç duyulmayan ve atıl kalan `baslat-alternatif.bat` dosyası projeden tamamen temizlendi.
+- **governance(clinerules): Zorunlu Sürüm Atlama (+1 Version Bump) Anayasaya Eklendi:**
+  - Projede yapılan en ufak bir kod veya yapılandırma değişikliğinde dahi sürümün (+1 patch) atlatılması ve 4 ana dosyada eşzamanlı güncellenmesi anayasaya kural olarak işlendi.
+
+## [11.2.0] - 2026-10-06
+- **feat(architecture/single-exe): Sistem Tepsisi ve Yerel Oynatıcı Tek Bir EXE'de Birleştirildi:**
+  - `HaYTooLPlayer` (WPF WebView2 Oynatıcı) ile `Multimedia HaYTooL` (Windows Forms Sistem Tepsisi & Sunucu Yöneticisi) tek bir `Multimedia HaYTooL.exe` çatısı altında toplandı.
+  - Kök dizindeki `HaYTooL-Player.exe` (launcher) ve `bin/HaYTooLPlayer.exe` tamamen ortadan kaldırılarak kullanıcıların karşılaştığı birden fazla exe izni / Defender uyarısı sorunu kökten çözüldü.
+  - Çift tıklama ve masaüstü kısayolları doğrudan tekil `Multimedia HaYTooL.exe`'ye bağlandı. Pencere kapatıldığında arka plana gizlenir, tepsi simgesine çift tıklayınca veya sağ tık sekme menülerinden doğrudan öne gelir.
+- **perf(storage/binaries): ffprobe.exe Kaldırılarak 134 MB Alan Tasarrufu Sağlandı (-1 EXE):**
+  - Video çözünürlük ve bitrate analiz mekanizması (`server/services/paths.js`) `ffmpeg -i` komutuyla doğrudan çözümlenecek şekilde güncellendi.
+  - 134 MB boyutundaki `ffmpeg/ffprobe.exe` kaldırılarak gereksiz binary bağımlılığı ve ekstra exe izni ihtiyacı sonlandırıldı.
+
+## [11.1.0] - 2026-10-06
+- **refactor(player/architecture): Oynatıcı Exe Tekilleştirmesi ve İzin Sayısı Azaltımı (Aşama 1):**
+  - C# WPF yerel oynatıcı doğrudan `HaYTooL-Player.exe` olarak kök dizine tek dosya (`SingleFile`) derlenecek şekilde optimize edildi.
+  - İkinci bir ara köprü exe'si (`bin/HaYTooLPlayer.exe`) ve ilgili ara kütüphane bağımlılıkları kaldırılarak diskteki gereksiz `.exe` sayısı azaltıldı.
+  - `server.js`, `server/routes/settings.js` ve `server/routes/history.js` dosyalarındaki oynatıcı çalıştırma mantığı doğrudan kökteki `HaYTooL-Player.exe` hedefine bağlandı.
+  - Doğrudan `HaYTooL-Player.exe` çalıştırıldığında arka planda kapalı olan backend sunucusunun ayağa kaldırılması (`EnsureBackendRunning`) oynatıcı içerisine entegre edildi.
+
 ## [11.0.9] - 2026-10-06
 - **style(ui/videocard): Ana Video Kartı Başlık ve Meta Hover Okunabilirlik Güçlendirmesi:**
   - `public/style.css`: `.video-card-title` kuralına pürüzsüz tipografi geçişi (`transition: color, font-size, font-weight, text-shadow, max-height`) eklendi.
