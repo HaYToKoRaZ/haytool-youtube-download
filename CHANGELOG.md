@@ -3,6 +3,15 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.0.8] - 2026-10-07
+- **feat(release/windows):** Windows yayınında kurulum sihirbazlı Setup EXE ve `Windows-Portable` adlı taşınabilir ZIP üretilir; paketlere çalışma zamanı Node.js bağımlılıkları eklenir.
+
+## [12.0.7] - 2026-10-07
+- **chore(repo):** GitHub Actions yayın workflow dosyası Git takibinde bırakıldı; README ekran görüntüleri doğru göreli yollarla kök screenshots/ klasöründe izlenecek. Yerel .vscode ve Codebase Memory verileri ignore edilmeye devam ediyor.
+
+## [12.0.6] - 2026-10-06
+- **chore(repo):** Yerel `.vscode`, Codebase Memory verileri, `.cbmignore` ve `.codebaseignore` ignore listesine alındı. Workflow takibi 12.0.7 sürümünde geri açıldı.
+
 ## [12.0.5] - 2026-10-06
 - **fix(channels/auto-delete):** Kanal bazlı süre seçenekleri 1–15 gün arasında eksiksiz ve sıralı hale getirildi; daha uzun süreler korundu.
 

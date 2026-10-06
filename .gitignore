@@ -1,0 +1,77 @@
+# Kişisel Ayar Dosyaları (Kullanıcının özel yollarını ve portlarını içerir)
+config.ini
+configwin.ini
+configunix.ini
+channels.ini
+categories.ini
+*.ini
+*.inilş
+*.inia
+
+# Yerel Veritabanı
+db.json
+db.json*
+*.tmp
+*.bak
+
+# Günlük Log Dosyaları
+logs/
+*.log
+
+# YouTube ve Oturum Çerezleri (Kişisel oturum verisidir, ASLA GitHub'a yüklenmez)
+cookies.txt
+*cookies*.txt
+
+# Yedekleme ve yerel araçlar
+0nogithub
+backup/
+
+# GitHub dosya boyutu limitini asan buyuk dosyalar
+ffmpeg.exe
+ffprobe.exe
+ffmpeg_stub.exe
+yt-dlp
+yt-dlp.exe
+*.new
+*.bozuk
+bin/win-x64/
+bin/*.pdb
+
+# Derleme çıktıları ve geçici klasörler
+dist/
+scratch/
+[Dd]esktop.ini
+iptv_cache.json
+Temp/
+mutex_lock.txt
+*.WebView2
+EBWebView
+HaYTooLPlayer/bin/
+HaYTooLPlayer/obj/
+main/HaYTooLPlayer/bin/
+main/HaYTooLPlayer/obj/
+node_modules/
+main/node_modules/
+
+# Arşiv ve Geçici Test Yedekleri
+*.zip
+*.gz
+*.7z
+*.tar
+*.part
+*.ytdl
+*.f*.mp4
+*.f*.m4a
+test_backup.zip
+
+# Tanıtım web sitesi (ayrı Git dalı / worktree olarak yönetilir)
+websites/
+
+# XML ve yardımcı dosyalar
+Microsoft.Web.WebView2.*.xml
+
+# Yerel editör ve Codebase Memory verileri
+.vscode/
+.codebase-memory/
+.cbmignore
+.codebaseignore
