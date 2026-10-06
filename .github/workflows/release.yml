@@ -56,6 +56,7 @@ jobs:
               "-x!*.log", "-x!*.map", "-x!*.d.ts", "-x!*.pdb", "-x!*.tmp", "-x!*.bak", 
               "-x!*.exe.old", "-x!*.sh", "-x!Microsoft.Web.WebView2.*.xml", "-x!tray.cs",
               "-x!installer.iss",
+              "-x!installer-banner.png", "-x!installer-small.png",
               "-x!configwin.ini", "-x!configunix.ini", "-x!channels.ini", "-x!channels.json", 
               "-x!categories.ini", "-x!.gitignore", "-x!db.json", "-x!Desktop.ini",
               "-x!mutex_lock.txt", "-x!iptv_cache.json", "-x!cookies.txt", "-x!*cookies*.txt"

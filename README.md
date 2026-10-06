@@ -2,7 +2,7 @@
   <img src="main/public/logo.png" alt="Multimedia HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v12.0.8)</p>
+# <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v12.1.0)</p>
 
 <p align="center">
   <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System & Native Player</b><br/>
@@ -22,7 +22,7 @@
   <img src="https://img.shields.io/badge/UI-Vanilla%20CSS3%20%7C%20Lucide%20Icons-1572B6?style=for-the-badge&logo=css3" alt="UI" />
   <img src="https://img.shields.io/badge/Player-Plyr-ff0000?style=for-the-badge&logo=youtube" alt="Players" />
   <img src="https://img.shields.io/badge/Downloader-yt--dlp%20%7C%20FFmpeg-4af626?style=for-the-badge" alt="Downloader" />
-  <img src="https://img.shields.io/badge/Version-v12.0.8-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v12.1.0-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases/latest"><img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&logo=github&color=2ea44f&label=LATEST%20DOWNLOADS" alt="Latest Release Downloads" /></a>
   <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases"><img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/total?style=for-the-badge&logo=github&color=0969da&label=TOTAL%20DOWNLOADS" alt="Total Downloads" /></a>
@@ -80,6 +80,8 @@ Instead of logging into YouTube and exposing your data to ads and algorithmic tr
 Since all dependencies (`node_modules/`, `yt-dlp`, `ffmpeg`) are already pre-packaged in the repository, you can run the application immediately after downloading.
 
 For Windows, download the **Setup EXE** for a guided installation, or the **Windows Portable ZIP** to extract and run without installing.
+The Setup EXE installs for the current user by default at `%LOCALAPPDATA%\Programs\HaYTooL\Multimedia HaYTooL`; the wizard lets you choose another folder.
+The installer and uninstaller also provide direct links to the HaYTooL website and portal.
 
 ### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
 * **Unified Launch (Single Executable):**
@@ -244,6 +246,8 @@ YouTube'a girip reklam tuzağına ve algoritma önerilerine maruz kalmak yerine,
 Tüm bağımlılıklar depo içerisinde hazır geldiğinden, indirdikten sonra doğrudan çalıştırabilirsiniz.
 
 Windows için adım adım kurulum sihirbazını kullanmak üzere **Setup EXE** dosyasını, kurulum yapmadan çalıştırmak için **Windows Portable ZIP** dosyasını indirin.
+Setup EXE varsayılan olarak geçerli kullanıcıya `%LOCALAPPDATA%\Programs\HaYTooL\Multimedia HaYTooL` konumuna kurulur; sihirbazdan başka bir klasör seçebilirsiniz.
+Kurulum ve kaldırma ekranlarında HaYTooL web sitesi ile portala doğrudan bağlantılar bulunur.
 
 ### ![Windows](https://img.shields.io/badge/-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
 * **Tekil Başlatma (Tek Bir EXE):**
