@@ -88,20 +88,14 @@ jobs:
           & $isccPath "/DAppVersion=$version" "main\installer.iss"
           if ($LASTEXITCODE -ne 0) { throw "Windows setup oluşturulamadı." }
 
-      - name: Build Windows Setup ZIP
+      - name: Name Windows Setup Installer
         run: |
           $tag = "${{ github.ref_name }}"
           $date = Get-Date -Format "yyyy-MM-dd"
-          $setupZip = Join-Path (Get-Location) "Multimedia-HaYTooL-$tag-Win-Setup-$date.zip"
           $setupExe = Get-ChildItem -Path release -File -Filter "Multimedia-HaYTooL-Windows-Setup-v*.exe" | Select-Object -First 1
           if (-not $setupExe) { throw "Windows Setup EXE bulunamadı." }
-          Push-Location $setupExe.DirectoryName
-          try {
-            & 7z a -tzip $setupZip $setupExe.Name
-            if ($LASTEXITCODE -ne 0) { throw "Windows Setup ZIP oluşturulamadı." }
-          } finally {
-            Pop-Location
-          }
+          $setupName = "Multimedia-HaYTooL-$tag-Win-Setup-$date.exe"
+          Move-Item -LiteralPath $setupExe.FullName -Destination (Join-Path $setupExe.DirectoryName $setupName)
 
       - name: Extract Release Notes
         run: |
@@ -118,8 +112,7 @@ jobs:
         with:
           files: |
             Multimedia-HaYTooL-*-Win-Portable-*.zip
-            Multimedia-HaYTooL-*-Win-Setup-*.zip
-            release/*.exe
+            release/Multimedia-HaYTooL-*-Win-Setup-*.exe
           body_path: release_notes.txt
 
   build-linux-appimage:
@@ -200,7 +193,7 @@ jobs:
           chmod +x appimagetool-x86_64.AppImage
           
           # AppImage'ı oluştur
-          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run -u "gh-releases-zsync|HaYToKoRaZ|haytool-youtube-download|latest|*AppImage.zsync" AppDir "${{ github.ref_name }}-Multimedia-HaYTooL-Linux-$(date +%Y-%m-%d).AppImage"
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run -u "gh-releases-zsync|HaYToKoRaZ|haytool-youtube-download|latest|*AppImage.zsync" AppDir "Multimedia-HaYTooL-${{ github.ref_name }}-Linux-$(date +%Y-%m-%d).AppImage"
           
           # appimagetool'un kendisini sil (Releases sekmesine yüklenmemesi için)
           rm appimagetool-x86_64.AppImage
