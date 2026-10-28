@@ -555,12 +555,36 @@ router.post('/:id/auto-delete', localhostOnly, (req, res) => {
   if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
   }
-  const { autoDeleteDays } = req.body;
+  const { autoDeleteDays, autoDeleteMaxCount } = req.body;
   const db = readDb();
   const channel = db.channels.find(c => c.id === id);
   if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
 
-  channel.autoDeleteDays = String(autoDeleteDays || 'never').trim();
+  if (autoDeleteDays !== undefined) {
+    channel.autoDeleteDays = String(autoDeleteDays || 'never').trim();
+  }
+  if (autoDeleteMaxCount !== undefined) {
+    channel.autoDeleteMaxCount = String(autoDeleteMaxCount || 'none').trim();
+  }
+  writeDb(db);
+  broadcast('db_update', db);
+  res.json({ success: true });
+});
+
+/**
+ * Belirtilen kanal için maksimum video sayısı silme kuralını günceller.
+ */
+router.post('/:id/auto-delete-max-count', localhostOnly, (req, res) => {
+  const { id } = req.params;
+  if (!/^UC[a-zA-Z0-9_-]{22}$/.test(id)) {
+    return res.status(400).json({ error: 'Geçersiz Kanal ID formatı.' });
+  }
+  const { autoDeleteMaxCount } = req.body;
+  const db = readDb();
+  const channel = db.channels.find(c => c.id === id);
+  if (!channel) return res.status(404).json({ error: 'Kanal bulunamadı.' });
+
+  channel.autoDeleteMaxCount = String(autoDeleteMaxCount || 'none').trim();
   writeDb(db);
   broadcast('db_update', db);
   res.json({ success: true });

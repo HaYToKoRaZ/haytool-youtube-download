@@ -16,7 +16,7 @@ import {
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
 import { downloadQueue, getCookieArgs } from '../services/downloader.js';
-import { ytdlpPath, getFfmpegPath, spawnYtdlp } from '../services/paths.js';
+import { deleteFakapVideo } from '../services/fakapService.js';import { ytdlpPath, getFfmpegPath, spawnYtdlp } from '../services/paths.js';
 import { resolveMissingDurations, fetchVideoDuration, checkSingleChannelRss, triggerChannelCheck, fetchDurationViaYtdlp } from '../services/rss.js';
 import { broadcast, addTerminalLog } from '../services/sse.js';
 import { triggerSilentCookieRefresh } from './settings.js';
@@ -24,6 +24,7 @@ import { updateChannelFullInfo } from './channels.js';
 import { buildCookieHeader } from '../services/cookieHealth.js';
 import { closeActiveVideoStreams } from './streams.js';
 import { physicallyDeleteVideoFiles, getVideoRemainingMs } from '../services/autoDeleteService.js';
+import { isInsideFakap } from '../services/fakapPaths.js';
 
 export const router = express.Router();
 
@@ -859,6 +860,7 @@ function getFilesRecursively(dir) {
       const filePath = path.join(dir, file);
       const stat = fs.statSync(filePath);
       if (stat && stat.isDirectory()) {
+        if (isInsideFakap(filePath)) continue; // Fakap yedek klasörü karşılaştırmadan dışlanır
         results = results.concat(getFilesRecursively(filePath));
       } else {
         results.push(filePath);
@@ -904,6 +906,9 @@ router.post('/download-video', localhostOnly, async (req, res) => {
   let { title, channelName, channelId } = req.body;
 
   let targetVideoId = videoId;
+
+  // Fakap kayıtlarında kimlik "fakap_<videoId>" biçiminde olabilir; baştaki ön eki at.
+  if (targetVideoId) targetVideoId = String(targetVideoId).replace(/^fakap_/, '');
 
   if (!targetVideoId && url) {
     const youtubeRegex = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([^?&"'>\s]{11})/;
@@ -1515,6 +1520,21 @@ router.post('/open-folder', localhostOnly, (req, res) => {
  */
 router.delete('/history/:id', localhostOnly, async (req, res) => {
   const { id } = req.params;
+
+  // Fakap yedeği silme: kimlik "fakap_<videoId>" ise kaydı ve dosyasını Fakap servisi siler.
+  if (String(id).startsWith('fakap_')) {
+    try {
+      const ok = await deleteFakapVideo(String(id));
+      if (ok) {
+        broadcast('db_update', readDb());
+        return res.json({ success: true, deletedFile: true });
+      }
+      return res.status(404).json({ error: 'Fakap kaydı bulunamadı.' });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
   }
@@ -1573,7 +1593,7 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
           if (fs.existsSync(dirName)) {
             const dirFiles = await fs.promises.readdir(dirName);
             for (const file of dirFiles) {
-              if (file === path.basename(existingItem.filePath) || file.startsWith(baseName + '.') || file.includes(targetPattern)) {
+              if (isCompanionFile(file, path.basename(existingItem.filePath), baseName, targetPattern)) {
                 filesToDelete.add(path.join(dirName, file));
               }
             }
@@ -1595,7 +1615,7 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
               const fullPath = path.join(dir, entry.name);
               if (entry.isDirectory()) {
                 const lower = entry.name.toLowerCase();
-                if (!ignoredDirs.includes(lower) && !lower.startsWith('.')) {
+                if (!ignoredDirs.includes(lower) && !lower.startsWith('.') && !isInsideFakap(fullPath)) {
                   scanFolderRecursively(fullPath, depth + 1);
                 }
               } else {
@@ -2022,7 +2042,7 @@ router.post('/history/bulk-delete', localhostOnly, async (req, res) => {
             if (dirExists) {
               const files = await fs.promises.readdir(dirName);
               for (const file of files) {
-                if (file === path.basename(item.filePath) || file.startsWith(baseName + '.')) {
+                if (isCompanionFile(file, path.basename(item.filePath), baseName, targetPattern)) {
                   filesToDelete.add(path.join(dirName, file));
                 }
               }
@@ -2440,5 +2460,17 @@ router.delete('/deleted-videos/clear', localhostOnly, async (req, res) => {
   }
 });
 
-
-
+/**
+ * Türkçe Açıklama: Bir dosyanın silinen videonun yan dosyası (altyazı, kapak, açıklama vb.) olup olmadığını belirler.
+ * Video adındaki [videoId] ekini atarak (ör. "Başlık.tr.srt", "Başlık.srt") kullanıcı yapımı altyazıları da yakalar.
+ * Güvenlik: Gevşek eşleşme yalnızca yan dosya uzantılarında ve "Ad." ile başlayan dosyalarda geçerlidir.
+ */
+function isCompanionFile(file, primaryName, baseName, targetPattern) {
+  if (file === primaryName || file.startsWith(baseName + '.')) return true;
+  if (targetPattern && file.includes(targetPattern)) return true;
+  const stripped = baseName.replace(/\s*\[[A-Za-z0-9_-]{11}\]\s*/g, ' ').trim();
+  if (stripped.length >= 6 && stripped !== baseName && file.startsWith(stripped + '.')) {
+    return /\.(srt|vtt|ass|ssa|sub|lrc|txt|description|json|jpg|jpeg|png|webp)$/i.test(file);
+  }
+  return false;
+}

@@ -170,9 +170,11 @@ import {
   fetchVideoDuration,
   checkPendingLiveStreams
 } from './server/services/rss.js';
-import { addTerminalLog, broadcast } from './server/services/sse.js';
+import { addTerminalLog, broadcast, attachConsoleBridge } from './server/services/sse.js';
 import { startCookieHealthCheck } from './server/services/cookieHealth.js';
 import { startNetworkHealthCheck } from './server/services/networkHealth.js';
+import { startFakapService } from './server/services/fakapService.js';
+import { startMaintenanceService } from './server/services/maintenanceService.js';
 import { gzipSync } from 'zlib';
 import { discordRpc } from './server/services/discord.js';
 import { setIptvChannels, downloadHlsJsIfNeeded } from './server/services/iptv.js';
@@ -189,6 +191,7 @@ import { router as streamsRouter } from './server/routes/streams.js';
 import { router as queueRouter } from './server/routes/queue.js';
 import { router as downloaderRouter } from './server/routes/downloader.js';
 import { router as gistRouter } from './server/routes/gist.js';
+import { router as fakapRouter } from './server/routes/fakap.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -200,6 +203,9 @@ const PORT = parseInt(settingsSection.port || settingsSection.Port || 4141, 10);
 
 // Dizin Tanımları
 const iptvCachePath = path.join(dataRootDir, 'iptv_cache.json');
+
+// Ham konsol köprüsü: stdout/stderr'i canlı konsolun "Ham Çıktı" moduna aktarır.
+attachConsoleBridge();
 
 // Express Uygulaması Kurulumu
 const app = express();
@@ -247,6 +253,7 @@ app.use('/api/iptv', iptvRouter);
 app.use('/api', streamsRouter);
 app.use('/api/downloader', downloaderRouter);
 app.use('/api/gist', gistRouter);
+app.use('/api/fakap', fakapRouter);
 app.get('/api/version', (req, res) => {
   res.json({ version: appVersion });
 });
@@ -838,6 +845,8 @@ if (process.argv.length <= 2) {
 
     // Genel ağ bağlantısı süreklilik denetimi
     startNetworkHealthCheck();
+    startFakapService();
+    startMaintenanceService();
 
     // Otomatik video silme döngüsü
     setTimeout(() => {

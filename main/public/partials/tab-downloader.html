@@ -8,44 +8,66 @@
         </header>
 
         <div class="card downloader-card">
-          <!-- URL Giriş Alanı -->
-          <div class="downloader-input-group">
-            <div class="input-group">
-              <i data-lucide="link"></i>
-              <input type="text" id="downloader-url-input" placeholder="YouTube video veya playlist linkini buraya yapıştırın...">
+          <!-- URL Giriş Alanı & Anlık Doğrulama Rozeti -->
+          <div class="downloader-input-group" style="margin-bottom: 8px;">
+            <div class="input-group" style="position: relative; display: flex; align-items: center;">
+              <i data-lucide="link" class="input-icon"></i>
+              <input type="text" id="downloader-url-input" aria-label="Video veya playlist URL adresi" placeholder="YouTube video veya playlist linkini buraya yapıştırın..." style="padding-right: 140px;" autocomplete="off">
+              <div id="downloader-input-actions" style="position: absolute; right: 10px; display: flex; align-items: center; gap: 6px;">
+                <span id="downloader-url-badge" class="badge" style="display: none; font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;"></span>
+                <button type="button" id="downloader-url-clear-btn" aria-label="URL alanını temizle" title="Temizle" style="display: none; background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 4px; line-height: 1;">
+                  <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+                </button>
+              </div>
             </div>
+            <div id="downloader-url-hint" style="font-size: 0.78rem; min-height: 18px; margin-top: 4px; display: flex; align-items: center; gap: 6px; color: var(--text-muted);"></div>
           </div>
 
-          <!-- Format Seçimi -->
-          <div class="downloader-options">
-            <div class="downloader-option-group">
-              <label id="downloader-format-label">Format</label>
-              <select id="downloader-format-select">
-                <optgroup label="🎬 Video" id="downloader-optgroup-video">
-                  <option value="video-best">En İyi Kalite (Best)</option>
-                  <option value="video-1080p">1080p FHD</option>
-                  <option value="video-720p">720p HD</option>
-                  <option value="video-480p">480p</option>
-                  <option value="video-360p">360p</option>
-                  <option value="video-240p">240p</option>
-                  <option value="video-144p">144p</option>
-                </optgroup>
-                <optgroup label="🎵 Ses" id="downloader-optgroup-audio">
-                  <option value="audio-mp3">MP3</option>
-                </optgroup>
-              </select>
-            </div>
-
-            <!-- Ses Bit Hızı (Sadece MP3 seçilince görünür) -->
-            <div class="downloader-option-group" id="downloader-bitrate-group" style="display:none;">
-              <label id="downloader-bitrate-label-text">Ses Bit Hızı</label>
-              <select id="downloader-bitrate-select">
-                <option value="320">320 kbps (En Yüksek)</option>
-                <option value="192" selected>192 kbps (Önerilen)</option>
-                <option value="128">128 kbps</option>
-              </select>
-            </div>
+          <!-- Hızlı Format Seçimi (Segmented Chips) -->
+          <div class="downloader-chips-container" style="display:flex; flex-wrap:wrap; gap:8px; margin: 12px 0;">
+            <button type="button" class="format-chip active" data-format="video-best" onclick="selectDownloaderChip(this, 'video-best')">✨ En İyi Kalite</button>
+            <button type="button" class="format-chip" data-format="video-1080p" onclick="selectDownloaderChip(this, 'video-1080p')">🎬 1080p FHD</button>
+            <button type="button" class="format-chip" data-format="video-720p" onclick="selectDownloaderChip(this, 'video-720p')">📺 720p HD</button>
+            <button type="button" class="format-chip" data-format="video-480p" onclick="selectDownloaderChip(this, 'video-480p')">480p</button>
+            <button type="button" class="format-chip" data-format="audio-mp3" onclick="selectDownloaderChip(this, 'audio-mp3')">🎵 MP3 (Ses)</button>
           </div>
+
+          <!-- Gelişmiş Format Ayarları (Akordeon) -->
+          <details class="downloader-advanced-details" style="margin-bottom: 12px; cursor: pointer;">
+            <summary style="font-size: 0.82rem; color: var(--text-muted); font-weight: 500; display: inline-flex; align-items: center; gap: 6px; padding: 4px 0; user-select: none;">
+              <i data-lucide="sliders-horizontal" style="width: 14px; height: 14px; color: var(--primary);"></i>
+              <span id="lbl-advanced-format-toggle">Gelişmiş Çözünürlük ve Ses Ayarları</span>
+            </summary>
+            <div class="downloader-options" style="margin-top: 10px; padding: 12px; background: rgba(0,0,0,0.12); border-radius: 8px; border: 1px solid var(--border-color);">
+              <div class="downloader-option-group" style="display:flex; align-items:center; gap:8px;">
+                <label id="downloader-format-label" style="font-size:0.85rem; color:var(--text-muted); margin:0;">Tüm Çözünürlükler:</label>
+                <select id="downloader-format-select" onchange="syncDownloaderSelectToChips(this.value)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.85rem;">
+                  <optgroup label="🎬 Video" id="downloader-optgroup-video">
+                    <option value="video-best">En İyi Kalite (Best)</option>
+                    <option value="video-1080p">1080p FHD</option>
+                    <option value="video-720p">720p HD</option>
+                    <option value="video-480p">480p</option>
+                    <option value="video-360p">360p</option>
+                    <option value="video-240p">240p</option>
+                    <option value="video-144p">144p</option>
+                  </optgroup>
+                  <optgroup label="🎵 Ses" id="downloader-optgroup-audio">
+                    <option value="audio-mp3">MP3</option>
+                  </optgroup>
+                </select>
+              </div>
+
+              <!-- Ses Bit Hızı (Sadece MP3 seçilince görünür) -->
+              <div class="downloader-option-group" id="downloader-bitrate-group" style="display:none; align-items:center; gap:8px;">
+                <label id="downloader-bitrate-label-text" style="font-size:0.85rem; color:var(--text-muted); margin:0;">Ses Bit Hızı:</label>
+                <select id="downloader-bitrate-select" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.85rem;">
+                  <option value="320">320 kbps (En Yüksek)</option>
+                  <option value="192" selected>192 kbps (Önerilen)</option>
+                  <option value="128">128 kbps</option>
+                </select>
+              </div>
+            </div>
+          </details>
 
           <!-- Klasör Muafiyeti Bilgilendirmesi -->
           <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
@@ -74,11 +96,17 @@
             <div id="downloader-playlist-list" class="downloader-playlist-list"></div>
           </div>
 
-          <!-- İndirme İlerleme -->
+          <!-- İndirme İlerleme & Canlı Telemetri -->
           <div id="downloader-progress" class="downloader-progress-container hidden">
-            <div class="downloader-progress-info">
-              <span id="downloader-progress-text">Hazırlanıyor...</span>
-              <span id="downloader-progress-percent">0%</span>
+            <div class="downloader-progress-info" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span id="downloader-progress-text" style="font-weight: 600; color: var(--text-main);">Hazırlanıyor...</span>
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem;">
+                <span id="downloader-progress-speed" style="color: var(--secondary); font-weight: 600;">-- MB/s</span>
+                <span style="color: var(--text-muted);">•</span>
+                <span id="downloader-progress-eta" style="color: var(--text-muted);">--:--</span>
+                <span style="color: var(--text-muted);">•</span>
+                <span id="downloader-progress-percent" style="font-weight: 700; color: var(--primary);">0%</span>
+              </div>
             </div>
             <div class="downloader-progress-bar">
               <div class="downloader-progress-fill" id="downloader-progress-fill"></div>

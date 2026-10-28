@@ -27,6 +27,23 @@ let iptvIsAppending = false;
 let _getState = null;
 let _iptvInitialized = false;
 
+// ─── HLS kütüphanesi (hls.js) tembel yükleme ───
+// index.html hls.min.js'i içermiyor; m3u8 yayınları için gerektiğinde bir kez yüklenir.
+let _hlsLoadPromise = null;
+function ensureHlsLoaded() {
+  if (typeof Hls !== 'undefined') return Promise.resolve(true);
+  if (_hlsLoadPromise) return _hlsLoadPromise;
+  _hlsLoadPromise = new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = '/hls.min.js';
+    script.async = true;
+    script.onload = () => resolve(typeof Hls !== 'undefined');
+    script.onerror = () => { _hlsLoadPromise = null; resolve(false); };
+    document.head.appendChild(script);
+  });
+  return _hlsLoadPromise;
+}
+
 /**
  * Yerel veritabanına ve ayarlara güvenli erişim sağlar.
  * _getState tanımlı değilse window.localDb veya varsayılan nesneye düşer.
@@ -779,6 +796,17 @@ function stopAllIptvPlayers() {
 }
 
 function playIptvChannel(slotIndex, streamUrl, displayName) {
+  // HLS kütüphanesi yoksa önce yükle, sonra tekrar dene (m3u8 yayınları aksi halde açılmaz).
+  if (typeof Hls === 'undefined') {
+    ensureHlsLoaded().then((ok) => {
+      if (ok) {
+        playIptvChannel(slotIndex, streamUrl, displayName);
+      } else if (typeof showToast === 'function') {
+        showToast('IPTV oynatıcı kütüphanesi (hls.js) yüklenemedi.', 'error');
+      }
+    });
+    return;
+  }
   clearIptvSlot(slotIndex);
   const slotEl = document.querySelector(`.iptv-slot[data-slot="${slotIndex}"]`);
   if (!slotEl) return;

@@ -380,53 +380,119 @@ export function getCatTranslatedName(cat, translationsDict = null) {
 export function getVideoRemainingInfo(item, db) {
   if (!item || item.status !== 'completed' || !db) return null;
   const channel = (db.channels || []).find(c => c.id === item.channelId);
+
+  // Gün kuralı
   const chRule = channel ? channel.autoDeleteDays : 'never';
-
   let effectiveDays = 0;
-  if (chRule === 'never') {
-    return null;
-  } else if (chRule === 'global' || !chRule) {
-    effectiveDays = db.settings?.autoDeleteDays || 0;
-  } else {
-    effectiveDays = parseInt(chRule, 10) || 0;
+  if (chRule !== 'never') {
+    if (chRule === 'global' || !chRule) {
+      effectiveDays = db.settings?.autoDeleteDays || 0;
+    } else {
+      effectiveDays = parseInt(chRule, 10) || 0;
+    }
   }
 
-  if (effectiveDays <= 0) return null;
-
-  let fileTime = 0;
-  if (item.completedAt) {
-    fileTime = new Date(item.completedAt).getTime();
-  } else if (item.publishedAt) {
-    fileTime = new Date(item.publishedAt).getTime();
-  } else if (item.downloadedAt) {
-    fileTime = new Date(item.downloadedAt).getTime();
-  } else {
-    fileTime = Date.now();
+  // Sayı kuralı
+  const chCountRule = channel ? channel.autoDeleteMaxCount : 'none';
+  let effectiveMaxCount = 0;
+  if (chCountRule !== 'none' && chCountRule !== 'never') {
+    if (chCountRule === 'global' || !chCountRule) {
+      effectiveMaxCount = parseInt(db.settings?.autoDeleteMaxCount, 10) || 0;
+    } else {
+      effectiveMaxCount = parseInt(chCountRule, 10) || 0;
+    }
   }
 
-  const baseExpireMs = fileTime + (effectiveDays * 24 * 60 * 60 * 1000);
-  let finalExpireMs = baseExpireMs;
-  if (item.autoDeletePostponedUntil && item.autoDeletePostponedUntil > finalExpireMs) {
-    finalExpireMs = item.autoDeletePostponedUntil;
+  if (effectiveDays <= 0 && effectiveMaxCount <= 0) return null;
+
+  // Erteleme kontrolü
+  const isPostponed = item.autoDeletePostponedUntil && item.autoDeletePostponedUntil > Date.now();
+
+  // 1. Gün hesabı
+  let dayRemainingMs = null;
+  let isDayExpired = false;
+  let remainingHours = 0;
+  let remainingDays = 0;
+  if (effectiveDays > 0) {
+    let fileTime = 0;
+    if (item.completedAt) {
+      fileTime = new Date(item.completedAt).getTime();
+    } else if (item.publishedAt) {
+      fileTime = new Date(item.publishedAt).getTime();
+    } else if (item.downloadedAt) {
+      fileTime = new Date(item.downloadedAt).getTime();
+    } else {
+      fileTime = Date.now();
+    }
+
+    const baseExpireMs = fileTime + (effectiveDays * 24 * 60 * 60 * 1000);
+    let finalExpireMs = baseExpireMs;
+    if (item.autoDeletePostponedUntil && item.autoDeletePostponedUntil > finalExpireMs) {
+      finalExpireMs = item.autoDeletePostponedUntil;
+    }
+
+    dayRemainingMs = finalExpireMs - Date.now();
+    remainingHours = Math.round(dayRemainingMs / (1000 * 60 * 60));
+    remainingDays = Math.ceil(dayRemainingMs / (1000 * 60 * 60 * 24));
+    isDayExpired = dayRemainingMs <= 0;
   }
 
-  const remainingMs = finalExpireMs - Date.now();
-  const remainingHours = Math.round(remainingMs / (1000 * 60 * 60));
-  const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+  // 2. Sayı hesabı
+  let isCountExceeded = false;
+  if (effectiveMaxCount > 0 && channel) {
+    const channelCompleted = (db.history || []).filter(h => h.channelId === item.channelId && h.status === 'completed');
+    if (channelCompleted.length > effectiveMaxCount) {
+      channelCompleted.sort((a, b) => {
+        const timeA = new Date(a.completedAt || a.publishedAt || a.downloadedAt || 0).getTime();
+        const timeB = new Date(b.completedAt || b.publishedAt || b.downloadedAt || 0).getTime();
+        return timeB - timeA;
+      });
+      const rank = channelCompleted.findIndex(h => h.id === item.id);
+      if (rank >= effectiveMaxCount) {
+        isCountExceeded = true;
+      }
+    }
+  }
 
+  let isExpired = false;
   let badgeText = '';
   let tooltip = '';
-  const isExpired = remainingMs <= 0;
+  let remainingMs = 0;
 
-  if (isExpired) {
+  if (isPostponed) {
+    const postponeRemainingMs = item.autoDeletePostponedUntil - Date.now();
+    const pDays = Math.ceil(postponeRemainingMs / (1000 * 60 * 60 * 24));
+    badgeText = `⏸️ ${pDays}g`;
+    tooltip = 'Otomatik silme kullanıcı tarafından ertelendi';
+    remainingMs = postponeRemainingMs;
+    isExpired = false;
+  } else if (isDayExpired && isCountExceeded) {
+    isExpired = true;
+    badgeText = '⏳ Süre & Limit Doldu';
+    tooltip = 'Videonun hem süresi hem kanal video sayısı sınırı aşıldı';
+    remainingMs = 0;
+  } else if (isCountExceeded) {
+    isExpired = true;
+    badgeText = '⏳ Limit Aşıldı';
+    tooltip = `Kanal azami video sınırını aştı (En eski indirilen / Azami: ${effectiveMaxCount})`;
+    remainingMs = 0;
+  } else if (isDayExpired) {
+    isExpired = true;
     badgeText = '⏳ Süresi Doldu';
     tooltip = 'Otomatik silme süresi doldu, silinmeyi bekliyor';
-  } else if (remainingDays <= 1) {
-    badgeText = `⏳ ${Math.max(1, remainingHours)}s`;
-    tooltip = `Silinmeye ${Math.max(1, remainingHours)} saat kaldı`;
+    remainingMs = dayRemainingMs;
+  } else if (dayRemainingMs !== null) {
+    remainingMs = dayRemainingMs;
+    if (remainingDays <= 1) {
+      badgeText = `⏳ ${Math.max(1, remainingHours)}s`;
+      tooltip = `Silinmeye ${Math.max(1, remainingHours)} saat kaldı`;
+    } else {
+      badgeText = `⏳ ${remainingDays}g`;
+      tooltip = `Silinmeye ${remainingDays} gün kaldı`;
+    }
   } else {
-    badgeText = `⏳ ${remainingDays}g`;
-    tooltip = `Silinmeye ${remainingDays} gün kaldı`;
+    // Sadece sayı kuralı var ve limit henüz aşılmadı
+    return null;
   }
 
   return {

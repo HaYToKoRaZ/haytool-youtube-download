@@ -59,13 +59,6 @@
             </button>
             <div class="history-filters-panel" id="history-filters-panel">
               <div class="filter-group" style="margin:0;">
-                <input type="checkbox" id="history-show-shorts" style="display:none;">
-                <button type="button" class="filter-chip-btn" id="btn-filter-show-shorts" onclick="toggleFilterChip('history-show-shorts')" title="Shorts Videolarını Göster/Gizle">
-                  <i data-lucide="zap"></i>
-                  <span id="lbl-history-show-shorts">Shorts</span>
-                </button>
-              </div>
-              <div class="filter-group" style="margin:0;">
                 <input type="checkbox" id="history-show-live" style="display:none;" checked>
                 <button type="button" class="filter-chip-btn" id="btn-filter-show-live" onclick="toggleFilterChip('history-show-live')" title="Canlı Yayınları Göster/Gizle">
                   <i data-lucide="radio"></i>
@@ -110,6 +103,15 @@
             </div>
           </div>
 
+          <!-- Shorts çipi: İndirilenler sekmesindeki gibi araç çubuğunda (açılır menüde değil) -->
+          <div class="filter-group" style="margin:0;">
+            <input type="checkbox" id="history-show-shorts" style="display:none;">
+            <button type="button" class="filter-chip-btn" id="btn-filter-show-shorts" onclick="toggleFilterChip('history-show-shorts')" title="Shorts Videolarını Göster/Gizle">
+              <i data-lucide="zap"></i>
+              <span id="lbl-history-show-shorts">Shorts</span>
+            </button>
+          </div>
+
           <div class="filter-group" style="margin-left: auto; display: flex; gap: 8px;">
             <button id="history-bulk-hide-toggle-btn" class="btn btn-secondary"
               onclick="toggleHistoryBulkHideMode()"
@@ -124,10 +126,9 @@
           <div class="history-toolbar-actions">
           <div class="view-toggle-container">
             <div class="filter-group sort-button-group" style="display: flex; gap: 6px; margin-right: 12px;" id="history-sort-group">
-              <button type="button" class="sort-btn active" data-sort="date-desc" id="history-sort-btn-date-desc" title="Tarih: Yeniden Eskiye">Tarih ▼</button>
-              <button type="button" class="sort-btn" data-sort="date-asc" id="history-sort-btn-date-asc" title="Tarih: Eskiden Yeniye">Tarih ▲</button>
+              <button type="button" class="sort-btn active" data-sort="date" id="history-sort-btn-date" title="Tarih: Yeniden Eskiye"><span id="history-sort-date-label">Tarih ▼</span></button>
               <button type="button" class="sort-btn" data-sort="title" id="history-sort-btn-title" title="Başlık: A'dan Z'ye">Başlık</button>
-              <button type="button" class="sort-btn" data-sort="duration" id="history-sort-btn-duration" title="Süre: Uzundan Kısaya">Süre ▼</button>
+              <button type="button" class="sort-btn" data-sort="duration" id="history-sort-btn-duration" title="Süre: Uzundan Kısaya">Süre</button>
             </div>
             <button id="view-grid-btn" class="view-btn active" title="Kart Görünümü">
               <i data-lucide="layout-grid"></i>

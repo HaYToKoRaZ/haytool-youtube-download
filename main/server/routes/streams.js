@@ -69,14 +69,15 @@ router.post('/video-stream/close', localhostOnly, (req, res) => {
  * @returns {void}
  */
 router.get('/video-stream', (req, res) => {
-  const { videoId } = req.query;
-  if (!videoId) return res.status(400).send('Video ID is required');
+  const rawId = req.query.videoId;
+  if (!rawId) return res.status(400).send('Video ID is required');
+  const videoId = String(rawId).replace(/^fakap_/, '');
   if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
     return res.status(400).send('Invalid Video ID format');
   }
 
   const db = readDb();
-  const item = db.history.find(h => h.id === videoId);
+  const item = db.history.find(h => h.id === rawId || h.id === videoId);
   let fileToPlay = item ? item.filePath : null;
 
   if (!fileToPlay || !fs.existsSync(fileToPlay)) {
@@ -125,13 +126,14 @@ router.get('/video-stream', (req, res) => {
  * @returns {void}
  */
 router.get('/video/:videoId/thumbnail', (req, res) => {
-  const { videoId } = req.params;
+  const rawId = req.params.videoId;
+  const videoId = String(rawId).replace(/^fakap_/, '');
   if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
     return res.status(400).send('Invalid Video ID format');
   }
 
   const db = readDb();
-  const item = db.history.find(h => h.id === videoId);
+  const item = db.history.find(h => h.id === rawId || h.id === videoId);
   
   if (item && item.filePath) {
     try {

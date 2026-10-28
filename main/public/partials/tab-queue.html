@@ -49,6 +49,12 @@
           </div>
         </header>
 
+        <!-- Kuyruk Duraklatıldı Bilgilendirme Rozeti -->
+        <div id="queue-paused-notice" class="alert alert-warning" style="display: none; align-items: center; gap: 8px; margin: 10px 0 16px 0; padding: 10px 14px; font-size: 0.82rem; border-radius: 8px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24;">
+          <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0; color: #fbbf24;"></i>
+          <span id="queue-paused-notice-text">Kuyruk duraklatıldı. Aktif inen video bitince yeni indirmeye geçilmeyecek.</span>
+        </div>
+
         <div class="queue-layout">
           <!-- Aktif İndirme Detaylı Kartı -->
           <div class="card card-hero" style="min-height: 250px; padding: 25px; display:flex; flex-direction:column; justify-content:center;">
@@ -66,30 +72,39 @@
             </div>
 
             <div id="active-download-details" class="download-progress-container hidden" style="width:100%;">
-              <h3 class="download-video-title" id="active-title" style="font-size: 1.25rem; margin-bottom: 8px; font-weight:700; color:var(--text-main);">Kanal Adı - Video Başlığı</h3>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px;">
-                <span class="download-channel-name" id="active-channel" style="margin-bottom:0; font-size: 0.9rem; color:var(--text-muted);"><i data-lucide="tv" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> Kanal Adı</span>
-                <button id="cancel-active-btn" class="btn btn-secondary" style="padding: 5px 12px; font-size: 0.8rem; background: rgba(255,0,85,0.08); border-color: rgba(255,0,85,0.2); color: var(--accent-red); font-weight:600;">
-                  <i data-lucide="x-circle" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> <span>İptal Et</span>
-                </button>
+              <div style="display:flex; gap:16px; align-items:flex-start; margin-bottom:14px;">
+                <div id="active-thumbnail-wrapper" data-thumb-hover="1" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this); syncActiveThumbCycle(window._activeThumbWanted)" style="width:120px; height:68px; border-radius:8px; overflow:hidden; background:var(--bg-body); border:1px solid var(--border-color); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+                  <img id="active-thumbnail-img" data-thumb-img="1" src="" alt="Thumbnail" style="width:100%; height:100%; object-fit:cover; display:none;" onerror="this.onerror=null; this.src='/logo.png';" />
+                  <i id="active-thumbnail-placeholder" data-lucide="video" style="width:24px; height:24px; color:var(--text-muted);"></i>
+                </div>
+                <div style="flex:1; min-width:0;">
+                  <h3 class="download-video-title" id="active-title" style="font-size: 1.1rem; margin-bottom: 6px; font-weight:700; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Kanal Adı - Video Başlığı</h3>
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="download-channel-name" id="active-channel" style="margin-bottom:0; font-size: 0.85rem; color:var(--text-muted);"><i data-lucide="tv" style="width:13px;height:13px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> Kanal Adı</span>
+                    <button id="cancel-active-btn" class="btn btn-secondary" style="padding: 3px 10px; font-size: 0.75rem; background: rgba(255,0,85,0.08); border-color: rgba(255,0,85,0.2); color: var(--accent-red); font-weight:600; border-radius:6px;">
+                      <i data-lucide="x-circle" style="width:13px;height:13px;display:inline-block;vertical-align:middle;margin-right:4px;"></i> <span>İptal Et</span>
+                    </button>
+                  </div>
+                </div>
               </div>
               
-              <div class="progress-bar-wrapper" style="height: 8px; margin-bottom: 15px; background: var(--progress-bg); border-radius: 4px; overflow:hidden;">
-                <div class="progress-bar-fill" id="active-progress-bar" style="width: 0%;"></div>
+              <!-- İlerleme Çubuğu -->
+              <div class="progress-bar-wrapper" style="height: 10px; margin-bottom: 12px; background: var(--border-color); border-radius: 6px; overflow:hidden; position:relative;">
+                <div class="progress-bar-fill" id="active-progress-bar" style="width: 0%; height:100%; background: linear-gradient(90deg, var(--primary), #38bdf8); transition: width 0.3s ease;"></div>
               </div>
 
-              <div class="download-stats" style="padding: 15px; gap: 15px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border-color);">
-                <div>
-                  <span class="stat-label" id="active-progress-label" style="font-size: 0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">İlerleme</span>
-                  <span class="stat-value" id="active-percent" style="font-size: 1.1rem; font-weight:700; color:var(--text-main);">0%</span>
+              <!-- Birleşik Telemetri / HUD Paneli -->
+              <div class="download-telemetry-hud" style="display:flex; justify-content:space-between; align-items:center; padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid var(--border-color); font-size:0.85rem;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-weight:700; color:var(--primary); font-size:1rem;" id="active-percent">0%</span>
+                  <span style="color:var(--text-muted);">•</span>
+                  <span style="color:var(--text-muted);" id="active-size">-- MB</span>
                 </div>
-                <div>
-                  <span class="stat-label" id="active-size-label" style="font-size: 0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Boyut</span>
-                  <span class="stat-value" id="active-size" style="font-size: 1.1rem; font-weight:700; color:var(--text-main);">-- MB</span>
-                </div>
-                <div>
-                  <span class="stat-label" id="active-eta-label" style="font-size: 0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Kalan Süre</span>
-                  <span class="stat-value" id="active-eta" style="font-size: 1.1rem; font-weight:700; color:var(--text-main);">--:--</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="display:inline-flex; align-items:center; gap:4px; color:var(--text-muted);" id="active-eta-wrap">
+                    <i data-lucide="clock" style="width:13px; height:13px;"></i>
+                    <span id="active-eta">--:--</span>
+                  </span>
                 </div>
               </div>
             </div>

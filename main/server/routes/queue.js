@@ -333,7 +333,7 @@ router.post('/cancel-all-queued', localhostOnly, (req, res) => {
 router.post('/cancel-download', localhostOnly, (req, res) => {
   const { videoId } = req.body;
   if (!videoId) return res.status(400).json({ error: 'Video ID gereklidir.' });
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+  if (!/^(?:fakap_)?[a-zA-Z0-9_-]{11}$/.test(videoId)) {
     return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
   }
 

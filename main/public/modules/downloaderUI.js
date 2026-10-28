@@ -74,9 +74,29 @@ export async function handleDownloaderStart() {
       });
       const data = await res.json();
       if (data.success) {
+        if (startBtn) {
+          startBtn.disabled = true;
+          startBtn.innerHTML = `<i data-lucide="check" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:5px;color:#10b981;"></i> <span>${isEn ? 'Added to Queue ✓' : 'Kuyruğa Eklendi ✓'}</span>`;
+          if (window.lucide) lucide.createIcons();
+        }
         showToast(isEn ? 'Added to download queue.' : 'Kuyruğa başarıyla eklendi.', 'success');
         urlInput.value = '';
-        switchTab('queue');
+        const badge = document.getElementById('downloader-url-badge');
+        const clearBtn = document.getElementById('downloader-url-clear-btn');
+        const hint = document.getElementById('downloader-url-hint');
+        if (badge) badge.style.display = 'none';
+        if (clearBtn) clearBtn.style.display = 'none';
+        if (hint) hint.innerHTML = '';
+
+        setTimeout(() => {
+          switchTab('queue');
+          if (startBtn) {
+            startBtn.disabled = false;
+            startBtn.innerHTML = `<i data-lucide="download"></i> <span>${isEn ? 'Start Download' : 'İndirmeyi Başlat'}</span>`;
+            if (window.lucide) lucide.createIcons();
+          }
+        }, 450);
+        return;
       } else {
         showToast(data.error || (isEn ? 'Failed to start download.' : 'İndirme başlatılamadı.'), 'error');
       }
@@ -84,10 +104,10 @@ export async function handleDownloaderStart() {
   } catch (err) {
     showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
   } finally {
-    if (startBtn) {
+    if (startBtn && !startBtn.innerHTML.includes('✓')) {
       startBtn.disabled = false;
       startBtn.innerHTML = `<i data-lucide="download"></i> <span>${isEn ? 'Start Download' : 'İndirmeyi Başlat'}</span>`;
-      lucide.createIcons();
+      if (window.lucide) lucide.createIcons();
     }
   }
 }
@@ -223,8 +243,127 @@ export async function downloadMissingVideo(videoId, title, channelName, channelI
   }
 }
 
+export function selectDownloaderChip(btn, formatValue) {
+  document.querySelectorAll('.format-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const formatSelect = document.getElementById('downloader-format-select');
+  if (formatSelect) {
+    formatSelect.value = formatValue;
+    formatSelect.dispatchEvent(new Event('change'));
+  }
+}
+window.selectDownloaderChip = selectDownloaderChip;
+
+export function syncDownloaderSelectToChips(formatValue) {
+  document.querySelectorAll('.format-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-format') === formatValue);
+  });
+}
+window.syncDownloaderSelectToChips = syncDownloaderSelectToChips;
+
 // Geriye dönük window.* köprüsü (HTML inline onclick bağlamı için)
 window.handleDownloaderStart = handleDownloaderStart;
 window.handleDownloaderAll = handleDownloaderAll;
 window.renderPlaylistResults = renderPlaylistResults;
 window.downloadMissingVideo = downloadMissingVideo;
+
+/**
+ * Anlık URL Giriş Doğrulama ve Platform Algılama Geri Bildirimi
+ */
+export function setupDownloaderUrlInput() {
+  const urlInput = document.getElementById('downloader-url-input');
+  const badge = document.getElementById('downloader-url-badge');
+  const clearBtn = document.getElementById('downloader-url-clear-btn');
+  const hint = document.getElementById('downloader-url-hint');
+
+  if (!urlInput) return;
+
+  function updateFeedback() {
+    const rawVal = urlInput.value.trim();
+    if (!badge || !clearBtn || !hint) return;
+
+    if (!rawVal) {
+      badge.style.display = 'none';
+      clearBtn.style.display = 'none';
+      hint.innerHTML = '';
+      return;
+    }
+
+    clearBtn.style.display = 'inline-flex';
+    badge.style.display = 'inline-flex';
+
+    const isPlaylist = rawVal.includes('list=') && !rawVal.includes('watch?v=');
+    const isYtVideo = /youtube\.com\/(watch|shorts)|youtu\.be\//i.test(rawVal);
+    const isTikTok = /tiktok\.com/i.test(rawVal);
+    const isInstagram = /instagram\.com/i.test(rawVal);
+    const isTwitter = /(twitter|x)\.com/i.test(rawVal);
+    const isSoundCloud = /soundcloud\.com/i.test(rawVal);
+    const isValidHttp = /^https?:\/\//i.test(rawVal);
+
+    if (isPlaylist) {
+      badge.textContent = 'YouTube Playlist';
+      badge.style.background = 'rgba(239, 68, 68, 0.15)';
+      badge.style.color = '#ef4444';
+      badge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+      hint.innerHTML = `<i data-lucide="list-video" style="width:13px;height:13px;color:#ef4444;"></i> <span style="color:#ef4444;">Oynatma listesi tespit edildi. Tüm videolar taranacak.</span>`;
+    } else if (isYtVideo) {
+      badge.textContent = 'YouTube Video';
+      badge.style.background = 'rgba(239, 68, 68, 0.15)';
+      badge.style.color = '#ef4444';
+      badge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+      hint.innerHTML = `<i data-lucide="check-circle" style="width:13px;height:13px;color:#10b981;"></i> <span style="color:var(--text-main);">Geçerli YouTube video bağlantısı hazır.</span>`;
+    } else if (isTikTok) {
+      badge.textContent = 'TikTok';
+      badge.style.background = 'rgba(6, 182, 212, 0.15)';
+      badge.style.color = '#06b6d4';
+      badge.style.border = '1px solid rgba(6, 182, 212, 0.3)';
+      hint.innerHTML = `<i data-lucide="check-circle" style="width:13px;height:13px;color:#06b6d4;"></i> <span>TikTok video bağlantısı hazır.</span>`;
+    } else if (isInstagram) {
+      badge.textContent = 'Instagram';
+      badge.style.background = 'rgba(168, 85, 247, 0.15)';
+      badge.style.color = '#a855f7';
+      badge.style.border = '1px solid rgba(168, 85, 247, 0.3)';
+      hint.innerHTML = `<i data-lucide="check-circle" style="width:13px;height:13px;color:#a855f7;"></i> <span>Instagram medya bağlantısı hazır.</span>`;
+    } else if (isTwitter) {
+      badge.textContent = 'X / Twitter';
+      badge.style.background = 'rgba(148, 163, 184, 0.15)';
+      badge.style.color = 'var(--text-main)';
+      badge.style.border = '1px solid rgba(148, 163, 184, 0.3)';
+      hint.innerHTML = `<i data-lucide="check-circle" style="width:13px;height:13px;color:#10b981;"></i> <span>X / Twitter medya bağlantısı hazır.</span>`;
+    } else if (isSoundCloud) {
+      badge.textContent = 'SoundCloud';
+      badge.style.background = 'rgba(249, 115, 22, 0.15)';
+      badge.style.color = '#f97316';
+      badge.style.border = '1px solid rgba(249, 115, 22, 0.3)';
+      hint.innerHTML = `<i data-lucide="music" style="width:13px;height:13px;color:#f97316;"></i> <span>SoundCloud ses bağlantısı hazır.</span>`;
+    } else if (isValidHttp) {
+      badge.textContent = 'Web Medya';
+      badge.style.background = 'rgba(16, 185, 129, 0.15)';
+      badge.style.color = '#10b981';
+      badge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+      hint.innerHTML = `<i data-lucide="link" style="width:13px;height:13px;color:#10b981;"></i> <span>yt-dlp destekli genel medya adresi.</span>`;
+    } else {
+      badge.textContent = 'Geçersiz Link';
+      badge.style.background = 'rgba(239, 68, 68, 0.15)';
+      badge.style.color = '#ef4444';
+      badge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+      hint.innerHTML = `<i data-lucide="alert-circle" style="width:13px;height:13px;color:#ef4444;"></i> <span style="color:#ef4444;">Lütfen 'https://' ile başlayan geçerli bir bağlantı girin.</span>`;
+    }
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  urlInput.addEventListener('input', updateFeedback);
+  urlInput.addEventListener('paste', () => setTimeout(updateFeedback, 50));
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      urlInput.value = '';
+      updateFeedback();
+      urlInput.focus();
+    });
+  }
+}
+window.setupDownloaderUrlInput = setupDownloaderUrlInput;
+
+

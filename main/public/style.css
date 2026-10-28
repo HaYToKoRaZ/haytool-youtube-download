@@ -19,6 +19,7 @@
   --accent-red-glow: rgba(255, 0, 85, 0.3);
   --success: #00e676;      /* Success Green */
   --warning: #ffb300;      /* Warning Gold */
+  --danger-color: var(--accent-red);
   
   --accent-primary: var(--primary);
   --accent-secondary: var(--secondary);
@@ -28,10 +29,42 @@
   --text-main: #f1f5f9;
   --text-muted: #94a3b8;
   --text-dark: #64748b;
+  --accent-yellow: var(--warning);
+  --text-color: var(--text-main);
+  --text-light: #ffffff;
+  --bg-body: var(--bg-app);
+  --bg-main: var(--bg-app);
+  --bg-surface: var(--bg-card);
+  --bg-input: rgba(15, 14, 32, 0.7);
   
   --font-title: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
   --transition-speed: 0.3s;
+
+  /* Yarıçap ölçeği: kontrol 6 · kart 10 · panel/modal 14 · pill 18 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+/* Form kontrolleri tarayıcı varsayılanına (Arial) düşmesin; marka fontunu devralsın. */
+button,
+input,
+select,
+textarea,
+optgroup {
+  font-family: inherit;
+}
+
+/* Sayısal veriler hizalı okunsun (süre, boyut, yüzde, sayaç). */
+.video-duration-badge,
+.video-card-duration-text,
+.queue-item,
+.stat-value,
+.compare-health-value,
+[class*="-count"],
+[class*="-size"] {
+  font-variant-numeric: tabular-nums;
 }
 
 body.light-theme {
@@ -47,6 +80,18 @@ body.light-theme {
   --secondary-glow: rgba(14, 165, 233, 0.15);
   --accent-red: #df0c4b;
   --accent-red-glow: rgba(223, 12, 75, 0.15);
+  --secondary: #0284c7;
+  --secondary-glow: rgba(2, 132, 199, 0.15);
+  --success: #15803d;
+  --warning: #b45309;
+  --danger-color: #dc2626;
+  --accent-yellow: var(--warning);
+  --text-color: var(--text-main);
+  --text-light: #ffffff;
+  --bg-body: var(--bg-app);
+  --bg-main: var(--bg-app);
+  --bg-surface: #ffffff;
+  --bg-input: #ffffff;
   
   --accent-primary: var(--primary);
   --accent-secondary: var(--secondary);
@@ -70,8 +115,14 @@ body.matrix-theme {
   
   --primary: #00ff41;        /* Matrix Code Green */
   --primary-glow: rgba(0, 255, 65, 0.45);
-  --secondary: #33ff77;      /* Bright Matrix Green */
-  --secondary-glow: rgba(51, 255, 119, 0.35);
+  --secondary: #00e5ff;      /* Cyber Cyan - Distinct from Green */
+  --secondary-glow: rgba(0, 229, 255, 0.35);
+  --danger-color: #ff3366;
+  --bg-body: var(--bg-app);
+  --bg-main: var(--bg-app);
+  --bg-surface: var(--bg-card);
+  --bg-input: rgba(2, 10, 3, 0.85);
+  --text-color: var(--text-main);
   --accent-red: #ff3366;     /* Matrix Red Accent */
   --accent-red-glow: rgba(255, 51, 102, 0.3);
   --success: #00ff41;
@@ -84,7 +135,7 @@ body.matrix-theme {
   
   --text-main: #e0ffe6;
   --text-muted: #66b377;
-  --text-dark: #3a7a49;
+  --text-dark: #5c9c6f;
 }
 
 /* Matrix Özel Siber Görsel Geliştirmeler */
@@ -169,8 +220,14 @@ body.discord-theme {
   
   --primary: #5865f2;        /* Discord Blurple */
   --primary-glow: rgba(88, 101, 242, 0.45);
-  --secondary: #57f287;      /* Discord Green */
-  --secondary-glow: rgba(87, 242, 135, 0.35);
+  --secondary: #00a8fc;      /* Discord Cyan/Transfer Blue */
+  --secondary-glow: rgba(0, 168, 252, 0.35);
+  --danger-color: #ed4245;
+  --bg-body: var(--bg-app);
+  --bg-main: var(--bg-app);
+  --bg-surface: var(--bg-card);
+  --bg-input: rgba(30, 31, 34, 0.85);
+  --text-color: var(--text-main);
   --accent-red: #ed4245;     /* Discord Red */
   --accent-red-glow: rgba(237, 66, 69, 0.35);
   --success: #57f287;
@@ -268,8 +325,14 @@ body.youtube-theme {
   
   --primary: #ff0000;        /* YouTube Iconic Red */
   --primary-glow: rgba(255, 0, 0, 0.45);
-  --secondary: #ff4e45;      /* YouTube Bright Red Accent */
-  --secondary-glow: rgba(255, 78, 69, 0.35);
+  --secondary: #38bdf8;      /* Sky Blue for In-Progress - Distinct from Alarm Red */
+  --secondary-glow: rgba(56, 189, 248, 0.35);
+  --danger-color: #ff0000;
+  --bg-body: var(--bg-app);
+  --bg-main: var(--bg-app);
+  --bg-surface: var(--bg-card);
+  --bg-input: rgba(15, 15, 15, 0.85);
+  --text-color: var(--text-main);
   --accent-red: #ff0000;     /* YouTube Red */
   --accent-red-glow: rgba(255, 0, 0, 0.4);
   --success: #2ba640;
@@ -462,10 +525,11 @@ body.light-theme .topbar {
 .sort-btn {
   background-color: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   padding: 6px 12px;
-  font-size: 0.8rem;
+  min-height: 34px;
+  font-size: 12px;
   font-weight: 500;
   font-family: var(--font-body);
   cursor: pointer;
@@ -480,10 +544,10 @@ body.light-theme .topbar {
   border-color: rgba(255, 255, 255, 0.2);
 }
 .sort-btn.active {
-  background: linear-gradient(135deg, var(--primary), #b35dfc);
-  color: #fff;
+  background: transparent;
+  color: var(--text-main);
   border-color: var(--primary);
-  box-shadow: 0 2px 8px var(--primary-glow);
+  box-shadow: none;
 }
 body.light-theme .sort-btn {
   background-color: rgba(0, 0, 0, 0.03);
@@ -494,8 +558,8 @@ body.light-theme .sort-btn:hover {
   background-color: rgba(0, 0, 0, 0.06);
 }
 body.light-theme .sort-btn.active {
-  background: var(--primary);
-  color: #fff;
+  background: transparent;
+  color: var(--text-main);
   border-color: var(--primary);
 }
 
@@ -1009,7 +1073,8 @@ body.light-theme .nav-item[data-tab="queue"].active .queue-nav-badge {
   align-items: center !important;
   gap: 8px;
   flex-shrink: 1;
-  overflow: visible !important;
+  min-width: 0;
+  overflow: visible;
   scrollbar-width: none;
   margin-left: auto;
   height: 100%;
@@ -1028,6 +1093,52 @@ body.light-theme .nav-item[data-tab="queue"].active .queue-nav-badge {
   margin-left: 8px;
 }
 
+/* Yatay taşma koruması: rozet içindeki metinler kısaltılır, sayfa sağa kaymaz. */
+.topbar-status-badges .status-badge span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+/* Araç çubuğu kontrolleri: en az 36px dokunma yüksekliği */
+.sort-btn,
+.history-filters-trigger,
+.view-btn,
+#history-bulk-hide-toggle-btn {
+  min-height: 36px;
+}
+
+/* Küçük yardımcı metinler: taban 12px */
+.weather-popover-city,
+.weather-popover-footer {
+  font-size: 12px;
+}
+
+/* Dar ekranlarda üst bar taşmasın: rozet ayrıntıları kademeli gizlenir */
+@media (max-width: 1280px) {
+  #badge-weather .weather-city-label,
+  #badge-weather .weather-precip-badge,
+  #badge-disk #topbar-disk-title-folder,
+  #badge-disk #disk-status-folder {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  #badge-weather {
+    display: none !important;
+  }
+}
+
+/* Dar ekranlarda disk rozeti üst barı taşırıyor; gizle (bilgi Ayarlar'da mevcut). */
+@media (max-width: 1520px) {
+  #badge-disk {
+    display: none !important;
+  }
+}
+
 /* ============================================================
    Üst Bar Durum Rozetleri (.status-badge)
    ux-ui-agent-skills standardına uygun pill silüeti (18px radius,
@@ -1038,6 +1149,8 @@ body.light-theme .nav-item[data-tab="queue"].active .queue-nav-badge {
   display: flex !important;
   align-items: center !important;
   gap: 7px;
+  flex-shrink: 1;
+  min-width: 0;
   padding: 0 12px;
   height: 36px !important;
   min-height: 36px !important;
@@ -1113,7 +1226,7 @@ body.light-theme .nav-item[data-tab="queue"].active .queue-nav-badge {
 #topbar-quality-title,
 #topbar-disk-title-free,
 #topbar-disk-title-folder {
-  font-size: 0.70rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   font-weight: 500;
   letter-spacing: 0.3px;
@@ -1210,7 +1323,7 @@ body.youtube-theme .status-badge:hover {
 }
 
 .weather-city-label {
-  font-size: 0.70rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   max-width: 80px;
   overflow: hidden;
@@ -1399,7 +1512,7 @@ body.light-theme .weather-city-label {
 }
 
 .wpop-label {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: rgba(232, 230, 240, 0.55);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -2077,6 +2190,30 @@ body.matrix-theme .topbar-actions .btn-icon-only i {
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(138, 43, 226, 0.6);
+}
+
+.btn:active,
+button:active {
+  transform: translateY(1px);
+}
+
+.btn:disabled,
+button:disabled,
+.format-chip:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  filter: grayscale(35%);
+  pointer-events: auto !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.btn:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent-primary) !important;
+  outline-offset: 2px !important;
 }
 
 .btn-secondary {
@@ -3120,6 +3257,10 @@ body.light-theme .channel-filters-bar {
 .status-pill.waiting { background-color: rgba(255, 179, 0, 0.12); color: var(--warning); }
 .status-pill.failed { background-color: rgba(255, 0, 85, 0.12); color: var(--accent-red); }
 .status-pill.ignored { background-color: rgba(255, 255, 255, 0.06); color: var(--text-muted); }
+body.light-theme .status-pill.completed { background-color: rgba(21, 128, 61, 0.12); color: var(--success); }
+body.light-theme .status-pill.downloading { background-color: rgba(2, 132, 199, 0.12); color: var(--secondary); }
+body.light-theme .status-pill.waiting { background-color: rgba(180, 83, 9, 0.12); color: var(--warning); }
+body.light-theme .status-pill.failed { background-color: rgba(220, 38, 38, 0.12); color: var(--danger-color); }
 
 /* Table actions */
 .action-buttons {
@@ -3131,9 +3272,9 @@ body.light-theme .channel-filters-bar {
 .btn-icon {
   background: transparent;
   border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3414,6 +3555,34 @@ body.light-theme .history-toolbar {
   box-shadow: 0 4px 18px -2px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04) inset;
 }
 
+/* Kaydırma sırasında araç çubuğu sabit kalsın (Kütüphane + İndirilenler).
+   NOT: backdrop-filter eklenmez; position: fixed açılır menüleri kaydırır. */
+
+/* Kütüphane araç çubuğundaki seçiciler, İndirilenler'deki butonlarla aynı ölçüde olsun. */
+.history-toolbar select {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--border-color);
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--text-main);
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.history-toolbar select:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+body.light-theme .history-toolbar select {
+  background-color: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--text-main);
+}
+
+
 /* Kütüphane Toolbar: filtreler kaydırılabilir, sağ aksiyonlar (sıralama + görünüm) sabit */
 .history-toolbar-filters {
   display: flex;
@@ -3432,9 +3601,9 @@ body.light-theme .history-toolbar {
   border-left: 1px solid var(--border-color);
 }
 #history-sort-group .sort-btn {
-  padding: 4px 8px;
-  font-size: 0.72rem;
-  height: 26px;
+  padding: 6px 10px;
+  font-size: 12px;
+  min-height: 36px;
   white-space: nowrap;
 }
 
@@ -3457,18 +3626,198 @@ body.light-theme .history-toolbar {
   flex-shrink: 0; /* Elemanların daralmasını engeller */
 }
 
+/* === İndirilenler Toolbar İyileştirilmiş Düzen (Taşma Önleyici) === */
+.downloaded-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  overflow: visible !important;
+}
+
+.downloaded-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.downloaded-toolbar-left > * { flex-shrink: 0; }
+.downloaded-toolbar-left > .downloaded-category-quick-pills { flex-shrink: 1; min-width: 0; overflow: hidden; }
+.downloaded-toolbar-left .custom-dropdown-trigger { max-width: 170px; }
+.downloaded-toolbar-left .custom-dropdown-selected-content > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
+
+.downloaded-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.downloaded-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.downloaded-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-color, rgba(255, 255, 255, 0.15));
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* Tek satır: genişlik daraldıkça buton etiketleri gizlenir (ikon + title kalır) */
+.downloaded-toolbar { container-type: inline-size; }
+@container (max-width: 1500px) {
+  #btn-text-resume-filter, #btn-update-metadata-dl, #btn-bulk-delete-dl-toggle { display: none; }
+}
+@container (max-width: 1250px) {
+  #lbl-dl-show-shorts, #downloaded-view-toggle-text { display: none; }
+  .downloaded-search-wrapper { min-width: 110px !important; max-width: 140px !important; flex-basis: 140px !important; }
+}
+@container (max-width: 1050px) {
+  .toolbar-unified-btn { padding: 0 8px !important; }
+  .downloaded-toolbar-left, .downloaded-toolbar-right { gap: 5px; }
+}
+
+/* Standartlaştırılmış Toolbar Butonları */
+.toolbar-unified-btn {
+  height: 32px !important;
+  padding: 0 10px !important;
+  font-size: 0.8rem !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.downloaded-view-toggle-btn {
+  background: rgba(56, 189, 248, 0.1) !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+  color: var(--accent-color, #38bdf8) !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  transition: all 0.2s ease !important;
+}
+.downloaded-view-toggle-btn:hover {
+  background: rgba(56, 189, 248, 0.2) !important;
+  border-color: var(--accent-color, #38bdf8) !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3) !important;
+}
+
+/* Video Arama Inputu */
+.downloaded-search-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 140px;
+  max-width: 180px;
+  flex: 0 1 180px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-input, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  padding: 0 8px 0 28px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+.downloaded-search-wrapper:focus-within {
+  border-color: var(--accent-color, #38bdf8);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+.downloaded-search-icon {
+  position: absolute;
+  left: 8px;
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.downloaded-search-wrapper input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 0.8rem;
+  outline: none;
+}
+.downloaded-search-clear {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.downloaded-search-clear:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Kanal Dropdown İçi Arama */
+.custom-dropdown-search-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #181528;
+  padding: 4px 4px 8px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  margin-bottom: 4px;
+}
+body.light-theme .custom-dropdown-search-wrap {
+  background: #ffffff;
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+.custom-dropdown-search-input {
+  width: 100%;
+  padding: 6px 24px 6px 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.2));
+  background: var(--bg-input, rgba(0, 0, 0, 0.3));
+  color: var(--text-main);
+  font-size: 0.8rem;
+  outline: none;
+  box-sizing: border-box;
+}
+.custom-dropdown-search-input:focus {
+  border-color: var(--accent-color, #38bdf8);
+}
+body.light-theme .downloaded-search-wrapper {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+body.light-theme .custom-dropdown-search-input {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+body.light-theme .downloaded-view-toggle-btn {
+  background: rgba(14, 165, 233, 0.08) !important;
+  border-color: rgba(14, 165, 233, 0.3) !important;
+  color: #0284c7 !important;
+}
+
 /* === Kütüphane "Filtreler" Açılır Paneli === */
 .history-filters-trigger {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 5px 12px;
-  height: 30px;
+  height: 34px;
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   color: var(--text-main);
-  font-size: 0.75rem;
+  font-size: 12px;
   font-family: var(--font-body);
   cursor: pointer;
   white-space: nowrap;
@@ -3663,13 +4012,16 @@ body.light-theme .history-toolbar {
   position: relative;
   display: flex;
   flex-direction: column;
+  content-visibility: auto;
+  contain-intrinsic-size: 200px 280px;
   background: linear-gradient(145deg, rgba(28, 25, 54, 0.85) 0%, rgba(16, 14, 32, 0.95) 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  /* Cam efekti yalnızca üst bar ve modallarda kalır; kartlar mat yüzey kullanır. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.5);
   transform-origin: center center;
   will-change: transform, box-shadow;
   transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
@@ -3748,7 +4100,7 @@ body.light-theme .video-card:hover {
   background-color: rgba(9, 8, 18, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.16);
   color: #fff;
-  font-size: 0.72rem;
+  font-size: 12px;
   font-weight: 600;
   padding: 2.5px 7px;
   border-radius: 6px;
@@ -3839,7 +4191,19 @@ body.light-theme .video-card:hover .video-card-channel {
   margin-right: 4px;
   object-fit: cover;
   display: inline-block;
+  position: relative;
+  z-index: 1;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+  transform: scale(1);
+  transform-origin: center;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* Normalde küçük kalır; yalnızca fare üzerine gelince büyür (16px -> 48px). */
+.clickable-channel:hover .video-card-channel-avatar {
+  transform: scale(3);
+  z-index: 6;
+  box-shadow: 0 0 0 2px var(--accent-primary), 0 6px 16px rgba(0, 0, 0, 0.5);
 }
 
 .video-card-bottom {
@@ -3864,10 +4228,10 @@ body.light-theme .video-card:hover .video-card-channel {
 }
 
 .video-card-actions .btn-icon {
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  min-height: 30px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-color);
@@ -3968,7 +4332,7 @@ body.light-theme .video-card-actions .btn-icon:hover {
   transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   background-color: var(--bg-sidebar);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 .modal:not(.hidden) .modal-content {
@@ -4589,6 +4953,49 @@ body.light-theme .queue-move-btn.queue-btn-bottom:hover:not(:disabled) {
   height: 37px !important;
   flex-shrink: 0 !important;
   border-radius: 5px !important;
+  position: relative;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease, border-color 0.28s ease;
+  z-index: 1;
+}
+
+/* Hover büyütme: Son İndirilenler ve Hata Alanlar & Denenenler kapakları (2.50x) */
+.queue-split-card .queue-thumb-container:hover {
+  transform: scale(2.5);
+  transform-origin: left center;
+  z-index: 200;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85), 0 0 0 2px var(--accent-primary, var(--primary));
+}
+.queue-split-card,
+.queue-split-card .queue-list,
+.queue-split-card .queue-table-row,
+.queue-split-card .queue-item {
+  overflow: visible;
+}
+.queue-split-card .queue-list > *:has(.queue-thumb-container:hover) {
+  position: relative;
+  z-index: 200;
+}
+
+/* Sıradaki / Son İndirilen / Hata satırları: fare üzerine gelince satır yükselir, büyüyen kapak tam görünür */
+.queue-list .queue-table-row,
+.queue-list .queue-item {
+  position: relative;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.queue-list .queue-table-row:hover,
+.queue-list .queue-item:hover {
+  content-visibility: visible !important;
+  overflow: visible !important;
+  z-index: 150;
+}
+.queue-list .queue-thumb-container:hover {
+  transform: scale(2.5);
+  transform-origin: left center;
+  z-index: 200;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85), 0 0 0 2px var(--accent-primary, var(--primary));
+}
+.queue-list .queue-thumb-container {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease;
 }
 
 .queue-split-card .queue-item-info {
@@ -4663,14 +5070,20 @@ body.light-theme .queue-move-btn.queue-btn-bottom:hover:not(:disabled) {
   gap: 8px;
   padding: 6px 10px;
   font-size: 0.78rem;
+  content-visibility: auto;
+  contain-intrinsic-size: 100% 44px;
 }
 
 .queue-table-row.split-table-row .btn-cancel-queue,
 .queue-table-row.split-table-row .btn-retry-queue,
 .queue-table-row.split-table-row .btn-play-queue {
-  padding: 3px 6px !important;
-  font-size: 0.7rem !important;
-  height: 24px;
+  padding: 4px 8px !important;
+  font-size: 0.72rem !important;
+  min-height: 28px;
+  min-width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .queue-table-row.failed-row {
@@ -4833,6 +5246,43 @@ body.light-theme #downloaded-channel-filter option {
   box-shadow: 0 0 8px rgba(0, 230, 118, 0.8);
   margin-right: 4px;
   flex-shrink: 0;
+}
+
+/* Kuyrukta bekleyen videolar için sarı nokta (yazı/ikon yok) */
+.status-dot-waiting {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--warning, #f59e0b);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
+  margin-right: 4px;
+  flex-shrink: 0;
+  cursor: help;
+}
+
+/* Aktif İndirme Kapak Resmi Hover Büyütme */
+#active-thumbnail-wrapper {
+  position: relative;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease, border-color 0.28s ease;
+  cursor: pointer;
+  z-index: 5;
+}
+
+#active-thumbnail-wrapper:hover {
+  transform: scale(2.50);
+  transform-origin: top left;
+  z-index: 100;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85), 0 0 0 2px var(--accent-primary);
+  border-color: var(--accent-primary) !important;
+}
+
+#active-thumbnail-wrapper #active-thumbnail-img {
+  transition: transform 0.28s ease;
+}
+
+#active-thumbnail-wrapper:hover #active-thumbnail-img {
+  transform: scale(1.02);
 }
 
 /* Türkçe Açıklama: Hata yaşayan videolar için kırmızı nokta (yazı yok) */
@@ -9236,7 +9686,9 @@ body.light-theme .bulk-delete-row:hover {
 
 /* ===== Toolbar Stacking Context & Custom Dropdown Fix ===== */
 .history-toolbar {
-  position: relative !important;
+  /* Kaydırma sırasında sabit kalır (Kütüphane + İndirilenler). */
+  position: sticky !important;
+  top: 0 !important;
   z-index: 999999 !important;
   overflow: visible !important;
 }
@@ -9850,6 +10302,45 @@ body.light-theme #queue-view-toggle-container .view-btn.active {
   color: #cbd5e1;
 }
 
+/* Fakap Video Rozeti (Thumbnail Sol Üst Köşe) */
+.video-fakap-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.2;
+  letter-spacing: 0.5px;
+  padding: 2.5px 7px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.92), rgba(168, 85, 247, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.45);
+  pointer-events: none;
+  text-transform: uppercase;
+}
+
+.video-card-fakap-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  color: #fb7185;
+}
+
+body.light-theme .video-card-fakap-tag {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.35);
+  color: #e11d48;
+}
+
 /* Playlist Sidebar Küçük Thumbnail Çözünürlük Rozeti */
 .playlist-item-quality {
   position: absolute;
@@ -10444,10 +10935,10 @@ body.light-theme #downloaded-filter-resume-btn.active #badge-resume-count {
   max-width: 800px;
   margin: 20px auto;
   padding: 32px;
-  background: linear-gradient(145deg, rgba(28, 25, 54, 0.94) 0%, rgba(16, 14, 32, 0.98) 100%) !important;
-  border: 1px solid rgba(138, 43, 226, 0.3) !important;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
   border-radius: 18px !important;
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.65), 0 0 25px rgba(138, 43, 226, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.45), 0 0 25px var(--primary-glow), inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   position: relative;
@@ -10464,32 +10955,31 @@ body.light-theme #downloaded-filter-resume-btn.active #badge-resume-count {
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, #8a2be2, #00f2fe, transparent);
+  background: linear-gradient(90deg, transparent, var(--primary), var(--secondary), transparent);
   pointer-events: none;
 }
 
 body.light-theme .downloader-card {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(243, 244, 248, 0.92) 100%) !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
   box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08) !important;
 }
 
 .downloader-input-group input {
   height: 48px;
   font-size: 0.95rem;
-  background: rgba(15, 13, 28, 0.85) !important;
-  border: 1px solid rgba(138, 43, 226, 0.35) !important;
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border-color) !important;
   border-radius: 12px !important;
-  color: #ffffff !important;
+  color: var(--text-main) !important;
   padding: 0 16px 0 44px !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 2px rgba(0, 0, 0, 0.15);
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .downloader-input-group input:focus {
-  border-color: rgba(138, 43, 226, 0.85) !important;
-  box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.35), 0 0 16px rgba(138, 43, 226, 0.35) !important;
-  background: rgba(22, 19, 41, 0.95) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px var(--primary-glow), 0 0 16px var(--primary-glow) !important;
 }
 
 .downloader-options {
@@ -10501,7 +10991,7 @@ body.light-theme .downloader-card {
 .downloader-option-group label {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #00f2fe;
+  color: var(--secondary);
   margin-bottom: 6px;
   display: block;
   letter-spacing: 0.3px;
@@ -10510,9 +11000,9 @@ body.light-theme .downloader-card {
 .downloader-option-group select {
   width: 100%;
   height: 42px;
-  background: rgba(15, 13, 28, 0.85);
-  border: 1px solid rgba(138, 43, 226, 0.3);
-  color: #ffffff;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
   border-radius: 10px;
   padding: 0 12px;
   font-size: 0.88rem;
@@ -10522,13 +11012,12 @@ body.light-theme .downloader-card {
 }
 
 .downloader-option-group select:hover {
-  border-color: rgba(138, 43, 226, 0.6);
-  background: rgba(26, 22, 48, 0.95);
+  border-color: var(--primary);
 }
 
 .downloader-option-group select:focus {
-  border-color: rgba(138, 43, 226, 0.85);
-  box-shadow: 0 0 0 2px rgba(138, 43, 226, 0.35);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-glow);
 }
 
 #downloader-start-btn {
@@ -10536,10 +11025,10 @@ body.light-theme .downloader-card {
   font-size: 0.95rem;
   font-weight: 700;
   border-radius: 12px;
-  background: linear-gradient(135deg, #8a2be2 0%, #00f2fe 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   border: none;
   color: #ffffff;
-  box-shadow: 0 6px 20px rgba(138, 43, 226, 0.4);
+  box-shadow: 0 6px 20px var(--primary-glow);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   align-items: center;
@@ -10576,7 +11065,9 @@ body.light-theme #deleted-videos-filter-type {
 }
 
 #deleted-videos-search,
-#deleted-videos-filter-type {
+#deleted-videos-filter-type,
+#fakap-videos-search,
+#fakap-videos-filter-status {
   min-height: 42px;
   padding: 9px 13px;
   border: 1px solid var(--border-color);
@@ -10587,21 +11078,26 @@ body.light-theme #deleted-videos-filter-type {
 }
 
 #deleted-videos-search:focus-visible,
-#deleted-videos-filter-type:focus-visible {
+#deleted-videos-filter-type:focus-visible,
+#fakap-videos-search:focus-visible,
+#fakap-videos-filter-status:focus-visible {
   outline: 2px solid var(--accent-primary, #8b5cf6);
   outline-offset: 2px;
 }
 
-#deleted-videos-filter-type {
+#deleted-videos-filter-type,
+#fakap-videos-filter-status {
   color-scheme: dark;
 }
 
-#deleted-videos-filter-type option {
+#deleted-videos-filter-type option,
+#fakap-videos-filter-status option {
   background: var(--bg-sidebar, #181525);
   color: var(--text-main, #f4f2fb);
 }
 
-body.light-theme #deleted-videos-filter-type {
+body.light-theme #deleted-videos-filter-type,
+body.light-theme #fakap-videos-filter-status {
   color-scheme: light;
 }
 
@@ -10821,6 +11317,178 @@ body.light-theme .deleted-video-type.manual {
   pointer-events: none;
 }
 
+.compare-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.compare-toolbar-copy {
+  min-width: 0;
+}
+
+.compare-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent-color);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.compare-toolbar-copy p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.compare-loading {
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.compare-health-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.compare-health-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 10px;
+  min-height: 86px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.compare-health-card:hover,
+.compare-health-card.is-active {
+  border-color: color-mix(in srgb, var(--accent-color) 65%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+}
+
+.compare-health-card:focus-visible,
+.compare-selection-bar button:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+.compare-health-card svg {
+  grid-row: span 2;
+  width: 22px;
+  height: 22px;
+  color: var(--accent-color);
+}
+
+.compare-health-card.is-healthy svg {
+  color: #4ade80;
+}
+
+.compare-health-value {
+  font-size: 1.35rem;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.compare-health-card span:last-child {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.compare-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-color) 45%, var(--border-color));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-color) 9%, transparent);
+  color: var(--text-main);
+  font-size: 0.88rem;
+}
+
+.compare-selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.compare-select-column,
+.compare-select-cell {
+  width: 38px;
+  padding: 10px 4px !important;
+  text-align: center;
+}
+
+.compare-select-column input,
+.compare-select-cell input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-color);
+  cursor: pointer;
+}
+
+.compare-filter-hidden {
+  display: none !important;
+}
+
+body.light-theme .compare-health-card {
+  background: rgba(255, 255, 255, 0.74);
+}
+
+body.light-theme .compare-health-card:hover,
+body.light-theme .compare-health-card.is-active {
+  background: color-mix(in srgb, var(--accent-color) 8%, white);
+}
+
+@media (max-width: 900px) {
+  .compare-health-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .compare-toolbar,
+  .compare-selection-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .compare-toolbar .btn {
+    justify-content: center;
+  }
+
+  .compare-selection-actions {
+    justify-content: stretch;
+  }
+
+  .compare-selection-actions .btn {
+    flex: 1 1 150px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compare-health-card {
+    transition: none;
+  }
+}
+
 body.light-theme #tools-compare-container {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(243, 244, 248, 0.92) 100%) !important;
   border: 1px solid rgba(0, 0, 0, 0.1) !important;
@@ -10863,3 +11531,112 @@ body.light-theme #tools-compare-container {
 .disk-warning-btn-ghost { color: #fff; background: transparent; border-color: rgba(255, 255, 255, 0.55); }
 [data-theme="light"] .disk-warning-banner { background: linear-gradient(135deg, #dc2626, #991b1b); }
 @keyframes diskWarnPulse { 0%, 100% { box-shadow: 0 4px 18px rgba(185, 28, 28, 0.35); } 50% { box-shadow: 0 4px 26px rgba(185, 28, 28, 0.7); } }
+
+/* ==========================================================================
+   Modern Downloader & Segmented Chips (frontend-design standardı)
+   ========================================================================== */
+.format-chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+.format-chip:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+.format-chip.active {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px var(--primary-glow);
+  font-weight: 600;
+}
+body.light-theme .format-chip {
+  background: #ffffff;
+  color: var(--text-muted);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+body.light-theme .format-chip:hover {
+  background: #f8fafc;
+  color: var(--text-main);
+  border-color: var(--primary);
+}
+body.light-theme .format-chip.active {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.download-telemetry-hud {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Vadesi Dolanlar: ikon boyutu kardeş butonlarla aynı kalsın (lucide varsayılanı 24px olmasın). */
+#sort-btn-auto-delete > svg {
+  width: 14px !important;
+  height: 14px !important;
+  flex-shrink: 0;
+}
+
+/* === Fakap kartı indirme ilerleme çubuğu === */
+.fakap-progress-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.fakap-progress-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent-primary), var(--secondary));
+  transition: width 0.25s linear;
+}
+
+/* === Kuyruk üstü Fakap özet satırı === */
+.fakap-queue-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(138, 43, 226, 0.45);
+  border-radius: var(--radius-sm);
+  background: rgba(138, 43, 226, 0.10);
+  color: var(--text-main);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.fakap-queue-summary:hover {
+  background: rgba(138, 43, 226, 0.18);
+  border-color: var(--accent-primary);
+}
+
+.fakap-queue-summary svg {
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.fakap-queue-summary-link {
+  margin-left: auto;
+  color: var(--accent-primary);
+  font-weight: 600;
+  white-space: nowrap;
+}

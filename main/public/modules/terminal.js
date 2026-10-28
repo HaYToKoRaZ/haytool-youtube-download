@@ -1,6 +1,66 @@
 // public/modules/terminal.js
 // Türkçe Açıklama: Canlı sistem terminal günlüğü (log), konsol modalı ve renkli log akışını yöneten bağımsız ES modülü.
 
+// Konsol modu: 'app' = süzülmüş uygulama günlüğü, 'raw' = Node sürecinin ham stdout/stderr çıktısı
+let consoleMode = 'app';
+
+function consoleModeUrl() {
+  return consoleMode === 'raw' ? '/api/logs?raw=1' : '/api/logs';
+}
+
+function updateConsoleModeButton() {
+  const btn = document.getElementById('console-mode-btn');
+  if (!btn) return;
+  if (consoleMode === 'raw') {
+    btn.textContent = 'Ham Çıktı ✓';
+    btn.style.color = '#4af626';
+    btn.style.borderColor = '#4af626';
+  } else {
+    btn.textContent = 'Ham Çıktı';
+    btn.style.color = '#a3a3a3';
+    btn.style.borderColor = '#444';
+  }
+}
+
+function reloadConsoleContent() {
+  const consoleOutput = document.getElementById('console-output');
+  if (!consoleOutput) return;
+  consoleOutput.innerHTML = '<div style="color: #a3a3a3; margin-bottom: 8px;">> Yükleniyor...</div>';
+  fetch(consoleModeUrl())
+    .then(res => res.json())
+    .then(logs => {
+      consoleOutput.innerHTML = '';
+      if (logs && logs.length > 0) {
+        logs.forEach(log => appendLogToConsoleModal(log));
+      } else {
+        const msg = consoleMode === 'raw'
+          ? '> Ham çıktı henüz boş. Sunucu yeni bir satır yazdığında burada görünecek.'
+          : '> Geçmiş log bulunamadı, yeni olaylar bekleniyor...';
+        consoleOutput.innerHTML = `<div style="color: #a3a3a3; margin-bottom: 8px;">${msg}</div>`;
+      }
+    })
+    .catch(err => console.error('Log geçmişi alınamadı:', err));
+}
+
+/**
+ * Uygulama günlüğü ile ham sistem çıktısı arasında geçiş yapar.
+ */
+export function toggleConsoleMode() {
+  consoleMode = consoleMode === 'raw' ? 'app' : 'raw';
+  updateConsoleModeButton();
+  reloadConsoleContent();
+}
+window.toggleConsoleMode = toggleConsoleMode;
+
+/**
+ * Ham çıktı olayını (SSE: terminal_raw) yalnızca ham mod açıkken konsola ekler.
+ */
+export function appendRawLogToConsole(log) {
+  if (consoleMode !== 'raw' || !log) return;
+  appendLogToConsoleModal(log);
+}
+window.appendRawLogToConsole = appendRawLogToConsole;
+
 /**
  * Sistem konsolu modalını açar, arka plan kaydırmasını kilitler ve sunucudan geçmiş logları yükler.
  */
@@ -11,20 +71,8 @@ export function openConsoleModal() {
   if (consoleModal) {
     consoleModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    
-    // Geçmiş logları sunucudan çek
-    fetch('/api/logs')
-      .then(res => res.json())
-      .then(logs => {
-        if (!consoleOutput) return;
-        consoleOutput.innerHTML = ''; // Temizle
-        if (logs && logs.length > 0) {
-          logs.forEach(log => appendLogToConsoleModal(log));
-        } else {
-          consoleOutput.innerHTML = '<div style="color: #a3a3a3; margin-bottom: 8px;">> Geçmiş log bulunamadı, yeni olaylar bekleniyor...</div>';
-        }
-      })
-      .catch(err => console.error('Log geçmişi alınamadı:', err));
+    updateConsoleModeButton();
+    reloadConsoleContent();
   }
 
   // Varsa açık araçlar menüsünü kapat
@@ -108,6 +156,13 @@ export function initTerminalEvents() {
   if (clearConsoleBtn && !clearConsoleBtn.dataset.initialized) {
     clearConsoleBtn.dataset.initialized = 'true';
     clearConsoleBtn.addEventListener('click', clearConsoleModal);
+  }
+
+  const modeBtn = document.getElementById('console-mode-btn');
+  if (modeBtn && !modeBtn.dataset.initialized) {
+    modeBtn.dataset.initialized = 'true';
+    modeBtn.addEventListener('click', toggleConsoleMode);
+    updateConsoleModeButton();
   }
 }
 window.initTerminalEvents = initTerminalEvents;

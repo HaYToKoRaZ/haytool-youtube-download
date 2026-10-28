@@ -5,8 +5,8 @@
 # <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v12.2.1)</p>
 
 <p align="center">
-  <b>Reclaim Your Feed: An Advanced, Portable, and Zero-Dependency YouTube Automation System & Native Player</b><br/>
-  <i>Algoritma Dayatmalarından Kurtulun: Gelişmiş, Taşınabilir ve Otomatik YouTube Takip, İndirme & Yerel Oynatıcı Sistemi</i>
+  <b>Portable YouTube Library & Native Player: Follow, Auto-Download & Watch Offline</b><br/>
+  <i>YouTube Takip, Otomatik İndirme ve Yerel Oynatıcı: Reklamsız ve Çevrimdışı Kütüphaneniz</i>
 </p>
 
 <p align="center">
@@ -35,8 +35,7 @@
 
 ## 🎯 Core Philosophy
 
-YouTube's recommendation algorithms are designed to maximize watch time by pushing distracting, addictive, and unwanted content to your feed. **Multimedia HaYTooL** is built to break this cycle. 
-Instead of logging into YouTube and exposing your data to ads and algorithmic traps, **Multimedia HaYTooL** acts as your private offline library. You define the exact channels you want to follow. The system continuously runs in the background, monitors their RSS feeds, and automatically downloads new videos as soon as they are uploaded. You watch your chosen content locally, 100% ad-free, offline, and entirely on your own terms.
+**Multimedia HaYTooL** is built for users who want to watch their subscriptions without endless algorithmic recommendations and ads. It runs quietly in the background as your private offline video library. You define the exact channels you want to follow. The system continuously runs in the background, monitors their RSS feeds, and automatically downloads new videos as soon as they are uploaded. You watch your chosen content locally, 100% ad-free, offline, and entirely on your own terms.
 
 ---
 
@@ -58,8 +57,8 @@ Instead of logging into YouTube and exposing your data to ads and algorithmic tr
 ## 🚀 Key Features
 
 * **Background Subscription Automation:** Periodically checks your followed channels via RSS feeds. Downloads new videos automatically the second they are uploaded, creating an offline, local cache of your subscription box.
-* **Algorithmic Liberation:** No distraction, no "Up Next" traps, and no algorithmic rabbit holes. You only see the videos published by the creators you specifically subscribed to.
-* **100% Ad-Free Local Playback:** Plays downloaded videos locally inside a custom dashboard using premium Plyr player with full seeking, speed control, and orientation-aware resizing.
+* **Distraction-Free Feed:** No "Up Next" traps or recommendation rabbit holes. You only see videos published by creators you follow.
+* **100% Ad-Free Local Playback:** Plays downloaded videos locally inside a clean dashboard using the built-in media player with smooth seeking, speed control, and responsive controls.
 * **SponsorBlock Integration:** Automatically skips sponsor segments, intros, outros, and subscription reminders. Includes a session-based shield toggle button under the player and dimmed segments on the timeline.
 * **Advanced Subtitles & Translation:** Automatically grabs English/Turkish subtitles. Features a translation utility supporting 11 target languages with a visual loading overlay, along with customizable subtitle styling (12 colors, 12 background opacities, 13 font sizes).
 * **YouTube-Style Split Playlist View:** The "Downloads" tab features a dual-column layout. Watch the active video on the left while browsing your other downloads in a sidebar playlist on the right, supporting autoplay (sequential video playback) and status HUD overlays.
@@ -201,8 +200,7 @@ You can manage download queues, speeds, background profiles, or launch modes dir
 
 ## 🎯 Temel Felsefe
 
-YouTube'un öneri algoritmaları, dikkatinizi dağıtmak, sizi platformda bağımlı kılmak ve istemediğiniz içerikleri önünüze çıkarmak üzerine tasarlanmıştır. **HaYTooL** bu dayatmayı yıkmak için geliştirildi.
-YouTube'a girip reklam tuzağına ve algoritma önerilerine maruz kalmak yerine, **HaYTooL** size özel bağımsız bir kütüphane sunar. Sadece takip etmek istediğiniz kanalları belirlersiniz; sistem arka planda bu kanalları sürekli tarayarak yeni yüklenen videoları otomatik olarak yerel diskinize indirir. Size sadece kendi kütüphanenizden, reklamsız, çevrimdışı ve özgürce izlemek kalır.
+**HaYTooL**, YouTube ana sayfasındaki öneri ve reklam döngüsüne girmeden yalnızca istediği içerikleri takip etmek isteyenler için tasarlandı. Arka planda çalışarak aboneliklerinizi bağımsız bir çevrimdışı kütüphaneye dönüştürür. Sadece takip etmek istediğiniz kanalları belirlersiniz; sistem arka planda bu kanalları sürekli tarayarak yeni yüklenen videoları otomatik olarak yerel diskinize indirir. Size sadece kendi kütüphanenizden, reklamsız, çevrimdışı ve özgürce izlemek kalır.
 
 ---
 
@@ -224,8 +222,8 @@ YouTube'a girip reklam tuzağına ve algoritma önerilerine maruz kalmak yerine,
 ## 🚀 Öne Çıkan Özellikler
 
 * **Arka Planda Otomatik Kanal İzleme:** Takip listenizdeki kanalları RSS akışlarıyla sürekli denetler. Yeni bir video yüklenir yüklenmez arka planda otomatik olarak indirerek yerel abonelik kutunuzu oluşturur.
-* **Algoritma Dayatmasından Kurtuluş:** Öneri algoritmaları, "Sıradaki Video" tuzakları ve dikkat dağıtıcı alakasız içerikler yok. Yalnızca takip etmek için kendi eklediğiniz yayıncıların videolarını görürsünüz.
-* **%100 Reklamsız Yerel Oynatım:** İndirilen videoları arayüzdeki gelişmiş Plyr oynatıcısı üzerinden sıfır gecikme, HTTP 206 Range desteği ve reklamsız olarak yerel diskinizden oynatır.
+* **Sadece Takip Ettiğiniz Kanallar:** Öneri algoritmaları veya alakasız video tuzakları yok. Yalnızca takip listenize eklediğiniz yayıncıların yeni videolarını görürsünüz.
+* **%100 Reklamsız Yerel Oynatım:** İndirilen videoları arayüzdeki yerel oynatıcı üzerinden takılmadan, HTTP 206 Range desteğiyle ve reklamsız olarak doğrudan diskinizden oynatır.
 * **SponsorBlock Entegrasyonu:** Video içindeki sponsorlu alanları, intro/outro bölümlerini ve abonelik hatırlatıcılarını otomatik atlar. Oynatıcı altındaki kalkan (shield) butonuyla geçici olarak kapatılabilir.
 * **Gelişmiş Altyazı ve Otomatik Çeviri:** İngilizce/Türkçe altyazıları otomatik indirir. Yerleşik çevirici modülüyle altyazıları 11 dile anlık çevirebilir ve altyazı rengini (12 renk), arka plan opaklığını (12 düzey), yazı boyutunu (13 seçenek) özelleştirebilirsiniz.
 * **YouTube Tarzı Bölünmüş Çalma Listesi:** İndirilenler sekmesi iki sütunlu yerleşim sunar. Solda aktif video oynatılırken sağda indirilmiş diğer videoların çalma listesi listelenir; otomatik sonraki videoya geçiş (autoplay) ve ortada beliren cam tasarımlı durum HUD'ları desteklenir.

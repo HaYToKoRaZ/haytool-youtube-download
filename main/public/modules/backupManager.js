@@ -148,7 +148,7 @@ export async function uploadBackupFile(event) {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(isEn ? 'Backup restored successfully! Reloading...' : 'Yedek başarıyla yüklendi ve geri yüklendi! Sayfa yenileniyor...', 'success');
+        showToast(isEn ? 'Backup restored! Reloading page...' : 'Yedek geri yüklendi! Sayfa yenileniyor...', 'success');
         setTimeout(() => { window.location.reload(); }, 1500);
       } else {
         showToast(data.error || (isEn ? 'Failed to restore backup file.' : 'Yedek dosyası geri yüklenemedi.'), 'error');
@@ -177,7 +177,7 @@ export async function restoreSystemBackup(filename) {
     });
     const data = await res.json();
     if (data.success) {
-      showToast(isEn ? 'Backup restored successfully! Reloading page...' : 'Yedek başarıyla geri yüklendi! Sayfa yenileniyor...', 'success');
+      showToast(isEn ? 'Backup restored! Reloading page...' : 'Yedek geri yüklendi! Sayfa yenileniyor...', 'success');
       setTimeout(() => { window.location.reload(); }, 1500);
     } else {
       showToast(data.error || (isEn ? 'Failed to restore backup.' : 'Yedek geri yüklenemedi.'), 'error');

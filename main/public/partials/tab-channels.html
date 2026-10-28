@@ -60,6 +60,15 @@
             </div>
 
             <div class="channel-filter-group">
+              <label for="filter-channel-fakap" id="label-filter-channel-fakap" style="display:inline-flex; align-items:center; gap:4px; font-weight:600;"><i data-lucide="archive" style="width:13px;height:13px;color:var(--accent-primary);"></i> <span id="text-filter-fakap-title">Fakap:</span></label>
+              <select id="filter-channel-fakap" class="channel-filter-select" onchange="handleChannelFilterChange()">
+                <option value="all" id="opt-filter-fakap-all">Tümü</option>
+                <option value="enabled" id="opt-filter-fakap-enabled">Açık (Yedeklenenler)</option>
+                <option value="disabled" id="opt-filter-fakap-disabled">Kapalı</option>
+              </select>
+            </div>
+
+            <div class="channel-filter-group">
               <label for="filter-channel-category" id="label-filter-channel-category" style="display:inline-flex; align-items:center; gap:4px; font-weight:600;"><i data-lucide="folder" style="width:13px;height:13px;color:var(--accent-primary);"></i> <span id="text-filter-category-title">Kategori:</span></label>
               <select id="filter-channel-category" class="channel-filter-select" onchange="handleChannelFilterChange()">
                 <option value="all" id="opt-filter-category-all">Tümü</option>

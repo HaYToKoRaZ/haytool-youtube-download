@@ -21,7 +21,7 @@ import {
 import { localhostOnly } from '../middleware/security.js';
 import { ytdlpPath, getFfmpegPath, testFfmpegSync, setFfmpegWorkingCached, getLocalTempDir, spawnYtdlp } from '../services/paths.js';
 import { downloadQueue, getEffectiveSpeedLimit, getCookieArgs } from '../services/downloader.js';
-import { broadcast, addTerminalLog, terminalLogs } from '../services/sse.js';
+import { broadcast, addTerminalLog, terminalLogs, rawLogs } from '../services/sse.js';
 import { restartCookieHealthCheck } from '../services/cookieHealth.js';
 import { categoriesIniPath } from '../config.js';
 export function formatBackupDateStr(now = new Date()) {
@@ -522,6 +522,8 @@ router.get('/weather/geocode', async (req, res) => {
  * @returns {void}
  */
 router.get('/logs', (req, res) => {
+  // ?raw=1 → Node sürecinin ham stdout/stderr akışı (tray konsoluyla aynı içerik)
+  if (req.query.raw === '1' || req.query.raw === 'true') return res.json(rawLogs);
   res.json(terminalLogs);
 });
 
@@ -565,6 +567,10 @@ router.post('/settings', localhostOnly, (req, res) => {
   if (req.body.autoDeleteDays !== undefined) {
     const val = parseInt(req.body.autoDeleteDays, 10);
     req.body.autoDeleteDays = isNaN(val) ? 0 : Math.max(0, Math.min(val, 3650));
+  }
+  if (req.body.autoDeleteMaxCount !== undefined) {
+    const val = parseInt(req.body.autoDeleteMaxCount, 10);
+    req.body.autoDeleteMaxCount = isNaN(val) ? 0 : Math.max(0, Math.min(val, 1000));
   }
   if (req.body.historyLimitPerChannel !== undefined) {
     const val = parseInt(req.body.historyLimitPerChannel, 10);

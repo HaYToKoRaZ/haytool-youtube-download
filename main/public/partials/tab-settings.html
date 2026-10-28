@@ -246,6 +246,48 @@
                     </div>
                     <small class="form-text" id="desc-download-path">Videoların kaydedileceği bilgisayarınızdaki klasör yolu.</small>
                   </div>
+
+                  <!-- Fakap (Otomatik Düşük Çözünürlüklü Yedek) Ayarları -->
+                  <div class="form-group fakap-settings-group" id="fakap-settings-group" style="margin-top: 14px; padding: 14px; border-radius: 12px; border: 1px dashed var(--border-color); background: rgba(56, 189, 248, 0.03);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
+                      <label id="fakap-settings-title" style="display:flex; align-items:center; gap:6px; font-weight:700; font-size: 0.95rem; margin:0;"><i data-lucide="archive" style="width:18px;height:18px;color:var(--accent-primary);"></i> <span id="fakap-settings-title-text">Fakap (Otomatik Yedek)</span></label>
+                      <button type="button" class="btn btn-secondary btn-sm" onclick="switchToolsSubSection('fakap')" style="display:flex; align-items:center; gap:5px; font-size:0.78rem;">
+                        <i data-lucide="external-link" style="width:13px;height:13px;"></i>
+                        <span id="btn-goto-fakap-page">Fakap Sayfasına Git</span>
+                      </button>
+                    </div>
+                    <label for="fakap-path-input" id="fakap-path-label" style="margin-top:8px; font-size:0.85rem;">Fakap İndirme Konumu</label>
+                    <div class="input-action-row">
+                      <input type="text" id="fakap-path-input" readonly placeholder="Varsayılan: [İndirme Klasörü]/Fakap">
+                      <button type="button" id="fakap-path-browse-btn" class="btn btn-secondary" onclick="fakapBrowseFolder()">
+                        <i data-lucide="folder"></i>
+                        <span id="fakap-path-browse-text">Klasör Seç</span>
+                      </button>
+                      <button type="button" id="fakap-path-default-btn" class="btn btn-secondary" onclick="fakapResetFolder()">
+                        <i data-lucide="rotate-ccw"></i>
+                        <span id="fakap-path-default-text">Varsayılan</span>
+                      </button>
+                    </div>
+                    <small class="form-text" id="fakap-path-desc">Takip edilen kanalların yedek videolarının indirileceği bağımsız klasör konumu.</small>
+
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;">
+                      <div style="flex:1; min-width:180px;">
+                        <label for="fakap-quality-select" id="fakap-quality-label" style="font-size:0.85rem;">Fakap Çözünürlüğü</label>
+                        <select id="fakap-quality-select" onchange="fakapSaveSettings()" style="width:100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
+                          <option value="144">144p</option>
+                          <option value="240">240p</option>
+                          <option value="360" selected>360p</option>
+                        </select>
+                      </div>
+                      <div style="flex:1; min-width:180px;">
+                        <label for="fakap-retention-select" id="fakap-retention-label" style="font-size:0.85rem;">Fakap Silinme Süresi</label>
+                        <select id="fakap-retention-select" onchange="fakapSaveSettings()" style="width:100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
+                          <option value="never">Asla (Hiç Silinmez)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
                   
                     <div class="form-group" style="margin-top: 12px;">
                       <label for="settings-temp-dir-type" id="label-temp-dir-type">Geçici Dosyalar (Temp) Klasörü Konumu</label>
@@ -662,6 +704,11 @@
                       <input type="number" id="settings-autodelete" min="0" max="365" required>
                       <small class="form-text" id="desc-auto-delete">İndirilen videoların kaç gün sonra silineceğini belirler (0: kapalı). Kanallar sekmesinden kanala özel kural atanabilir.</small>
                     </div>
+                    <div class="form-group">
+                      <label for="settings-autodelete-max-count" id="label-auto-delete-max-count">Otomatik Sil (Maksimum Video Sınırı)</label>
+                      <input type="number" id="settings-autodelete-max-count" min="0" max="10000" required>
+                      <small class="form-text" id="desc-auto-delete-max-count">Kanal başına saklanacak azami video sayısı (0: sınırsız/kapalı). Sınır aşıldığında en eski indirilenler silinir.</small>
+                    </div>
                   </div>
 
                   <div class="form-group" style="margin-top: 10px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
@@ -798,7 +845,7 @@
                   <!-- Alt Başlık 2: GitHub Gist Çevrimiçi Senkronizasyonu -->
                   <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
                     <label id="label-gist-sync-title" style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                      <i data-lucide="github" style="width:16px;height:16px;color:#a855f7;"></i>
+                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:16px;height:16px;color:#a855f7;flex-shrink:0;"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
                       <span id="text-gist-sync-title">2. GitHub Gist Çevrimiçi (Online) Senkronizasyonu</span>
                     </label>
                     <small id="desc-gist-sync-info" class="form-text" style="margin-bottom: 10px; margin-top: 2px;">

@@ -180,6 +180,8 @@ export function applyLanguage(lang) {
   el('opt-theme-youtube', 'opt_theme_youtube');
 
   elQuery('label[for="settings-autodelete"]', 'label_auto_delete');
+  elQuery('label[for="settings-autodelete-max-count"]', 'label_auto_delete_max_count');
+  el('desc-auto-delete-max-count', 'desc_auto_delete_max_count');
   elQuery('label[for="settings-rsslimit"]', 'label_rss_limit');
   elQuery('label[for="settings-speedlimit"]', 'label_settings_speed_limit');
   el('label-settings-alt-speed-limit-text', 'label_settings_alt_speed_limit');
@@ -486,8 +488,30 @@ export function applyLanguage(lang) {
   }
   const sortBtnAutoDelete = document.getElementById('sort-btn-auto-delete');
   if (sortBtnAutoDelete) {
-    sortBtnAutoDelete.textContent = t.sort_btn_auto_delete || (currentLang === 'en' ? '⏳ Expiring Soon' : '⏳ Vadesi Dolanlar');
+    // Metin, ikonu silmemesi için butonun içindeki span'a yazılır.
+    const labelEl = document.getElementById('sort-auto-delete-label');
+    const labelText = t.sort_btn_auto_delete || (currentLang === 'en' ? 'Expiring Soon' : 'Vadesi Dolanlar');
+    if (labelEl) labelEl.textContent = labelText;
+    else sortBtnAutoDelete.textContent = labelText;
     sortBtnAutoDelete.title = t.sort_btn_auto_delete_title || (currentLang === 'en' ? 'Expiring Soonest First' : 'Silinmesi Yaklaşanlar (Vadesi Dolanlar Önce)');
+  }
+
+  // İndirilenler arama ve kanal arama placeholder çevirileri
+  const dlSearchInput = document.getElementById('downloaded-search-input');
+  if (dlSearchInput && t.search_downloaded_placeholder) {
+    dlSearchInput.placeholder = t.search_downloaded_placeholder;
+  }
+  const customChannelSearchInput = document.getElementById('custom-channel-search-input');
+  if (customChannelSearchInput && t.search_channel_placeholder) {
+    customChannelSearchInput.placeholder = t.search_channel_placeholder;
+  }
+
+  // Yeni tekli sıralama butonları ve görünüm mod butonu senkronizasyonu
+  if (typeof window.syncDownloadedSortButtons === 'function') {
+    window.syncDownloadedSortButtons();
+  }
+  if (typeof window.updateDownloadedViewButtonUI === 'function') {
+    window.updateDownloadedViewButtonUI();
   }
 
   // Ayarlar alt sekmeleri ve açıklamaları
@@ -599,7 +623,31 @@ export function applyLanguage(lang) {
   el('nav-tools-ape-text', 'nav_tools_ape');
   el('nav-tools-subs-text', 'nav_tools_subs');
   el('nav-tools-categories-text', 'category_manage_title');
+  el('nav-tools-fakap-text', 'nav_tools_fakap');
   el('nav-tools-ape-text', 'nav_tools_ape');
+
+  // Fakap Ayarlar + Araçlar sayfası i18n
+  el('fakap-settings-title-text', 'fakap_settings_title');
+  el('fakap-path-label', 'fakap_path_label');
+  el('fakap-path-desc', 'fakap_path_desc');
+  el('fakap-path-browse-text', 'fakap_path_browse');
+  el('fakap-path-default-text', 'fakap_path_default');
+  el('fakap-quality-label', 'fakap_quality_label');
+  el('fakap-retention-label', 'fakap_retention_label');
+  el('btn-goto-fakap-page', 'fakap_goto_page');
+  el('tools-fakap-heading-text', 'fakap_tools_title');
+  el('tools-fakap-desc', 'fakap_tools_desc');
+  el('btn-scan-fakap-text', 'fakap_btn_scan');
+  el('btn-open-fakap-text', 'fakap_btn_open_folder');
+  el('btn-enable-all-fakap-text', 'fakap_btn_enable_all');
+  el('btn-disable-all-fakap-text', 'fakap_btn_disable_all');  el('btn-reset-fakap-text', 'fakap_btn_reset');
+  el('msg-no-fakap-videos', 'fakap_empty');
+  el('opt-fakap-filter-all', 'fakap_filter_all');
+  el('opt-fakap-filter-completed', 'fakap_filter_completed');
+  el('opt-fakap-filter-downloading', 'fakap_filter_downloading');
+  el('opt-fakap-filter-queued', 'fakap_filter_queued');
+  const fakapSearchEl = document.getElementById('fakap-videos-search');
+  if (fakapSearchEl && t.fakap_search_placeholder) fakapSearchEl.placeholder = t.fakap_search_placeholder;
 
 
 

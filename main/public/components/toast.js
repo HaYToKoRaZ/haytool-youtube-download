@@ -8,7 +8,7 @@
  * @param {string|null} [thumbnail=null] İsteğe bağlı küçük resim (thumbnail) URL'si
  * @returns {void}
  */
-export function showToast(message, type = 'info', thumbnail = null) {
+export function showToast(message, type = 'info', thumbnail = null, action = null) {
   const container = document.getElementById('toast-container');
   if (!container) return;
   
@@ -25,13 +25,67 @@ export function showToast(message, type = 'info', thumbnail = null) {
     thumbnailHtml = `<img src="${thumbnail}" class="toast-thumbnail" alt="thumbnail">`;
   }
 
+  let actionHtml = '';
+  if (action && action.text) {
+    actionHtml = `<button class="toast-action-btn" type="button" style="margin-left: 8px; background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.45); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.25); transition: all 0.2s ease;">${action.text}</button>`;
+  }
+
   toast.innerHTML = `
     ${thumbnailHtml}
     <div class="toast-icon">
       <i data-lucide="${iconName}"></i>
     </div>
-    <div class="toast-message">${message}</div>
+    <div class="toast-message" style="display:flex; align-items:center; justify-content:space-between; width:100%; gap:8px;">
+      <span>${message}</span>
+      <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
+        ${actionHtml}
+        <button type="button" class="toast-close-btn" aria-label="Kapat" style="background:transparent; border:none; color:inherit; opacity:0.6; cursor:pointer; padding:2px 4px; line-height:1; display:flex; align-items:center;">
+          <i data-lucide="x" style="width:12px; height:12px;"></i>
+        </button>
+      </div>
+    </div>
   `;
+
+  let timer = null;
+  const closeToast = () => {
+    toast.style.animation = 'slideIn 0.3s reverse forwards';
+    setTimeout(() => toast.remove(), 300);
+  };
+
+  const startTimer = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(closeToast, 4000);
+  };
+
+  startTimer();
+
+  toast.addEventListener('mouseenter', () => {
+    if (timer) clearTimeout(timer);
+  });
+  toast.addEventListener('mouseleave', () => {
+    startTimer();
+  });
+
+  const closeBtn = toast.querySelector('.toast-close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (timer) clearTimeout(timer);
+      closeToast();
+    });
+  }
+
+  if (action && typeof action.onClick === 'function') {
+    const actBtn = toast.querySelector('.toast-action-btn');
+    if (actBtn) {
+      actBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (timer) clearTimeout(timer);
+        action.onClick();
+        closeToast();
+      });
+    }
+  }
   
   container.appendChild(toast);
   
@@ -40,12 +94,6 @@ export function showToast(message, type = 'info', thumbnail = null) {
   } catch (e) {
     // Kasıtlı sessiz: Lucide kütüphanesi yüklenmemişse hata yutulur
   }
-
-  // 4 saniye sonra bildirimi kaldır
-  setTimeout(() => {
-    toast.style.animation = 'slideIn 0.3s reverse forwards';
-    setTimeout(() => toast.remove(), 300);
-  }, 4000);
 }
 
 // ─── Typed Wrapper'lar ──────────────────────────────────────────────────────
@@ -80,10 +128,26 @@ export const toastWarning = (message, thumbnail = null) => showToast(message, 'w
  */
 export const toastInfo = (message, thumbnail = null) => showToast(message, 'info', thumbnail);
 
+/**
+ * Geri alma (Undo) özellikli bilgi bildirimi gösterir.
+ * @param {string} message Gösterilecek mesaj
+ * @param {Function} onUndo Geri Al butonuna tıklandığında çalışacak geri çağırma
+ */
+export function showUndoToast(message, onUndo) {
+  const isEn = (typeof localDb !== 'undefined' && localDb.settings && localDb.settings.lang === 'en') || localStorage.getItem('haytool_user_lang') === 'en';
+  showToast(message, 'info', null, {
+    text: isEn ? 'Undo ↺' : 'Geri Al ↺',
+    onClick: onUndo
+  });
+}
+
 // Global erişim (window.xxx) — HTML onclick ve eski modüller için
 if (typeof window !== 'undefined') {
+  window.showToast = showToast;
+  window.showUndoToast = showUndoToast;
   window.toastSuccess = toastSuccess;
   window.toastError   = toastError;
   window.toastWarning = toastWarning;
   window.toastInfo    = toastInfo;
 }
+

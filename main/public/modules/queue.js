@@ -378,6 +378,11 @@ export async function toggleQueuePause() {
       if (typeof window.updateUI === 'function') {
         window.updateUI(currentDb);
       }
+      if (data.isPaused) {
+        showToast((currentDb.settings && currentDb.settings.lang === 'en')
+          ? 'Queue paused. Current active download will complete before halting.'
+          : 'Kuyruk duraklatıldı. Aktif inen video bitince yeni indirmeye geçilmeyecek.', 'info');
+      }
     } else {
       showToast(data.error || 'İşlem başarısız.', 'error');
     }
@@ -483,7 +488,7 @@ export async function retryAllFailedVideos() {
   const currentLang = localStorage.getItem('haytool_user_lang') || 'tr';
   const isEn = currentLang === 'en';
   const disabledChannelIds = new Set((currentDb.channels || []).filter(c => c.autoDownload === false).map(c => c.id));
-  const failedItems = (currentDb.history || []).filter(h => h.status === 'failed' && h.hidden !== true && h.status !== 'ignored' && !disabledChannelIds.has(h.channelId));
+  const failedItems = (currentDb.history || []).filter(h => h.status === 'failed' && h.hidden !== true && h.status !== 'ignored' && !disabledChannelIds.has(h.channelId) && !(h.isFakap === true || String(h.id || '').startsWith('fakap_')));
   if (failedItems.length === 0) {
     showToast(isEn ? 'No failed videos to retry.' : 'Tekrar denenecek hata alan video bulunmuyor.', 'info');
     return;
@@ -536,7 +541,20 @@ export async function clearFailedVideo(videoId) {
     const res = await fetch(`/api/history/${videoId}?deleteFile=false&hideOnDelete=true&markWatched=true`, { method: 'DELETE' });
     const data = await res.json();
     if (data.success) {
-      showToast(isEn ? 'Failed download removed and ignored.' : 'Hata kaydı temizlendi ve indirilmesi engellendi.', 'success');
+      if (typeof window.showUndoToast === 'function' && backup) {
+        window.showUndoToast(isEn ? 'Failed download removed.' : 'Hata kaydı temizlendi.', async () => {
+          db.history.push(backup);
+          if (typeof window.updateUI === 'function') window.updateUI(db);
+          await fetch('/api/history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(backup)
+          }).catch(() => {});
+          showToast(isEn ? 'Restored back to list.' : 'Kayıt geri yüklendi.', 'success');
+        });
+      } else {
+        showToast(isEn ? 'Failed download removed and ignored.' : 'Hata kaydı temizlendi ve indirilmesi engellendi.', 'success');
+      }
     } else {
       if (backup) {
         db.history.push(backup);
@@ -564,7 +582,7 @@ export async function clearAllFailedVideos() {
   const isEn = currentLang === 'en';
   const disabledChannelIds = new Set((currentDb.channels || []).filter(c => c.autoDownload === false).map(c => c.id));
   
-  const failedItems = (currentDb.history || []).filter(h => (h.status === 'failed' || h.status === 'waiting_live_processing') && h.hidden !== true && h.status !== 'ignored' && !disabledChannelIds.has(h.channelId));
+  const failedItems = (currentDb.history || []).filter(h => (h.status === 'failed' || h.status === 'waiting_live_processing') && h.hidden !== true && h.status !== 'ignored' && !disabledChannelIds.has(h.channelId) && !(h.isFakap === true || String(h.id || '').startsWith('fakap_')));
   if (failedItems.length === 0) {
     showToast(isEn ? 'No failed videos to clear.' : 'Temizlenecek hata kaydı bulunmuyor.', 'info');
     return;

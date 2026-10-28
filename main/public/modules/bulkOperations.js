@@ -192,7 +192,7 @@ export async function executeDownloadedBulkDelete() {
     videoIds = Array.from(checked).map(cb => cb.getAttribute('data-id'));
   }
   if (videoIds.length === 0) {
-    showToast(isEn ? 'Please select at least one video to delete.' : 'Lütfen silmek için en az bir video seçin.', 'error');
+    showToast(isEn ? 'Select at least one video to delete.' : 'Silmek için en az bir video seçin.', 'error');
     return;
   }
   
@@ -220,11 +220,11 @@ export async function executeDownloadedBulkDelete() {
         await window.loadDb();
       }
     } else {
-      showToast(isEn ? 'Failed to delete videos.' : 'Videolar silinirken bir hata oluştu.', 'error');
+      showToast(isEn ? 'Failed to delete videos.' : 'Videolar silinemedi.', 'error');
     }
   } catch (err) {
     console.error('[executeDownloadedBulkDelete] Hata:', err);
-    showToast(isEn ? 'An error occurred during deletion.' : 'Silme işlemi sırasında bir hata oluştu.', 'error');
+    showToast(isEn ? 'Could not delete videos.' : 'Videolar silinemedi.', 'error');
   }
 }
 
@@ -344,7 +344,7 @@ export async function executeHistoryBulkHide() {
     videoIds = Array.from(checked).map(cb => cb.getAttribute('data-id'));
   }
   if (videoIds.length === 0) {
-    showToast(isEn ? 'Please select at least one video to hide.' : 'Lütfen gizlemek için en az bir video seçin.', 'warning');
+    showToast(isEn ? 'Select at least one video to hide.' : 'Gizlemek için en az bir video seçin.', 'warning');
     return;
   }
   
@@ -372,11 +372,11 @@ export async function executeHistoryBulkHide() {
         await window.loadDb();
       }
     } else {
-      showToast(result.error || (isEn ? 'Failed to hide videos.' : 'Videolar gizlenirken bir hata oluştu.'), 'error');
+      showToast(result.error || (isEn ? 'Failed to hide videos.' : 'Videolar gizlenemedi.'), 'error');
     }
   } catch (err) {
     console.error('[executeHistoryBulkHide] Hata:', err);
-    showToast(isEn ? 'An error occurred while hiding videos.' : 'Gizleme işlemi sırasında bir hata oluştu.', 'error');
+    showToast(isEn ? 'Could not hide videos.' : 'Videolar gizlenemedi.', 'error');
   }
 }
 

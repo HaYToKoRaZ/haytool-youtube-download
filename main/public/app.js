@@ -12,6 +12,7 @@ import { renderVideoGrid } from './components/videoCard.js';
 import { renderChannelsList, getChannelsRenderSignature } from './components/channelRow.js';
 // Araçlar ve dosya karşılaştırma alt modülü
 import './modules/tools.js';
+import './modules/fakap.js';
 // Ayarlar, yedekleme ve Gist senkronizasyon alt modülü
 import { initSettings, populateGistFields, checkYouTubeAuthStatus, openTempFolder, openFolder, triggerAutoSave, performAutoSave, initSettingsFormListeners } from './modules/settings.js';
 window.openTempFolder = openTempFolder;
@@ -391,6 +392,7 @@ function switchTab(targetTab, triggerPushState = true) {
   if (targetTab === 'settings') {
     if (typeof fetchYtdlpVersion === 'function') fetchYtdlpVersion();
     if (typeof initYtdlpEvents === 'function') initYtdlpEvents();
+    if (typeof loadFakapVideosList === 'function') loadFakapVideosList();
   }
 
   if (triggerPushState) {
@@ -695,6 +697,8 @@ function connectSSE() {
   eventSource.addEventListener('progress', (e) => {
     const data = JSON.parse(e.data);
     updateActiveDownloadProgress(data);
+    // Fakap sayfası açıksa ilerleme çubuğunu canlı güncelle
+    if (typeof window.updateFakapProgress === 'function') window.updateFakapProgress(data);
   });
 
   // Kanal Tarama İlerleme Bildirimi
@@ -782,6 +786,14 @@ function connectSSE() {
       appendLogToConsoleModal(data);
     } catch (err) {}
   });
+
+  // Ham sistem çıktısı (tray konsoluyla aynı kaynak) — yalnızca "Ham Çıktı" modunda gösterilir
+  eventSource.addEventListener('terminal_raw', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (typeof window.appendRawLogToConsole === 'function') window.appendRawLogToConsole(data);
+    } catch (err) {}
+  });
 }
 
 
@@ -799,6 +811,27 @@ function updateActiveDownloadProgress(data) {
   activeSize.textContent = data.fileSize || '-- MB';
   activeEta.textContent = data.eta || '--:--';
   activeSpeed.textContent = data.speed || '0 KB/s';
+
+  // Downloader Sekmesi Canlı Telemetri Güncellemesi
+  const dlFill = document.getElementById('downloader-progress-fill');
+  const dlPercent = document.getElementById('downloader-progress-percent');
+  const dlSpeed = document.getElementById('downloader-progress-speed');
+  const dlEta = document.getElementById('downloader-progress-eta');
+  if (dlFill) dlFill.style.width = `${data.progress}%`;
+  if (dlPercent) dlPercent.textContent = `${data.progress}%`;
+  if (dlSpeed && data.speed) dlSpeed.textContent = data.speed;
+  if (dlEta && data.eta) dlEta.textContent = data.eta;
+
+  const thumbImg = document.getElementById('active-thumbnail-img');
+  const thumbPlc = document.getElementById('active-thumbnail-placeholder');
+  if (thumbImg && thumbPlc && data.id) {
+    const thumbUrl = 'https://i.ytimg.com/vi/' + data.id + '/mqdefault.jpg';
+    if (thumbImg.style.display === 'none' || !thumbImg.src || thumbImg.src.endsWith('/logo.png')) {
+      thumbImg.src = thumbUrl;
+      thumbImg.style.display = 'block';
+      thumbPlc.style.display = 'none';
+    }
+  }
 }
 
 
@@ -1112,6 +1145,30 @@ function updateUI(db) {
         if (activePercent) activePercent.textContent = `${activeDownload.progress}%`;
         if (activeSize) activeSize.textContent = activeDownload.fileSize || '-- MB';
         if (activeEta) activeEta.textContent = activeDownload.eta || '--:--';
+        const thumbImg = document.getElementById('active-thumbnail-img');
+        const thumbPlc = document.getElementById('active-thumbnail-placeholder');
+        if (thumbImg && thumbPlc) {
+          const thumbUrl = activeDownload.thumbnail || (activeDownload.id ? 'https://i.ytimg.com/vi/' + activeDownload.id + '/mqdefault.jpg' : '');
+          if (thumbUrl) {
+            if (thumbImg.dataset.baseUrl !== thumbUrl) {
+              thumbImg.dataset.baseUrl = thumbUrl;
+              thumbImg.src = thumbUrl;
+              const thumbWrap = document.getElementById('active-thumbnail-wrapper');
+              if (thumbWrap) {
+                thumbWrap.setAttribute('data-video-id', activeDownload.id || '');
+                if (thumbWrap._thumbTimer) { clearInterval(thumbWrap._thumbTimer); thumbWrap._thumbTimer = null; }
+              }
+            }
+            thumbImg.style.display = 'block';
+            if (typeof syncActiveThumbCycle === 'function') syncActiveThumbCycle(true);
+            thumbPlc.style.display = 'none';
+          } else {
+            thumbImg.style.display = 'none';
+            thumbPlc.style.display = 'block';
+          }
+        }
+        const hudSpeed = document.getElementById('active-speed-val');
+        if (hudSpeed) hudSpeed.textContent = activeDownload.speed || '0 KB/s';
       }
       if (activeSpeed) activeSpeed.textContent = activeDownload.speed || '0 KB/s';
     } else if (activeMerging) {
@@ -1124,11 +1181,34 @@ function updateUI(db) {
         if (activePercent) activePercent.textContent = t.status_merging || 'Birleştiriliyor (FFmpeg)...';
         if (activeSize) activeSize.textContent = activeMerging.fileSize || '-- MB';
         if (activeEta) activeEta.textContent = '--:--';
+        const thumbImg = document.getElementById('active-thumbnail-img');
+        const thumbPlc = document.getElementById('active-thumbnail-placeholder');
+        if (thumbImg && thumbPlc) {
+          const thumbUrl = activeMerging.thumbnail || (activeMerging.id ? 'https://i.ytimg.com/vi/' + activeMerging.id + '/mqdefault.jpg' : '');
+          if (thumbUrl) {
+            if (thumbImg.dataset.baseUrl !== thumbUrl) {
+              thumbImg.dataset.baseUrl = thumbUrl;
+              thumbImg.src = thumbUrl;
+              const thumbWrap = document.getElementById('active-thumbnail-wrapper');
+              if (thumbWrap) {
+                thumbWrap.setAttribute('data-video-id', activeMerging.id || '');
+                if (thumbWrap._thumbTimer) { clearInterval(thumbWrap._thumbTimer); thumbWrap._thumbTimer = null; }
+              }
+            }
+            thumbImg.style.display = 'block';
+            if (typeof syncActiveThumbCycle === 'function') syncActiveThumbCycle(true);
+            thumbPlc.style.display = 'none';
+          } else {
+            thumbImg.style.display = 'none';
+            thumbPlc.style.display = 'block';
+          }
+        }
       }
       if (activeSpeed) activeSpeed.textContent = 'FFmpeg...';
     } else {
       if (noActiveDownload) noActiveDownload.classList.remove('hidden');
       if (activeDownloadDetails) activeDownloadDetails.classList.add('hidden');
+      if (typeof syncActiveThumbCycle === 'function') syncActiveThumbCycle(false);
       if (activeSpeed) activeSpeed.textContent = '0 MB/s';
     }
 
@@ -1148,9 +1228,12 @@ function updateUI(db) {
         cardsBtn.classList.toggle('active', viewMode === 'cards');
       }
 
-      const mergingVideos = db.history.filter(h => h.status === 'merging' && h.hidden !== true);
-      const downloadingVideos = db.history.filter(h => h.status === 'downloading' && h.hidden !== true);
-      const waitingVideos = db.history.filter(h => h.status === 'waiting' && h.hidden !== true);
+      // Fakap yedek indirmeleri kuyruk listesinde AYRICA gösterilmez; aynı video iki satır olarak
+      // görünmesin diye buradan elenir. Fakap kopyaları Araçlar > Fakap sayfasında takip edilir.
+      const isFakapRow = (h) => h && (h.isFakap === true || String(h.id || '').startsWith('fakap_'));
+      const mergingVideos = db.history.filter(h => h.status === 'merging' && h.hidden !== true && !isFakapRow(h));
+      const downloadingVideos = db.history.filter(h => h.status === 'downloading' && h.hidden !== true && !isFakapRow(h));
+      const waitingVideos = db.history.filter(h => h.status === 'waiting' && h.hidden !== true && !isFakapRow(h));
       const allActiveQueue = [...downloadingVideos, ...waitingVideos];
       
       const totalQueueCount = allActiveQueue.length + mergingVideos.length;
@@ -1163,12 +1246,29 @@ function updateUI(db) {
       if (statWaitingCount) {
         statWaitingCount.textContent = totalQueueCount;
       }
+
+      // Fakap yedekleri kuyrukta satır olarak görünmez; üstte tek satır özet gösterilir.
+      const fakapActiveItems = db.history.filter(h => isFakapRow(h) && (h.status === 'waiting' || h.status === 'downloading' || h.status === 'merging'));
+      const fakapActiveCount = fakapActiveItems.length;
+      const fakapAvgPct = fakapActiveCount
+        ? Math.round(fakapActiveItems.reduce((sum, h) => sum + (Number(h.progress) || 0), 0) / fakapActiveCount)
+        : 0;
+      const fakapSummaryHtml = fakapActiveCount > 0
+        ? `<div class="fakap-queue-summary" onclick="if(typeof switchTab==='function')switchTab('tools');if(typeof switchToolsSubSection==='function')switchToolsSubSection('fakap')" title="${isEn ? 'Open Fakap backups' : 'Fakap yedeklerini aç'}">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>
+             <span>${isEn ? 'Fakap backup' : 'Fakap yedeği'}: <strong>${fakapActiveCount}</strong> ${isEn ? 'active' : 'aktif'} · %${fakapAvgPct}</span>
+             <span class="fakap-queue-summary-link">${isEn ? 'Tools > Fakap' : 'Araçlar > Fakap'} →</span>
+           </div>`
+        : '';
       
       if (allActiveQueue.length === 0 && mergingVideos.length === 0) {
+        // Kuyruk boş görünse de Fakap yedeği indiriliyor olabilir; kullanıcıya bunu sessizce bildir.
         queueList.innerHTML = `
           <div class="text-center text-muted" id="queue-list-empty" style="padding: 30px 0; font-size: 0.85rem;">${isEn ? 'No videos waiting in the queue.' : 'Kuyrukta bekleyen video yok.'}</div>
+          ${fakapSummaryHtml}
         `;
       } else {
+        if (fakapSummaryHtml) queueList.insertAdjacentHTML('beforeend', fakapSummaryHtml);
         // Tablo görünümüyse sütun başlıklarını ekle
         if (viewMode === 'table') {
           const headerEl = document.createElement('div');
@@ -1568,6 +1668,18 @@ function updateUI(db) {
           }
 
           failedVideos.forEach((video, idx) => {
+            const failDate = video.failedAt || video.downloadedAt || video.publishedAt;
+            let failTimeStr = '';
+            let failFullDate = '';
+            if (failDate) {
+              const d = new Date(failDate);
+              if (!isNaN(d.getTime())) {
+                const hh = String(d.getHours()).padStart(2, '0');
+                const mm = String(d.getMinutes()).padStart(2, '0');
+                failTimeStr = `${hh}:${mm}`;
+                failFullDate = `${d.toLocaleDateString()} ${hh}:${mm}`;
+              }
+            }
             const item = document.createElement('div');
             item.setAttribute('data-id', video.id);
             const orderNoStr = `#${(idx + 1).toString().padStart(2, '0')}`;
@@ -1577,8 +1689,10 @@ function updateUI(db) {
             if (rawError) {
               if (/yeler|üyeler|members-only|katıl|katil|join this channel/i.test(rawError)) {
                 shortError = t.card_members_only || 'Üyelere Özel';
-              } else if (/çerez|cookie/i.test(rawError)) {
-                shortError = 'Çerez Hatası';
+              } else if (/çerez|cookie|sign in to confirm your age/i.test(rawError)) {
+                shortError = isEn ? 'Cookie / Age Gate' : 'Oturum / Çerez Gerekli';
+              } else if (/private|unavailable|silinmiş|kaldırılmış/i.test(rawError)) {
+                shortError = isEn ? 'Removed / Private' : 'Video Gizli / Silinmiş';
               } else if (/403|503|429|Forbidden/i.test(rawError)) {
                 shortError = '403 CDN Kısıtı';
               } else if (/bulunamadı|not found/i.test(rawError)) {
@@ -1614,6 +1728,7 @@ function updateUI(db) {
                       <i data-lucide="alert-triangle" style="width:9px; height:9px; flex-shrink:0;"></i>
                       <span>${escapeHtml(shortError)}</span>
                     </span>
+                    ${failTimeStr ? `<span class="queue-meta-pill queue-meta-pill-time" title="${isEn ? 'Error Time' : 'Hata Saati'}: ${failFullDate}" style="font-size:0.7rem; color:var(--text-muted); background:rgba(255,255,255,0.04);"><i data-lucide="clock" style="width:9px; height:9px; flex-shrink:0;"></i><span>${failTimeStr}</span></span>` : ''}
                   </div>
                 </div>
                 <div>
@@ -1623,11 +1738,14 @@ function updateUI(db) {
                   </span>
                 </div>
                 <div style="display:flex; align-items:center; justify-content:flex-end; gap:4px;">
-                  <button class="btn-retry-queue" onclick="retryFailedVideo('${video.id}')" title="${t.card_retry_download || 'Yeniden Dene'}" style="padding: 3px 6px; font-size: 0.7rem; display:inline-flex; align-items:center; gap:2px;">
+                  <button class="btn-play-queue" onclick="openYouTube('${video.id}')" aria-label="${isEn ? 'Open in YouTube' : 'YouTube üzerinde aç'}" title="${isEn ? 'Open in YouTube' : 'YouTube üzerinde aç'}" style="padding: 4px 8px; font-size: 0.72rem; min-height: 28px; min-width: 28px; display:inline-flex; align-items:center; gap:2px;">
+                    <i data-lucide="external-link" style="width:10px; height:10px;"></i>
+                  </button>
+                  <button class="btn-retry-queue" onclick="retryFailedVideo('${video.id}')" aria-label="${t.card_retry_download || 'Yeniden Dene'}" title="${t.card_retry_download || 'Yeniden Dene'}" style="padding: 4px 8px; font-size: 0.72rem; min-height: 28px; min-width: 28px; display:inline-flex; align-items:center; gap:2px;">
                     <i data-lucide="rotate-ccw" style="width:10px; height:10px;"></i>
                     <span>${t.card_retry_download || 'Tekrar'}</span>
                   </button>
-                  <button class="btn-cancel-queue btn-delete-failed" onclick="clearFailedVideo('${video.id}')" title="${isEn ? 'Delete from list and ignore' : 'Hata kaydını sil ve indirilmesini engelle'}" style="padding: 3px 6px; font-size: 0.7rem; display:inline-flex; align-items:center; gap:2px;">
+                  <button class="btn-cancel-queue btn-delete-failed" onclick="clearFailedVideo('${video.id}')" aria-label="${isEn ? 'Delete' : 'Sil'}" title="${isEn ? 'Delete from list and ignore' : 'Hata kaydını sil ve indirilmesini engelle'}" style="padding: 4px 8px; font-size: 0.72rem; min-height: 28px; min-width: 28px; display:inline-flex; align-items:center; gap:2px;">
                     <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
                     <span>${isEn ? 'Delete' : 'Sil'}</span>
                   </button>
@@ -1666,14 +1784,19 @@ function updateUI(db) {
                       <i data-lucide="alert-triangle" style="width:9px; height:9px;"></i>
                       <span>${escapeHtml(shortError)}</span>
                     </span>
+                    ${failTimeStr ? `<span class="queue-meta-pill queue-meta-pill-time" title="${isEn ? 'Error Time' : 'Hata Saati'}: ${failFullDate}"><i data-lucide="clock" style="width:9px; height:9px;"></i><span>${failTimeStr}</span></span>` : ''}
                   </div>
                 </div>
                 <div class="queue-item-actions">
-                  <button class="btn-retry-queue" onclick="retryFailedVideo('${video.id}')" title="${t.card_retry_download || 'Yeniden Dene'}">
+                  <button class="btn-play-queue" onclick="openYouTube('${video.id}')" aria-label="${isEn ? 'Open in YouTube' : 'YouTube üzerinde aç'}" title="${isEn ? 'Open in YouTube' : 'YouTube üzerinde aç'}">
+                    <i data-lucide="external-link"></i>
+                    <span>YouTube</span>
+                  </button>
+                  <button class="btn-retry-queue" onclick="retryFailedVideo('${video.id}')" aria-label="${t.card_retry_download || 'Yeniden Dene'}" title="${t.card_retry_download || 'Yeniden Dene'}">
                     <i data-lucide="rotate-ccw"></i>
                     <span>${t.card_retry_download || 'Tekrar'}</span>
                   </button>
-                  <button class="btn-cancel-queue btn-delete-failed" onclick="clearFailedVideo('${video.id}')" title="${isEn ? 'Delete from list and ignore' : 'Hata kaydını sil ve indirilmesini engelle'}">
+                  <button class="btn-cancel-queue btn-delete-failed" onclick="clearFailedVideo('${video.id}')" aria-label="${isEn ? 'Delete' : 'Sil'}" title="${isEn ? 'Delete from list and ignore' : 'Hata kaydını sil ve indirilmesini engelle'}">
                     <i data-lucide="trash-2"></i>
                     <span>${isEn ? 'Delete' : 'Sil'}</span>
                   </button>
@@ -1765,6 +1888,16 @@ function updateUI(db) {
         b.classList.remove('active');
       }
     });
+  }
+  if (typeof syncDownloadedSortButtons === 'function') {
+    syncDownloadedSortButtons(downloadedSortVal);
+  }
+  if (typeof updateDownloadedViewButtonUI === 'function') {
+    updateDownloadedViewButtonUI();
+  }
+  const dlShortsBtn = document.getElementById('btn-dl-show-shorts');
+  if (dlShortsBtn) {
+    dlShortsBtn.classList.toggle('active', db.settings?.showShorts !== false);
   }
 
   const inlinePlaylistShowShorts = document.getElementById('inline-playlist-show-shorts');
@@ -1962,7 +2095,8 @@ function updateUI(db) {
 
   // İndirilen Videoları filtrele ve çiz (Sadece İndirilenler sekmesi aktifse)
   if (downloadedGrid && db.history && db.settings && isDownloadedActive) {
-    let filteredDownloaded = db.history.filter(item => item.status === 'completed');
+    // Fakap yedekleri "İndirilenler" listesinde gösterilmez; kendi sayfasında (Araçlar > Fakap) listelenir.
+    let filteredDownloaded = db.history.filter(item => item.status === 'completed' && !(item.isFakap === true || String(item.id || '').startsWith('fakap_')));
     
     if (downloadedFilterChannel !== 'all') {
       if (downloadedFilterChannel.startsWith('category:')) {
@@ -1978,6 +2112,17 @@ function updateUI(db) {
     const showShorts = db.settings.showShorts !== false;
     if (!showShorts) {
       filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
+    }
+
+    // Video başlığı veya kanal adına göre anlık arama
+    const dlSearchInput = document.getElementById('downloaded-search-input');
+    const dlSearchQuery = ((dlSearchInput ? dlSearchInput.value : window.downloadedSearchQuery) || '').trim().toLowerCase();
+    if (dlSearchQuery) {
+      filteredDownloaded = filteredDownloaded.filter(item => {
+        const title = (item.title || '').toLowerCase();
+        const chName = (item.channelName || '').toLowerCase();
+        return title.includes(dlSearchQuery) || chName.includes(dlSearchQuery);
+      });
     }
 
     // Yarım Kalanlar (İzlemeyi yarıda bıraktığım videolar) hesaplama ve filtreleme
@@ -2127,6 +2272,8 @@ function updateUI(db) {
     const settingsAltSpeedLimit = document.getElementById('settings-altspeedlimit');
     if (settingsTheme && document.activeElement !== settingsTheme) settingsTheme.value = db.settings.theme || 'dark';
     if (settingsAutoDelete && document.activeElement !== settingsAutoDelete) settingsAutoDelete.value = db.settings.autoDeleteDays || 0;
+    const settingsAutoDeleteMaxCount = document.getElementById('settings-autodelete-max-count');
+    if (settingsAutoDeleteMaxCount && document.activeElement !== settingsAutoDeleteMaxCount) settingsAutoDeleteMaxCount.value = db.settings.autoDeleteMaxCount || 0;
     const settingsAutoDeleteRequireConfirm = document.getElementById('settings-autodelete-require-confirmation');
     if (settingsAutoDeleteRequireConfirm && document.activeElement !== settingsAutoDeleteRequireConfirm) {
       settingsAutoDeleteRequireConfirm.checked = db.settings.autoDeleteRequireConfirmation !== false;
@@ -2261,6 +2408,12 @@ function updateUI(db) {
         pauseBtn.classList.remove('btn-warning');
         if (iconEl) iconEl.setAttribute('data-lucide', 'pause');
       }
+    }
+
+    const queuePausedNotice = document.getElementById('queue-paused-notice');
+    if (queuePausedNotice) {
+      queuePausedNotice.style.display = db.settings.isPaused ? 'flex' : 'none';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     // Sıradaki hız sınırı giriş kutusu senkronizasyonu ve etiket güncellemesi
@@ -2404,10 +2557,12 @@ window.downloadVideoManual = async function(videoId) {
 
   try {
     showToast(`İndirme başlatılıyor: ${title}`, 'info');
+    // Fakap kayıtlarında id "fakap_<videoId>" olabilir; sunucuya her zaman gerçek video kimliği gider.
+    const cleanId = (item && item.originalId) || String(videoId || '').replace(/^fakap_/, '');
     const res = await fetch('/api/download-video', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoId, title, channelName, channelId })
+      body: JSON.stringify({ videoId: cleanId, title, channelName, channelId })
     });
     const data = await res.json();
     if (data.success) {
@@ -4569,6 +4724,14 @@ function renderDownloadedPlaylist(currentVideoId) {
   if (!showShorts) {
     filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
   }
+  const dlPlSearch = ((document.getElementById('downloaded-search-input')?.value || window.downloadedSearchQuery) || '').trim().toLowerCase();
+  if (dlPlSearch) {
+    filteredDownloaded = filteredDownloaded.filter(item => {
+      const title = (item.title || '').toLowerCase();
+      const chName = (item.channelName || '').toLowerCase();
+      return title.includes(dlPlSearch) || chName.includes(dlPlSearch);
+    });
+  }
   
   const sortVal = downloadedSortVal || 'date-desc';
   filteredDownloaded.sort((a, b) => {
@@ -4720,7 +4883,7 @@ window.openVideoLocation = async function(videoId, encodedFilePath, encodedChann
 // Türkçe Açıklama: Fare video kartı veya kapak üzerine geldiğinde yüksek çözünürlüklü (HQ) alternatif kapak karesi döngüsünü çalıştırır.
 window.handleThumbMouseEnter = function(targetEl) {
   if (!targetEl || (window.dbSettings && window.dbSettings.enableAltThumbnailsHover === false)) return;
-  const wrapperEl = targetEl.classList.contains('video-thumbnail-wrapper')
+  const wrapperEl = (targetEl.classList.contains('video-thumbnail-wrapper') || targetEl.hasAttribute('data-thumb-hover'))
     ? targetEl
     : targetEl.querySelector('.video-thumbnail-wrapper');
   if (!wrapperEl) return;
@@ -4728,9 +4891,14 @@ window.handleThumbMouseEnter = function(targetEl) {
   const videoId = wrapperEl.getAttribute('data-video-id') || targetEl.getAttribute('data-id');
   if (!videoId) return;
 
-  const imgEl = wrapperEl.querySelector('.video-thumbnail');
+  const imgEl = wrapperEl.querySelector('.video-thumbnail, [data-thumb-img]');
   if (!imgEl) return;
 
+  // Aktif indirme kapağı gibi video değişebilen alanlarda eski kapak önbelleğini sıfırla
+  if (wrapperEl.dataset.origVid !== videoId) {
+    delete wrapperEl.dataset.origSrc;
+    wrapperEl.dataset.origVid = videoId;
+  }
   if (!wrapperEl.dataset.origSrc) {
     wrapperEl.dataset.origSrc = imgEl.src;
   }
@@ -4763,9 +4931,21 @@ window.handleThumbMouseEnter = function(targetEl) {
   }, 666);
 };
 
+// Türkçe Açıklama: İndirme aktifken kuyruktaki aktif kapak resmi fare olmadan da otomatik döner; indirme bitince durur.
+window.syncActiveThumbCycle = function(isActive) {
+  const w = document.getElementById('active-thumbnail-wrapper');
+  if (!w) return;
+  window._activeThumbWanted = !!isActive;
+  if (isActive) {
+    if (!w._thumbTimer && w.getAttribute('data-video-id')) window.handleThumbMouseEnter(w);
+  } else if (w._thumbTimer) {
+    window.handleThumbMouseLeave(w);
+  }
+};
+
 window.handleThumbMouseLeave = function(targetEl) {
   if (!targetEl) return;
-  const wrapperEl = targetEl.classList.contains('video-thumbnail-wrapper')
+  const wrapperEl = (targetEl.classList.contains('video-thumbnail-wrapper') || targetEl.hasAttribute('data-thumb-hover'))
     ? targetEl
     : targetEl.querySelector('.video-thumbnail-wrapper');
   if (!wrapperEl) return;
@@ -4774,7 +4954,7 @@ window.handleThumbMouseLeave = function(targetEl) {
     clearInterval(wrapperEl._thumbTimer);
     wrapperEl._thumbTimer = null;
   }
-  const imgEl = wrapperEl.querySelector('.video-thumbnail');
+  const imgEl = wrapperEl.querySelector('.video-thumbnail, [data-thumb-img]');
   if (imgEl && wrapperEl.dataset.origSrc) {
     imgEl.src = wrapperEl.dataset.origSrc;
     imgEl.style.opacity = '1';
@@ -5069,8 +5249,45 @@ if (confirmDeleteBtn) {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(isEn ? 'Video deleted successfully.' : 'Video başarıyla silindi.', 'success');
+        if (typeof window.showUndoToast === 'function' && backupItem) {
+          window.showUndoToast(isEn ? 'Video deleted from library.' : 'Video kütüphaneden silindi.', async () => {
+            localDb.history.push(backupItem);
+            if (typeof updateUI === 'function') updateUI(localDb);
+            await fetch('/api/history', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(backupItem)
+            }).catch(() => {});
+            showToast(isEn ? 'Video restored.' : 'Video geri yüklendi.', 'success');
+          });
+        } else {
+          showToast(isEn ? 'Video deleted successfully.' : 'Video başarıyla silindi.', 'success');
+        }
         if (typeof updateDiskSpace === 'function') setTimeout(updateDiskSpace, 1500);
+        // Eğer bu video otomatik silme onay listesinde varsa oradan da dinamik olarak kaldır
+        if (window.pendingAutoDeleteVideos && Array.isArray(window.pendingAutoDeleteVideos)) {
+          const pIndex = window.pendingAutoDeleteVideos.findIndex(v => (v?.id || v) === id);
+          if (pIndex !== -1) {
+            window.pendingAutoDeleteVideos.splice(pIndex, 1);
+            if (Array.isArray(pendingAutoDeleteVideos)) {
+              const pIdx2 = pendingAutoDeleteVideos.findIndex(v => (v?.id || v) === id);
+              if (pIdx2 !== -1) pendingAutoDeleteVideos.splice(pIdx2, 1);
+            }
+            const itemDom = document.getElementById(`auto-delete-item-${id}`);
+            if (itemDom) itemDom.remove();
+            
+            const countEl = document.getElementById('auto-delete-modal-title');
+            const remainingCount = window.pendingAutoDeleteVideos.length;
+            if (countEl) {
+              countEl.textContent = isEn 
+                ? `${remainingCount} Expired Videos to Delete`
+                : `${remainingCount} Adet Süresi Dolan Video Silinecek`;
+            }
+            if (remainingCount === 0 && typeof hideAutoDeleteConfirmModal === 'function') {
+              hideAutoDeleteConfirmModal();
+            }
+          }
+        }
         else if (window.updateDiskSpace) setTimeout(window.updateDiskSpace, 1500);
       } else {
         // Hata: Kartı geri getir
@@ -5155,19 +5372,31 @@ function showAutoDeleteConfirmModal(videos) {
   listEl.innerHTML = '';
   pendingAutoDeleteVideos.forEach(v => {
     const itemEl = document.createElement('div');
-    itemEl.style.cssText = 'display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px;';
+    itemEl.id = `auto-delete-item-${v.id}`;
+    itemEl.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px;';
+    const reasonBadge = v.reason ? `<span style="font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; background: rgba(239, 68, 68, 0.15); color: var(--accent-red); font-weight: 500;">${escapeHtml(v.reason)}</span>` : '';
     itemEl.innerHTML = `
-      <img src="${v.thumbnail || '/api/video/' + v.id + '/thumbnail'}" style="width: 60px; height: 34px; object-fit: cover; border-radius: 4px; flex-shrink: 0;" onerror="this.src='/logo.png'" />
-      <div style="flex: 1; min-width: 0;">
-        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(v.title || '')}">${escapeHtml(v.title || '')}</div>
-        <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; margin-top: 2px;">
-          <span>${escapeHtml(v.channelName || '')}</span>
-          ${v.fileSize ? `<span>• ${escapeHtml(v.fileSize)}</span>` : ''}
+      <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+        <img src="${v.thumbnail || '/api/video/' + v.id + '/thumbnail'}" style="width: 60px; height: 34px; object-fit: cover; border-radius: 4px; flex-shrink: 0;" onerror="this.src='/logo.png'" />
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(v.title || '')}">${escapeHtml(v.title || '')}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+            <span>${escapeHtml(v.channelName || '')}</span>
+            ${v.fileSize ? `<span>• ${escapeHtml(v.fileSize)}</span>` : ''}
+            ${reasonBadge}
+          </div>
         </div>
       </div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="showDeleteModal('${v.id}')" title="${isEn ? 'Delete this video' : 'Bu videoyu sil'}" style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); padding: 4px 10px; font-size: 0.78rem;">
+        <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
+        <span>${isEn ? 'Delete' : 'Sil'}</span>
+      </button>
     `;
     listEl.appendChild(itemEl);
   });
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    try { lucide.createIcons({ root: listEl }); } catch(e) {}
+  }
 
   modal.classList.remove('hidden');
 }
@@ -5365,7 +5594,13 @@ function restoreHistoryFilterState() {
       window.historySortMode = historySortMode;
       const sortGroup = document.getElementById('history-sort-group');
       if (sortGroup) {
-        sortGroup.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-sort') === historySortMode));
+        sortGroup.querySelectorAll('.sort-btn').forEach(b => {
+          const ds = b.getAttribute('data-sort');
+          const isActive = ds === historySortMode || (ds === 'date' && String(historySortMode).startsWith('date-'));
+          b.classList.toggle('active', isActive);
+        });
+        const dateLabel = document.getElementById('history-sort-date-label');
+        if (dateLabel) dateLabel.textContent = historySortMode === 'date-asc' ? 'Tarih ▲' : 'Tarih ▼';
       }
     }
 
@@ -5615,6 +5850,19 @@ function restoreDownloadedFilterState() {
       const searchInput = document.getElementById('downloaded-search-input');
       if (searchInput && !searchInput.value) searchInput.value = state.searchQuery;
     }
+
+    if (typeof updateDownloadedViewButtonUI === 'function') {
+      updateDownloadedViewButtonUI();
+    }
+    if (typeof syncDownloadedSortButtons === 'function') {
+      syncDownloadedSortButtons();
+    }
+    const shortsChipBtn = document.getElementById('btn-dl-show-shorts');
+    if (shortsChipBtn) {
+      const showShortsCb = document.getElementById('downloaded-show-shorts');
+      const isShorts = !!(showShortsCb && showShortsCb.checked);
+      shortsChipBtn.classList.toggle('active', isShorts);
+    }
   } catch (err) {
     console.error('restoreDownloadedFilterState error:', err);
   }
@@ -5627,8 +5875,17 @@ if (historySortGroup) {
   historySortGroup.addEventListener('click', (e) => {
     const btn = e.target.closest('.sort-btn');
     if (!btn) return;
-    const sortVal = btn.getAttribute('data-sort');
+    let sortVal = btn.getAttribute('data-sort');
     if (!sortVal) return;
+
+    // "Tarih" tek buton: her tıklamada yön değiştirir (yeniden eskiye ↔ eskiden yeniye).
+    if (sortVal === 'date') {
+      sortVal = (historySortMode === 'date-desc') ? 'date-asc' : 'date-desc';
+      const dateLabel = document.getElementById('history-sort-date-label');
+      if (dateLabel) dateLabel.textContent = sortVal === 'date-asc' ? 'Tarih ▲' : 'Tarih ▼';
+      btn.title = sortVal === 'date-asc' ? 'Tarih: Eskiden Yeniye' : 'Tarih: Yeniden Eskiye';
+    }
+
     historySortMode = sortVal;
     localStorage.setItem('history-sort-val', historySortMode);
     historySortGroup.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
@@ -5739,6 +5996,233 @@ if (downloadedChannelFilter) {
   });
 }
 
+// === Kanal Dropdown İçi Arama ve Temizleme ===
+function filterCustomChannelOptions(type, query) {
+  const panel = document.getElementById(`${type}-channel-items-list`);
+  const input = document.getElementById(`${type}-channel-search-input`);
+  const clearBtn = input ? input.parentElement.querySelector('.custom-dropdown-search-clear') : null;
+  if (clearBtn) clearBtn.style.display = query ? 'block' : 'none';
+  if (!panel) return;
+  const q = (query || '').toLowerCase().trim();
+  const items = panel.querySelectorAll('.custom-dropdown-item');
+  const dividers = panel.querySelectorAll('.custom-dropdown-divider');
+  let visibleCount = 0;
+  items.forEach(item => {
+    const text = item.textContent.toLowerCase();
+    const match = !q || text.includes(q);
+    item.style.display = match ? 'flex' : 'none';
+    if (match) visibleCount++;
+  });
+  dividers.forEach(d => {
+    d.style.display = q ? 'none' : 'block';
+  });
+  let noRes = panel.querySelector('.custom-dropdown-no-results');
+  if (visibleCount === 0) {
+    if (!noRes) {
+      noRes = document.createElement('div');
+      noRes.className = 'custom-dropdown-no-results';
+      noRes.style.cssText = 'padding: 14px; text-align: center; color: var(--text-muted); font-size: 0.8rem;';
+      const lang = localDb?.settings?.lang || currentLang || 'tr';
+      const t = translations[lang] || translations.tr;
+      noRes.textContent = t.channel_search_empty || 'Sonuç bulunamadı';
+      panel.appendChild(noRes);
+    }
+    noRes.style.display = 'block';
+  } else if (noRes) {
+    noRes.style.display = 'none';
+  }
+}
+window.filterCustomChannelOptions = filterCustomChannelOptions;
+
+function clearCustomChannelSearch(type, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const input = document.getElementById(`${type}-channel-search-input`);
+  if (input) {
+    input.value = '';
+    filterCustomChannelOptions(type, '');
+    input.focus();
+  }
+}
+window.clearCustomChannelSearch = clearCustomChannelSearch;
+
+// === Video Başlığına Göre Anlık Arama ===
+let downloadedSearchDebounceTimer = null;
+function onDownloadedSearchInput(val) {
+  const clearBtn = document.getElementById('downloaded-search-clear-btn');
+  if (clearBtn) clearBtn.classList.toggle('hidden', !val);
+  window.downloadedSearchQuery = val;
+  if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
+  clearTimeout(downloadedSearchDebounceTimer);
+  downloadedSearchDebounceTimer = setTimeout(() => {
+    if (typeof updateUI === 'function') updateUI(localDb);
+    if (typeof currentPlayingVideoId !== 'undefined' && currentPlayingVideoId && typeof renderDownloadedPlaylist === 'function') {
+      renderDownloadedPlaylist(currentPlayingVideoId);
+    }
+  }, 180);
+}
+window.onDownloadedSearchInput = onDownloadedSearchInput;
+
+function clearDownloadedSearch() {
+  const input = document.getElementById('downloaded-search-input');
+  if (input) {
+    input.value = '';
+    onDownloadedSearchInput('');
+    input.focus();
+  }
+}
+window.clearDownloadedSearch = clearDownloadedSearch;
+
+// === Kompakt Sıralama Yönetimi (Tarih / Boyut Tekil Toggle) ===
+function cycleDownloadedDateSort(event) {
+  if (event) event.stopPropagation();
+  let newSort = 'date-desc';
+  if (window.downloadedSortVal === 'date-desc') {
+    newSort = 'date-asc';
+  } else if (window.downloadedSortVal === 'date-asc') {
+    newSort = 'date-desc';
+  }
+  applyDownloadedSort(newSort);
+}
+window.cycleDownloadedDateSort = cycleDownloadedDateSort;
+
+function cycleDownloadedSizeSort(event) {
+  if (event) event.stopPropagation();
+  let newSort = 'size-desc';
+  if (window.downloadedSortVal === 'size-desc') {
+    newSort = 'size-asc';
+  } else if (window.downloadedSortVal === 'size-asc') {
+    newSort = 'size-desc';
+  }
+  applyDownloadedSort(newSort);
+}
+window.cycleDownloadedSizeSort = cycleDownloadedSizeSort;
+
+function applyDownloadedSort(sortVal) {
+  downloadedSortVal = sortVal;
+  window.downloadedSortVal = sortVal;
+  localStorage.setItem('downloaded-sort-val', sortVal);
+  if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
+  if (typeof persistDownloadedSortMode === 'function') persistDownloadedSortMode();
+  syncDownloadedSortButtons(sortVal);
+  if (typeof updateUI === 'function') updateUI(localDb);
+}
+window.applyDownloadedSort = applyDownloadedSort;
+
+function syncDownloadedSortButtons(sortVal) {
+  const curSort = sortVal || window.downloadedSortVal || 'date-desc';
+  const group = document.getElementById('downloaded-sort-group');
+  if (!group) return;
+
+  const lang = localDb?.settings?.lang || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
+
+  const dateBtn = document.getElementById('sort-btn-date');
+  const dateLabel = document.getElementById('sort-btn-date-label');
+  const sizeBtn = document.getElementById('sort-btn-size');
+  const sizeLabel = document.getElementById('sort-btn-size-label');
+  const autoBtn = document.getElementById('sort-btn-auto-delete');
+  const userBtn = document.getElementById('sort-btn-user');
+
+  const isDate = curSort.startsWith('date-');
+  const isSize = curSort.startsWith('size-');
+  const isAuto = curSort === 'auto-delete';
+  const isUser = curSort === 'user';
+
+  if (dateBtn) {
+    dateBtn.classList.toggle('active', isDate);
+    if (dateLabel) {
+      if (curSort === 'date-asc') {
+        dateLabel.textContent = t.sort_btn_date_asc || 'Tarih ▲';
+      } else if (curSort === 'date-desc') {
+        dateLabel.textContent = t.sort_btn_date_desc || 'Tarih ▼';
+      } else {
+        dateLabel.textContent = t.sort_btn_date_toggle || 'Tarih ↕';
+      }
+    }
+  }
+
+  if (sizeBtn) {
+    sizeBtn.classList.toggle('active', isSize);
+    if (sizeLabel) {
+      if (curSort === 'size-asc') {
+        sizeLabel.textContent = t.sort_btn_size_asc || 'Boyut ▲';
+      } else if (curSort === 'size-desc') {
+        sizeLabel.textContent = t.sort_btn_size_desc || 'Boyut ▼';
+      } else {
+        sizeLabel.textContent = t.sort_btn_size_toggle || 'Boyut ↕';
+      }
+    }
+  }
+
+  if (autoBtn) autoBtn.classList.toggle('active', isAuto);
+  if (userBtn) userBtn.classList.toggle('active', isUser);
+
+  group.querySelectorAll('.sort-btn[data-sort]').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-sort') === curSort);
+  });
+}
+window.syncDownloadedSortButtons = syncDownloadedSortButtons;
+
+// === Tekil Görünüm Modu Butonu (Kartlar <-> Sade Liste) ===
+function updateDownloadedViewButtonUI() {
+  const btn = document.getElementById('downloaded-view-toggle-btn');
+  const icon = document.getElementById('downloaded-view-toggle-icon');
+  const text = document.getElementById('downloaded-view-toggle-text');
+  const lang = localDb?.settings?.lang || currentLang || 'tr';
+  const t = translations[lang] || translations.tr;
+
+  const isGrid = (window.downloadedViewMode !== 'list');
+  if (btn) {
+    btn.title = isGrid 
+      ? (t.view_mode_toggle_to_list || 'Sade Liste Görünümüne Geç') 
+      : (t.view_mode_toggle_to_grid || 'Kart Görünümüne Geç');
+  }
+  if (icon) {
+    icon.setAttribute('data-lucide', isGrid ? 'layout-grid' : 'list');
+  }
+  if (text) {
+    text.textContent = isGrid ? (t.view_grid || 'Kartlar') : (t.view_list || 'Sade Liste');
+  }
+  try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
+
+  const gridBtn = document.getElementById('downloaded-view-grid-btn');
+  const listBtn = document.getElementById('downloaded-view-list-btn');
+  if (gridBtn) gridBtn.classList.toggle('active', isGrid);
+  if (listBtn) listBtn.classList.toggle('active', !isGrid);
+}
+window.updateDownloadedViewButtonUI = updateDownloadedViewButtonUI;
+
+function toggleDownloadedViewMode() {
+  const newMode = (window.downloadedViewMode === 'list') ? 'grid' : 'list';
+  window.downloadedViewMode = newMode;
+  if (typeof downloadedViewMode !== 'undefined') downloadedViewMode = newMode;
+  if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
+  if (localDb.settings) {
+    localDb.settings.downloadedViewMode = newMode;
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(localDb.settings)
+    }).catch(() => {});
+  }
+  updateDownloadedViewButtonUI();
+  if (typeof updateUI === 'function') updateUI(localDb);
+}
+window.toggleDownloadedViewMode = toggleDownloadedViewMode;
+
+function toggleDownloadedShortsChip() {
+  const cb = document.getElementById('downloaded-show-shorts');
+  const currentVal = localDb?.settings?.showShorts !== false;
+  if (typeof toggleDownloadedShowShorts === 'function') {
+    toggleDownloadedShowShorts(!currentVal);
+  }
+}
+window.toggleDownloadedShortsChip = toggleDownloadedShortsChip;
+
+
 // Sıralama Butonları Dinleyicisi
 let downloadedSortVal = localStorage.getItem('downloaded-sort-val') || 'date-desc';
 
@@ -5758,19 +6242,9 @@ document.addEventListener('click', (e) => {
   const btn = e.target.closest('.sort-btn');
   if (btn && btn.closest('#downloaded-sort-group')) {
     const sortVal = btn.getAttribute('data-sort');
-    downloadedSortVal = sortVal;
-    localStorage.setItem('downloaded-sort-val', downloadedSortVal);
-    saveDownloadedFilterState();
-    persistDownloadedSortMode();
-    
-    // Aktif sınıfını güncelle
-    const group = document.getElementById('downloaded-sort-group');
-    if (group) {
-      group.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    if (sortVal) {
+      applyDownloadedSort(sortVal);
     }
-    btn.classList.add('active');
-    
-    updateUI(localDb);
   }
 });
 
@@ -6350,6 +6824,14 @@ function playNextVideoInPlaylist() {
   if (!showShorts) {
     filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
   }
+  const dlNextSearch = ((document.getElementById('downloaded-search-input')?.value || window.downloadedSearchQuery) || '').trim().toLowerCase();
+  if (dlNextSearch) {
+    filteredDownloaded = filteredDownloaded.filter(item => {
+      const title = (item.title || '').toLowerCase();
+      const chName = (item.channelName || '').toLowerCase();
+      return title.includes(dlNextSearch) || chName.includes(dlNextSearch);
+    });
+  }
   const sortVal = downloadedSortVal || 'date-desc';
   
   filteredDownloaded.sort((a, b) => {
@@ -6769,6 +7251,14 @@ function toggleCustomChannelPicker(type, event) {
       menu.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - 40)}px`;
       menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 280))}px`;
       menu.style.maxHeight = `${Math.min(360, window.innerHeight - 60)}px`;
+      setTimeout(() => {
+        const searchInput = document.getElementById(`${type}-channel-search-input`);
+        if (searchInput) {
+          searchInput.value = '';
+          if (typeof filterCustomChannelOptions === 'function') filterCustomChannelOptions(type, '');
+          searchInput.focus();
+        }
+      }, 50);
     }
   }
 }
@@ -6836,6 +7326,17 @@ function populateChannelFilters(db) {
     let currentValue = (type === 'history' ? historyFilterChannel : downloadedFilterChannel) || (selectEl ? selectEl.value : 'all');
     if (!currentValue || currentValue.trim() === '') currentValue = 'all';
 
+    const searchPlaceholder = t.search_channel_placeholder || 'Kanal veya kategori ara...';
+    const headerHtml = `
+      <div class="custom-dropdown-search-wrap">
+        <div style="position:relative; display:flex; align-items:center;">
+          <i data-lucide="search" style="position:absolute; left:8px; width:13px; height:13px; color:var(--text-muted); pointer-events:none;"></i>
+          <input type="text" class="custom-dropdown-search-input" id="${type}-channel-search-input" placeholder="${escapeHtml(searchPlaceholder)}" oninput="filterCustomChannelOptions('${type}', this.value)" onclick="event.stopPropagation()">
+          <span class="custom-dropdown-search-clear" onclick="clearCustomChannelSearch('${type}', event)" style="position:absolute; right:8px; font-size:12px; color:var(--text-muted); cursor:pointer; display:none;">✕</span>
+        </div>
+      </div>
+      <div class="custom-dropdown-items-list" id="${type}-channel-items-list">
+    `;
     let html = '';
     let selectOptionsHtml = `<option value="all">${escapeHtml(t.filter_all_channels || 'Tüm Kanallar')}</option>`;
     let activeTriggerHtml = `<i data-lucide="globe" style="width:14px;height:14px;color:var(--accent-color);"></i><span>${escapeHtml(t.filter_all_channels || 'Tüm Kanallar')}</span>`;
@@ -6905,7 +7406,7 @@ function populateChannelFilters(db) {
       `;
     });
 
-    panel.innerHTML = html;
+    panel.innerHTML = headerHtml + html + '</div>';
     if (triggerContent) {
       triggerContent.innerHTML = activeTriggerHtml;
     }
@@ -6971,20 +7472,20 @@ function renderDownloadedCategoryQuickPills(activeVal, dbParam) {
         if (found && !presentCats.some(c => c.id === found.id)) {
           presentCats.push(found);
         }
-        if (presentCats.length >= 5) break;
+        if (presentCats.length >= 3) break;
       }
       // Hâlâ 5 olmadıysa mevcut diğer kategorilerden tamamla
       for (const cat of categories) {
         if (cat && !presentCats.some(c => c.id === cat.id)) {
           presentCats.push(cat);
         }
-        if (presentCats.length >= 5) break;
+        if (presentCats.length >= 3) break;
       }
       selectedCats = presentCats;
     }
 
     // Maksimum 5 adetle sınırla ve geçersiz öğeleri temizle
-    selectedCats = selectedCats.filter(c => c && typeof c.id !== 'undefined').slice(0, 5);
+    selectedCats = selectedCats.filter(c => c && typeof c.id !== 'undefined').slice(0, 3);
 
     let pillsHtml = '';
     selectedCats.forEach(cat => {

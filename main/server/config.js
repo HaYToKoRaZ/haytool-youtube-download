@@ -118,6 +118,8 @@ export const settingComments = {
 
   autoDeleteDays: '# Otomatik Dosya Silme Gün Sınırı / Auto-delete Video Files After Days\n# Açıklama: Belirtilen gün sayısından eski videoların yerel diskten otomatik silinmesi (0 = silme kapalı).\n# Description: Automatically deletes local video files older than specified days (0 = disabled).\n# Seçenekler / Options: 0 (devre dışı / disabled) veya pozitif gün sayısı (örn: 7, 14, 30)\n# Varsayılan / Default: 0',
 
+  autoDeleteMaxCount: '# Otomatik Dosya Silme Kanal Başına Video Sınırı / Auto-delete Max Video Count Per Channel\n# Açıklama: Kanal başına saklanacak maksimum son video sayısı (0 = sınır kapalı/devre dışı).\n# Description: Maximum number of recent videos kept per channel (0 = disabled/unlimited).\n# Seçenekler / Options: 0 (devre dışı / disabled) veya pozitif sayı (örn: 3, 5, 10, 20)\n# Varsayılan / Default: 0',
+
   theme: '# Arayüz Teması / UI Theme\n# Açıklama: Web kullanıcı arayüzü renk teması.\n# Description: Color theme for the web user interface.\n# Seçenekler / Options: dark (Koyu), light (Açık)\n# Varsayılan / Default: dark',
 
   downloadSpeedLimit: '# Standart İndirme Hız Sınırı (KB/s) / Standard Download Speed Limit (KB/s)\n# Açıklama: Normal indirmelerde uygulanacak maksimum bant genişliği sınırı (0 = sınırsız).\n# Description: Maximum bandwidth limit applied during normal downloads (0 = unlimited).\n# Seçenekler / Options: 0 (sınırsız / unlimited) veya KB/s cinsinden sayı (örn: 1024, 2048, 5120)\n# Varsayılan / Default: 0',

@@ -233,6 +233,7 @@ export async function performAutoSave() {
     hideOnDelete: document.getElementById('settings-hideondelete') ? document.getElementById('settings-hideondelete').checked : false,
     theme: document.getElementById('settings-theme') ? document.getElementById('settings-theme').value : 'dark',
     autoDeleteDays: document.getElementById('settings-autodelete') ? (parseInt(document.getElementById('settings-autodelete').value, 10) || 0) : 0,
+    autoDeleteMaxCount: document.getElementById('settings-autodelete-max-count') ? (parseInt(document.getElementById('settings-autodelete-max-count').value, 10) || 0) : 0,
     autoDeleteRequireConfirmation: document.getElementById('settings-autodelete-require-confirmation') ? document.getElementById('settings-autodelete-require-confirmation').checked : (localDb.settings?.autoDeleteRequireConfirmation !== false),
     rssLimit: document.getElementById('settings-rsslimit') ? (parseInt(document.getElementById('settings-rsslimit').value, 10) || 5) : 5,
     liveStreamHandling: document.getElementById('settings-livestreamhandling') ? document.getElementById('settings-livestreamhandling').value : 'instant_retry',
@@ -463,187 +464,17 @@ export function initSettingsSubtabs() {
 }
 
 // ==========================================
-// Sistem Yedekleme & Geri Yükleme
+// Sistem Yedekleme & Geri Yükleme (backupManager.js modülüne delege edilmiştir)
 // ==========================================
-
-export async function createSystemBackup() {
-  const isEn = localDb.settings?.lang === 'en';
-  try {
-    showToast(isEn ? 'Creating backup...' : 'Yedek oluşturuluyor...', 'info');
-    const res = await fetch('/api/settings/backup', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Backup created successfully!' : 'Yedek başarıyla oluşturuldu!', 'success');
-      loadSystemBackupsList();
-    } else {
-      showToast(data.error || (isEn ? 'Failed to create backup.' : 'Yedek oluşturulamadı.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-window.createSystemBackup = createSystemBackup;
-
-export async function loadSystemBackupsList() {
-  const containerBox = document.getElementById('system-backups-container');
-  const tbody = document.getElementById('system-backups-list');
-  if (!tbody) return;
-  const isEn = localDb.settings?.lang === 'en';
-
-  if (containerBox && containerBox.classList.contains('hidden')) {
-    containerBox.classList.remove('hidden');
-  }
-
-  try {
-    const res = await fetch('/api/settings/backups');
-    const data = await res.json();
-    if (!data.success || !data.backups || data.backups.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding:16px; font-size:0.8rem; text-align:center;">${isEn ? 'No backups available.' : 'Kayıtlı sistem yedeği bulunamadı.'}</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = data.backups.map(b => {
-      const filename = b.filename || b.name;
-      const dateStr = b.createdAt ? new Date(b.createdAt).toLocaleString('tr-TR') : filename;
-      const sizeStr = b.size || '';
-      const statusBadge = b.isDailyProtected 
-        ? `<span style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">${isEn ? 'Protected' : 'Günlük Korunan'}</span>`
-        : (b.isAuto ? `<span style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">${isEn ? 'Auto' : 'Otomatik'}</span>` : `<span style="background: rgba(168, 85, 247, 0.15); color: #a855f7; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">${isEn ? 'Manual' : 'Manuel'}</span>`);
-
-      return `
-        <tr style="border-bottom: 1px solid var(--border-color); font-size: 0.78rem;">
-          <td style="padding: 6px; font-weight: 500; color: var(--text-main);">
-            <div style="font-weight:600; word-break: break-all;">${filename}</div>
-            <div style="font-size:0.7rem; color:var(--text-muted);">${dateStr}</div>
-          </td>
-          <td style="padding: 6px; color: var(--text-muted); white-space: nowrap;">${sizeStr}</td>
-          <td style="padding: 6px; white-space: nowrap;">${statusBadge}</td>
-          <td style="padding: 6px; text-align: right; white-space: nowrap;">
-            <div style="display:inline-flex; gap:4px; justify-content:flex-end;">
-              <button type="button" class="btn btn-secondary btn-xs" onclick="downloadSystemBackup('${filename}')" title="${isEn ? 'Download' : 'İndir'}" style="padding: 3px 6px; height: 24px;">
-                <i data-lucide="download" style="width:12px; height:12px;"></i>
-              </button>
-              <button type="button" class="btn btn-primary btn-xs" onclick="restoreSystemBackup('${filename}')" title="${isEn ? 'Restore' : 'Geri Yükle'}" style="padding: 3px 6px; height: 24px;">
-                <i data-lucide="rotate-ccw" style="width:12px; height:12px;"></i>
-              </button>
-              <button type="button" class="btn btn-danger btn-xs" onclick="deleteSystemBackup('${filename}')" title="${isEn ? 'Delete' : 'Sil'}" style="padding: 3px 6px; height: 24px; color:#ef4444;">
-                <i data-lucide="trash-2" style="width:12px; height:12px;"></i>
-              </button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
-  } catch (err) {
-    console.error('loadSystemBackupsList error:', err);
-    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger" style="padding:16px; font-size:0.8rem; text-align:center;">${isEn ? 'Failed to load backups.' : 'Yedek listesi yüklenemedi.'}</td></tr>`;
-  }
-}
-window.loadSystemBackupsList = loadSystemBackupsList;
-
-export async function toggleSystemBackupsList() {
-  const containerBox = document.getElementById('system-backups-container');
-  if (containerBox && !containerBox.classList.contains('hidden')) {
-    containerBox.classList.add('hidden');
-    return;
-  }
-  await loadSystemBackupsList();
-}
-window.toggleSystemBackupsList = toggleSystemBackupsList;
-
-export async function restoreSystemBackup(filename) {
-  const isEn = localDb.settings?.lang === 'en';
-  if (!confirm(isEn ? `Are you sure you want to restore "${filename}"? Current data will be replaced.` : `"${filename}" yedeğini geri yüklemek istediğinize emin misiniz? Mevcut verilerin üzerine yazılacaktır.`)) return;
-
-  try {
-    showToast(isEn ? 'Restoring backup...' : 'Yedek geri yükleniyor...', 'info');
-    const res = await fetch('/api/settings/restore', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Backup restored! Reloading...' : 'Yedek başarıyla geri yüklendi! Sayfa yenileniyor...', 'success');
-      setTimeout(() => window.location.reload(), 1500);
-    } else {
-      showToast(data.error || (isEn ? 'Failed to restore backup.' : 'Yedek geri yüklenemedi.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-window.restoreSystemBackup = restoreSystemBackup;
-
-export function downloadSystemBackup(filename) {
-  window.open('/api/settings/backup/download/' + encodeURIComponent(filename), '_blank');
-}
-window.downloadSystemBackup = downloadSystemBackup;
-
-export async function deleteSystemBackup(filename) {
-  const isEn = localDb.settings?.lang === 'en';
-  if (!confirm(isEn ? `Are you sure you want to delete "${filename}"?` : `"${filename}" yedeğini silmek istediğinize emin misiniz?`)) return;
-
-  try {
-    const res = await fetch('/api/settings/backup/' + encodeURIComponent(filename), { method: 'DELETE' });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? 'Backup deleted.' : 'Yedek silindi.', 'success');
-      loadSystemBackupsList();
-    } else {
-      showToast(data.error || (isEn ? 'Failed to delete backup.' : 'Yedek silinemedi.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-  }
-}
-window.deleteSystemBackup = deleteSystemBackup;
-
-export function triggerUploadBackupFile() {
-  const fileInput = document.getElementById('backup-file-upload-input') || document.getElementById('backup-upload-input');
-  if (fileInput) fileInput.click();
-}
-window.triggerUploadBackupFile = triggerUploadBackupFile;
-
-export async function uploadBackupFile(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  const isEn = localDb.settings?.lang === 'en';
-
-  if (!confirm(isEn ? `Are you sure you want to restore from "${file.name}"? Current data will be replaced.` : `"${file.name}" dosyasındaki yedeği geri yüklemek istediğinize emin misiniz? Mevcut verilerin üzerine yazılacaktır.`)) {
-    event.target.value = '';
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      showToast(isEn ? 'Uploading and restoring backup...' : 'Yedek dosyası aktarılıyor ve geri yükleniyor...', 'info');
-      const fileData = e.target.result;
-      const res = await fetch('/api/settings/restore-upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileData, filename: file.name })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(isEn ? 'Backup restored! Reloading...' : 'Yedek başarıyla yüklendi ve geri yüklendi! Sayfa yenileniyor...', 'success');
-        setTimeout(() => window.location.reload(), 1500);
-      } else {
-        showToast(data.error || (isEn ? 'Failed to restore backup.' : 'Yedek dosyası geri yüklenemedi.'), 'error');
-      }
-    } catch (err) {
-      showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
-    } finally {
-      event.target.value = '';
-    }
-  };
-  reader.readAsDataURL(file);
-}
-window.uploadBackupFile = uploadBackupFile;
-
+export {
+  createSystemBackup,
+  loadSystemBackupsList,
+  restoreSystemBackup,
+  downloadSystemBackup,
+  deleteSystemBackup,
+  triggerUploadBackupFile,
+  uploadBackupFile
+} from './backupManager.js';
 // ==========================================
 // GitHub Gist Senkronizasyon İşlevleri
 // ==========================================

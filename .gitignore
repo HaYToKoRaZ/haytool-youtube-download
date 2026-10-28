@@ -23,7 +23,7 @@ cookies.txt
 *cookies*.txt
 
 # Yedekleme ve yerel araçlar
-0nogithub
+.agents/
 backup/
 
 # GitHub dosya boyutu limitini asan buyuk dosyalar

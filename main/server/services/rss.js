@@ -1297,6 +1297,7 @@ export async function checkAllChannelsRssParallel() {
     const { channel, feed } = result.value;
     if (!feed.items || feed.items.length === 0) continue;
 
+
     // Türkçe Açıklama: Kanal geçmişindeki en son videonun yayınlanma tarihini referans almak için bul
     const channelHistory = freshDb.history.filter(h => h.channelId === channel.id && h.publishedAt && h.publishedAt !== '-');
     let latestHistoryTime = 0;
@@ -1444,7 +1445,7 @@ export async function checkAllChannelsRssParallel() {
         );
 
         const channelConfig = freshDb.channels.find(c => c.id === channel.id);
-        
+
         // İlk başlangıç veya tarihi geçmiş video ise indirme kuyruğuna almayacağız, sadece geçmişe ekleyeceğiz
         if (isHistoricalVideo) {
           historyItem.status = 'ignored';
@@ -1452,7 +1453,7 @@ export async function checkAllChannelsRssParallel() {
         } else {
           // İndirme kontrolü
           const autoDownload = freshDb.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true);
-          
+
           if (autoDownload) {
             let duration = '';
             let publishedAt = publishDateStr;
@@ -1523,6 +1524,54 @@ export async function checkAllChannelsRssParallel() {
                 duration: duration
               });
               newVideosCount++;
+
+              // Fakap yedeği: AYNI karara bağlı. Filtrelerden geçen video, düşük çözünürlükte
+              // ayrı klasöre de yedeklenir. Ayrı bir karar bloğu yok — tek karar noktası burasıdır.
+              const fakapChannelIds = freshDb.fakap?.channelIds || [];
+              const fakapDeletedIds = freshDb.fakap?.deletedIds || [];
+              const fakapId = `fakap_${videoId}`;
+              if (fakapChannelIds.includes(channel.id) && !fakapDeletedIds.includes(videoId)) {
+                const enabledAtStr = freshDb.fakap?.enabledAt?.[channel.id];
+                const enabledAtMs = enabledAtStr ? new Date(enabledAtStr).getTime() : 0;
+                const fakapPubMs = new Date(publishedAt || publishDateStr).getTime();
+                const isEligibleTime = !enabledAtMs || (fakapPubMs >= (enabledAtMs - 60000));
+                const alreadyInFakap = freshDb.history.some(h => h.id === fakapId) || historyToAdd.some(h => h.id === fakapId);
+
+                if (isEligibleTime && !alreadyInFakap) {
+                  historyToAdd.push({
+                    id: fakapId,
+                    originalId: videoId,
+                    isFakap: true,
+                    title: item.title,
+                    channelId: channel.id,
+                    channelName: channel.name,
+                    thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+                    downloadedAt: new Date().toISOString(),
+                    publishedAt: publishedAt || publishDateStr,
+                    status: 'waiting',
+                    progress: 0,
+                    speed: '',
+                    eta: '',
+                    fileSize: '',
+                    filePath: '',
+                    isStandalone: false,
+                    duration: duration || ''
+                  });
+                  videosToQueue.push({
+                    id: fakapId,
+                    originalId: videoId,
+                    isFakap: true,
+                    title: item.title,
+                    channelId: channel.id,
+                    channelName: channel.name,
+                    url: item.link || `https://www.youtube.com/watch?v=${videoId}`,
+                    publishedAt: publishedAt || publishDateStr,
+                    duration: duration || ''
+                  });
+                  newVideosCount++;
+                  addTerminalLog(`[RSS Fakap] Kuyruğa alındı: "${item.title}" (${channel.name})`, 'info');
+                }
+              }
             }
           } else {
             historyItem.status = 'ignored';

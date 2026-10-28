@@ -18,14 +18,14 @@ export async function triggerChannelSearch() {
   
   if (!query) {
     if (typeof showToast === 'function') {
-      showToast(isEn ? 'Please enter a search query.' : 'Lütfen aramak için bir metin girin.', 'error');
+      showToast(isEn ? 'Enter a channel name or link to search.' : 'Aramak için kanal adı veya bağlantı girin.', 'error');
     }
     return;
   }
   
   if (query.startsWith('http') || query.includes('youtube.com') || query.includes('youtu.be')) {
     if (typeof showToast === 'function') {
-      showToast(isEn ? 'This is a URL. Please click "Follow Channel" button instead.' : 'Bu bir adres. Lütfen "Kanalı Takip Et" butonunu kullanın.', 'info');
+      showToast(isEn ? 'Channel URL detected. Click "Follow Channel" instead.' : 'Kanal bağlantısı girdiniz. "Kanalı Takip Et" butonuna tıklayın.', 'info');
     }
     return;
   }
@@ -385,6 +385,39 @@ export async function changeChannelShorts(id, downloadShorts) {
 window.changeChannelShorts = changeChannelShorts;
 
 /**
+ * Belirli bir kanal için Fakap (otomatik düşük çözünürlüklü yedek) özelliğini açar/kapatır.
+ */
+export async function changeChannelFakap(id, enabled) {
+  const db = window.localDb || {};
+  const lang = (db.settings && db.settings.lang) || 'tr';
+  const t = (window.translations && (window.translations[lang] || window.translations.tr)) || {};
+  const isOn = enabled === 'true' || enabled === true;
+  try {
+    const res = await fetch(`/api/fakap/channel/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: isOn })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (!db.fakap) db.fakap = { channelIds: [], enabledAt: {}, videos: [] };
+      const ids = (db.fakap.channelIds || []).filter(x => x !== id);
+      if (isOn) ids.push(id);
+      db.fakap.channelIds = ids;
+      if (typeof showToast === 'function') {
+        showToast(isOn ? (t.fakap_toast_on || 'Fakap enabled for this channel.') : (t.fakap_toast_off || 'Fakap disabled for this channel.'), 'success');
+      }
+      handleChannelFilterChange();
+    } else if (typeof showToast === 'function') {
+      showToast(data.error || 'Error', 'error');
+    }
+  } catch (err) {
+    if (typeof showToast === 'function') showToast(t.fakap_conn_error || 'Server connection error.', 'error');
+  }
+}
+window.changeChannelFakap = changeChannelFakap;
+
+/**
  * Belirli bir kanal için otomatik video indirme durumunu günceller.
  */
 export async function changeChannelAutoDownload(id, autoDownload) {
@@ -475,6 +508,36 @@ export async function changeChannelAutoDelete(id, autoDeleteDays) {
 window.changeChannelAutoDelete = changeChannelAutoDelete;
 
 /**
+ * Belirli bir kanal için maksimum video sayısı bazlı otomatik silme kuralını günceller.
+ */
+export async function changeChannelAutoDeleteMaxCount(id, autoDeleteMaxCount) {
+  const db = window.localDb || {};
+  const isEn = db.settings && db.settings.lang === 'en';
+  try {
+    const res = await fetch(`/api/channels/${id}/auto-delete-max-count`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ autoDeleteMaxCount })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (typeof showToast === 'function') {
+        showToast(isEn ? 'Channel max video limit updated.' : 'Kanal maksimum video sınırı güncellendi.', 'success');
+      }
+    } else {
+      if (typeof showToast === 'function') {
+        showToast(data.error || 'Hata oluştu.', 'error');
+      }
+    }
+  } catch (err) {
+    if (typeof showToast === 'function') {
+      showToast(isEn ? 'Server connection error.' : 'Sunucu bağlantı hatası.', 'error');
+    }
+  }
+}
+window.changeChannelAutoDeleteMaxCount = changeChannelAutoDeleteMaxCount;
+
+/**
  * Kanallar sekmesindeki Kategori filtresi dropdown seçeneklerini dinamik olarak günceller.
  */
 export function updateChannelCategoryFilterOptions(categories = [], channels = [], lang = 'tr') {
@@ -548,12 +611,14 @@ export function getChannelActiveFilters() {
   const autoSelect = document.getElementById('filter-channel-auto-download');
   const shortsSelect = document.getElementById('filter-channel-shorts-download');
   const catSelect = document.getElementById('filter-channel-category');
+  const fakapSelect = document.getElementById('filter-channel-fakap');
 
   return {
     searchQuery: searchInput ? searchInput.value.trim() : '',
     autoDownload: autoSelect ? autoSelect.value : 'all',
     shortsDownload: shortsSelect ? shortsSelect.value : 'all',
-    categoryId: catSelect ? catSelect.value : 'all'
+    categoryId: catSelect ? catSelect.value : 'all',
+    fakap: fakapSelect ? fakapSelect.value : 'all'
   };
 }
 window.getChannelActiveFilters = getChannelActiveFilters;

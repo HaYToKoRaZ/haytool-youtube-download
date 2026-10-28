@@ -255,68 +255,111 @@
         </div>
 
         <div id="downloaded-list-container">
-          <div class="history-toolbar">
-            <div class="filter-group">
-              <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);cursor:pointer;" onclick="resetDownloadedChannelFilter()" title="Filtreyi Sıfırla"></i>
+          <div class="history-toolbar downloaded-toolbar" id="downloaded-sort-group">
+            <!-- SOL BÖLGE (esnek, satır kırar): Filtreler -> Sıralama -> Eylemler -->
+            <div class="downloaded-toolbar-left">
+              <!-- 1) Filtreyi Sıfırla -->
+              <i data-lucide="filter" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);cursor:pointer;flex-shrink:0;" onclick="resetDownloadedChannelFilter()" title="Filtreyi Sıfırla"></i>
+
+              <!-- 2) Kanal / Kategori Seçici (Arama Özellikli) -->
               <div class="custom-channel-dropdown" id="downloaded-custom-dropdown">
                 <button type="button" class="custom-dropdown-trigger" id="downloaded-channel-trigger" onclick="toggleCustomChannelPicker('downloaded', event)">
                   <span class="custom-dropdown-selected-content" id="downloaded-channel-trigger-content">
                     <i data-lucide="globe" style="width:14px;height:14px;color:var(--accent-color);"></i>
                     <span>Tüm Kanallar</span>
                   </span>
-                  <i data-lucide="chevron-down" style="width:14px;height:14px;color:var(--text-muted);margin-left:8px;"></i>
+                  <i data-lucide="chevron-down" style="width:14px;height:14px;color:var(--text-muted);margin-left:6px;"></i>
                 </button>
                 <div class="custom-dropdown-menu" id="downloaded-channel-options-panel">
-                  <!-- JS ile logolu kanallar yüklenecek -->
+                  <!-- JS (populateChannelFilters) ile arama inputu + logolu kanallar yüklenecek -->
                 </div>
               </div>
               <select id="downloaded-channel-filter" style="display:none;" onchange="onDownloadedChannelFilterChange()">
                 <option value="all">Tüm Kanallar</option>
               </select>
 
-              <!-- Hızlı Kategori Filtre Hapları (Maksimum 5 Adet, Kompakt & UX/UI Uyumlu) -->
+              <!-- 3) Sabitlenmiş / Favori Kategori Hapları (Maksimum 3) -->
               <div class="downloaded-category-quick-pills" id="downloaded-category-quick-pills" role="toolbar" aria-label="Hızlı Kategori Filtreleri">
                 <!-- JS (renderDownloadedCategoryQuickPills) ile dinamik oluşturulacak -->
               </div>
-            </div>
-            <div class="filter-group" style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
-              <button class="btn btn-secondary" id="downloaded-filter-resume-btn" onclick="toggleDownloadedResumeFilter()" title="Sadece izlemeyi yarıda bıraktığınız videoları gösterir">
+
+              <div class="downloaded-toolbar-divider"></div>
+
+              <!-- 4) Tarih, 5) Boyut Sıralama -->
+              <button type="button" class="sort-btn toolbar-unified-btn active" id="sort-btn-date" onclick="cycleDownloadedDateSort(event)" title="Tarihe Göre Sırala">
+                <span id="sort-btn-date-label">Tarih ▼</span>
+              </button>
+              <button type="button" class="sort-btn toolbar-unified-btn" id="sort-btn-size" onclick="cycleDownloadedSizeSort(event)" title="Boyuta Göre Sırala">
+                <span id="sort-btn-size-label">Boyut ↕</span>
+              </button>
+
+              <div class="downloaded-toolbar-divider"></div>
+
+              <!-- 6) Yarım Kalanlar -->
+              <button class="btn btn-secondary toolbar-unified-btn" id="downloaded-filter-resume-btn" onclick="toggleDownloadedResumeFilter()" title="Sadece izlemeyi yarıda bıraktığınız videoları gösterir">
                 <i data-lucide="history" style="width:14px;height:14px;"></i>
                 <span id="btn-text-resume-filter">Yarım Kalanlar</span>
                 <span id="badge-resume-count" style="display: none;">0</span>
               </button>
-              <button class="btn btn-secondary" id="dl-refresh-metadata-btn" onclick="executeRefreshMetadata()" title="Videoların Süre ve Boyut Bilgilerini Güncelle" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8rem;">
-                <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
-                <span id="btn-update-metadata-dl">Metadata Güncelle</span>
+
+              <!-- 7) Shorts Çipi -->
+              <button type="button" class="filter-chip-btn" id="btn-dl-show-shorts" onclick="toggleDownloadedShortsChip()" title="Shorts Videolarını Göster / Gizle">
+                <i data-lucide="zap" style="width:14px;height:14px;"></i>
+                <span id="lbl-dl-show-shorts">Shorts</span>
               </button>
-              <button class="btn btn-secondary" id="downloaded-bulk-delete-toggle-btn" onclick="toggleDownloadedBulkDeleteMode()" title="Toplu Silme Modunu Aç/Kapat" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.8rem;">
+              <input type="checkbox" id="downloaded-show-shorts" style="display:none;" onchange="toggleDownloadedShowShorts(this.checked)">
+
+              <!-- 8) Vadesi Dolanlar -->
+              <button type="button" class="sort-btn toolbar-unified-btn" data-sort="auto-delete" id="sort-btn-auto-delete" title="Silinmesi Yaklaşanlar (Vadesi Dolanlar Önce)">
+                <i data-lucide="hourglass" style="width:14px;height:14px;color:var(--warning);"></i>
+                <span id="sort-auto-delete-label">Vadesi Dolanlar</span>
+              </button>
+
+              <div class="downloaded-toolbar-divider"></div>
+
+              <!-- 9) Metadata -->
+              <button class="btn btn-secondary toolbar-unified-btn" id="dl-refresh-metadata-btn" onclick="executeRefreshMetadata()" title="Videoların Süre ve Boyut Bilgilerini Güncelle">
+                <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i>
+                <span id="btn-update-metadata-dl">Metadata</span>
+              </button>
+
+              <!-- 10) Toplu Silme -->
+              <button class="btn btn-secondary toolbar-unified-btn" id="downloaded-bulk-delete-toggle-btn" onclick="toggleDownloadedBulkDeleteMode()" title="Toplu Silme Modunu Aç/Kapat">
                 <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
                 <span id="btn-bulk-delete-dl-toggle">Toplu Silme</span>
               </button>
+
+              <!-- 11) Kullanıcı Sıralama -->
+              <button type="button" class="sort-btn toolbar-unified-btn" data-sort="user" id="sort-btn-user" title="Kullanıcı Tanımlı Sıralama">Kullanıcı</button>
+
+              <!-- Gizli legacy sort butonları (JS uyumluluğu için) -->
+              <button type="button" class="sort-btn" data-sort="date-desc" id="sort-btn-date-desc" style="display:none;">Tarih ▼</button>
+              <button type="button" class="sort-btn" data-sort="date-asc" id="sort-btn-date-asc" style="display:none;">Tarih ▲</button>
+              <button type="button" class="sort-btn" data-sort="size-desc" id="sort-btn-size-desc" style="display:none;">Boyut ▼</button>
+              <button type="button" class="sort-btn" data-sort="size-asc" id="sort-btn-size-asc" style="display:none;">Boyut ▲</button>
             </div>
-            <div class="filter-group sort-button-group" style="margin-left: 15px; display: flex; gap: 6px;" id="downloaded-sort-group">
-              <i data-lucide="arrow-up-down" class="filter-icon" style="width:16px;height:16px;color:var(--text-muted);margin-right:6px;align-self:center;"></i>
-              <button type="button" class="sort-btn active" data-sort="date-desc" id="sort-btn-date-desc" title="Tarih: Yeniden Eskiye">Tarih ▼</button>
-              <button type="button" class="sort-btn" data-sort="date-asc" id="sort-btn-date-asc" title="Tarih: Eskiden Yeniye">Tarih ▲</button>
-              <button type="button" class="sort-btn" data-sort="size-desc" id="sort-btn-size-desc" title="Boyut: Büyükten Küçüğe">Boyut ▼</button>
-              <button type="button" class="sort-btn" data-sort="size-asc" id="sort-btn-size-asc" title="Boyut: Küçükten Büyüğe">Boyut ▲</button>
-              <button type="button" class="sort-btn" data-sort="auto-delete" id="sort-btn-auto-delete" title="Silinmesi Yaklaşanlar (Vadesi Dolanlar Önce)" style="color: #f59e0b;">⏳ Vadesi Dolanlar</button>
-              <button type="button" class="sort-btn" data-sort="user" id="sort-btn-user" title="Kullanıcı Tanımlı Sıralama">Kullanıcı</button>
-            </div>
-            <div class="filter-group" style="display: flex; align-items: center; gap: 8px; margin-left: 15px;">
-              <input type="checkbox" id="downloaded-show-shorts" class="toggle-input" onchange="toggleDownloadedShowShorts(this.checked)">
-              <label for="downloaded-show-shorts" class="toggle-label"></label>
-              <label for="downloaded-show-shorts" style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer; user-select: none; margin: 0;">Shorts Videolarını Göster</label>
-            </div>
-            <div class="view-toggle-container">
-              <button id="downloaded-view-grid-btn" class="view-btn active" title="Kart Görünümü">
-                <i data-lucide="layout-grid"></i>
-                <span>Kartlar</span>
-              </button>
-              <button id="downloaded-view-list-btn" class="view-btn" title="Sade Liste Görünümü">
-                <i data-lucide="list"></i>
-                <span>Sade Liste</span>
-              </button>
+
+            <!-- SAĞ BÖLGE (sabit, asla taşmaz): Arama + Görünüm Modu -->
+            <div class="downloaded-toolbar-right">
+              <!-- 12) Video Başlığına Göre Arama -->
+              <div class="downloaded-search-wrapper" id="downloaded-search-wrapper">
+                <i data-lucide="search" class="downloaded-search-icon"></i>
+                <input type="text" id="downloaded-search-input" placeholder="İndirilenlerde ara..." oninput="onDownloadedSearchInput(this.value)" autocomplete="off">
+                <button type="button" id="downloaded-search-clear-btn" class="downloaded-search-clear hidden" onclick="clearDownloadedSearch()" title="Aramayı Temizle">✕</button>
+              </div>
+
+              <div class="downloaded-toolbar-divider"></div>
+
+              <!-- 13) Görünüm Modu (Kartlar <-> Sade Liste) -->
+              <div class="downloaded-view-toggle-wrap">
+                <button type="button" class="btn btn-secondary toolbar-unified-btn downloaded-view-toggle-btn" id="downloaded-view-toggle-btn" onclick="toggleDownloadedViewMode()" title="Görünüm Modunu Değiştir">
+                  <i data-lucide="layout-grid" id="downloaded-view-toggle-icon" style="width:14px;height:14px;"></i>
+                  <span id="downloaded-view-toggle-text">Kartlar</span>
+                </button>
+                <!-- Gizli legacy elementler (uyumluluk için) -->
+                <button id="downloaded-view-grid-btn" style="display:none;"></button>
+                <button id="downloaded-view-list-btn" style="display:none;"></button>
+              </div>
             </div>
           </div>
 

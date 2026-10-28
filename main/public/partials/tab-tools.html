@@ -16,15 +16,42 @@
 
         <!-- 1. BÖLÜM: Dosya Karşılaştırma & Senkronizasyon Sayfası -->
         <div class="card" id="tools-compare-container" style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
-          <div style="display: flex; gap: 12px; align-items: center;">
+          <div class="compare-toolbar">
+            <div class="compare-toolbar-copy">
+              <span class="compare-eyebrow" id="compare-eyebrow">Klasör sağlığı</span>
+              <p id="compare-status-copy">İndirme klasörünüzü tarayın; yalnızca işlem gerektiren kayıtlar listelenir.</p>
+            </div>
             <button type="button" class="btn btn-primary" id="start-compare-btn">
               <i data-lucide="refresh-cw"></i>
               <span id="compare-btn-text">Karşılaştırmayı Başlat</span>
             </button>
-            
-            <div id="compare-loading" class="hidden text-center" style="display: flex; align-items: center; gap: 8px;">
+            <div id="compare-loading" class="hidden text-center compare-loading" role="status" aria-live="polite">
               <i data-lucide="loader" class="spin" style="width: 20px; height: 20px; color: var(--accent-color);"></i>
               <span style="font-size: 0.9rem; color: var(--text-muted);" id="compare-loading-text">Dosyalar taranıyor...</span>
+            </div>
+          </div>
+
+          <div id="compare-health-summary" class="compare-health-summary hidden" aria-live="polite">
+            <button type="button" class="compare-health-card" data-compare-filter="all">
+              <i data-lucide="shield-check" aria-hidden="true"></i><span class="compare-health-value" id="compare-healthy-count">0</span><span id="compare-healthy-label">İncelenen sorun türü</span>
+            </button>
+            <button type="button" class="compare-health-card" data-compare-filter="untracked">
+              <i data-lucide="file-plus-2" aria-hidden="true"></i><span class="compare-health-value" id="compare-untracked-count">0</span><span id="compare-untracked-label">Kayıtsız dosya</span>
+            </button>
+            <button type="button" class="compare-health-card" data-compare-filter="unrelated">
+              <i data-lucide="file-warning" aria-hidden="true"></i><span class="compare-health-value" id="compare-unrelated-count">0</span><span id="compare-unrelated-label">Alakasız dosya</span>
+            </button>
+            <button type="button" class="compare-health-card" data-compare-filter="missing">
+              <i data-lucide="video-off" aria-hidden="true"></i><span class="compare-health-value" id="compare-missing-count">0</span><span id="compare-missing-label">Eksik kayıt</span>
+            </button>
+          </div>
+
+          <div id="compare-selection-bar" class="compare-selection-bar hidden" role="status" aria-live="polite">
+            <span id="compare-selection-count">0 öğe seçildi</span>
+            <div class="compare-selection-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="compare-selected-safe-action"></button>
+              <button type="button" class="btn btn-danger btn-sm" id="compare-selected-danger-action"></button>
+              <button type="button" class="btn btn-secondary btn-sm" id="compare-clear-selection">Temizle</button>
             </div>
           </div>
 
@@ -39,13 +66,13 @@
                 <h4 style="margin:0; font-size:1.05rem; font-weight:600; color:var(--accent-color);" id="untracked-files-title">Diskte Olup Veritabanında Olmayan Dosyalar (Yetimler)</h4>
                 <div style="display: flex; gap: 8px;">
                   <button type="button" class="btn btn-secondary btn-xs" onclick="fixAllUntracked('import')" id="btn-import-all" style="padding: 6px 12px; font-size: 0.8rem;">Tümünü İthal Et</button>
-                  <button type="button" class="btn btn-secondary btn-xs" style="background:rgba(255,0,85,0.1); border-color:rgba(255,0,85,0.2); color:var(--accent-red); padding: 6px 12px; font-size: 0.8rem;" onclick="fixAllUntracked('delete')" id="btn-delete-all-files">Tümünü Diskten Sil</button>
                 </div>
               </div>
               <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
                 <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
                   <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
                     <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                      <th class="compare-select-column"><input type="checkbox" data-compare-select-all="untracked" aria-label="Tüm kayıtsız dosyaları seç"></th>
                       <th style="padding:10px 12px;" id="col-filename-untracked">Dosya Adı</th>
                       <th style="padding:10px 12px;" id="col-channel-untracked">Kanal</th>
                       <th style="padding:10px 12px;" id="col-size-untracked">Boyut</th>
@@ -61,12 +88,15 @@
             <div id="unrelated-section" class="hidden" style="display: flex; flex-direction: column;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
                 <h4 style="margin:0; font-size:1.05rem; font-weight:600; color:var(--accent-color);" id="unrelated-files-title">Diskteki Diğer Alakasız Dosyalar</h4>
-                <button type="button" class="btn btn-secondary btn-xs" style="background:rgba(255,0,85,0.1); border-color:rgba(255,0,85,0.2); color:var(--accent-red); padding: 6px 12px; font-size: 0.8rem;" onclick="deleteAllUnrelated()" id="btn-delete-all-unrelated">Tümünü Diskten Sil</button>
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" class="btn btn-secondary btn-xs" onclick="deleteAllUnrelated()" id="btn-delete-all-unrelated" style="padding: 6px 12px; font-size: 0.8rem; color: var(--accent-red);" title="Diskteki tüm alakasız dosyaları sil">Tümünü Sil</button>
+                </div>
               </div>
               <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
                 <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
                   <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
                     <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                      <th class="compare-select-column"><input type="checkbox" data-compare-select-all="unrelated" aria-label="Tüm alakasız dosyaları seç"></th>
                       <th style="padding:10px 12px;" id="col-filename-unrelated">Dosya Adı</th>
                       <th style="padding:10px 12px;" id="col-size-unrelated">Boyut</th>
                       <th style="padding:10px 12px; text-align:right;" id="col-actions-unrelated">Eylemler</th>
@@ -83,13 +113,13 @@
                 <h4 style="margin:0; font-size:1.05rem; font-weight:600; color:var(--accent-color);" id="missing-files-title">Veritabanında Olup Diskte Olmayan Dosyalar (Eksikler)</h4>
                 <div style="display: flex; gap: 8px;">
                   <button type="button" class="btn btn-secondary btn-xs" onclick="fixAllMissing('mark')" id="btn-mark-all-missing" style="padding: 6px 12px; font-size: 0.8rem;">Tümünü İndirilmedi İşaretle</button>
-                  <button type="button" class="btn btn-secondary btn-xs" style="background:rgba(255,0,85,0.1); border-color:rgba(255,0,85,0.2); color:var(--accent-red); padding: 6px 12px; font-size: 0.8rem;" onclick="fixAllMissing('delete')" id="btn-delete-all-history">Tümünü Geçmişten Sil</button>
                 </div>
               </div>
               <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
                 <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
                   <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
                     <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                      <th class="compare-select-column"><input type="checkbox" data-compare-select-all="missing" aria-label="Tüm eksik kayıtları seç"></th>
                       <th style="padding:10px 12px;" id="col-filename-missing">Dosya Adı / Başlık</th>
                       <th style="padding:10px 12px;" id="col-channel-missing">Kanal</th>
                       <th style="padding:10px 12px; text-align:right;" id="col-actions-missing">Eylemler</th>
@@ -118,6 +148,20 @@
             </button>
           </div>
 
+          <!-- Sabitlenen Hızlı Kategoriler Önizleme ve Sıralama Barı (Maks 3) -->
+          <div id="tools-pinned-categories-bar" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <span id="tools-pinned-slots-title" style="font-size: 0.82rem; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="pin" style="width: 14px; height: 14px; color: var(--accent-color);"></i>
+                <span id="tools-pinned-slots-title-text">Sabitlenen Hızlı Kategoriler (Maks 3)</span>
+              </span>
+              <span id="tools-pinned-slots-count" style="font-size: 0.75rem; font-weight: 700; color: var(--accent-color); background: rgba(56, 189, 248, 0.12); padding: 2px 8px; border-radius: 12px;">0 / 3</span>
+            </div>
+            <div id="tools-pinned-slots-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+              <!-- JS ile 3 yuva render edilecek -->
+            </div>
+          </div>
+
           <!-- Kategori Listesi -->
           <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
             <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
@@ -125,7 +169,7 @@
                 <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
                   <th style="padding:10px 12px; width: 80px;" id="col-category-id">ID</th>
                   <th style="padding:10px 12px;" id="col-category-name">Kategori Adı</th>
-                  <th style="padding:10px 12px; text-align:center; width: 140px;" id="col-category-quick" title="İndirilenler üst çubuğunda hızlı buton olarak göster (En fazla 5 adet)">Hızlı Buton</th>
+                  <th style="padding:10px 12px; text-align:center; width: 170px;" id="col-category-quick" title="İndirilenler üst çubuğunda hızlı buton olarak göster (En fazla 3 adet)">Sabitleme & Sıra (Maks 3)</th>
                   <th style="padding:10px 12px; text-align:right; width: 150px;" id="col-category-actions">Eylemler</th>
                 </tr>
               </thead>
@@ -251,6 +295,64 @@
           <div id="deleted-videos-empty" class="hidden text-center" style="padding: 30px; background: rgba(56, 189, 248, 0.04); border: 1px dashed var(--border-color); border-radius: 12px; color: var(--text-muted);">
             <i data-lucide="archive" style="width: 36px; height: 36px; margin-bottom: 8px; opacity: 0.5;"></i>
             <p style="font-weight: 500; margin: 0; font-size: 0.95rem;" id="msg-no-deleted-videos">Kayıtlı silinen video bulunmuyor.</p>
+          </div>
+        </div>
+
+        <!-- 6. BÖLÜM: Fakap (Otomatik Kanal Yedekleri) -->
+        <div class="card hidden" id="tools-fakap-container" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <h3 id="tools-fakap-title" style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.05rem;">
+                <i data-lucide="archive" style="width: 20px; height: 20px; color: var(--accent-primary);"></i>
+                <span id="tools-fakap-heading-text">Fakap Yedekleri</span>
+              </h3>
+              <span id="tools-fakap-badge" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">0 Video</span>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="triggerFakapScan()" id="btn-scan-fakap" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+                <span id="btn-scan-fakap-text">Şimdi Tara & Yedekle</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openFakapFolder()" id="btn-open-fakap-folder" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="folder-open" style="width: 14px; height: 14px;"></i>
+                <span id="btn-open-fakap-text">Fakap Klasörünü Aç</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="enableAllFakapChannels()" id="btn-enable-all-fakap" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="archive-restore" style="width: 14px; height: 14px;"></i>
+                <span id="btn-enable-all-fakap-text">Tüm Kanallarda Aç</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="disableAllFakapChannels()" id="btn-disable-all-fakap" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="archive-x" style="width: 14px; height: 14px;"></i>
+                <span id="btn-disable-all-fakap-text">Tüm Kanallarda Kapat</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="resetFakapAll()" id="btn-reset-fakap" style="display: inline-flex; align-items: center; gap: 6px; color: var(--accent-red);">
+                <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                <span id="btn-reset-fakap-text">Tümünü Temizle</span>
+              </button>
+            </div>
+          </div>
+
+          <p id="tools-fakap-desc" style="margin: 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.55;">
+            Takip ettiğiniz ve Fakap'a dahil ettiğiniz kanalların yeni videoları arka planda düşük çözünürlükte otomatik arşivlenir.
+          </p>
+
+          <div class="deleted-videos-controls" style="display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="search" id="fakap-videos-search" placeholder="Yedeklenen videolarda ara..." oninput="filterFakapVideos()" style="flex:1; min-width:200px;">
+            <select id="fakap-videos-filter-status" onchange="filterFakapVideos()" style="width:auto; min-width:140px;">
+              <option value="all" id="opt-fakap-filter-all">Tüm Durumlar</option>
+              <option value="completed" id="opt-fakap-filter-completed">Tamamlananlar</option>
+              <option value="downloading" id="opt-fakap-filter-downloading">İndirilenler</option>
+              <option value="queued" id="opt-fakap-filter-queued">Kuyrukta Olanlar</option>
+            </select>
+          </div>
+
+          <div id="fakap-videos-grid" class="history-grid" role="list">
+            <!-- JS ile Fakap kartları dinamik doldurulur -->
+          </div>
+
+          <div id="fakap-videos-empty" class="hidden text-center" style="padding: 30px; background: rgba(56, 189, 248, 0.04); border: 1px dashed var(--border-color); border-radius: 12px; color: var(--text-muted);">
+            <i data-lucide="archive" style="width: 36px; height: 36px; margin-bottom: 8px; opacity: 0.5;"></i>
+            <p style="font-weight: 500; margin: 0; font-size: 0.95rem;" id="msg-no-fakap-videos">Henüz arşivlenmiş Fakap videosu bulunmuyor.</p>
           </div>
         </div>
 

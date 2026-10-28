@@ -1,9 +1,9 @@
   <!-- Silme Onay Modalı -->
-  <div id="delete-modal" class="modal hidden">
+  <div id="delete-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="delete-modal-msg" style="z-index: 10020;">
     <div class="modal-content card">
       <div class="modal-header">
         <h3>Videoyu Geçmişten Kaldır</h3>
-        <button class="modal-close-btn" id="close-delete-modal-btn">
+        <button class="modal-close-btn" id="close-delete-modal-btn" aria-label="Kapat">
           <i data-lucide="x"></i>
         </button>
       </div>
@@ -32,14 +32,14 @@
     </div>
   </div>
   <!-- Otomatik Silme Toplu Onay ve Erteleme Modalı -->
-  <div id="auto-delete-confirm-modal" class="modal hidden" style="z-index: 10005;">
+  <div id="auto-delete-confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="auto-delete-modal-title" style="z-index: 10005;">
     <div class="modal-content card" style="max-width: 650px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">
       <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
         <h3 style="display: flex; align-items: center; gap: 8px; color: var(--accent-red); margin: 0; font-size: 1.15rem;">
           <i data-lucide="alert-triangle"></i>
           <span id="auto-delete-modal-title">Süresi Dolan Videolar Silinecek</span>
         </h3>
-        <button class="modal-close-btn" id="close-auto-delete-modal-btn">
+        <button class="modal-close-btn" id="close-auto-delete-modal-btn" aria-label="Kapat">
           <i data-lucide="x"></i>
         </button>
       </div>
@@ -68,7 +68,7 @@
     </div>
   </div>
   <!-- Gömülü Oynatıcı Modalı (Floating PiP Player) -->
-  <div id="player-modal" class="modal hidden">
+  <div id="player-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="player-modal-title">
     <div class="modal-content card player-modal-content">
       <!-- Sürükleme / Yeniden Boyutlandırma Köşeleri ve Kenarları -->
       <div class="resize-handle top-left"></div>
@@ -89,10 +89,10 @@
           <span id="player-sponsorblock-status" style="font-size: 0.7rem; color: #ff0055; margin-left: 30px; margin-top: 1px; font-weight: 600; display: none;"></span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-          <button class="modal-close-btn" id="minimize-player-modal-btn" onclick="togglePlayerMinimize()" title="Küçült" style="width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
+          <button class="modal-close-btn" id="minimize-player-modal-btn" onclick="togglePlayerMinimize()" aria-label="Küçült" title="Küçült" style="width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
             <i data-lucide="minus"></i>
           </button>
-          <button class="modal-close-btn" id="close-player-modal-btn" onclick="closePlayerModal()" style="width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
+          <button class="modal-close-btn" id="close-player-modal-btn" onclick="closePlayerModal()" aria-label="Kapat" title="Kapat" style="width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
             <i data-lucide="x"></i>
           </button>
         </div>
@@ -104,11 +104,11 @@
   </div>
 
   <!-- FFmpeg Kurulum Modalı -->
-  <div id="ffmpeg-installer-modal" class="modal hidden">
+  <div id="ffmpeg-installer-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ffmpeg-modal-title">
     <div class="modal-content card" style="max-width: 420px; border-radius: 16px; padding: 24px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);">
       <div class="modal-header" style="margin-bottom: 12px; padding-bottom: 12px;">
         <h3 id="ffmpeg-modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 700;">FFmpeg Kurulum Otomasyonu</h3>
-        <button class="modal-close-btn" id="close-ffmpeg-modal-btn" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i data-lucide="x"></i></button>
+        <button class="modal-close-btn" id="close-ffmpeg-modal-btn" aria-label="Kapat" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
         <p id="ffmpeg-modal-description" style="margin-bottom: 16px; font-size: 0.85rem; line-height: 1.5; color: var(--text-muted);">Yüksek çözünürlüklü indirmeler için gerekli FFmpeg kütüphaneleri (ffmpeg.exe ve ffprobe.exe) ffbinaries sunucularından indiriliyor ve kuruluyor. Lütfen bekleyin.</p>
@@ -124,11 +124,14 @@
   </div>
 
   <!-- Sistem Konsolu Modalı -->
-  <div id="console-modal" class="modal hidden">
+  <div id="console-modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal-content card" style="max-width: 750px; border-radius: 12px; padding: 0; display: flex; flex-direction: column; overflow: hidden; background: #0c0c0c; border: 1px solid #333;">
       <div class="modal-header" style="background: #1a1a1a; padding: 12px 16px; border-bottom: 1px solid #333; margin: 0; display: flex; justify-content: space-between; align-items: center;">
         <h3 style="margin: 0; font-size: 0.95rem; font-family: monospace; color: #a3a3a3; font-weight: 600;"><i data-lucide="terminal" style="width:16px;height:16px;vertical-align:middle;margin-right:8px;color:#4af626;"></i> Sistem Konsolu (Live)</h3>
-        <button class="modal-close-btn" id="close-console-modal-btn" style="color: #a3a3a3; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i data-lucide="x"></i></button>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" id="console-mode-btn" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 6px; background: transparent; border: 1px solid #444; color: #a3a3a3; cursor: pointer;" title="Uygulama günlüğü ile ham sistem çıktısı arasında geçiş yap">Ham Çıktı</button>
+          <button class="modal-close-btn" id="close-console-modal-btn" aria-label="Kapat" style="color: #a3a3a3; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i data-lucide="x"></i></button>
+        </div>
       </div>
       <div class="modal-body" style="padding: 0; margin: 0; height: 400px; display: flex; flex-direction: column;">
         <div id="console-output" style="flex: 1; overflow-y: auto; padding: 12px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.8rem; line-height: 1.4; color: #d4d4d4; background: #000;">
@@ -143,8 +146,8 @@
 
   <!-- DNS Sorgulayıcı Modalı -->
   <!-- Aktif DNS Sunucusu Modalı -->
-  <div id="dns-lookup-modal" class="modal hidden" style="z-index: 10500;">
-    <div class="modal-content card" style="max-width: 600px; width: 95%; border-radius: 18px; background: rgba(18,14,34,0.97); border: 1px solid rgba(99,102,241,0.25); backdrop-filter: blur(24px); box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.12);">
+  <div id="dns-lookup-modal" class="modal hidden" role="dialog" aria-modal="true" style="z-index: 10500;">
+    <div class="modal-content card" style="max-width: 600px; width: 95%; border-radius: 18px; background: rgba(18,14,34,0.97); border: 1px solid rgba(99,102,241,0.25); backdrop-filter: blur(24px); box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.12); cursor: default;">
       <div class="modal-header" style="padding: 18px 22px 14px; border-bottom: 1px solid rgba(99,102,241,0.15); display: flex; align-items: center; gap: 12px;">
         <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(56,189,248,0.12); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
           <i data-lucide="network" style="width: 20px; height: 20px;"></i>
@@ -153,7 +156,7 @@
           <h3 style="margin: 0; font-size: 1.05rem; color: #e2e8f0; font-weight: 700;">Aktif DNS Sunucusu Bilgisi</h3>
           <p style="margin: 0; font-size: 0.75rem; color: #94a3b8;">Sisteminizin ve internet çıkışınızın kullandığı DNS sağlayıcısı</p>
         </div>
-        <button class="modal-close-btn" id="dns-modal-close-btn" style="margin-left: auto;" onclick="closeDnsLookupModal()">
+        <button class="modal-close-btn" id="dns-modal-close-btn" aria-label="Kapat" style="margin-left: auto;" onclick="closeDnsLookupModal()">
           <i data-lucide="x"></i>
         </button>
       </div>

@@ -18,10 +18,10 @@ const ALPHABET = 'A B C Ç D E F G H I İ J K L M N O Ö P R S Ş T U Ü V Y Z'.
 export function getChannelsRenderSignature(channels, categories, filters = {}, lang = 'tr') {
   if (!channels || !Array.isArray(channels)) return 'empty';
   const chPart = channels.map(c => 
-    `${c.id}:${c.name || ''}:${c.autoDownload !== false}:${c.downloadShorts !== false}:${c.shortsDurationLimit || 180}:${c.quality || 'default'}:${(c.categoryIds || [c.categoryId || 1]).join(',')}:${c.subscriberCount || ''}`
+    `${c.id}:${c.name || ''}:${c.autoDownload !== false}:${c.downloadShorts !== false}:${c.shortsDurationLimit || 180}:${c.quality || 'default'}:${(c.categoryIds || [c.categoryId || 1]).join(',')}:${c.subscriberCount || ''}:fk${((typeof window !== 'undefined' && window.localDb && window.localDb.fakap && window.localDb.fakap.channelIds) || []).includes(c.id)}`
   ).join(';');
   const catPart = (categories || []).map(cat => `${cat.id}:${cat.name}`).join(';');
-  const filterPart = `${filters?.searchQuery || ''}|${filters?.autoDownload || ''}|${filters?.shortsDownload || ''}|${filters?.categoryId || ''}`;
+  const filterPart = `${filters?.searchQuery || ''}|${filters?.autoDownload || ''}|${filters?.shortsDownload || ''}|${filters?.categoryId || ''}|${filters?.fakap || ''}`;
   return `${lang}##${channels.length}##${chPart}##${catPart}##${filterPart}`;
 }
 if (typeof window !== 'undefined') {
@@ -79,6 +79,11 @@ export function renderChannelsList(channelsList, channels, translations, categor
     filteredChannels = filteredChannels.filter(c => c.downloadShorts === true);
   } else if (filters.shortsDownload === 'disabled') {
     filteredChannels = filteredChannels.filter(c => c.downloadShorts === false);
+  }
+
+  if (filters.fakap === 'enabled' || filters.fakap === 'disabled') {
+    const fakapIds = (window.localDb && window.localDb.fakap && window.localDb.fakap.channelIds) || [];
+    filteredChannels = filteredChannels.filter(c => fakapIds.includes(c.id) === (filters.fakap === 'enabled'));
   }
 
   if (filters.categoryId && filters.categoryId !== 'all') {
@@ -283,7 +288,7 @@ export function renderChannelsList(channelsList, channels, translations, categor
           <div class="channel-card-avatar-fallback" style="display:none;">${channelInitial}</div>
         </div>
 
-        <a class="channel-card-name" href="${channelUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(channel.name)} (YouTube'da Aç)">
+        <a class="channel-card-name" href="${channelUrl}" target="_blank" rel="noopener noreferrer" onclick="openChannelInBrowser(this.href, event)" title="${escapeHtml(channel.name)} (YouTube'da Aç)">
           ${escapeHtml(channel.name)}
         </a>
         <div class="channel-card-handle" style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
@@ -309,6 +314,11 @@ export function renderChannelsList(channelsList, channels, translations, categor
             <option value="false" ${channel.autoDownload === false ? 'selected' : ''}>${t.select_auto_download_false || 'Otomatik İndirme'}</option>
           </select>
 
+          <!-- Fakap (Otomatik Düşük Çözünürlüklü Yedek) -->
+          <select onchange="changeChannelFakap('${channel.id}', this.value)" class="channel-card-select" title="${t.fakap_channel_title || 'Fakap (Otomatik Yedek)'}">
+            <option value="false" ${!((window.localDb && window.localDb.fakap && window.localDb.fakap.channelIds) || []).includes(channel.id) ? 'selected' : ''}>${t.fakap_channel_off || 'Fakap: Kapalı'}</option>
+            <option value="true" ${((window.localDb && window.localDb.fakap && window.localDb.fakap.channelIds) || []).includes(channel.id) ? 'selected' : ''}>${t.fakap_channel_on || 'Fakap: Açık'}</option>
+          </select>
           <!-- Shorts İndir -->
           <select onchange="changeChannelShorts('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_shorts_title || 'Shorts İndirme Durumu'}">
             <option value="true" ${channel.downloadShorts !== false ? 'selected' : ''}>${t.select_shorts_true || 'Shorts İndir'}</option>
@@ -371,6 +381,25 @@ export function renderChannelsList(channelsList, channels, translations, categor
             <option value="365" ${channel.autoDeleteDays === '365' ? 'selected' : ''}>365 ${t.unit_days || 'Gün'}</option>
           </select>
 
+          <!-- Kanala Özel Maksimum Video Sayısı Sınırı -->
+          <select onchange="changeChannelAutoDeleteMaxCount('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_autodelete_max_count_title || 'Maksimum Video Sınırı'}">
+            <option value="0" ${(!channel.autoDeleteMaxCount || channel.autoDeleteMaxCount === '0' || channel.autoDeleteMaxCount === 0) ? 'selected' : ''}>${t.opt_autodelete_count_unlimited || 'Sınırsız Video (Varsayılan)'}</option>
+            <option value="global" ${channel.autoDeleteMaxCount === 'global' ? 'selected' : ''}>${t.opt_autodelete_global || 'Genel Ayara Uy'}</option>
+            <option value="5" ${String(channel.autoDeleteMaxCount) === '5' ? 'selected' : ''}>5 ${t.unit_videos || 'Video'}</option>
+            <option value="10" ${String(channel.autoDeleteMaxCount) === '10' ? 'selected' : ''}>10 ${t.unit_videos || 'Video'}</option>
+            <option value="15" ${String(channel.autoDeleteMaxCount) === '15' ? 'selected' : ''}>15 ${t.unit_videos || 'Video'}</option>
+            <option value="20" ${String(channel.autoDeleteMaxCount) === '20' ? 'selected' : ''}>20 ${t.unit_videos || 'Video'}</option>
+            <option value="25" ${String(channel.autoDeleteMaxCount) === '25' ? 'selected' : ''}>25 ${t.unit_videos || 'Video'}</option>
+            <option value="30" ${String(channel.autoDeleteMaxCount) === '30' ? 'selected' : ''}>30 ${t.unit_videos || 'Video'}</option>
+            <option value="50" ${String(channel.autoDeleteMaxCount) === '50' ? 'selected' : ''}>50 ${t.unit_videos || 'Video'}</option>
+            <option value="75" ${String(channel.autoDeleteMaxCount) === '75' ? 'selected' : ''}>75 ${t.unit_videos || 'Video'}</option>
+            <option value="100" ${String(channel.autoDeleteMaxCount) === '100' ? 'selected' : ''}>100 ${t.unit_videos || 'Video'}</option>
+            <option value="150" ${String(channel.autoDeleteMaxCount) === '150' ? 'selected' : ''}>150 ${t.unit_videos || 'Video'}</option>
+            <option value="200" ${String(channel.autoDeleteMaxCount) === '200' ? 'selected' : ''}>200 ${t.unit_videos || 'Video'}</option>
+            <option value="300" ${String(channel.autoDeleteMaxCount) === '300' ? 'selected' : ''}>300 ${t.unit_videos || 'Video'}</option>
+            <option value="500" ${String(channel.autoDeleteMaxCount) === '500' ? 'selected' : ''}>500 ${t.unit_videos || 'Video'}</option>
+          </select>
+
           <!-- Kategoriler Badgeleri -->
           <div class="channel-card-categories-list" style="display: flex; flex-wrap: wrap; gap: 4px; width: 100%; margin-bottom: 6px; padding: 0 4px;">
             ${categoryBadges || `<span style="font-size: 0.68rem; color: var(--text-muted); font-style: italic;">Kategorisiz</span>`}
@@ -398,7 +427,7 @@ export function renderChannelsList(channelsList, channels, translations, categor
           <button type="button" class="btn-icon channel-folder-open-btn" onclick="event.stopPropagation(); openFolder(this.dataset.channelFolderName)" data-channel-folder-name="${escapeHtml(channel.name || '')}" title="${escapeHtml(t.card_open_channel_folder || 'Kanal Klasörünü Aç')}" aria-label="${escapeHtml(t.card_open_channel_folder || 'Kanal Klasörünü Aç')}">
             <i data-lucide="folder-open" aria-hidden="true"></i>
           </button>
-          <a href="${channelUrl}" target="_blank" rel="noopener noreferrer" class="btn-icon channel-open-btn" title="${t.inline_btn_youtube || 'YouTube\'da Aç'}">
+          <a href="${channelUrl}" target="_blank" rel="noopener noreferrer" onclick="openChannelInBrowser(this.href, event)" class="btn-icon channel-open-btn" title="${t.inline_btn_youtube || 'YouTube\'da Aç'}">
             ${youtubeSvgIcon}
           </a>
           <button class="btn-icon channel-delete-btn" onclick="deleteChannel('${channel.id}')" title="${t.channel_btn_unfollow_title || 'Takipten Çıkar'}">
@@ -434,4 +463,29 @@ function formatChannelFolderSize(bytes) {
   }
   return `${size.toFixed(1)} ${units[unitIndex]}`;
 }
+
+/**
+ * Kanalın YouTube sayfasını işletim sisteminin VARSAYILAN tarayıcısında açar.
+ * WebView2 içinde target="_blank" uygulama içi pencere açtığı için sunucudaki /api/open-url
+ * ucu kullanılır; istek başarısız olursa window.open ile geri düşülür.
+ */
+export async function openChannelInBrowser(url, ev) {
+  if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+  const target = String(url || '');
+  if (!/^https?:\/\//i.test(target)) {
+    window.open(target, '_blank', 'noopener');
+    return;
+  }
+  try {
+    const res = await fetch('/api/open-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: target })
+    });
+    if (!res.ok) throw new Error('open-url failed');
+  } catch (e) {
+    window.open(target, '_blank', 'noopener');
+  }
+}
+window.openChannelInBrowser = openChannelInBrowser;
 

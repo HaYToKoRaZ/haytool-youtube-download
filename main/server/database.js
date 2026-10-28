@@ -16,6 +16,7 @@ import {
   dataRootDir
 } from './config.js';
 import { getVideoResolution } from './services/paths.js';
+import { isInsideFakap } from './services/fakapPaths.js';
 import { addTerminalLog, broadcast, broadcastHistoryUpdate } from './services/sse.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -146,6 +147,7 @@ export const defaultDb = {
     showShorts: false,
     rssLimit: 15,
     autoDeleteDays: 0,
+    autoDeleteMaxCount: 0,
     autoDeleteRequireConfirmation: true,
     theme: 'dark',
     shortsMigrationDone: true,
@@ -411,6 +413,18 @@ export function readDb() {
 export async function writeDb(data) {
   const release = await acquireDbLock();
   try {
+    await writeDbUnlocked(data);
+  } finally {
+    release();
+  }
+}
+
+/**
+ * Kilit almadan yazan iç fonksiyon. Yalnızca kilit zaten elde tutuluyorken
+ * (writeDb veya updateDb içinden) çağrılmalıdır; aksi halde kilit çakışır.
+ */
+async function writeDbUnlocked(data) {
+  try {
     // RAM önbelleği hemen güncelleyelim ki gecikme olmasın
     cachedDb = data;
     lastCacheCheckTime = Date.now();
@@ -467,6 +481,23 @@ export async function writeDb(data) {
     await saveCategoriesToIni(data);
   } catch (err) {
     console.error('Veritabanı yazma hatası:', err);
+  }
+}
+
+/**
+ * Kilit altında oku-değiştir-yaz yapar. Mutator veritabanı nesnesini yerinde değiştirir.
+ * Kilit zaten alındığı için içeride writeDb() ÇAĞRILMAMALIDIR (kilit çakışır).
+ *
+ * @param {(db: object) => any} mutator
+ * @returns {Promise<any>} mutator'ın dönüş değeri
+ */
+export async function updateDb(mutator) {
+  const release = await acquireDbLock();
+  try {
+    const db = readDb();
+    const result = await mutator(db);
+    await writeDbUnlocked(db);
+    return result;
   } finally {
     release();
   }
@@ -701,6 +732,11 @@ export function syncWithIni(db) {
       const autoDeleteDays = getCaseInsensitiveKey(settingsSection, 'autoDeleteDays');
       if (autoDeleteDays !== undefined) {
         db.settings.autoDeleteDays = parseInt(autoDeleteDays, 10) || 0;
+      }
+
+      const autoDeleteMaxCount = getCaseInsensitiveKey(settingsSection, 'autoDeleteMaxCount');
+      if (autoDeleteMaxCount !== undefined) {
+        db.settings.autoDeleteMaxCount = parseInt(autoDeleteMaxCount, 10) || 0;
       }
 
       const autoDeleteRequireConfirmation = getCaseInsensitiveKey(settingsSection, 'autoDeleteRequireConfirmation');
@@ -1013,7 +1049,50 @@ export function syncWithIni(db) {
 
       let subscriberCountFromIni = '?';
       let autoDeleteDays = 'never';
-      if (parts.length >= 11) {
+      let autoDeleteMaxCount = 'none';
+      // Fakap (13. alan): kapalıysa 'false', açıksa açılış zaman damgası (ISO) veya 'true'.
+      // null => eski formatta yok, mevcut db.fakap durumu korunur.
+      let fakapValue = null;
+      if (parts.length >= 13) {
+        fakapValue = parts[parts.length - 1];
+        autoDeleteMaxCount = parts[parts.length - 2];
+        autoDeleteDays = parts[parts.length - 3];
+        subscriberCountFromIni = parts[parts.length - 4];
+        const catPart = parts[parts.length - 5];
+        if (catPart.includes(',')) {
+          categoryIds = catPart.split(',').map(x => parseInt(x.trim(), 10) || 1);
+        } else {
+          categoryIds = [parseInt(catPart, 10) || 1];
+        }
+        categoryId = categoryIds[0] || 1;
+        autoDownload = parts[parts.length - 6] === 'true';
+        shortsDurationLimit = parseInt(parts[parts.length - 7], 10) || 180;
+        avatar = parts[parts.length - 8];
+        downloadShorts = parts[parts.length - 9] === 'true';
+        quality = parts[parts.length - 10];
+        addedAt = parts[parts.length - 11];
+        handleOrUrl = parts[parts.length - 12];
+        name = parts.slice(0, parts.length - 12).join(' | ');
+      } else if (parts.length === 12) {
+        autoDeleteMaxCount = parts[parts.length - 1];
+        autoDeleteDays = parts[parts.length - 2];
+        subscriberCountFromIni = parts[parts.length - 3];
+        const catPart = parts[parts.length - 4];
+        if (catPart.includes(',')) {
+          categoryIds = catPart.split(',').map(x => parseInt(x.trim(), 10) || 1);
+        } else {
+          categoryIds = [parseInt(catPart, 10) || 1];
+        }
+        categoryId = categoryIds[0] || 1;
+        autoDownload = parts[parts.length - 5] === 'true';
+        shortsDurationLimit = parseInt(parts[parts.length - 6], 10) || 180;
+        avatar = parts[parts.length - 7];
+        downloadShorts = parts[parts.length - 8] === 'true';
+        quality = parts[parts.length - 9];
+        addedAt = parts[parts.length - 10];
+        handleOrUrl = parts[parts.length - 11];
+        name = parts.slice(0, parts.length - 11).join(' | ');
+      } else if (parts.length === 11) {
         autoDeleteDays = parts[parts.length - 1];
         subscriberCountFromIni = parts[parts.length - 2];
         const catPart = parts[parts.length - 3];
@@ -1144,10 +1223,35 @@ export function syncWithIni(db) {
          autoDownload: finalAutoDownload, 
          categoryId: finalCategoryId,
          categoryIds: finalCategoryIds,
-         autoDeleteDays: finalAutoDeleteDays
+         autoDeleteDays: finalAutoDeleteDays,
+          autoDeleteMaxCount: (existingChannel && existingChannel.autoDeleteMaxCount !== undefined) ? existingChannel.autoDeleteMaxCount : autoDeleteMaxCount,
+          fakap: fakapValue
        });
     }
     db.channels = updatedChannels;
+
+    // Fakap durumu artık channels.ini içindeki 13. alandan (tek doğru kaynak) yeniden kurulur.
+    // Alan eski dosyalarda yoksa (null) mevcut db.fakap korunur ve bir sonraki yazımda ini'ye eklenir.
+    const prevFakap = db.fakap || { channelIds: [], enabledAt: {} };
+    const prevIds = Array.isArray(prevFakap.channelIds) ? prevFakap.channelIds : [];
+    const prevStamps = (prevFakap.enabledAt && typeof prevFakap.enabledAt === 'object') ? prevFakap.enabledAt : {};
+    const fakapIds = [];
+    const fakapStamps = {};
+    for (const ch of updatedChannels) {
+      const fv = ch.fakap;
+      if (fv === null || fv === undefined) {
+        if (prevIds.includes(ch.id)) {
+          fakapIds.push(ch.id);
+          if (prevStamps[ch.id]) fakapStamps[ch.id] = prevStamps[ch.id];
+        }
+      } else if (fv !== 'false' && fv !== '0' && fv !== '') {
+        fakapIds.push(ch.id);
+        if (fv !== 'true' && fv !== '1') fakapStamps[ch.id] = fv;
+      }
+    }
+    db.fakap = db.fakap || {};
+    db.fakap.channelIds = fakapIds;
+    db.fakap.enabledAt = fakapStamps;
   } else {
     if (!fs.existsSync(channelsIniPath)) {
       saveChannelsToIni(db);
@@ -1178,6 +1282,7 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.showShorts = (db.settings.showShorts !== false).toString();
   iniData.Settings.rssLimit = (db.settings.rssLimit !== undefined ? db.settings.rssLimit : 15).toString();
   iniData.Settings.autoDeleteDays = (db.settings.autoDeleteDays || 0).toString();
+  iniData.Settings.autoDeleteMaxCount = (db.settings.autoDeleteMaxCount || 0).toString();
   iniData.Settings.autoDeleteRequireConfirmation = (db.settings.autoDeleteRequireConfirmation !== false).toString();
   iniData.Settings.theme = (db.settings.theme || 'dark').toString();
   iniData.Settings.downloadSpeedLimit = (db.settings.downloadSpeedLimit || 0).toString();
@@ -1266,6 +1371,9 @@ export async function saveChannelsToIni(db) {
     } else if (!channelUrl) {
       channelUrl = `https://www.youtube.com/channel/${channel.id}`;
     }
+    const fakapIds = Array.isArray(db.fakap?.channelIds) ? db.fakap.channelIds : [];
+    const fakapStamp = db.fakap?.enabledAt?.[channel.id];
+    const fakapValue = fakapIds.includes(channel.id) ? (fakapStamp || 'true') : 'false';
     const info = [
       channel.name || '',
       channelUrl || '',
@@ -1279,7 +1387,9 @@ export async function saveChannelsToIni(db) {
         ? channel.categoryIds.join(',') 
         : (channel.categoryId !== undefined ? channel.categoryId : 1).toString()).toString(),
       channel.subscriberCount || '?',
-      (channel.autoDeleteDays !== undefined ? channel.autoDeleteDays : 'never').toString()
+      (channel.autoDeleteDays !== undefined ? channel.autoDeleteDays : 'never').toString(),
+      (channel.autoDeleteMaxCount !== undefined ? channel.autoDeleteMaxCount : 'none').toString(),
+      fakapValue
     ].join(' | ');
     iniData.Channels[channel.id] = info;
   }
@@ -1340,6 +1450,7 @@ export function buildVideoFilesMap(downloadPath) {
         if (entry.isDirectory()) {
           const entryLower = entry.name.toLowerCase();
           if (ignoredFolders.includes(entryLower) || entryLower.startsWith('.')) continue;
+          if (isInsideFakap(fullPath)) continue; // Fakap yedek klasörü ana kütüphane taramasından dışlanır
           scanDir(fullPath, depth + 1);
         } else {
           const ext = path.extname(entry.name).toLowerCase();
@@ -1600,6 +1711,7 @@ export function findVideoFileInDownloadDir(videoId, downloadPath) {
         if (entry.isDirectory()) {
           const entryLower = entry.name.toLowerCase();
           if (ignoredFolders.includes(entryLower) || entryLower.startsWith('.')) continue;
+          if (isInsideFakap(fullPath)) continue; // Fakap yedek klasörü dışlanır
           const result = searchDir(fullPath, depth + 1);
           if (result) return result;
         } else {

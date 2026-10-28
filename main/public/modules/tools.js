@@ -19,6 +19,12 @@ let untrackedFilesList = [];
 let unrelatedFilesList = [];
 let missingFilesList = [];
 let scanProgressToast = null;
+let comparisonFilter = 'all';
+const comparisonSelection = {
+  untracked: new Set(),
+  unrelated: new Set(),
+  missing: new Set()
+};
 
 export function initTools(getState) {
   if (getState) _getState = getState;
@@ -29,6 +35,18 @@ export function initTools(getState) {
   if (compareBtn) {
     compareBtn.addEventListener('click', runFileComparison);
   }
+
+  document.querySelectorAll('[data-compare-filter]').forEach(button => {
+    button.addEventListener('click', () => {
+      comparisonFilter = button.dataset.compareFilter || 'all';
+      applyComparisonFilter();
+    });
+  });
+
+  document.getElementById('compare-clear-selection')?.addEventListener('click', clearComparisonSelection);
+  document.getElementById('compare-selected-safe-action')?.addEventListener('click', () => runSelectedComparisonAction('safe'));
+  document.getElementById('compare-selected-danger-action')?.addEventListener('click', () => runSelectedComparisonAction('danger'));
+  updateComparisonInterfaceText(translations[window.localDb?.settings?.lang || 'tr'] || translations.tr);
 
   const toolsBtn = document.getElementById('tools-btn');
   if (toolsBtn) {
@@ -47,7 +65,8 @@ export function initTools(getState) {
     ['nav-tools-categories-btn', 'categories'],
     ['nav-tools-ape-btn', 'ape'],
     ['nav-tools-subs-btn', 'subscriptions'],
-    ['nav-tools-deleted-btn', 'deleted']
+    ['nav-tools-deleted-btn', 'deleted'],
+    ['nav-tools-fakap-btn', 'fakap']
   ];
 
   sections.forEach(([buttonId, section]) => {
@@ -109,6 +128,8 @@ export async function runFileComparison() {
   if (compareBtnText) {
     compareBtnText.textContent = t.compare_btn_running || 'Comparing...';
   }
+  const statusCopy = document.getElementById('compare-status-copy');
+  if (statusCopy) statusCopy.textContent = t.compare_loading;
   if (compareLoading) compareLoading.classList.remove('hidden');
   if (compareResults) compareResults.classList.add('hidden');
   if (noIssuesFound) noIssuesFound.classList.add('hidden');
@@ -123,6 +144,7 @@ export async function runFileComparison() {
       untrackedFilesList = data.untrackedFiles || [];
       unrelatedFilesList = data.unrelatedFiles || [];
       missingFilesList = data.missingFiles || [];
+      clearComparisonSelection();
       
       renderComparisonResults();
     } else {
@@ -203,6 +225,9 @@ export function renderComparisonResults() {
   if (missingBody) missingBody.innerHTML = '';
   
   if (compareResults) compareResults.classList.remove('hidden');
+
+  updateComparisonInterfaceText(t);
+  updateComparisonHealthSummary(t);
   
   if (untrackedFilesList.length === 0 && unrelatedFilesList.length === 0 && missingFilesList.length === 0) {
     if (noIssuesFound) noIssuesFound.classList.remove('hidden');
@@ -230,6 +255,7 @@ export function renderComparisonResults() {
     untrackedFilesList.forEach(file => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
+        <td class="compare-select-cell"><input type="checkbox" data-compare-select="untracked" data-compare-key="${encodeURIComponent(file.filePath)}" aria-label="${t.compare_select_item || 'Öğeyi seç'}"></td>
         <td>
           <div class="file-name-cell" title="${file.filePath}">
             <i data-lucide="file-video" class="file-icon"></i>
@@ -238,6 +264,7 @@ export function renderComparisonResults() {
         </td>
         <td>${file.channelName || '<span class="text-muted">--</span>'}</td>
         <td class="text-nowrap">${file.fileSize || '--'}</td>
+        <td class="compare-select-cell"><input type="checkbox" data-compare-select="unrelated" data-compare-key="${encodeURIComponent(file.filePath)}" aria-label="${t.compare_select_item || 'Öğeyi seç'}"></td>
         <td>
           <div class="action-buttons-cell" style="text-align: right;">
             <button class="btn btn-secondary btn-sm" onclick="openFileLocation('${file.filePath.replace(/\\/g, '\\\\')}')" title="${isEn ? 'Open File Location' : 'Dosya Konumunu Aç'}">
@@ -269,6 +296,7 @@ export function renderComparisonResults() {
     unrelatedFilesList.forEach(file => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
+        <td class="compare-select-cell"><input type="checkbox" data-compare-select="missing" data-compare-key="${encodeURIComponent(file.id)}" aria-label="${t.compare_select_item || 'Öğeyi seç'}"></td>
         <td>
           <div class="file-name-cell" title="${file.filePath}">
             <i data-lucide="file" class="file-icon" style="color: var(--text-muted);"></i>
@@ -331,7 +359,163 @@ export function renderComparisonResults() {
     if (missingSection) missingSection.classList.add('hidden');
   }
   
+  bindComparisonSelectionControls();
+  applyComparisonFilter();
+  updateComparisonSelectionBar(t);
   lucide.createIcons();
+}
+
+function updateComparisonInterfaceText(t) {
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+  setText('compare-eyebrow', t.compare_health_eyebrow);
+  setText('compare-status-copy', t.compare_health_idle);
+  setText('compare-healthy-label', t.compare_health_healthy);
+  setText('compare-untracked-label', t.compare_health_untracked);
+  setText('compare-unrelated-label', t.compare_health_unrelated);
+  setText('compare-missing-label', t.compare_health_missing);
+  setText('compare-clear-selection', t.compare_clear_selection);
+  setText('btn-delete-all-unrelated', t.auto_delete_btn_delete_all);
+  document.querySelectorAll('[data-compare-select-all]').forEach(input => {
+    input.setAttribute('aria-label', t.compare_select_item);
+  });
+}
+
+function updateComparisonHealthSummary(t) {
+  const summary = document.getElementById('compare-health-summary');
+  const totalIssues = untrackedFilesList.length + unrelatedFilesList.length + missingFilesList.length;
+  const setCount = (id, count) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = count;
+  };
+  setCount('compare-healthy-count', totalIssues);
+  setCount('compare-untracked-count', untrackedFilesList.length);
+  setCount('compare-unrelated-count', unrelatedFilesList.length);
+  setCount('compare-missing-count', missingFilesList.length);
+  if (summary) summary.classList.remove('hidden');
+}
+
+function bindComparisonSelectionControls() {
+  document.querySelectorAll('[data-compare-select]').forEach(input => {
+    input.checked = comparisonSelection[input.dataset.compareSelect]?.has(input.dataset.compareKey);
+    input.onchange = () => {
+      const type = input.dataset.compareSelect;
+      const selection = comparisonSelection[type];
+      if (!selection) return;
+      input.checked ? selection.add(input.dataset.compareKey) : selection.delete(input.dataset.compareKey);
+      syncComparisonSelectAll(type);
+      updateComparisonSelectionBar();
+    };
+  });
+
+  document.querySelectorAll('[data-compare-select-all]').forEach(input => {
+    const type = input.dataset.compareSelectAll;
+    syncComparisonSelectAll(type);
+    input.onchange = () => {
+      const visibleItems = [...document.querySelectorAll(`[data-compare-select="${type}"]`)];
+      visibleItems.forEach(item => {
+        item.checked = input.checked;
+        input.checked ? comparisonSelection[type].add(item.dataset.compareKey) : comparisonSelection[type].delete(item.dataset.compareKey);
+      });
+      updateComparisonSelectionBar();
+    };
+  });
+}
+
+function syncComparisonSelectAll(type) {
+  const selectAll = document.querySelector(`[data-compare-select-all="${type}"]`);
+  const items = [...document.querySelectorAll(`[data-compare-select="${type}"]`)];
+  if (!selectAll) return;
+  const selected = items.filter(item => item.checked).length;
+  selectAll.checked = items.length > 0 && selected === items.length;
+  selectAll.indeterminate = selected > 0 && selected < items.length;
+}
+
+function clearComparisonSelection() {
+  Object.values(comparisonSelection).forEach(selection => selection.clear());
+  document.querySelectorAll('[data-compare-select], [data-compare-select-all]').forEach(input => {
+    input.checked = false;
+    input.indeterminate = false;
+  });
+  updateComparisonSelectionBar();
+}
+
+function getSelectedComparisonType() {
+  return Object.entries(comparisonSelection).filter(([, selection]) => selection.size > 0).map(([type]) => type);
+}
+
+function updateComparisonSelectionBar(t = translations[localDb.settings?.lang || 'tr'] || translations.tr) {
+  const bar = document.getElementById('compare-selection-bar');
+  const countEl = document.getElementById('compare-selection-count');
+  const safeBtn = document.getElementById('compare-selected-safe-action');
+  const dangerBtn = document.getElementById('compare-selected-danger-action');
+  const types = getSelectedComparisonType();
+  const count = types.reduce((total, type) => total + comparisonSelection[type].size, 0);
+  if (!bar || !countEl || !safeBtn || !dangerBtn) return;
+  bar.classList.toggle('hidden', count === 0);
+  countEl.textContent = (t.compare_selection_count || '{count} öğe seçildi').replace('{count}', count);
+  const type = types.length === 1 ? types[0] : null;
+  safeBtn.classList.toggle('hidden', !type || type === 'unrelated');
+  dangerBtn.classList.toggle('hidden', !type);
+  safeBtn.disabled = !type;
+  dangerBtn.disabled = !type;
+  if (!type) {
+    countEl.textContent = t.compare_mixed_selection;
+    return;
+  }
+  safeBtn.textContent = type === 'untracked' ? t.compare_import_selected : t.compare_mark_selected;
+  dangerBtn.textContent = type === 'missing' ? t.compare_delete_history_selected : t.compare_delete_disk_selected;
+}
+
+function applyComparisonFilter() {
+  document.querySelectorAll('[data-compare-filter]').forEach(button => {
+    button.classList.toggle('is-active', button.dataset.compareFilter === comparisonFilter);
+  });
+  const sections = { untracked: 'untracked-section', unrelated: 'unrelated-section', missing: 'missing-section' };
+  Object.entries(sections).forEach(([type, id]) => {
+    const section = document.getElementById(id);
+    if (section) section.classList.toggle('compare-filter-hidden', comparisonFilter !== 'all' && comparisonFilter !== type);
+  });
+}
+
+async function runSelectedComparisonAction(kind) {
+  const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
+  const types = getSelectedComparisonType();
+  if (types.length !== 1) return;
+  const type = types[0];
+  const keys = comparisonSelection[type];
+  const list = type === 'untracked' ? untrackedFilesList : type === 'unrelated' ? unrelatedFilesList : missingFilesList;
+  const selected = list.filter(item => keys.has(encodeURIComponent(type === 'missing' ? item.id : item.filePath)));
+  if (!selected.length) return;
+
+  let body;
+  if (kind === 'safe' && type === 'untracked') {
+    const filesToImport = selected.filter(file => file.id).map(file => ({ id: file.id, title: file.title, channelName: file.channelName, fileSize: file.fileSize, filePath: file.filePath }));
+    if (!filesToImport.length) return showToast(t.compare_no_importable, 'info');
+    body = { action: 'import-untracked-file', filesToImport };
+  } else if (kind === 'safe' && type === 'missing') {
+    body = { action: 'mark-missing-as-not-downloaded', videoIds: selected.map(file => file.id) };
+  } else if (kind === 'danger' && type === 'missing') {
+    if (!confirm((t.compare_confirm_delete_history || '{count} kaydı geçmişten silmek istiyor musunuz?').replace('{count}', selected.length))) return;
+    body = { action: 'delete-history-item', videoIds: selected.map(file => file.id) };
+  } else if (kind === 'danger') {
+    if (!confirm((t.compare_confirm_delete_disk || '{count} dosyayı diskten kalıcı olarak silmek istiyor musunuz?').replace('{count}', selected.length))) return;
+    body = { action: type === 'unrelated' ? 'delete-unrelated-file' : 'delete-untracked-file', filePaths: selected.map(file => file.filePath) };
+  } else {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/tools/fix-files', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!data.success) return showToast(data.error || t.compare_action_failed, 'error');
+    showToast(data.message || t.compare_action_completed, 'success');
+    runFileComparison();
+  } catch (err) {
+    showToast(t.compare_connection_error, 'error');
+  }
 }
 
 export async function fixFileIssue(actionType, filePath, id) {
@@ -574,6 +758,10 @@ export function initDownloaderUI() {
   if (downloaderUiInitialized) return;
   downloaderUiInitialized = true;
 
+  if (typeof window.setupDownloaderUrlInput === 'function') {
+    window.setupDownloaderUrlInput();
+  }
+
   const downloaderActionBtn = document.getElementById('downloader-action-btn');
   if (downloaderActionBtn) {
     downloaderActionBtn.addEventListener('click', (e) => {
@@ -620,7 +808,7 @@ window.initDownloaderUI = initDownloaderUI;
 window.toggleToolsDropdown = toggleToolsDropdown;
 
 export function showToolsSubSection(section) {
-  const known = ['compare', 'categories', 'ape', 'subscriptions', 'deleted', 'bulk-delete'];
+  const known = ['compare', 'categories', 'ape', 'subscriptions', 'deleted', 'bulk-delete', 'fakap'];
   window.currentToolsSubSection = known.includes(section) ? section : 'compare';
 
   const compareContainer = document.getElementById('tools-compare-container');
@@ -629,6 +817,7 @@ export function showToolsSubSection(section) {
   const apeContainer = document.getElementById('tools-ape-container');
   const subsContainer = document.getElementById('tools-subscriptions-container');
   const deletedContainer = document.getElementById('tools-deleted-videos-container');
+  const fakapContainer = document.getElementById('tools-fakap-container');
   const toolsHeaderTitle = document.querySelector('#tab-tools .content-header h2 span');
   const toolsHeaderDesc = document.getElementById('tools-modal-desc');
   const toolsHeaderIcon = document.getElementById('tools-modal-icon');
@@ -639,6 +828,7 @@ export function showToolsSubSection(section) {
   if (apeContainer) apeContainer.classList.add('hidden');
   if (subsContainer) subsContainer.classList.add('hidden');
   if (deletedContainer) deletedContainer.classList.add('hidden');
+  if (fakapContainer) fakapContainer.classList.add('hidden');
 
   const isEn = localDb.settings?.lang === 'en';
 
@@ -669,6 +859,12 @@ export function showToolsSubSection(section) {
     if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'List of last 100 auto-deleted and manually deleted videos with one-click re-download.' : 'Otomatik veya manuel olarak silinen son 100 videoyu listeleyebilir ve dilediğinizi tek tıkla tekrar indirebilirsiniz.';
     if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'trash-2');
     if (typeof window.loadDeletedVideosList === 'function') window.loadDeletedVideosList(false);
+  } else if (section === 'fakap' && fakapContainer) {
+    fakapContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Fakap Channel Backups' : 'Fakap Kanal Yedekleri';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Low-resolution automatic background backups of your tracked channels.' : 'Takip edilen kanalların arka planda otomatik alınan düşük çözünürlüklü yedekleri.';
+    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'archive');
+    if (typeof window.loadFakapVideosList === 'function') window.loadFakapVideosList();
   } else {
     if (compareContainer) compareContainer.classList.remove('hidden');
     if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Advanced File Comparison & Sync' : 'Gelişmiş Dosya Karşılaştırma & Senkronizasyon';
@@ -681,6 +877,10 @@ export function showToolsSubSection(section) {
   } catch (e) {}
 }
 window.showToolsSubSection = showToolsSubSection;
+window.switchToolsSubSection = function(section) {
+  if (typeof window.switchTab === 'function') window.switchTab('tools');
+  showToolsSubSection(section);
+};
 
 
 
@@ -776,6 +976,62 @@ window.removeChannelCategory = removeChannelCategory;
 /**
  * Araçlar sekmesindeki kategori listesini render eder.
  */
+export function renderQuickPinsPreviewBar(quickPins, cats, t) {
+  const container = document.getElementById('tools-pinned-slots-container');
+  const countBadge = document.getElementById('tools-pinned-slots-count');
+  const titleText = document.getElementById('tools-pinned-slots-title-text');
+  if (titleText && t && t.category_quick_slots_title) {
+    titleText.textContent = t.category_quick_slots_title;
+  }
+  if (countBadge) {
+    countBadge.textContent = `${quickPins.length} / 3`;
+  }
+  if (!container) return;
+
+  const totalSlots = 3;
+  let html = '';
+  for (let i = 0; i < totalSlots; i++) {
+    const pinId = quickPins[i];
+    const cat = pinId ? cats.find(c => c && c.id === pinId) : null;
+    if (cat) {
+      const catName = getCatTranslatedName(cat, t);
+      const isFirst = i === 0;
+      const isLast = i === quickPins.length - 1;
+      html += `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; background:var(--bg-input); border:1px solid rgba(56, 189, 248, 0.4); border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+          <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+            <span style="font-weight:700; font-size:0.75rem; background:rgba(56, 189, 248, 0.15); color:var(--accent-color); border-radius:4px; padding:2px 6px; white-space:nowrap;">#${i + 1}</span>
+            <span style="font-size:0.85rem; font-weight:600; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(catName)}">${escapeHtml(catName)}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:3px;">
+            <button type="button" class="btn-icon" onclick="moveQuickCategoryPin(${cat.id}, -1)" ${isFirst ? 'disabled style="opacity:0.25; cursor:not-allowed;"' : ''} title="${t.category_quick_move_up || 'Sırayı Öne Al'}" style="width:24px; height:24px; border:none; background:transparent; color:var(--accent-color); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+              <i data-lucide="chevron-up" style="width:14px; height:14px;"></i>
+            </button>
+            <button type="button" class="btn-icon" onclick="moveQuickCategoryPin(${cat.id}, 1)" ${isLast ? 'disabled style="opacity:0.25; cursor:not-allowed;"' : ''} title="${t.category_quick_move_down || 'Sırayı Geri Al'}" style="width:24px; height:24px; border:none; background:transparent; color:var(--accent-color); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+              <i data-lucide="chevron-down" style="width:14px; height:14px;"></i>
+            </button>
+            <button type="button" class="btn-icon" onclick="toggleQuickCategoryPin(${cat.id})" title="${t.category_quick_unpinned || 'Sabitlemeyi Kaldır'}" style="width:24px; height:24px; border:none; background:transparent; color:var(--accent-red, #ef4444); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; margin-left:2px;">
+              <i data-lucide="x" style="width:13px; height:13px;"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      html += `
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:transparent; border:1px dashed var(--border-color); border-radius:8px; opacity:0.6;">
+          <span style="font-weight:700; font-size:0.75rem; background:rgba(255,255,255,0.05); color:var(--text-muted); border-radius:4px; padding:2px 6px;">#${i + 1}</span>
+          <span style="font-size:0.8rem; color:var(--text-muted);">${t.category_quick_slot_empty || 'Boş Yuva'}</span>
+        </div>
+      `;
+    }
+  }
+  container.innerHTML = html;
+}
+window.renderQuickPinsPreviewBar = renderQuickPinsPreviewBar;
+
+/**
+ * Araçlar sekmesindeki kategori listesini render eder.
+ */
 export function loadCategoriesToTools(categories) {
   const listEl = document.getElementById('tools-categories-list');
   if (!listEl) return;
@@ -788,14 +1044,19 @@ export function loadCategoriesToTools(categories) {
   let quickPins = [];
   try {
     quickPins = JSON.parse(localStorage.getItem('haytool_quick_category_pins') || '[]');
+    if (!Array.isArray(quickPins)) quickPins = [];
   } catch (e) {
     quickPins = [];
   }
-  const catSig = `${lang}##${quickPins.sort().join(',')}##${cats.map(c => `${c.id}:${c.name}`).join(';')}`;
+  if (quickPins.length > 3) {
+    quickPins = quickPins.slice(0, 3);
+  }
+
+  const catSig = `${lang}##${quickPins.join(',')}##${cats.map(c => `${c.id}:${c.name}`).join(';')}`;
   if (window._lastToolsCategoriesSignature === catSig && listEl.children.length > 0) {
     return;
   }
-  if (listEl.contains(document.activeElement)) {
+  if (listEl.contains(document.activeElement) && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
     return;
   }
   window._lastToolsCategoriesSignature = catSig;
@@ -810,7 +1071,8 @@ export function loadCategoriesToTools(categories) {
 
   sortedCats.forEach(cat => {
     const catName = getCatTranslatedName(cat, t);
-    const isPinned = quickPins.includes(cat.id);
+    const pinIndex = quickPins.indexOf(cat.id);
+    const isPinned = pinIndex >= 0;
 
     const tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid var(--border-color)';
@@ -821,9 +1083,30 @@ export function loadCategoriesToTools(categories) {
       <td style="padding:10px 12px; font-weight: 600; color: var(--text-muted);">${cat.id}</td>
       <td style="padding:10px 12px;" id="cat-name-text-${cat.id}">${escapeHtml(catName)}</td>
       <td style="padding:10px 12px; text-align:center;">
-        <button type="button" class="btn-icon ${isPinned ? 'active-quick-pin' : ''}" onclick="toggleQuickCategoryPin(${cat.id})" title="${isPinned ? (t.category_quick_unpinned || 'Hızlı bardan kaldır') : (t.category_quick_pinned || 'Hızlı bara sabitle (Max 5)')}" style="width:28px; height:28px; border-radius:6px; border:1px solid ${isPinned ? 'var(--accent-color)' : 'var(--border-color)'}; background:${isPinned ? 'rgba(56, 189, 248, 0.15)' : 'transparent'}; color:${isPinned ? 'var(--accent-color)' : 'var(--text-muted)'}; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s ease;">
-          <i data-lucide="${isPinned ? 'pin' : 'pin-off'}" style="width: 14px; height: 14px;"></i>
-        </button>
+        ${isPinned ? `
+          <div style="display:inline-flex; align-items:center; gap:3px; background:rgba(56, 189, 248, 0.12); border:1px solid rgba(56, 189, 248, 0.4); border-radius:6px; padding:2px 6px;">
+            <span style="font-weight:700; font-size:0.75rem; color:var(--accent-color); padding:0 3px;" title="Sıra #${pinIndex + 1}">#${pinIndex + 1}</span>
+            <button type="button" class="btn-icon" onclick="moveQuickCategoryPin(${cat.id}, -1)" ${pinIndex === 0 ? 'disabled style="opacity:0.25; cursor:not-allowed;"' : ''} title="${t.category_quick_move_up || 'Sırayı Öne Al'}" style="width:22px; height:22px; padding:0; border:none; background:transparent; color:var(--accent-color); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+              <i data-lucide="chevron-up" style="width:14px; height:14px;"></i>
+            </button>
+            <button type="button" class="btn-icon" onclick="moveQuickCategoryPin(${cat.id}, 1)" ${pinIndex === quickPins.length - 1 ? 'disabled style="opacity:0.25; cursor:not-allowed;"' : ''} title="${t.category_quick_move_down || 'Sırayı Geri Al'}" style="width:22px; height:22px; padding:0; border:none; background:transparent; color:var(--accent-color); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+              <i data-lucide="chevron-down" style="width:14px; height:14px;"></i>
+            </button>
+            <button type="button" class="btn-icon" onclick="toggleQuickCategoryPin(${cat.id})" title="${t.category_quick_unpinned || 'Sabitlemeyi Kaldır'}" style="width:22px; height:22px; padding:0; border:none; background:transparent; color:var(--accent-red, #ef4444); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; margin-left:2px;">
+              <i data-lucide="x" style="width:13px; height:13px;"></i>
+            </button>
+          </div>
+        ` : (quickPins.length >= 3 ? `
+          <button type="button" class="btn-icon" disabled title="${t.category_quick_limit_warning || 'En fazla 3 kategori sabitlenebilir.'}" style="font-size:0.75rem; padding:3px 8px; border-radius:6px; border:1px dashed var(--border-color); background:transparent; color:var(--text-muted); opacity:0.4; cursor:not-allowed; display:inline-flex; align-items:center; gap:4px;">
+            <i data-lucide="pin" style="width:12px; height:12px;"></i>
+            <span>${t.category_quick_pin_btn || 'Sabitle'}</span>
+          </button>
+        ` : `
+          <button type="button" class="btn-icon" onclick="toggleQuickCategoryPin(${cat.id})" title="${t.category_quick_pinned || 'İndirilenler üst barına sabitle'}" style="font-size:0.75rem; padding:3px 8px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.2s ease;">
+            <i data-lucide="pin" style="width:12px; height:12px; color:var(--text-muted);"></i>
+            <span>${t.category_quick_pin_btn || 'Sabitle'}</span>
+          </button>
+        `)}
       </td>
       <td style="padding:10px 12px; text-align:right;">
         <div style="display:flex; justify-content:flex-end; gap:8px;">
@@ -839,6 +1122,8 @@ export function loadCategoriesToTools(categories) {
     listEl.appendChild(tr);
   });
 
+  renderQuickPinsPreviewBar(quickPins, cats, t);
+
   try {
     lucide.createIcons();
   } catch (e) {}
@@ -846,7 +1131,7 @@ export function loadCategoriesToTools(categories) {
 window.loadCategoriesToTools = loadCategoriesToTools;
 
 /**
- * Türkçe Açıklama: İndirilenler üst barındaki hızlı kategori buton sabitlemesini açar/kapatır (Maks 5).
+ * Türkçe Açıklama: İndirilenler üst barındaki hızlı kategori buton sabitlemesini açar/kapatır (Maks 3).
  * @param {number} catId Kategori ID
  */
 export function toggleQuickCategoryPin(catId) {
@@ -860,14 +1145,17 @@ export function toggleQuickCategoryPin(catId) {
   } catch (e) {
     pins = [];
   }
+  if (pins.length > 3) {
+    pins = pins.slice(0, 3);
+  }
 
   const idx = pins.indexOf(numId);
   if (idx >= 0) {
     pins.splice(idx, 1);
     showToast(t.category_quick_unpinned || 'İndirilenler üst barından kaldırıldı', 'info');
   } else {
-    if (pins.length >= 5) {
-      showToast(t.category_quick_limit_warning || 'En fazla 5 kategori hızlı buton olarak seçilebilir.', 'warning');
+    if (pins.length >= 3) {
+      showToast(t.category_quick_limit_warning || 'En fazla 3 kategori sabitlenebilir.', 'warning');
       return;
     }
     pins.push(numId);
@@ -885,8 +1173,40 @@ export function toggleQuickCategoryPin(catId) {
 window.toggleQuickCategoryPin = toggleQuickCategoryPin;
 
 /**
- * Araçlar sekmesinden yeni kategori ekler.
+ * Pinned kategoriyi yukarı (-1) veya aşağı (+1) taşır.
  */
+export function moveQuickCategoryPin(catId, delta) {
+  const numId = parseInt(catId, 10);
+  let pins = [];
+  try {
+    pins = JSON.parse(localStorage.getItem('haytool_quick_category_pins') || '[]');
+    if (!Array.isArray(pins)) pins = [];
+  } catch (e) {
+    pins = [];
+  }
+  if (pins.length > 3) {
+    pins = pins.slice(0, 3);
+  }
+
+  const idx = pins.indexOf(numId);
+  if (idx < 0) return;
+  const targetIdx = idx + delta;
+  if (targetIdx < 0 || targetIdx >= pins.length) return;
+
+  const temp = pins[idx];
+  pins[idx] = pins[targetIdx];
+  pins[targetIdx] = temp;
+
+  localStorage.setItem('haytool_quick_category_pins', JSON.stringify(pins));
+  window._lastToolsCategoriesSignature = null;
+  loadCategoriesToTools(localDb.categories);
+
+  if (typeof renderDownloadedCategoryQuickPills === 'function') {
+    renderDownloadedCategoryQuickPills();
+  }
+}
+window.moveQuickCategoryPin = moveQuickCategoryPin;
+
 export async function addCategoryFromTools() {
   const input = document.getElementById('new-category-input');
   if (!input) return;

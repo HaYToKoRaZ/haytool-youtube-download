@@ -16,6 +16,7 @@ import { broadcast, addTerminalLog } from './sse.js';
 import { ytdlpPath, testFfmpegSync, getFfmpegPath, getLocalTempDir, getStagingTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp, getVideoResolution } from './paths.js';
 import { getWorkingProxy, rotateProxy } from './proxyManager.js';
 import { getTempSpaceInfo, isTempExtractionError, buildDiskFullMessage, DISK_FULL_ERROR_CODE } from './diskGuard.js';
+import { isInsideFakap } from './fakapPaths.js';
 
 // Türkçe Açıklama: İndirmeleri gerçekleştiren yt-dlp motorunun varlığını kontrol eder, yoksa GitHub üzerinden otomatik indirir.
 export async function ensureYtdlp() {
@@ -458,13 +459,17 @@ export class DownloadQueue {
         }
       }
 
+      const rawYtId = video.originalId || (video.id.startsWith('fakap_') ? video.id.replace(/^fakap_/, '') : video.id);
       let historyItem = db.history.find(h => h.id === video.id);
       if (!historyItem) {
         historyItem = {
           id: video.id,
+          originalId: rawYtId,
+          isFakap: !!video.isFakap,
           title: video.title,
           channelId: video.channelId,
           channelName: video.channelName,
+          thumbnail: video.thumbnail || (rawYtId ? 'https://i.ytimg.com/vi/' + rawYtId + '/mqdefault.jpg' : ''),
           downloadedAt: new Date().toISOString(),
           publishedAt: video.publishedAt || new Date().toISOString(),
           status: 'waiting',
@@ -483,8 +488,11 @@ export class DownloadQueue {
         historyItem.progress = 0;
         historyItem.speed = '';
         historyItem.eta = '';
+        if (video.isFakap !== undefined) historyItem.isFakap = video.isFakap;
+        if (video.originalId) historyItem.originalId = video.originalId;
         delete historyItem.error;
         delete historyItem.retryCount;
+        delete historyItem.hidden;
         historyItem.resolveAttempts = 0;
         historyItem.downloadedAt = new Date().toISOString();
         if (video.publishedAt) {
@@ -496,7 +504,17 @@ export class DownloadQueue {
         writeDb(db);
       }
 
-      this.queue.push(video);
+      // Fakap indirmeleri her zaman en sonda olsun (normal indirmeler öncelikli)
+      if (video.isFakap) {
+        this.queue.push(video);
+      } else {
+        const firstFakapIndex = this.queue.findIndex(item => item.isFakap);
+        if (firstFakapIndex !== -1) {
+          this.queue.splice(firstFakapIndex, 0, video);
+        } else {
+          this.queue.push(video);
+        }
+      }
       broadcast('db_update', readDb());
     } finally {
       release();
@@ -573,9 +591,18 @@ export class DownloadQueue {
     this.activeDownloads = Math.max(0, this.activeDownloads - 1);
     this.notifyTrayState();
 
-    // Videoyu kuyruğun en başına iade et (sırasını kaybetmesin)
+    // Videoyu kuyruğa iade et (Fakap ise sona, normal ise Fakap'ların önüne)
     if (!this.queue.some(item => item.id === video.id)) {
-      this.queue.unshift(video);
+      if (video.isFakap) {
+        this.queue.push(video);
+      } else {
+        const firstFakapIndex = this.queue.findIndex(item => item.isFakap);
+        if (firstFakapIndex !== -1) {
+          this.queue.splice(firstFakapIndex, 0, video);
+        } else {
+          this.queue.unshift(video);
+        }
+      }
     }
 
     const db = readDb();
@@ -699,7 +726,10 @@ export class DownloadQueue {
 
     if (this.activeDownloads >= this.maxConcurrent || this.queue.length === 0) return;
 
-    const nextVideo = this.queue.shift();
+    // Normal indirmeler her zaman Fakap'tan önce çalışır; Fakap yalnızca normal indirmeler bitince alınır
+    const normalIndex = this.queue.findIndex(v => !v.isFakap);
+    const nextIndex = normalIndex !== -1 ? normalIndex : 0;
+    const [nextVideo] = this.queue.splice(nextIndex, 1);
     this.activeDownloads++;
     this.notifyTrayState();
     this.download(nextVideo);
@@ -745,9 +775,15 @@ export class DownloadQueue {
     );
 
     const skipChannelFolder = video.skipChannelFolder === true;
+    let targetBaseDir = settings.downloadPath;
+    if (video.isFakap) {
+      targetBaseDir = (settings.fakapPath || '').trim() || path.join(settings.downloadPath, 'Fakap');
+    }
     const outputDir = skipChannelFolder
-      ? settings.downloadPath
-      : path.join(settings.downloadPath, video.channelName);
+      ? targetBaseDir
+      : path.join(targetBaseDir, video.channelName);
+
+    const ytVideoId = video.originalId || (video.id ? video.id.replace(/^fakap_/, '') : '');
 
     if (!fs.existsSync(outputDir)) {
       try {
@@ -760,7 +796,7 @@ export class DownloadQueue {
       try {
         const filesInDir = fs.readdirSync(outputDir);
         for (const f of filesInDir) {
-          if (f.includes(`[${video.id}]`) && (f.endsWith('.part') || f.endsWith('.ytdl') || f.includes('.part-Frag') || /\.f\d+\.(mp4|m4a|webm)$/i.test(f))) {
+          if (f.includes(`[${ytVideoId}]`) && (f.endsWith('.part') || f.endsWith('.ytdl') || f.includes('.part-Frag') || /\.f\d+\.(mp4|m4a|webm)$/i.test(f))) {
             try { fs.unlinkSync(path.join(outputDir, f)); } catch (e) {}
           }
         }
@@ -768,15 +804,15 @@ export class DownloadQueue {
     }
 
     const outputFilename = skipChannelFolder
-      ? `%(title)s [${video.id}].%(ext)s`
-      : `${video.channelName} - %(title)s [${video.id}].%(ext)s`;
+      ? `%(title)s [${ytVideoId}].%(ext)s`
+      : `${video.channelName} - %(title)s [${ytVideoId}].%(ext)s`;
     
     const isMp3 = (video.customFormat === 'audio-mp3');
 
     const userLang = settings.lang || 'tr';
     const subLangs = userLang === 'en'
-      ? 'en.*,en-orig'
-      : `${userLang}.*,${userLang}-orig,en.*,en-orig`;
+      ? 'en,en-orig'
+      : `${userLang},${userLang}-orig,en,en-orig`;
 
     const args = [
       video.url,
@@ -859,7 +895,29 @@ export class DownloadQueue {
       addTerminalLog(`[Warning] FFmpeg not found or not working. Falling back to single file download (best pre-merged quality).`, 'warning');
     }
 
-    if (video.customFormat) {
+    if (video.isFakap) {
+      // Türkçe Açıklama: Fakap yedeği istenen çözünürlükte yoksa sırayla bir üst basamağa çıkar
+      // (144 -> 240 -> 360). Hiçbiri yoksa mevcut en düşük akışa düşer; böylece video asla boşta kalmaz.
+      const LADDER = [144, 240, 360];
+      let maxH = 144;
+      const fakapQ = String(settings.fakapQuality || '144').replace(/p$/i, '');
+      if (fakapQ === 'best') maxH = 4320;
+      else maxH = parseInt(fakapQ, 10) || 144;
+      const steps = LADDER.filter(h => h >= maxH);
+      if (steps.length === 0) steps.push(maxH);
+      const fakapParts = [];
+      for (const h of steps) {
+        fakapParts.push(`bestvideo[height<=${h}]+bestaudio[language^=${prefLang}]`);
+        fakapParts.push(`bestvideo[height<=${h}]+bestaudio[language=original]`);
+        fakapParts.push(`bestvideo[height<=${h}]+bestaudio`);
+        fakapParts.push(`best[height<=${h}]`);
+      }
+      fakapParts.push('worstvideo+worstaudio/worst');
+      args.push('-f', fakapParts.join('/'));
+      if (hasWorkingFfmpeg) {
+        args.push('--merge-output-format', 'mp4');
+      }
+    } else if (video.customFormat) {
       const fmt = video.customFormat;
       if (fmt === 'audio-mp3') {
         const bitrate = video.audioBitrate || '192';
@@ -956,7 +1014,8 @@ export class DownloadQueue {
     }, timeoutDuration);
 
     // %0 Takılma Koruması (Yeni sonlanmış VOD işleme sürecindeki canlı yayınlar için 45sn zaman aşımı)
-    const stallTimer = setTimeout(() => {
+    const isLiveTarget = (video.duration === 'live' || video.status === 'live');
+    const stallTimer = isLiveTarget ? setTimeout(() => {
       const procInfo = this.activeProcesses.get(video.id);
       if (procInfo && procInfo.status === 'downloading' && (!procInfo.progress || procInfo.progress === 0)) {
         console.warn(`[Canlı Yayın Koruması] "${video.title}" 45 saniyedir %0'da takıldı. Canlı yayın VOD işleme aşamasında olduğu için indirme ertelendi.`);
@@ -980,7 +1039,7 @@ export class DownloadQueue {
         });
         this.process();
       }
-    }, 45000);
+    }, 45000) : null;
 
     this.activeProcesses.set(video.id, {
       process: downloadProc,
@@ -1082,6 +1141,10 @@ export class DownloadQueue {
             const percent = parseFloat(((currentFrag / totalFrags) * 100).toFixed(1));
             const procInfo = this.activeProcesses.get(video.id);
             if (procInfo && procInfo.status === 'downloading') {
+              if (percent > 0 && procInfo.stallTimer) {
+                clearTimeout(procInfo.stallTimer);
+                delete procInfo.stallTimer;
+              }
               updateHistoryItem(video.id, {
                 progress: percent,
                 speed: 'DASH Stream',
@@ -1217,23 +1280,28 @@ export class DownloadQueue {
         let actualPath = '';
         let resolvedTitle = video.title;
         const skipChannelFolder = video.skipChannelFolder === true;
+        const ytVideoId = video.originalId || (video.id ? video.id.replace(/^fakap_/, '') : '');
         try {
           const sanitizedChannelName = (video.channelName || '').replace(/[. ]+$/, '#');
           const candidateDirs = [];
 
+          let targetBaseDir = settings.downloadPath;
+          if (video.isFakap) {
+            targetBaseDir = (settings.fakapPath || '').trim() || path.join(settings.downloadPath, 'Fakap');
+          }
+
           if (skipChannelFolder) {
-            candidateDirs.push(settings.downloadPath);
+            candidateDirs.push(targetBaseDir);
           } else {
-            candidateDirs.push(path.join(settings.downloadPath, video.channelName));
+            candidateDirs.push(path.join(targetBaseDir, video.channelName));
             if (sanitizedChannelName !== video.channelName) {
-              candidateDirs.push(path.join(settings.downloadPath, sanitizedChannelName));
+              candidateDirs.push(path.join(targetBaseDir, sanitizedChannelName));
             }
-            // Ayrıca settings.downloadPath altındaki klasörlerde arama yap
             try {
-              const rootEntries = fs.readdirSync(settings.downloadPath, { withFileTypes: true });
+              const rootEntries = fs.readdirSync(targetBaseDir, { withFileTypes: true });
               for (const entry of rootEntries) {
-                if (entry.isDirectory()) {
-                  const fullSubDir = path.join(settings.downloadPath, entry.name);
+                if (entry.isDirectory() && (!video.isFakap ? !isInsideFakap(path.join(targetBaseDir, entry.name)) : true)) {
+                  const fullSubDir = path.join(targetBaseDir, entry.name);
                   if (!candidateDirs.includes(fullSubDir)) {
                     candidateDirs.push(fullSubDir);
                   }
@@ -1250,7 +1318,7 @@ export class DownloadQueue {
             try {
               const files = fs.readdirSync(targetDir);
               const match = files.find(f => {
-                if (!f.includes(`[${video.id}]`)) return false;
+                if (!f.includes(`[${ytVideoId}]`)) return false;
                 const ext = path.extname(f).toLowerCase();
                 return !['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt', '.description'].includes(ext);
               });
@@ -1265,7 +1333,7 @@ export class DownloadQueue {
           if (matchedFile && matchedDir) {
             actualPath = path.join(matchedDir, matchedFile);
             const baseName = path.basename(matchedFile, path.extname(matchedFile));
-            const idPattern = ` [${video.id}]`;
+            const idPattern = ` [${ytVideoId}]`;
             if (baseName.endsWith(idPattern)) {
               const withoutId = baseName.substring(0, baseName.length - idPattern.length);
               if (skipChannelFolder) {
@@ -1285,15 +1353,18 @@ export class DownloadQueue {
               }
             }
           } else {
-            const primaryDir = candidateDirs[0] || settings.downloadPath;
+            const primaryDir = candidateDirs[0] || targetBaseDir;
             actualPath = skipChannelFolder
-              ? path.join(primaryDir, `${video.title} [${video.id}].mp4`)
-              : path.join(primaryDir, `${video.channelName} - ${video.title} [${video.id}].mp4`);
+              ? path.join(primaryDir, `${video.title} [${ytVideoId}].mp4`)
+              : path.join(primaryDir, `${video.channelName} - ${video.title} [${ytVideoId}].mp4`);
           }
         } catch (e) {
+          const fallbackBaseDir = video.isFakap
+            ? ((settings.fakapPath || '').trim() || path.join(settings.downloadPath, 'Fakap'))
+            : settings.downloadPath;
           actualPath = skipChannelFolder
-            ? path.join(settings.downloadPath, `${video.title} [${video.id}].mp4`)
-            : path.join(settings.downloadPath, video.channelName, `${video.channelName} - ${video.title} [${video.id}].mp4`);
+            ? path.join(fallbackBaseDir, `${video.title} [${ytVideoId}].mp4`)
+            : path.join(fallbackBaseDir, video.channelName, `${video.channelName} - ${video.title} [${ytVideoId}].mp4`);
         }
 
         let fileExists = false;
@@ -1465,6 +1536,7 @@ export class DownloadQueue {
             progress: 0,
             speed: '',
             eta: '',
+            failedAt: new Date().toISOString(),
             error: userFriendlyError || `Hata Kodu: ${code}`
           });
           console.error(`İndirme Başarısız: ${video.title} - Kod: ${code}`);
