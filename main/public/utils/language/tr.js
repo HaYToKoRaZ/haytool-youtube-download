@@ -77,6 +77,8 @@ export const tr = {
   queue_completed_empty: 'Henüz tamamlanan indirme yok.',
   queue_failed_title: 'Hata Alanlar & Denenenler',
   queue_failed_empty: 'Hatalı indirme yok.',
+  queue_retry_badge: '2. Deneme (Son Şans)',
+  queue_retry_badge_title: 'İlk indirmede birleştirme veya veri hatası oluştu. Bozuk parçalar temizlendi, güvenli modda son kez deneniyor.',
   library_history_title: 'Kütüphane & Geçmiş',
   filter_all_channels: 'Tüm Kanallar',
   show_shorts: 'Shorts Göster',

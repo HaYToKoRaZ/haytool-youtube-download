@@ -73,6 +73,8 @@ export const pt = {
   queue_completed_empty: 'Nenhum download concluído ainda.',
   queue_failed_title: 'Downloads com Falha e Tentativas',
   queue_failed_empty: 'Nenhum download com falha ou em repetição.',
+  queue_retry_badge: 'Tentativa 2/2 (Última Chance)',
+  queue_retry_badge_title: 'O download inicial encontrou um erro de mesclagem/dados. Fragmentos corrompidos limpos, tentando pela última vez no modo seguro.',
   library_history_title: 'Biblioteca e Histórico',
   filter_all_channels: 'Todos os Canais',
   show_shorts: 'Mostrar Shorts',

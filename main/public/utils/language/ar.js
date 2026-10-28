@@ -73,6 +73,8 @@ export const ar = {
   queue_completed_empty: 'لا توجد تنزيلات مكتملة بعد.',
   queue_failed_title: 'التنزيلات الفاشلة والمحاولات',
   queue_failed_empty: 'لا توجد تنزيلات فاشلة أو قيد إعادة المحاولة.',
+  queue_retry_badge: 'المحاولة 2/2 (الفرصة الأخيرة)',
+  queue_retry_badge_title: 'حدث خطأ في الدمج أو تلف البيانات أثناء التنزيل الأول. تم تنظيف الأجزاء التالفة والمحاولة الأخيرة في الوضع الآمن.',
   library_history_title: 'المكتبة والسجل',
   filter_all_channels: 'جميع القنوات',
   show_shorts: 'عرض Shorts',

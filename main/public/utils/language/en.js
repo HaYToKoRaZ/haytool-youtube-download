@@ -76,6 +76,8 @@ export const en = {
   queue_completed_empty: 'No completed downloads yet.',
   queue_failed_title: 'Failed & Retrying Downloads',
   queue_failed_empty: 'No failed downloads.',
+  queue_retry_badge: 'Retry 2/2 (Final Attempt)',
+  queue_retry_badge_title: 'Initial download encountered merge/data corruption. Corrupted fragments were cleaned, trying one last time in safe mode.',
   library_history_title: 'Library & History',
   filter_all_channels: 'All Channels',
   show_shorts: 'Show Shorts',

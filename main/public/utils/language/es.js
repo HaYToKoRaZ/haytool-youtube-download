@@ -76,6 +76,8 @@ export const es = {
   queue_completed_empty: 'No hay descargas completadas aún.',
   queue_failed_title: 'Descargas Fallidas y Reintentos',
   queue_failed_empty: 'No hay descargas fallidas o en reintento.',
+  queue_retry_badge: 'Reintento 2/2 (Último Intento)',
+  queue_retry_badge_title: 'La descarga inicial tuvo un error de fusión/datos. Fragmentos dañados limpiados, reintentando en modo seguro.',
   library_history_title: 'Biblioteca e Historial',
   filter_all_channels: 'Todos los Canales',
   show_shorts: 'Mostrar Shorts',

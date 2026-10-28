@@ -73,6 +73,8 @@ export const ru = {
   queue_completed_empty: 'Завершенных загрузок пока нет.',
   queue_failed_title: 'Ошибки и повторные попытки',
   queue_failed_empty: 'Нет неудачных загрузок или повторных попыток.',
+  queue_retry_badge: '2-я попытка (Последний шанс)',
+  queue_retry_badge_title: 'При первой загрузке произошла ошибка слияния или повреждения данных. Поврежденные фрагменты очищены, последняя попытка в безопасном режиме.',
   library_history_title: 'Библиотека и история',
   filter_all_channels: 'Все каналы',
   show_shorts: 'Показывать Shorts',

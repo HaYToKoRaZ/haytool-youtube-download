@@ -1327,8 +1327,14 @@ function updateUI(db) {
               <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
                 <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='/logo.png'">
               </div>
-              <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                ${escapeHtml(video.title)}
+              <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:6px;">
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(video.title)}</span>
+                ${(video.retryAttempt === 2 || video._singleFragmentMode) ? `
+                  <span class="queue-retry-badge" title="${t.queue_retry_badge_title || ''}">
+                    <i data-lucide="rotate-ccw"></i>
+                    <span>${t.queue_retry_badge || '2. Deneme (Son Şans)'}</span>
+                  </span>
+                ` : ''}
               </div>
               <div class="queue-item-channel" style="color:var(--text-muted); font-size:0.75rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:4px;" title="${escapeHtml(video.channelName || '')}">
                 <i data-lucide="tv" style="width:12px; height:12px; flex-shrink:0;"></i>
@@ -1428,8 +1434,14 @@ function updateUI(db) {
                 <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='/logo.png'">
               </div>
               <div class="queue-item-info" style="flex:1; min-width:0;">
-                <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px;">
-                  ${escapeHtml(video.title)}
+                <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+                  <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(video.title)}</span>
+                  ${(video.retryAttempt === 2 || video._singleFragmentMode) ? `
+                    <span class="queue-retry-badge" title="${t.queue_retry_badge_title || ''}">
+                      <i data-lucide="rotate-ccw"></i>
+                      <span>${t.queue_retry_badge || '2. Deneme (Son Şans)'}</span>
+                    </span>
+                  ` : ''}
                 </div>
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                   <span class="queue-meta-pill queue-meta-pill-channel" title="${escapeHtml(video.channelName || '')}">

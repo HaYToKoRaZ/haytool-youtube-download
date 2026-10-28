@@ -76,6 +76,8 @@ export const de = {
   queue_completed_empty: 'Noch keine abgeschlossenen Downloads.',
   queue_failed_title: 'Fehlgeschlagene & Wiederholungen',
   queue_failed_empty: 'Keine fehlgeschlagenen Downloads vorhanden.',
+  queue_retry_badge: '2. Versuch (Letzte Chance)',
+  queue_retry_badge_title: 'Beim ersten Download ist ein Zusammenführungs-/Datenfehler aufgetreten. Bereinigt, letzter Versuch im abgesicherten Modus.',
   library_history_title: 'Bibliothek & Verlauf',
   filter_all_channels: 'Alle Kanäle',
   show_shorts: 'Shorts Anzeigen',

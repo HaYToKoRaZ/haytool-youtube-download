@@ -203,6 +203,49 @@ export async function performYtdlpUpdate(target = 'nightly') {
   });
 }
 
+
+// Türkçe Açıklama: İndirme başarısız olduğunda veya yeniden deneneceğinde diske yazılmış bozuk fragment ve part dosyalarını temizler.
+export function cleanupResidualFiles(videoId, channelName, downloadPath, skipChannelFolder = false) {
+  if (!videoId || !downloadPath) return;
+  try {
+    const rawId = videoId.replace(/^fakap_/, '');
+    const candidateDirs = [];
+    if (skipChannelFolder) {
+      candidateDirs.push(downloadPath);
+    } else {
+      if (channelName) {
+        candidateDirs.push(path.join(downloadPath, channelName));
+        const sanitized = channelName.replace(/[. ]+$/, '#');
+        if (sanitized !== channelName) candidateDirs.push(path.join(downloadPath, sanitized));
+      }
+      candidateDirs.push(downloadPath);
+    }
+
+    for (const dir of candidateDirs) {
+      if (!fs.existsSync(dir)) continue;
+      try {
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+          if (file.includes(`[${rawId}]`) && (
+            file.endsWith('.part') ||
+            file.endsWith('.ytdl') ||
+            file.includes('.part-Frag') ||
+            /\.f\d+\.(mp4|m4a|webm|mkv)$/i.test(file) ||
+            /\.temp\./i.test(file)
+          )) {
+            try {
+              fs.unlinkSync(path.join(dir, file));
+              console.log(`[Disk Temizliği] Bozuk artık dosya silindi: ${file}`);
+            } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    }
+  } catch (err) {
+    console.error('[Disk Temizliği Hatası]', err.message);
+  }
+}
+
 // Türkçe Açıklama: İndirme durumlarına göre özel melodik bip seslerini (başlama, başarı, hata) ses kartı üzerinden çalar.
 export function playSystemSound(type = 'notification') {
   const db = readDb();
@@ -865,7 +908,12 @@ export class DownloadQueue {
     }
 
     args.push('--remote-components', 'ejs:github');
-    args.push('--format-sort', 'hasvid,res,fps,hdr,vcodec');
+    if (video._fallbackCodec || video.retryAttempt === 2) {
+      // 2. Deneme (Son Şans) Güvenli Mod: Bozuk AV01 akışlarını atlayıp kararlı AVC1 (h264) veya VP9 formatına öncelik verir
+      args.push('--format-sort', 'hasvid,res,fps,hdr,vcodec:h264:vp9');
+    } else {
+      args.push('--format-sort', 'hasvid,res,fps,hdr,vcodec');
+    }
 
     const effectiveSpeed = getEffectiveSpeedLimit(settings);
     if (effectiveSpeed && effectiveSpeed > 0) {
@@ -932,7 +980,8 @@ export class DownloadQueue {
         else if (fmt === 'video-144p') maxH = 144;
         else if (fmt === 'video-best') maxH = 4320;
 
-        const vSpec = `bestvideo[height<=${maxH}]`;
+        const excludeAv01 = (video._fallbackCodec || video.retryAttempt === 2) ? '[vcodec!^=av01]' : '';
+        const vSpec = `bestvideo[height<=${maxH}]${excludeAv01}`;
         const fmtCombo = `${vSpec}+bestaudio[language^=${prefLang}]/${vSpec}+bestaudio[language=original]/${vSpec}+bestaudio/best[height<=${maxH}]/best`;
         args.push('-f', fmtCombo);
         if (hasWorkingFfmpeg) {
@@ -941,7 +990,8 @@ export class DownloadQueue {
       }
     } else {
       let maxH = (videoQuality === '1080p') ? 1080 : ((videoQuality === '720p') ? 720 : 4320);
-      const vSpec = `bestvideo[height<=${maxH}]`;
+      const excludeAv01 = (video._fallbackCodec || video.retryAttempt === 2) ? '[vcodec!^=av01]' : '';
+      const vSpec = `bestvideo[height<=${maxH}]${excludeAv01}`;
       const fmtCombo = `${vSpec}+bestaudio[language^=${prefLang}]/${vSpec}+bestaudio[language=original]/${vSpec}+bestaudio/best[height<=${maxH}]/best`;
       
       if (actualMergeType === 'separate') {
@@ -968,6 +1018,9 @@ export class DownloadQueue {
     // Canlı Yayın Garantili İndirme: Sadece aktif canlı yayınlarda --live-from-start kullan, normal ve sonlanmış yayınlarda kullanma
     if (video.duration === 'live' || video.status === 'live') {
       args.push('--live-from-start', '--concurrent-fragments', '4', '--hls-use-mpegts');
+    } else if (video._singleFragmentMode || video.retryAttempt === 2) {
+      // 2. Deneme (Son Şans) Güvenli Mod: Mükerrer DASH başlık bozulmasını önlemek için tek parça akışı kullanılır
+      args.push('--concurrent-fragments', '1');
     } else {
       args.push('--concurrent-fragments', '4');
     }
@@ -1531,6 +1584,48 @@ export class DownloadQueue {
           }, waitSec * 1000);
           return;
         } else {
+          // --- Auto-Healing (2. Deneme / Son Şans Mimarisi) ---
+          const isMergeOrCorruptError = /Invalid data found|Error opening input files|muxing failed|Conversion failed|moov atom not found|error reading header|Invalid argument|Corrupt/i.test(userFriendlyError) || /Invalid data found|Error opening input files|muxing failed|Conversion failed|moov atom not found|error reading header/i.test(errorOutput);
+          const hasNotRetriedHealing = !video.retryAttempt || video.retryAttempt < 2;
+
+          if (isMergeOrCorruptError && hasNotRetriedHealing) {
+            video.retryAttempt = 2;
+            video._singleFragmentMode = true;
+            video._fallbackCodec = true;
+
+            const healMsg = settings.lang === 'en'
+              ? `[Auto-Healing] Initial download encountered corrupt fragments. Cleaned cache, retrying 2/2 in safe mode: "${video.title}"`
+              : `[Kuyruk Auto-Healing] "${video.title}" için birleştirme/akış bozulması tespit edildi. Bozuk parçalar temizlendi, 2. deneme (Son Şans) güvenli modda başlatılıyor...`;
+
+            console.warn(healMsg);
+            addTerminalLog(healMsg, 'warning');
+            broadcast('status_log', { message: healMsg, type: 'warning', thumbnail: `/api/video/${video.id}/thumbnail` });
+
+            // Diskteki bozuk/yarım kalan parçaları anında temizle
+            cleanupResidualFiles(video.id, video.channelName, settings.downloadPath, video.skipChannelFolder === true);
+
+            updateHistoryItem(video.id, {
+              status: 'waiting',
+              retryAttempt: 2,
+              progress: 0,
+              speed: '',
+              eta: '',
+              error: settings.lang === 'en' ? 'Retrying (Safe Mode 2/2)...' : 'Yeniden Deneniyor (Güvenli Mod 2/2)...'
+            });
+
+            broadcast('db_update', readDb());
+
+            // Kuyruğun en başına al ve 2 saniye sonra başlat
+            setTimeout(() => {
+              this.queue.unshift(video);
+              this.process();
+            }, 2000);
+            return;
+          }
+
+          // 2. Denemede de başarısız olduysa veya kurtarılamaz hataysa: artık dosyaları temizle ve 'failed' yap
+          cleanupResidualFiles(video.id, video.channelName, settings.downloadPath, video.skipChannelFolder === true);
+
           updateHistoryItem(video.id, {
             status: 'failed',
             progress: 0,
