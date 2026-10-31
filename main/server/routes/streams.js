@@ -4,8 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import open from 'open';
 import dns from 'dns';
-import { spawn } from 'child_process';
-import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp } from '../services/paths.js';
+import { spawn, execFile, exec } from 'child_process';
+import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, getFfmpegPath } from '../services/paths.js';
 import { readDb, findVideoFileInDownloadDir } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
 
@@ -72,7 +72,7 @@ router.get('/video-stream', (req, res) => {
   const rawId = req.query.videoId;
   if (!rawId) return res.status(400).send('Video ID is required');
   const videoId = String(rawId).replace(/^fakap_/, '');
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+  if (!/^[a-zA-Z0-9_-]{11,64}$/.test(videoId)) {
     return res.status(400).send('Invalid Video ID format');
   }
 
@@ -125,21 +125,33 @@ router.get('/video-stream', (req, res) => {
  * @param {object} res - Express yanıt nesnesi
  * @returns {void}
  */
+const PLATFORM_SVG_BANNERS = {
+  tiktok: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="#010101"/><g transform="translate(136, 66) scale(2)" fill="#ffffff"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.86 4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-.04-4.52z"/></g></svg>`,
+  x: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="#0b0e14"/><g transform="translate(136, 66) scale(2)" fill="#ffffff"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></g></svg>`,
+  instagram: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="ig" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#f09433"/><stop offset="25%" stop-color="#e6683c"/><stop offset="50%" stop-color="#dc2743"/><stop offset="75%" stop-color="#cc2366"/><stop offset="100%" stop-color="#bc1888"/></linearGradient></defs><rect width="320" height="180" fill="url(#ig)"/><g transform="translate(136, 66) scale(2)" fill="#ffffff"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></g></svg>`,
+  youtube: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="#0f0f13"/><g transform="translate(136, 66) scale(2)" fill="#ff0000"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></g></svg>`
+};
+
 router.get('/video/:videoId/thumbnail', (req, res) => {
   const rawId = req.params.videoId;
   const videoId = String(rawId).replace(/^fakap_/, '');
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-    return res.status(400).send('Invalid Video ID format');
-  }
 
   const db = readDb();
-  const item = db.history.find(h => h.id === rawId || h.id === videoId);
-  
-  if (item && item.filePath) {
+  let item = db.history.find(h => h.id === rawId || h.id === videoId);
+  if (!item && db.queue) {
+    item = db.queue.find(q => q.id === rawId || q.id === videoId);
+  }
+
+  let filePath = item?.filePath;
+  if (!filePath || !fs.existsSync(filePath)) {
+    filePath = findVideoFileInDownloadDir(videoId, db.settings?.downloadPath);
+  }
+
+  if (filePath && fs.existsSync(filePath)) {
     try {
-      const ext = path.extname(item.filePath);
-      const basePath = item.filePath.slice(0, -ext.length);
-      
+      const ext = path.extname(filePath);
+      const basePath = filePath.slice(0, -ext.length);
+
       const possibleExtensions = ['.jpg', '.jpeg', '.webp', '.png'];
       for (const tExt of possibleExtensions) {
         const thumbPath = basePath + tExt;
@@ -147,13 +159,61 @@ router.get('/video/:videoId/thumbnail', (req, res) => {
           return res.sendFile(thumbPath);
         }
       }
+
+      // Eğer diskte hazır kapak resmi yoksa ve video dosyası mevcutsa, FFmpeg ile 2. saniyeden kare çıkar
+      const outJpg = basePath + '.jpg';
+      const ffmpegBin = getFfmpegPath();
+      if (fs.existsSync(ffmpegBin)) {
+        try {
+          execFile(ffmpegBin, [
+            '-y',
+            '-ss', '00:00:02',
+            '-i', filePath,
+            '-vframes', '1',
+            '-q:v', '2',
+            outJpg
+          ], (err) => {
+            if (!err && fs.existsSync(outJpg)) {
+              return res.sendFile(outJpg);
+            }
+            finishFallback();
+          });
+          return;
+        } catch (eFf) {
+          // fallback
+        }
+      }
     } catch (err) {
       console.error(`Error reading thumbnail for ${videoId}:`, err.message);
     }
   }
 
-  // Fallback to youtube public thumbnail URL
-  res.redirect(`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`);
+  function finishFallback() {
+    if (item && item.thumbnail && item.thumbnail.startsWith('http')) {
+      return res.redirect(item.thumbnail);
+    }
+
+    if (/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+      return res.redirect(`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`);
+    }
+
+    let platform = item?.platform;
+    if (!platform && item) {
+      const u = (item.webUrl || item.url || '').toLowerCase();
+      if (u.includes('tiktok.com')) platform = 'tiktok';
+      else if (u.includes('twitter.com') || u.includes('x.com')) platform = 'x';
+      else if (u.includes('instagram.com')) platform = 'instagram';
+    }
+
+    if (platform && PLATFORM_SVG_BANNERS[platform]) {
+      res.setHeader('Content-Type', 'image/svg+xml');
+      return res.send(PLATFORM_SVG_BANNERS[platform]);
+    }
+
+    res.redirect('/logo.png');
+  }
+
+  finishFallback();
 });
 
 /**
@@ -169,7 +229,7 @@ router.get('/video/:videoId/thumbnail', (req, res) => {
  */
 router.get('/video/:videoId/alt-thumbnails', (req, res) => {
   const { videoId } = req.params;
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+  if (!/^[a-zA-Z0-9_-]{11,64}$/.test(videoId)) {
     return res.status(400).json({ error: 'Invalid Video ID format' });
   }
 
@@ -196,7 +256,7 @@ router.get('/video/:videoId/alt-thumbnails', (req, res) => {
  */
 router.get('/video/:videoId/description', (req, res) => {
   const { videoId } = req.params;
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+  if (!/^[a-zA-Z0-9_-]{11,64}$/.test(videoId)) {
     return res.status(400).send('Invalid Video ID format');
   }
 
@@ -268,7 +328,7 @@ function fetchDescriptionFromYtdlp(videoId) {
  */
 router.post('/video/:videoId/refresh-details', localhostOnly, async (req, res) => {
   const { videoId } = req.params;
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+  if (!/^[a-zA-Z0-9_-]{11,64}$/.test(videoId)) {
     return res.status(400).json({ error: 'Geçersiz Video ID formatı' });
   }
 
@@ -752,9 +812,18 @@ router.get('/video/:videoId/comments', async (req, res) => {
  * @returns {void}
  */
 router.post('/open-youtube', localhostOnly, (req, res) => {
-  const { videoId, time } = req.body;
-  if (!videoId) return res.status(400).json({ error: 'Video ID gereklidir.' });
+  const { videoId, time, url } = req.body;
+  if (!videoId && !url) return res.status(400).json({ error: 'Video ID veya URL gereklidir.' });
   
+  const db = readDb();
+  const item = db.history.find(h => h.id === videoId);
+  const targetWebUrl = url || (item && (item.webUrl || item.url)) || '';
+
+  if (targetWebUrl && (targetWebUrl.startsWith('http://') || targetWebUrl.startsWith('https://')) && !targetWebUrl.includes('youtube.com/watch?v=ext_')) {
+    open(targetWebUrl);
+    return res.json({ success: true });
+  }
+
   const timeNum = Number(time);
   const timeQuery = (!isNaN(timeNum) && timeNum > 0) ? `&t=${Math.floor(timeNum)}s` : '';
   open(`https://www.youtube.com/watch?v=${videoId}${timeQuery}`);
@@ -793,29 +862,60 @@ router.post('/open-url', localhostOnly, (req, res) => {
  * @returns {void}
  */
 router.post('/play-video', localhostOnly, (req, res) => {
-  const { videoId } = req.body;
-  if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+  const rawId = req.body?.videoId;
+  const cleanId = String(rawId || '').replace(/^fakap_/, '');
+  if (!rawId || !/^[a-zA-Z0-9_-]{11,64}$/.test(cleanId)) {
     return res.status(400).json({ error: 'Geçersiz veya eksik Video ID.' });
   }
   const db = readDb();
-  const item = db.history.find(h => h.id === videoId);
-  
-  if (!item) {
-    console.error(`[Play Video Hatası] Video kaydı geçmişte bulunamadı. ID: ${videoId}`);
+  const item = db.history.find(h => h.id === rawId || h.id === cleanId);
+
+  let fileToPlay = item ? item.filePath : null;
+  if (!fileToPlay || !fs.existsSync(fileToPlay)) {
+    fileToPlay = findVideoFileInDownloadDir(cleanId, db.settings.downloadPath);
+  }
+
+  if (!fileToPlay && !item) {
+    console.error(`[Play Video Hatası] Video kaydı geçmişte bulunamadı. ID: ${rawId}`);
     return res.status(404).json({ error: 'Video kaydı bulunamadı.' });
   }
 
-  let fileToPlay = item.filePath;
-  if (!fileToPlay || !fs.existsSync(fileToPlay)) {
-    fileToPlay = findVideoFileInDownloadDir(videoId, db.settings.downloadPath);
-  }
-
   if (fileToPlay && fs.existsSync(fileToPlay)) {
-    console.log(`[Oynat] Dosya oynatılıyor: ${fileToPlay}`);
-    open(fileToPlay);
+    const resolvedTarget = path.resolve(fileToPlay);
+    console.log(`[Oynat] Dosya oynatılıyor: ${resolvedTarget}`);
+    if (process.platform === 'win32') {
+      const resolvedDir = path.dirname(resolvedTarget);
+      const escapedTarget = resolvedTarget.replace(/'/g, "''");
+      const escapedDir = resolvedDir.replace(/'/g, "''");
+      const psScript = `$psi = New-Object System.Diagnostics.ProcessStartInfo; $psi.FileName = '${escapedTarget}'; $psi.WorkingDirectory = '${escapedDir}'; $psi.UseShellExecute = $true; [System.Diagnostics.Process]::Start($psi) | Out-Null; Start-Sleep -Milliseconds 250`;
+      const encodedCmd = Buffer.from(psScript, 'utf16le').toString('base64');
+      execFile('powershell.exe', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-EncodedCommand',
+        encodedCmd
+      ], { windowsHide: true }, (err) => {
+        if (err) {
+          console.error(`[Play Video Fallback] PowerShell hatası (${err.message}), explorer.exe deneniyor...`);
+          try {
+            const child2 = spawn('explorer.exe', [`"${path.normalize(resolvedTarget)}"`], {
+              windowsVerbatimArguments: true
+            });
+            child2.on('error', () => {});
+            child2.unref();
+          } catch (e) {
+            open(resolvedTarget).catch(() => {});
+          }
+        }
+      });
+    } else {
+      open(resolvedTarget);
+    }
     res.json({ success: true });
   } else {
-    const errorMsg = `Video dosyası bulunamadı. Aranan Konum: ${fileToPlay || path.join(db.settings.downloadPath, `*[${videoId}]*`)}`;
+    const errorMsg = `Video dosyası bulunamadı. Aranan Konum: ${fileToPlay || path.join(db.settings.downloadPath, `*[${cleanId}]*`)}`;
     console.error(`[Play Video Hatası] ${errorMsg}`);
     res.status(404).json({ error: errorMsg });
   }

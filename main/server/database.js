@@ -204,7 +204,11 @@ export const defaultDb = {
     weatherLongitude: 28.9784,
     weatherUnit: 'celsius',
     queueViewMode: 'table',
-    networkRetryIntervalSeconds: 120
+    networkRetryIntervalSeconds: 120,
+    fakapEnabled: true,
+    fakapPath: '',
+    fakapQuality: '360',
+    fakapRetentionDays: 'never'
   },
   deletedVideos: []
 };
@@ -975,6 +979,24 @@ export function syncWithIni(db) {
       if (historyShowHidden !== undefined) {
         db.settings.historyShowHidden = historyShowHidden === 'true';
       }
+
+      // Fakap (Otomatik Yedek) ayarları configwin.ini'den yüklenir
+      const fakapEnabled = getCaseInsensitiveKey(settingsSection, 'fakapEnabled');
+      if (fakapEnabled !== undefined) {
+        db.settings.fakapEnabled = fakapEnabled !== 'false';
+      }
+      const fakapPath = getCaseInsensitiveKey(settingsSection, 'fakapPath');
+      if (fakapPath !== undefined) {
+        db.settings.fakapPath = String(fakapPath || '').trim();
+      }
+      const fakapQuality = getCaseInsensitiveKey(settingsSection, 'fakapQuality');
+      if (fakapQuality !== undefined && ['144', '240', '360'].includes(String(fakapQuality).replace(/p$/i, ''))) {
+        db.settings.fakapQuality = String(fakapQuality).replace(/p$/i, '');
+      }
+      const fakapRetentionDays = getCaseInsensitiveKey(settingsSection, 'fakapRetentionDays');
+      if (fakapRetentionDays !== undefined) {
+        db.settings.fakapRetentionDays = String(fakapRetentionDays);
+      }
     }
   }
 
@@ -1332,6 +1354,10 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.autoCookieRefresh = (db.settings.autoCookieRefresh !== false).toString();
   iniData.Settings.cookieRefreshInterval = (db.settings.cookieRefreshInterval !== undefined ? db.settings.cookieRefreshInterval : 30).toString();
   iniData.Settings.networkRetryIntervalSeconds = (db.settings.networkRetryIntervalSeconds !== undefined ? db.settings.networkRetryIntervalSeconds : 120).toString();
+  iniData.Settings.fakapEnabled = (db.settings.fakapEnabled !== false).toString();
+  iniData.Settings.fakapPath = (db.settings.fakapPath || '').toString();
+  iniData.Settings.fakapQuality = (db.settings.fakapQuality || '360').toString();
+  iniData.Settings.fakapRetentionDays = (db.settings.fakapRetentionDays || 'never').toString();
 
   await writeIni(configIniPath, iniData);
 }
@@ -1455,7 +1481,7 @@ export function buildVideoFilesMap(downloadPath) {
         } else {
           const ext = path.extname(entry.name).toLowerCase();
           if (!['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt', '.description'].includes(ext)) {
-            const bracketMatch = entry.name.match(/\[([a-zA-Z0-9_-]{11})\]/);
+            const bracketMatch = entry.name.match(/\[([a-zA-Z0-9_-]{11,64})\]/);
             if (bracketMatch) {
               const videoId = bracketMatch[1];
               map.set(videoId, fullPath);
@@ -1550,6 +1576,11 @@ function performDiskSync(forceManual = false, mode = 'fast') {
       const diskMap = buildVideoFilesMap(downloadPath);
 
       for (const item of db.history) {
+        // Fakap kayıtları kendi bağımsız klasöründe ve fakapService temizliğinde yönetilir; ana disk senkronizasyonundan muaf tutulur
+        if (item.isFakap || String(item.id || '').startsWith('fakap_')) {
+          newHistory.push(item);
+          continue;
+        }
         if (item.status === 'completed' || item.status === 'downloaded') {
           let diskFile = diskMap.get(item.id);
           if (!diskFile && item.filePath && fs.existsSync(item.filePath)) {

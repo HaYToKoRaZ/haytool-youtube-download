@@ -405,14 +405,22 @@ export async function fakapResetFolder() {
 window.fakapResetFolder = fakapResetFolder;
 
 /**
- * Fakap çözünürlük ve saklama süresi ayarlarını kaydeder.
+ * Fakap genel anahtarı, çözünürlük ve saklama süresi ayarlarını kaydeder.
  */
 export async function fakapSaveSettings() {
+  const enabledCheckbox = document.getElementById('settings-fakap-enabled');
   const qualitySelect = document.getElementById('fakap-quality-select');
   const retentionSelect = document.getElementById('fakap-retention-select');
+  const controlsWrap = document.getElementById('fakap-settings-controls-wrap');
   if (!qualitySelect || !retentionSelect) return;
 
+  const isEnabled = enabledCheckbox ? enabledCheckbox.checked : true;
+  if (controlsWrap) {
+    controlsWrap.style.opacity = isEnabled ? '1' : '0.55';
+  }
+
   const payload = {
+    fakapEnabled: isEnabled,
     fakapQuality: qualitySelect.value,
     fakapRetentionDays: retentionSelect.value
   };
@@ -424,8 +432,16 @@ export async function fakapSaveSettings() {
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    if (data.success && typeof showToast === 'function') {
-      showToast('Fakap ayarları kaydedildi.', 'success');
+    if (data.success) {
+      if (window.localDb && window.localDb.settings) {
+        window.localDb.settings.fakapEnabled = isEnabled;
+      }
+      if (typeof showToast === 'function') {
+        const lang = (window.localDb?.settings && window.localDb.settings.lang) || 'tr';
+        const t = (window.translations && (window.translations[lang] || window.translations.tr)) || {};
+        showToast(t.fakap_settings_saved || 'Fakap ayarları kaydedildi.', 'success');
+      }
+      if (typeof window.applyFilters === 'function') window.applyFilters();
     }
   } catch (e) {}
 }
@@ -435,22 +451,32 @@ window.fakapSaveSettings = fakapSaveSettings;
  * Ayarlar sekmesindeki kontrolleri doldurur.
  */
 export function updateFakapSettingsControls(data) {
+  const enabledCheckbox = document.getElementById('settings-fakap-enabled');
+  const controlsWrap = document.getElementById('fakap-settings-controls-wrap');
   const pathInput = document.getElementById('fakap-path-input');
   const qualitySelect = document.getElementById('fakap-quality-select');
   const retentionSelect = document.getElementById('fakap-retention-select');
 
+  const isEnabled = data && typeof data.enabled === 'boolean'
+    ? data.enabled
+    : (window.localDb?.settings?.fakapEnabled !== false);
+  if (enabledCheckbox) enabledCheckbox.checked = isEnabled;
+  if (controlsWrap) controlsWrap.style.opacity = isEnabled ? '1' : '0.55';
+
   if (pathInput && data.dir) pathInput.value = data.dir;
   if (qualitySelect && data.quality) qualitySelect.value = data.quality;
 
-  if (retentionSelect && retentionSelect.options.length <= 1) {
-    const lang = (window.localDb?.settings && window.localDb.settings.lang) || 'tr';
-    const t = (window.translations && (window.translations[lang] || window.translations.tr)) || {};
-    retentionSelect.innerHTML = `<option value="never">${t.fakap_retention_never || 'Asla (Hiç Silinmez)'}</option>`;
-    for (let i = 1; i <= 30; i++) {
-      const opt = document.createElement('option');
-      opt.value = String(i);
-      opt.textContent = `${i} ${t.unit_days || 'Gün'}`;
-      retentionSelect.appendChild(opt);
+  if (retentionSelect) {
+    if (retentionSelect.options.length <= 1) {
+      const lang = (window.localDb?.settings && window.localDb.settings.lang) || 'tr';
+      const t = (window.translations && (window.translations[lang] || window.translations.tr)) || {};
+      retentionSelect.innerHTML = `<option value="never">${t.fakap_retention_never || 'Asla (Hiç Silinmez)'}</option>`;
+      for (let i = 1; i <= 30; i++) {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = `${i} ${t.unit_days || 'Gün'}`;
+        retentionSelect.appendChild(opt);
+      }
     }
     const currentDays = data.retentionDays || 'never';
     retentionSelect.value = currentDays === 0 ? 'never' : String(currentDays);

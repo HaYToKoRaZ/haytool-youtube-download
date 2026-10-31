@@ -7,7 +7,7 @@ import {
   updateHistoryItem 
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
-import { downloadQueue } from '../services/downloader.js';
+import { downloadQueue, resolveItemDownloadUrl } from '../services/downloader.js';
 import { testFfmpegSync } from '../services/paths.js';
 import { broadcast, addTerminalLog, addClient, removeClient } from '../services/sse.js';
 import { getPendingAutoDeleteVideos } from '../services/autoDeleteService.js';
@@ -82,12 +82,16 @@ router.post('/queue/pause', localhostOnly, (req, res) => {
       console.log(`[Kuyruk] Aktif indirme durduruldu ve kuyruğa iade edildi: ${historyItem.title}`);
       addTerminalLog(`[Kuyruk] Aktif indirme durduruldu ve kuyruğa iade edildi: "${historyItem.title}"`, 'info');
       
+      const targetUrl = resolveItemDownloadUrl(historyItem);
       downloadQueue.queue.unshift({
         id: videoId,
+        originalId: historyItem.originalId || videoId,
         title: historyItem.title,
         channelId: historyItem.channelId,
         channelName: historyItem.channelName,
-        url: `https://www.youtube.com/watch?v=${videoId}`,
+        url: targetUrl,
+        webUrl: historyItem.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+        platform: historyItem.platform,
         publishedAt: historyItem.publishedAt || ''
       });
       
@@ -240,12 +244,16 @@ router.post('/queue/reorder', localhostOnly, (req, res) => {
   const startList = [];
   shouldBeDownloading.forEach(item => {
     if (item.status === 'waiting') {
+      const targetUrl = resolveItemDownloadUrl(item);
       startList.push({
         id: item.id,
+        originalId: item.originalId || item.id,
         title: item.title,
         channelId: item.channelId,
         channelName: item.channelName,
-        url: `https://www.youtube.com/watch?v=${item.id}`,
+        url: targetUrl,
+        webUrl: item.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+        platform: item.platform,
         publishedAt: item.publishedAt || ''
       });
     }
@@ -254,12 +262,16 @@ router.post('/queue/reorder', localhostOnly, (req, res) => {
   // Kalan tüm waiting öğeleri de olmaları gereken sırayla downloadQueue.queue'ya dolduralım
   const remainingWaitingList = [];
   shouldBeWaiting.forEach(item => {
+    const targetUrl = resolveItemDownloadUrl(item);
     remainingWaitingList.push({
       id: item.id,
+      originalId: item.originalId || item.id,
       title: item.title,
       channelId: item.channelId,
       channelName: item.channelName,
-      url: `https://www.youtube.com/watch?v=${item.id}`,
+      url: targetUrl,
+      webUrl: item.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+      platform: item.platform,
       publishedAt: item.publishedAt || ''
     });
   });

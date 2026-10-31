@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Multimedia HaYTooL</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --border: #334155;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      width: 340px;
+      background: var(--bg);
+      color: var(--text);
+      padding: 14px;
+      overflow: hidden;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+    }
+    .title-group {
+      flex: 1;
+    }
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .version-tag {
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .status-dot.online {
+      background: var(--success);
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+    }
+    .status-dot.offline {
+      background: var(--danger);
+    }
+    .content-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .detect-header {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .target-title {
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+    }
+    .target-url {
+      font-size: 0.72rem;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Ayar Panelleri */
+    .options-panel {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.8rem;
+    }
+    .option-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .option-row label {
+      color: var(--text);
+      cursor: pointer;
+    }
+    .select-input, .number-input {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 6px;
+      font-size: 0.78rem;
+      outline: none;
+    }
+    .number-input {
+      width: 60px;
+      text-align: center;
+    }
+
+    /* Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 32px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #475569;
+      transition: .2s; border-radius: 18px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px;
+      background-color: white; transition: .2s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--accent); }
+    input:checked + .slider:before { transform: translateX(14px); }
+
+    .btn {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn:active {
+      transform: scale(0.97);
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #0f172a;
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      color: #ffffff;
+    }
+    .btn-secondary {
+      background: #334155;
+      color: var(--text);
+    }
+    .btn-secondary:hover {
+      background: #475569;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .feedback {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      text-align: center;
+      display: none;
+      line-height: 1.4;
+    }
+    .feedback.success {
+      display: block;
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    .feedback.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .feedback.warning {
+      display: block;
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon32.png" alt="Logo" class="logo">
+    <div class="title-group">
+      <div class="title-row">
+        <div class="title">Multimedia HaYTooL</div>
+        <div class="version-tag" id="ext-version-badge">v12.3.3</div>
+      </div>
+      <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Bağlantı kontrol ediliyor...</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-box">
+    <div class="detect-header" id="detect-type-label">Sekme Analizi</div>
+    <div class="target-title" id="target-title">Sayfa bekleniyor...</div>
+    <div class="target-url" id="target-url"></div>
+
+    <!-- Video İndirme Seçenekleri (Format & Kalite) -->
+    <div class="options-panel hidden" id="video-options-panel">
+      <div class="option-row">
+        <label for="sel-format">İndirme Formatı:</label>
+        <select id="sel-format" class="select-input">
+          <option value="video" selected>Video (MP4)</option>
+          <option value="audio">Ses / Müzik (MP3)</option>
+        </select>
+      </div>
+      <div class="option-row" id="row-video-quality">
+        <label for="sel-quality">Video Kalitesi:</label>
+        <select id="sel-quality" class="select-input">
+          <option value="default" selected>Varsayılan (Ayardan)</option>
+          <option value="best">En Yüksek (4K / En İyi)</option>
+          <option value="2160">4K (2160p)</option>
+          <option value="1440">2K (1440p)</option>
+          <option value="1080">1080p FHD</option>
+          <option value="720">720p HD</option>
+          <option value="480">480p</option>
+        </select>
+      </div>
+      <div class="option-row hidden" id="row-audio-quality">
+        <label for="sel-audio-quality">Ses Kalitesi:</label>
+        <select id="sel-audio-quality" class="select-input">
+          <option value="320" selected>320 kbps (En Yüksek)</option>
+          <option value="256">256 kbps</option>
+          <option value="192">192 kbps (Standart)</option>
+          <option value="128">128 kbps</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Kanal Takip Seçenekleri (Kanala Özel Girdiler) -->
+    <div class="options-panel hidden" id="channel-options-panel">
+      <div class="option-row">
+        <label for="cb-channel-autodl">Otomatik İndirme:</label>
+        <label class="switch">
+          <input type="checkbox" id="cb-channel-autodl" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="option-row">
+        <label for="cb-channel-shorts">Shorts Videoları İndir:</label>
+        <label class="switch">
+          <input type="checkbox" id="cb-channel-shorts">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="option-row" id="row-channel-shorts-limit">
+        <label for="inp-shorts-limit">Shorts Sınırı (sn):</label>
+        <input type="number" id="inp-shorts-limit" class="number-input" value="180" min="15" max="3600">
+      </div>
+      <div class="option-row">
+        <label for="cb-channel-fakap">Fakap (Yedek) Koruması:</label>
+        <label class="switch">
+          <input type="checkbox" id="cb-channel-fakap">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-primary" id="btn-action" disabled>
+      <span id="btn-action-text">Algılanıyor...</span>
+    </button>
+  </div>
+
+  <div id="feedback-box" class="feedback"></div>
+
+  <!-- Sürüm Güncelleme Uyarısı -->
+  <div id="version-warning-box" class="feedback warning hidden" style="margin-top: 10px;">
+    <span>Eklentiniz güncel değil!</span>
+    <button type="button" class="btn btn-secondary btn-sm" id="btn-open-install-guide" style="margin-top: 6px; padding: 4px 8px; font-size: 0.75rem;">
+      HaYTooL Kurulum Ekranını Aç
+    </button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

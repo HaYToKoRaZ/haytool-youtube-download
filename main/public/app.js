@@ -8,8 +8,9 @@
 import { translations } from './utils/i18n.js';
 import { escapeHtml, formatDate, getDaysAgoText, parseSizeToBytes, isShortVideo, parseTimeToSeconds, formatDescriptionTimestamps, parseLikes, parseRelativeTime, debounce, isMembersOnlyVideo, getCatTranslatedName, getVideoRemainingInfo } from './utils/helpers.js';
 import { showToast, toastSuccess, toastError, toastWarning, toastInfo } from './components/toast.js';
-import { renderVideoGrid } from './components/videoCard.js';
-import { renderChannelsList, getChannelsRenderSignature } from './components/channelRow.js';
+import { renderVideoGrid } from './components/videoCard.js?v=12.3.3';
+import { renderChannelsList, getChannelsRenderSignature, buildChannelCardElement } from './components/channelRow.js';
+window.buildChannelCardElement = buildChannelCardElement;
 // Araçlar ve dosya karşılaştırma alt modülü
 import './modules/tools.js';
 import './modules/fakap.js';
@@ -158,7 +159,9 @@ import {
   updateChannelCategoryFilterOptions,
   getChannelActiveFilters,
   handleChannelFilterChange,
-  initAddChannelForm
+  initAddChannelForm,
+  openChannelQuickSettingsModal,
+  closeChannelQuickSettingsModal
 } from './modules/channels.js';
 window.triggerChannelSearch = triggerChannelSearch;
 window.closeChannelSearchResults = closeChannelSearchResults;
@@ -179,6 +182,8 @@ window.updateChannelCategoryFilterOptions = updateChannelCategoryFilterOptions;
 window.getChannelActiveFilters = getChannelActiveFilters;
 window.handleChannelFilterChange = handleChannelFilterChange;
 window.initAddChannelForm = initAddChannelForm;
+window.openChannelQuickSettingsModal = openChannelQuickSettingsModal;
+window.closeChannelQuickSettingsModal = closeChannelQuickSettingsModal;
 // Sistem konsolu ve canlı terminal logları alt modülü
 import {
   openConsoleModal,
@@ -309,7 +314,7 @@ function switchTab(targetTab, triggerPushState = true) {
     }
   }
   
-  // Başka sekmeden İndirilenler sekmesine geçiş yapılıyorsa ve modal oynatıcı açıksa
+  // Başka sekmeden İndirilenler sekmesine geçiş yapılıyorsa ve modal oynatıcı açıksa (indirilmiş veya indirilmemiş video)
   if (targetTab === 'downloaded') {
     const modal = document.getElementById('player-modal');
     const isModalOpen = modal && !modal.classList.contains('hidden');
@@ -335,8 +340,13 @@ function switchTab(targetTab, triggerPushState = true) {
           const listContainer = document.getElementById('downloaded-list-container');
           if (listContainer) listContainer.classList.add('hidden');
 
-          // Oynatıcı başlık, kanal adı, avatar ve abonelik bilgilerini doğru video ile güncelle
-          updateInlinePlayerMetadata(video);
+          // Oynatıcı başlık, kanal adı, avatar, yorumlar, açıklama ve çalma listesini doğru video ile güncelle
+          if (typeof window.setupInlinePlayerPanels === 'function') {
+            window.setupInlinePlayerPanels(currentPlayingVideoId, video, [], inlineBody);
+          } else {
+            if (typeof updateInlinePlayerMetadata === 'function') updateInlinePlayerMetadata(video);
+            if (typeof renderDownloadedPlaylist === 'function') renderDownloadedPlaylist(currentPlayingVideoId);
+          }
 
           performTabSwitchUI(targetTab);
 
@@ -349,6 +359,22 @@ function switchTab(targetTab, triggerPushState = true) {
           }
           return;
         }
+      } else {
+        // İndirilmemiş (uzak YouTube) video yüzen pencerede açıksa İndirilenler sekmesine geçildiğinde yerleşik büyük oynatıcıya büyüt
+        let resumeSec = null;
+        let wasPaused = false;
+        if (videoPlayerInstance) {
+          if (typeof videoPlayerInstance.currentTime === 'number' && videoPlayerInstance.currentTime > 1) {
+            resumeSec = videoPlayerInstance.currentTime;
+          }
+          wasPaused = !!videoPlayerInstance.paused;
+        }
+        performTabSwitchUI(targetTab);
+        if (triggerPushState) {
+          applyTabHistory(targetTab, false);
+        }
+        window.playVideoEmbedded(currentPlayingVideoId, resumeSec, wasPaused, false);
+        return;
       }
     }
   }
@@ -475,6 +501,8 @@ let historyOnlyNotDownloaded = false;
 let historyShowHidden = false;
 let downloadedViewMode = 'grid'; // grid veya list
 let downloadedFilterChannel = 'all'; // all veya kanalId
+let downloadedFilterPlatform = 'all'; // all, youtube, tiktok, x, instagram
+window.downloadedFilterPlatform = 'all';
 let downloadedOnlyPartiallyWatched = false;
 window.downloadedOnlyPartiallyWatched = downloadedOnlyPartiallyWatched;
 
@@ -1148,7 +1176,11 @@ function updateUI(db) {
         const thumbImg = document.getElementById('active-thumbnail-img');
         const thumbPlc = document.getElementById('active-thumbnail-placeholder');
         if (thumbImg && thumbPlc) {
-          const thumbUrl = activeDownload.thumbnail || (activeDownload.id ? 'https://i.ytimg.com/vi/' + activeDownload.id + '/mqdefault.jpg' : '');
+          window._activeVideoId = activeDownload.id;
+          const isExt = activeDownload.platform && activeDownload.platform !== 'youtube';
+          const thumbUrl = (activeDownload.thumbnail && activeDownload.thumbnail.startsWith('http'))
+            ? activeDownload.thumbnail
+            : (isExt ? `/api/video/${activeDownload.id}/thumbnail` : (activeDownload.id ? 'https://i.ytimg.com/vi/' + activeDownload.id + '/mqdefault.jpg' : ''));
           if (thumbUrl) {
             if (thumbImg.dataset.baseUrl !== thumbUrl) {
               thumbImg.dataset.baseUrl = thumbUrl;
@@ -1184,7 +1216,11 @@ function updateUI(db) {
         const thumbImg = document.getElementById('active-thumbnail-img');
         const thumbPlc = document.getElementById('active-thumbnail-placeholder');
         if (thumbImg && thumbPlc) {
-          const thumbUrl = activeMerging.thumbnail || (activeMerging.id ? 'https://i.ytimg.com/vi/' + activeMerging.id + '/mqdefault.jpg' : '');
+          window._activeVideoId = activeMerging.id;
+          const isExt = activeMerging.platform && activeMerging.platform !== 'youtube';
+          const thumbUrl = (activeMerging.thumbnail && activeMerging.thumbnail.startsWith('http'))
+            ? activeMerging.thumbnail
+            : (isExt ? `/api/video/${activeMerging.id}/thumbnail` : (activeMerging.id ? 'https://i.ytimg.com/vi/' + activeMerging.id + '/mqdefault.jpg' : ''));
           if (thumbUrl) {
             if (thumbImg.dataset.baseUrl !== thumbUrl) {
               thumbImg.dataset.baseUrl = thumbUrl;
@@ -1324,8 +1360,8 @@ function updateUI(db) {
                 </div>
                 <span class="queue-order-badge">${orderNoStr}</span>
               </div>
-              <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
-                <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='/logo.png'">
+              <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" data-platform="${video.platform || 'youtube'}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" style="position: relative;" title="${escapeHtml(video.title)}">
+                <img src="${(video.thumbnail && video.thumbnail.startsWith('http')) ? video.thumbnail : ((video.platform && video.platform !== 'youtube') ? ('/api/video/' + video.id + '/thumbnail') : ('https://i.ytimg.com/vi/' + video.id + '/mqdefault.jpg'))}" class="video-thumbnail queue-item-thumbnail" onerror="this.onerror=null; this.src='/api/video/${video.id}/thumbnail'">
               </div>
               <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:6px;">
                 <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(video.title)}</span>
@@ -1430,8 +1466,8 @@ function updateUI(db) {
                   </button>
                 </div>` : ''}
               </div>
-              <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
-                <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='/logo.png'">
+              <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" data-platform="${video.platform || 'youtube'}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
+                <img src="${(video.thumbnail && video.thumbnail.startsWith('http')) ? video.thumbnail : ((video.platform && video.platform !== 'youtube') ? ('/api/video/' + video.id + '/thumbnail') : ('https://i.ytimg.com/vi/' + video.id + '/mqdefault.jpg'))}" class="video-thumbnail queue-item-thumbnail" onerror="this.onerror=null; this.src='/api/video/${video.id}/thumbnail'">
               </div>
               <div class="queue-item-info" style="flex:1; min-width:0;">
                 <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
@@ -1556,8 +1592,8 @@ function updateUI(db) {
                 <div style="display:flex; align-items:center; gap:4px;">
                   <span class="queue-order-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.25);">${orderNoStr}</span>
                 </div>
-                <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
-                  <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='/logo.png'">
+                <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" data-platform="${video.platform || 'youtube'}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
+                  <img src="/api/video/${video.id}/thumbnail" class="video-thumbnail queue-item-thumbnail" onerror="this.onerror=null; this.src='/logo.png'">
                 </div>
                 <div style="min-width:0; overflow:hidden;">
                   <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.78rem;">
@@ -1602,8 +1638,8 @@ function updateUI(db) {
                   </div>
                   <span class="queue-order-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.25);">${orderNoStr}</span>
                 </div>
-                <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
-                  <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='/logo.png'">
+                <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" data-platform="${video.platform || 'youtube'}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
+                  <img src="/api/video/${video.id}/thumbnail" class="video-thumbnail queue-item-thumbnail" onerror="this.onerror=null; this.src='/logo.png'">
                 </div>
                 <div class="queue-item-info">
                   <div class="queue-item-title" title="${escapeHtml(video.title)}">
@@ -1729,7 +1765,7 @@ function updateUI(db) {
                   <span class="queue-order-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.25);">${orderNoStr}</span>
                 </div>
                 <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
-                <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='/logo.png'">
+                <img src="${(video.platform && video.platform !== 'youtube') ? (video.thumbnail || '/api/video/' + video.id + '/thumbnail') : ('https://i.ytimg.com/vi/' + video.id + '/mqdefault.jpg')}" class="video-thumbnail queue-item-thumbnail" onerror="this.src='/logo.png'">
                 </div>
                 <div style="min-width:0; overflow:hidden;">
                   <div class="queue-item-title" title="${escapeHtml(video.title)}" style="font-weight:600; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.78rem;">
@@ -1777,7 +1813,7 @@ function updateUI(db) {
                   <span class="queue-order-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.25);">${orderNoStr}</span>
                 </div>
                 <div class="queue-thumb-container video-thumbnail-wrapper" data-video-id="${video.id}" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this)" title="${escapeHtml(video.title)}">
-                <img src="https://i.ytimg.com/vi/${video.id}/mqdefault.jpg" class="video-thumbnail queue-item-thumbnail" onerror="this.src='/logo.png'">
+                <img src="${(video.platform && video.platform !== 'youtube') ? (video.thumbnail || '/api/video/' + video.id + '/thumbnail') : ('https://i.ytimg.com/vi/' + video.id + '/mqdefault.jpg')}" class="video-thumbnail queue-item-thumbnail" onerror="this.src='/logo.png'">
                 </div>
                 <div class="queue-item-info">
                   <div class="queue-item-title" title="${escapeHtml(video.title)}">
@@ -1995,6 +2031,12 @@ function updateUI(db) {
         const channelIdsInCat = (db.channels || []).filter(c => (c.categoryIds || [c.categoryId || 1]).includes(catId)).map(c => c.id);
         const channelIdsInCatSet = new Set(channelIdsInCat);
         filteredHistory = filteredHistory.filter(item => channelIdsInCatSet.has(item.channelId));
+      } else if (historyFilterChannel.startsWith('platform:')) {
+        const targetPlat = historyFilterChannel.split(':')[1];
+        filteredHistory = filteredHistory.filter(item => {
+          const p = item.platform || (typeof detectVideoPlatform === 'function' ? detectVideoPlatform(item) : 'youtube');
+          return p === targetPlat;
+        });
       } else {
         filteredHistory = filteredHistory.filter(item => item.channelId === historyFilterChannel);
       }
@@ -2048,7 +2090,7 @@ function updateUI(db) {
     
     const showShorts = db.settings.showShorts !== false;
     if (!showShorts) {
-      filteredHistory = filteredHistory.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
+      filteredHistory = filteredHistory.filter(item => !isShortVideo(item.duration, item.title, item.channelId, item));
     }
 
     // Süre filtresi: seçilen dakikadan kısa veya eşit olan videoları gizle
@@ -2116,14 +2158,27 @@ function updateUI(db) {
         const channelIdsInCat = (db.channels || []).filter(c => (c.categoryIds || [c.categoryId || 1]).includes(catId)).map(c => c.id);
         const channelIdsInCatSet = new Set(channelIdsInCat);
         filteredDownloaded = filteredDownloaded.filter(item => channelIdsInCatSet.has(item.channelId));
+      } else if (downloadedFilterChannel.startsWith('platform:')) {
+        const targetPlat = downloadedFilterChannel.split(':')[1];
+        filteredDownloaded = filteredDownloaded.filter(item => {
+          const p = item.platform || (typeof detectVideoPlatform === 'function' ? detectVideoPlatform(item) : 'youtube');
+          return p === targetPlat;
+        });
       } else {
         filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
       }
     }
+
+    if (downloadedFilterPlatform && downloadedFilterPlatform !== 'all') {
+      filteredDownloaded = filteredDownloaded.filter(item => {
+        const p = item.platform || (typeof detectVideoPlatform === 'function' ? detectVideoPlatform(item) : 'youtube');
+        return p === downloadedFilterPlatform;
+      });
+    }
     
     const showShorts = db.settings.showShorts !== false;
     if (!showShorts) {
-      filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
+      filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId, item));
     }
 
     // Video başlığı veya kanal adına göre anlık arama
@@ -2571,10 +2626,11 @@ window.downloadVideoManual = async function(videoId) {
     showToast(`İndirme başlatılıyor: ${title}`, 'info');
     // Fakap kayıtlarında id "fakap_<videoId>" olabilir; sunucuya her zaman gerçek video kimliği gider.
     const cleanId = (item && item.originalId) || String(videoId || '').replace(/^fakap_/, '');
+    const itemUrl = item ? (item.webUrl || item.url || '') : '';
     const res = await fetch('/api/download-video', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoId: cleanId, title, channelName, channelId })
+      body: JSON.stringify({ videoId: cleanId, title, channelName, channelId, url: itemUrl })
     });
     const data = await res.json();
     if (data.success) {
@@ -2702,6 +2758,10 @@ let _lastWatchtimeSyncPos = 0;
 window.autoSyncWatchtimeHelper = function(vid, curTime, force = false) {
   if (!vid || typeof curTime !== 'number' || isNaN(curTime) || curTime < 2) return;
   if (localDb?.settings?.autoSyncWatchtime === false) return;
+  // İndirilmemiş (doğrudan YouTube üzerinden oynatılan) videolarda YouTube zaten kendi oturumuyla süreyi tutar;
+  // arka plandan ikinci bir InnerTube player isteği atmak "Aynı anda çok fazla cihazda izleniyor" hatasını tetikler.
+  const histItem = (localDb?.history || []).find(h => h.id === vid);
+  if (!histItem || histItem.status !== 'completed' || histItem.fileMissing === true) return;
 
   const now = Date.now();
   if (!force) {
@@ -2803,8 +2863,10 @@ document.addEventListener('keydown', (e) => {
         }
       },
       toggleFullscreen() {
-        if (videoPlayerInstance && videoPlayerInstance.fullscreen) {
+        if (videoPlayerInstance && videoPlayerInstance.fullscreen && typeof videoPlayerInstance.fullscreen.toggle === 'function') {
           videoPlayerInstance.fullscreen.toggle();
+        } else if (typeof window.togglePlayerModalFullscreen === 'function') {
+          window.togglePlayerModalFullscreen();
         }
       },
       toggleCaptions() {
@@ -3268,26 +3330,37 @@ function adjustPlayerOrientation(videoElement) {
       if (modalBody) {
         modalBody.style.aspectRatio = ratio;
       }
+      if (isVertical) {
+        modal.classList.add('is-short-player', 'is-vertical-player');
+      } else {
+        modal.classList.remove('is-vertical-player');
+      }
     }
 
     if (inlineWrapper) {
       if (isVertical) {
-        inlineWrapper.classList.add('is-short-player');
+        inlineWrapper.classList.add('is-short-player', 'is-vertical-player');
         inlineWrapper.style.aspectRatio = ratio;
       } else {
-        inlineWrapper.classList.remove('is-short-player');
+        inlineWrapper.classList.remove('is-short-player', 'is-vertical-player');
         inlineWrapper.style.aspectRatio = '';
       }
     }
+
+    const plyrEls = document.querySelectorAll('#player-modal .plyr, .inline-player-wrapper .plyr');
+    plyrEls.forEach(el => {
+      if (isVertical) {
+        el.classList.add('plyr--is-vertical');
+      } else {
+        el.classList.remove('plyr--is-vertical');
+      }
+    });
 
     if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
       setTimeout(() => videoPlayerInstance.resize(), 50);
     }
   }
 }
-
-// SponsorBlock fonksiyonları (fetchSponsorSegments, updateSponsorBlockStatusUI, updateSBToggleButtonUI, checkAndSkipSponsor)
-// ./modules/player/sponsorBlock.js modülünden içe aktarılmıştır.
 
 window.showPlayerTransientOverlay = function(htmlContent, durationMs = 1200) {
   const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
@@ -3374,6 +3447,25 @@ window.sendPlayerActivity = sendPlayerActivity;
 
 let activePlayRequestId = 0;
 
+window.togglePlayerModalFullscreen = function() {
+  if (videoPlayerInstance && videoPlayerInstance.fullscreen && typeof videoPlayerInstance.fullscreen.toggle === 'function') {
+    videoPlayerInstance.fullscreen.toggle();
+    return;
+  }
+  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
+  const isInline = (activeTab === 'downloaded');
+  const modal = document.getElementById('player-modal');
+  const target = isInline
+    ? (document.getElementById('inline-player-body') || document.getElementById('downloaded-inline-player-container'))
+    : (modal?.querySelector('.player-modal-body') || modal);
+  if (!target) return;
+  if (!document.fullscreenElement) {
+    target.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+};
+
 // Türkçe Açıklama: İndirilenler tabındaki inline oynatıcıyı, diğer tablarda olduğu gibi sağ alttaki yüzen mini modal'a taşır.
 /**
  * İndirilenler tabındaki inline oynatıcıyı yüzen mini modal'a aktarır.
@@ -3387,7 +3479,26 @@ window.switchInlinePlayerToModal = function() {
   if (!isInlineOpen || !currentPlayingVideoId) return false;
 
   const video = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+  const isCompleted = video && video.status === 'completed';
+  const isMissing = video && video.fileMissing === true;
+  const isDownloaded = isCompleted && !isMissing;
   const isShort = isShortVideo(video?.duration, video?.title, video?.channelId);
+
+  if (!isDownloaded) {
+    let resumeSec = null;
+    let wasPaused = false;
+    if (videoPlayerInstance) {
+      if (typeof videoPlayerInstance.currentTime === 'number' && videoPlayerInstance.currentTime > 1) {
+        resumeSec = videoPlayerInstance.currentTime;
+      }
+      wasPaused = !!videoPlayerInstance.paused;
+    }
+    inlineContainer.classList.add('hidden');
+    const listContainer = document.getElementById('downloaded-list-container');
+    if (listContainer) listContainer.classList.remove('hidden');
+    window.playVideoEmbedded(currentPlayingVideoId, resumeSec, wasPaused, true);
+    return true;
+  }
 
   const inlineBody = document.getElementById('inline-player-body');
   const modal = document.getElementById('player-modal');
@@ -3500,13 +3611,13 @@ window.cleanupAllPlayers = function() {
  * 
  * @param {string} videoId Oynatılacak video ID'si
  */
-window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePaused = null) {
+window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePaused = null, forceModal = false) {
   const currentRequestId = ++activePlayRequestId;
   try {
     cleanupAllPlayers();
 
     const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
-    const isInline = (activeTab === 'downloaded');
+    const isInline = !forceModal && (activeTab === 'downloaded');
     const playerType = 'plyr';
 
     let video = localDb.history.find(h => h.id === videoId);
@@ -3528,19 +3639,22 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
     }).catch(() => {});
 
     let availableSubtitles = [];
+    const isCompletedLocal = video && video.status === 'completed' && !video.fileMissing;
 
-    // Altyazıları modül aracılığıyla arka planda hemen çek ve oynatıcıya uygula
-    const subFetchPromise = fetchVideoSubtitles(videoId)
-      .then(subs => {
-        if (currentRequestId !== activePlayRequestId) return [];
-        availableSubtitles = subs;
-        applySubtitlesToPlayer(subs);
-        return availableSubtitles;
-      })
-      .catch(err => {
-        console.warn('[Subtitles] Fetch error:', err);
-        return [];
-      });
+    // Altyazıları yalnızca indirilmiş yerel videolar için çek (uzak YouTube oynatımında yt-dlp çerez çakışmasını önler)
+    const subFetchPromise = isCompletedLocal
+      ? fetchVideoSubtitles(videoId)
+          .then(subs => {
+            if (currentRequestId !== activePlayRequestId) return [];
+            availableSubtitles = subs;
+            applySubtitlesToPlayer(subs);
+            return availableSubtitles;
+          })
+          .catch(err => {
+            console.warn('[Subtitles] Fetch error:', err);
+            return [];
+          })
+      : Promise.resolve([]);
 
     // DOM Fallback
     if (!videoTitle) {
@@ -3565,24 +3679,12 @@ window.playVideoEmbedded = async function(videoId, startSeconds = null, forcePau
 
   let playerContainer = null;
 
-  if (isInline) {
-    // 1. Modal oynatıcıyı kapat/gizle
-    const modal = document.getElementById('player-modal');
-    if (modal) modal.classList.add('hidden');
-
-    // 2. Inline player UI göster/gizle
-    const inlineContainer = document.getElementById('downloaded-inline-player-container');
-    const listContainer = document.getElementById('downloaded-list-container');
-    if (inlineContainer) inlineContainer.classList.remove('hidden');
-    if (listContainer) listContainer.classList.add('hidden');
-
-    // Video oynatılmaya başladığında sayfayı en yukarı kaydır (böylece oynatıcı tam olarak görünür olur)
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-      mainContent.scrollTop = 0;
-    }
-
-    playerContainer = document.getElementById('inline-player-body');
+  window.setupInlinePlayerPanels = function(videoId, video, availableSubtitles = [], playerContainer = null) {
+    const videoTitle = video ? video.title : '';
+    const videoChannelId = video ? video.channelId : '';
+    const videoChannelName = video ? video.channelName : '';
+    const fileSizeStr = video ? video.fileSize : '';
+    const publishDateStr = video ? (video.publishedAt || video.downloadedAt || '') : '';
 
 window.updateInlinePlayerMetadata = function(videoObj) {
   if (!videoObj) return;
@@ -3611,19 +3713,32 @@ window.updateInlinePlayerMetadata = function(videoObj) {
     }
   }
 
+  const platform = (typeof detectVideoPlatform === 'function') ? detectVideoPlatform(videoObj) : 'youtube';
+  const isYouTube = platform === 'youtube';
+
   const channelNameEl = document.getElementById('inline-player-channel-name');
   if (channelNameEl) channelNameEl.textContent = videoChannelName || '';
 
   const avatarEl = document.getElementById('inline-player-channel-avatar');
   const logoDividerEl = document.getElementById('inline-player-logo-divider');
+  const platformIconEl = document.getElementById('inline-player-platform-icon');
   if (avatarEl) {
-    if (videoChannelId) {
+    if (isYouTube && videoChannelId) {
       avatarEl.src = `/api/channels/${videoChannelId}/avatar`;
       avatarEl.style.display = 'block';
       if (logoDividerEl) logoDividerEl.style.display = 'inline';
+      if (platformIconEl) platformIconEl.style.display = 'none';
     } else {
       avatarEl.style.display = 'none';
       if (logoDividerEl) logoDividerEl.style.display = 'none';
+      if (platformIconEl) {
+        if (!isYouTube && typeof getPlatformSvgIcon === 'function') {
+          platformIconEl.innerHTML = getPlatformSvgIcon(platform, 16);
+          platformIconEl.style.display = 'inline-flex';
+        } else {
+          platformIconEl.style.display = 'none';
+        }
+      }
     }
   }
 
@@ -3631,19 +3746,24 @@ window.updateInlinePlayerMetadata = function(videoObj) {
   const subsTextEl = document.getElementById('inline-player-channel-subs-text');
   const dividerEl = document.getElementById('inline-player-channel-divider');
   if (subsEl && subsTextEl) {
-    const channel = window.localDb?.channels?.find(c => c.id === videoChannelId || (videoChannelName && c.name === videoChannelName));
-    const subVal = channel && channel.subscriberCount ? channel.subscriberCount : '?';
-    subsTextEl.textContent = subVal;
-    subsEl.style.display = 'inline-flex';
-    if (dividerEl) dividerEl.style.display = 'inline';
-    try {
-      if (typeof lucide !== 'undefined') lucide.createIcons();
-    } catch (e) {}
+    if (isYouTube) {
+      const channel = window.localDb?.channels?.find(c => c.id === videoChannelId || (videoChannelName && c.name === videoChannelName));
+      const subVal = channel && channel.subscriberCount ? channel.subscriberCount : '?';
+      subsTextEl.textContent = subVal;
+      subsEl.style.display = 'inline-flex';
+      if (dividerEl) dividerEl.style.display = 'inline';
+      try {
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      } catch (e) {}
+    } else {
+      subsEl.style.display = 'none';
+      if (dividerEl) dividerEl.style.display = 'none';
+    }
   }
 
   const channelContainer = document.querySelector('.inline-player-channel');
   if (channelContainer) {
-    if (videoChannelId) {
+    if (isYouTube && videoChannelId) {
       channelContainer.style.cursor = 'pointer';
       channelContainer.title = window.localDb?.settings?.lang === 'en' ? 'Go to Channel Videos' : 'Kanala Git';
       channelContainer.onclick = (e) => {
@@ -3657,6 +3777,30 @@ window.updateInlinePlayerMetadata = function(videoObj) {
           window.open(channelUrl, '_blank', 'noopener,noreferrer');
         });
       };
+    } else if (!isYouTube) {
+      const rawHandle = String(videoChannelName || '').replace(/^@+/, '').trim();
+      let profUrl = '';
+      if (platform === 'instagram') profUrl = rawHandle ? `https://www.instagram.com/${rawHandle}/` : 'https://www.instagram.com/';
+      else if (platform === 'x') profUrl = rawHandle ? `https://x.com/${rawHandle}` : 'https://x.com/';
+      else if (platform === 'tiktok') profUrl = rawHandle ? `https://www.tiktok.com/@${rawHandle}` : 'https://www.tiktok.com/';
+      else if (videoObj.webUrl) profUrl = videoObj.webUrl;
+
+      if (profUrl) {
+        channelContainer.style.cursor = 'pointer';
+        channelContainer.title = (window.localDb?.settings?.lang === 'en' ? 'Open Profile' : 'Profili Aç') + ': ' + (videoChannelName || rawHandle);
+        channelContainer.onclick = (e) => {
+          e.preventDefault();
+          if (typeof window.openExternalWebUrl === 'function') {
+            window.openExternalWebUrl(profUrl);
+          } else {
+            window.open(profUrl, '_blank', 'noopener,noreferrer');
+          }
+        };
+      } else {
+        channelContainer.style.cursor = 'default';
+        channelContainer.title = '';
+        channelContainer.onclick = null;
+      }
     } else {
       channelContainer.style.cursor = 'default';
       channelContainer.title = '';
@@ -3664,7 +3808,7 @@ window.updateInlinePlayerMetadata = function(videoObj) {
     }
   }
 
-  const publishDateEl = document.getElementById('inline-player-publish-date');
+    const publishDateEl = document.getElementById('inline-player-publish-date');
   if (publishDateEl) {
     const isEn = window.localDb?.settings?.lang === 'en';
     const pubDate = videoObj.publishedAt ? formatDate(videoObj.publishedAt) : '--';
@@ -3817,18 +3961,33 @@ window.updateInlinePlayerMetadata = function(videoObj) {
     // 3. Bilgileri yerleştir
     updateInlinePlayerMetadata(video || { id: videoId, title: videoTitle, channelId: videoChannelId, channelName: videoChannelName, fileSize: fileSizeStr, publishedAt: publishDateStr });
 
-    // Auto show comments panel
+    const activeVideoObj = video || { id: videoId, title: videoTitle, channelId: videoChannelId, channelName: videoChannelName, fileSize: fileSizeStr, publishedAt: publishDateStr };
+    const currentPlatform = (typeof detectVideoPlatform === 'function') ? detectVideoPlatform(activeVideoObj) : 'youtube';
+    const isPlatformYouTube = currentPlatform === 'youtube';
+
+    // Auto show comments panel only for YouTube; automatically hide for external sources
     const commentsContainer = document.getElementById('inline-player-comments-container');
-    if (commentsContainer) {
-      commentsContainer.classList.remove('hidden');
-    }
     const commentsBtn = document.getElementById('inline-btn-comments');
     const isEn = localDb.settings?.lang === 'en';
-    if (commentsBtn) {
-      commentsBtn.classList.add('active');
-      commentsBtn.title = isEn ? 'Hide Comments' : 'Yorumları Gizle';
+    if (isPlatformYouTube) {
+      if (commentsBtn) {
+        commentsBtn.style.display = 'inline-flex';
+        commentsBtn.classList.add('active');
+        commentsBtn.title = isEn ? 'Hide Comments' : 'Yorumları Gizle';
+      }
+      if (commentsContainer) {
+        commentsContainer.classList.remove('hidden');
+      }
+      loadComments(videoId);
+    } else {
+      if (commentsBtn) {
+        commentsBtn.style.display = 'none';
+        commentsBtn.classList.remove('active');
+      }
+      if (commentsContainer) {
+        commentsContainer.classList.add('hidden');
+      }
     }
-    loadComments(videoId);
 
     // Reset and Fetch description panel
     const descContainer = document.getElementById('inline-player-description-container');
@@ -3863,17 +4022,62 @@ window.updateInlinePlayerMetadata = function(videoObj) {
         console.error("Error fetching description:", err);
       });
 
-    // SponsorBlock renk açıklaması (legend)
+    // SponsorBlock renk açıklaması (legend) - Sadece YouTube
     const sbLegend = document.getElementById('inline-player-sponsorblock-legend');
     const sbSep = document.getElementById('inline-player-sb-sep');
     if (sbLegend) {
-      sbLegend.style.display = 'flex';
-      if (sbSep) sbSep.style.display = 'inline';
+      sbLegend.style.display = isPlatformYouTube ? 'flex' : 'none';
+      if (sbSep) sbSep.style.display = isPlatformYouTube ? 'inline' : 'none';
     }
 
     // 4. Eylemleri bağla
+    // Platform bazlı kaynak açma butonu (#inline-btn-youtube)
     const btnYoutube = document.getElementById('inline-btn-youtube');
-    if (btnYoutube) btnYoutube.onclick = () => openYouTube(videoId);
+    if (btnYoutube) {
+      const targetWebUrl = activeVideoObj?.webUrl || activeVideoObj?.url || '';
+      let btnSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" style="fill:#ff0000; display:inline-block; vertical-align:middle;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>`;
+      let btnTitle = isEn ? 'Open on YouTube' : "YouTube'da Aç";
+      let btnAction = () => openYouTube(videoId);
+
+      if (currentPlatform === 'tiktok') {
+        btnTitle = isEn ? 'Open on TikTok' : "TikTok'ta Aç";
+        btnSvg = (typeof getPlatformSvgIcon === 'function') ? getPlatformSvgIcon('tiktok', 16) : btnSvg;
+        const targetUrl = targetWebUrl || (videoChannelName ? `https://www.tiktok.com/@${videoChannelName.replace(/^@+/, '')}` : 'https://www.tiktok.com/');
+        btnAction = () => {
+          if (typeof window.openExternalWebUrl === 'function') window.openExternalWebUrl(targetUrl);
+          else window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        };
+      } else if (currentPlatform === 'x') {
+        btnTitle = isEn ? 'Open on Twitter / X' : "X (Twitter)'da Aç";
+        btnSvg = (typeof getPlatformSvgIcon === 'function') ? getPlatformSvgIcon('x', 16) : btnSvg;
+        const targetUrl = targetWebUrl || (videoChannelName ? `https://x.com/${videoChannelName.replace(/^@+/, '')}` : 'https://x.com/');
+        btnAction = () => {
+          if (typeof window.openExternalWebUrl === 'function') window.openExternalWebUrl(targetUrl);
+          else window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        };
+      } else if (currentPlatform === 'instagram') {
+        btnTitle = isEn ? 'Open on Instagram' : "Instagram'da Aç";
+        btnSvg = (typeof getPlatformSvgIcon === 'function') ? getPlatformSvgIcon('instagram', 16) : btnSvg;
+        const targetUrl = targetWebUrl || (videoChannelName ? `https://www.instagram.com/${videoChannelName.replace(/^@+/, '')}/` : 'https://www.instagram.com/');
+        btnAction = () => {
+          if (typeof window.openExternalWebUrl === 'function') window.openExternalWebUrl(targetUrl);
+          else window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        };
+      } else if (!isPlatformYouTube) {
+        btnTitle = isEn ? 'Open in Browser' : "Kaynağı Aç";
+        btnSvg = (typeof getPlatformSvgIcon === 'function') ? getPlatformSvgIcon(currentPlatform, 16) : btnSvg;
+        const targetUrl = targetWebUrl || 'https://google.com';
+        btnAction = () => {
+          if (typeof window.openExternalWebUrl === 'function') window.openExternalWebUrl(targetUrl);
+          else window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        };
+      }
+
+      btnYoutube.innerHTML = btnSvg;
+      btnYoutube.title = btnTitle;
+      btnYoutube.setAttribute('aria-label', btnTitle);
+      btnYoutube.onclick = btnAction;
+    }
 
     const btnSystem = document.getElementById('inline-btn-system');
     if (btnSystem) {
@@ -3951,11 +4155,15 @@ window.updateInlinePlayerMetadata = function(videoObj) {
       }
     }
 
-    // SponsorBlock toggle button logic
+    // SponsorBlock toggle button logic (yalnızca YouTube kaynaklarında)
     const btnSBToggle = document.getElementById('inline-btn-sponsorblock-toggle');
     if (btnSBToggle) {
-      btnSBToggle.style.display = 'inline-flex';
-      updateSBToggleButtonUI();
+      if (isPlatformYouTube) {
+        btnSBToggle.style.display = 'inline-flex';
+        updateSBToggleButtonUI();
+      } else {
+        btnSBToggle.style.display = 'none';
+      }
 
       btnSBToggle.onclick = async () => {
         const isCurrentlyActive = localDb.settings && localDb.settings.sponsorBlockEnabled === true;
@@ -4160,9 +4368,15 @@ window.updateInlinePlayerMetadata = function(videoObj) {
       };
     }
 
-    // Kaldığım Yeri YouTube'a Eşitle Butonu logic
+    // Kaldığım Yeri YouTube'a Eşitle Butonu logic (yalnızca YouTube kaynaklarında)
     const btnSyncWatchtime = document.getElementById('inline-btn-sync-watchtime');
     if (btnSyncWatchtime) {
+      if (!isPlatformYouTube) {
+        btnSyncWatchtime.style.display = 'none';
+        btnSyncWatchtime.onclick = null;
+      } else {
+        btnSyncWatchtime.style.display = 'inline-flex';
+      }
       btnSyncWatchtime.onclick = async () => {
         const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
         const isEn = lang === 'en';
@@ -4231,6 +4445,16 @@ window.updateInlinePlayerMetadata = function(videoObj) {
       };
     }
 
+    // Videoyu Paylaş Butonu (#inline-btn-share)
+    const btnShare = document.getElementById('inline-btn-share');
+    if (btnShare) {
+      btnShare.onclick = () => {
+        if (typeof window.shareVideo === 'function') {
+          window.shareVideo(videoId);
+        }
+      };
+    }
+
     // Aktif Videoyu Sil Butonu (Çöp Kutusu)
     const btnDeleteActive = document.getElementById('inline-btn-delete-active');
     if (btnDeleteActive) {
@@ -4281,6 +4505,27 @@ window.updateInlinePlayerMetadata = function(videoObj) {
 
     // 5. Çalma listesini oluştur
     renderDownloadedPlaylist(videoId);
+  };
+
+  if (isInline) {
+    // 1. Modal oynatıcıyı kapat/gizle
+    const modal = document.getElementById('player-modal');
+    if (modal) modal.classList.add('hidden');
+
+    // 2. Inline player UI göster/gizle
+    const inlineContainer = document.getElementById('downloaded-inline-player-container');
+    const listContainer = document.getElementById('downloaded-list-container');
+    if (inlineContainer) inlineContainer.classList.remove('hidden');
+    if (listContainer) listContainer.classList.add('hidden');
+
+    // Video oynatılmaya başladığında sayfayı en yukarı kaydır (böylece oynatıcı tam olarak görünür olur)
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.scrollTop = 0;
+    }
+
+    playerContainer = document.getElementById('inline-player-body');
+    window.setupInlinePlayerPanels(videoId, video || { id: videoId, title: videoTitle, channelId: videoChannelId, channelName: videoChannelName, fileSize: fileSizeStr, publishedAt: publishDateStr }, availableSubtitles, playerContainer);
 
   } else {
     // Floating Modal player
@@ -4296,8 +4541,10 @@ window.updateInlinePlayerMetadata = function(videoObj) {
         titleEl.textContent = videoTitle || 'Gömülü Video Oynatıcı';
       }
       
+      const modalPlatform = (typeof detectVideoPlatform === 'function') ? detectVideoPlatform(video) : 'youtube';
+      const isModalYouTube = modalPlatform === 'youtube';
       const logoEl = document.getElementById('player-modal-logo');
-      if (logoEl && videoChannelId) {
+      if (logoEl && isModalYouTube && videoChannelId) {
         logoEl.src = `/api/channels/${videoChannelId}/avatar`;
         logoEl.style.display = 'block';
         logoEl.style.cursor = 'pointer';
@@ -4360,11 +4607,12 @@ window.updateInlinePlayerMetadata = function(videoObj) {
   }
 
   const playRemote = !isCompleted || isMissing;
+  const rawYtId = (video && video.originalId) ? video.originalId : String(videoId || '').replace(/^fakap_/, '');
 
-  if (playRemote) {
+  if (playRemote && typeof Plyr === 'undefined') {
     if (playerContainer) {
       const autoplayVal = (forcePaused === true) ? '0' : '1';
-      playerContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=${autoplayVal}" style="width: 100%; height: 100%; border: none; display: block;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      playerContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${rawYtId}?autoplay=${autoplayVal}&fs=1&rel=0" style="width: 100%; height: 100%; border: none; display: block;" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
     }
     videoPlayerInstance = null;
     if (forcePaused !== true) {
@@ -4372,23 +4620,29 @@ window.updateInlinePlayerMetadata = function(videoObj) {
     }
   } else {
     if (playerContainer) {
-      const autoplayAttr = (forcePaused === true) ? '' : 'autoplay';
-      playerContainer.innerHTML = `<video id="embedded-video-player" controls ${autoplayAttr} style="width: 100%; height: 100%; display: block; outline: none;"></video>`;
+      if (playRemote) {
+        playerContainer.innerHTML = `<div id="embedded-video-player" data-plyr-provider="youtube" data-plyr-embed-id="${rawYtId}" style="width: 100%; height: 100%;"></div>`;
+      } else {
+        const autoplayAttr = (forcePaused === true) ? '' : 'autoplay';
+        playerContainer.innerHTML = `<video id="embedded-video-player" controls ${autoplayAttr} style="width: 100%; height: 100%; display: block; outline: none;"></video>`;
+      }
     }
 
     if (playerType === 'plyr' && typeof Plyr === 'undefined') {
       console.error('[HaYTooL] Plyr kütüphanesi (Plyr) bulunamadı → HTML5 standart moda düşüldü.');
     }
-    // Altyazıların arka plandan gelmesini bekle (yarış durumunu önler, Plyr altyazıları ilk anda tanır)
-    try {
-      await Promise.race([
-        subFetchPromise,
-        new Promise(resolve => setTimeout(resolve, 350))
-      ]);
-    } catch (e) {}
+    if (!playRemote) {
+      // Altyazıların arka plandan gelmesini bekle (yarış durumunu önler, Plyr altyazıları ilk anda tanır)
+      try {
+        await Promise.race([
+          subFetchPromise,
+          new Promise(resolve => setTimeout(resolve, 350))
+        ]);
+      } catch (e) {}
+    }
 
     const player = document.getElementById('embedded-video-player');
-    if (player) {
+    if (player && !playRemote) {
       // Clear old track tags
       const oldTracks = player.querySelectorAll('track');
       oldTracks.forEach(t => t.remove());
@@ -4400,7 +4654,9 @@ window.updateInlinePlayerMetadata = function(videoObj) {
     }
 
     if (playerType === 'plyr' && typeof Plyr !== 'undefined') {
-      player.src = streamUrl;
+      if (!playRemote && player) {
+        player.src = streamUrl;
+      }
       videoPlayerInstance = new Plyr('#embedded-video-player', {
         iconUrl: '/plyr.svg',
         controls: [
@@ -4410,13 +4666,83 @@ window.updateInlinePlayerMetadata = function(videoObj) {
         ],
         settings: ['captions', 'speed', 'loop'],
         captions: { active: true, update: true },
-        speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] }
+        speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] },
+        youtube: {
+          noCookie: false,
+          rel: 0,
+          showinfo: 0,
+          iv_load_policy: 3,
+          modestbranding: 1,
+          playsinline: 1,
+          hl: (localDb.settings && localDb.settings.lang) || 'tr'
+        }
       });
 
+          const bindPlyrInteractions = () => {
+            const containerSelector = isInline ? '#downloaded-inline-player-container' : '#player-modal';
+            const outerContainer = document.querySelector(containerSelector);
+            const plyrContainer = outerContainer?.querySelector('.plyr');
+            if (plyrContainer && !plyrContainer._boundWheelDbl) {
+              plyrContainer._boundWheelDbl = true;
+              plyrContainer.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                let currentVolume = videoPlayerInstance.volume;
+                let newVolume;
+                if (e.deltaY < 0) {
+                  newVolume = Math.min(1, currentVolume + 0.02);
+                } else {
+                  newVolume = Math.max(0, currentVolume - 0.02);
+                }
+                videoPlayerInstance.volume = newVolume;
+                if (typeof triggerVolumeHUD === 'function') {
+                  triggerVolumeHUD(newVolume);
+                }
+              }, { passive: false });
+
+              plyrContainer.addEventListener('dblclick', (e) => {
+                // Buton veya kontroller tıklandıysa yoksay
+                if (e.target.closest('.plyr__controls') || e.target.closest('button') || e.target.closest('input')) return;
+                e.preventDefault();
+                if (videoPlayerInstance && typeof videoPlayerInstance.fullscreen?.toggle === 'function') {
+                  videoPlayerInstance.fullscreen.toggle();
+                }
+              });
+            }
+          };
+
           videoPlayerInstance.on('ready', () => {
+            const containerSelectorReady = isInline ? '#downloaded-inline-player-container' : '#player-modal';
+            const outerReady = document.querySelector(containerSelectorReady);
+            const ytIframe = outerReady?.querySelector('iframe');
+            if (ytIframe) {
+              ytIframe.setAttribute('allow', 'autoplay; encrypted-media; fullscreen; picture-in-picture');
+              ytIframe.setAttribute('allowfullscreen', '');
+            }
+            bindPlyrInteractions();
             adjustPlayerOrientation(videoPlayerInstance.media);
             if (videoPlayerInstance.duration) {
               drawSponsorSegmentsOnTimeline(videoPlayerInstance.duration, 'plyr');
+            }
+            if (playRemote) {
+              if (!seekedForCurrentVideo && currentPlayingVideoId) {
+                const item = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
+                const targetTime = (startSeconds !== null) ? startSeconds : (item?.lastPositionSeconds || (JSON.parse(localStorage.getItem('haytool_playback_resume') || '{}')[currentPlayingVideoId] || 0));
+                if (targetTime > 3) {
+                  try {
+                    videoPlayerInstance.currentTime = targetTime;
+                    window.showResumeNotification(targetTime);
+                  } catch (e) {}
+                }
+                seekedForCurrentVideo = true;
+              }
+              if (forcePaused === true) {
+                try { videoPlayerInstance.pause(); } catch (e) {}
+              } else {
+                try {
+                  const p = videoPlayerInstance.play();
+                  if (p && typeof p.catch === 'function') p.catch(() => {});
+                } catch (e) {}
+              }
             }
           });
 
@@ -4440,34 +4766,7 @@ window.updateInlinePlayerMetadata = function(videoObj) {
           });
 
           // Volume wheel control & Double click fullscreen
-          const containerSelector = isInline ? '#downloaded-inline-player-container' : '#player-modal';
-          const outerContainer = document.querySelector(containerSelector);
-          const plyrContainer = outerContainer?.querySelector('.plyr');
-          if (plyrContainer) {
-            plyrContainer.addEventListener('wheel', (e) => {
-              e.preventDefault();
-              let currentVolume = videoPlayerInstance.volume;
-              let newVolume;
-              if (e.deltaY < 0) {
-                newVolume = Math.min(1, currentVolume + 0.02);
-              } else {
-                newVolume = Math.max(0, currentVolume - 0.02);
-              }
-              videoPlayerInstance.volume = newVolume;
-              if (typeof triggerVolumeHUD === 'function') {
-                triggerVolumeHUD(newVolume);
-              }
-            }, { passive: false });
-
-            plyrContainer.addEventListener('dblclick', (e) => {
-              // Buton veya kontroller tıklandıysa yoksay
-              if (e.target.closest('.plyr__controls') || e.target.closest('button') || e.target.closest('input')) return;
-              e.preventDefault();
-              if (videoPlayerInstance && typeof videoPlayerInstance.fullscreen?.toggle === 'function') {
-                videoPlayerInstance.fullscreen.toggle();
-              }
-            });
-          }
+          bindPlyrInteractions();
 
           videoPlayerInstance.on('timeupdate', () => {
             if (!currentPlayingVideoId) return;
@@ -4496,14 +4795,20 @@ window.updateInlinePlayerMetadata = function(videoObj) {
             }
           });
 
-          if (forcePaused === true) {
-            videoPlayerInstance.pause();
-          } else if (forcePaused === false) {
-            videoPlayerInstance.play().catch(err => console.warn(err));
-          } else {
-            videoPlayerInstance.play().catch(err => {
-              console.warn('Otomatik oynatma engellendi:', err);
-            });
+          if (!playRemote) {
+            if (forcePaused === true) {
+              videoPlayerInstance.pause();
+            } else if (forcePaused === false) {
+              const p = videoPlayerInstance.play();
+              if (p && typeof p.catch === 'function') p.catch(err => console.warn(err));
+            } else {
+              const p = videoPlayerInstance.play();
+              if (p && typeof p.catch === 'function') {
+                p.catch(err => {
+                  console.warn('Otomatik oynatma engellendi:', err);
+                });
+              }
+            }
           }
 
           videoPlayerInstance.on('ended', () => {
@@ -4728,13 +5033,19 @@ function renderDownloadedPlaylist(currentVideoId) {
       const channelIdsInCat = (localDb.channels || []).filter(c => (c.categoryIds || [c.categoryId || 1]).includes(catId)).map(c => c.id);
       const channelIdsInCatSet = new Set(channelIdsInCat);
       filteredDownloaded = filteredDownloaded.filter(item => channelIdsInCatSet.has(item.channelId));
+    } else if (downloadedFilterChannel.startsWith('platform:')) {
+      const targetPlat = downloadedFilterChannel.split(':')[1];
+      filteredDownloaded = filteredDownloaded.filter(item => {
+        const p = item.platform || (typeof detectVideoPlatform === 'function' ? detectVideoPlatform(item) : 'youtube');
+        return p === targetPlat;
+      });
     } else {
       filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
     }
   }
   const showShorts = localDb.settings?.showShorts !== false;
   if (!showShorts) {
-    filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
+    filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId, item));
   }
   const dlPlSearch = ((document.getElementById('downloaded-search-input')?.value || window.downloadedSearchQuery) || '').trim().toLowerCase();
   if (dlPlSearch) {
@@ -4820,7 +5131,7 @@ function renderDownloadedPlaylist(currentVideoId) {
         <button class="playlist-item-action-btn btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${item.id}')" title="${currentLang === 'en' ? 'Open on YouTube' : 'YouTube\'da Aç'}" aria-label="${currentLang === 'en' ? 'Open on YouTube' : 'YouTube\'da Aç'}">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z"/></svg>
         </button>
-        <button class="playlist-item-action-btn btn-action-folder" onclick="event.stopPropagation(); window.openVideoLocation('${item.id}', '${encodeURIComponent(item.filePath || '')}', '${encodeURIComponent(item.channelName || '')}')" title="${currentLang === 'en' ? 'Open Video Location' : 'Video Konumunu Aç'}" aria-label="${currentLang === 'en' ? 'Open Video Location' : 'Video Konumunu Aç'}">
+        <button class="playlist-item-action-btn btn-action-folder" onclick="event.stopPropagation(); window.openVideoLocation('${item.id}')" title="${currentLang === 'en' ? 'Open Video Location' : 'Video Konumunu Aç'}" aria-label="${currentLang === 'en' ? 'Open Video Location' : 'Video Konumunu Aç'}">
           <i data-lucide="folder-open" style="width: 13px; height: 13px;"></i>
         </button>
         <button class="playlist-item-delete-btn" onclick="event.stopPropagation(); (window.showDeleteModal || showDeleteModal)('${item.id}')" title="${currentLang === 'en' ? 'Delete Video' : 'Videoyu Sil'}" aria-label="${currentLang === 'en' ? 'Delete Video' : 'Videoyu Sil'}">
@@ -4871,17 +5182,19 @@ window.playVideoSystem = async function(videoId) {
  * @param {string} encodedChannelName encodeURIComponent ile kodlanmış kanal adı (yedek yol)
  */
 window.openVideoLocation = async function(videoId, encodedFilePath, encodedChannelName) {
-  const filePath = decodeURIComponent(encodedFilePath || '');
-  const channelName = decodeURIComponent(encodedChannelName || '');
-  if (!filePath) {
-    if (typeof window.openFolder === 'function') window.openFolder(channelName);
-    return;
+  let filePath = '';
+  if (encodedFilePath) {
+    try {
+      filePath = decodeURIComponent(encodedFilePath);
+    } catch (e) {
+      filePath = encodedFilePath;
+    }
   }
   try {
     const res = await fetch('/api/tools/open-file-location', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filePath })
+      body: JSON.stringify({ filePath, videoId })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.error) {
@@ -4902,6 +5215,11 @@ window.handleThumbMouseEnter = function(targetEl) {
 
   const videoId = wrapperEl.getAttribute('data-video-id') || targetEl.getAttribute('data-id');
   if (!videoId) return;
+
+  // Harici platformlar (TikTok, X, Instagram) için resim döndürme döngüsü çalıştırılmaz, orijinal kapak sabit kalır
+  const vPlatform = wrapperEl.getAttribute('data-platform');
+  if (vPlatform && vPlatform !== 'youtube') return;
+  if (String(videoId).startsWith('ext_')) return;
 
   const imgEl = wrapperEl.querySelector('.video-thumbnail, [data-thumb-img]');
   if (!imgEl) return;
@@ -5043,6 +5361,27 @@ window.closePlayerModal = function(skipWatchSync = false) {
  * @param {string} videoId Açılacak video ID'si
  * @param {number} [currentSeconds] İsteğe bağlı zaman damgası (saniye)
  */
+
+window.openExternalWebUrl = async function(url, videoId, currentSeconds) {
+  if (url && (url.startsWith('http://') || url.startsWith('https://')) && !url.includes('youtube.com/watch?v=ext_')) {
+    try {
+      await fetch('/api/open-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      return;
+    } catch (e) {
+      window.open(url, '_blank');
+      return;
+    }
+  }
+  // YouTube fallback
+  if (typeof window.openYouTube === 'function') {
+    window.openYouTube(videoId, currentSeconds);
+  }
+};
+
 window.openYouTube = async function(videoId, currentSeconds) {
   let time = currentSeconds;
   if (time === undefined && currentPlayingVideoId === videoId) {
@@ -5109,6 +5448,18 @@ function showDeleteModal(id) {
   const checkboxContainers = modal.querySelectorAll('.checkbox-container');
   checkboxContainers.forEach(c => c.classList.remove('hidden'));
   if (fileCb) fileCb.checked = true;
+
+  const isExternalPlatform = (item.platform && item.platform !== 'youtube') || (typeof item.id === 'string' && item.id.startsWith('ext_'));
+  const markWatchedContainer = document.getElementById('mark-watched-container');
+  const hideLibraryContainer = document.getElementById('hide-library-container');
+
+  if (isExternalPlatform) {
+    if (markWatchedContainer) markWatchedContainer.classList.add('hidden');
+    if (hideLibraryContainer) hideLibraryContainer.classList.add('hidden');
+  } else {
+    if (markWatchedContainer) markWatchedContainer.classList.remove('hidden');
+    if (hideLibraryContainer) hideLibraryContainer.classList.remove('hidden');
+  }
   
   // YouTube'da izlendi olarak işaretleme tercihi (settings / localStorage)
   const markWatchedCb = markWatchedCheckbox || document.getElementById('mark-watched-checkbox');
@@ -5158,15 +5509,20 @@ if (confirmDeleteBtn) {
     if (!videoIdToDelete) return;
     
     const id = videoIdToDelete;
+    const targetItem = (localDb.history || []).find(h => h.id === id);
+    const isExternal = (targetItem && targetItem.platform && targetItem.platform !== 'youtube') || id.startsWith('ext_');
+
     const deleteFile = (deleteFileCheckbox || document.getElementById('delete-file-checkbox'))?.checked ?? true;
     const markWatchedCb = markWatchedCheckbox || document.getElementById('mark-watched-checkbox');
-    const markWatched = markWatchedCb ? markWatchedCb.checked : false;
+    const markWatched = (!isExternal && markWatchedCb) ? markWatchedCb.checked : false;
     const hideLibraryCb = hideLibraryCheckbox || document.getElementById('hide-library-checkbox');
     const hideOnDelete = hideLibraryCb ? hideLibraryCb.checked : (localDb.settings?.hideOnDelete !== false);
 
-    // Tercihleri kalıcı olarak sakla
-    localStorage.setItem('haytool_mark_watched_on_delete', String(markWatched));
-    localStorage.setItem('haytool_hide_on_delete', String(hideOnDelete));
+    // Tercihleri kalıcı olarak sakla (sadece YouTube videolarında ayar kaydedilir)
+    if (!isExternal) {
+      localStorage.setItem('haytool_mark_watched_on_delete', String(markWatched));
+      localStorage.setItem('haytool_hide_on_delete', String(hideOnDelete));
+    }
     let settingsChanged = false;
     if (localDb.settings) {
       if (localDb.settings.markWatchedOnDelete !== markWatched) {
@@ -5364,6 +5720,25 @@ window.checkPendingAutoDeleteOnLoad = checkPendingAutoDeleteOnLoad;
  * 
  * @param {Array<object>} videos Silinmesi beklenen video listesi
  */
+function openVideoFromAutoDeleteModal(videoId, titleText) {
+  const idStr = String(videoId || '').trim();
+  if (!idStr) return;
+  if (idStr.startsWith('fakap_') && typeof window.playFakapVideo === 'function') {
+    window.playFakapVideo(idStr, titleText);
+    return;
+  }
+  if (typeof window.playVideoEmbedded === 'function') {
+    window.playVideoEmbedded(idStr);
+    const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
+    if (activeTab === 'downloaded' && typeof window.switchInlinePlayerToModal === 'function') {
+      setTimeout(() => {
+        try { window.switchInlinePlayerToModal(); } catch (e) {}
+      }, 60);
+    }
+  }
+}
+window.openVideoFromAutoDeleteModal = openVideoFromAutoDeleteModal;
+
 function showAutoDeleteConfirmModal(videos) {
   const modal = document.getElementById('auto-delete-confirm-modal');
   const listEl = document.getElementById('auto-delete-pending-list');
@@ -5385,11 +5760,18 @@ function showAutoDeleteConfirmModal(videos) {
   pendingAutoDeleteVideos.forEach(v => {
     const itemEl = document.createElement('div');
     itemEl.id = `auto-delete-item-${v.id}`;
-    itemEl.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px;';
+    itemEl.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px; transition: background 0.15s ease;';
     const reasonBadge = v.reason ? `<span style="font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; background: rgba(239, 68, 68, 0.15); color: var(--accent-red); font-weight: 500;">${escapeHtml(v.reason)}</span>` : '';
+    const safeTitleAttr = escapeHtml(v.title || '').replace(/'/g, '&#39;');
+    const playHint = isEn ? 'Click to watch video' : 'Videoyu izlemek için tıklayın';
     itemEl.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-        <img src="${v.thumbnail || '/api/video/' + v.id + '/thumbnail'}" style="width: 60px; height: 34px; object-fit: cover; border-radius: 4px; flex-shrink: 0;" onerror="this.src='/logo.png'" />
+      <div onclick="openVideoFromAutoDeleteModal('${v.id}', '${safeTitleAttr}')" title="${playHint}" style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; cursor: pointer;">
+        <div style="position: relative; width: 64px; height: 36px; flex-shrink: 0; border-radius: 4px; overflow: hidden;">
+          <img src="${v.thumbnail || '/api/video/' + v.id + '/thumbnail'}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='/logo.png'" />
+          <div style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.35); display: flex; align-items: center; justify-content: center;">
+            <i data-lucide="play" style="width: 14px; height: 14px; color: #fff; fill: #fff;"></i>
+          </div>
+        </div>
         <div style="flex: 1; min-width: 0;">
           <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(v.title || '')}">${escapeHtml(v.title || '')}</div>
           <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
@@ -5399,10 +5781,16 @@ function showAutoDeleteConfirmModal(videos) {
           </div>
         </div>
       </div>
-      <button type="button" class="btn btn-secondary btn-sm" onclick="showDeleteModal('${v.id}')" title="${isEn ? 'Delete this video' : 'Bu videoyu sil'}" style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); padding: 4px 10px; font-size: 0.78rem;">
-        <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
-        <span>${isEn ? 'Delete' : 'Sil'}</span>
-      </button>
+      <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openVideoFromAutoDeleteModal('${v.id}', '${safeTitleAttr}')" title="${playHint}" style="display: inline-flex; align-items: center; gap: 4px; color: var(--accent-primary); border-color: rgba(168, 85, 247, 0.3); background: rgba(168, 85, 247, 0.08); padding: 4px 10px; font-size: 0.78rem;">
+          <i data-lucide="play" style="width: 13px; height: 13px;"></i>
+          <span>${isEn ? 'Open' : 'Aç'}</span>
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); showDeleteModal('${v.id}')" title="${isEn ? 'Delete this video' : 'Bu videoyu sil'}" style="display: inline-flex; align-items: center; gap: 4px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); padding: 4px 10px; font-size: 0.78rem;">
+          <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
+          <span>${isEn ? 'Delete' : 'Sil'}</span>
+        </button>
+      </div>
     `;
     listEl.appendChild(itemEl);
   });
@@ -5469,11 +5857,11 @@ async function confirmAutoDeleteAll() {
 window.confirmAutoDeleteAll = confirmAutoDeleteAll;
 
 /**
- * Süresi dolan videoların silinmesini 1, 2 veya 3 gün erteler.
+ * Süresi dolan videoların silinmesini belirtilen dakika, saat veya gün kadar erteler.
  * 
- * @param {number} days Erteleme gün sayısı
+ * @param {number|object} opts Erteleme gün sayısı veya { minutes, hours, days } nesnesi
  */
-async function postponeAutoDelete(days = 2) {
+async function postponeAutoDelete(opts = 2) {
   const isEn = (localDb.settings && localDb.settings.lang === 'en') || (window.currentLang === 'en');
   try {
     let ids = (window.pendingAutoDeleteVideos || pendingAutoDeleteVideos || []).map(v => v?.id || v).filter(Boolean);
@@ -5487,17 +5875,37 @@ async function postponeAutoDelete(days = 2) {
       } catch (e) {}
     }
 
+    const payload = { videoIds: ids };
+    if (typeof opts === 'number') {
+      payload.days = opts;
+    } else if (opts && typeof opts === 'object') {
+      if (opts.minutes) payload.minutes = opts.minutes;
+      else if (opts.hours) payload.hours = opts.hours;
+      else if (opts.days) payload.days = opts.days;
+      else payload.days = 2;
+    } else {
+      payload.days = 2;
+    }
+
     const res = await fetch('/api/auto-delete/postpone', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        videoIds: ids,
-        days: days
-      })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (data.success) {
-      showToast(isEn ? `Deletion postponed by ${data.days} days.` : `Silme işlemi ${data.days} gün ertelendi.`, 'info');
+      const totalMins = data.minutes || ((data.days || 2) * 1440);
+      let msg = '';
+      if (totalMins >= 1440 && totalMins % 1440 === 0) {
+        const d = totalMins / 1440;
+        msg = isEn ? `Deletion postponed by ${d} day(s).` : `Silme işlemi ${d} gün ertelendi.`;
+      } else if (totalMins >= 60 && totalMins % 60 === 0) {
+        const h = totalMins / 60;
+        msg = isEn ? `Deletion postponed by ${h} hour(s).` : `Silme işlemi ${h} saat ertelendi.`;
+      } else {
+        msg = isEn ? `Deletion postponed by ${totalMins} minute(s).` : `Silme işlemi ${totalMins} dakika ertelendi.`;
+      }
+      showToast(msg, 'info');
       hideAutoDeleteConfirmModal();
       pendingAutoDeleteVideos = [];
       window.pendingAutoDeleteVideos = [];
@@ -5510,15 +5918,65 @@ async function postponeAutoDelete(days = 2) {
 }
 window.postponeAutoDelete = postponeAutoDelete;
 
+/**
+ * Ertelenmiş otomatik silme sürelerini sıfırlar ve süresi dolan videolar varsa onay penceresini hemen açar.
+ */
+async function resetAutoDeletePostponed() {
+  const isEn = (localDb.settings && localDb.settings.lang === 'en') || (window.currentLang === 'en');
+  try {
+    const res = await fetch('/api/auto-delete/reset-postponed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (Array.isArray(data.videos) && data.videos.length > 0) {
+        showAutoDeleteConfirmModal(data.videos);
+        showToast(
+          isEn
+            ? `Postponements reset. ${data.videos.length} expired video(s) listed.`
+            : `Ertelemeler sıfırlandı. ${data.videos.length} adet süresi dolan video listelendi.`,
+          'info'
+        );
+      } else {
+        showToast(
+          isEn
+            ? `Postponements reset (${data.resetCount || 0}). No expired videos found.`
+            : `Erteleme süreleri sıfırlandı (${data.resetCount || 0} video). Şu an süresi dolmuş video yok.`,
+          'info'
+        );
+      }
+    } else {
+      showToast(data.error || (isEn ? 'Reset failed.' : 'Sıfırlama başarısız oldu.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Server communication error.' : 'Sunucu ile iletişim hatası.', 'error');
+  }
+}
+window.resetAutoDeletePostponed = resetAutoDeletePostponed;
+
 // Doğrudan buton dinleyicilerini bağla (güvenlik ve yedek katman)
 function initAutoDeleteModalButtons() {
-  ['btn-postpone-1', 'btn-postpone-2', 'btn-postpone-3'].forEach((btnId, idx) => {
-    const pBtn = document.getElementById(btnId);
+  const btnMap = [
+    { id: 'btn-postpone-m1', opts: { minutes: 1 } },
+    { id: 'btn-postpone-m3', opts: { minutes: 3 } },
+    { id: 'btn-postpone-m5', opts: { minutes: 5 } },
+    { id: 'btn-postpone-m10', opts: { minutes: 10 } },
+    { id: 'btn-postpone-m15', opts: { minutes: 15 } },
+    { id: 'btn-postpone-h1', opts: { hours: 1 } },
+    { id: 'btn-postpone-h3', opts: { hours: 3 } },
+    { id: 'btn-postpone-h6', opts: { hours: 6 } },
+    { id: 'btn-postpone-1', opts: { days: 1 } },
+    { id: 'btn-postpone-2', opts: { days: 2 } },
+    { id: 'btn-postpone-3', opts: { days: 3 } }
+  ];
+  btnMap.forEach(({ id, opts }) => {
+    const pBtn = document.getElementById(id);
     if (pBtn && !pBtn.dataset.bound) {
       pBtn.dataset.bound = 'true';
       pBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        postponeAutoDelete(idx + 1);
+        postponeAutoDelete(opts);
       });
     }
   });
@@ -6828,13 +7286,19 @@ function playNextVideoInPlaylist() {
       const channelIdsInCat = (localDb.channels || []).filter(c => (c.categoryIds || [c.categoryId || 1]).includes(catId)).map(c => c.id);
       const channelIdsInCatSet = new Set(channelIdsInCat);
       filteredDownloaded = filteredDownloaded.filter(item => channelIdsInCatSet.has(item.channelId));
+    } else if (downloadedFilterChannel.startsWith('platform:')) {
+      const targetPlat = downloadedFilterChannel.split(':')[1];
+      filteredDownloaded = filteredDownloaded.filter(item => {
+        const p = item.platform || (typeof detectVideoPlatform === 'function' ? detectVideoPlatform(item) : 'youtube');
+        return p === targetPlat;
+      });
     } else {
       filteredDownloaded = filteredDownloaded.filter(item => item.channelId === downloadedFilterChannel);
     }
   }
   const showShorts = localDb.settings?.showShorts !== false;
   if (!showShorts) {
-    filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId));
+    filteredDownloaded = filteredDownloaded.filter(item => !isShortVideo(item.duration, item.title, item.channelId, item));
   }
   const dlNextSearch = ((document.getElementById('downloaded-search-input')?.value || window.downloadedSearchQuery) || '').trim().toLowerCase();
   if (dlNextSearch) {
@@ -7366,6 +7830,34 @@ function populateChannelFilters(db) {
       </div>
     `;
 
+    // 1.5 Kaynaklar / Platformlar (YouTube, Twitter/X, Instagram, TikTok)
+    const platformsList = [
+      { id: 'youtube', name: 'YouTube' },
+      { id: 'x', name: 'Twitter / X' },
+      { id: 'instagram', name: 'Instagram' },
+      { id: 'tiktok', name: 'TikTok' }
+    ];
+
+    platformsList.forEach(plat => {
+      const platVal = 'platform:' + plat.id;
+      const platSvg = (typeof getPlatformSvgIcon === 'function')
+        ? getPlatformSvgIcon(plat.id, 16)
+        : '<i data-lucide="video" style="width:16px;height:16px;color:var(--accent-color);"></i>';
+      const isSel = currentValue === platVal;
+      if (isSel) {
+        activeTriggerHtml = '<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;">' + platSvg + '</span><span>' + escapeHtml(plat.name) + '</span>';
+      }
+      selectOptionsHtml += '<option value="' + platVal + '">' + escapeHtml(plat.name) + '</option>';
+      html += `
+        <div class="custom-dropdown-item ${isSel ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', '${platVal}', event)">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;">${platSvg}</span>
+          <span>${escapeHtml(plat.name)}</span>
+        </div>
+      `;
+    });
+
+    html += '<div class="custom-dropdown-divider"></div>';
+
     // 2. Kategoriler (Tek Kategori İkonu)
     if (categories && categories.length > 0) {
       const sortedFilterCats = [...categories].sort((a, b) => {
@@ -7750,4 +8242,298 @@ setTimeout(() => {
     checkPendingAutoDeleteOnLoad();
   }
 }, 1200);
+
+
+
+// Tarayıcı Eklentisi Modalı Yönetimi
+window.openExtensionModal = function() {
+  const modal = document.getElementById('extension-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+  }
+};
+
+window.closeExtensionModal = function() {
+  const modal = document.getElementById('extension-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+};
+
+window.openExtensionFolder = async function() {
+  try {
+    const res = await fetch('/api/tools/open-extension-folder', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      if (typeof showToast === 'function') showToast('Eklenti klasörü açıldı.', 'success');
+    } else {
+      if (typeof showToast === 'function') showToast(data.error || 'Klasör açılamadı.', 'error');
+    }
+  } catch (err) {
+    if (typeof showToast === 'function') showToast('Bağlantı hatası.', 'error');
+  }
+};
+
+
+window.copyExtAddress = function(text, btnEl) {
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    if (typeof showToast === 'function') {
+      showToast(text + ' kopyalandı! Tarayıcınızda yeni sekme açıp yapıştırın.', 'success');
+    }
+    if (btnEl) {
+      const origHtml = btnEl.innerHTML;
+      btnEl.style.borderColor = 'var(--accent-color)';
+      setTimeout(() => {
+        btnEl.innerHTML = origHtml;
+        btnEl.style.borderColor = '';
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+      }, 1500);
+    }
+  }).catch(() => {
+    // Fallback prompt
+    prompt('Adresi kopyalayın:', text);
+  });
+};
+
+
+window.copyInputVal = function(inputId, btnEl) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  el.select();
+  el.setSelectionRange(0, 99999);
+  
+  const text = el.value;
+  navigator.clipboard.writeText(text).then(() => {
+    if (typeof showToast === 'function') {
+      showToast(text + ' panoya kopyalandı! Yeni sekmede yapıştırıp Enter\'a basın.', 'success');
+    }
+    if (btnEl) {
+      const origHtml = btnEl.innerHTML;
+      btnEl.innerHTML = '<i data-lucide="check" style="width:12px; height:12px; color:#22c55e;"></i> <span style="color:#22c55e;">Kopyalandı</span>';
+      if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+      setTimeout(() => {
+        btnEl.innerHTML = origHtml;
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+      }, 1500);
+    }
+  }).catch(() => {
+    document.execCommand('copy');
+    if (typeof showToast === 'function') showToast(text + ' kopyalandı!', 'success');
+  });
+};
+
+window.onDownloadedPlatformFilterChange = function() {
+  const sel = document.getElementById('downloaded-platform-filter');
+  downloadedFilterPlatform = sel ? sel.value : 'all';
+  window.downloadedFilterPlatform = downloadedFilterPlatform;
+  updateUI(localDb);
+};
+
+
+// Türkçe Açıklama: Paylaş menüsünü açar/kapatır.
+window.toggleShareMenu = function(e) {
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  const menu = document.getElementById('inline-share-menu');
+  if (!menu) return;
+  const isHidden = menu.style.display === 'none' || menu.classList.contains('hidden');
+  if (isHidden) {
+    menu.classList.remove('hidden');
+    menu.style.display = 'flex';
+    try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch(err) {}
+    
+    // Dışarı tıklandığında menüyü kapat dinleyicisi
+    const closeHandler = (evt) => {
+      if (!evt.target.closest('.inline-share-wrapper')) {
+        menu.classList.add('hidden');
+        menu.style.display = 'none';
+        document.removeEventListener('click', closeHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', closeHandler), 10);
+  } else {
+    menu.classList.add('hidden');
+    menu.style.display = 'none';
+  }
+};
+
+// Türkçe Açıklama: Paylaş seçeneği tıklandığında (Dosya, Kopyala veya Link) çalışır.
+window.shareOptionSelected = async function(type) {
+  const menu = document.getElementById('inline-share-menu');
+  if (menu) {
+    menu.classList.add('hidden');
+    menu.style.display = 'none';
+  }
+  const vId = window.currentPlayingVideoId;
+  if (!vId) return;
+
+  if (type === 'file') {
+    await window.shareVideoFile(vId);
+  } else if (type === 'copy-file') {
+    await window.copyVideoFileToClipboard(vId);
+  } else {
+    await window.shareVideoLink(vId);
+  }
+};
+
+// Türkçe Açıklama: Video dosyasını doğrudan Windows panosuna kopyalar (WhatsApp'a Ctrl+V yapıştırmak için).
+window.copyVideoFileToClipboard = async function(videoId) {
+  const vId = videoId || currentPlayingVideoId;
+  if (!vId) return;
+  const video = (localDb.history || []).find(h => h.id === vId);
+  const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
+  const t = translations[lang] || translations.tr || {};
+  const isEn = lang === 'en';
+
+  if (!video || !video.filePath) {
+    showToast(isEn ? 'Video file not found on disk.' : 'Video dosyası diskte bulunamadı.', 'warning');
+    return;
+  }
+
+  // 1. Önce WPF WebView2 C# köprüsünü dene
+  try {
+    if (window.chrome?.webview?.hostObjects?.playerBridge?.copyFileToClipboard) {
+      const ok = await window.chrome.webview.hostObjects.playerBridge.copyFileToClipboard(video.filePath);
+      if (ok) {
+        showToast(t.share_file_copied_toast || (isEn ? 'Video file copied! You can paste with Ctrl+V into WhatsApp.' : 'Video dosyası kopyalandı! WhatsApp içine Ctrl+V ile yapıştırabilirsiniz.'), 'success');
+        return;
+      }
+    }
+  } catch (err) {}
+
+  // 2. Web / Backend API fallback
+  try {
+    const res = await fetch('/api/tools/copy-file-to-clipboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath: video.filePath })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(t.share_file_copied_toast || (isEn ? 'Video dosyası kopyalandı! WhatsApp içine Ctrl+V ile yapıştırabilirsiniz.' : 'Video dosyası kopyalandı! WhatsApp içine Ctrl+V ile yapıştırabilirsiniz.'), 'success');
+    } else {
+      showToast(data.error || 'Dosya kopyalanamadı.', 'error');
+    }
+  } catch (e) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+};
+
+// Türkçe Açıklama: Videonun orijinal MP4 dosyasını sistem paylaşım penceresiyle paylaşır (Yalnızca dosya, metinsiz).
+window.shareVideoFile = async function(videoId) {
+  const vId = videoId || currentPlayingVideoId;
+  if (!vId) return;
+  const video = (localDb.history || []).find(h => h.id === vId);
+  const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
+  const t = translations[lang] || translations.tr || {};
+  const isEn = lang === 'en';
+
+  const isCompleted = video && video.status === 'completed' && !video.fileMissing;
+  if (!isCompleted) {
+    showToast(isEn ? 'Video file is not downloaded yet.' : 'Video dosyası henüz indirilmemiş.', 'warning');
+    return;
+  }
+
+  // Arka planda panoya da kopyala (WhatsApp paylaşım ekranında dosya yüklenmezse Ctrl+V hemen çalışsın)
+  if (video.filePath) {
+    window.copyVideoFileToClipboard(vId).catch(() => {});
+  }
+
+  showToast(t.share_file_preparing || (isEn ? 'Preparing video file for sharing...' : 'Video dosyası paylaşıma hazırlanıyor...'), 'info');
+
+  try {
+    const streamUrl = `/api/video-stream?videoId=${vId}`;
+    const response = await fetch(streamUrl);
+    if (!response.ok) throw new Error('File stream error');
+
+    const blob = await response.blob();
+    const ext = (video.filePath && video.filePath.includes('.')) ? video.filePath.split('.').pop() : 'mp4';
+    const cleanTitle = (video.title || 'video').replace(/[/\\?%*:|"<>]/g, '_').substring(0, 100);
+    const fileName = `${cleanTitle}.${ext}`;
+    const mimeType = blob.type || 'video/mp4';
+    const file = new File([blob], fileName, { type: mimeType });
+
+    // ÖNEMLİ: title veya text PARAMETRESİ VERİLMEZ!
+    // Eğer title/text verilirse Windows ve WhatsApp dosyayı yok sayıp sadece başlık metnini yapıştırır!
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file]
+      });
+      return;
+    }
+  } catch (err) {
+    if (err && err.name === 'AbortError') return; // Kullanıcı pencereyi kapattı
+    console.warn('[Share] File sharing via navigator.share failed or unsupported:', err);
+  }
+
+  // Fallback: Web Share dosya paylaşımını desteklemiyorsa video konumunu aç
+  if (video && video.filePath) {
+    try {
+      await fetch('/api/tools/open-file-location', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath: video.filePath, videoId: vId })
+      });
+      showToast(t.share_file_opened_folder || (isEn ? 'Video file selected in folder.' : 'Video dosyası klasörde seçili olarak açıldı (ve panoya kopyalandı).'), 'success');
+    } catch (e) {
+      showToast(isEn ? 'Could not open video location.' : 'Video konumu açılamadı.', 'error');
+    }
+  } else {
+    showToast(isEn ? 'Video file not found on disk.' : 'Video dosyası diskte bulunamadı.', 'warning');
+  }
+};
+
+// Türkçe Açıklama: Videonun web bağlantısını sistem paylaşım penceresiyle paylaşır veya kopyalar.
+window.shareVideoLink = async function(videoId) {
+  const vId = videoId || currentPlayingVideoId;
+  if (!vId) return;
+  const video = (localDb.history || []).find(h => h.id === vId);
+  const title = video?.title || document.getElementById('inline-player-title')?.textContent || 'Video';
+  const platform = (typeof detectVideoPlatform === 'function') ? detectVideoPlatform(video) : 'youtube';
+
+  let shareUrl = video?.webUrl || video?.url || '';
+  if (!shareUrl) {
+    if (platform === 'youtube') {
+      const ytId = (video && video.originalId) ? video.originalId : String(vId).replace(/^fakap_/, '');
+      shareUrl = `https://www.youtube.com/watch?v=${ytId}`;
+    }
+  }
+
+  const lang = (localDb && localDb.settings && localDb.settings.lang) || currentLang || 'tr';
+  const t = translations[lang] || translations.tr || {};
+  const isEn = lang === 'en';
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: title,
+        text: title,
+        url: shareUrl || window.location.href
+      });
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      console.warn('[Share] navigator.share error, fallback to clipboard:', err);
+    }
+  }
+
+  if (shareUrl) {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      showToast(t.share_link_copied || (isEn ? 'Link copied to clipboard!' : 'Bağlantı panoya kopyalandı!'), 'success');
+    } catch (e) {
+      prompt(isEn ? 'Copy link:' : 'Bağlantıyı kopyalayın:', shareUrl);
+    }
+  } else {
+    showToast(isEn ? 'Share link not available.' : 'Paylaşılacak bağlantı bulunamadı.', 'warning');
+  }
+};
+
+window.shareVideo = function(videoId) {
+  toggleShareMenu();
+};
 

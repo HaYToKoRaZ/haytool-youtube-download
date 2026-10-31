@@ -22,6 +22,22 @@ export function escapeHtml(str) {
  * @param {string} isoString ISO formatında tarih metni
  * @returns {string} Biçimlendirilmiş tarih
  */
+export function formatDateTime(isoString) {
+  if (!isoString) return '';
+  try {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}.${month}.${year} ${hours}:${minutes}`;
+  } catch (e) {
+    return '';
+  }
+}
+
 export function formatDate(isoString) {
   if (!isoString) return '';
   try {
@@ -131,13 +147,22 @@ export function parseSizeToBytes(sizeStr) {
  * @param {string} [channelId] Kanal ID'si
  * @returns {boolean} Shorts ise true
  */
-export function isShortVideo(durationStr, title, channelId) {
-  if (title) {
-    const lowerTitle = String(title).toLowerCase();
-    if (lowerTitle.includes('#shorts') || lowerTitle.includes('#short') || lowerTitle.includes('/shorts/')) {
-      return true;
-    }
+export function isShortVideo(durationStr, title, channelId, item = null) {
+  const lowerTitle = title ? String(title).toLowerCase() : '';
+  const urlStr = item ? (item.webUrl || item.url || '') : '';
+
+  // 1. Kesin Shorts Belirteçleri (URL veya Başlıkta #shorts, /shorts/)
+  if (lowerTitle.includes('#shorts') || lowerTitle.includes('#short') || lowerTitle.includes('/shorts/') || urlStr.includes('/shorts/')) {
+    return true;
   }
+
+  // 2. Kullanıcının manuel veya eklentiyle indirdiği standalone / takip edilmeyen videolar:
+  // Başlığında veya URL'sinde kesin shorts ibaresi yoksa normal video kabul edilir (kütüphaneden kaybolmaz)
+  const isManualOrStandalone = (channelId === 'manual') || (item && (item.isStandalone === true || item.channelId === 'manual'));
+  if (isManualOrStandalone) {
+    return false;
+  }
+
   if (durationStr === null || durationStr === undefined || durationStr === '') return false;
   
   let strVal = String(durationStr).trim();
@@ -173,11 +198,8 @@ export function isShortVideo(durationStr, title, channelId) {
     return true;
   }
   
-  if (title) {
-    const lowerTitle = String(title).toLowerCase();
-    if (lowerTitle.includes('shorts') || lowerTitle.includes('short')) {
-      return true;
-    }
+  if (lowerTitle.includes('shorts') || lowerTitle.includes('short')) {
+    return true;
   }
   return false;
 }
@@ -461,8 +483,14 @@ export function getVideoRemainingInfo(item, db) {
 
   if (isPostponed) {
     const postponeRemainingMs = item.autoDeletePostponedUntil - Date.now();
-    const pDays = Math.ceil(postponeRemainingMs / (1000 * 60 * 60 * 24));
-    badgeText = `⏸️ ${pDays}g`;
+    const pMins = Math.ceil(postponeRemainingMs / (1000 * 60));
+    if (pMins < 60) {
+      badgeText = `⏸️ ${pMins}dk`;
+    } else if (pMins < 1440) {
+      badgeText = `⏸️ ${Math.ceil(pMins / 60)}sa`;
+    } else {
+      badgeText = `⏸️ ${Math.ceil(pMins / 1440)}g`;
+    }
     tooltip = 'Otomatik silme kullanıcı tarafından ertelendi';
     remainingMs = postponeRemainingMs;
     isExpired = false;
@@ -505,4 +533,67 @@ export function getVideoRemainingInfo(item, db) {
 }
 if (typeof window !== 'undefined') {
   window.getVideoRemainingInfo = getVideoRemainingInfo;
+}
+
+/**
+ * Video nesnesinden veya URL'den platform adını çözümler ('youtube' | 'tiktok' | 'x' | 'instagram' | 'other').
+ */
+export function detectVideoPlatform(item) {
+  if (!item) return 'youtube';
+  if (item.platform) return item.platform;
+  const url = (item.url || item.webUrl || '').toLowerCase();
+  const ch = (item.channelName || '').toLowerCase();
+  const fp = (item.filePath || '').toLowerCase();
+  const title = (item.title || '').toLowerCase();
+  const id = String(item.id || '');
+  if (url.includes('tiktok.com') || ch.includes('tiktok') || fp.includes('0-tiktok')) return 'tiktok';
+  if (url.includes('twitter.com') || url.includes('x.com') || ch.includes('twitter') || fp.includes('0-x')) return 'x';
+  if (url.includes('instagram.com') || ch.includes('instagram') || fp.includes('0-instagram') || title.startsWith('video by ')) return 'instagram';
+  if (id.startsWith('ext_')) return 'other';
+  return 'youtube';
+}
+
+/**
+ * Platformlar için SVG ikonu döner.
+ */
+export function getPlatformSvgIcon(platform, size = 16) {
+  switch (platform) {
+    case 'tiktok':
+      return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.86 4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-.04-4.52z"/></svg>`;
+    case 'x':
+      return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`;
+    case 'instagram':
+      return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>`;
+    default:
+      return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>`;
+  }
+}
+
+/**
+ * Sol alt köşede gösterilecek platform rozetini üretir.
+ */
+export function getPlatformBadgeHtml(item) {
+  const platform = detectVideoPlatform(item);
+  let bg = 'rgba(239, 68, 68, 0.85)'; // YouTube Kırmızı
+  let label = 'YouTube';
+
+  if (platform === 'tiktok') {
+    bg = 'rgba(0, 0, 0, 0.85)';
+    label = 'TikTok';
+  } else if (platform === 'x') {
+    bg = 'rgba(15, 23, 42, 0.9)';
+    label = 'Twitter / X';
+  } else if (platform === 'instagram') {
+    bg = 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
+    label = 'Instagram';
+  }
+
+  const iconSvg = getPlatformSvgIcon(platform, 13);
+  return `<span class="video-card-platform-badge" title="${label}" style="position: absolute; bottom: 8px; left: 8px; z-index: 12; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: ${bg}; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); pointer-events: none;">${iconSvg}</span>`;
+}
+
+if (typeof window !== 'undefined') {
+  window.detectVideoPlatform = detectVideoPlatform;
+  window.getPlatformSvgIcon = getPlatformSvgIcon;
+  window.getPlatformBadgeHtml = getPlatformBadgeHtml;
 }

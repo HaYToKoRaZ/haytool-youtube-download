@@ -506,7 +506,8 @@ export async function retryAllFailedVideos() {
           videoId: item.id,
           title: item.title,
           channelName: item.channelName,
-          channelId: item.channelId
+          channelId: item.channelId,
+          url: item.webUrl || item.url || ''
         })
       });
       const data = await res.json();

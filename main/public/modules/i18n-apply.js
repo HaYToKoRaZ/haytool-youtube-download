@@ -445,6 +445,25 @@ export function applyLanguage(lang) {
   el('label-delete-file-modal', 'label_delete_file_modal');
   el('label-mark-watched-modal', 'label_mark_watched_modal');
   el('label-hide-library-modal', 'label_hide_library_modal');
+  el('auto-delete-modal-desc', 'auto_delete_modal_desc');
+  el('lbl-postpone-title', 'auto_delete_postpone_label');
+  el('btn-text-confirm-auto-delete', 'auto_delete_btn_delete_all');
+  const minUnit = t.unit_min_short || (currentLang === 'en' ? 'm' : 'dk');
+  const hourUnit = t.unit_hour_short || (currentLang === 'en' ? 'h' : 'sa');
+  const dayUnit = t.unit_day_short || (currentLang === 'en' ? 'd' : 'G');
+  [1, 3, 5, 10, 15].forEach(m => {
+    const b = document.getElementById(`btn-postpone-m${m}`);
+    if (b) b.textContent = `${m}${minUnit}`;
+  });
+  [1, 3, 6].forEach(h => {
+    const b = document.getElementById(`btn-postpone-h${h}`);
+    if (b) b.textContent = `${h}${hourUnit}`;
+  });
+  [1, 2, 3].forEach(d => {
+    const b = document.getElementById(`btn-postpone-${d}`);
+    if (b) b.textContent = `${d}${dayUnit}`;
+  });
+  el('btn-text-reset-postponed', 'btn_reset_postponed');
   
   const playingVideoId = (typeof window !== 'undefined') ? (window.currentPlayingVideoId || null) : null;
   if (playingVideoId) {
@@ -620,6 +639,7 @@ export function applyLanguage(lang) {
   el('nav-hdown-pd-text', 'nav_hdown_pd');
   el('nav-hdown-downloader-text', 'nav_hdown_downloader');
   el('nav-tools-compare-text', 'compare_title');
+  el('nav-tools-extension-text', 'nav_tools_extension');
   el('nav-tools-ape-text', 'nav_tools_ape');
   el('nav-tools-subs-text', 'nav_tools_subs');
   el('nav-tools-categories-text', 'category_manage_title');
@@ -735,6 +755,9 @@ export function applyLanguage(lang) {
   el('downloader-start-btn-text', 'downloader_start_btn');
   el('downloader-playlist-title-text', 'downloader_playlist_title');
   el('downloader-download-all-text', 'downloader_download_all');
+  el('lbl-fakap-master-switch', 'fakap_master_switch_label');
+  el('desc-fakap-master-switch', 'fakap_master_switch_desc');
+  el('btn-goto-fakap-page', 'fakap_goto_page_btn');
 
   const urlInput = document.getElementById('downloader-url-input');
   if (urlInput && t.downloader_url_placeholder) {

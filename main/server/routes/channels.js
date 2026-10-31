@@ -214,7 +214,7 @@ router.get('/search', async (req, res) => {
 
 // Kanal Ekle
 router.post('/', localhostOnly, async (req, res) => {
-  const { input, name, handle, avatar, downloadShorts } = req.body;
+  const { input, name, handle, avatar, downloadShorts, autoDownload, shortsDurationLimit, isFakap } = req.body;
   if (!input) return res.status(400).json({ error: 'Kanal adı veya adresi boş olamaz.' });
 
   try {
@@ -258,10 +258,11 @@ router.post('/', localhostOnly, async (req, res) => {
         quality: 'default',
         downloadShorts: downloadShorts === true || downloadShorts === 'true',
         avatar: channelInfo.avatar || '',
-        shortsDurationLimit: 180,
-        autoDownload: true,
+        shortsDurationLimit: (shortsDurationLimit !== undefined && !isNaN(Number(shortsDurationLimit))) ? Number(shortsDurationLimit) : 180,
+        autoDownload: autoDownload !== undefined ? (autoDownload === true || autoDownload === 'true') : true,
         autoDeleteDays: 'never',
-        subscriberCount: channelInfo.subscriberCount || ''
+        subscriberCount: channelInfo.subscriberCount || '',
+        isFakap: isFakap === true || isFakap === 'true'
       };
       db.channels.push(newChannel);
       writeDb(db);

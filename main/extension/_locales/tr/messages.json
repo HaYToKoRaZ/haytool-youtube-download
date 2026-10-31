@@ -1,0 +1,17 @@
+{
+  "extName": { "message": "Multimedia HaYTooL İndirici" },
+  "extDesc": { "message": "YouTube video indirme ve kanal takip yardımcısı" },
+  "popupTitle": { "message": "Multimedia HaYTooL" },
+  "statusChecking": { "message": "Mevcut sekme kontrol ediliyor..." },
+  "statusConnected": { "message": "Uygulamaya Bağlı (4141)" },
+  "statusDisconnected": { "message": "Uygulama Kapalı (HaYTooL'u açın)" },
+  "typeVideoDetected": { "message": "YouTube Videosu Algılandı" },
+  "typeChannelDetected": { "message": "YouTube Kanalı Algılandı" },
+  "typeNoneDetected": { "message": "YouTube sayfası açık değil" },
+  "btnDownloadVideo": { "message": "Videoyu İndir" },
+  "btnAddChannel": { "message": "Kanalı Takibe Al" },
+  "btnOpenApp": { "message": "HaYTooL'u Aç" },
+  "msgSuccessDownload": { "message": "İndirme kuyruğuna eklendi!" },
+  "msgSuccessChannel": { "message": "Kanal takibe alındı!" },
+  "msgError": { "message": "İşlem başarısız veya bağlantı yok." }
+}

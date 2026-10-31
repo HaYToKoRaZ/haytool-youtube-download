@@ -221,6 +221,67 @@ export function renderChannelsList(channelsList, channels, translations, categor
     grid.className = 'channels-grid-container';
 
     groups[letter].forEach(channel => {
+      const card = buildChannelCardElement(channel, categories, t);
+      grid.appendChild(card);
+    });
+
+    groupSection.appendChild(grid);
+    mainContent.appendChild(groupSection);
+  });
+
+  channelsList.appendChild(layout);
+
+  try {
+    lucide.createIcons();
+  } catch (e) {
+    // Kasıtlı sessiz
+  }
+}
+
+function formatChannelFolderSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let size = bytes / 1024;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
+}
+
+/**
+ * Kanalın YouTube sayfasını işletim sisteminin VARSAYILAN tarayıcısında açar.
+ * WebView2 içinde target="_blank" uygulama içi pencere açtığı için sunucudaki /api/open-url
+ * ucu kullanılır; istek başarısız olursa window.open ile geri düşülür.
+ */
+export async function openChannelInBrowser(url, ev) {
+  if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+  const target = String(url || '');
+  if (!/^https?:\/\//i.test(target)) {
+    window.open(target, '_blank', 'noopener');
+    return;
+  }
+  try {
+    const res = await fetch('/api/open-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: target })
+    });
+    if (!res.ok) throw new Error('open-url failed');
+  } catch (e) {
+    window.open(target, '_blank', 'noopener');
+  }
+}
+window.openChannelInBrowser = openChannelInBrowser;
+
+
+
+/**
+ * Kanallar sekmesindeki ve video karti cark modalindaki kanal kartini (channel-card)
+ * BİREBİR ayni HTML ve islevsellikle ureten ana bilesen fonksiyonu.
+ */
+export function buildChannelCardElement(channel, categories, t) {
       const channelInitial = (channel.name || 'Y').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
       const channelUrl = channel.handle 
         ? (channel.handle.startsWith('http') ? channel.handle : `https://www.youtube.com/${channel.handle.startsWith('@') ? channel.handle : '@' + channel.handle}`)
@@ -291,130 +352,132 @@ export function renderChannelsList(channelsList, channels, translations, categor
         <a class="channel-card-name" href="${channelUrl}" target="_blank" rel="noopener noreferrer" onclick="openChannelInBrowser(this.href, event)" title="${escapeHtml(channel.name)} (YouTube'da Aç)">
           ${escapeHtml(channel.name)}
         </a>
-        <div class="channel-card-handle" style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
-          <span>${escapeHtml(displayHandle)}</span>
-          <span id="ch-subs-badge-${channel.id}" class="channel-card-subscribers" style="font-size: 0.72rem; color: var(--accent-primary); background: rgba(168, 85, 247, 0.08); padding: 1px 6px; border-radius: 10px; font-weight: 600; border: 1px solid rgba(168, 85, 247, 0.15); display: inline-flex; align-items: center; vertical-align: middle; gap: 2px;">
+        <div class="channel-card-handle" style="display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; white-space: nowrap; overflow: hidden; padding: 0 4px;">
+          <span style="overflow: hidden; text-overflow: ellipsis; max-width: 140px;" title="${escapeHtml(displayHandle)}">${escapeHtml(displayHandle)}</span>
+          <span id="ch-subs-badge-${channel.id}" class="channel-card-subscribers" style="font-size: 0.72rem; color: var(--accent-primary); background: rgba(168, 85, 247, 0.08); padding: 1px 6px; border-radius: 10px; font-weight: 600; border: 1px solid rgba(168, 85, 247, 0.15); display: inline-flex; align-items: center; vertical-align: middle; gap: 2px; flex-shrink: 0;">
             <i data-lucide="users" style="width:10px; height:10px;"></i>
             <span class="subs-count-val">${escapeHtml(channel.subscriberCount || '?')}</span>
           </span>
         </div>
 
-        <div class="channel-card-settings">
-          <!-- İndirme Kalitesi -->
-          <select onchange="changeChannelQuality('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_quality_title || 'İndirme Kalitesi'}">
-            <option value="default" ${(!channel.quality || channel.quality === 'default') ? 'selected' : ''}>${t.select_quality_default || 'Varsayılan Kalite'}</option>
-            <option value="best" ${channel.quality === 'best' ? 'selected' : ''}>${t.select_quality_best || 'En Yüksek'}</option>
-            <option value="1080p" ${channel.quality === '1080p' ? 'selected' : ''}>${t.select_quality_1080p || '1080p FHD'}</option>
-            <option value="720p" ${channel.quality === '720p' ? 'selected' : ''}>${t.select_quality_720p || '720p HD'}</option>
-          </select>
-
-          <!-- Otomatik İndirme -->
-          <select onchange="changeChannelAutoDownload('${channel.id}', this.value)" class="channel-card-select" title="${t.select_auto_download_title || 'Otomatik İndirme Durumu'}">
-            <option value="true" ${channel.autoDownload !== false ? 'selected' : ''}>${t.select_auto_download_true || 'Otomatik İndir'}</option>
-            <option value="false" ${channel.autoDownload === false ? 'selected' : ''}>${t.select_auto_download_false || 'Otomatik İndirme'}</option>
-          </select>
-
-          <!-- Fakap (Otomatik Düşük Çözünürlüklü Yedek) -->
-          <select onchange="changeChannelFakap('${channel.id}', this.value)" class="channel-card-select" title="${t.fakap_channel_title || 'Fakap (Otomatik Yedek)'}">
-            <option value="false" ${!((window.localDb && window.localDb.fakap && window.localDb.fakap.channelIds) || []).includes(channel.id) ? 'selected' : ''}>${t.fakap_channel_off || 'Fakap: Kapalı'}</option>
-            <option value="true" ${((window.localDb && window.localDb.fakap && window.localDb.fakap.channelIds) || []).includes(channel.id) ? 'selected' : ''}>${t.fakap_channel_on || 'Fakap: Açık'}</option>
-          </select>
-          <!-- Shorts İndir -->
-          <select onchange="changeChannelShorts('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_shorts_title || 'Shorts İndirme Durumu'}">
-            <option value="true" ${channel.downloadShorts !== false ? 'selected' : ''}>${t.select_shorts_true || 'Shorts İndir'}</option>
-            <option value="false" ${channel.downloadShorts === false ? 'selected' : ''}>${t.select_shorts_false || 'Shorts İndirme'}</option>
-          </select>
-
-          <!-- Shorts Süre Sınırı -->
-          <select onchange="changeChannelShortsLimit('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_shorts_limit_title || 'Shorts Süre Sınırı'}">
-            <option value="3" ${channel.shortsDurationLimit == 3 ? 'selected' : ''}>Shorts &lt; 3${t.shorts_limit_seconds || 'sn'}</option>
-            <option value="5" ${channel.shortsDurationLimit == 5 ? 'selected' : ''}>Shorts &lt; 5${t.shorts_limit_seconds || 'sn'}</option>
-            <option value="10" ${channel.shortsDurationLimit == 10 ? 'selected' : ''}>Shorts &lt; 10${t.shorts_limit_seconds || 'sn'}</option>
-            <option value="15" ${channel.shortsDurationLimit == 15 ? 'selected' : ''}>Shorts &lt; 15${t.shorts_limit_seconds || 'sn'}</option>
-            <option value="20" ${channel.shortsDurationLimit == 20 ? 'selected' : ''}>Shorts &lt; 20${t.shorts_limit_seconds || 'sn'}</option>
-            <option value="30" ${channel.shortsDurationLimit == 30 ? 'selected' : ''}>Shorts &lt; 30${t.shorts_limit_seconds || 'sn'}</option>
-            <option value="45" ${channel.shortsDurationLimit == 45 ? 'selected' : ''}>Shorts &lt; 45${t.shorts_limit_seconds || 'sn'}</option>
-            <option value="60" ${channel.shortsDurationLimit == 60 ? 'selected' : ''}>Shorts &lt; 60${t.shorts_limit_seconds || 'sn'} (1 ${t.shorts_limit_minutes || 'dk'})</option>
-            <option value="90" ${channel.shortsDurationLimit == 90 ? 'selected' : ''}>Shorts &lt; 90${t.shorts_limit_seconds || 'sn'} (1.5 ${t.shorts_limit_minutes || 'dk'})</option>
-            <option value="120" ${channel.shortsDurationLimit == 120 ? 'selected' : ''}>Shorts &lt; 120${t.shorts_limit_seconds || 'sn'} (2 ${t.shorts_limit_minutes || 'dk'})</option>
-            <option value="150" ${channel.shortsDurationLimit == 150 ? 'selected' : ''}>Shorts &lt; 150${t.shorts_limit_seconds || 'sn'} (2.5 ${t.shorts_limit_minutes || 'dk'})</option>
-            <option value="180" ${(!channel.shortsDurationLimit || channel.shortsDurationLimit == 180) ? 'selected' : ''}>Shorts &lt; 180${t.shorts_limit_seconds || 'sn'} (3 ${t.shorts_limit_minutes || 'dk'})</option>
-            <option value="240" ${channel.shortsDurationLimit == 240 ? 'selected' : ''}>Shorts &lt; 240${t.shorts_limit_seconds || 'sn'} (4 ${t.shorts_limit_minutes || 'dk'})</option>
-            <option value="300" ${channel.shortsDurationLimit == 300 ? 'selected' : ''}>Shorts &lt; 300${t.shorts_limit_seconds || 'sn'} (5 ${t.shorts_limit_minutes || 'dk'})</option>
-            <option value="420" ${channel.shortsDurationLimit == 420 ? 'selected' : ''}>Shorts &lt; 420${t.shorts_limit_seconds || 'sn'} (7 ${t.shorts_limit_minutes || 'dk'})</option>
-            <option value="600" ${channel.shortsDurationLimit == 600 ? 'selected' : ''}>Shorts &lt; 600${t.shorts_limit_seconds || 'sn'} (10 ${t.shorts_limit_minutes || 'dk'})</option>
-            <option value="900" ${channel.shortsDurationLimit == 900 ? 'selected' : ''}>Shorts &lt; 15 ${t.shorts_limit_minutes || 'dk'}</option>
-            <option value="1200" ${channel.shortsDurationLimit == 1200 ? 'selected' : ''}>Shorts &lt; 20 ${t.shorts_limit_minutes || 'dk'}</option>
-            <option value="1500" ${channel.shortsDurationLimit == 1500 ? 'selected' : ''}>Shorts &lt; 25 ${t.shorts_limit_minutes || 'dk'}</option>
-            <option value="1800" ${channel.shortsDurationLimit == 1800 ? 'selected' : ''}>Shorts &lt; 30 ${t.shorts_limit_minutes || 'dk'}</option>
-            <option value="2700" ${channel.shortsDurationLimit == 2700 ? 'selected' : ''}>Shorts &lt; 45 ${t.shorts_limit_minutes || 'dk'}</option>
-            <option value="3600" ${channel.shortsDurationLimit == 3600 ? 'selected' : ''}>Shorts &lt; 1 ${t.shorts_limit_hours || 'sa'} (60 ${t.shorts_limit_minutes || 'dk'})</option>
-            <option value="5400" ${channel.shortsDurationLimit == 5400 ? 'selected' : ''}>Shorts &lt; 1.5 ${t.shorts_limit_hours || 'sa'} (90 ${t.shorts_limit_minutes || 'dk'})</option>
-          </select>
-
-          <!-- Kanala Özel Otomatik Silme -->
-          <select onchange="changeChannelAutoDelete('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_autodelete_title || 'Otomatik Video Silme Kuralı'}">
-            <option value="never" ${(!channel.autoDeleteDays || channel.autoDeleteDays === 'never' || channel.autoDeleteDays === '0') ? 'selected' : ''}>${t.opt_autodelete_never || 'Asla Silme (Kalıcı)'}</option>
-            <option value="global" ${channel.autoDeleteDays === 'global' ? 'selected' : ''}>${t.opt_autodelete_global || 'Genel Ayara Uy'}</option>
-            <option value="1" ${channel.autoDeleteDays === '1' ? 'selected' : ''}>1 ${t.unit_days || 'Gün'}</option>
-            <option value="2" ${channel.autoDeleteDays === '2' ? 'selected' : ''}>2 ${t.unit_days || 'Gün'}</option>
-            <option value="3" ${channel.autoDeleteDays === '3' ? 'selected' : ''}>3 ${t.unit_days || 'Gün'}</option>
-            <option value="4" ${channel.autoDeleteDays === '4' ? 'selected' : ''}>4 ${t.unit_days || 'Gün'}</option>
-            <option value="5" ${channel.autoDeleteDays === '5' ? 'selected' : ''}>5 ${t.unit_days || 'Gün'}</option>
-            <option value="6" ${channel.autoDeleteDays === '6' ? 'selected' : ''}>6 ${t.unit_days || 'Gün'}</option>
-            <option value="7" ${channel.autoDeleteDays === '7' ? 'selected' : ''}>7 ${t.unit_days || 'Gün'}</option>
-            <option value="8" ${channel.autoDeleteDays === '8' ? 'selected' : ''}>8 ${t.unit_days || 'Gün'}</option>
-            <option value="9" ${channel.autoDeleteDays === '9' ? 'selected' : ''}>9 ${t.unit_days || 'Gün'}</option>
-            <option value="10" ${channel.autoDeleteDays === '10' ? 'selected' : ''}>10 ${t.unit_days || 'Gün'}</option>
-            <option value="11" ${channel.autoDeleteDays === '11' ? 'selected' : ''}>11 ${t.unit_days || 'Gün'}</option>
-            <option value="12" ${channel.autoDeleteDays === '12' ? 'selected' : ''}>12 ${t.unit_days || 'Gün'}</option>
-            <option value="13" ${channel.autoDeleteDays === '13' ? 'selected' : ''}>13 ${t.unit_days || 'Gün'}</option>
-            <option value="14" ${channel.autoDeleteDays === '14' ? 'selected' : ''}>14 ${t.unit_days || 'Gün'}</option>
-            <option value="15" ${channel.autoDeleteDays === '15' ? 'selected' : ''}>15 ${t.unit_days || 'Gün'}</option>
-            <option value="21" ${channel.autoDeleteDays === '21' ? 'selected' : ''}>21 ${t.unit_days || 'Gün'}</option>
-            <option value="30" ${channel.autoDeleteDays === '30' ? 'selected' : ''}>30 ${t.unit_days || 'Gün'}</option>
-            <option value="45" ${channel.autoDeleteDays === '45' ? 'selected' : ''}>45 ${t.unit_days || 'Gün'}</option>
-            <option value="60" ${channel.autoDeleteDays === '60' ? 'selected' : ''}>60 ${t.unit_days || 'Gün'}</option>
-            <option value="90" ${channel.autoDeleteDays === '90' ? 'selected' : ''}>90 ${t.unit_days || 'Gün'}</option>
-            <option value="120" ${channel.autoDeleteDays === '120' ? 'selected' : ''}>120 ${t.unit_days || 'Gün'}</option>
-            <option value="180" ${channel.autoDeleteDays === '180' ? 'selected' : ''}>180 ${t.unit_days || 'Gün'}</option>
-            <option value="365" ${channel.autoDeleteDays === '365' ? 'selected' : ''}>365 ${t.unit_days || 'Gün'}</option>
-          </select>
-
-          <!-- Kanala Özel Maksimum Video Sayısı Sınırı -->
-          <select onchange="changeChannelAutoDeleteMaxCount('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_autodelete_max_count_title || 'Maksimum Video Sınırı'}">
-            <option value="0" ${(!channel.autoDeleteMaxCount || channel.autoDeleteMaxCount === '0' || channel.autoDeleteMaxCount === 0) ? 'selected' : ''}>${t.opt_autodelete_count_unlimited || 'Sınırsız Video (Varsayılan)'}</option>
-            <option value="global" ${channel.autoDeleteMaxCount === 'global' ? 'selected' : ''}>${t.opt_autodelete_global || 'Genel Ayara Uy'}</option>
-            <option value="5" ${String(channel.autoDeleteMaxCount) === '5' ? 'selected' : ''}>5 ${t.unit_videos || 'Video'}</option>
-            <option value="10" ${String(channel.autoDeleteMaxCount) === '10' ? 'selected' : ''}>10 ${t.unit_videos || 'Video'}</option>
-            <option value="15" ${String(channel.autoDeleteMaxCount) === '15' ? 'selected' : ''}>15 ${t.unit_videos || 'Video'}</option>
-            <option value="20" ${String(channel.autoDeleteMaxCount) === '20' ? 'selected' : ''}>20 ${t.unit_videos || 'Video'}</option>
-            <option value="25" ${String(channel.autoDeleteMaxCount) === '25' ? 'selected' : ''}>25 ${t.unit_videos || 'Video'}</option>
-            <option value="30" ${String(channel.autoDeleteMaxCount) === '30' ? 'selected' : ''}>30 ${t.unit_videos || 'Video'}</option>
-            <option value="50" ${String(channel.autoDeleteMaxCount) === '50' ? 'selected' : ''}>50 ${t.unit_videos || 'Video'}</option>
-            <option value="75" ${String(channel.autoDeleteMaxCount) === '75' ? 'selected' : ''}>75 ${t.unit_videos || 'Video'}</option>
-            <option value="100" ${String(channel.autoDeleteMaxCount) === '100' ? 'selected' : ''}>100 ${t.unit_videos || 'Video'}</option>
-            <option value="150" ${String(channel.autoDeleteMaxCount) === '150' ? 'selected' : ''}>150 ${t.unit_videos || 'Video'}</option>
-            <option value="200" ${String(channel.autoDeleteMaxCount) === '200' ? 'selected' : ''}>200 ${t.unit_videos || 'Video'}</option>
-            <option value="300" ${String(channel.autoDeleteMaxCount) === '300' ? 'selected' : ''}>300 ${t.unit_videos || 'Video'}</option>
-            <option value="500" ${String(channel.autoDeleteMaxCount) === '500' ? 'selected' : ''}>500 ${t.unit_videos || 'Video'}</option>
-          </select>
-
-          <!-- Kategoriler Badgeleri -->
-          <div class="channel-card-categories-list" style="display: flex; flex-wrap: wrap; gap: 4px; width: 100%; margin-bottom: 6px; padding: 0 4px;">
-            ${categoryBadges || `<span style="font-size: 0.68rem; color: var(--text-muted); font-style: italic;">Kategorisiz</span>`}
-          </div>
-          <div class="channel-card-folder-size">
-            <i data-lucide="hard-drive" aria-hidden="true"></i>
-            <span>${escapeHtml(t.channel_folder_size_label || 'Klasör boyutu')}:</span>
-            <strong>${escapeHtml(folderSizeText)}</strong>
+        <div class="channel-card-settings" style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box; margin: 8px 0 6px;">
+          <!-- 1. Oto İndir Switch (Tam Genişlik, Kesilmez) -->
+          <div class="channel-switch-card-item" title="${t.select_auto_download_title || 'Yeni videolar otomatik indirilsin mi?'}">
+            <span class="channel-switch-card-label">
+              <i data-lucide="download-cloud"></i>
+              ${t.select_auto_download_true || 'Otomatik İndir'}
+            </span>
+            <label class="modern-toggle-switch" style="width: 32px; height: 18px; flex-shrink: 0;">
+              <input type="checkbox" ${channel.autoDownload !== false ? 'checked' : ''} onchange="changeChannelAutoDownload('${channel.id}', String(this.checked))">
+              <span class="modern-toggle-slider"></span>
+            </label>
           </div>
 
-          <!-- Kategori Ekleme Dropdown -->
-          <select onchange="changeChannelCategory('${channel.id}', this.value); this.value='';" class="channel-card-select" title="${t.category_select_label || 'Kategori Ekle'}">
+          <!-- 2. FaKaP Yedeği Switch (Tam Genişlik, Kesilmez) -->
+          <div class="channel-switch-card-item" title="${t.fakap_channel_title || 'Otomatik düşük çözünürlüklü FaKaP yedeği'}">
+            <span class="channel-switch-card-label">
+              <i data-lucide="shield-check" style="color: #a855f7;"></i>
+              ${t.fakap_channel_badge || 'FaKaP Yedeği'}
+            </span>
+            <label class="modern-toggle-switch toggle-purple" style="width: 32px; height: 18px; flex-shrink: 0;">
+              <input type="checkbox" ${((window.localDb && window.localDb.fakap && window.localDb.fakap.channelIds) || []).includes(channel.id) ? 'checked' : ''} onchange="changeChannelFakap('${channel.id}', String(this.checked))">
+              <span class="modern-toggle-slider"></span>
+            </label>
+          </div>
+
+          <!-- 3. Shorts Switch (Tam Genişlik, Kesilmez) -->
+          <div class="channel-switch-card-item" title="${t.channel_shorts_title || 'Shorts videolarını dahil et'}">
+            <span class="channel-switch-card-label">
+              <i data-lucide="zap" style="color: #f59e0b;"></i>
+              ${t.select_shorts_true || 'Shorts İndir'}
+            </span>
+            <label class="modern-toggle-switch" style="width: 32px; height: 18px; flex-shrink: 0;">
+              <input type="checkbox" ${channel.downloadShorts !== false ? 'checked' : ''} onchange="changeChannelShorts('${channel.id}', String(this.checked))">
+              <span class="modern-toggle-slider"></span>
+            </label>
+          </div>
+
+          <!-- Seçenekler Izgarası (2 Sütunlu Kompakt) -->
+          <div class="channel-card-select-grid">
+            <!-- İndirme Kalitesi -->
+            <select onchange="changeChannelQuality('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_quality_title || 'İndirme Kalitesi'}">
+              <option value="default" ${(!channel.quality || channel.quality === 'default') ? 'selected' : ''}>${t.select_quality_default || 'Varsayılan Kalite'}</option>
+              <option value="best" ${channel.quality === 'best' ? 'selected' : ''}>${t.select_quality_best || 'En Yüksek'}</option>
+              <option value="1080p" ${channel.quality === '1080p' ? 'selected' : ''}>${t.select_quality_1080p || '1080p FHD'}</option>
+              <option value="720p" ${channel.quality === '720p' ? 'selected' : ''}>${t.select_quality_720p || '720p HD'}</option>
+            </select>
+
+            <!-- Shorts Süre Sınırı -->
+            <select onchange="changeChannelShortsLimit('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_shorts_limit_title || 'Shorts Süre Sınırı'}">
+              <option value="3" ${channel.shortsDurationLimit == 3 ? 'selected' : ''}>&lt; 3${t.shorts_limit_seconds || 'sn'}</option>
+              <option value="5" ${channel.shortsDurationLimit == 5 ? 'selected' : ''}>&lt; 5${t.shorts_limit_seconds || 'sn'}</option>
+              <option value="10" ${channel.shortsDurationLimit == 10 ? 'selected' : ''}>&lt; 10${t.shorts_limit_seconds || 'sn'}</option>
+              <option value="15" ${channel.shortsDurationLimit == 15 ? 'selected' : ''}>&lt; 15${t.shorts_limit_seconds || 'sn'}</option>
+              <option value="20" ${channel.shortsDurationLimit == 20 ? 'selected' : ''}>&lt; 20${t.shorts_limit_seconds || 'sn'}</option>
+              <option value="30" ${channel.shortsDurationLimit == 30 ? 'selected' : ''}>&lt; 30${t.shorts_limit_seconds || 'sn'}</option>
+              <option value="45" ${channel.shortsDurationLimit == 45 ? 'selected' : ''}>&lt; 45${t.shorts_limit_seconds || 'sn'}</option>
+              <option value="60" ${channel.shortsDurationLimit == 60 ? 'selected' : ''}>&lt; 60${t.shorts_limit_seconds || 'sn'}</option>
+              <option value="90" ${channel.shortsDurationLimit == 90 ? 'selected' : ''}>&lt; 90${t.shorts_limit_seconds || 'sn'}</option>
+              <option value="120" ${channel.shortsDurationLimit == 120 ? 'selected' : ''}>&lt; 2 ${t.shorts_limit_minutes || 'dk'}</option>
+              <option value="180" ${(!channel.shortsDurationLimit || channel.shortsDurationLimit == 180) ? 'selected' : ''}>&lt; 3 ${t.shorts_limit_minutes || 'dk'}</option>
+              <option value="240" ${channel.shortsDurationLimit == 240 ? 'selected' : ''}>&lt; 4 ${t.shorts_limit_minutes || 'dk'}</option>
+              <option value="300" ${channel.shortsDurationLimit == 300 ? 'selected' : ''}>&lt; 5 ${t.shorts_limit_minutes || 'dk'}</option>
+              <option value="600" ${channel.shortsDurationLimit == 600 ? 'selected' : ''}>&lt; 10 ${t.shorts_limit_minutes || 'dk'}</option>
+              <option value="900" ${channel.shortsDurationLimit == 900 ? 'selected' : ''}>&lt; 15 ${t.shorts_limit_minutes || 'dk'}</option>
+              <option value="1800" ${channel.shortsDurationLimit == 1800 ? 'selected' : ''}>&lt; 30 ${t.shorts_limit_minutes || 'dk'}</option>
+              <option value="3600" ${channel.shortsDurationLimit == 3600 ? 'selected' : ''}>&lt; 1 ${t.shorts_limit_hours || 'sa'}</option>
+            </select>
+          </div>
+
+          <div class="channel-card-select-grid">
+            <!-- Otomatik Silme Kuralı -->
+            <select onchange="changeChannelAutoDelete('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_autodelete_title || 'Otomatik Video Silme Kuralı'}">
+              <option value="never" ${(!channel.autoDeleteDays || channel.autoDeleteDays === 'never' || channel.autoDeleteDays === '0') ? 'selected' : ''}>${t.opt_autodelete_never || 'Asla Silme'}</option>
+              <option value="global" ${channel.autoDeleteDays === 'global' ? 'selected' : ''}>${t.opt_autodelete_global || 'Genel Ayar'}</option>
+              <option value="1" ${channel.autoDeleteDays === '1' ? 'selected' : ''}>1 ${t.unit_days || 'Gün'}</option>
+              <option value="2" ${channel.autoDeleteDays === '2' ? 'selected' : ''}>2 ${t.unit_days || 'Gün'}</option>
+              <option value="3" ${channel.autoDeleteDays === '3' ? 'selected' : ''}>3 ${t.unit_days || 'Gün'}</option>
+              <option value="5" ${channel.autoDeleteDays === '5' ? 'selected' : ''}>5 ${t.unit_days || 'Gün'}</option>
+              <option value="7" ${channel.autoDeleteDays === '7' ? 'selected' : ''}>7 ${t.unit_days || 'Gün'}</option>
+              <option value="14" ${channel.autoDeleteDays === '14' ? 'selected' : ''}>14 ${t.unit_days || 'Gün'}</option>
+              <option value="30" ${channel.autoDeleteDays === '30' ? 'selected' : ''}>30 ${t.unit_days || 'Gün'}</option>
+              <option value="60" ${channel.autoDeleteDays === '60' ? 'selected' : ''}>60 ${t.unit_days || 'Gün'}</option>
+              <option value="90" ${channel.autoDeleteDays === '90' ? 'selected' : ''}>90 ${t.unit_days || 'Gün'}</option>
+              <option value="180" ${channel.autoDeleteDays === '180' ? 'selected' : ''}>180 ${t.unit_days || 'Gün'}</option>
+              <option value="365" ${channel.autoDeleteDays === '365' ? 'selected' : ''}>365 ${t.unit_days || 'Gün'}</option>
+            </select>
+
+            <!-- Maksimum Video Sayısı Sınırı -->
+            <select onchange="changeChannelAutoDeleteMaxCount('${channel.id}', this.value)" class="channel-card-select" title="${t.channel_autodelete_max_count_title || 'Maksimum Video Sınırı'}">
+              <option value="0" ${(!channel.autoDeleteMaxCount || channel.autoDeleteMaxCount === '0' || channel.autoDeleteMaxCount === 0) ? 'selected' : ''}>${t.opt_autodelete_count_unlimited || 'Sınırsız Video'}</option>
+              <option value="global" ${channel.autoDeleteMaxCount === 'global' ? 'selected' : ''}>${t.opt_autodelete_global || 'Genel Ayar'}</option>
+              <option value="5" ${String(channel.autoDeleteMaxCount) === '5' ? 'selected' : ''}>5 ${t.unit_videos || 'Video'}</option>
+              <option value="10" ${String(channel.autoDeleteMaxCount) === '10' ? 'selected' : ''}>10 ${t.unit_videos || 'Video'}</option>
+              <option value="15" ${String(channel.autoDeleteMaxCount) === '15' ? 'selected' : ''}>15 ${t.unit_videos || 'Video'}</option>
+              <option value="20" ${String(channel.autoDeleteMaxCount) === '20' ? 'selected' : ''}>20 ${t.unit_videos || 'Video'}</option>
+              <option value="30" ${String(channel.autoDeleteMaxCount) === '30' ? 'selected' : ''}>30 ${t.unit_videos || 'Video'}</option>
+              <option value="50" ${String(channel.autoDeleteMaxCount) === '50' ? 'selected' : ''}>50 ${t.unit_videos || 'Video'}</option>
+              <option value="100" ${String(channel.autoDeleteMaxCount) === '100' ? 'selected' : ''}>100 ${t.unit_videos || 'Video'}</option>
+            </select>
+          </div>
+
+          <!-- Kategori Ekleme Dropdown (Tam Genişlik) -->
+          <select onchange="changeChannelCategory('${channel.id}', this.value); this.value='';" class="channel-card-select" title="${t.category_select_label || 'Kategori Ekle'}" style="margin-bottom: 4px;">
             <option value="" disabled selected>${t.category_select_label || 'Kategori Ekle...'}</option>
             ${categoryOptions}
           </select>
+
+          <!-- Kategoriler Badgeleri -->
+          <div class="channel-card-categories-list" style="display: flex; flex-wrap: wrap; gap: 4px; width: 100%; margin-bottom: 4px; padding: 0 2px;">
+            ${categoryBadges || `<span style="font-size: 0.68rem; color: var(--text-muted); font-style: italic;">Kategorisiz</span>`}
+          </div>
+
+          <!-- Klasör Boyutu Bilgisi -->
+          <div class="channel-card-folder-size" style="margin: 2px 0 0;">
+            <i data-lucide="hard-drive" aria-hidden="true"></i>
+            <span>${escapeHtml(t.channel_folder_size_label || 'Klasör')}:</span>
+            <strong>${escapeHtml(folderSizeText)}</strong>
+          </div>
         </div>
 
         <div class="channel-card-actions">
@@ -436,56 +499,10 @@ export function renderChannelsList(channelsList, channels, translations, categor
         </div>
       `;
 
-      grid.appendChild(card);
-    });
-
-    groupSection.appendChild(grid);
-    mainContent.appendChild(groupSection);
-  });
-
-  channelsList.appendChild(layout);
-
-  try {
-    lucide.createIcons();
-  } catch (e) {
-    // Kasıtlı sessiz
-  }
+      
+  return card;
 }
 
-function formatChannelFolderSize(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ['KB', 'MB', 'GB', 'TB'];
-  let size = bytes / 1024;
-  let unitIndex = 0;
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex++;
-  }
-  return `${size.toFixed(1)} ${units[unitIndex]}`;
+if (typeof window !== 'undefined') {
+  window.buildChannelCardElement = buildChannelCardElement;
 }
-
-/**
- * Kanalın YouTube sayfasını işletim sisteminin VARSAYILAN tarayıcısında açar.
- * WebView2 içinde target="_blank" uygulama içi pencere açtığı için sunucudaki /api/open-url
- * ucu kullanılır; istek başarısız olursa window.open ile geri düşülür.
- */
-export async function openChannelInBrowser(url, ev) {
-  if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
-  const target = String(url || '');
-  if (!/^https?:\/\//i.test(target)) {
-    window.open(target, '_blank', 'noopener');
-    return;
-  }
-  try {
-    const res = await fetch('/api/open-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: target })
-    });
-    if (!res.ok) throw new Error('open-url failed');
-  } catch (e) {
-    window.open(target, '_blank', 'noopener');
-  }
-}
-window.openChannelInBrowser = openChannelInBrowser;
-

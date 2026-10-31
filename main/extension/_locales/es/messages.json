@@ -1,0 +1,17 @@
+{
+  "extName": { "message": "Multimedia HaYTooL Descargador" },
+  "extDesc": { "message": "Descargador de videos y seguidor de canales de YouTube" },
+  "popupTitle": { "message": "Multimedia HaYTooL" },
+  "statusChecking": { "message": "Comprobando pestaña activa..." },
+  "statusConnected": { "message": "Conectado a la aplicación (4141)" },
+  "statusDisconnected": { "message": "Aplicación cerrada (inicia HaYTooL)" },
+  "typeVideoDetected": { "message": "Video de YouTube detectado" },
+  "typeChannelDetected": { "message": "Canal de YouTube detectado" },
+  "typeNoneDetected": { "message": "No hay página de YouTube abierta" },
+  "btnDownloadVideo": { "message": "Descargar video" },
+  "btnAddChannel": { "message": "Seguir canal" },
+  "btnOpenApp": { "message": "Abrir HaYTooL" },
+  "msgSuccessDownload": { "message": "¡Añadido a la cola!" },
+  "msgSuccessChannel": { "message": "¡Canal añadido a seguimiento!" },
+  "msgError": { "message": "Error al procesar la acción." }
+}

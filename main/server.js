@@ -163,7 +163,7 @@ import {
   ytdlpPath,
   cleanLocalTempDir 
 } from './server/services/paths.js';
-import { downloadQueue, getEffectiveSpeedLimit, performYtdlpUpdate } from './server/services/downloader.js';
+import { downloadQueue, getEffectiveSpeedLimit, performYtdlpUpdate, resolveItemDownloadUrl } from './server/services/downloader.js';
 import { 
   triggerChannelCheck,
   resolveMissingDurations, 
@@ -173,7 +173,7 @@ import {
 import { addTerminalLog, broadcast, attachConsoleBridge } from './server/services/sse.js';
 import { startCookieHealthCheck } from './server/services/cookieHealth.js';
 import { startNetworkHealthCheck } from './server/services/networkHealth.js';
-import { startFakapService } from './server/services/fakapService.js';
+import { startFakapService, cleanupExpired } from './server/services/fakapService.js';
 import { startMaintenanceService } from './server/services/maintenanceService.js';
 import { gzipSync } from 'zlib';
 import { discordRpc } from './server/services/discord.js';
@@ -209,7 +209,8 @@ attachConsoleBridge();
 
 // Express Uygulaması Kurulumu
 const app = express();
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(express.json({ limit: '2mb' }));
 
 // Türkçe Açıklama: Vanilla zlib ile gzip sıkıştırma middleware'i.
 // Yalnızca gzip destekleyen istemcilere ve 1KB üzeri yanıtlara uygulanır.
@@ -532,12 +533,16 @@ function restartActiveDownloadWithNewLimit(db, oldSpeedLimit, newSpeedLimit) {
     console.log(`[Console] Hız sınırı değişti (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: ${historyItem.title}`);
     addTerminalLog(`[Console] Hız sınırı değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
     
+    const targetUrl = resolveItemDownloadUrl(historyItem);
     downloadQueue.queue.unshift({
       id: videoId,
+      originalId: historyItem.originalId || videoId,
       title: historyItem.title,
       channelId: historyItem.channelId,
       channelName: historyItem.channelName,
-      url: `https://www.youtube.com/watch?v=${videoId}`,
+      url: targetUrl,
+      webUrl: historyItem.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+      platform: historyItem.platform,
       publishedAt: historyItem.publishedAt || ''
     });
     
@@ -619,6 +624,68 @@ process.stdin.on('end', () => {
   process.exit(0);
 });
 
+function pauseDownloadQueue() {
+  downloadQueue.isPaused = true;
+  const db = readDb();
+  db.settings.isPaused = true;
+  writeDb(db);
+  console.log('[Kuyruk] CLI komutu ile indirme kuyruğu duraklatıldı.');
+  addTerminalLog('[Kuyruk] İndirme sırası duraklatıldı.', 'warning');
+  if (downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+    const videoId = downloadQueue.activeVideoId;
+    const historyItem = db.history.find(h => h.id === videoId);
+    if (historyItem) {
+      const targetUrl = resolveItemDownloadUrl(historyItem);
+      downloadQueue.queue.unshift({
+        id: videoId,
+        originalId: historyItem.originalId || videoId,
+        title: historyItem.title,
+        channelId: historyItem.channelId,
+        channelName: historyItem.channelName,
+        url: targetUrl,
+        webUrl: historyItem.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+        platform: historyItem.platform,
+        publishedAt: historyItem.publishedAt || ''
+      });
+      updateHistoryItem(videoId, {
+        status: 'waiting',
+        progress: historyItem.progress || 0,
+        speed: '',
+        eta: ''
+      });
+      const proc = downloadQueue.activeProcess;
+      const pid = proc.pid;
+      downloadQueue.activeProcess = null;
+      downloadQueue.activeVideoId = null;
+      if (downloadQueue.activeDownloads > 0) {
+        downloadQueue.activeDownloads--;
+      }
+      if (pid) {
+        exec(`taskkill /F /T /PID ${pid}`, () => {
+          try { proc.kill('SIGKILL'); } catch (e) {}
+        });
+      }
+    }
+  }
+  broadcast('db_update', readDb());
+}
+
+function resumeDownloadQueue() {
+  downloadQueue.isPaused = false;
+  downloadQueue.isNetworkWaiting = false;
+  if (downloadQueue.networkRecoveryTimer) {
+    clearInterval(downloadQueue.networkRecoveryTimer);
+    downloadQueue.networkRecoveryTimer = null;
+  }
+  const db = readDb();
+  db.settings.isPaused = false;
+  writeDb(db);
+  console.log('[Kuyruk] CLI komutu ile indirme kuyruğu devam ettiriliyor.');
+  addTerminalLog('[Kuyruk] İndirme sırası devam ettiriliyor.', 'success');
+  broadcast('db_update', readDb());
+  downloadQueue.process();
+}
+
 process.stdin.on('data', (data) => {
   const line = data.toString().trim();
   if (!line) return;
@@ -627,16 +694,21 @@ process.stdin.on('data', (data) => {
   const command = parts[0].toLowerCase();
   const args = parts.slice(1);
 
-  if (command === 'help' || command === '?') {
-    console.log('[Console] Kullanılabilir Komutlar:\n' +
-                '  • status                 : Hız limitlerini ve aktif indirme durumunu gösterir\n' +
-                '  • ton / turtleon         : Alternatif kaplumbağa hız limitini açar\n' +
-                '  • toff / turtleoff       : Alternatif kaplumbağa hız limitini kapatır\n' +
-                '  • toggle                 : Alternatif hız modunu açar/kapatır (geçiş yapar)\n' +
-                '  • speed <değer|off|on>   : Normal hız limitini ayarlar veya kapatır (örn: speed 2500, speed off)\n' +
-                '  • altspeed <değer>       : Alternatif hız profilini ayarlar (örn: altspeed 500)\n' +
-                '  • pd <link>              : Belirtilen YouTube video/oynatma listesini kuyruğa ekler\n' +
-                '  • stop / exit            : Sunucuyu ve uygulamayı tamamen kapatır\n' +
+  if (command === 'help' || command === '?' || command === 'komutlar') {
+    console.log('[Console] Kullanılabilir CLI & Konsol Komutları:\n' +
+                '  • status / info / durum  : Sistem, kuyruk ve hız durumu özetini gösterir\n' +
+                '  • pause / duraklat       : İndirme kuyruğunu duraklatır (aktif indirmeyi bekletir)\n' +
+                '  • resume / devam         : Duraklatılmış indirme kuyruğunu devam ettirir\n' +
+                '  • ton / turtleon / turtleac: Kaplumbağa alternatif hız limitini açar\n' +
+                '  • toff / turtleoff / turtlekapat: Kaplumbağa alternatif hız limitini kapatır\n' +
+                '  • toggle / turtle        : Kaplumbağa modu arasında geçiş yapar (aç/kapat)\n' +
+                '  • speed <değer|off|on>   : Normal hız limitini ayarlar (KB/s) veya kapatır (speed off)\n' +
+                '  • altspeed <değer>       : Kaplumbağa modu hız profilini ayarlar (örn: altspeed 500)\n' +
+                '  • pd [link]              : Link verilirse kuyruğa ekler; linksiz ise duraklat/devam geçişi yapar\n' +
+                '  • check / tara / scan    : Takip edilen kanalları anında RSS ile denetler\n' +
+                '  • backup / yedek         : Sistem veritabanı ve ayarlarının anlık yedeğini alır\n' +
+                '  • fakap / fakap-run      : Fakap otomatik yedekleme kontrolünü anında çalıştırır\n' +
+                '  • stop / exit / quit     : Sunucuyu ve uygulamayı tamamen kapatır\n' +
                 '  • clear                  : Konsol ekranını temizler');
     return;
   }
@@ -646,9 +718,40 @@ process.stdin.on('data', (data) => {
     process.exit(0);
   }
 
+  if (command === 'pause' || command === 'duraklat' || command === 'pause-all') {
+    pauseDownloadQueue();
+    return;
+  }
+
+  if (command === 'resume' || command === 'devam' || command === 'resume-all') {
+    resumeDownloadQueue();
+    return;
+  }
+
+  if (command === 'check' || command === 'scan' || command === 'tara') {
+    console.log('[Console] Kanallar taranıyor...');
+    addTerminalLog('[Console] Takip edilen kanallar CLI üzerinden taranıyor...', 'info');
+    triggerChannelCheck('cli').catch(err => console.error('[Console] Tarama hatası:', err.message));
+    return;
+  }
+
+  if (command === 'backup' || command === 'yedek') {
+    console.log('[Console] Sistem anlık yedeği alınıyor...');
+    addTerminalLog('[Console] Sistem anlık yedeği alınıyor...', 'info');
+    ensureDailySystemBackup();
+    return;
+  }
+
+  if (command === 'fakap' || command === 'fakap-run') {
+    console.log('[Console] Fakap bakım ve temizliği tetiklendi.');
+    addTerminalLog('[Console] Fakap bakım ve temizliği çalıştırıldı.', 'info');
+    cleanupExpired().catch(() => {});
+    return;
+  }
+
   const db = readDb();
 
-  if (command === 'ton' || command === 'turtleon' || command === 'turtleac') {
+  if (command === 'ton' || command === 'turtleon' || command === 'turtleac' || command === 'turtle-on') {
     const oldLimit = getEffectiveSpeedLimit(db.settings);
     db.settings.useAlternativeSpeed = true;
     const newLimit = getEffectiveSpeedLimit(db.settings);
@@ -660,7 +763,7 @@ process.stdin.on('data', (data) => {
     if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
       restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
     }
-  } else if (command === 'toff' || command === 'turtleoff' || command === 'turtlekapat') {
+  } else if (command === 'toff' || command === 'turtleoff' || command === 'turtlekapat' || command === 'turtle-off') {
     const oldLimit = getEffectiveSpeedLimit(db.settings);
     db.settings.useAlternativeSpeed = false;
     const newLimit = getEffectiveSpeedLimit(db.settings);
@@ -672,7 +775,7 @@ process.stdin.on('data', (data) => {
     if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
       restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
     }
-  } else if (command === 'toggle' || (command === 'altspeed' && args[0] === 'toggle')) {
+  } else if (command === 'toggle' || command === 'turtle' || command === 'turtle-toggle' || (command === 'altspeed' && args[0] === 'toggle')) {
     const oldLimit = getEffectiveSpeedLimit(db.settings);
     db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
     const newLimit = getEffectiveSpeedLimit(db.settings);
@@ -734,19 +837,30 @@ process.stdin.on('data', (data) => {
     if (db.settings.useAlternativeSpeed && oldLimit !== newLimit && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
       restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
     }
-  } else if (command === 'status') {
+  } else if (command === 'status' || command === 'info' || command === 'durum') {
     const effective = getEffectiveSpeedLimit(db.settings);
-    const altStatus = db.settings.useAlternativeSpeed ? 'Active (Kaplumbağa Açık)' : 'Inactive (Kaplumbağa Kapalı)';
+    const altStatus = db.settings.useAlternativeSpeed ? 'AÇIK (Turtle ON)' : 'KAPALI (Turtle OFF)';
+    const queueStatus = downloadQueue.isPaused ? 'DURAKLATILDI (PAUSED)' : 'DEVAM EDİYOR (ACTIVE)';
+    const queueCount = downloadQueue.queue ? downloadQueue.queue.length : 0;
+    const activeVideo = downloadQueue.activeVideoId ? `İndiriliyor (${downloadQueue.activeVideoId})` : 'Boşta (Yok)';
+    const fakapStatus = db.settings.fakapEnabled !== false ? 'Açık' : 'Kapalı';
     console.log(`[Console] Sistem Durumu:
+      - İndirme Kuyruğu: ${queueStatus} (Bekleyen: ${queueCount})
+      - Aktif İndirme: ${activeVideo}
       - Normal Hız Limiti: ${db.settings.downloadSpeedLimit || 0} KB/s (${db.settings.downloadSpeedLimit ? 'Aktif' : 'Limitsiz'})
       - Alternatif Hız Limiti: ${db.settings.alternativeSpeedLimit || 500} KB/s
       - Alternatif Hız (Turtle): ${altStatus}
-      - Geçerli İndirme Limiti: ${effective > 0 ? effective + ' KB/s' : 'Limitsiz'}
-      - Aktif İndirme Süreci: ${downloadQueue.activeVideoId ? 'Evet (' + downloadQueue.activeVideoId + ')' : 'Hayır'}`);
+      - Geçerli Hız Limiti: ${effective > 0 ? effective + ' KB/s' : 'Limitsiz'}
+      - Fakap Otomatik Yedek: ${fakapStatus} (Kalite: ${db.settings.fakapQuality || '144'}p, Saklama: ${db.settings.fakapRetentionDays || 7} gün)
+      - Otomatik İndirme: ${db.settings.autoDownload ? 'Açık' : 'Kapalı'}`);
   } else if (command === 'pd') {
     const link = args[0];
     if (!link) {
-      console.log('[Console] Hata: YouTube video adresi belirtmelisiniz. Örnek: pd https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      if (downloadQueue.isPaused) {
+        resumeDownloadQueue();
+      } else {
+        pauseDownloadQueue();
+      }
       return;
     }
     addVideoToQueueByUrl(link)
@@ -848,11 +962,11 @@ if (process.argv.length <= 2) {
     startFakapService();
     startMaintenanceService();
 
-    // Otomatik video silme döngüsü
+    // Otomatik video silme döngüsü (Dakika bazlı ertelemeler için 60 saniyede bir kontrol)
     setTimeout(() => {
       autoDeleteOldVideos();
     }, 8000);
-    setInterval(autoDeleteOldVideos, 60 * 60 * 1000);
+    setInterval(autoDeleteOldVideos, 60 * 1000);
 
     // Eksik video sürelerini çözücü tetikle
     setTimeout(() => {
@@ -863,17 +977,46 @@ if (process.argv.length <= 2) {
     setTimeout(() => {
       const currentDb = readDb();
       let queuedCount = 0;
+      let healedCount = 0;
+
+      // Önceki kapanıştan öksüz kalan 'downloading' veya 'merging' durumlarını 'waiting' yap (Auto-Healing)
       currentDb.history.forEach(item => {
-        if (item.status === 'waiting' || item.status === 'downloading') {
-          downloadQueue.add({
-            id: item.id,
-            title: item.title,
-            channelId: item.channelId,
-            channelName: item.channelName,
-            url: `https://www.youtube.com/watch?v=${item.id}`,
-            publishedAt: item.publishedAt || ''
-          });
-          queuedCount++;
+        if (item.status === 'downloading' || item.status === 'merging') {
+          item.status = 'waiting';
+          item.speed = '';
+          item.eta = '';
+          healedCount++;
+        }
+      });
+      if (healedCount > 0) {
+        writeDb(currentDb);
+        broadcast('db_update', currentDb);
+        addTerminalLog(`[Sistem] Önceki oturumdan kalan ${healedCount} adet işlem düzeltildi ('waiting' durumuna alındı).`, 'info');
+      }
+
+      currentDb.history.forEach(item => {
+        if (item.status === 'waiting') {
+          const targetUrl = resolveItemDownloadUrl(item);
+          if (targetUrl) {
+            downloadQueue.add({
+              id: item.id,
+              originalId: item.originalId || item.id,
+              title: item.title,
+              channelId: item.channelId,
+              channelName: item.channelName,
+              url: targetUrl,
+              webUrl: item.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+              platform: item.platform,
+              publishedAt: item.publishedAt || '',
+              isStandalone: item.isStandalone || String(item.id).startsWith('ext_'),
+              skipChannelFolder: item.skipChannelFolder === true,
+              customFormat: item.customFormat,
+              audioBitrate: item.audioBitrate,
+              duration: item.duration || '',
+              thumbnail: item.thumbnail || ''
+            });
+            queuedCount++;
+          }
         }
       });
       if (queuedCount > 0) {

@@ -769,3 +769,155 @@ window.initAddChannelForm = initAddChannelForm;
 document.addEventListener('DOMContentLoaded', () => {
   initAddChannelForm();
 });
+
+/**
+ * Kanal Hizli Ayarlar Modali (Quick Settings Modal)
+ * Video kartindaki carka veya kanal kartindaki Ayarlar butonuna tiklandiginda acilir.
+ */
+let currentCqChannelId = null;
+
+export function openChannelQuickSettingsModal(channelId) {
+  const modal = document.getElementById('channel-quick-settings-modal');
+  if (!modal) return;
+  const db = window.localDb || {};
+  const channel = (db.channels || []).find(c => String(c.id) === String(channelId));
+  if (!channel) {
+    if (typeof showToast === 'function') {
+      showToast('Kanal bulunamadı.', 'error');
+    }
+    return;
+  }
+
+  const lang = db.settings?.lang || 'tr';
+  const t = window.translations?.[lang] || window.translations?.tr || {};
+
+  const container = document.getElementById('channel-quick-card-container');
+  if (container) {
+    container.innerHTML = '';
+    const buildFn = window.buildChannelCardElement || (typeof buildChannelCardElement === 'function' ? buildChannelCardElement : null);
+    if (typeof buildFn === 'function') {
+      const card = buildFn(channel, db.categories || [], t);
+      container.appendChild(card);
+    }
+  }
+
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+  try {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
+    }
+  } catch (e) {}
+}
+
+export function closeChannelQuickSettingsModal() {
+  const modal = document.getElementById('channel-quick-settings-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+window.openChannelQuickSettingsModal = openChannelQuickSettingsModal;
+window.closeChannelQuickSettingsModal = closeChannelQuickSettingsModal;
+
+/**
+ * Takip edilmeyen kanalı seçeneklerle takibe alma modalını açar.
+ */
+export function openFollowChannelModal(channelIdOrUrl, channelName) {
+  const modal = document.getElementById('follow-channel-modal');
+  if (!modal) return;
+
+  if (!channelIdOrUrl || channelIdOrUrl === 'manual') {
+    channelIdOrUrl = channelName || '';
+  }
+
+  const titleEl = document.getElementById('follow-modal-channel-title');
+  const descEl = document.getElementById('follow-modal-channel-desc');
+  const inputEl = document.getElementById('follow-modal-channel-input');
+  const nameEl = document.getElementById('follow-modal-channel-name');
+
+  if (inputEl) inputEl.value = channelIdOrUrl || '';
+  if (nameEl) nameEl.value = channelName || channelIdOrUrl || '';
+
+  if (titleEl) titleEl.textContent = 'Kanalı Takibe Al';
+  if (descEl) {
+    descEl.textContent = `"${channelName || channelIdOrUrl}" kanalını özel indirme ayarlarıyla takip listenize ekleyebilirsiniz:`;
+  }
+
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+
+  try {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
+    }
+  } catch (e) {}
+}
+
+export function closeFollowChannelModal() {
+  const modal = document.getElementById('follow-channel-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+export async function submitFollowChannelModal() {
+  const inputEl = document.getElementById('follow-modal-channel-input');
+  const nameEl = document.getElementById('follow-modal-channel-name');
+  const autoDlEl = document.getElementById('follow-modal-cb-autodl');
+  const shortsEl = document.getElementById('follow-modal-cb-shorts');
+  const limitEl = document.getElementById('follow-modal-inp-limit');
+  const fakapEl = document.getElementById('follow-modal-cb-fakap');
+  const btn = document.getElementById('btn-confirm-follow-channel');
+
+  const inputVal = inputEl ? inputEl.value : '';
+  if (!inputVal) return;
+
+  if (btn) {
+    btn.disabled = true;
+    const span = btn.querySelector('span');
+    if (span) span.textContent = 'Ekleniyor...';
+  }
+
+  try {
+    const res = await fetch('/api/channels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: inputVal,
+        name: nameEl ? nameEl.value : undefined,
+        autoDownload: autoDlEl ? autoDlEl.checked : true,
+        downloadShorts: shortsEl ? shortsEl.checked : true,
+        shortsDurationLimit: limitEl ? (parseInt(limitEl.value, 10) || 180) : 180,
+        isFakap: fakapEl ? fakapEl.checked : false
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      closeFollowChannelModal();
+      if (typeof showToast === 'function') {
+        showToast('Kanal başarıyla takip listesine eklendi!', 'success');
+      }
+    } else {
+      if (typeof showToast === 'function') {
+        showToast(data.error || 'Kanal eklenemedi.', 'error');
+      }
+    }
+  } catch (err) {
+    if (typeof showToast === 'function') {
+      showToast('Bağlantı hatası.', 'error');
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      const span = btn.querySelector('span');
+      if (span) span.textContent = 'Takibe Al';
+    }
+  }
+}
+
+window.openFollowChannelModal = openFollowChannelModal;
+window.closeFollowChannelModal = closeFollowChannelModal;
+window.submitFollowChannelModal = submitFollowChannelModal;

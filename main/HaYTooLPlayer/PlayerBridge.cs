@@ -23,5 +23,25 @@ namespace HaYTooLPlayer
                 _mainWindow.PlayVideoNative(filePath, title, channelName, publishDate, videoId);
             });
         }
+
+        // JavaScript'ten dosya kopyalama: chrome.webview.hostObjects.playerBridge.copyFileToClipboard(filePath)
+        public bool copyFileToClipboard(string filePath)
+        {
+            try
+            {
+                if (System.IO.File.Exists(filePath))
+                {
+                    _mainWindow.Dispatcher.Invoke(() =>
+                    {
+                        var files = new System.Collections.Specialized.StringCollection();
+                        files.Add(filePath);
+                        System.Windows.Clipboard.SetFileDropList(files);
+                    });
+                    return true;
+                }
+            }
+            catch { }
+            return false;
+        }
     }
 }

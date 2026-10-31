@@ -13,7 +13,7 @@ import {
   defaultDownloadDir 
 } from '../database.js';
 import { broadcast, addTerminalLog } from './sse.js';
-import { ytdlpPath, testFfmpegSync, getFfmpegPath, getLocalTempDir, getStagingTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp, getVideoResolution } from './paths.js';
+import { ytdlpPath, testFfmpegSync, getFfmpegPath, getLocalTempDir, getStagingTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp, getVideoResolution, getVideoDurationFromFile } from './paths.js';
 import { getWorkingProxy, rotateProxy } from './proxyManager.js';
 import { getTempSpaceInfo, isTempExtractionError, buildDiskFullMessage, DISK_FULL_ERROR_CODE } from './diskGuard.js';
 import { isInsideFakap } from './fakapPaths.js';
@@ -405,6 +405,50 @@ export async function checkInternetConnection() {
   });
 }
 
+/**
+ * Verilen veritabanı veya geçmiş kaydından indirilebilir orijinal URL'yi tespit eder.
+ * Harici platformlar (Instagram, TikTok, Twitter/X) ve YouTube videoları için doğru URL'yi döner.
+ *
+ * @param {object} item - db.history veya video nesnesi
+ * @returns {string} - Geçerli indirme bağlantısı veya boş metin
+ */
+export function resolveItemDownloadUrl(item) {
+  if (!item) return '';
+
+  // 1. Doğrudan geçerli bir webUrl tanımlıysa (ve sahte youtube watch URL'si değilse)
+  if (item.webUrl && typeof item.webUrl === 'string' && (item.webUrl.startsWith('http://') || item.webUrl.startsWith('https://'))) {
+    if (!item.webUrl.includes('youtube.com/watch?v=ext_')) {
+      return item.webUrl;
+    }
+  }
+
+  // 2. Doğrudan geçerli bir url tanımlıysa
+  if (item.url && typeof item.url === 'string' && (item.url.startsWith('http://') || item.url.startsWith('https://'))) {
+    if (!item.url.includes('youtube.com/watch?v=ext_')) {
+      return item.url;
+    }
+  }
+
+  const rawId = String(item.id || '');
+  const cleanId = String(item.originalId || rawId).replace(/^fakap_/, '');
+
+  // 3. YouTube standart 11 karakter ID kontrolü
+  if (/^[a-zA-Z0-9_-]{11}$/.test(cleanId) && !rawId.startsWith('ext_')) {
+    return `https://www.youtube.com/watch?v=${cleanId}`;
+  }
+
+  // 4. Harici platform kimlikleri (ext_...) için yedek çözümleme
+  if (rawId.startsWith('ext_')) {
+    const extId = rawId.replace(/^ext_/, '');
+    const isInsta = item.platform === 'instagram' || (item.filePath && item.filePath.includes('0-Instagram'));
+    if (isInsta && /^[a-zA-Z0-9_-]{9,15}$/.test(extId)) {
+      return `https://www.instagram.com/reels/${extId}/`;
+    }
+  }
+
+  return '';
+}
+
 export class DownloadQueue {
   constructor() {
     this.queue = [];
@@ -512,7 +556,7 @@ export class DownloadQueue {
           title: video.title,
           channelId: video.channelId,
           channelName: video.channelName,
-          thumbnail: video.thumbnail || (rawYtId ? 'https://i.ytimg.com/vi/' + rawYtId + '/mqdefault.jpg' : ''),
+          thumbnail: video.thumbnail || (/^[a-zA-Z0-9_-]{11}$/.test(rawYtId) ? 'https://i.ytimg.com/vi/' + rawYtId + '/mqdefault.jpg' : '/logo.png'),
           downloadedAt: new Date().toISOString(),
           publishedAt: video.publishedAt || new Date().toISOString(),
           status: 'waiting',
@@ -522,7 +566,9 @@ export class DownloadQueue {
           fileSize: '',
           filePath: '',
           isStandalone: video.isStandalone || false,
-          duration: video.duration || ''
+          duration: video.duration || '',
+          platform: video.platform || (video.url && (video.url.includes('tiktok.com') ? 'tiktok' : (video.url.includes('twitter.com') || video.url.includes('x.com') ? 'x' : (video.url.includes('instagram.com') ? 'instagram' : 'youtube')))) || 'youtube',
+          webUrl: video.webUrl || video.url || ''
         };
         db.history.push(historyItem);
         writeDb(db);
@@ -578,15 +624,23 @@ export class DownloadQueue {
         if (!item) return;
 
         // Boyut veya süre eksikse yt-dlp ile sorgulayalım
-        if (!item.fileSize || !item.duration) {
-          const quality = db.settings.quality || 'best';
+        if (!item.fileSize || !item.duration || item.duration === '-') {
+          const isFakapItem = item.isFakap || String(videoId || '').startsWith('fakap_');
+          const rawYtId = item.originalId || String(videoId || '').replace(/^fakap_/, '');
+          const quality = isFakapItem
+            ? (String(db.settings?.fakapQuality || '144').replace(/p$/i, '') + 'p')
+            : (db.settings.quality || 'best');
           let formatSel = 'bestvideo+bestaudio/best';
           if (quality !== 'best') {
             const h = quality.replace('p', '');
             formatSel = `bestvideo[height<=${h}]+bestaudio/best`;
           }
           
-          const cmd = `"${ytdlpPath}" --simulate --format "${formatSel}" --print "%(filesize,filesize_approx)s|%(duration)s" "https://www.youtube.com/watch?v=${videoId}"`;
+          const targetMetaUrl = (/^[a-zA-Z0-9_-]{11}$/.test(rawYtId)) 
+            ? `https://www.youtube.com/watch?v=${rawYtId}` 
+            : (item.webUrl || item.url || '');
+          if (!targetMetaUrl) return;
+          const cmd = `"${ytdlpPath}" --simulate --format "${formatSel}" --print "%(filesize,filesize_approx)s|%(duration)s" "${targetMetaUrl}"`;
           const localTemp = getLocalTempDir();
           const execProc = execYtdlp(cmd, { env: { ...process.env, TEMP: localTemp, TMP: localTemp } }, (error, stdout, stderr) => {
             cleanMeiForPid(execProc.pid);
@@ -771,6 +825,11 @@ export class DownloadQueue {
 
     // Normal indirmeler her zaman Fakap'tan önce çalışır; Fakap yalnızca normal indirmeler bitince alınır
     const normalIndex = this.queue.findIndex(v => !v.isFakap);
+    const fakapMasterEnabled = db?.settings?.fakapEnabled !== false;
+    if (normalIndex === -1 && !fakapMasterEnabled) {
+      // Genel Fakap Anahtarı (Master Switch) kapalıysa bekleyen Fakap indirmeleri durdurulur
+      return;
+    }
     const nextIndex = normalIndex !== -1 ? normalIndex : 0;
     const [nextVideo] = this.queue.splice(nextIndex, 1);
     this.activeDownloads++;
@@ -822,9 +881,27 @@ export class DownloadQueue {
     if (video.isFakap) {
       targetBaseDir = (settings.fakapPath || '').trim() || path.join(settings.downloadPath, 'Fakap');
     }
+
+    // Özel 0- ön ekli klasör tespiti
+    let folderSubName = video.channelName || '';
+    const vUrl = (video.url || '').toLowerCase();
+    const isFollowedChannel = video.channelId && db.channels && db.channels.some(c => c.id === video.channelId);
+
+    if (!video.isFakap && !skipChannelFolder) {
+      if (vUrl.includes('tiktok.com') || video.platform === 'tiktok') {
+        folderSubName = '0-TikTok';
+      } else if (vUrl.includes('twitter.com') || vUrl.includes('x.com') || video.platform === 'x' || video.platform === 'twitter') {
+        folderSubName = '0-X';
+      } else if (vUrl.includes('instagram.com') || video.platform === 'instagram') {
+        folderSubName = '0-Instagram';
+      } else if (!isFollowedChannel) {
+        folderSubName = '0-Unfollowed';
+      }
+    }
+
     const outputDir = skipChannelFolder
       ? targetBaseDir
-      : path.join(targetBaseDir, video.channelName);
+      : path.join(targetBaseDir, folderSubName);
 
     const ytVideoId = video.originalId || (video.id ? video.id.replace(/^fakap_/, '') : '');
 
@@ -867,11 +944,12 @@ export class DownloadQueue {
       '--js-runtimes', `node:${process.execPath}`,
       '--replace-in-metadata', 'title', '[#?%]', '',
       '--replace-in-metadata', 'title', '[/\\\\:\\*\\?\"<>|｜|]', '-',
-      '--newline',
+            '--newline',
       '--write-subs',
       '--write-auto-subs',
       '--sub-langs', subLangs,
-      '--sub-format', 'srt/vtt/best'
+      '--sub-format', 'srt/vtt/best',
+      '--encoding', 'utf-8'
     ];
 
     // SSD / Hızlı Geçici Klasörde İndir ve Birleştir (Tamamlanınca Hedefe Taşı)
@@ -897,14 +975,17 @@ export class DownloadQueue {
     const cookieArgs = getCookieArgs(settings);
     const hasCookies = cookieArgs.length > 0;
 
-    if (video._fallbackClient) {
-      args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=${video._fallbackClient}`);
-    } else if (hasCookies) {
-      // Çerez aktifken: visionos, ios, android, web_creator, mweb, web
-      args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=visionos,ios,android,web_creator,mweb,web`);
-    } else {
-      // Anonim modda: visionos, ios, android, web
-      args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=visionos,ios,android,web`);
+    const isYouTubeUrl = vUrl.includes('youtube.com') || vUrl.includes('youtu.be');
+    if (isYouTubeUrl) {
+      if (video._fallbackClient) {
+        args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=${video._fallbackClient}`);
+      } else if (hasCookies) {
+        // Çerez aktifken: visionos, ios, android, web_creator, mweb, web
+        args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=visionos,ios,android,web_creator,mweb,web`);
+      } else {
+        // Anonim modda: visionos, ios, android, web
+        args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=visionos,ios,android,web`);
+      }
     }
 
     args.push('--remote-components', 'ejs:github');
@@ -978,7 +1059,9 @@ export class DownloadQueue {
         else if (fmt === 'video-360p') maxH = 360;
         else if (fmt === 'video-240p') maxH = 240;
         else if (fmt === 'video-144p') maxH = 144;
-        else if (fmt === 'video-best') maxH = 4320;
+        else if (fmt === 'video-best' || fmt === 'video-4k' || fmt === 'video-2160p') maxH = 4320;
+        else if (fmt === 'video-1440p' || fmt === 'video-2k') maxH = 1440;
+        else if (fmt === 'video-1080p') maxH = 1080;
 
         const excludeAv01 = (video._fallbackCodec || video.retryAttempt === 2) ? '[vcodec!^=av01]' : '';
         const vSpec = `bestvideo[height<=${maxH}]${excludeAv01}`;
@@ -1035,13 +1118,15 @@ export class DownloadQueue {
 
     const localTemp = getLocalTempDir();
     const spawnOptions = {
-      env: { ...process.env, TEMP: localTemp, TMP: localTemp },
+      env: { ...process.env, TEMP: localTemp, TMP: localTemp, PYTHONIOENCODING: 'utf-8', LC_ALL: 'en_US.UTF-8' },
       ...(process.platform === 'win32' 
         ? { stdio: ['ignore', 'pipe', 'pipe'] } 
         : { stdio: ['ignore', 'pipe', 'pipe'], detached: true })
     };
     const timeoutDuration = 30 * 60 * 1000;
     const downloadProc = spawnYtdlp(args, spawnOptions);
+    if (downloadProc.stdout) downloadProc.stdout.setEncoding('utf8');
+    if (downloadProc.stderr) downloadProc.stderr.setEncoding('utf8');
     
     const timeoutTimer = setTimeout(() => {
       const procInfo = this.activeProcesses.get(video.id);
@@ -1346,7 +1431,10 @@ export class DownloadQueue {
           if (skipChannelFolder) {
             candidateDirs.push(targetBaseDir);
           } else {
-            candidateDirs.push(path.join(targetBaseDir, video.channelName));
+            candidateDirs.push(path.join(targetBaseDir, folderSubName));
+            if (folderSubName !== video.channelName) {
+              candidateDirs.push(path.join(targetBaseDir, video.channelName));
+            }
             if (sanitizedChannelName !== video.channelName) {
               candidateDirs.push(path.join(targetBaseDir, sanitizedChannelName));
             }
@@ -1401,6 +1489,16 @@ export class DownloadQueue {
                     resolvedTitle = withoutId.substring(dashIdx + 3);
                   } else {
                     resolvedTitle = withoutId;
+                  }
+                  if (!resolvedTitle || resolvedTitle === 'NA' || /^(?:Video|Post) by/i.test(resolvedTitle)) {
+                    if (video.title && video.title !== 'NA' && !/^(?:Video|Post) by/i.test(video.title)) {
+                      resolvedTitle = video.title;
+                    } else if (resolvedTitle && /^(?:Video|Post) by/i.test(resolvedTitle)) {
+                      const stripped = resolvedTitle.replace(/^(?:Video|Post) by [a-zA-Z0-9._]+[:\s-]*/i, '').trim();
+                      resolvedTitle = stripped || (video.channelName ? `${video.channelName} Videosu` : 'Instagram Videosu');
+                    } else {
+                      resolvedTitle = video.channelName ? `${video.channelName} Videosu` : 'Instagram Videosu';
+                    }
                   }
                 }
               }
@@ -1460,16 +1558,22 @@ export class DownloadQueue {
           }
 
           const actualQuality = actualPath ? getVideoResolution(actualPath) : null;
+          const actualDurationInfo = actualPath ? getVideoDurationFromFile(actualPath) : null;
 
           updateHistoryItem(video.id, {
             status: 'completed',
             progress: 100,
             filePath: actualPath,
             title: resolvedTitle,
+            ...(video.channelName ? { channelName: video.channelName } : {}),
+            ...(video.channelId ? { channelId: video.channelId } : {}),
+            ...(video.platform ? { platform: video.platform } : {}),
+            ...(video.webUrl ? { webUrl: video.webUrl } : {}),
             speed: '',
             eta: '',
             fileSize: calculatedSize,
-            ...(actualQuality ? { actualQuality } : {})
+            ...(actualQuality ? { actualQuality } : {}),
+            ...(actualDurationInfo ? { duration: actualDurationInfo.duration, durationSeconds: actualDurationInfo.durationSeconds } : {})
           });
           console.log(`İndirme tamamlandı: ${resolvedTitle}`);
           broadcast('status_log', { message: `İndirme tamamlandı: ${resolvedTitle}`, type: 'success', thumbnail: `/api/video/${video.id}/thumbnail` });

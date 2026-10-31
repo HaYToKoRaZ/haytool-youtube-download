@@ -121,6 +121,14 @@ export function getFfprobePath() {
  */
 export function getVideoResolution(filePath) {
   if (!filePath || !fs.existsSync(filePath)) return null;
+
+  // Ses dosyalarında (MP3 vb.) gömülü albüm kapağının video çözünürlüğü (720p vb.) olarak algılanmasını önle
+  const fileExt = path.extname(filePath).toLowerCase();
+  const audioExtensions = ['.mp3', '.m4a', '.aac', '.opus', '.wav', '.flac', '.ogg'];
+  if (audioExtensions.includes(fileExt)) {
+    return 'MP3';
+  }
+
   try {
     let height = 0;
     let bitRate = 0;
@@ -190,6 +198,60 @@ export function getVideoResolution(filePath) {
   } catch (err) {
     return null;
   }
+}
+
+/**
+ * Belirtilen medya dosyasının (video veya ses) süresini FFmpeg ile analiz eder.
+ * 
+ * @param {string} filePath - Medya dosyasının tam yolu
+ * @returns {{ duration: string, durationSeconds: number } | null} Formatlanmış süre ve saniye bilgisi veya null
+ */
+export function getVideoDurationFromFile(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  const ffmpeg = getFfmpegPath();
+  if (!fs.existsSync(ffmpeg)) return null;
+
+  try {
+    let out = '';
+    try {
+      execFileSync(ffmpeg, ['-i', filePath], { encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] });
+    } catch (eFfmpeg) {
+      out = (eFfmpeg.stderr || '') + (eFfmpeg.stdout || '');
+    }
+
+    const match = out.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i);
+    if (match) {
+      const hrs = parseInt(match[1], 10);
+      const mins = parseInt(match[2], 10);
+      const secs = Math.round(parseFloat(match[3]));
+      const totalSecs = hrs * 3600 + mins * 60 + secs;
+      const formatted = hrs > 0
+        ? `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+        : `${mins}:${secs.toString().padStart(2, '0')}`;
+      return { duration: formatted, durationSeconds: totalSecs };
+    }
+  } catch (err) {}
+  return null;
+}
+
+/**
+ * Sayısal veya ham süre dizesini standart 'MM:SS' veya 'H:MM:SS' biçimine dönüştürür.
+ * 
+ * @param {string|number} raw - Sayısal saniye veya süre dizesi (örn: '57', '1:23')
+ * @returns {string} Formatlanmış süre
+ */
+export function formatDurationStr(raw) {
+  if (!raw || raw === 'NA' || raw === 'null' || raw === '-') return '';
+  const str = String(raw).trim();
+  if (str.includes(':')) return str;
+  const totalSecs = parseInt(str, 10);
+  if (isNaN(totalSecs) || totalSecs <= 0) return '';
+  const hrs = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  return hrs > 0 
+    ? `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    : `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 export let isFfmpegWorkingCached = null;

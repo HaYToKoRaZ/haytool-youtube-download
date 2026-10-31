@@ -1,8 +1,9 @@
+import crypto from 'crypto';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { exec, spawn } from 'child_process';
-import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp } from '../services/paths.js';
+import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp, formatDurationStr } from '../services/paths.js';
 import { downloadQueue, performYtdlpUpdate } from '../services/downloader.js';
 import { readDb } from '../database.js';
 import { fetchVideoDuration, resolveMissingDurations } from '../services/rss.js';
@@ -32,33 +33,90 @@ function extractVideoId(url) {
  * @param {string} videoId YouTube Video ID'si
  * @returns {Promise<object|null>} Çözümlenen bilgiler veya null
  */
-function fetchMetadataViaYtdlp(videoId) {
+function fetchMetadataViaYtdlp(target, isDirectUrl = false) {
   return new Promise((resolve) => {
+    const targetUrl = isDirectUrl ? target : `https://www.youtube.com/watch?v=${target}`;
     const args = [
       '--no-playlist',
       '--skip-download',
-      '--print', '%(title)s|%(uploader)s|%(channel_id)s|%(duration_string)s',
-      `https://www.youtube.com/watch?v=${videoId}`
+      '--encoding', 'utf-8',
+      '--replace-in-metadata', 'description', '[\\r\\n]+', ' ',
+      '--print', '%(title)s\t%(uploader)s\t%(uploader_id)s\t%(channel_id,id)s\t%(duration_string)s\t%(id)s\t%(thumbnail)s\t%(webpage_url)s\t%(description).120s',
+      targetUrl
     ];
     const localTemp = getLocalTempDir();
     const spawnOptions = {
-      env: { ...process.env, TEMP: localTemp, TMP: localTemp },
+      env: { ...process.env, TEMP: localTemp, TMP: localTemp, PYTHONIOENCODING: 'utf-8', LC_ALL: 'en_US.UTF-8' },
       ...(process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {})
     };
     
     const proc = spawnYtdlp(args, spawnOptions);
     let stdout = '';
-    proc.stdout.on('data', (data) => { stdout += data.toString(); });
+    if (proc.stdout) {
+      proc.stdout.setEncoding('utf8');
+      proc.stdout.on('data', (data) => { stdout += data; });
+    }
     proc.on('close', (code) => {
       cleanMeiForPid(proc.pid);
       if (code === 0 && stdout.trim()) {
-        const parts = stdout.trim().split('|');
+        const parts = stdout.trim().split('\t');
         if (parts.length >= 3) {
+          let rawTitle = parts[0]?.trim() || '';
+          let uploader = parts[1]?.trim() || '';
+          let uploaderId = parts[2]?.trim() || '';
+          let channelId = parts[3]?.trim() || '';
+          let rawDur = parts[4]?.trim() || '';
+          let extractedId = parts[5]?.trim() || '';
+          let thumbnail = parts[6]?.trim() || '';
+          let webpageUrl = parts[7]?.trim() || '';
+          let rawDesc = parts[8]?.trim() || '';
+
+          let cleanTitle = rawTitle;
+          let channelName = uploader || '';
+
+          const isInstagram = isDirectUrl && (targetUrl.includes('instagram.com') || targetUrl.includes('/reel/') || targetUrl.includes('/p/'));
+          const isX = isDirectUrl && (targetUrl.includes('x.com') || targetUrl.includes('twitter.com'));
+          const isTikTok = isDirectUrl && targetUrl.includes('tiktok.com');
+
+          if (isInstagram) {
+            const igMatch = rawTitle.match(/^(?:Video|Post) by ([a-zA-Z0-9._]+)/i);
+            const igUsername = (igMatch && igMatch[1]) ? igMatch[1] : (uploaderId || uploader);
+            if (igUsername && igUsername.toLowerCase() !== 'instagram') {
+              channelName = '@' + igUsername.replace(/^@+/, '');
+            }
+            if (rawDesc && rawDesc.length > 2 && !rawDesc.startsWith('http')) {
+              cleanTitle = rawDesc;
+            } else if (rawTitle && !rawTitle.startsWith('Video by ') && !rawTitle.startsWith('Post by ') && rawTitle !== 'NA') {
+              cleanTitle = rawTitle;
+            } else {
+              cleanTitle = igUsername ? `${igUsername} Instagram Videosu` : 'Instagram Videosu';
+            }
+          } else if (isX) {
+            const xHandle = uploaderId || uploader;
+            if (xHandle) {
+              channelName = '@' + xHandle.replace(/^@+/, '');
+            }
+            if ((!cleanTitle || cleanTitle === 'NA') && rawDesc) {
+              cleanTitle = rawDesc;
+            }
+          } else if (isTikTok) {
+            const ttUser = uploader || uploaderId;
+            if (ttUser) {
+              channelName = '@' + ttUser.replace(/^@+/, '');
+            }
+            if ((!cleanTitle || cleanTitle.startsWith('TikTok video') || cleanTitle === 'NA') && rawDesc) {
+              cleanTitle = rawDesc;
+            }
+          }
+
           return resolve({
-            title: parts[0]?.trim(),
-            channelName: parts[1]?.trim(),
-            channelId: parts[2]?.trim(),
-            duration: parts[3]?.trim()
+            title: cleanTitle,
+            channelName: channelName || parts[1]?.trim(),
+            channelId: channelName ? channelName : channelId,
+            duration: formatDurationStr(rawDur),
+            extractedId: extractedId,
+            thumbnail: thumbnail || '',
+            webUrl: webpageUrl || targetUrl
           });
         }
       }
@@ -85,38 +143,116 @@ function fetchMetadataViaYtdlp(videoId) {
  * @returns {Promise<void>}
  */
 router.post('/download', localhostOnly, async (req, res) => {
-  const { url, format, bitrate } = req.body;
+  const { url, format, bitrate, quality } = req.body;
+
+  // Format ve Kalite eşleştirmesini normalize et
+  let customFormat = format || 'video-best';
+  let audioBitrate = bitrate || '192';
+
+  if (format === 'audio' || format === 'mp3' || format === 'audio-mp3') {
+    customFormat = 'audio-mp3';
+    audioBitrate = bitrate || quality || '320';
+  } else if (format === 'video-best' || format === 'best' || format === '4k' || format === 'video-4k' || format === '2160' || quality === 'best' || quality === '4k' || quality === '2160') {
+    customFormat = 'video-best';
+  } else if (format === 'video-1440p' || format === '1440' || format === '2k' || quality === '1440' || quality === '2k') {
+    customFormat = 'video-1440p';
+  } else if (format === 'video-1080p' || format === '1080' || quality === '1080') {
+    customFormat = 'video-1080p';
+  } else if (format === 'video-720p' || format === '720' || quality === '720') {
+    customFormat = 'video-720p';
+  } else if (format === 'video-480p' || format === '480' || quality === '480') {
+    customFormat = 'video-480p';
+  } else if (format === 'video') {
+    customFormat = 'video-best';
+  }
   let { title, channelName, channelId } = req.body;
+  let duration = req.body.duration || '';
+  let thumbnail = req.body.thumbnail || '';
 
   let targetVideoId = extractVideoId(url);
+  let isDirectUrl = false;
+  let finalDownloadUrl = '';
+
   if (!targetVideoId) {
-    // URL'in kendisi 11 haneli bir video ID'si olabilir
+    // 11 haneli salt ID mi?
     if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
       targetVideoId = url;
+      finalDownloadUrl = `https://www.youtube.com/watch?v=${targetVideoId}`;
+    } else if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      // Çoklu platform (TikTok, Twitter/X, Instagram veya diğer yt-dlp destekli URL'ler)
+      isDirectUrl = true;
+      finalDownloadUrl = url;
+      // Benzersiz ID üret
+      const hashId = crypto.createHash('md5').update(url).digest('hex').slice(0, 11);
+      targetVideoId = 'ext_' + hashId;
     }
+  } else {
+    finalDownloadUrl = `https://www.youtube.com/watch?v=${targetVideoId}`;
   }
 
   if (!targetVideoId) {
-    return res.status(400).json({ error: 'Geçersiz YouTube URL veya Video ID.' });
+    return res.status(400).json({ error: 'Geçersiz video bağlantısı veya Video ID.' });
   }
 
-  // Eğer başlık veya kanal bilgisi yoksa veya başlık hatalı bir URL ise YouTube'dan çekmeye çalışalım
+  // Varsayılan platform ismi ve platform tipi tespiti
+  let defaultChannelName = 'Manuel İndirme';
+  let detectedPlatform = 'youtube';
+  const lowerUrl = (url || '').toLowerCase();
+  if (lowerUrl.includes('tiktok.com')) {
+    defaultChannelName = 'TikTok';
+    detectedPlatform = 'tiktok';
+  } else if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) {
+    defaultChannelName = 'Twitter / X';
+    detectedPlatform = 'x';
+  } else if (lowerUrl.includes('instagram.com')) {
+    defaultChannelName = 'Instagram';
+    detectedPlatform = 'instagram';
+  } else if (isDirectUrl) {
+    detectedPlatform = 'other';
+  }
+
+  // URL'den kullanıcı adı ön tespiti (Fallback)
+  let extractedHandle = '';
+  if (detectedPlatform === 'x') {
+    const m = url.match(/(?:twitter|x)\.com\/([a-zA-Z0-9_]+)\/status/i);
+    if (m && m[1] && m[1].toLowerCase() !== 'i') extractedHandle = '@' + m[1];
+  } else if (detectedPlatform === 'tiktok') {
+    const m = url.match(/tiktok\.com\/@([a-zA-Z0-9_.-]+)/i);
+    if (m && m[1]) extractedHandle = '@' + m[1];
+  } else if (detectedPlatform === 'instagram') {
+    const m = url.match(/instagram\.com\/([a-zA-Z0-9_.-]+)\/(?:reel|p)\//i);
+    if (m && m[1] && !['reels', 'p', 'stories', 'tv'].includes(m[1].toLowerCase())) extractedHandle = '@' + m[1];
+  }
+  if (extractedHandle) defaultChannelName = extractedHandle;
+
+  // Eğer başlık veya kanal bilgisi yoksa veya başlık hatalı bir URL ise metadata çek
   if (!title || !channelName || title.startsWith('http')) {
     try {
-      const details = await fetchVideoDuration(targetVideoId);
-      if (details && details.title && !details.title.startsWith('http')) {
-        title = title || details.title;
-        channelName = channelName || details.channelName;
-        channelId = channelId || details.channelId;
+      if (!isDirectUrl) {
+        const details = await fetchVideoDuration(targetVideoId);
+        if (details && details.title && !details.title.startsWith('http')) {
+          title = title || details.title;
+          channelName = channelName || details.channelName;
+          channelId = channelId || details.channelId;
+        }
       }
       
-      // Eğer hâlâ başlık yoksa veya URL ise yt-dlp ile çözmeyi dene
-      if (!title || !channelName || title.startsWith('http')) {
-        const metadata = await fetchMetadataViaYtdlp(targetVideoId);
+      // Eğer hâlâ başlık yoksa veya doğrudan URL ise yt-dlp ile çözmeyi dene
+      if (!title || !channelName || title.startsWith('http') || !duration) {
+        const metadata = await fetchMetadataViaYtdlp(isDirectUrl ? url : targetVideoId, isDirectUrl);
         if (metadata) {
           title = metadata.title || title;
           channelName = metadata.channelName || channelName;
           channelId = metadata.channelId || channelId;
+          if (metadata.duration) {
+            duration = metadata.duration;
+          }
+          if (metadata.thumbnail) {
+            thumbnail = metadata.thumbnail;
+          }
+          if (isDirectUrl && metadata.extractedId) {
+            targetVideoId = 'ext_' + String(metadata.extractedId).replace(/[^a-zA-Z0-9_-]/g, '_').slice(-16);
+          }
         }
       }
     } catch (err) {
@@ -124,6 +260,28 @@ router.post('/download', localhostOnly, async (req, res) => {
     }
   }
 
+  // Harici platformlar için kullanıcı adı ve başlık temizliği güvencesi
+  if (detectedPlatform !== 'youtube') {
+    if (detectedPlatform === 'instagram') {
+      const m = (title || '').match(/^(?:Video|Post) by ([a-zA-Z0-9._]+)/i);
+      if (m && m[1]) {
+        if (!channelName || channelName === 'Instagram' || channelName === 'Manuel İndirme') {
+          channelName = '@' + m[1];
+          channelId = channelName;
+        }
+        title = title.replace(/^(?:Video|Post) by [a-zA-Z0-9._]+[:\s-]*/i, '').trim() || `${m[1]} Instagram Videosu`;
+      }
+      if (title === 'NA' || !title) {
+        title = (channelName && channelName !== 'Instagram') ? `${channelName} Instagram Videosu` : 'Instagram Videosu';
+      }
+    }
+    if (!channelName || channelName === 'Instagram' || channelName === 'TikTok' || channelName === 'Twitter / X' || channelName === 'Manuel İndirme') {
+      if (extractedHandle) channelName = extractedHandle;
+    }
+    if (channelName && (!channelId || channelId === 'manual')) {
+      channelId = channelName;
+    }
+  }
   // Eğer kuyruk duraklatılmışsa, manuel indirme isteğinde otomatik devam ettir
   if (downloadQueue.isPaused) {
     downloadQueue.isPaused = false;
@@ -141,17 +299,21 @@ router.post('/download', localhostOnly, async (req, res) => {
     id: targetVideoId,
     title: title || 'Bilinmeyen Video',
     channelId: channelId || 'manual',
-    channelName: channelName || 'Manuel İndirme',
-    url: `https://www.youtube.com/watch?v=${targetVideoId}`,
+    channelName: channelName || defaultChannelName,
+    url: finalDownloadUrl,
+    webUrl: url || finalDownloadUrl,
+    platform: detectedPlatform,
     publishedAt: new Date().toISOString(),
-    skipChannelFolder: true,
-    customFormat: format || 'video-best',
-    audioBitrate: bitrate || '192',
-    isStandalone: true
+    skipChannelFolder: false, // 0- klasörlerine düzgün dağıtılması için false
+    customFormat: customFormat,
+    audioBitrate: audioBitrate,
+    isStandalone: true,
+    duration: duration || '',
+    thumbnail: thumbnail || ''
   });
 
-  // Eksik süreleri tamamla
-  if (typeof resolveMissingDurations === 'function') {
+  // Eksik süreleri tamamla (YouTube için)
+  if (!isDirectUrl && typeof resolveMissingDurations === 'function') {
     resolveMissingDurations();
   }
 

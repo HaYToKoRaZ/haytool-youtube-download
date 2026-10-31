@@ -1,0 +1,17 @@
+{
+  "extName": { "message": "تنزيل Multimedia HaYTooL" },
+  "extDesc": { "message": "مساعد تنزيل مقاطع فيديو يوتيوب ومتابعة القنوات" },
+  "popupTitle": { "message": "Multimedia HaYTooL" },
+  "statusChecking": { "message": "جاري فحص علامة التبويب..." },
+  "statusConnected": { "message": "متصل بالتطبيق (4141)" },
+  "statusDisconnected": { "message": "التطبيق مغلق (قم بتشغيل HaYTooL)" },
+  "typeVideoDetected": { "message": "تم اكتشاف فيديو يوتيوب" },
+  "typeChannelDetected": { "message": "تم اكتشاف قناة يوتيوب" },
+  "typeNoneDetected": { "message": "صفحة يوتيوب غير مفتوحة" },
+  "btnDownloadVideo": { "message": "تنزيل الفيديو" },
+  "btnAddChannel": { "message": "متابعة القناة" },
+  "btnOpenApp": { "message": "فتح HaYTooL" },
+  "msgSuccessDownload": { "message": "تمت الإضافة إلى قائمة التنزيل!" },
+  "msgSuccessChannel": { "message": "تمت إضافة القناة إلى المتابعة!" },
+  "msgError": { "message": "فشلت العملية." }
+}

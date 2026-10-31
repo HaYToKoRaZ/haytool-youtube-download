@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import open from 'open';
-import { exec, execSync } from 'child_process';
+import { exec, execSync, execFile, spawn } from 'child_process';
 import { 
   readDb, 
   writeDb, 
@@ -15,7 +15,7 @@ import {
   recordDeletedVideo 
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
-import { downloadQueue, getCookieArgs } from '../services/downloader.js';
+import { downloadQueue, getCookieArgs, resolveItemDownloadUrl } from '../services/downloader.js';
 import { deleteFakapVideo } from '../services/fakapService.js';import { ytdlpPath, getFfmpegPath, spawnYtdlp } from '../services/paths.js';
 import { resolveMissingDurations, fetchVideoDuration, checkSingleChannelRss, triggerChannelCheck, fetchDurationViaYtdlp } from '../services/rss.js';
 import { broadcast, addTerminalLog } from '../services/sse.js';
@@ -23,7 +23,7 @@ import { triggerSilentCookieRefresh } from './settings.js';
 import { updateChannelFullInfo } from './channels.js';
 import { buildCookieHeader } from '../services/cookieHealth.js';
 import { closeActiveVideoStreams } from './streams.js';
-import { physicallyDeleteVideoFiles, getVideoRemainingMs } from '../services/autoDeleteService.js';
+import { physicallyDeleteVideoFiles, getVideoRemainingMs, getVideoAutoDeleteReason } from '../services/autoDeleteService.js';
 import { isInsideFakap } from '../services/fakapPaths.js';
 
 export const router = express.Router();
@@ -40,6 +40,12 @@ export async function syncVideoWatchtimeToYouTube(id, currentTime, title = '', o
   try {
     if (!id || typeof currentTime !== 'number' || isNaN(currentTime) || currentTime < 0) {
       return { success: false, error: 'Geçersiz parametreler.' };
+    }
+
+    // YouTube harici (TikTok, X, Instagram vb.) videolar YouTube izleme geçmişiyle senkronize edilmez
+    const cleanId = String(id).replace(/^fakap_/, '');
+    if (cleanId.startsWith('ext_') || !/^[a-zA-Z0-9_-]{11}$/.test(cleanId)) {
+      return { success: false, ignored: true, error: 'YouTube dışı video; senkron atlandı.' };
     }
 
     // Türkçe Açıklama: Hem kök hem bin/ çerez dosyalarını okuyup tek nesnede birleştirir.
@@ -246,6 +252,10 @@ export async function syncVideoWatchtimeToYouTube(id, currentTime, title = '', o
  * @param {string} [knownDuration] - Bilinen süre (örn: "15:27" veya "1:02:30"); boşsa otomatik çekilir
  */
 export async function markVideoWatchedOnYouTube(id, title = '', knownDuration = '') {
+  const cleanId = String(id).replace(/^fakap_/, '');
+  if (cleanId.startsWith('ext_') || !/^[a-zA-Z0-9_-]{11}$/.test(cleanId)) {
+    return { success: false, ignored: true };
+  }
   // Türkçe Açıklama: "15:27" / "1:02:30" gibi süre metnini saniyeye çevirir; geçersizse 0 döner
   const durationTextToSeconds = (text) => {
     if (!text || typeof text !== 'string') return 0;
@@ -853,14 +863,14 @@ router.post('/tools/open-subscriptions', localhostOnly, (req, res) => {
  */
 function getFilesRecursively(dir) {
   let results = [];
-  if (!fs.existsSync(dir)) return results;
+  if (!dir || !fs.existsSync(dir) || isInsideFakap(dir)) return results;
   try {
     const list = fs.readdirSync(dir);
     for (const file of list) {
       const filePath = path.join(dir, file);
+      if (isInsideFakap(filePath)) continue; // Fakap yedek klasörü ve dosyaları karşılaştırmadan tamamen dışlanır
       const stat = fs.statSync(filePath);
       if (stat && stat.isDirectory()) {
-        if (isInsideFakap(filePath)) continue; // Fakap yedek klasörü karşılaştırmadan dışlanır
         results = results.concat(getFilesRecursively(filePath));
       } else {
         results.push(filePath);
@@ -919,28 +929,41 @@ router.post('/download-video', localhostOnly, async (req, res) => {
   }
 
   if (!targetVideoId) return res.status(400).json({ error: 'Video ID veya URL gereklidir.' });
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(targetVideoId)) {
+  if (!/^[a-zA-Z0-9_-]{11,64}$/.test(targetVideoId)) {
     return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
   }
 
+  const db = readDb();
+  const existingItem = (db.history || []).find(h => h.id === targetVideoId || h.id === videoId);
+  const targetUrl = existingItem ? resolveItemDownloadUrl(existingItem) : (url || `https://www.youtube.com/watch?v=${targetVideoId}`);
+
+  if (!targetUrl) {
+    return res.status(400).json({ error: 'İndirme bağlantısı bulunamadı.' });
+  }
+
   if (!channelName || !title) {
-    try {
-      console.log(`[Manual Download] Fetching video details from YouTube: ${targetVideoId}`);
-      const details = await fetchVideoDuration(targetVideoId);
-      if (details) {
-        if (details.title) title = details.title;
-        if (details.channelName) channelName = details.channelName;
-        if (details.channelId) channelId = details.channelId;
+    if (existingItem) {
+      if (!title) title = existingItem.title;
+      if (!channelName) channelName = existingItem.channelName;
+      if (!channelId) channelId = existingItem.channelId;
+    } else if (/^[a-zA-Z0-9_-]{11}$/.test(targetVideoId)) {
+      try {
+        console.log(`[Manual Download] Fetching video details from YouTube: ${targetVideoId}`);
+        const details = await fetchVideoDuration(targetVideoId);
+        if (details) {
+          if (details.title) title = details.title;
+          if (details.channelName) channelName = details.channelName;
+          if (details.channelId) channelId = details.channelId;
+        }
+      } catch (err) {
+        console.error(`[Manual Download] Error occurred:`, err.message);
       }
-    } catch (err) {
-      console.error(`[Manual Download] Error occurred:`, err.message);
     }
   }
 
   if (downloadQueue.isPaused) {
     downloadQueue.isPaused = false;
     try {
-      const db = readDb();
       if (db && db.settings) {
         db.settings.isPaused = false;
         writeDb(db);
@@ -950,14 +973,25 @@ router.post('/download-video', localhostOnly, async (req, res) => {
 
   downloadQueue.add({
     id: targetVideoId,
-    title: title || 'Bilinmeyen Video',
-    channelId: channelId || 'manual',
-    channelName: channelName || 'Manuel İndirme',
-    url: `https://www.youtube.com/watch?v=${targetVideoId}`,
-    publishedAt: ''
+    originalId: existingItem?.originalId || targetVideoId,
+    title: title || existingItem?.title || 'Bilinmeyen Video',
+    channelId: channelId || existingItem?.channelId || 'manual',
+    channelName: channelName || existingItem?.channelName || 'Manuel İndirme',
+    url: targetUrl,
+    webUrl: existingItem?.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+    platform: existingItem?.platform || (targetUrl.includes('instagram.com') ? 'instagram' : (targetUrl.includes('tiktok.com') ? 'tiktok' : (targetUrl.includes('twitter.com') || targetUrl.includes('x.com') ? 'x' : 'youtube'))),
+    publishedAt: existingItem?.publishedAt || '',
+    isStandalone: existingItem?.isStandalone || String(targetVideoId).startsWith('ext_'),
+    skipChannelFolder: existingItem?.skipChannelFolder === true,
+    customFormat: existingItem?.customFormat,
+    audioBitrate: existingItem?.audioBitrate,
+    duration: existingItem?.duration || '',
+    thumbnail: existingItem?.thumbnail || ''
   });
 
-  resolveMissingDurations();
+  if (!String(targetVideoId).startsWith('ext_')) {
+    resolveMissingDurations();
+  }
 
   res.json({ success: true, message: 'İndirme kuyruğuna eklendi.', videoId: targetVideoId });
 });
@@ -1081,8 +1115,14 @@ router.get('/tools/compare-files', localhostOnly, (req, res) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
-  const completedHistory = db.history.filter(h => h.status === 'completed');
+  const completedHistory = (db.history || []).filter(h =>
+    h.status === 'completed' &&
+    !h.isFakap &&
+    !String(h.id || '').startsWith('fakap_') &&
+    (!h.filePath || !isInsideFakap(h.filePath))
+  );
   const completedHistoryIds = new Set(completedHistory.map(h => h.id));
+  const completedPaths = new Set(completedHistory.map(h => h.filePath ? path.resolve(h.filePath).toLowerCase() : '').filter(Boolean));
   
   const untrackedFiles = [];
   const unrelatedFiles = [];
@@ -1097,7 +1137,8 @@ router.get('/tools/compare-files', localhostOnly, (req, res) => {
     }
 
     const ext = path.extname(filePath).toLowerCase();
-    const idMatch = filename.match(/\[([a-zA-Z0-9_-]{11})\]/);
+    // YouTube (11 karakter) veya Harici platformlar (ext_...) video ID eşleştirmesi
+    const idMatch = filename.match(/\[([a-zA-Z0-9_-]{11,64})\]/);
     let videoId = null;
     if (idMatch) {
       videoId = idMatch[1];
@@ -1105,6 +1146,19 @@ router.get('/tools/compare-files', localhostOnly, (req, res) => {
     
     if (videoId && videoExtensions.includes(ext)) {
       diskVideos.push(videoId);
+    }
+
+    // Dosyanın veya ilişkili video dosyasının zaten veritabanında kayıtlı olup olmadığını doğrula
+    const isAlreadyTracked = (videoId && completedHistoryIds.has(videoId)) || completedPaths.has(path.resolve(filePath).toLowerCase());
+    if (isAlreadyTracked) {
+      continue;
+    }
+
+    // İlgili video için indirilmiş kapak resmi (.jpg, .webp) veya açıklama (.description, .vtt) yardımcı dosyalarını alakasız sayma
+    const basePath = filePath.slice(0, -ext.length);
+    const isAuxiliaryOfCompleted = videoExtensions.some(vext => completedPaths.has(path.resolve(basePath + vext).toLowerCase()));
+    if (isAuxiliaryOfCompleted) {
+      continue;
     }
     
     try {
@@ -1118,30 +1172,26 @@ router.get('/tools/compare-files', localhostOnly, (req, res) => {
       };
       
       if (videoId) {
-        if (completedHistoryIds.has(videoId)) {
-          continue;
-        } else {
-          if (videoExtensions.includes(ext)) {
-            const nameWithoutExt = filename.slice(0, filename.length - ext.length);
-            const bracketIndex = nameWithoutExt.lastIndexOf(' [');
-            let channelName = '';
-            let title = nameWithoutExt;
-            if (bracketIndex !== -1) {
-              const titleAndChannel = nameWithoutExt.slice(0, bracketIndex);
-              const dashIndex = titleAndChannel.indexOf(' - ');
-              if (dashIndex !== -1) {
-                channelName = titleAndChannel.slice(0, dashIndex).trim();
-                title = titleAndChannel.slice(dashIndex + 3).trim();
-              } else {
-                title = titleAndChannel.trim();
-              }
+        if (videoExtensions.includes(ext)) {
+          const nameWithoutExt = filename.slice(0, filename.length - ext.length);
+          const bracketIndex = nameWithoutExt.lastIndexOf(' [');
+          let channelName = '';
+          let title = nameWithoutExt;
+          if (bracketIndex !== -1) {
+            const titleAndChannel = nameWithoutExt.slice(0, bracketIndex);
+            const dashIndex = titleAndChannel.indexOf(' - ');
+            if (dashIndex !== -1) {
+              channelName = titleAndChannel.slice(0, dashIndex).trim();
+              title = titleAndChannel.slice(dashIndex + 3).trim();
+            } else {
+              title = titleAndChannel.trim();
             }
-            fileData.channelName = channelName;
-            fileData.title = title;
-            untrackedFiles.push(fileData);
-          } else {
-            unrelatedFiles.push(fileData);
           }
+          fileData.channelName = channelName;
+          fileData.title = title;
+          untrackedFiles.push(fileData);
+        } else {
+          unrelatedFiles.push(fileData);
         }
       } else {
         unrelatedFiles.push(fileData);
@@ -1153,7 +1203,7 @@ router.get('/tools/compare-files', localhostOnly, (req, res) => {
 
   const missingFiles = [];
   for (const item of completedHistory) {
-    const existsOnDisk = diskVideos.includes(item.id);
+    const existsOnDisk = diskVideos.includes(item.id) || (item.filePath && fs.existsSync(item.filePath));
     if (!existsOnDisk) {
       missingFiles.push({
         id: item.id,
@@ -1187,14 +1237,34 @@ router.get('/tools/compare-files', localhostOnly, (req, res) => {
  * @returns {void}
  */
 router.post('/tools/open-file-location', localhostOnly, (req, res) => {
-  const { filePath } = req.body;
+  let { filePath, videoId } = req.body || {};
+  const db = readDb();
+  const downloadPathResolved = path.resolve(db.settings.downloadPath);
+  const fakapPathResolved = db.settings.fakapFolder ? path.resolve(db.settings.fakapFolder) : null;
+  const cleanVideoId = videoId ? String(videoId).replace(/^fakap_/, '') : '';
+  const matchedItem = videoId ? db.history.find(h => h.id === videoId || h.id === cleanVideoId) : null;
+
+  // Fallback: filePath verilmemisse veya diskte yoksa once db.history kaydina ve videoId ile indirme klasorune bak
+  if (!filePath || !fs.existsSync(path.resolve(filePath))) {
+    if (matchedItem && matchedItem.filePath && fs.existsSync(path.resolve(matchedItem.filePath))) {
+      filePath = matchedItem.filePath;
+    } else if (cleanVideoId) {
+      const found = findVideoFileInDownloadDir(cleanVideoId, db.settings.downloadPath);
+      if (found && fs.existsSync(found)) {
+        filePath = found;
+      }
+    }
+  }
+
   if (!filePath) return res.status(400).json({ error: 'filePath parametresi gereklidir.' });
   
   const resolvedFile = path.resolve(filePath);
-  const db = readDb();
-  const downloadPathResolved = path.resolve(db.settings.downloadPath);
-  
-  if (!resolvedFile.toLowerCase().startsWith(downloadPathResolved.toLowerCase())) {
+  const resolvedLower = resolvedFile.toLowerCase();
+  const isInsideDownloadDir = resolvedLower.startsWith(downloadPathResolved.toLowerCase());
+  const isInsideFakapDir = fakapPathResolved ? resolvedLower.startsWith(fakapPathResolved.toLowerCase()) : false;
+  const isKnownHistoryPath = matchedItem && matchedItem.filePath && path.resolve(matchedItem.filePath).toLowerCase() === resolvedLower;
+
+  if (!isInsideDownloadDir && !isInsideFakapDir && !isKnownHistoryPath) {
     return res.status(403).json({ error: 'Güvenlik hatası: İndirme klasörü dışındaki bir dosya açılamaz.' });
   }
   
@@ -1203,13 +1273,34 @@ router.post('/tools/open-file-location', localhostOnly, (req, res) => {
   }
   
   try {
+    console.log(`[Konum Aç] Explorer üzerinde gösteriliyor: ${resolvedFile}`);
     if (process.platform === 'win32') {
-      exec(`explorer.exe /select,"${resolvedFile}"`);
+      const normalizedPath = path.normalize(resolvedFile);
+      try {
+        const child = spawn('explorer.exe', [`/select,"${normalizedPath}"`], {
+          windowsVerbatimArguments: true
+        });
+        child.on('error', () => {});
+        child.unref();
+      } catch (e) {
+        exec(`explorer.exe /select,"${normalizedPath}"`);
+      }
       const folderName = path.basename(path.dirname(resolvedFile));
-      const folderNameSafe = folderName.replace(/'/g, "''");
+      const escapedFolder = folderName.replace(/'/g, "''");
       setTimeout(() => {
-        exec(`powershell -Command "(New-Object -ComObject wscript.shell).AppActivate('${folderNameSafe}')"`, (err) => {});
-      }, 500);
+        try {
+          const actScript = `(New-Object -ComObject wscript.shell).AppActivate('${escapedFolder}') | Out-Null`;
+          const encAct = Buffer.from(actScript, 'utf16le').toString('base64');
+          execFile('powershell.exe', [
+            '-NoProfile',
+            '-NonInteractive',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-EncodedCommand',
+            encAct
+          ], { windowsHide: true }, () => {});
+        } catch (e) {}
+      }, 450);
     } else if (process.platform === 'darwin') {
       exec(`open -R "${resolvedFile}"`);
     } else {
@@ -1535,7 +1626,7 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
     }
   }
 
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
+  if (!/^[a-zA-Z0-9_-]{11,64}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
   }
   const deleteFile = req.query.deleteFile === 'true';
@@ -1761,7 +1852,8 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
   }
   broadcast('status_log', { message: statusMsg, type: 'success' });
   
-  if (markWatched) {
+  const isYouTube = !id.startsWith('ext_') && (/^[a-zA-Z0-9_-]{11}$/.test(id) || id.startsWith('fakap_'));
+  if (markWatched && isYouTube) {
     setTimeout(async () => {
       try {
         const ytRes = await markVideoWatchedOnYouTube(id, videoTitle, duration);
@@ -1799,7 +1891,7 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
  */
 router.post('/history/:id/redownload', localhostOnly, async (req, res) => {
   const { id } = req.params;
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
+  if (!/^[a-zA-Z0-9_-]{11,64}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
   }
 
@@ -1807,6 +1899,11 @@ router.post('/history/:id/redownload', localhostOnly, async (req, res) => {
   const item = db.history.find(h => h.id === id);
   if (!item) {
     return res.status(404).json({ error: 'Video geçmişte bulunamadı.' });
+  }
+
+  const targetUrl = resolveItemDownloadUrl(item);
+  if (!targetUrl) {
+    return res.status(400).json({ error: 'Bu video için geçerli bir indirme bağlantısı çözümlenemedi.' });
   }
 
   try {
@@ -1862,14 +1959,25 @@ router.post('/history/:id/redownload', localhostOnly, async (req, res) => {
 
   await downloadQueue.add({
     id: item.id,
+    originalId: item.originalId || item.id,
     title: item.title,
     channelId: item.channelId,
     channelName: item.channelName,
-    url: `https://www.youtube.com/watch?v=${item.id}`,
-    publishedAt: item.publishedAt || ''
+    url: targetUrl,
+    webUrl: item.webUrl || targetUrl,
+    platform: item.platform || (targetUrl.includes('instagram.com') ? 'instagram' : (targetUrl.includes('tiktok.com') ? 'tiktok' : (targetUrl.includes('twitter.com') || targetUrl.includes('x.com') ? 'x' : 'youtube'))),
+    publishedAt: item.publishedAt || '',
+    isStandalone: item.isStandalone || String(item.id).startsWith('ext_'),
+    skipChannelFolder: item.skipChannelFolder === true,
+    customFormat: item.customFormat,
+    audioBitrate: item.audioBitrate,
+    duration: item.duration || '',
+    thumbnail: item.thumbnail || ''
   });
 
-  resolveMissingDurations();
+  if (!String(item.id).startsWith('ext_')) {
+    resolveMissingDurations();
+  }
 
   res.json({ success: true, message: 'Video silindi ve tekrar indirilmek üzere kuyruğa eklendi.' });
 });
@@ -1887,7 +1995,7 @@ router.post('/history/:id/redownload', localhostOnly, async (req, res) => {
  */
 router.post('/history/:id/hide', localhostOnly, async (req, res) => {
   const { id } = req.params;
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
+  if (!/^[a-zA-Z0-9_-]{11,64}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
   }
 
@@ -1930,7 +2038,7 @@ router.post('/history/bulk-hide', localhostOnly, async (req, res) => {
 
   // Validate all IDs
   for (const id of ids) {
-    if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
+    if (!/^[a-zA-Z0-9_-]{11,64}$/.test(id)) {
       return res.status(400).json({ error: `Geçersiz Video ID formatı: ${id}` });
     }
   }
@@ -1974,7 +2082,7 @@ router.post('/history/bulk-hide', localhostOnly, async (req, res) => {
  */
 router.post('/history/:id/unhide', localhostOnly, async (req, res) => {
   const { id } = req.params;
-  if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) {
+  if (!/^[a-zA-Z0-9_-]{11,64}$/.test(id)) {
     return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
   }
 
@@ -2274,6 +2382,7 @@ router.get('/auto-delete/pending', localhostOnly, (req, res) => {
         channelName: item.channelName,
         filePath: item.filePath,
         fileSize: item.fileSize || '',
+        reason: getVideoAutoDeleteReason(item, db),
         thumbnail: `/api/video/${item.id}/thumbnail`
       });
     }
@@ -2323,12 +2432,27 @@ router.post('/auto-delete/confirm', localhostOnly, async (req, res) => {
 });
 
 /**
- * Süresi dolmuş videoların silinmesini belirtilen gün kadar (1, 2, 3 gün) erteler.
+ * Süresi dolmuş videoların silinmesini belirtilen dakika, saat veya gün kadar erteler.
  */
 router.post('/auto-delete/postpone', localhostOnly, async (req, res) => {
-  const { videoIds, days } = req.body;
-  const postponeDays = Math.max(1, Math.min(parseInt(days, 10) || 2, 30));
-  const postponeUntil = Date.now() + (postponeDays * 24 * 60 * 60 * 1000);
+  const { videoIds, days, minutes, hours } = req.body;
+  let durationMs = 0;
+  let totalMinutes = 0;
+
+  if (minutes && parseInt(minutes, 10) > 0) {
+    totalMinutes = Math.max(1, Math.min(parseInt(minutes, 10), 43200));
+    durationMs = totalMinutes * 60 * 1000;
+  } else if (hours && parseInt(hours, 10) > 0) {
+    const h = Math.max(1, Math.min(parseInt(hours, 10), 720));
+    totalMinutes = h * 60;
+    durationMs = h * 60 * 60 * 1000;
+  } else {
+    const postponeDays = Math.max(1, Math.min(parseInt(days, 10) || 2, 30));
+    totalMinutes = postponeDays * 1440;
+    durationMs = postponeDays * 24 * 60 * 60 * 1000;
+  }
+
+  const postponeUntil = Date.now() + durationMs;
 
   const release = await acquireDbLock();
   try {
@@ -2346,12 +2470,70 @@ router.post('/auto-delete/postpone', localhostOnly, async (req, res) => {
       }
     }
 
+    let logDurationStr = '';
+    if (totalMinutes >= 1440 && totalMinutes % 1440 === 0) {
+      logDurationStr = `${totalMinutes / 1440} gün`;
+    } else if (totalMinutes >= 60 && totalMinutes % 60 === 0) {
+      logDurationStr = `${totalMinutes / 60} saat`;
+    } else {
+      logDurationStr = `${totalMinutes} dakika`;
+    }
+
     if (postponedCount > 0) {
       writeDb(db);
       broadcast('db_update', db);
-      addTerminalLog(`[Oto-Silme Ertelendi] ${postponedCount} adet videonun silinmesi ${postponeDays} gün ertelendi.`, 'info');
+      addTerminalLog(`[Oto-Silme Ertelendi] ${postponedCount} adet videonun silinmesi ${logDurationStr} ertelendi.`, 'info');
     }
-    res.json({ success: true, count: postponedCount, days: postponeDays });
+    res.json({ success: true, count: postponedCount, minutes: totalMinutes, days: totalMinutes >= 1440 ? Math.round(totalMinutes / 1440) : 0 });
+  } finally {
+    release();
+  }
+});
+
+/**
+ * Tüm videoların otomatik silme erteleme sürelerini (autoDeletePostponedUntil) sıfırlar ve süresi dolanları döner.
+ */
+router.post('/auto-delete/reset-postponed', localhostOnly, async (req, res) => {
+  const release = await acquireDbLock();
+  try {
+    const db = readDb();
+    let resetCount = 0;
+    for (const item of (db.history || [])) {
+      if (item.autoDeletePostponedUntil) {
+        delete item.autoDeletePostponedUntil;
+        resetCount++;
+      }
+    }
+    if (resetCount > 0) {
+      writeDb(db);
+      broadcast('db_update', db);
+      addTerminalLog(`[Oto-Silme] ${resetCount} adet videonun erteleme süresi sıfırlandı.`, 'info');
+    }
+
+    const expiredItems = [];
+    for (const item of (db.history || [])) {
+      const remainingMs = getVideoRemainingMs(item, db);
+      if (remainingMs !== null && remainingMs <= 0) {
+        expiredItems.push({
+          id: item.id,
+          title: item.title,
+          channelName: item.channelName,
+          filePath: item.filePath,
+          fileSize: item.fileSize || '',
+          reason: getVideoAutoDeleteReason(item, db),
+          thumbnail: `/api/video/${item.id}/thumbnail`
+        });
+      }
+    }
+
+    if (expiredItems.length > 0 && db.settings.autoDeleteRequireConfirmation !== false) {
+      broadcast('auto_delete_pending', {
+        videos: expiredItems,
+        count: expiredItems.length
+      });
+    }
+
+    res.json({ success: true, resetCount, videos: expiredItems });
   } finally {
     release();
   }
@@ -2388,14 +2570,20 @@ router.post('/deleted-videos/redownload', localhostOnly, async (req, res) => {
     const channelName = item?.channelName || (historyIndex !== -1 ? db.history[historyIndex].channelName : '');
     const duration = item?.duration || (historyIndex !== -1 ? db.history[historyIndex].duration : '');
 
+    const historyItem = historyIndex !== -1 ? db.history[historyIndex] : null;
+    const targetUrl = resolveItemDownloadUrl(item || historyItem) || `https://www.youtube.com/watch?v=${videoId}`;
+
     const videoObj = {
       id: videoId,
-      url: `https://www.youtube.com/watch?v=${videoId}`,
+      originalId: item?.originalId || historyItem?.originalId || videoId,
+      url: targetUrl,
+      webUrl: item?.webUrl || historyItem?.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+      platform: item?.platform || historyItem?.platform || (targetUrl.includes('instagram.com') ? 'instagram' : (targetUrl.includes('tiktok.com') ? 'tiktok' : (targetUrl.includes('twitter.com') || targetUrl.includes('x.com') ? 'x' : 'youtube'))),
       title: videoTitle,
       channelId: channelId,
       channelName: channelName,
       duration: duration,
-      publishedAt: item?.publishedAt || new Date().toISOString(),
+      publishedAt: item?.publishedAt || historyItem?.publishedAt || new Date().toISOString(),
       downloadedAt: new Date().toISOString(),
       status: 'waiting',
       progress: 0,
@@ -2474,3 +2662,25 @@ function isCompanionFile(file, primaryName, baseName, targetPattern) {
   }
   return false;
 }
+
+/**
+ * Dosyayı Windows panosuna (Clipboard FileDropList) kopyalar.
+ * Böylece WhatsApp, Telegram, Discord veya klasör içine Ctrl+V ile doğrudan yapıştırılabilir.
+ * @route POST /api/tools/copy-file-to-clipboard
+ */
+router.post('/tools/copy-file-to-clipboard', localhostOnly, (req, res) => {
+  const { filePath } = req.body || {};
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ success: false, error: 'Dosya bulunamadı' });
+  }
+  try {
+    const escaped = filePath.replace(/'/g, "''");
+    const cmd = `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $sc = New-Object System.Collections.Specialized.StringCollection; $sc.Add('${escaped}'); [System.Windows.Forms.Clipboard]::SetFileDropList($sc);"`;
+    exec(cmd, { windowsHide: true }, (err) => {
+      if (err) return res.status(500).json({ success: false, error: err.message });
+      res.json({ success: true });
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});

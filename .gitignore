@@ -13,6 +13,7 @@ db.json
 db.json*
 *.tmp
 *.bak
+*.old
 
 # Günlük Log Dosyaları
 logs/

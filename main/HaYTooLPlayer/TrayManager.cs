@@ -29,6 +29,7 @@ namespace HaYTooLPlayer
         private string _currentLang = "tr";
 
         // Menü Öğeleri
+        private ContextMenuStrip? _contextMenu;
         private ToolStripMenuItem? _openUiItem;
         private ToolStripMenuItem? _youtubeLoginItem;
         private ToolStripMenuItem? _pasteDownloadItem;
@@ -84,7 +85,8 @@ namespace HaYTooLPlayer
                 // Çift tıklayınca kullanıcının seçtiği ortamı aç (WPF Oynatıcı, Edge App Modu veya Sistem Tarayıcısı)
                 _trayIcon.DoubleClick += (s, e) => ExecutePreferredOpenAction("/downlist");
 
-                ContextMenuStrip menu = new ContextMenuStrip();
+                _contextMenu = new ContextMenuStrip();
+                ContextMenuStrip menu = _contextMenu;
                 _openUiItem = new ToolStripMenuItem("Arayüzü Aç", null, (s, e) => ExecutePreferredOpenAction("/downlist"));
                 _youtubeLoginItem = new ToolStripMenuItem("YouTube'da Oturum Aç", null, (s, e) => _mainWindow.OpenYouTubeCookieWindow("https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com", false));
                 _checkChannelsItem = new ToolStripMenuItem("Kanalları Denetle", null, TriggerCheckChannels);
@@ -129,12 +131,13 @@ namespace HaYTooLPlayer
                 menu.Items.Add(new ToolStripSeparator());
                 menu.Items.Add(_restartItem);
                 menu.Items.Add(_showConsoleItem);
-                menu.Items.Add(new ToolStripSeparator());
+
                 menu.Items.Add(_exitItem);
 
-                // Menü her açıldığında onay işaretlerini güncel INI ve Kayıt Defteri durumuna göre yenile
+                // Menü her açıldığında onay işaretlerini ve temayı anında güncelle
                 menu.Opening += (s, e) =>
                 {
+                    ApplyThemeToContextMenu();
                     if (_altSpeedItem != null) _altSpeedItem.Checked = GetIniBoolSetting("useAlternativeSpeed");
                     if (_bootItem != null) _bootItem.Checked = GetStartOnBootSetting();
                     if (_discordRpcItem != null) _discordRpcItem.Checked = GetIniBoolSetting("discordRpcEnabled");
@@ -144,6 +147,7 @@ namespace HaYTooLPlayer
 
                 _currentLang = GetLanguageSetting();
                 ApplyLanguage(_currentLang);
+                ApplyThemeToContextMenu();
 
                 StartDownloadMonitor();
             }
@@ -169,16 +173,8 @@ namespace HaYTooLPlayer
         {
             _mainWindow.Dispatcher.Invoke(() =>
             {
-                if (!_mainWindow.IsVisible)
-                {
-                    _mainWindow.Show();
-                }
-                if (_mainWindow.WindowState == System.Windows.WindowState.Minimized)
-                {
-                    _mainWindow.WindowState = System.Windows.WindowState.Maximized;
-                }
-                _mainWindow.Activate();
-                _mainWindow.Focus();
+                EnsureTrayVisible();
+                _mainWindow.BringWindowToFront();
 
                 // Eğer varsayılan /downlist tetiklenmişse veya path boşsa, oynatılan videoyu ve mevcut sayfayı kesmemek için ASLA reload yapma!
                 if (string.IsNullOrEmpty(path) || path == "/downlist" || path == "/")
@@ -760,6 +756,161 @@ namespace HaYTooLPlayer
             return "player"; // Varsayılan: player
         }
 
+        public static string GetThemeSetting()
+        {
+            // 1. configwin.ini kontrol et
+            try
+            {
+                string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configwin.ini");
+                if (File.Exists(iniPath))
+                {
+                    string[] lines = File.ReadAllLines(iniPath);
+                    foreach (string line in lines)
+                    {
+                        string trimmed = line.Trim();
+                        int equalsIdx = trimmed.IndexOf('=');
+                        if (equalsIdx != -1)
+                        {
+                            string key = trimmed.Substring(0, equalsIdx).Trim();
+                            string val = trimmed.Substring(equalsIdx + 1).Trim();
+                            if (string.Equals(key, "theme", StringComparison.OrdinalIgnoreCase))
+                            {
+                                return val.ToLowerInvariant();
+                            }
+                        }
+                    }
+                }
+            }
+            catch {}
+
+            // 2. db.json kontrol et
+            try
+            {
+                string dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "db.json");
+                if (File.Exists(dbPath))
+                {
+                    string content = File.ReadAllText(dbPath, Encoding.UTF8);
+                    var match = Regex.Match(content, "\"theme\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+                    if (match.Success)
+                    {
+                        return match.Groups[1].Value.ToLowerInvariant();
+                    }
+                }
+            }
+            catch {}
+
+            return "dark"; // Varsayılan: dark
+        }
+
+        public void ApplyThemeToContextMenu()
+        {
+            try
+            {
+                string theme = GetThemeSetting();
+                bool isDark = !string.Equals(theme, "light", StringComparison.OrdinalIgnoreCase);
+
+                var renderer = new HaYTooLMenuRenderer(isDark);
+                if (_contextMenu != null)
+                {
+                    _contextMenu.Renderer = renderer;
+                    ApplyThemeToItems(_contextMenu.Items, isDark);
+                }
+                if (_shortcutsMenu != null && _shortcutsMenu.DropDown != null)
+                {
+                    _shortcutsMenu.DropDown.Renderer = renderer;
+                    ApplyThemeToItems(_shortcutsMenu.DropDownItems, isDark);
+                }
+            }
+            catch {}
+        }
+
+        private void ApplyThemeToItems(ToolStripItemCollection items, bool isDark)
+        {
+            Color textCol = isDark ? Color.FromArgb(244, 244, 245) : Color.FromArgb(24, 24, 27);
+            Font itemFont = new Font("Segoe UI", 9.25f, FontStyle.Regular);
+
+            foreach (ToolStripItem item in items)
+            {
+                if (item is ToolStripSeparator sep)
+                {
+                    sep.ForeColor = isDark ? Color.FromArgb(39, 39, 42) : Color.FromArgb(228, 228, 231);
+                }
+                else
+                {
+                    item.ForeColor = textCol;
+                    item.Font = itemFont;
+                    if (item is ToolStripMenuItem menuItem && menuItem.HasDropDownItems)
+                    {
+                        ApplyThemeToItems(menuItem.DropDownItems, isDark);
+                    }
+                }
+            }
+        }
+
+        private ContextMenuStrip BuildQuickCmdMenu(ComboBox commandComboBox, Action<string> sendAction)
+        {
+            bool isEn = _currentLang == "en";
+            ContextMenuStrip qMenu = new ContextMenuStrip();
+            string theme = GetThemeSetting();
+            bool isDark = !string.Equals(theme, "light", StringComparison.OrdinalIgnoreCase);
+            qMenu.Renderer = new HaYTooLMenuRenderer(isDark);
+
+            void AddPreset(string title, string cmd, string desc, bool autoExecute = true)
+            {
+                var item = new ToolStripMenuItem(title);
+                item.ToolTipText = desc;
+                item.Click += (s, e) =>
+                {
+                    commandComboBox.Text = cmd;
+                    if (autoExecute)
+                    {
+                        sendAction(cmd);
+                        commandComboBox.Text = "";
+                    }
+                    else
+                    {
+                        commandComboBox.Focus();
+                        commandComboBox.SelectionStart = cmd.Length;
+                    }
+                };
+                qMenu.Items.Add(item);
+            }
+
+            // 1. Durum & Bilgi
+            AddPreset(isEn ? "📊 status   (Server & Queue Status)" : "📊 status   (Durum ve Hız Özeti)", "status", isEn ? "Shows download queue, speed limits & Turtle state" : "İndirme kuyruğunu, hız limitlerini ve kaplumbağa modunu listeler");
+
+            // 2. İndirme Kuyruğu
+            AddPreset(isEn ? "⏸️ pause    (Pause Download Queue)" : "⏸️ pause    (Kuyruğu Duraklat)", "pause", isEn ? "Pauses all downloads safely" : "İndirmeleri güvenle beklemeye alır");
+            AddPreset(isEn ? "▶️ resume   (Resume Download Queue)" : "▶️ resume   (Kuyruğu Devam Ettir)", "resume", isEn ? "Resumes paused download queue" : "Duraklatılan indirmeleri devam ettirir");
+            AddPreset(isEn ? "📥 pd       (Download Video Link...)" : "📥 pd       (Video Linki İndir...)", "pd https://www.youtube.com/watch?v=", isEn ? "Inserts pd template into box for you to paste URL" : "Kutuya link şablonu yazar, linkinizi yapıştırıp gönderebilirsiniz", autoExecute: false);
+
+            qMenu.Items.Add(new ToolStripSeparator());
+
+            // 3. Hız ve Kaplumbağa Modu
+            AddPreset(isEn ? "🔄 toggle   (Toggle Turtle Speed Mode)" : "🔄 toggle   (Kaplumbağa Modu Aç/Kapat)", "toggle", isEn ? "Switches between normal and alternative speed limits" : "Normal ve alternatif hız profili arasında geçiş yapar");
+            AddPreset(isEn ? "🐢 ton      (Enable Turtle Speed)" : "🐢 ton      (Kaplumbağa Hızını Aç)", "ton", isEn ? "Enables alternative speed limit" : "Alternatif hız profilini aktif hale getirir");
+            AddPreset(isEn ? "⚡ toff     (Disable Turtle Speed)" : "⚡ toff     (Kaplumbağa Hızını Kapat)", "toff", isEn ? "Disables turtle speed, returns to normal limit" : "Normal hız limitine döner");
+            AddPreset(isEn ? "🚀 speed    (Set Normal Speed...)" : "🚀 speed    (Normal Hız Sınırı...)", "speed 2500", isEn ? "Sets download speed limit in KB/s (e.g. speed 2500 or speed off)" : "Normal indirme hızını KB/s olarak ayarlar (örn: speed 2500 veya speed off)", autoExecute: false);
+            AddPreset(isEn ? "🐌 altspeed (Set Turtle Speed...)" : "🐌 altspeed (Kaplumbağa Hız Sınırı...)", "altspeed 500", isEn ? "Sets alternative speed limit in KB/s (e.g. altspeed 500)" : "Kaplumbağa hız profilini KB/s olarak ayarlar (örn: altspeed 500)", autoExecute: false);
+
+            qMenu.Items.Add(new ToolStripSeparator());
+
+            // 4. Bakım & Araçlar
+            AddPreset(isEn ? "🔍 check    (Scan Followed Channels)" : "🔍 check    (Kanalları RSS ile Tara)", "check", isEn ? "Instantly scans channels for newly uploaded videos" : "Takip edilen kanalları yeni videolar için anında tarar");
+            AddPreset(isEn ? "💾 backup   (Take Instant Backup)" : "💾 backup   (Sistem Yedeği Al)", "backup", isEn ? "Takes immediate database and configuration backup" : "Anlık veritabanı ve ayar yedeği oluşturur");
+            AddPreset(isEn ? "🧹 fakap    (Run Fakap Maintenance)" : "🧹 fakap    (Fakap Yedeklerini Temizle)", "fakap", isEn ? "Cleans up expired Fakap backups according to retention days" : "Süresi dolan otomatik yedekleri temizler");
+
+            qMenu.Items.Add(new ToolStripSeparator());
+
+            // 5. Konsol ve Çıkış
+            AddPreset(isEn ? "❓ help     (List All CLI Commands)" : "❓ help     (Tüm Komutları Konsola Yaz)", "help", isEn ? "Displays complete guide of all available commands" : "Tüm kullanılabilir komutları konsolda gösterir");
+            AddPreset(isEn ? "🧹 clear    (Clear Terminal Screen)" : "🧹 clear    (Terminal Ekranını Temizle)", "clear", isEn ? "Clears output logs from current window" : "Terminal penceresindeki yazıları temizler");
+            AddPreset(isEn ? "🛑 stop     (Safely Terminate App)" : "🛑 stop     (Uygulamayı Güvenle Kapat)", "stop", isEn ? "Shuts down server and closes application" : "Sunucuyu ve uygulamayı güvenle kapatır");
+
+            ApplyThemeToItems(qMenu.Items, isDark);
+            return qMenu;
+        }
+
         private string GetLanguageSetting()
         {
             try
@@ -1031,10 +1182,14 @@ namespace HaYTooLPlayer
                 return;
             }
 
+            string theme = GetThemeSetting();
+            bool isDark = !string.Equals(theme, "light", StringComparison.OrdinalIgnoreCase);
+
             _logForm = new Form();
-            _logForm.Text = _currentLang == "en" ? "Multimedia HaYTooL - Console Output" : "Multimedia HaYTooL - Terminal Çıktısı";
-            _logForm.Size = new Size(950, 600);
+            _logForm.Text = _currentLang == "en" ? "Multimedia HaYTooL - Terminal Output & Console" : "Multimedia HaYTooL - Terminal Çıktısı & Konsol";
+            _logForm.Size = new Size(1000, 640);
             _logForm.StartPosition = FormStartPosition.CenterScreen;
+            _logForm.BackColor = isDark ? Color.FromArgb(18, 18, 24) : Color.FromArgb(245, 245, 248);
 
             string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
             if (File.Exists(iconPath))
@@ -1046,14 +1201,15 @@ namespace HaYTooLPlayer
             mainLayout.Dock = DockStyle.Fill;
             mainLayout.RowCount = 2;
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 55F));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 56F));
 
             _logTextBox = new RichTextBox();
             _logTextBox.ReadOnly = true;
             _logTextBox.Dock = DockStyle.Fill;
-            _logTextBox.BackColor = Color.FromArgb(15, 14, 32);
-            _logTextBox.ForeColor = Color.FromArgb(220, 220, 220);
-            _logTextBox.Font = new Font("Consolas", 12f);
+            _logTextBox.BackColor = Color.FromArgb(10, 10, 16);
+            _logTextBox.ForeColor = Color.FromArgb(240, 240, 240);
+            _logTextBox.Font = new Font("Consolas", 11.5f);
+            _logTextBox.BorderStyle = BorderStyle.None;
 
             lock (_bufferLock)
             {
@@ -1072,56 +1228,87 @@ namespace HaYTooLPlayer
 
             Panel commandPanel = new Panel();
             commandPanel.Dock = DockStyle.Fill;
-            commandPanel.BackColor = Color.FromArgb(25, 24, 45);
+            commandPanel.BackColor = isDark ? Color.FromArgb(24, 24, 34) : Color.FromArgb(235, 235, 240);
             commandPanel.Padding = new Padding(10);
 
             _cmdLabel = new Label();
             _cmdLabel.Text = _currentLang == "en" ? "Command:" : "Komut:";
-            _cmdLabel.ForeColor = Color.White;
-            _cmdLabel.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+            _cmdLabel.ForeColor = isDark ? Color.FromArgb(240, 240, 240) : Color.FromArgb(24, 24, 27);
+            _cmdLabel.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
             _cmdLabel.AutoSize = true;
-            _cmdLabel.Location = new Point(10, 17);
+            _cmdLabel.Location = new Point(10, 18);
 
             ComboBox commandComboBox = new ComboBox();
-            commandComboBox.Font = new Font("Consolas", 11f);
-            commandComboBox.BackColor = Color.FromArgb(35, 34, 55);
-            commandComboBox.ForeColor = Color.White;
-            commandComboBox.Location = new Point(70, 14);
-            commandComboBox.Size = new Size(660, 26);
+            commandComboBox.Font = new Font("Consolas", 10.5f);
+            commandComboBox.BackColor = isDark ? Color.FromArgb(32, 32, 46) : Color.White;
+            commandComboBox.ForeColor = isDark ? Color.White : Color.FromArgb(24, 24, 27);
+            commandComboBox.Location = new Point(75, 14);
+            commandComboBox.Size = new Size(commandPanel.ClientSize.Width - 520, 26);
             commandComboBox.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
             commandComboBox.Items.AddRange(new string[] {
-                "help",
-                "status",
-                "ton",
-                "toff",
-                "toggle",
-                "speed",
-                "altspeed",
-                "pd",
-                "clear"
+                "help", "status", "pause", "resume", "ton", "toff", "toggle", "speed", "altspeed", "pd", "check", "backup", "fakap", "clear", "stop"
             });
+
+            Action<string> executeCmd = (cmd) =>
+            {
+                if (string.IsNullOrWhiteSpace(cmd)) return;
+                string lower = cmd.Trim().ToLowerInvariant();
+                if (lower == "clear")
+                {
+                    lock (_bufferLock) { _consoleBuffer.Length = 0; }
+                    _logTextBox.Clear();
+                }
+                else if (lower == "exit" || lower == "quit" || lower == "stop")
+                {
+                    ExitApplication();
+                }
+                else
+                {
+                    SendCommandToNode(cmd.Trim());
+                }
+            };
+
+            Button _quickCmdButton = new Button();
+            _quickCmdButton.Text = _currentLang == "en" ? "⚡ Presets ▾" : "⚡ Hızlı Komutlar ▾";
+            _quickCmdButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+            _quickCmdButton.BackColor = Color.FromArgb(124, 58, 237);
+            _quickCmdButton.ForeColor = Color.White;
+            _quickCmdButton.FlatStyle = FlatStyle.Flat;
+            _quickCmdButton.FlatAppearance.BorderSize = 0;
+            _quickCmdButton.Location = new Point(commandPanel.ClientSize.Width - 435, 13);
+            _quickCmdButton.Size = new Size(140, 28);
+            _quickCmdButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+            _quickCmdButton.Cursor = Cursors.Hand;
+
+            ContextMenuStrip quickMenu = BuildQuickCmdMenu(commandComboBox, executeCmd);
+            _quickCmdButton.Click += (s, ev) =>
+            {
+                quickMenu.Show(_quickCmdButton, new Point(0, _quickCmdButton.Height + 2));
+            };
 
             _sendButton = new Button();
             _sendButton.Text = _currentLang == "en" ? "Send" : "Gönder";
             _sendButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
-            _sendButton.BackColor = Color.FromArgb(40, 180, 99);
+            _sendButton.BackColor = Color.FromArgb(16, 185, 129);
             _sendButton.ForeColor = Color.White;
             _sendButton.FlatStyle = FlatStyle.Flat;
             _sendButton.FlatAppearance.BorderSize = 0;
-            _sendButton.Location = new Point(575, 13);
-            _sendButton.Size = new Size(80, 28);
+            _sendButton.Location = new Point(commandPanel.ClientSize.Width - 285, 13);
+            _sendButton.Size = new Size(85, 28);
             _sendButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+            _sendButton.Cursor = Cursors.Hand;
 
             _clearButton = new Button();
             _clearButton.Text = _currentLang == "en" ? "Clear" : "Temizle";
             _clearButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
-            _clearButton.BackColor = Color.FromArgb(230, 126, 34);
+            _clearButton.BackColor = Color.FromArgb(245, 158, 11);
             _clearButton.ForeColor = Color.White;
             _clearButton.FlatStyle = FlatStyle.Flat;
             _clearButton.FlatAppearance.BorderSize = 0;
-            _clearButton.Location = new Point(660, 13);
-            _clearButton.Size = new Size(80, 28);
+            _clearButton.Location = new Point(commandPanel.ClientSize.Width - 190, 13);
+            _clearButton.Size = new Size(85, 28);
             _clearButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+            _clearButton.Cursor = Cursors.Hand;
 
             _clearButton.Click += (s, ev) =>
             {
@@ -1130,15 +1317,16 @@ namespace HaYTooLPlayer
             };
 
             _openLogButton = new Button();
-            _openLogButton.Text = _currentLang == "en" ? "Open" : "Aç";
+            _openLogButton.Text = _currentLang == "en" ? "Logs" : "Loglar";
             _openLogButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
-            _openLogButton.BackColor = Color.FromArgb(41, 128, 185);
+            _openLogButton.BackColor = Color.FromArgb(14, 165, 233);
             _openLogButton.ForeColor = Color.White;
             _openLogButton.FlatStyle = FlatStyle.Flat;
             _openLogButton.FlatAppearance.BorderSize = 0;
-            _openLogButton.Location = new Point(745, 13);
-            _openLogButton.Size = new Size(80, 28);
+            _openLogButton.Location = new Point(commandPanel.ClientSize.Width - 95, 13);
+            _openLogButton.Size = new Size(85, 28);
             _openLogButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+            _openLogButton.Cursor = Cursors.Hand;
 
             _openLogButton.Click += (s, ev) =>
             {
@@ -1161,21 +1349,7 @@ namespace HaYTooLPlayer
                     string cmd = commandComboBox.Text.Trim();
                     if (!string.IsNullOrEmpty(cmd))
                     {
-                        string lower = cmd.ToLowerInvariant();
-                        if (lower == "clear")
-                        {
-                            lock (_bufferLock) { _consoleBuffer.Length = 0; }
-                            _logTextBox.Clear();
-                        }
-                        else if (lower == "exit" || lower == "quit" || lower == "stop")
-                        {
-                            ExitApplication();
-                            return;
-                        }
-                        else
-                        {
-                            SendCommandToNode(cmd);
-                        }
+                        executeCmd(cmd);
                         commandComboBox.Text = "";
                     }
                 }
@@ -1186,21 +1360,7 @@ namespace HaYTooLPlayer
                 string cmd = commandComboBox.Text.Trim();
                 if (!string.IsNullOrEmpty(cmd))
                 {
-                    string lower = cmd.ToLowerInvariant();
-                    if (lower == "clear")
-                    {
-                        lock (_bufferLock) { _consoleBuffer.Length = 0; }
-                        _logTextBox.Clear();
-                    }
-                    else if (lower == "exit" || lower == "quit" || lower == "stop")
-                    {
-                        ExitApplication();
-                        return;
-                    }
-                    else
-                    {
-                        SendCommandToNode(cmd);
-                    }
+                    executeCmd(cmd);
                     commandComboBox.Text = "";
                     commandComboBox.Focus();
                 }
@@ -1208,6 +1368,7 @@ namespace HaYTooLPlayer
 
             commandPanel.Controls.Add(_cmdLabel);
             commandPanel.Controls.Add(commandComboBox);
+            commandPanel.Controls.Add(_quickCmdButton);
             commandPanel.Controls.Add(_sendButton);
             commandPanel.Controls.Add(_clearButton);
             commandPanel.Controls.Add(_openLogButton);
@@ -1234,6 +1395,85 @@ namespace HaYTooLPlayer
             if (_defaultTrayIcon != null) _defaultTrayIcon.Dispose();
             if (_normalTrayIcon != null) _normalTrayIcon.Dispose();
             if (_glowingTrayIcon != null) _glowingTrayIcon.Dispose();
+        }
+    }
+
+    public class HaYTooLColorTable : ProfessionalColorTable
+    {
+        private readonly bool _isDark;
+
+        public HaYTooLColorTable(bool isDark)
+        {
+            _isDark = isDark;
+        }
+
+        public override Color ToolStripDropDownBackground => _isDark ? Color.FromArgb(24, 24, 27) : Color.FromArgb(255, 255, 255);
+        public override Color ImageMarginGradientBegin => _isDark ? Color.FromArgb(24, 24, 27) : Color.FromArgb(255, 255, 255);
+        public override Color ImageMarginGradientMiddle => _isDark ? Color.FromArgb(24, 24, 27) : Color.FromArgb(255, 255, 255);
+        public override Color ImageMarginGradientEnd => _isDark ? Color.FromArgb(24, 24, 27) : Color.FromArgb(255, 255, 255);
+
+        public override Color MenuBorder => _isDark ? Color.FromArgb(63, 63, 70) : Color.FromArgb(228, 228, 231);
+        public override Color MenuItemBorder => _isDark ? Color.FromArgb(63, 63, 70) : Color.FromArgb(228, 228, 231);
+
+        public override Color MenuItemSelected => _isDark ? Color.FromArgb(39, 39, 42) : Color.FromArgb(244, 244, 245);
+        public override Color MenuItemSelectedGradientBegin => _isDark ? Color.FromArgb(39, 39, 42) : Color.FromArgb(244, 244, 245);
+        public override Color MenuItemSelectedGradientEnd => _isDark ? Color.FromArgb(39, 39, 42) : Color.FromArgb(244, 244, 245);
+
+        public override Color MenuItemPressedGradientBegin => _isDark ? Color.FromArgb(59, 130, 246) : Color.FromArgb(37, 99, 235);
+        public override Color MenuItemPressedGradientEnd => _isDark ? Color.FromArgb(59, 130, 246) : Color.FromArgb(37, 99, 235);
+
+        public override Color CheckBackground => _isDark ? Color.FromArgb(39, 39, 42) : Color.FromArgb(244, 244, 245);
+        public override Color CheckSelectedBackground => _isDark ? Color.FromArgb(59, 130, 246) : Color.FromArgb(37, 99, 235);
+        public override Color CheckPressedBackground => _isDark ? Color.FromArgb(59, 130, 246) : Color.FromArgb(37, 99, 235);
+
+        public override Color SeparatorDark => _isDark ? Color.FromArgb(39, 39, 42) : Color.FromArgb(228, 228, 231);
+        public override Color SeparatorLight => _isDark ? Color.FromArgb(24, 24, 27) : Color.FromArgb(255, 255, 255);
+    }
+
+    public class HaYTooLMenuRenderer : ToolStripProfessionalRenderer
+    {
+        private readonly bool _isDark;
+
+        public HaYTooLMenuRenderer(bool isDark) : base(new HaYTooLColorTable(isDark))
+        {
+            _isDark = isDark;
+            this.RoundedEdges = false;
+        }
+
+        protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+        {
+            if (e.Item.Enabled)
+            {
+                e.TextColor = _isDark ? Color.FromArgb(244, 244, 245) : Color.FromArgb(24, 24, 27);
+            }
+            else
+            {
+                e.TextColor = _isDark ? Color.FromArgb(113, 113, 122) : Color.FromArgb(161, 161, 170);
+            }
+            base.OnRenderItemText(e);
+        }
+
+        protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
+        {
+            e.ArrowColor = _isDark ? Color.FromArgb(212, 212, 216) : Color.FromArgb(82, 82, 91);
+            base.OnRenderArrow(e);
+        }
+
+        protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
+        {
+            Rectangle rect = new Rectangle(4, 4, e.Item.Height - 8, e.Item.Height - 8);
+            using (SolidBrush b = new SolidBrush(_isDark ? Color.FromArgb(59, 130, 246) : Color.FromArgb(37, 99, 235)))
+            {
+                e.Graphics.FillRectangle(b, rect);
+            }
+            using (Pen pen = new Pen(Color.White, 2f))
+            {
+                e.Graphics.DrawLines(pen, new Point[] {
+                    new Point(rect.Left + 3, rect.Top + rect.Height / 2),
+                    new Point(rect.Left + rect.Width / 2 - 1, rect.Bottom - 4),
+                    new Point(rect.Right - 3, rect.Top + 3)
+                });
+            }
         }
     }
 }

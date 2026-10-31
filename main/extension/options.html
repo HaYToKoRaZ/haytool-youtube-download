@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>HaYTooL Eklenti Ayarları</title>
+  <style>
+    :root {
+      --bg-page: #0b0c16;
+      --bg-card: #131424;
+      --border-color: rgba(255, 255, 255, 0.12);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent-color: #38bdf8;
+      --accent-hover: #0284c7;
+      --success: #10b981;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .options-card {
+      width: 440px;
+      max-width: 90vw;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+    .options-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 14px;
+    }
+    .options-header img {
+      width: 32px;
+      height: 32px;
+    }
+    .options-header h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent-color);
+    }
+    .form-group {
+      margin-bottom: 18px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.86rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+    .form-group .hint {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .input-control {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 12px;
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-control:focus {
+      border-color: var(--accent-color);
+    }
+    .lang-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .lang-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.84rem;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .lang-card:hover {
+      border-color: var(--accent-color);
+      background: rgba(56, 189, 248, 0.08);
+    }
+    .lang-card.selected {
+      border-color: var(--accent-color);
+      background: rgba(56, 189, 248, 0.15);
+      font-weight: 600;
+    }
+    .lang-flag-svg {
+      width: 22px;
+      height: 15px;
+      border-radius: 2px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+      flex-shrink: 0;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .btn-save {
+      width: 100%;
+      padding: 10px;
+      background: var(--accent-color);
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 0.9rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 10px;
+    }
+    .btn-save:hover {
+      background: var(--accent-hover);
+    }
+    .toast {
+      display: none;
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      text-align: center;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--success);
+    }
+  </style>
+</head>
+<body>
+  <div class="options-card">
+    <div class="options-header">
+      <img src="icons/icon48.png" alt="Logo">
+      <h2 id="lbl-title">HaYTooL Eklenti Ayarları</h2>
+    </div>
+
+    <!-- 1. Port Ayarı -->
+    <div class="form-group">
+      <label for="inp-port" id="lbl-port">Uygulama Portu (Varsayılan: 4141)</label>
+      <input type="number" id="inp-port" class="input-control" value="4141" min="1000" max="65535">
+      <div class="hint" id="hint-port">HaYTooL masaüstü uygulamasında farklı bir port belirlediyseniz buraya yazın.</div>
+    </div>
+
+    <!-- 2. Dil Seçeneği (Bayraklı) -->
+    <div class="form-group">
+      <label id="lbl-lang">Eklenti Dili</label>
+      <div class="lang-grid" id="lang-container">
+        <div class="lang-card" data-lang="tr">
+          <svg class="lang-flag-svg" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#E30A17"/><circle cx="425" cy="400" r="200" fill="#fff"/><circle cx="475" cy="400" r="160" fill="#E30A17"/><polygon fill="#fff" points="583,400 664,426 633,344 633,456 664,374"/></svg>
+          <span>Türkçe</span>
+        </div>
+        <div class="lang-card" data-lang="en">
+          <svg class="lang-flag-svg" viewBox="0 0 60 30"><clipPath id="uk-clip"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><path d="M0,0 v30 h60 v-30 z" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#uk-clip)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></svg>
+          <span>English</span>
+        </div>
+        <div class="lang-card" data-lang="de">
+          <svg class="lang-flag-svg" viewBox="0 0 5 3"><rect width="5" height="1" y="0" x="0" fill="#000"/><rect width="5" height="1" y="1" x="0" fill="#D00"/><rect width="5" height="1" y="2" x="0" fill="#FFCE00"/></svg>
+          <span>Deutsch</span>
+        </div>
+        <div class="lang-card" data-lang="es">
+          <svg class="lang-flag-svg" viewBox="0 0 750 500"><rect width="750" height="500" fill="#c60b1e"/><rect width="750" height="250" y="125" fill="#ffc400"/></svg>
+          <span>Español</span>
+        </div>
+        <div class="lang-card" data-lang="pt">
+          <svg class="lang-flag-svg" viewBox="0 0 600 400"><rect width="600" height="400" fill="#ff0000"/><rect width="240" height="400" fill="#006600"/><circle cx="240" cy="200" r="60" fill="#ffff00"/></svg>
+          <span>Português</span>
+        </div>
+        <div class="lang-card" data-lang="ru">
+          <svg class="lang-flag-svg" viewBox="0 0 9 6"><rect fill="#fff" width="9" height="6"/><rect fill="#0039a6" width="9" height="4" y="2"/><rect fill="#d52b1e" width="9" height="2" y="4"/></svg>
+          <span>Русский</span>
+        </div>
+        <div class="lang-card" data-lang="ar">
+          <svg class="lang-flag-svg" viewBox="0 0 60 40"><rect width="60" height="40" fill="#006c35"/><text x="30" y="26" font-size="16" text-anchor="middle" fill="#fff" font-weight="900" font-family="sans-serif">AR</text></svg>
+          <span>العربية</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kaydet Butonu -->
+    <button type="button" class="btn-save" id="btn-save">Ayarları Kaydet</button>
+    <div class="toast" id="save-toast">Ayarlar başarıyla kaydedildi!</div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

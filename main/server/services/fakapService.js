@@ -119,6 +119,7 @@ export function getFakapSnapshot() {
       error: v.error || ''
     }));
   return {
+    enabled: db.settings?.fakapEnabled !== false,
     dir: getFakapDir(db),
     quality: getFakapQuality(db),
     retentionDays: getRetentionDays(db),

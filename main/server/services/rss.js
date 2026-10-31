@@ -15,7 +15,7 @@ import {
   updateHistoryItem 
 } from '../database.js';
 import { broadcast, addTerminalLog } from './sse.js';
-import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp } from './paths.js';
+import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, getVideoDurationFromFile, formatDurationStr } from './paths.js';
 import { downloadQueue } from './downloader.js';
 
 const parser = new Parser({
@@ -475,17 +475,24 @@ export function fetchVideoDuration(videoId) {
  * @param {string} videoId YouTube video ID'si
  * @returns {Promise<string>} Süre metni (örn: '3:45', '1:02:30') veya boş string
  */
-export function fetchDurationViaYtdlp(videoId) {
+export function fetchDurationViaYtdlp(videoId, targetUrl = null) {
   return new Promise((resolve) => {
     const db = readDb();
     const settings = db.settings || {};
     const args = [];
 
+    const urlToQuery = targetUrl || (
+      (/^[a-zA-Z0-9_-]{11}$/.test(videoId))
+        ? `https://www.youtube.com/watch?v=${videoId}`
+        : null
+    );
+    if (!urlToQuery) return resolve('');
+
     args.push(
       '--no-playlist',
       '--skip-download',
       '--print', '%(duration_string)s',
-      `https://www.youtube.com/watch?v=${videoId}`
+      urlToQuery
     );
 
     const localTemp = getLocalTempDir();
@@ -505,9 +512,8 @@ export function fetchDurationViaYtdlp(videoId) {
     proc.on('close', (code) => {
       cleanMeiForPid(proc.pid);
       const raw = stdout.trim().split('\n')[0]?.trim() || '';
-      // Türkçe Açıklama: Süre formatı '45', '1:20' veya '1:23:45' gibi sayısal ifadeleri içermelidir.
       if (raw && /^\d+(:\d+)*$/.test(raw)) {
-        resolve(raw);
+        resolve(formatDurationStr(raw));
       } else {
         resolve('');
       }
@@ -1017,9 +1023,9 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
                 historyItem.status = 'waiting';
               }
 
+              let addedFakapVideo = null;
               if (!freshDb.history.some(h => h.id === videoId)) {
                 freshDb.history.push(historyItem);
-                writeDb(freshDb);
                 if (shouldDownload) {
                   addedVideo = {
                     id: videoId,
@@ -1027,17 +1033,28 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
                     channelId: channel.id,
                     channelName: channel.name,
                     url: item.link,
-                    publishedAt: publishedAt
+                    publishedAt: publishedAt,
+                    duration: duration || ''
                   };
+                  const fakapPair = buildFakapPairIfEligible(freshDb, addedVideo);
+                  if (fakapPair) {
+                    freshDb.history.push(fakapPair.historyObj);
+                    addedFakapVideo = fakapPair.queueObj;
+                  }
                 }
+                writeDb(freshDb);
               }
-            } finally {
-              release();
-            }
 
             if (addedVideo) {
               await downloadQueue.add(addedVideo);
             }
+            if (addedFakapVideo) {
+              await downloadQueue.add(addedFakapVideo);
+              addTerminalLog(`[RSS Fakap] Kuyruğa alındı: "${addedFakapVideo.title}" (${channel.name})`, 'info');
+            }
+          } finally {
+            release();
+          }
           }
         }
       }
@@ -1049,6 +1066,75 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
 }
 
 /**
+ * Kanalın kendi filtrelerinden (Otomatik İndir, Shorts / Süre Sınırı vb.) geçerek
+ * normal indirme kuyruğuna girmeye hak kazanmış bir video için,
+ * eğer Genel Fakap Anahtarı (settings.fakapEnabled !== false) VE kanalın Fakap ayarı açıksa
+ * Fakap geçmiş ve kuyruk nesnelerini oluşturur.
+ */
+function buildFakapPairIfEligible(db, videoInfo, extraHistoryList = []) {
+  if (!db || !videoInfo || !videoInfo.id || !videoInfo.channelId) return null;
+  // 1. Genel Fakap Anahtarı (Master Switch) kapalıysa hiçbir kanal Fakap indirmesi yapamaz
+  if (db.settings && db.settings.fakapEnabled === false) return null;
+
+  const rawId = String(videoInfo.id).replace(/^fakap_/, '');
+  const fakapId = `fakap_${rawId}`;
+  const fakapChannelIds = db.fakap?.channelIds || [];
+  const fakapDeletedIds = db.fakap?.deletedIds || [];
+
+  // 2. Kanalın kendi Fakap seçeneği açık olmalı ve video daha önce silinmemiş olmalı
+  if (!fakapChannelIds.includes(videoInfo.channelId) || fakapDeletedIds.includes(rawId)) {
+    return null;
+  }
+
+  // 3. Kanalın Fakap'a açıldığı tarihten önceki eski videoları alma
+  const enabledAtStr = db.fakap?.enabledAt?.[videoInfo.channelId];
+  const enabledAtMs = enabledAtStr ? new Date(enabledAtStr).getTime() : 0;
+  const pubStr = videoInfo.publishedAt || new Date().toISOString();
+  const fakapPubMs = new Date(pubStr).getTime();
+  const isEligibleTime = !enabledAtMs || isNaN(fakapPubMs) || (fakapPubMs >= (enabledAtMs - 60000));
+  if (!isEligibleTime) return null;
+
+  // 4. Zaten Fakap geçmişinde varsa tekrar ekleme
+  const alreadyInFakap = (db.history || []).some(h => h.id === fakapId) ||
+    extraHistoryList.some(h => h.id === fakapId);
+  if (alreadyInFakap) return null;
+
+  const historyObj = {
+    id: fakapId,
+    originalId: rawId,
+    isFakap: true,
+    title: videoInfo.title || '',
+    channelId: videoInfo.channelId,
+    channelName: videoInfo.channelName || '',
+    thumbnail: `https://i.ytimg.com/vi/${rawId}/mqdefault.jpg`,
+    downloadedAt: new Date().toISOString(),
+    publishedAt: pubStr,
+    status: 'waiting',
+    progress: 0,
+    speed: '',
+    eta: '',
+    fileSize: '',
+    filePath: '',
+    isStandalone: false,
+    duration: videoInfo.duration || ''
+  };
+
+  const queueObj = {
+    id: fakapId,
+    originalId: rawId,
+    isFakap: true,
+    title: videoInfo.title || '',
+    channelId: videoInfo.channelId,
+    channelName: videoInfo.channelName || '',
+    url: videoInfo.url || `https://www.youtube.com/watch?v=${rawId}`,
+    publishedAt: pubStr,
+    duration: videoInfo.duration || ''
+  };
+
+  return { historyObj, queueObj };
+}
+
+/**
  * Veritabanındaki süresi veya yayınlanma tarihi eksik olan videoların detaylarını arka planda tamamlar.
  */
 export async function resolveMissingDurations() {
@@ -1057,8 +1143,33 @@ export async function resolveMissingDurations() {
   
   const db = readDb();
   let updated = false;
+  const newFakapHistoryItems = [];
+  const newFakapQueueItems = [];
 
   for (const item of db.history) {
+    // Fakap kayıtları için ağdan tekrar süre sorgulama; ana kayıttan eşitle ve atla
+    if (item.isFakap || String(item.id || '').startsWith('fakap_')) {
+      const rawId = item.originalId || String(item.id || '').replace(/^fakap_/, '');
+      const parentItem = db.history.find(h => h.id === rawId);
+      if (parentItem) {
+        if (!item.duration && parentItem.duration) {
+          item.duration = parentItem.duration;
+          updated = true;
+        }
+        if (!item.publishedAt && parentItem.publishedAt) {
+          item.publishedAt = parentItem.publishedAt;
+          updated = true;
+        }
+      }
+      continue;
+    }
+
+    // YouTube harici kaynaklar (X, Instagram, TikTok, Facebook vb.) RSS/Süre çözümleme döngüsünden tamamen hariç tutulur
+    const isExternal = String(item.id || '').startsWith('ext_') || (item.source && item.source !== 'youtube') || item.isExternal;
+    if (isExternal) {
+      continue;
+    }
+
     // Türkçe Açıklama: Göz ardı edilmiş (ignored) videoların sürelerini sorgulayarak sistemi yormaya ve logları kirletmeye gerek yok.
     if (item.status === 'ignored' && item.duration && item.duration !== '-') continue;
 
@@ -1085,7 +1196,7 @@ export async function resolveMissingDurations() {
         item.status = 'waiting';
         updated = true;
         console.log(`[resolveMissingDurations Recovery] Video kuyruğa ekleniyor: ${item.title}`);
-        downloadQueue.add({
+        const videoToQueue = {
           id: item.id,
           title: item.title,
           channelId: item.channelId,
@@ -1093,30 +1204,55 @@ export async function resolveMissingDurations() {
           url: `https://www.youtube.com/watch?v=${item.id}`,
           publishedAt: item.publishedAt || '',
           duration: finalDuration
-        });
+        };
+        downloadQueue.add(videoToQueue);
+        if (!channelConfig || channelConfig.autoDownload !== false) {
+          const fakapPair = buildFakapPairIfEligible(db, videoToQueue, newFakapHistoryItems);
+          if (fakapPair) {
+            newFakapHistoryItems.push(fakapPair.historyObj);
+            newFakapQueueItems.push(fakapPair.queueObj);
+          }
+        }
       }
       continue;
     }
 
-    const needsDuration = !item.duration;
+    const needsDuration = !item.duration || item.duration === '-';
     const needsPublishDate = !item.publishedAt;
     if (needsDuration || needsPublishDate) {
       console.log(`Eksik bilgiler çözümleniyor: ${item.title}`);
       try {
-        const result = await fetchVideoDuration(item.id);
-        let duration = result ? result.duration : '';
-        let publishedAt = result ? result.publishedAt : '';
+        let duration = '';
+        let publishedAt = '';
+        let result = null;
 
-        const method = db.settings?.durationFetchMethod || 'auto';
-        if (!duration && needsDuration && method !== 'waterfall') {
-          try {
-            const ytdlpDuration = await fetchDurationViaYtdlp(item.id);
-            if (ytdlpDuration) {
-              duration = ytdlpDuration;
-              console.log(`[resolveMissingDurations] yt-dlp yedek süre çözümü başarılı: ${item.title} -> ${duration}`);
+        // 1. Dosya diskte mevcutsa en kesin ve hızlı süre tespiti
+        if (item.filePath && fs.existsSync(item.filePath)) {
+          const fileDur = getVideoDurationFromFile(item.filePath);
+          if (fileDur && fileDur.duration) {
+            duration = fileDur.duration;
+            item.durationSeconds = fileDur.durationSeconds;
+          }
+        }
+
+        // 2. YouTube videosu ise HTTP / yt-dlp ile çöz
+        const isYouTube = !String(item.id).startsWith('ext_') && /^[a-zA-Z0-9_-]{11}$/.test(String(item.id).replace(/^fakap_/, ''));
+        if (isYouTube) {
+          result = await fetchVideoDuration(item.id);
+          if (result && result.duration) duration = duration || result.duration;
+          if (result && result.publishedAt) publishedAt = result.publishedAt;
+
+          const method = db.settings?.durationFetchMethod || 'auto';
+          if (!duration && needsDuration && method !== 'waterfall') {
+            try {
+              const ytdlpDuration = await fetchDurationViaYtdlp(item.id);
+              if (ytdlpDuration) {
+                duration = ytdlpDuration;
+                console.log(`[resolveMissingDurations] yt-dlp yedek süre çözümü başarılı: ${item.title} -> ${duration}`);
+              }
+            } catch (ytdlpErr) {
+              console.error(`[resolveMissingDurations] yt-dlp yedek süre alma hatası (${item.title}):`, ytdlpErr.message);
             }
-          } catch (ytdlpErr) {
-            console.error(`[resolveMissingDurations] yt-dlp yedek süre alma hatası (${item.title}):`, ytdlpErr.message);
           }
         }
 
@@ -1173,7 +1309,7 @@ export async function resolveMissingDurations() {
             item.status = 'waiting';
             itemUpdated = true;
             console.log(`[resolveMissingDurations] Süre analizi tamamlandı (Süre: ${finalDuration}), video kuyruğa ekleniyor: ${item.title}`);
-            downloadQueue.add({
+            const videoToQueue = {
               id: item.id,
               title: item.title,
               channelId: item.channelId,
@@ -1181,7 +1317,15 @@ export async function resolveMissingDurations() {
               url: `https://www.youtube.com/watch?v=${item.id}`,
               publishedAt: item.publishedAt || '',
               duration: finalDuration
-            });
+            };
+            downloadQueue.add(videoToQueue);
+            if (!channelConfig || channelConfig.autoDownload !== false) {
+              const fakapPair = buildFakapPairIfEligible(db, videoToQueue, newFakapHistoryItems);
+              if (fakapPair) {
+                newFakapHistoryItems.push(fakapPair.historyObj);
+                newFakapQueueItems.push(fakapPair.queueObj);
+              }
+            }
           }
         }
 
@@ -1194,9 +1338,25 @@ export async function resolveMissingDurations() {
     }
   }
 
+  if (newFakapHistoryItems.length > 0) {
+    for (const fh of newFakapHistoryItems) {
+      if (!db.history.some(h => h.id === fh.id)) {
+        db.history.push(fh);
+        updated = true;
+      }
+    }
+  }
+
   if (updated) {
     writeDb(db);
     broadcast('db_update', readDb());
+  }
+
+  if (newFakapQueueItems.length > 0) {
+    for (const fq of newFakapQueueItems) {
+      await downloadQueue.add(fq);
+      addTerminalLog(`[RSS Fakap] Süre filtresinden geçti, kuyruğa alındı: "${fq.title}" (${fq.channelName})`, 'info');
+    }
   }
   isResolvingDurations = false;
 
@@ -1525,52 +1685,23 @@ export async function checkAllChannelsRssParallel() {
               });
               newVideosCount++;
 
-              // Fakap yedeği: AYNI karara bağlı. Filtrelerden geçen video, düşük çözünürlükte
-              // ayrı klasöre de yedeklenir. Ayrı bir karar bloğu yok — tek karar noktası burasıdır.
-              const fakapChannelIds = freshDb.fakap?.channelIds || [];
-              const fakapDeletedIds = freshDb.fakap?.deletedIds || [];
-              const fakapId = `fakap_${videoId}`;
-              if (fakapChannelIds.includes(channel.id) && !fakapDeletedIds.includes(videoId)) {
-                const enabledAtStr = freshDb.fakap?.enabledAt?.[channel.id];
-                const enabledAtMs = enabledAtStr ? new Date(enabledAtStr).getTime() : 0;
-                const fakapPubMs = new Date(publishedAt || publishDateStr).getTime();
-                const isEligibleTime = !enabledAtMs || (fakapPubMs >= (enabledAtMs - 60000));
-                const alreadyInFakap = freshDb.history.some(h => h.id === fakapId) || historyToAdd.some(h => h.id === fakapId);
+              // Fakap yedeği: AYNI karara bağlı. Genel Fakap Anahtarı açık + kanalda Fakap açık +
+              // kanalın kendi filtrelerinden (Oto-İndir, Shorts / Süre Sınırı vb.) geçen video yedeklenir.
+              const fakapPair = buildFakapPairIfEligible(freshDb, {
+                id: videoId,
+                title: item.title,
+                channelId: channel.id,
+                channelName: channel.name,
+                url: item.link || `https://www.youtube.com/watch?v=${videoId}`,
+                publishedAt: publishedAt || publishDateStr,
+                duration: duration || ''
+              }, historyToAdd);
 
-                if (isEligibleTime && !alreadyInFakap) {
-                  historyToAdd.push({
-                    id: fakapId,
-                    originalId: videoId,
-                    isFakap: true,
-                    title: item.title,
-                    channelId: channel.id,
-                    channelName: channel.name,
-                    thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
-                    downloadedAt: new Date().toISOString(),
-                    publishedAt: publishedAt || publishDateStr,
-                    status: 'waiting',
-                    progress: 0,
-                    speed: '',
-                    eta: '',
-                    fileSize: '',
-                    filePath: '',
-                    isStandalone: false,
-                    duration: duration || ''
-                  });
-                  videosToQueue.push({
-                    id: fakapId,
-                    originalId: videoId,
-                    isFakap: true,
-                    title: item.title,
-                    channelId: channel.id,
-                    channelName: channel.name,
-                    url: item.link || `https://www.youtube.com/watch?v=${videoId}`,
-                    publishedAt: publishedAt || publishDateStr,
-                    duration: duration || ''
-                  });
-                  newVideosCount++;
-                  addTerminalLog(`[RSS Fakap] Kuyruğa alındı: "${item.title}" (${channel.name})`, 'info');
-                }
+              if (fakapPair) {
+                historyToAdd.push(fakapPair.historyObj);
+                videosToQueue.push(fakapPair.queueObj);
+                newVideosCount++;
+                addTerminalLog(`[RSS Fakap] Kuyruğa alındı: "${item.title}" (${channel.name})`, 'info');
               }
             }
           } else {

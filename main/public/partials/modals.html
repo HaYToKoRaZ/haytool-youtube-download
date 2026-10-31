@@ -1,3 +1,93 @@
+
+  <!-- Tarayıcı Eklentisi Yükleme Rehberi Modalı -->
+  <div id="extension-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="extension-modal-title" style="z-index: 10025;">
+    <div class="modal-content card" style="max-width: 540px; border-radius: 16px; padding: 24px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);">
+      <div class="modal-header" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+        <h3 id="extension-modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--accent-color);">
+          <i data-lucide="puzzle"></i>
+          <span>Tarayıcı Eklentisi Kurulumu</span>
+        </h3>
+        <button class="modal-close-btn" onclick="closeExtensionModal()" aria-label="Kapat" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px; font-size: 0.88rem; line-height: 1.55;">
+        <p style="color: var(--text-muted); margin: 0;">
+          Chrome, Edge, Brave veya Helium tarayıcınızda tek tıkla video indirmek ve kanal takip etmek için yerel eklentiyi yükleyin:
+        </p>
+
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span style="background: var(--accent-color); color: #0f172a; font-weight: 700; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; flex-shrink: 0;">1</span>
+            <div>
+              <strong>Eklenti Klasörünü Göster:</strong>
+              <p style="margin: 2px 0 6px 0; color: var(--text-muted); font-size: 0.82rem;">Butona bastığınızda açılan pencerede <code>extension</code> klasörü otomatik seçili gelecektir:</p>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openExtensionFolder()" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="folder-open" style="width:14px; height:14px;"></i>
+                <span>Klasörü Göster (Seçili Olarak Açar)</span>
+              </button>
+            </div>
+          </div>
+
+                              <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span style="background: var(--accent-color); color: #0f172a; font-weight: 700; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; flex-shrink: 0;">2</span>
+            <div style="flex: 1;">
+              <strong>Tarayıcınızın Eklentiler Sayfasını Açın:</strong>
+              <p style="margin: 4px 0 8px 0; color: var(--text-muted); font-size: 0.82rem;">Tarayıcınızın eklenti adresini kutudan kopyalayıp yeni sekmede açın:</p>
+              
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <!-- Chrome / Helium / Brave -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 140px; font-size: 0.76rem; color: var(--text-muted); white-space: nowrap;">Helium / Chrome / Brave:</span>
+                  <input type="text" readonly value="chrome://extensions" id="ext-url-chrome" onclick="this.select()" style="flex: 1; padding: 5px 8px; font-size: 0.78rem; background: var(--bg-input, #0f172a); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-main); font-family: monospace;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="copyInputVal('ext-url-chrome', this)" style="padding: 5px 8px; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;" title="Kopyala">
+                    <i data-lucide="copy" style="width:12px; height:12px;"></i>
+                    <span>Kopyala</span>
+                  </button>
+                </div>
+
+                <!-- Microsoft Edge -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 140px; font-size: 0.76rem; color: var(--text-muted); white-space: nowrap;">Microsoft Edge:</span>
+                  <input type="text" readonly value="edge://extensions" id="ext-url-edge" onclick="this.select()" style="flex: 1; padding: 5px 8px; font-size: 0.78rem; background: var(--bg-input, #0f172a); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-main); font-family: monospace;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="copyInputVal('ext-url-edge', this)" style="padding: 5px 8px; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;" title="Kopyala">
+                    <i data-lucide="copy" style="width:12px; height:12px;"></i>
+                    <span>Kopyala</span>
+                  </button>
+                </div>
+
+                <!-- Opera -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 140px; font-size: 0.76rem; color: var(--text-muted); white-space: nowrap;">Opera:</span>
+                  <input type="text" readonly value="opera://extensions" id="ext-url-opera" onclick="this.select()" style="flex: 1; padding: 5px 8px; font-size: 0.78rem; background: var(--bg-input, #0f172a); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-main); font-family: monospace;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="copyInputVal('ext-url-opera', this)" style="padding: 5px 8px; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;" title="Kopyala">
+                    <i data-lucide="copy" style="width:12px; height:12px;"></i>
+                    <span>Kopyala</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span style="background: var(--accent-color); color: #0f172a; font-weight: 700; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; flex-shrink: 0;">3</span>
+            <div>
+              <strong>Geliştirici Modunu Açıp Klasörü Sürükleyin:</strong>
+              <p style="margin: 2px 0; color: var(--text-muted); font-size: 0.82rem;">Sağ üstteki <em>"Geliştirici Modu"</em>nu açın. 1. adımda açılan penceredeki seçili <strong>extension</strong> klasörünü tarayıcı penceresine sürükleyin (veya <em>"Paketlenmemiş Öğe Yükle"</em> deyip o klasörü seçin).</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; color: #22c55e; font-size: 0.82rem; background: rgba(34, 197, 94, 0.1); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.25);">
+          <i data-lucide="check-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+          <span>Eklenti hazır olduğunda tarayıcı araç çubuğundaki HaYTooL ikonuna tıklayarak doğrudan kullanabilirsiniz.</span>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
+        <button class="btn btn-primary" onclick="closeExtensionModal()" style="padding: 8px 20px;">Tamam</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Silme Onay Modalı -->
   <div id="delete-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="delete-modal-msg" style="z-index: 10020;">
     <div class="modal-content card">
@@ -33,7 +123,7 @@
   </div>
   <!-- Otomatik Silme Toplu Onay ve Erteleme Modalı -->
   <div id="auto-delete-confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="auto-delete-modal-title" style="z-index: 10005;">
-    <div class="modal-content card" style="max-width: 650px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">
+    <div class="modal-content card" style="max-width: 780px; width: 95%; max-height: 88vh; display: flex; flex-direction: column;">
       <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
         <h3 style="display: flex; align-items: center; gap: 8px; color: var(--accent-red); margin: 0; font-size: 1.15rem;">
           <i data-lucide="alert-triangle"></i>
@@ -51,16 +141,26 @@
           <!-- JS ile doldurulacak video kartları -->
         </div>
       </div>
-      <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 6px;">
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;" id="lbl-postpone-title">Ertele:</span>
-          <button class="btn btn-secondary btn-sm" id="btn-postpone-1" onclick="postponeAutoDelete(1)" title="1 Gün Ertele">1 Gün</button>
-          <button class="btn btn-secondary btn-sm" id="btn-postpone-2" onclick="postponeAutoDelete(2)" style="background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.3); color: var(--accent-primary); font-weight: 600;" title="2 Gün Ertele (Varsayılan)">2 Gün</button>
-          <button class="btn btn-secondary btn-sm" id="btn-postpone-3" onclick="postponeAutoDelete(3)" title="3 Gün Ertele">3 Gün</button>
+      <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 6px;">
+        <div style="display: flex; align-items: center; flex-wrap: nowrap; gap: 3px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0;">
+          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-right: 2px; white-space: nowrap;" id="lbl-postpone-title">Ertele:</span>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-m1" onclick="postponeAutoDelete({ minutes: 1 })" style="padding: 3px 6px; font-size: 0.72rem; white-space: nowrap; min-width: 0;" title="1 Dakika Ertele">1dk</button>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-m3" onclick="postponeAutoDelete({ minutes: 3 })" style="padding: 3px 6px; font-size: 0.72rem; white-space: nowrap; min-width: 0;" title="3 Dakika Ertele">3dk</button>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-m5" onclick="postponeAutoDelete({ minutes: 5 })" style="padding: 3px 6px; font-size: 0.72rem; white-space: nowrap; min-width: 0;" title="5 Dakika Ertele">5dk</button>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-m10" onclick="postponeAutoDelete({ minutes: 10 })" style="padding: 3px 6px; font-size: 0.72rem; white-space: nowrap; min-width: 0;" title="10 Dakika Ertele">10dk</button>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-m15" onclick="postponeAutoDelete({ minutes: 15 })" style="padding: 3px 6px; font-size: 0.72rem; white-space: nowrap; min-width: 0;" title="15 Dakika Ertele">15dk</button>
+          <span style="width: 1px; height: 14px; background: var(--border-color); margin: 0 2px; flex-shrink: 0;"></span>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-h1" onclick="postponeAutoDelete({ hours: 1 })" style="padding: 3px 6px; font-size: 0.72rem; white-space: nowrap; min-width: 0;" title="1 Saat Ertele">1sa</button>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-h3" onclick="postponeAutoDelete({ hours: 3 })" style="padding: 3px 6px; font-size: 0.72rem; white-space: nowrap; min-width: 0;" title="3 Saat Ertele">3sa</button>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-h6" onclick="postponeAutoDelete({ hours: 6 })" style="padding: 3px 6px; font-size: 0.72rem; white-space: nowrap; min-width: 0;" title="6 Saat Ertele">6sa</button>
+          <span style="width: 1px; height: 14px; background: var(--border-color); margin: 0 2px; flex-shrink: 0;"></span>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-1" onclick="postponeAutoDelete({ days: 1 })" style="padding: 3px 6px; font-size: 0.72rem; white-space: nowrap; min-width: 0;" title="1 Gün Ertele">1G</button>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-2" onclick="postponeAutoDelete({ days: 2 })" style="padding: 3px 7px; font-size: 0.72rem; white-space: nowrap; min-width: 0; background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.3); color: var(--accent-primary); font-weight: 600;" title="2 Gün Ertele (Varsayılan)">2G</button>
+          <button class="btn btn-secondary btn-sm" id="btn-postpone-3" onclick="postponeAutoDelete({ days: 3 })" style="padding: 3px 6px; font-size: 0.72rem; white-space: nowrap; min-width: 0;" title="3 Gün Ertele">3G</button>
         </div>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-primary" id="btn-confirm-auto-delete-all" onclick="confirmAutoDeleteAll()" style="background: linear-gradient(135deg, var(--accent-red), #ff4d88); box-shadow: 0 4px 15px var(--accent-red-glow);">
-            <i data-lucide="trash-2"></i>
+        <div style="display: flex; gap: 6px; flex-shrink: 0;">
+          <button class="btn btn-primary btn-sm" id="btn-confirm-auto-delete-all" onclick="confirmAutoDeleteAll()" style="padding: 5px 12px; font-size: 0.78rem; white-space: nowrap; background: linear-gradient(135deg, var(--accent-red), #ff4d88); box-shadow: 0 4px 15px var(--accent-red-glow);">
+            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
             <span id="btn-text-confirm-auto-delete">Tümünü Şimdi Sil</span>
           </button>
         </div>
@@ -89,6 +189,9 @@
           <span id="player-sponsorblock-status" style="font-size: 0.7rem; color: #ff0055; margin-left: 30px; margin-top: 1px; font-weight: 600; display: none;"></span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <button class="modal-close-btn" id="fullscreen-player-modal-btn" onclick="togglePlayerModalFullscreen()" aria-label="Tam Ekran" title="Tam Ekran (F)" style="width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
+            <i data-lucide="maximize"></i>
+          </button>
           <button class="modal-close-btn" id="minimize-player-modal-btn" onclick="togglePlayerMinimize()" aria-label="Küçült" title="Küçült" style="width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
             <i data-lucide="minus"></i>
           </button>
@@ -111,7 +214,7 @@
         <button class="modal-close-btn" id="close-ffmpeg-modal-btn" aria-label="Kapat" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
-        <p id="ffmpeg-modal-description" style="margin-bottom: 16px; font-size: 0.85rem; line-height: 1.5; color: var(--text-muted);">Yüksek çözünürlüklü indirmeler için gerekli FFmpeg kütüphaneleri (ffmpeg.exe ve ffprobe.exe) ffbinaries sunucularından indiriliyor ve kuruluyor. Lütfen bekleyin.</p>
+        <p id="ffmpeg-modal-description" style="margin-bottom: 16px; font-size: 0.85rem; line-height: 1.5; color: var(--text-muted);">Gerekli FFmpeg kütüphaneleri (ffmpeg.exe ve ffprobe.exe) indiriliyor ve kuruluyor...</p>
         <div class="ffmpeg-installer-progress-container">
           <div class="ffmpeg-installer-progress-bar" id="ffmpeg-progress-bar" style="width: 0%;"></div>
         </div>
@@ -232,6 +335,67 @@
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- Takip Edilmeyen Kanalı Takibe Alma Modalı -->
+  <div id="follow-channel-modal" class="modal hidden" role="dialog" aria-modal="true" style="z-index: 10025;" onclick="if(event.target === this) closeFollowChannelModal()">
+    <div class="modal-content card" style="max-width: 440px; border-radius: 16px; padding: 22px; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);">
+      <div class="modal-header" style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--accent-color);">
+          <i data-lucide="user-plus"></i>
+          <span id="follow-modal-channel-title">Kanalı Takip Listesine Ekle</span>
+        </h3>
+        <button type="button" class="modal-close-btn" onclick="closeFollowChannelModal()" aria-label="Kapat" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px; font-size: 0.88rem;">
+        <p id="follow-modal-channel-desc" style="color: var(--text-muted); margin: 0; line-height: 1.4;"></p>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Kanal Adı / Linki / Kullanıcı Adı:</label>
+          <input type="text" id="follow-modal-channel-input" class="form-control" style="width: 100%; box-sizing: border-box; padding: 6px 10px; font-size: 0.85rem; background: var(--bg-input, #0f172a); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-main);">
+        </div>
+        <input type="hidden" id="follow-modal-channel-name" value="">
+
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+            <span style="font-weight: 600;">Otomatik İndirme</span>
+            <input type="checkbox" id="follow-modal-cb-autodl" checked style="width: 16px; height: 16px;">
+          </label>
+          <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+            <span style="font-weight: 600;">Shorts Videolarını İndir</span>
+            <input type="checkbox" id="follow-modal-cb-shorts" checked style="width: 16px; height: 16px;">
+          </label>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-size: 0.82rem; color: var(--text-muted);">Shorts Süre Limiti (sn):</span>
+            <input type="number" id="follow-modal-inp-limit" value="180" min="15" max="3600" style="width: 70px; padding: 4px 6px; font-size: 0.82rem; background: var(--bg-input, #0f172a); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-main); text-align: center;">
+          </div>
+          <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+            <span style="font-weight: 600;">Fakap Yedekleme</span>
+            <input type="checkbox" id="follow-modal-cb-fakap" style="width: 16px; height: 16px;">
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-secondary" onclick="closeFollowChannelModal()">Vazgeç</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-follow-channel" onclick="submitFollowChannelModal()" style="display: inline-flex; align-items: center; gap: 6px;">
+          <i data-lucide="check"></i>
+          <span>Takibe Al</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kanal Hızlı Ayarlar Modalı (Video Kartı & Kanallar Sekmesi Ortak) -->
+  <div id="channel-quick-settings-modal" class="modal hidden" role="dialog" aria-modal="true" style="z-index: 10025;" onclick="if(event.target === this) closeChannelQuickSettingsModal()">
+    <div class="channel-quick-modal-card-wrapper" style="position: relative; width: 330px; max-width: 94vw; margin: auto;">
+      <button type="button" class="channel-quick-modal-close-btn" aria-label="Kapat" title="Kapat" onclick="closeChannelQuickSettingsModal()" style="position: absolute; top: -12px; right: -12px; z-index: 30; width: 30px; height: 30px; border-radius: 50%; background: #1e1b38; border: 1px solid rgba(255, 255, 255, 0.25); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
+        <i data-lucide="x" style="width: 15px; height: 15px;"></i>
+      </button>
+      <div id="channel-quick-card-container" style="width: 100%;">
+        <!-- Kanallar sekmesindeki .channel-card bileşeni BİREBİR buraya yerleştirilir -->
       </div>
     </div>
   </div>

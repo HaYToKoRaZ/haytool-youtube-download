@@ -47,8 +47,18 @@ public partial class App : System.Windows.Application
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
+    [DllImport("user32.dll")]
+    private static extern bool AllowSetForegroundWindow(uint dwProcessId);
+
+    private const uint ASFW_ANY = unchecked((uint)-1);
+
     private static IntPtr FindMainWindowForProcess(Process proc)
     {
+        if (proc.MainWindowHandle != IntPtr.Zero)
+        {
+            return proc.MainWindowHandle;
+        }
+
         IntPtr found = IntPtr.Zero;
         try
         {
@@ -62,7 +72,8 @@ public partial class App : System.Windows.Application
                     {
                         var title = new StringBuilder(titleLength + 1);
                         GetWindowText(hWnd, title, title.Capacity);
-                        if (title.ToString().Equals("Multimedia HaYTooL - Player", StringComparison.Ordinal))
+                        string t = title.ToString();
+                        if (t.Equals("Multimedia HaYTooL - Player", StringComparison.Ordinal) || t.Contains("Multimedia HaYTooL"))
                         {
                             found = hWnd;
                             return false;
@@ -122,6 +133,13 @@ public partial class App : System.Windows.Application
                     try { File.AppendAllText(dbgPath, $"[{DateTime.Now}] Target PID: {existing.Id}, Target HWND: {hWnd}\n"); } catch {}
 
                     string fullArgs = rawArgs;
+
+                    try
+                    {
+                        AllowSetForegroundWindow((uint)existing.Id);
+                        AllowSetForegroundWindow(ASFW_ANY);
+                    }
+                    catch {}
 
                     if (hWnd != IntPtr.Zero)
                     {

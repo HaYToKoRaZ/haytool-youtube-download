@@ -1,4 +1,4 @@
-import { escapeHtml, formatDate, getDaysAgoText, getDaysAgoInfo, isShortVideo, isMembersOnlyVideo, parseTimeToSeconds, getVideoRemainingInfo } from '../utils/helpers.js';
+import { escapeHtml, formatDate, formatDateTime, getDaysAgoText, getDaysAgoInfo, isShortVideo, isMembersOnlyVideo, parseTimeToSeconds, getVideoRemainingInfo, detectVideoPlatform, getPlatformBadgeHtml, getPlatformSvgIcon } from '../utils/helpers.js';
 import { translations } from '../utils/i18n.js';
 
 // YouTube SVG İkon Şablonu
@@ -97,7 +97,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
     const sortVal = typeof window.downloadedSortVal !== 'undefined' ? window.downloadedSortVal : 'date-desc';
 
     chunk.forEach(item => {
-      const isShort = isShortVideo(item.duration, item.title, item.channelId);
+      const isShort = isShortVideo(item.duration, item.title, item.channelId, item);
       const isMissingCheck = item.fileMissing === true;
       const isCompletedCheck = item.status === 'completed';
       const isHideEligible = isBulkHideMode && (!isCompletedCheck || item.duration === 'live') && item.hidden !== true;
@@ -131,6 +131,40 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
       // Fakap kayıtlarında id "fakap_<videoId>" biçimindedir; YouTube bağlantısı ve manuel indirme
       // her zaman gerçek 11 karakterlik video kimliğini kullanmalıdır.
       const ytId = item.originalId || String(item.id || '').replace(/^fakap_/, '');
+      const platform = (typeof detectVideoPlatform === 'function') ? detectVideoPlatform(item) : 'youtube';
+      const targetWebUrl = item.webUrl || item.url || (platform === 'youtube' ? `https://www.youtube.com/watch?v=${ytId}` : '');
+
+      let webActionBtnSvg = youtubeSvgIcon;
+      let webActionBtnTitle = t.btn_open_youtube || "YouTube'da Aç";
+
+      if (platform === 'tiktok') {
+        webActionBtnTitle = t.btn_open_tiktok || "TikTok'ta Aç";
+        webActionBtnSvg = (typeof getPlatformSvgIcon === 'function') ? getPlatformSvgIcon('tiktok', 16) : youtubeSvgIcon;
+      } else if (platform === 'x') {
+        webActionBtnTitle = t.btn_open_x || "X (Twitter)'da Aç";
+        webActionBtnSvg = (typeof getPlatformSvgIcon === 'function') ? getPlatformSvgIcon('x', 16) : youtubeSvgIcon;
+      } else if (platform === 'instagram') {
+        webActionBtnTitle = t.btn_open_instagram || "Instagram'da Aç";
+        webActionBtnSvg = (typeof getPlatformSvgIcon === 'function') ? getPlatformSvgIcon('instagram', 16) : youtubeSvgIcon;
+      } else if (platform !== 'youtube') {
+        webActionBtnTitle = t.btn_open_in_browser || "Kaynağı Aç";
+        webActionBtnSvg = (typeof getPlatformSvgIcon === 'function') ? getPlatformSvgIcon(platform, 16) : youtubeSvgIcon;
+      }
+
+      let openWebAction = '';
+      if (platform !== 'youtube') {
+        let extWeb = targetWebUrl;
+        if (!extWeb) {
+          const rawHandle = String(item.channelName || '').replace(/^@+/, '').trim();
+          if (platform === 'instagram') extWeb = rawHandle ? `https://www.instagram.com/${rawHandle}/` : 'https://www.instagram.com/';
+          else if (platform === 'x') extWeb = rawHandle ? `https://x.com/${rawHandle}` : 'https://x.com/';
+          else if (platform === 'tiktok') extWeb = rawHandle ? `https://www.tiktok.com/@${rawHandle}` : 'https://www.tiktok.com/';
+          else extWeb = 'https://google.com';
+        }
+        openWebAction = `(window.openExternalWebUrl || openExternalWebUrl)('${encodeURIComponent(extWeb)}', '${item.id}')`;
+      } else {
+        openWebAction = `(window.openYouTube || openYouTube)('${ytId}', ${lastPos || 0})`;
+      }
 
       let statusHtml = '';
       let actionsHtml = '';
@@ -153,8 +187,8 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         const liveTooltip = t.card_live_stream_desc || t.card_watch_live || 'Canlı Yayın';
         statusHtml = `<span class="status-dot-live animate-pulse" title="${escapeHtml(liveTooltip)}"></span>`;
         actionsHtml = `
-          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${ytId}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-            ${youtubeSvgIcon}
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
           </button>
           <button class="btn-icon btn-action-play" onclick="playVideoEmbedded('${item.id}')" title="${t.card_watch_live || 'Canlı Yayını İzle'}">
             <i data-lucide="monitor-play"></i>
@@ -172,9 +206,9 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
             <button class="btn-icon btn-action-retry" onclick="downloadVideoManual('${ytId}')" title="${t.card_redownload_corrupted || 'Bozuk Dosyayı Tekrar İndir'}" style="color: #ef4444;">
               <i data-lucide="rotate-ccw"></i>
             </button>
-            <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${ytId}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-              ${youtubeSvgIcon}
-            </button>
+            <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
+          </button>
             <button class="btn-icon" disabled title="${isCorrupted ? (t.card_file_corrupted || 'Dosya bozuk') : (t.card_file_missing_desc || 'Dosya diskte mevcut değil')}" style="opacity:0.35; cursor:not-allowed;">
               <i data-lucide="monitor-play"></i>
             </button>
@@ -185,13 +219,13 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         } else {
           statusHtml = `<span class="status-dot-completed" title="${t.card_download_completed || 'İndirildi'}"></span>`;
           actionsHtml = `
-            <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${ytId}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-              ${youtubeSvgIcon}
-            </button>
-            <button class="btn-icon btn-action-play" onclick="playVideoSystem('${item.id}')" title="${t.card_open_system_player || 'Sistem Oynatıcısında Aç'}">
+            <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
+          </button>
+            <button class="btn-icon btn-action-play" onclick="event.stopPropagation(); (window.playVideoSystem || playVideoSystem)('${item.id}')" title="${t.card_open_system_player || 'Sistem Oynatıcısında Aç'}">
               <i data-lucide="monitor-play"></i>
             </button>
-            <button class="btn-icon btn-action-folder" onclick="event.stopPropagation(); (window.openVideoLocation || openVideoLocation)('${item.id}', '${encodeURIComponent(item.filePath || '')}', '${encodeURIComponent(item.channelName || '')}')" title="${t.card_open_video_location || 'Video Konumunu Aç'}">
+            <button class="btn-icon btn-action-folder" onclick="event.stopPropagation(); (window.openVideoLocation || openVideoLocation)('${item.id}')" title="${t.card_open_video_location || 'Video Konumunu Aç'}">
               <i data-lucide="folder-open"></i>
             </button>
           `;
@@ -202,8 +236,8 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon btn-action-cancel" onclick="cancelDownload('${item.id}')" title="${t.card_cancel_download || 'İndirmeyi İptal Et'}">
             <i data-lucide="square"></i>
           </button>
-          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${ytId}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-            ${youtubeSvgIcon}
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
           </button>
         `;
       } else if (item.status === 'waiting') {
@@ -212,8 +246,8 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon btn-action-cancel" onclick="cancelQueuedVideo('${item.id}')" title="${t.active_download_cancel || 'İptal Et'}">
             <i data-lucide="square"></i>
           </button>
-          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${ytId}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-            ${youtubeSvgIcon}
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
           </button>
         `;
       } else if (item.status === 'waiting_duration') {
@@ -222,16 +256,16 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon btn-action-cancel" onclick="cancelQueuedVideo('${item.id}')" title="${t.active_download_cancel || 'İptal Et'}">
             <i data-lucide="square"></i>
           </button>
-          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${ytId}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-            ${youtubeSvgIcon}
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
           </button>
         `;
       } else if (item.status === 'waiting_live_processing' || item.status === 'live_processing') {
         const tooltipMsg = t.tooltip_waiting_live_processing || 'Canlı Yayın İşleniyor (Otomatik Yeniden Deneniyor)';
         statusHtml = `<span class="status-pill live-processing-badge" title="${escapeHtml(tooltipMsg)}" style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.3); color: #eab308; padding: 4px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: help;"><i data-lucide="radio" class="pulse-animation" style="width: 14px; height: 14px;"></i></span>`;
         actionsHtml = `
-          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${ytId}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-            ${youtubeSvgIcon}
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
           </button>
         `;
       } else if (item.status === 'failed') {
@@ -266,8 +300,8 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon btn-action-retry" onclick="downloadVideoManual('${ytId}')" title="${t.card_retry_download || 'Yeniden İndirmeyi Dene'}">
             <i data-lucide="rotate-ccw"></i>
           </button>
-          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${ytId}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-            ${youtubeSvgIcon}
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
           </button>
         `;
       } else if (item.status === 'ignored') {
@@ -276,8 +310,8 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           <button class="btn-icon btn-action-download" onclick="downloadVideoManual('${ytId}')" title="${t.card_download_now || 'Videoyu Şimdi İndir'}">
             <i data-lucide="download"></i>
           </button>
-          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); (window.openYouTube || openYouTube)('${ytId}', ${lastPos || 0})" title="${t.btn_open_youtube || 'YouTube\'da Aç'}">
-            ${youtubeSvgIcon}
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
           </button>
         `;
       }
@@ -316,7 +350,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         durationText = t.card_live || 'Canlı';
       }
 
-      const durationBadgeHtml = durationText 
+      const durationBadgeHtml = (durationText && durationText !== '-') 
         ? `<div class="video-duration-badge">${durationText}</div>` 
         : '';
 
@@ -353,21 +387,26 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
 
       const daysInfo = getDaysAgoInfo(item.publishedAt || item.downloadedAt, t);
 
-      // Tarih etiketinin ipucu: indirme ve yayın zamanı saat:dakika olarak
-      const fmtExact = (value) => {
-        if (!value) return '';
-        const d = new Date(value);
-        if (isNaN(d.getTime())) return '';
-        try {
-          return d.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        } catch (e) { return ''; }
-      };
-      const downloadExact = fmtExact(item.downloadedAt);
-      const publishExact = fmtExact(item.publishedAt);
-      const cardDateTooltip = [
-        downloadExact ? `${t.card_download_time || 'İndirme'}: ${downloadExact}` : '',
-        publishExact ? `${t.card_publish_time || 'Yayın'}: ${publishExact}` : ''
-      ].filter(Boolean).join(' · ');
+      // Sekmeye duyarlı tarih & saat gösterimi ve tooltip mantığı
+      const isDownloadedTab = gridElement.id === 'downloaded-grid';
+      const downloadExact = item.downloadedAt ? formatDateTime(item.downloadedAt) : '';
+      const publishExact = item.publishedAt ? formatDateTime(item.publishedAt) : '';
+
+      let cardDateLabel = '';
+      let cardDateValue = '';
+      let cardDateTooltip = '';
+
+      if (isDownloadedTab) {
+        // İndirilenler Sekmesi: Kart üzerinde indirilme tarihi & saati; üzerine gelince yayınlanma tarihi & saati
+        cardDateLabel = t.card_download_label || t.card_download_time || 'İndirilme';
+        cardDateValue = downloadExact || publishExact;
+        cardDateTooltip = publishExact ? `${t.card_publish_label || t.card_publish_time || 'Yayınlanma'}: ${publishExact}` : (downloadExact ? `${cardDateLabel}: ${downloadExact}` : '');
+      } else {
+        // Kütüphane Sekmesi: Kart üzerinde yayınlanma tarihi & saati; üzerine gelince indirilme tarihi & saati
+        cardDateLabel = t.card_publish_label || t.card_publish_time || 'Yayınlanma';
+        cardDateValue = publishExact || downloadExact;
+        cardDateTooltip = downloadExact ? `${t.card_download_label || t.card_download_time || 'İndirilme'}: ${downloadExact}` : (publishExact ? `${cardDateLabel}: ${publishExact}` : '');
+      }
 
       const currentDb = window.localDb || {};
       const expireInfo = (item.status === 'completed' && !isMissing) ? getVideoRemainingInfo(item, currentDb) : null;
@@ -377,8 +416,100 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         </span>
       ` : '';
 
+            const isFollowedChannel = item.channelId && currentDb.channels && currentDb.channels.some(c => c.id === item.channelId);
+
+      // Sağ alt köşe butonu:
+      // 1) Takip edilen YouTube kanalı -> Ayar dişlisi
+      // 2) Takip edilmeyen YouTube kanalı -> Takip et (+) butonu
+      // 3) Harici platformlar (TikTok, X, Instagram) -> O platformun kendi ikonu (tıklanınca webUrl açar)
+      let cornerActionBtnHtml = '';
+      if (platform === 'youtube') {
+        if (isFollowedChannel) {
+          cornerActionBtnHtml = `
+            <button class="thumb-hover-action-btn thumb-action-channel-settings" onclick="event.stopPropagation(); openChannelQuickSettingsModal('${item.channelId}')" title="${t.channel_quick_settings_title || 'Kanal Ayarları'}: ${escapeHtml(item.channelName || '')}" aria-label="Kanal Ayarları">
+              <i data-lucide="settings-2"></i>
+            </button>
+          `;
+        } else if (item.channelName || (item.channelId && item.channelId !== 'manual')) {
+          const rawFollowInput = (item.channelId && item.channelId !== 'manual') ? item.channelId : (item.channelName || '');
+          const encFollowInput = encodeURIComponent(rawFollowInput);
+          const encChName = encodeURIComponent(item.channelName || rawFollowInput);
+          cornerActionBtnHtml = `
+            <button class="thumb-hover-action-btn thumb-action-follow-channel" onclick="event.stopPropagation(); (window.openFollowChannelModal || openFollowChannelModal)(decodeURIComponent('${encFollowInput}'), decodeURIComponent('${encChName}'))" title="${t.btn_follow_channel || 'Kanalı Takibe Al'}: ${escapeHtml(item.channelName || rawFollowInput)}" aria-label="Takibe Al" style="background: rgba(16, 185, 129, 0.85); color: #fff;">
+              <i data-lucide="user-plus"></i>
+            </button>
+          `;
+        }
+      } else {
+        const extSvg = (typeof getPlatformSvgIcon === 'function') ? getPlatformSvgIcon(platform, 15) : '';
+        let badgeBg = 'rgba(0, 0, 0, 0.85)';
+        if (platform === 'x') badgeBg = 'rgba(15, 23, 42, 0.9)';
+        else if (platform === 'instagram') badgeBg = 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
+
+        cornerActionBtnHtml = `
+          <span class="video-card-platform-corner-badge" title="${platform.toUpperCase()}" style="position: absolute; top: 8px; left: 8px; z-index: 5; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; background: ${badgeBg}; color: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.22); pointer-events: none;">
+            ${extSvg}
+          </span>
+        `;
+      }
+
+      let displayChannelName = item.channelName || '';
+      if (platform === 'instagram') {
+        const igMatch = (item.title || '').match(/^(?:Video|Post) by ([a-zA-Z0-9._]+)/i);
+        if (igMatch && (!displayChannelName || displayChannelName === 'Instagram' || !displayChannelName.startsWith('@'))) {
+          displayChannelName = '@' + igMatch[1];
+        } else if (displayChannelName && displayChannelName !== 'Instagram' && !displayChannelName.startsWith('@')) {
+          displayChannelName = '@' + displayChannelName.replace(/^@+/, '');
+        }
+      } else if (platform === 'x' || platform === 'tiktok') {
+        if (displayChannelName && displayChannelName !== 'Twitter / X' && displayChannelName !== 'TikTok' && !displayChannelName.startsWith('@')) {
+          displayChannelName = '@' + displayChannelName.replace(/^@+/, '');
+        }
+      }
+
+      let channelClickAction = '';
+      let channelClickTitle = '';
+      let channelAvatarHtml = '';
+
+      if (platform !== 'youtube') {
+        const rawHandle = displayChannelName.replace(/^@+/, '').trim();
+        let profUrl = '';
+        if (platform === 'instagram') {
+          profUrl = rawHandle ? `https://www.instagram.com/${rawHandle}/` : 'https://www.instagram.com/';
+        } else if (platform === 'x') {
+          profUrl = rawHandle ? `https://x.com/${rawHandle}` : 'https://x.com/';
+        } else if (platform === 'tiktok') {
+          profUrl = rawHandle ? `https://www.tiktok.com/@${rawHandle}` : 'https://www.tiktok.com/';
+        } else if (targetWebUrl) {
+          profUrl = targetWebUrl;
+        }
+
+        if (profUrl) {
+          channelClickAction = `event.stopPropagation(); (window.openExternalWebUrl || openExternalWebUrl)('${encodeURIComponent(profUrl)}')`;
+          channelClickTitle = `${t.btn_open_profile || 'Profili Aç'}: ${displayChannelName || rawHandle}`;
+        }
+
+        channelAvatarHtml = (typeof getPlatformSvgIcon === 'function')
+          ? `<span class="video-card-platform-icon-inline" style="display:inline-flex; align-items:center; opacity:0.85; margin-right:3px;">${getPlatformSvgIcon(platform, 13)}</span>`
+          : '';
+      } else {
+        if (item.channelId) {
+          channelClickAction = `event.stopPropagation(); filterByChannel('${item.channelId}', '${gridElement.id}')`;
+          channelClickTitle = `${t.filter_by_channel || 'Kanala göre filtrele'}: ${item.channelName || ''}`;
+          channelAvatarHtml = `<img src="/api/channels/${item.channelId}/avatar" class="video-card-channel-avatar" alt="" aria-hidden="true" onerror="this.style.display='none';" />`;
+        }
+      }
+
+      let cardDisplayTitle = item.title || '';
+      if (cardDisplayTitle === 'NA' || !cardDisplayTitle) {
+        cardDisplayTitle = displayChannelName ? `${displayChannelName} Videosu` : 'Instagram Videosu';
+      } else if (platform === 'instagram' && /^(?:Video|Post) by/i.test(cardDisplayTitle)) {
+        const stripped = cardDisplayTitle.replace(/^(?:Video|Post) by [a-zA-Z0-9._]+[:\s-]*/i, '').trim();
+        cardDisplayTitle = stripped || (displayChannelName ? `${displayChannelName} Videosu` : 'Instagram Videosu');
+      }
+
       card.innerHTML = `
-        <div class="video-thumbnail-wrapper" data-video-id="${item.id}" onclick="${clickAction}" style="cursor: pointer;" title="${clickTitle}">
+        <div class="video-thumbnail-wrapper" data-video-id="${item.id}" data-platform="${platform}" onclick="${clickAction}" style="cursor: pointer; position: relative;" title="${clickTitle}">
           <img class="video-thumbnail" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
           ${qualityBadgeHtml}
           ${unlistedBadgeHtml}
@@ -395,10 +526,16 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
             <input type="checkbox" class="history-bulk-hide-cb" data-id="${item.id}" ${isHistorySelected ? 'checked' : ''} onchange="updateHistoryBulkHideCount(event)" onclick="event.stopPropagation()">
           </label>
           ` : ''}
+          ${(item.status === 'completed' && item.duration !== 'live') ? `
+            <button class="thumb-hover-action-btn thumb-action-delete" onclick="event.stopPropagation(); (window.showDeleteModal || showDeleteModal)('${item.id}')" title="${t.btn_delete_history || 'Geçmişten/Diskten Sil'}" aria-label="Sil">
+              <i data-lucide="trash-2"></i>
+            </button>
+          ` : ''}
+          ${cornerActionBtnHtml}
         </div>
         <div class="video-card-content">
           <div class="video-card-title-wrap">
-            <h3 class="video-card-title" onclick="${clickAction}" style="cursor: pointer;" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
+            <h3 class="video-card-title" onclick="${clickAction}" style="cursor: pointer;" title="${escapeHtml(cardDisplayTitle)}">${escapeHtml(cardDisplayTitle)}</h3>
           </div>
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap: wrap;">
             <span class="video-card-duration-text">${durationText || (t.card_duration_not_specified || 'Süre Belirtilmedi')}</span>
@@ -406,13 +543,11 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
             ${unlistedTagHtml}
           </div>
           <div class="video-card-metadata">
-            <span class="video-card-channel clickable-channel" ${item.channelId ? `onclick="event.stopPropagation(); filterByChannel('${item.channelId}', '${gridElement.id}')"` : ''} style="cursor: pointer; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
-              ${item.channelId 
-                ? `<img src="/api/channels/${item.channelId}/avatar" class="video-card-channel-avatar" alt="" aria-hidden="true" onerror="this.style.display='none';" />` 
-                : ''}
-              ${escapeHtml(item.channelName)}
+            <span class="video-card-channel clickable-channel" ${channelClickAction ? `onclick="${channelClickAction}"` : ''} title="${escapeHtml(channelClickTitle)}" style="cursor: pointer; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+              ${channelAvatarHtml}
+              ${escapeHtml(displayChannelName || item.channelName || '')}
             </span>
-            <span title="${escapeHtml(cardDateTooltip)}" style="cursor: help;">${t.card_date || 'Tarih'}: ${formatDate(item.publishedAt || item.downloadedAt)}</span>
+            <span title="${escapeHtml(cardDateTooltip)}" style="cursor: help;">${escapeHtml(cardDateLabel)}: ${cardDateValue}</span>
             ${item.status === 'completed' ? `<span>${t.card_size || 'Boyut'}: ${item.fileSize || '-- MB'}</span>` : ''}
           </div>
           <div class="video-card-bottom">

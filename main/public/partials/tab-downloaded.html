@@ -12,6 +12,7 @@
               <div class="inline-player-header-row">
                 <div class="inline-player-channel" style="display: flex; align-items: center; gap: 6px;">
                   <img id="inline-player-channel-avatar" class="inline-channel-avatar" src="" onerror="this.style.display='none';" />
+                  <span id="inline-player-platform-icon" style="display: none; align-items: center;"></span>
                   <span id="inline-player-logo-divider" style="color: rgba(255, 255, 255, 0.15); display: none;">/</span>
                   <span id="inline-player-channel-name">Kanal Adı</span>
                   <span id="inline-player-channel-divider" style="color: rgba(255, 255, 255, 0.15); display: none;">/</span>
@@ -61,6 +62,36 @@
                 <button class="btn btn-secondary btn-sm" id="inline-btn-sync-watchtime" title="Kaldığım Yeri YouTube'a Eşitle" data-i18n-title="inline_btn_sync_watchtime" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--accent-primary); background: rgba(168, 85, 247, 0.08); border-color: rgba(168, 85, 247, 0.2);">
                   <i data-lucide="bookmark-check" style="width: 16px; height: 16px;"></i>
                 </button>
+
+                <!-- Videoyu Paylaş Butonu ve Seçenek Menüsü -->
+                <div class="inline-share-wrapper" style="position: relative; display: inline-flex;">
+                  <button class="btn btn-secondary btn-sm" id="inline-btn-share" title="Videoyu Paylaş" data-i18n-title="btn_share_video" onclick="toggleShareMenu(event)" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--accent-color, #38bdf8); background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.2);">
+                    <i data-lucide="share-2" style="width: 16px; height: 16px;"></i>
+                  </button>
+                  <div id="inline-share-menu" class="inline-share-menu card hidden" style="position: absolute; bottom: calc(100% + 8px); right: 0; min-width: 260px; z-index: 100; padding: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card, #1e1b2e); display: none; flex-direction: column; gap: 4px;">
+                    <button type="button" class="inline-share-option-btn" onclick="shareOptionSelected('file')" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; border: none; background: transparent; color: var(--text-main); font-size: 0.85rem; font-weight: 500; cursor: pointer; text-align: left; transition: all 0.15s ease;">
+                      <i data-lucide="share" style="width: 16px; height: 16px; color: var(--accent-color, #38bdf8); flex-shrink: 0;"></i>
+                      <div style="display: flex; flex-direction: column;">
+                        <span style="font-weight: 600;" data-i18n="share_option_file">Video Dosyası (Sistem)</span>
+                        <span style="font-size: 0.72rem; color: var(--text-muted);" data-i18n="share_option_file_desc">Uygulamalarla doğrudan dosya paylaş</span>
+                      </div>
+                    </button>
+                    <button type="button" class="inline-share-option-btn" onclick="shareOptionSelected('copy-file')" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; border: none; background: transparent; color: var(--text-main); font-size: 0.85rem; font-weight: 500; cursor: pointer; text-align: left; transition: all 0.15s ease;">
+                      <i data-lucide="copy" style="width: 16px; height: 16px; color: #a855f7; flex-shrink: 0;"></i>
+                      <div style="display: flex; flex-direction: column;">
+                        <span style="font-weight: 600;" data-i18n="share_option_copy_file">Dosyayı Kopyala (WhatsApp için)</span>
+                        <span style="font-size: 0.72rem; color: var(--text-muted);" data-i18n="share_option_copy_file_desc">Panoya kopyala, sohbete Ctrl+V yap</span>
+                      </div>
+                    </button>
+                    <button type="button" class="inline-share-option-btn" onclick="shareOptionSelected('link')" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; border: none; background: transparent; color: var(--text-main); font-size: 0.85rem; font-weight: 500; cursor: pointer; text-align: left; transition: all 0.15s ease;">
+                      <i data-lucide="link" style="width: 16px; height: 16px; color: #10b981; flex-shrink: 0;"></i>
+                      <div style="display: flex; flex-direction: column;">
+                        <span style="font-weight: 600;" data-i18n="share_option_link">Bağlantı (Link)</span>
+                        <span style="font-size: 0.72rem; color: var(--text-muted);" data-i18n="share_option_link_desc">Web adresini paylaş</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
 
                 <!-- Aktif Videoyu Sil Butonu (Çöp Kutusu) -->
                 <button class="btn btn-secondary btn-sm btn-action-danger" id="inline-btn-delete-active" title="Videoyu Sil" data-i18n-title="btn_delete_history" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--accent-red); background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.25);">

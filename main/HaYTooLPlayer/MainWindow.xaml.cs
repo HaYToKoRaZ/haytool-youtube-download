@@ -16,6 +16,7 @@ namespace HaYTooLPlayer
         private bool isSilentCookieRefresh = false;
         private TrayManager? _trayManager;
         private bool _isHookAdded = false;
+        private WindowState _previousWindowState = WindowState.Maximized;
 
         public MainWindow()
         {
@@ -59,11 +60,25 @@ namespace HaYTooLPlayer
             else
             {
                 this.WindowState = WindowState.Maximized;
+                _previousWindowState = WindowState.Maximized;
+
+                this.StateChanged += (s, e) =>
+                {
+                    if (this.WindowState != WindowState.Minimized)
+                    {
+                        _previousWindowState = this.WindowState;
+                    }
+                };
+
                 StartCookieKeepaliveTimer();
                 // Kapatıldığında uygulamayı öldürmek yerine tepsiye gizle
                 this.Closing += (s, e) =>
                 {
                     e.Cancel = true;
+                    if (this.WindowState != WindowState.Minimized)
+                    {
+                        _previousWindowState = this.WindowState;
+                    }
                     this.Hide();
                     SyncYouTubeCookiesToFileAsync();
                 };
@@ -95,12 +110,7 @@ namespace HaYTooLPlayer
                 string pref = TrayManager.GetDoubleClickActionSetting();
                 if (pref == "player")
                 {
-                    this.ShowInTaskbar = true;
-                    this.Opacity = 1;
-                    this.Show();
-                    this.WindowState = WindowState.Maximized;
-                    this.Activate();
-                    this.Focus();
+                    BringWindowToFront();
                 }
                 else
                 {
@@ -124,6 +134,46 @@ namespace HaYTooLPlayer
                     SyncYouTubeCookiesToFileAsync();
                 };
                 cookieKeepaliveTimer.Start();
+            }
+            catch {}
+        }
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        private const int SW_MAXIMIZE = 3;
+        private const int SW_SHOW = 5;
+
+        public void BringWindowToFront()
+        {
+            try
+            {
+                _trayManager?.EnsureTrayVisible();
+                this.ShowInTaskbar = true;
+                this.Opacity = 1;
+                this.Show();
+
+                WindowState targetState = (_previousWindowState == WindowState.Minimized) ? WindowState.Maximized : _previousWindowState;
+                this.WindowState = targetState;
+
+                IntPtr handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                if (handle != IntPtr.Zero)
+                {
+                    if (targetState == WindowState.Maximized)
+                    {
+                        ShowWindow(handle, SW_MAXIMIZE);
+                    }
+                    else
+                    {
+                        ShowWindow(handle, SW_SHOW);
+                    }
+                    SetForegroundWindow(handle);
+                }
+                this.Activate();
+                this.Focus();
             }
             catch {}
         }
@@ -169,15 +219,42 @@ namespace HaYTooLPlayer
                                 return;
                             }
 
-                            if (lowerCmd.StartsWith("pd ") || lowerCmd == "status" || lowerCmd == "ton" || lowerCmd == "toff" || lowerCmd == "toggle" || lowerCmd.StartsWith("speed ") || lowerCmd.StartsWith("altspeed ") || lowerCmd == "help")
+                            if (lowerCmd == "hide" || lowerCmd == "minimize" || lowerCmd == "--hide" || lowerCmd == "/hide" || lowerCmd == "--minimize" || lowerCmd == "/minimize")
+                            {
+                                _trayManager?.EnsureTrayVisible();
+                                this.Hide();
+                                return;
+                            }
+
+                            if (lowerCmd == "show" || lowerCmd == "open" || lowerCmd == "gui" || lowerCmd == "--show" || lowerCmd == "/show" || lowerCmd == "--open" || lowerCmd == "/open" || lowerCmd == "--gui" || lowerCmd == "/gui")
+                            {
+                                BringWindowToFront();
+                                return;
+                            }
+
+                            if (lowerCmd == "tray" || lowerCmd == "--tray" || lowerCmd == "/tray" || lowerCmd == "--tray-only" || lowerCmd == "/tray-only")
+                            {
+                                _trayManager?.EnsureTrayVisible();
+                                return;
+                            }
+
+                            if (lowerCmd.StartsWith("pd ") || lowerCmd == "pd" || lowerCmd == "status" || lowerCmd == "info" || lowerCmd == "durum" ||
+                                lowerCmd == "ton" || lowerCmd == "toff" || lowerCmd == "toggle" || lowerCmd == "turtle" ||
+                                lowerCmd == "turtleon" || lowerCmd == "turtleoff" || lowerCmd == "turtleac" || lowerCmd == "turtlekapat" ||
+                                lowerCmd == "turtle-on" || lowerCmd == "turtle-off" || lowerCmd == "turtle-toggle" ||
+                                lowerCmd.StartsWith("speed") || lowerCmd.StartsWith("altspeed") || lowerCmd == "help" || lowerCmd == "?" || lowerCmd == "komutlar" ||
+                                lowerCmd == "pause" || lowerCmd == "duraklat" || lowerCmd == "pause-all" ||
+                                lowerCmd == "resume" || lowerCmd == "devam" || lowerCmd == "resume-all" ||
+                                lowerCmd == "check" || lowerCmd == "scan" || lowerCmd == "tara" ||
+                                lowerCmd == "backup" || lowerCmd == "yedek" || lowerCmd == "fakap" || lowerCmd == "fakap-run")
                             {
                                 _trayManager?.SendCommandToNode(path.Trim());
                                 return;
                             }
 
                             // Kullanıcı normal olarak uygulamayı açtı veya kısayola çift tıkladı:
-                            // 1. Eğer uygulama daha önce silent moddaysa, tepsi simgesini hemen görünür yap:
                             _trayManager?.EnsureTrayVisible();
+                            BringWindowToFront();
 
                             // 2. Eğer pencere henüz hiç açılmamışsa (silent moddaysa):
                             if (!this.IsVisible)
@@ -710,8 +787,10 @@ namespace HaYTooLPlayer
                     bool isVirtualDrive = targetUri.Host.StartsWith("haytool-", StringComparison.OrdinalIgnoreCase)
                                        && targetUri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase);
 
-                    // YouTube ve Google oturum açma sayfaları dahili profilde çerez oluşturması için WebView2 içinde kalmalıdır
+                    // YouTube ve Google oturum açma / embed sayfaları dahili profilde çerez ve oynatıcı için WebView2 içinde kalmalıdır
                     bool isAuthDomain = targetUri.Host.EndsWith("youtube.com", StringComparison.OrdinalIgnoreCase)
+                                     || targetUri.Host.EndsWith("youtube-nocookie.com", StringComparison.OrdinalIgnoreCase)
+                                     || targetUri.Host.EndsWith("ytimg.com", StringComparison.OrdinalIgnoreCase)
                                      || targetUri.Host.EndsWith("google.com", StringComparison.OrdinalIgnoreCase)
                                      || targetUri.Host.EndsWith("gstatic.com", StringComparison.OrdinalIgnoreCase)
                                      || targetUri.Host.EndsWith("googleusercontent.com", StringComparison.OrdinalIgnoreCase);

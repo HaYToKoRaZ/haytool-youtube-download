@@ -1,0 +1,17 @@
+{
+  "extName": { "message": "Multimedia HaYTooL Загрузчик" },
+  "extDesc": { "message": "Загрузчик видео и отслеживание каналов YouTube" },
+  "popupTitle": { "message": "Multimedia HaYTooL" },
+  "statusChecking": { "message": "Проверка активной вкладки..." },
+  "statusConnected": { "message": "Подключено к приложению (4141)" },
+  "statusDisconnected": { "message": "Приложение закрыто (запустите HaYTooL)" },
+  "typeVideoDetected": { "message": "Обнаружено видео YouTube" },
+  "typeChannelDetected": { "message": "Обнаружен канал YouTube" },
+  "typeNoneDetected": { "message": "Страница YouTube не открыта" },
+  "btnDownloadVideo": { "message": "Скачать видео" },
+  "btnAddChannel": { "message": "Подписаться на канал" },
+  "btnOpenApp": { "message": "Открыть HaYTooL" },
+  "msgSuccessDownload": { "message": "Добавлено в очередь загрузки!" },
+  "msgSuccessChannel": { "message": "Канал добавлен в отслеживаемые!" },
+  "msgError": { "message": "Ошибка операции." }
+}

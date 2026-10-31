@@ -19,6 +19,7 @@ import {
   enableAllFakapChannels
 } from '../services/fakapService.js';
 import { triggerChannelCheck } from '../services/rss.js';
+import { downloadQueue } from '../services/downloader.js';
 
 export const router = express.Router();
 
@@ -69,11 +70,14 @@ router.post('/channels/disable-all', localhostOnly, async (req, res) => {
   }
 });
 
-/** Fakap ayarlarını (klasör, çözünürlük, saklama süresi) kaydeder */
+/** Fakap ayarlarını (genel anahtar, klasör, çözünürlük, saklama süresi) kaydeder */
 router.post('/settings', localhostOnly, (req, res) => {
   const db = readDb();
   const body = req.body || {};
 
+  if (body.fakapEnabled !== undefined) {
+    db.settings.fakapEnabled = body.fakapEnabled === true || body.fakapEnabled === 'true';
+  }
   if (body.fakapPath !== undefined) {
     const p = String(body.fakapPath || '').trim();
     if (p) {
@@ -101,7 +105,10 @@ router.post('/settings', localhostOnly, (req, res) => {
   writeDb(db);
   ensureFakapDir(db);
   broadcast('db_update', db);
-  res.json({ success: true, dir: getFakapDir(db) });
+  if (db.settings.fakapEnabled !== false) {
+    try { downloadQueue.process(); } catch (e) {}
+  }
+  res.json({ success: true, dir: getFakapDir(db), enabled: db.settings.fakapEnabled !== false });
 });
 
 /** Mevcut RSS taramasını hemen başlatır (Fakap kancası aynı taramanın içindedir) */

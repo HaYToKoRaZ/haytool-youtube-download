@@ -247,48 +247,6 @@
                     <small class="form-text" id="desc-download-path">Videoların kaydedileceği bilgisayarınızdaki klasör yolu.</small>
                   </div>
 
-                  <!-- Fakap (Otomatik Düşük Çözünürlüklü Yedek) Ayarları -->
-                  <div class="form-group fakap-settings-group" id="fakap-settings-group" style="margin-top: 14px; padding: 14px; border-radius: 12px; border: 1px dashed var(--border-color); background: rgba(56, 189, 248, 0.03);">
-                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
-                      <label id="fakap-settings-title" style="display:flex; align-items:center; gap:6px; font-weight:700; font-size: 0.95rem; margin:0;"><i data-lucide="archive" style="width:18px;height:18px;color:var(--accent-primary);"></i> <span id="fakap-settings-title-text">Fakap (Otomatik Yedek)</span></label>
-                      <button type="button" class="btn btn-secondary btn-sm" onclick="switchToolsSubSection('fakap')" style="display:flex; align-items:center; gap:5px; font-size:0.78rem;">
-                        <i data-lucide="external-link" style="width:13px;height:13px;"></i>
-                        <span id="btn-goto-fakap-page">Fakap Sayfasına Git</span>
-                      </button>
-                    </div>
-                    <label for="fakap-path-input" id="fakap-path-label" style="margin-top:8px; font-size:0.85rem;">Fakap İndirme Konumu</label>
-                    <div class="input-action-row">
-                      <input type="text" id="fakap-path-input" readonly placeholder="Varsayılan: [İndirme Klasörü]/Fakap">
-                      <button type="button" id="fakap-path-browse-btn" class="btn btn-secondary" onclick="fakapBrowseFolder()">
-                        <i data-lucide="folder"></i>
-                        <span id="fakap-path-browse-text">Klasör Seç</span>
-                      </button>
-                      <button type="button" id="fakap-path-default-btn" class="btn btn-secondary" onclick="fakapResetFolder()">
-                        <i data-lucide="rotate-ccw"></i>
-                        <span id="fakap-path-default-text">Varsayılan</span>
-                      </button>
-                    </div>
-                    <small class="form-text" id="fakap-path-desc">Takip edilen kanalların yedek videolarının indirileceği bağımsız klasör konumu.</small>
-
-                    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;">
-                      <div style="flex:1; min-width:180px;">
-                        <label for="fakap-quality-select" id="fakap-quality-label" style="font-size:0.85rem;">Fakap Çözünürlüğü</label>
-                        <select id="fakap-quality-select" onchange="fakapSaveSettings()" style="width:100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
-                          <option value="144">144p</option>
-                          <option value="240">240p</option>
-                          <option value="360" selected>360p</option>
-                        </select>
-                      </div>
-                      <div style="flex:1; min-width:180px;">
-                        <label for="fakap-retention-select" id="fakap-retention-label" style="font-size:0.85rem;">Fakap Silinme Süresi</label>
-                        <select id="fakap-retention-select" onchange="fakapSaveSettings()" style="width:100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
-                          <option value="never">Asla (Hiç Silinmez)</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  
                     <div class="form-group" style="margin-top: 12px;">
                       <label for="settings-temp-dir-type" id="label-temp-dir-type">Geçici Dosyalar (Temp) Klasörü Konumu</label>
                       <div class="input-action-row" style="display: flex; gap: 8px; align-items: center;">
@@ -400,6 +358,68 @@
                       <div class="toggle-container" style="margin-left: 10px;">
                         <input type="checkbox" id="settings-check-ytdlp-on-startup" class="toggle-input">
                         <label for="settings-check-ytdlp-on-startup" class="toggle-label"></label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="settings-card" id="subtab-fakap">
+                  <h3 class="settings-section-title" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                    <span id="fakap-settings-title" style="display:inline-flex; align-items:center; gap:8px;">
+                      <i data-lucide="archive"></i>
+                      <span id="fakap-settings-title-text">Fakap (Otomatik Yedek)</span>
+                    </span>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="switchToolsSubSection('fakap')" style="display:inline-flex; align-items:center; gap:5px; font-size:0.78rem; padding:4px 10px;">
+                      <i data-lucide="external-link" style="width:13px;height:13px;"></i>
+                      <span id="btn-goto-fakap-page">Fakap Sayfasına Git</span>
+                    </button>
+                  </h3>
+
+                  <!-- Fakap Genel Açma / Kapama Anahtarı (Master Switch) -->
+                  <div class="form-group" style="margin-bottom: 12px; padding: 12px; border-radius: 8px; background: rgba(56, 189, 248, 0.04); border: 1px solid rgba(56, 189, 248, 0.2);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                      <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <label for="settings-fakap-enabled" id="lbl-fakap-master-switch" style="font-size: 0.88rem; font-weight: 700; color: var(--text-main); margin: 0; cursor: pointer;">Fakap Otomatik Yedekleme (Genel Anahtar)</label>
+                        <small id="desc-fakap-master-switch" style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.4;">Açık olduğunda, kanal ayarında Fakap açık olan kanalların filtrelerden geçen videolarını yedekler. Kapalı olduğunda kanal ayarı açık olsa dahi tüm Fakap indirmeleri durur.</small>
+                      </div>
+                      <div class="toggle-container" style="flex-shrink: 0;">
+                        <input type="checkbox" id="settings-fakap-enabled" class="toggle-input" checked onchange="fakapSaveSettings()">
+                        <label for="settings-fakap-enabled" class="toggle-label"></label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div id="fakap-settings-controls-wrap">
+                    <div class="form-group">
+                      <label for="fakap-path-input" id="fakap-path-label" style="font-size:0.85rem;">Fakap İndirme Konumu</label>
+                      <div class="input-action-row">
+                        <input type="text" id="fakap-path-input" readonly placeholder="Varsayılan: [İndirme Klasörü]/Fakap">
+                        <button type="button" id="fakap-path-browse-btn" class="btn btn-secondary" onclick="fakapBrowseFolder()">
+                          <i data-lucide="folder"></i>
+                          <span id="fakap-path-browse-text">Klasör Seç</span>
+                        </button>
+                        <button type="button" id="fakap-path-default-btn" class="btn btn-secondary" onclick="fakapResetFolder()">
+                          <i data-lucide="rotate-ccw"></i>
+                          <span id="fakap-path-default-text">Varsayılan</span>
+                        </button>
+                      </div>
+                      <small class="form-text" id="fakap-path-desc">Takip edilen kanalların yedek videolarının indirileceği bağımsız klasör konumu.</small>
+                    </div>
+
+                    <div class="form-grid" style="margin-top:10px;">
+                      <div class="form-group">
+                        <label for="fakap-quality-select" id="fakap-quality-label" style="font-size:0.85rem;">Fakap Çözünürlüğü</label>
+                        <select id="fakap-quality-select" onchange="fakapSaveSettings()" style="width:100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
+                          <option value="144">144p</option>
+                          <option value="240">240p</option>
+                          <option value="360" selected>360p</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label for="fakap-retention-select" id="fakap-retention-label" style="font-size:0.85rem;">Fakap Silinme Süresi</label>
+                        <select id="fakap-retention-select" onchange="fakapSaveSettings()" style="width:100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
+                          <option value="never">Asla (Hiç Silinmez)</option>
+                        </select>
                       </div>
                     </div>
                   </div>
@@ -712,14 +732,20 @@
                   </div>
 
                   <div class="form-group" style="margin-top: 10px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
-                    <label for="settings-autodelete-require-confirmation" id="label-autodelete-require-confirm" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
-                      <i data-lucide="shield-check" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
-                      <span id="text-autodelete-require-confirm-title">Otomatik Silme Öncesi Onay & Erteleme Penceresi</span>
-                    </label>
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                      <label for="settings-autodelete-require-confirmation" id="label-autodelete-require-confirm" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0;">
+                        <i data-lucide="shield-check" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
+                        <span id="text-autodelete-require-confirm-title">Otomatik Silme Öncesi Onay & Erteleme Penceresi</span>
+                      </label>
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-postponed-autodelete" onclick="resetAutoDeletePostponed()" style="padding: 4px 10px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 5px;" title="Ertelenen videoların süresini sıfırlayıp bildirim penceresini hemen açar">
+                        <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i>
+                        <span id="btn-text-reset-postponed">Ertelemeleri Sıfırla & Şimdi Kontrol Et</span>
+                      </button>
+                    </div>
                     <div class="toggle-container" style="margin-top: 8px;">
                       <input type="checkbox" id="settings-autodelete-require-confirmation" class="toggle-input" checked>
                       <label for="settings-autodelete-require-confirmation" class="toggle-label"></label>
-                      <span id="desc-autodelete-require-confirm">Süresi dolan videoları silmeden önce liste halinde sor; şimdi silme veya 1-3 gün erteleme seçeneği sun</span>
+                      <span id="desc-autodelete-require-confirm">Süresi dolan videoları silmeden önce liste halinde sor; şimdi silme veya erteleme seçeneği sun</span>
                     </div>
                   </div>
 

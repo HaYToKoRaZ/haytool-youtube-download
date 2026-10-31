@@ -1,0 +1,17 @@
+{
+  "extName": { "message": "Multimedia HaYTooL Downloader" },
+  "extDesc": { "message": "YouTube Video-Downloader und Kanal-Assistent" },
+  "popupTitle": { "message": "Multimedia HaYTooL" },
+  "statusChecking": { "message": "Aktiver Tab wird geprüft..." },
+  "statusConnected": { "message": "Mit App verbunden (4141)" },
+  "statusDisconnected": { "message": "App offline (HaYTooL starten)" },
+  "typeVideoDetected": { "message": "YouTube-Video erkannt" },
+  "typeChannelDetected": { "message": "YouTube-Kanal erkannt" },
+  "typeNoneDetected": { "message": "Keine YouTube-Seite geöffnet" },
+  "btnDownloadVideo": { "message": "Video herunterladen" },
+  "btnAddChannel": { "message": "Kanal abonnieren" },
+  "btnOpenApp": { "message": "HaYTooL öffnen" },
+  "msgSuccessDownload": { "message": "Zur Warteschlange hinzugefügt!" },
+  "msgSuccessChannel": { "message": "Kanal zur Liste hinzugefügt!" },
+  "msgError": { "message": "Fehler aufgetreten." }
+}

@@ -4257,33 +4257,9 @@ body.light-theme .video-card-actions .btn-icon:hover {
   border-color: rgba(0, 0, 0, 0.15);
 }
 
-/* Stil: Resimli düzende silme butonunu sağ üste sabitleyelim */
+/* Standart kart ızgara düzeninde alt aksiyon çöp kutusu gizlenir (kapak üzerindeki ghost buton kullanılır) */
 .video-card .video-action-delete {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
-  background-color: rgba(9, 8, 18, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--text-muted);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  border-radius: 8px;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.video-card .video-action-delete:hover {
-  background-color: var(--accent-red) !important;
-  color: #fff !important;
-  border-color: var(--accent-red) !important;
-  box-shadow: 0 0 14px var(--accent-red-glow) !important;
-  transform: scale(1.08);
+  display: none !important;
 }
 
 /* Sade liste görünümünde butonu normal akışta göster */
@@ -5763,20 +5739,6 @@ body.light-theme .nav-item.pd-btn {
   object-fit: contain !important;
 }
 
-/* Dikey Shorts Modunda Plyr Kontrol Uyumluluğu */
-#player-modal.is-short-player .plyr__controls {
-  padding: 4px 8px !important;
-  gap: 4px !important;
-}
-
-#player-modal.is-short-player .plyr__control {
-  padding: 4px !important;
-}
-
-#player-modal.is-short-player .plyr__time {
-  font-size: 0.72rem !important;
-}
-
 /* Çerez kilitleme uyarı kutusu */
 .cookie-warning-box {
   margin-top: 12px;
@@ -6217,10 +6179,13 @@ body.light-theme .settings-card {
 
 /* Shorts Video Layout for Embedded Inline Player (Dikey 9:16 Aspect Ratio) */
 .inline-player-wrapper.is-short-player {
-  aspect-ratio: 9 / 16;
-  max-width: 380px;
-  max-height: 70vh;
+  width: 100%;
+  max-width: 100%;
+  height: 540px;
+  max-height: 75vh;
+  aspect-ratio: unset;
   margin: 0 auto;
+  background: #000;
 }
 
 .inline-player-wrapper.is-short-player .plyr {
@@ -8785,7 +8750,7 @@ body.youtube-theme .toast-warning .toast-icon { color: #fbc02d; background: rgba
 
 .channels-grid-container {
   display: grid;
-  grid-template-columns: repeat(9, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
   width: 100%;
 }
@@ -10302,6 +10267,15 @@ body.light-theme #queue-view-toggle-container .view-btn.active {
   color: #cbd5e1;
 }
 
+/* MP3 / Ses Dosyası Kalite Rozeti (Zümrüt Yeşili) */
+.video-quality-badge.quality-mp3 {
+  background: rgba(16, 185, 129, 0.25);
+  border: 1px solid rgba(16, 185, 129, 0.6);
+  color: #34d399;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
 /* Fakap Video Rozeti (Thumbnail Sol Üst Köşe) */
 .video-fakap-badge {
   position: absolute;
@@ -11663,4 +11637,836 @@ body.light-theme .format-chip.active {
   width: 10px;
   height: 10px;
   color: #f59e0b;
+}
+
+/* ==========================================================================
+   Video Thumbnail Hover Ghost Action Buttons (Sil & Kanal Ayarlari Carki)
+   ========================================================================== */
+.thumb-hover-action-btn {
+  position: absolute;
+  z-index: 8;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 13, 28, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #f1f5f9;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.85);
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.18s ease,
+              border-color 0.18s ease,
+              color 0.18s ease,
+              box-shadow 0.18s ease;
+}
+
+.video-card:hover .thumb-hover-action-btn {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.thumb-hover-action-btn:hover {
+  transform: scale(1.1) !important;
+}
+
+.thumb-action-delete {
+  top: 8px;
+  right: 8px;
+}
+
+.thumb-action-delete:hover {
+  background: rgba(239, 68, 68, 0.88);
+  border-color: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.6);
+}
+
+.thumb-action-channel-settings,
+.thumb-action-follow-channel,
+.thumb-action-platform-link {
+  bottom: 8px;
+  right: 8px;
+}
+
+.thumb-action-channel-settings:hover {
+  background: rgba(138, 43, 226, 0.88);
+  border-color: #a855f7;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.6);
+}
+
+.thumb-action-follow-channel:hover {
+  background: rgba(16, 185, 129, 0.95) !important;
+  border-color: #10b981 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.6) !important;
+}
+
+.thumb-action-platform-link:hover {
+  background: rgba(56, 189, 248, 0.95) !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.6) !important;
+}
+
+.thumb-hover-action-btn i,
+.thumb-hover-action-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.2;
+}
+
+body.light-theme .thumb-hover-action-btn {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(0, 0, 0, 0.15);
+  color: #1e293b;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .thumb-action-delete:hover {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+body.light-theme .thumb-action-channel-settings:hover {
+  background: #7c3aed;
+  color: #ffffff;
+  border-color: #6d28d9;
+}
+
+/* ==========================================================================
+   Modern Toggle Switch Bilesenleri (iOS / Material Glass)
+   ========================================================================== */
+.modern-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.modern-switch-row:hover {
+  background: rgba(255, 255, 255, 0.065);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.modern-switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-main);
+  user-select: none;
+  cursor: pointer;
+}
+
+.modern-switch-label i,
+.modern-switch-label svg {
+  width: 14px;
+  height: 14px;
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.modern-toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.modern-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  position: absolute;
+}
+
+.modern-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  transition: background-color 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
+}
+
+.modern-toggle-slider::before {
+  position: absolute;
+  content: '';
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.24s ease;
+}
+
+.modern-toggle-switch input:checked + .modern-toggle-slider {
+  background-color: #10b981;
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+}
+
+.modern-toggle-switch input:checked + .modern-toggle-slider::before {
+  transform: translateX(16px);
+}
+
+.modern-toggle-switch.toggle-purple input:checked + .modern-toggle-slider {
+  background-color: #a855f7;
+  border-color: rgba(168, 85, 247, 0.5);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
+}
+
+body.light-theme .modern-switch-row {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+body.light-theme .modern-switch-row:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+body.light-theme .modern-toggle-slider {
+  background-color: rgba(0, 0, 0, 0.18);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+/* ==========================================================================
+   Kompakt & Simetrik Kanal Karti Duzeni
+   ========================================================================== */
+.channel-card-compact-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.channel-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.channel-card-identity-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.channel-card-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.channel-card-open-settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(138, 43, 226, 0.12);
+  color: var(--text-main);
+  border: 1px solid rgba(138, 43, 226, 0.28);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-top: 6px;
+}
+
+.channel-card-open-settings-btn:hover {
+  background: rgba(138, 43, 226, 0.25);
+  border-color: var(--accent-primary);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(138, 43, 226, 0.25);
+}
+
+.channel-card-open-settings-btn i,
+.channel-card-open-settings-btn svg {
+  width: 14px;
+  height: 14px;
+  color: var(--accent-primary);
+}
+
+/* ==========================================================================
+   Kanal Hizli Ayarlar Modali (Quick Settings Modal)
+   ========================================================================== */
+.channel-quick-modal-content {
+  max-width: 660px;
+  width: 92%;
+  max-height: 88vh;
+  overflow-y: auto;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7), 0 0 30px rgba(138, 43, 226, 0.2);
+}
+
+.cq-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.cq-channel-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.cq-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(138, 43, 226, 0.4);
+  box-shadow: 0 0 12px rgba(138, 43, 226, 0.25);
+}
+
+.cq-avatar-fallback {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8a2be2, #4f46e5);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.cq-channel-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cq-channel-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cq-channel-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.cq-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.cq-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cq-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 540px) {
+  .cq-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cq-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cq-input-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.cq-select, .cq-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(18, 16, 34, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.18s ease;
+}
+
+.cq-select:focus, .cq-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.cq-actions-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+
+
+/* UI/UX Pro Max - Kanal Kartı ve Switch Taşma Düzeltmesi */
+.channel-card {
+  min-width: 200px;
+  box-sizing: border-box;
+}
+
+.channel-card-settings {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.channel-switch-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.channel-switch-card-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.channel-switch-card-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-switch-card-label i,
+.channel-switch-card-label svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--accent-primary);
+}
+
+.channel-card-select-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 4px;
+}
+
+.channel-card-select-grid select,
+.channel-card-select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 5px 6px;
+  font-size: 0.74rem;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Kanal Hizli Kart Modali (Kutuphane & Indirilenler Carki)
+   ========================================================================== */
+#channel-quick-settings-modal:not(.hidden) {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  inset: 0;
+  z-index: 10025;
+  background: rgba(4, 3, 10, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.channel-quick-modal-card-wrapper .channel-card {
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(138, 43, 226, 0.35);
+  border: 1px solid rgba(138, 43, 226, 0.4);
+  transform: none !important;
+}
+
+body.light-theme #channel-quick-settings-modal:not(.hidden) {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+body.light-theme .channel-quick-modal-card-wrapper .channel-card {
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25), 0 0 20px rgba(124, 58, 237, 0.2);
+  border-color: rgba(124, 58, 237, 0.35);
+}
+
+
+
+/* ==========================================================================
+   APE - Emil Kowalski Design Engineering (Crafted Micro-Interactions)
+   ========================================================================== */
+.ape-craft-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: var(--bg-card, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: 14px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.15);
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ape-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ape-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ape-icon-glow {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(59, 130, 246, 0.1));
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-color, #38bdf8);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.15);
+  flex-shrink: 0;
+}
+
+.ape-icon-glow i {
+  width: 22px;
+  height: 22px;
+}
+
+.ape-title-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ape-main-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+
+.ape-status-pill {
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent-color, #38bdf8);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ape-description {
+  margin: 4px 0 0 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.ape-action-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ape-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ape-input-icon {
+  position: absolute;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ape-input-wrapper input {
+  width: 100%;
+  padding: 12px 16px 12px 42px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input, rgba(0, 0, 0, 0.2));
+  color: var(--text-main);
+  font-size: 0.92rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ape-input-wrapper input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+  background: var(--bg-main, #0f172a);
+}
+
+.ape-input-wrapper input:focus + .ape-input-icon,
+.ape-input-wrapper:focus-within .ape-input-icon {
+  color: var(--accent-color);
+}
+
+.ape-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.ape-limit-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.ape-limit-group label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.ape-stepper input {
+  width: 68px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: 0.88rem;
+  text-align: center;
+  font-weight: 600;
+  transition: border-color 0.18s;
+}
+
+.ape-stepper input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.ape-sync-toggle-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.ape-switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.ape-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.ape-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--border-color, #475569);
+  transition: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 22px;
+}
+
+.ape-switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.ape-switch input:checked + .ape-switch-slider {
+  background-color: var(--accent-color, #38bdf8);
+}
+
+.ape-switch input:checked + .ape-switch-slider:before {
+  transform: translateX(16px);
+}
+
+.ape-switch-label {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  transition: color 0.18s;
+}
+
+.ape-switch-label:hover {
+  color: var(--text-main);
+}
+
+.ape-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ape-submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+}
+
+.ape-submit-btn:active {
+  transform: scale(0.97) translateY(0);
+}
+
+.ape-feedback-box {
+  padding: 14px 18px;
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: apeSlideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes apeSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ape-feedback-icon-box {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Paylaşım Seçenekleri Menüsü */
+.inline-share-option-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--accent-color, #38bdf8) !important;
+}
+body.light-theme .inline-share-option-btn:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
 }

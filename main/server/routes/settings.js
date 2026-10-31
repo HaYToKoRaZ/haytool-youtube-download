@@ -20,7 +20,7 @@ import {
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
 import { ytdlpPath, getFfmpegPath, testFfmpegSync, setFfmpegWorkingCached, getLocalTempDir, spawnYtdlp } from '../services/paths.js';
-import { downloadQueue, getEffectiveSpeedLimit, getCookieArgs } from '../services/downloader.js';
+import { downloadQueue, getEffectiveSpeedLimit, getCookieArgs, resolveItemDownloadUrl } from '../services/downloader.js';
 import { broadcast, addTerminalLog, terminalLogs, rawLogs } from '../services/sse.js';
 import { restartCookieHealthCheck } from '../services/cookieHealth.js';
 import { categoriesIniPath } from '../config.js';
@@ -659,12 +659,16 @@ router.post('/settings', localhostOnly, (req, res) => {
       console.log(`[Ayarlar] Hız sınırı değişti (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: ${historyItem.title}`);
       addTerminalLog(`[Ayarlar] Hız sınırı değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
       
+      const targetUrl = resolveItemDownloadUrl(historyItem);
       downloadQueue.queue.unshift({
         id: videoId,
+        originalId: historyItem.originalId || videoId,
         title: historyItem.title,
         channelId: historyItem.channelId,
         channelName: historyItem.channelName,
-        url: `https://www.youtube.com/watch?v=${videoId}`,
+        url: targetUrl,
+        webUrl: historyItem.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+        platform: historyItem.platform,
         publishedAt: historyItem.publishedAt || ''
       });
       
@@ -1105,12 +1109,16 @@ router.post('/settings/toggle-alt-speed', localhostOnly, (req, res) => {
     const videoId = downloadQueue.activeVideoId;
     const historyItem = db.history.find(h => h.id === videoId);
     if (historyItem) {
+      const targetUrl = resolveItemDownloadUrl(historyItem);
       downloadQueue.queue.unshift({
         id: videoId,
+        originalId: historyItem.originalId || videoId,
         title: historyItem.title,
         channelId: historyItem.channelId,
         channelName: historyItem.channelName,
-        url: `https://www.youtube.com/watch?v=${videoId}`,
+        url: targetUrl,
+        webUrl: historyItem.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+        platform: historyItem.platform,
         publishedAt: historyItem.publishedAt || ''
       });
       updateHistoryItem(videoId, {
@@ -1871,6 +1879,41 @@ router.post('/settings/sync-disk', localhostOnly, async (req, res) => {
     }
     const result = await syncDbWithDisk(true, mode);
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+/**
+ * Tarayici eklentisi klasorunu isletim sistemi dosya yoneticisinde acar.
+ * @name POST /api/tools/open-extension-folder
+ */
+router.post('/tools/open-extension-folder', localhostOnly, (req, res) => {
+  try {
+    const baseDir = path.resolve(dataRootDir);
+    const possibleExtDir1 = path.join(baseDir, 'extension');
+    const possibleExtDir2 = path.join(baseDir, 'main', 'extension');
+    
+    let extDir = possibleExtDir1;
+    if (!fs.existsSync(possibleExtDir1) && fs.existsSync(possibleExtDir2)) {
+      extDir = possibleExtDir2;
+    } else if (!fs.existsSync(possibleExtDir1)) {
+      fs.mkdirSync(possibleExtDir1, { recursive: true });
+    }
+
+    if (process.platform === 'win32') {
+      // Windows Gezgini'ni bir ust dizinde acip extension klasorunu secili (highlight) goster
+      const child = spawn('explorer.exe', [`/select,"${path.normalize(extDir)}"`], {
+        windowsVerbatimArguments: true
+      });
+      child.on('error', () => {});
+      child.unref();
+    } else {
+      open(path.dirname(extDir)).catch(() => {});
+    }
+
+    res.json({ success: true, path: extDir });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
