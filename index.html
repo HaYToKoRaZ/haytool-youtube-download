@@ -334,27 +334,58 @@
           HaYTooL'u arayüz açmadan terminalden (CMD / PowerShell / Bash) veya Sistem Tepsisi "Konsol Çıktısı" penceresinden doğrudan kontrol edebilirsiniz:
         </p>
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.2rem;">
-          <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
-            <div style="font-family: monospace; color: #FFB703; font-weight: bold; margin-bottom: 0.4rem;">pd &lt;youtube-url&gt;</div>
-            <div style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cli_pd_desc">Verilen video veya çalma listesini doğrudan indirme sırasına ekler.</div>
-          </div>
-          <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
-            <div style="font-family: monospace; color: #38bdf8; font-weight: bold; margin-bottom: 0.4rem;">status</div>
-            <div style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cli_status_desc">Aktif indirmeleri, hız sınırlarını ve kuyruk durumunu listeler.</div>
-          </div>
-          <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
-            <div style="font-family: monospace; color: #4ade80; font-weight: bold; margin-bottom: 0.4rem;">ton / toff / toggle</div>
-            <div style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cli_turtle_desc">Kaplumbağa modunu (alternatif düşük hız profilini) açar, kapatır veya değiştirir.</div>
-          </div>
-          <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
-            <div style="font-family: monospace; color: #f43f5e; font-weight: bold; margin-bottom: 0.4rem;">speed &lt;kb&gt; / altspeed &lt;kb&gt;</div>
-            <div style="font-size: 0.85rem; color: var(--text-muted);" data-i18n="cli_speed_desc">Normal veya kaplumbağa indirme hız sınırını KB/s olarak anında ayarlar.</div>
-          </div>
+        <div class="web-cli-grid">
+          <button type="button" class="web-cli-card" onclick="copyWebCli('.\\haytool gameon', this)">
+            <div class="web-cli-top">
+              <code style="color: #FFB703;">.\haytool gameon / gameoff / merge</code>
+              <span class="web-cli-copy-badge" data-i18n="cli_copy_btn">Kopyala</span>
+            </div>
+            <div class="web-cli-desc" data-i18n="cli_game_desc">Oyun Modunu açar (%0 FFmpeg yüküyle tam hızda indirir) veya kapattığınızda sırayla birleştirir.</div>
+          </button>
+
+          <button type="button" class="web-cli-card" onclick="copyWebCli('.\\haytool paste', this)">
+            <div class="web-cli-top">
+              <code style="color: #4ade80;">.\haytool paste / pd &lt;url&gt;</code>
+              <span class="web-cli-copy-badge" data-i18n="cli_copy_btn">Kopyala</span>
+            </div>
+            <div class="web-cli-desc" data-i18n="cli_pd_desc">Panodaki veya verilen video/çalma listesi bağlantısını doğrudan indirme kuyruğuna ekler.</div>
+          </button>
+
+          <button type="button" class="web-cli-card" onclick="copyWebCli('.\\haytool ton', this)">
+            <div class="web-cli-top">
+              <code style="color: #38bdf8;">.\haytool ton / toff / toggle</code>
+              <span class="web-cli-copy-badge" data-i18n="cli_copy_btn">Kopyala</span>
+            </div>
+            <div class="web-cli-desc" data-i18n="cli_turtle_desc">Kaplumbağa modunu (alternatif düşük hız profilini) tek komutla açar, kapatır veya değiştirir.</div>
+          </button>
+
+          <button type="button" class="web-cli-card" onclick="copyWebCli('.\\haytool speed 2500', this)">
+            <div class="web-cli-top">
+              <code style="color: #f43f5e;">.\haytool speed &lt;kb|off|on&gt;</code>
+              <span class="web-cli-copy-badge" data-i18n="cli_copy_btn">Kopyala</span>
+            </div>
+            <div class="web-cli-desc" data-i18n="cli_speed_desc">Normal veya kaplumbağa (altspeed) hız sınırını KB/s olarak ayarlar, kapatır veya geri açar.</div>
+          </button>
+
+          <button type="button" class="web-cli-card" onclick="copyWebCli('.\\haytool check', this)">
+            <div class="web-cli-top">
+              <code style="color: #c084fc;">.\haytool check / backup</code>
+              <span class="web-cli-copy-badge" data-i18n="cli_copy_btn">Kopyala</span>
+            </div>
+            <div class="web-cli-desc" data-i18n="cli_check_desc">Takip edilen kanalları anında RSS ile tarar veya sistem veritabanı yedeğini alır.</div>
+          </button>
+
+          <button type="button" class="web-cli-card" onclick="copyWebCli('.\\haytool status', this)">
+            <div class="web-cli-top">
+              <code style="color: #2dd4bf;">.\haytool status / hide / stop</code>
+              <span class="web-cli-copy-badge" data-i18n="cli_copy_btn">Kopyala</span>
+            </div>
+            <div class="web-cli-desc" data-i18n="cli_status_desc">Aktif kuyruğu, bekleyen birleştirmeleri ve Oyun Modu durumunu gösterir veya servisi yönetir.</div>
+          </button>
         </div>
 
-        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;" data-i18n="cli_example_label">Terminalden doğrudan indirme başlatma örneği:</p>
-        <div class="code-box" style="color: #4ade80;">"Multimedia HaYTooL.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ</div>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;" data-i18n="cli_example_label">Terminalden doğrudan indirme veya Oyun Modu örneği (tıklayıp kopyalayın):</p>
+        <div class="code-box web-cli-codebox" onclick="copyWebCli('&quot;Multimedia HaYTooL.exe&quot; pd &quot;https://www.youtube.com/watch?v=dQw4w9WgXcQ&quot;', this)" style="color: #4ade80; cursor: pointer;">"Multimedia HaYTooL.exe" pd "https://www.youtube.com/watch?v=dQw4w9WgXcQ"</div>
       </div>
     </div>
   </section>

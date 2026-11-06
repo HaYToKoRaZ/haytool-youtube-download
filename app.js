@@ -48,12 +48,17 @@ const i18n = {
     install_linux_title: "Linux / macOS (Unix)",
     install_linux_desc: "Terminalden çalıştırma izni verin ve başlatma scriptini çalıştırın:",
     install_linux_note: "Çift işletim sistemli (Dual-boot) sistemlerde config parametreleri otomatik izole edilir.",
-    cli_title: "Gelişmiş CLI & Terminal Komut Desteği",
-    cli_desc: "HaYTooL'u arayüz açmadan terminalden (CMD / PowerShell / Bash) veya Sistem Tepsisi 'Konsol Çıktısı' penceresinden doğrudan kontrol edebilirsiniz:",
-    cli_pd_desc: "Verilen video veya çalma listesini doğrudan indirme sırasına ekler.",
-    cli_status_desc: "Aktif indirmeleri, hız sınırlarını ve kuyruk durumunu listeler.",
-    cli_turtle_desc: "Kaplumbağa modunu (alternatif düşük hız profilini) açar, kapatır veya değiştirir.",
-    cli_example_label: "Terminalden doğrudan indirme başlatma örneği:",
+    cli_title: "Gelişmiş CLI, Konsol & Görev Çubuğu (Jump List) Desteği",
+    cli_desc: "HaYTooL'u arayüz açmadan terminalden (.\\haytool veya \"Multimedia HaYTooL.exe\"), Windows Görev Çubuğu sağ tık menüsünden (Jump List) veya Sistem Tepsisi konsolundan yönetin:",
+    cli_game_desc: "Oyun Modunu açar (%0 FFmpeg yüküyle tam hızda indirir) veya kapattığınızda sırayla birleştirir.",
+    cli_pd_desc: "Panodaki veya verilen video/çalma listesi bağlantısını doğrudan indirme kuyruğuna ekler.",
+    cli_status_desc: "Aktif kuyruğu, bekleyen birleştirmeleri ve Oyun Modu durumunu gösterir veya servisi yönetir.",
+    cli_turtle_desc: "Kaplumbağa modunu (alternatif düşük hız profilini) tek komutla açar, kapatır veya değiştirir.",
+    cli_speed_desc: "Normal veya kaplumbağa (altspeed) hız sınırını KB/s olarak ayarlar, kapatır veya geri açar.",
+    cli_check_desc: "Takip edilen kanalları anında RSS ile tarar veya sistem veritabanı yedeğini alır.",
+    cli_copy_btn: "Kopyala",
+    cli_copied_btn: "Kopyalandı ✓",
+    cli_example_label: "Terminalden doğrudan indirme başlatma örneği (tıklayıp kopyalayın):",
     feat_iptv_title: "IPTV Çoklu Canlı TV",
     feat_iptv_desc: "4 ekrana kadar eşzamanlı canlı yayın izleme, otomatik m3u8 oynatıcı ve özel kategori filtreleme ile televizyon deneyimi.",
     feat_ryd_title: "Return YouTube Dislike",
@@ -104,13 +109,17 @@ const i18n = {
     install_linux_title: "Linux / macOS (Unix)",
     install_linux_desc: "Grant executable permission in terminal and execute the start script:",
     install_linux_note: "Configuration parameters are safely isolated across dual-boot environments.",
-    cli_title: "Advanced CLI & Terminal Command Support",
-    cli_desc: "Control HaYTooL headless from your terminal (CMD / PowerShell / Bash) or via the System Tray 'Console Output' window:",
-    cli_pd_desc: "Directly enqueues given video or playlist URL for immediate download.",
-    cli_status_desc: "Displays active downloads, speed limits, and queue status.",
-    cli_turtle_desc: "Turns on, turns off, or toggles Turtle Mode (alternative low-speed profile).",
-    cli_speed_desc: "Sets standard or turtle download speed limit in KB/s on the fly.",
-    cli_example_label: "Example CLI download command directly from terminal:",
+    cli_title: "Advanced CLI, Console & Taskbar Jump List Support",
+    cli_desc: "Control HaYTooL headless from your terminal (.\\haytool or \"Multimedia HaYTooL.exe\"), via the Windows Taskbar Jump List, or via the System Tray Console:",
+    cli_game_desc: "Enables Game Mode (full-speed download with 0% FFmpeg load) or auto-merges sequentially when turned off.",
+    cli_pd_desc: "Enqueues clipboard URL or any given video/playlist URL directly for download.",
+    cli_status_desc: "Displays active queue, pending FFmpeg merges, and Game Mode state, or manages the service.",
+    cli_turtle_desc: "Turns on, turns off, or toggles Turtle Mode (alternative low-speed profile) instantly.",
+    cli_speed_desc: "Sets standard or Turtle (altspeed) download speed limit in KB/s, disables, or restores it.",
+    cli_check_desc: "Scans followed channels via RSS immediately or triggers an instant DB backup.",
+    cli_copy_btn: "Copy",
+    cli_copied_btn: "Copied ✓",
+    cli_example_label: "Direct CLI download example from terminal (click to copy):",
     feat_iptv_title: "IPTV Multi-Screen Live TV",
     feat_iptv_desc: "Watch up to 4 concurrent live streams, automatic m3u8 player, and custom category filtering for a true TV experience.",
     feat_ryd_title: "Return YouTube Dislike",
@@ -394,3 +403,20 @@ function setupMascotInteractions() {
     });
   }
 }
+
+window.copyWebCli = function(cmd, el) {
+  if (!cmd) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(cmd).catch(() => {});
+  }
+  if (el) {
+    el.classList.add('copied');
+    const badge = el.querySelector('.web-cli-copy-badge');
+    const dict = i18n[currentLang] || i18n.tr;
+    if (badge) badge.textContent = dict.cli_copied_btn || 'Copied ✓';
+    setTimeout(() => {
+      el.classList.remove('copied');
+      if (badge) badge.textContent = dict.cli_copy_btn || 'Copy';
+    }, 1400);
+  }
+};
