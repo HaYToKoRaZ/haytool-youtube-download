@@ -63,15 +63,19 @@ export function playAppSound(eventType, overrideSound = null) {
 
   switch (eventType) {
     case 'download_start':
+      if (settings.notifyDownloadStartSound === false) return;
       chosenSound = settings.soundDownloadStart || 'pop';
       break;
     case 'download_complete':
+      if (settings.notifyDownloadCompleteSound === false) return;
       chosenSound = settings.soundDownloadComplete || settings.downloadSound || 'chime';
       break;
     case 'merge_start':
+      if (settings.notifyMergeStartSound === false) return;
       chosenSound = settings.soundMergeStart || 'subtle';
       break;
     case 'merge_complete':
+      if (settings.notifyMergeCompleteSound === false) return;
       chosenSound = settings.soundMergeComplete || settings.mergeSound || 'fanfare';
       break;
     case 'cli':

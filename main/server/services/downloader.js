@@ -261,12 +261,19 @@ export function playSystemSound(type = 'notification') {
 }
 
 // Türkçe Açıklama: Windows 10/11 WinRT Toast bildirim motoru (saat yanında geçici tepsi balonu açmaz, gerçek İşlem Merkezi masaüstü kartı gösterir).
-export function showWindowsNotification(title, message) {
+export function showWindowsNotification(title, message, eventType = 'download_complete') {
   const db = readDb();
-  if (db.settings && db.settings.showNotifications === false) return;
+  const settings = db.settings || {};
+  if (settings.showNotifications === false) return;
   if (os.platform() !== 'win32') return;
 
-  const cleanTitle = String(title || 'HaYTooL').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+  // Aşama bazlı görsel bildirim açma/kapatma kontrolleri
+  if (eventType === 'download_start' && settings.notifyDownloadStartToast === false) return;
+  if (eventType === 'download_complete' && settings.notifyDownloadCompleteToast === false) return;
+  if (eventType === 'merge_start' && settings.notifyMergeStartToast === false) return;
+  if (eventType === 'merge_complete' && settings.notifyMergeCompleteToast === false) return;
+
+  const cleanTitle = String(title || 'Multimedia HaYTooL').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
   const cleanMessage = String(message || '').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
 
   const escapedTitle = cleanTitle.replace(/'/g, "''");
@@ -274,7 +281,7 @@ export function showWindowsNotification(title, message) {
 
   const psScript = `
     try {
-      $appId = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe';
+      $appId = 'com.haytool.ytdownloader';
       [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null;
       $template = [Windows.UI.Notifications.ToastTemplateType]::ToastText02;
       $xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent($template);
@@ -285,16 +292,11 @@ export function showWindowsNotification(title, message) {
       $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId);
       $notifier.Show($toast);
     } catch {
-      # Fallback: Eski Windows sürümleri veya WinRT kısıtlı ortamlar
-      [void] [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms');
-      $n = New-Object System.Windows.Forms.NotifyIcon;
-      $n.Icon = [System.Drawing.SystemIcons]::Information;
-      $n.BalloonTipTitle = '${escapedTitle}';
-      $n.BalloonTipText = '${escapedMessage}';
-      $n.Visible = $true;
-      $n.ShowBalloonTip(4000);
-      Start-Sleep -s 3;
-      $n.Dispose();
+      try {
+        $appIdFallback = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe';
+        $notifier2 = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appIdFallback);
+        $notifier2.Show($toast);
+      } catch {}
     }
   `;
 
@@ -871,7 +873,8 @@ export class DownloadQueue {
     playSystemSound('start');
     showWindowsNotification(
       settings.lang === 'en' ? 'Download Started' : 'İndirme Başlatıldı',
-      settings.lang === 'en' ? `"${video.title}" download process has started.` : `"${video.title}" videosunun indirme işlemi başladı.`
+      settings.lang === 'en' ? `"${video.title}" download process has started.` : `"${video.title}" videosunun indirme işlemi başladı.`,
+      'download_start'
     );
 
     const skipChannelFolder = video.skipChannelFolder === true;
@@ -1819,7 +1822,8 @@ export class DownloadQueue {
           playSystemSound('success');
           showWindowsNotification(
             settings.lang === 'en' ? 'Download Completed' : 'İndirme Tamamlandı',
-            settings.lang === 'en' ? `"${resolvedTitle}" downloaded successfully.` : `"${resolvedTitle}" videosu başarıyla indirildi.`
+            settings.lang === 'en' ? `"${resolvedTitle}" downloaded successfully.` : `"${resolvedTitle}" videosu başarıyla indirildi.`,
+            'download_complete'
           );
         }
       } else {

@@ -2477,6 +2477,20 @@ function updateUI(db) {
     const settingsSoundMerge = document.getElementById('settings-sound-merge');
     if (settingsSoundMerge && document.activeElement !== settingsSoundMerge) settingsSoundMerge.value = db.settings.soundMergeComplete || 'fanfare';
 
+    const setCheckedIfPresent = (id, val, def = true) => {
+      const el = document.getElementById(id);
+      if (el && document.activeElement !== el) el.checked = (val !== undefined ? val !== false : def);
+    };
+
+    setCheckedIfPresent('settings-notify-dl-start-toast', db.settings.notifyDownloadStartToast);
+    setCheckedIfPresent('settings-notify-dl-start-sound', db.settings.notifyDownloadStartSound);
+    setCheckedIfPresent('settings-notify-dl-complete-toast', db.settings.notifyDownloadCompleteToast);
+    setCheckedIfPresent('settings-notify-dl-complete-sound', db.settings.notifyDownloadCompleteSound);
+    setCheckedIfPresent('settings-notify-mr-start-toast', db.settings.notifyMergeStartToast);
+    setCheckedIfPresent('settings-notify-mr-start-sound', db.settings.notifyMergeStartSound);
+    setCheckedIfPresent('settings-notify-mr-complete-toast', db.settings.notifyMergeCompleteToast);
+    setCheckedIfPresent('settings-notify-mr-complete-sound', db.settings.notifyMergeCompleteSound);
+
     const settingsAutoSyncWatchtime = document.getElementById('settings-autosync-watchtime');
     if (settingsAutoSyncWatchtime && document.activeElement !== settingsAutoSyncWatchtime) settingsAutoSyncWatchtime.checked = db.settings.autoSyncWatchtime !== false;
 

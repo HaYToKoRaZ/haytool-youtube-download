@@ -472,6 +472,53 @@
                     </div>
                   </div>
 
+                  <!-- Bildirim Tetikleyicileri (Başlama / Bitiş Seçenekleri) -->
+                  <div class="form-grid" id="notification-events-grid" style="margin-top: 12px; padding: 12px; border-radius: 6px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color);">
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block;" id="label-notify-triggers-dl">📥 İndirme Bildirim Olayları</label>
+                      <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
+                          <input type="checkbox" id="settings-notify-dl-start-toast" checked>
+                          <span id="label-notify-dl-start-toast">İndirme başladığında masaüstü bildirimi</span>
+                        </label>
+                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
+                          <input type="checkbox" id="settings-notify-dl-start-sound" checked>
+                          <span id="label-notify-dl-start-sound">İndirme başladığında sesli uyarı</span>
+                        </label>
+                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
+                          <input type="checkbox" id="settings-notify-dl-complete-toast" checked>
+                          <span id="label-notify-dl-complete-toast">İndirme bittiğinde masaüstü bildirimi</span>
+                        </label>
+                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
+                          <input type="checkbox" id="settings-notify-dl-complete-sound" checked>
+                          <span id="label-notify-dl-complete-sound">İndirme bittiğinde sesli uyarı</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block;" id="label-notify-triggers-mr">🔄 Birleştirme Bildirim Olayları</label>
+                      <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
+                          <input type="checkbox" id="settings-notify-mr-start-toast" checked>
+                          <span id="label-notify-mr-start-toast">Birleştirme başladığında masaüstü bildirimi</span>
+                        </label>
+                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
+                          <input type="checkbox" id="settings-notify-mr-start-sound" checked>
+                          <span id="label-notify-mr-start-sound">Birleştirme başladığında sesli uyarı</span>
+                        </label>
+                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
+                          <input type="checkbox" id="settings-notify-mr-complete-toast" checked>
+                          <span id="label-notify-mr-complete-toast">Birleştirme bittiğinde masaüstü bildirimi</span>
+                        </label>
+                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
+                          <input type="checkbox" id="settings-notify-mr-complete-sound" checked>
+                          <span id="label-notify-mr-complete-sound">Birleştirme bittiğinde sesli uyarı</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Özel Bildirim Sesleri Seçimi -->
                   <div class="form-grid" id="sound-options-grid" style="margin-top: 12px; padding: 12px; border-radius: 6px; background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.15);">
                     <div class="form-group" style="margin-bottom: 0;">

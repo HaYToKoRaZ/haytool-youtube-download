@@ -667,7 +667,9 @@ router.post('/settings', localhostOnly, async (req, res) => {
     'autoDiskSync', 'autoCookieRefresh', 'weatherEnabled', 'autoSyncGist',
     'autoDeleteRequireConfirmation', 'ggufGpuMode', 'unloadUiOnHide',
     'historyShowLive', 'historyShowUpcoming', 'historyOnlyNoAutoDownload',
-    'historyOnlyNotDownloaded', 'historyOnlyLiveProcessing', 'historyShowMembers', 'historyShowHidden'
+    'historyOnlyNotDownloaded', 'historyOnlyLiveProcessing', 'historyShowMembers', 'historyShowHidden',
+    'notifyDownloadStartToast', 'notifyDownloadStartSound', 'notifyDownloadCompleteToast', 'notifyDownloadCompleteSound',
+    'notifyMergeStartToast', 'notifyMergeStartSound', 'notifyMergeCompleteToast', 'notifyMergeCompleteSound'
   ];
   for (const field of booleanFields) {
     if (req.body[field] !== undefined) {

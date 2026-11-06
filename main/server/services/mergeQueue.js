@@ -273,6 +273,13 @@ class MergeQueue {
     };
     broadcast('merge_queue_state', this.getStatusSnapshot());
 
+    playAppSound('merge_start');
+    showWindowsNotification(
+      db.settings?.lang === 'en' ? 'Merge Started' : 'Birleştirme Başlatıldı',
+      db.settings?.lang === 'en' ? `"${item.title}" merge process has started.` : `"${item.title}" birleştirme işlemi başladı.`,
+      'merge_start'
+    );
+
     try {
       await this._executeMerge(item, db.settings || {});
     } catch (err) {
@@ -587,7 +594,8 @@ class MergeQueue {
     playAppSound('merge_complete');
     showWindowsNotification(
       settings.lang === 'en' ? 'Merge Completed' : 'Birleştirme Tamamlandı',
-      settings.lang === 'en' ? `"${resolvedTitle}" has been merged successfully.` : `"${resolvedTitle}" başarıyla birleştirildi.`
+      settings.lang === 'en' ? `"${resolvedTitle}" has been merged successfully.` : `"${resolvedTitle}" başarıyla birleştirildi.`,
+      'merge_complete'
     );
   }
 
