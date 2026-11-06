@@ -12,18 +12,26 @@ import { escapeHtml, getCatTranslatedName } from '../utils/helpers.js';
 import { showToast } from '../components/toast.js';
 
 let _getState = null;
+const localDb = new Proxy({}, {
+  get(target, prop) {
+    const db = (typeof window !== 'undefined' && window.localDb) ? window.localDb : (_getState ? _getState().localDb : null) || {};
+    return db[prop];
+  }
+});
 let toolsInitialized = false;
 let downloaderUiInitialized = false;
 
 let untrackedFilesList = [];
 let unrelatedFilesList = [];
 let missingFilesList = [];
+let emptyFoldersList = [];
 let scanProgressToast = null;
 let comparisonFilter = 'all';
 const comparisonSelection = {
   untracked: new Set(),
   unrelated: new Set(),
-  missing: new Set()
+  missing: new Set(),
+  folders: new Set()
 };
 
 export function initTools(getState) {
@@ -46,6 +54,7 @@ export function initTools(getState) {
   document.getElementById('compare-clear-selection')?.addEventListener('click', clearComparisonSelection);
   document.getElementById('compare-selected-safe-action')?.addEventListener('click', () => runSelectedComparisonAction('safe'));
   document.getElementById('compare-selected-danger-action')?.addEventListener('click', () => runSelectedComparisonAction('danger'));
+  document.getElementById('sync-all-btn')?.addEventListener('click', runSyncAllAction);
   updateComparisonInterfaceText(translations[window.localDb?.settings?.lang || 'tr'] || translations.tr);
 
   const toolsBtn = document.getElementById('tools-btn');
@@ -136,6 +145,8 @@ export async function runFileComparison() {
   if (untrackedSection) untrackedSection.classList.add('hidden');
   if (unrelatedSection) unrelatedSection.classList.add('hidden');
   if (missingSection) missingSection.classList.add('hidden');
+  const emptyFoldersSec = document.getElementById('empty-folders-section');
+  if (emptyFoldersSec) emptyFoldersSec.classList.add('hidden');
   
   try {
     const res = await fetch('/api/tools/compare-files');
@@ -144,6 +155,7 @@ export async function runFileComparison() {
       untrackedFilesList = data.untrackedFiles || [];
       unrelatedFilesList = data.unrelatedFiles || [];
       missingFilesList = data.missingFiles || [];
+      emptyFoldersList = data.emptyFolders || [];
       clearComparisonSelection();
       
       renderComparisonResults();
@@ -206,6 +218,104 @@ export async function deleteAllUnrelated() {
   }
 }
 
+export async function deleteEmptyFolder(folderPath) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (!confirm(isEn ? 'Are you sure you want to delete this folder from disk?' : 'Bu klasörü diskten silmek istediğinize emin misiniz?')) {
+    return;
+  }
+  try {
+    const res = await fetch('/api/tools/fix-files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete-empty-folders', folderPaths: [folderPath] })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (isEn ? 'Folder deleted.' : 'Klasör silindi.'), 'success');
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+export async function deleteAllEmptyFolders() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  if (emptyFoldersList.length === 0) return;
+  const msg = isEn 
+    ? ('Are you sure you want to delete all ' + emptyFoldersList.length + ' abandoned/empty folders?') 
+    : ('Tüm ' + emptyFoldersList.length + ' sahipsiz/boş klasörü diskten silmek istediğinize emin misiniz?');
+  if (!confirm(msg)) {
+    return;
+  }
+  try {
+    const res = await fetch('/api/tools/fix-files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete-empty-folders', folderPaths: emptyFoldersList.map(f => f.folderPath) })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (isEn ? 'All empty folders deleted.' : 'Tüm boş klasörler silindi.'), 'success');
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Operation failed.' : 'İşlem başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
+export async function runSyncAllAction() {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
+  const unrelatedCount = unrelatedFilesList.length;
+  const missingCount = missingFilesList.length;
+  const foldersCount = emptyFoldersList.length;
+  const total = unrelatedCount + missingCount + foldersCount;
+
+  if (total === 0) {
+    showToast(isEn ? 'No issues to synchronize.' : 'Senkronize edilecek sorun bulunamadı.', 'info');
+    return;
+  }
+
+  const confirmMsg = isEn
+    ? ('⚡ One-Click Synchronization and Cleanup:\n\n' +
+       '• ' + unrelatedCount + ' unrelated/orphan file(s) and leftover subtitles will be permanently deleted from disk\n' +
+       '• ' + missingCount + ' missing video record(s) will be removed from your download history\n' +
+       '• ' + foldersCount + ' empty or abandoned channel folder(s) will be removed from disk\n\n' +
+       'Do you want to proceed with this cleanup?')
+    : ('⚡ Tek Tıkla Senkronizasyon ve Temizlik:\n\n' +
+       '• ' + unrelatedCount + ' adet artık dosya ve yetim altyazı diskten kalıcı olarak silinecek\n' +
+       '• ' + missingCount + ' adet diskte bulunamayan video kaydı geçmişinizden kaldırılacak\n' +
+       '• ' + foldersCount + ' adet boş veya sahipsiz kanal klasörü diskten kaldırılacak\n\n' +
+       'Bu toplu işlemi onaylıyor musunuz?');
+if (!confirm(confirmMsg)) return;
+
+  try {
+    const res = await fetch('/api/tools/fix-files', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'sync-all',
+        unrelatedFilePaths: unrelatedFilesList.map(f => f.filePath),
+        missingVideoIds: missingFilesList.map(f => f.id),
+        emptyFolderPaths: emptyFoldersList.map(f => f.folderPath)
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || (isEn ? 'Synchronization completed successfully!' : 'Senkronizasyon başarıyla tamamlandı!'), 'success');
+      runFileComparison();
+    } else {
+      showToast(data.error || (isEn ? 'Synchronization failed.' : 'Senkronizasyon başarısız.'), 'error');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error.' : 'Bağlantı hatası.', 'error');
+  }
+}
+
 export function renderComparisonResults() {
   const isEn = localDb.settings && localDb.settings.lang === 'en';
   const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
@@ -214,26 +324,30 @@ export function renderComparisonResults() {
   const untrackedSection = document.getElementById('untracked-section');
   const unrelatedSection = document.getElementById('unrelated-section');
   const missingSection = document.getElementById('missing-section');
+  const emptyFoldersSection = document.getElementById('empty-folders-section');
   const compareResults = document.getElementById('compare-results');
   
   const untrackedBody = document.getElementById('untracked-files-list');
   const unrelatedBody = document.getElementById('unrelated-files-list');
   const missingBody = document.getElementById('missing-files-list');
+  const emptyFoldersBody = document.getElementById('empty-folders-list');
   
   if (untrackedBody) untrackedBody.innerHTML = '';
   if (unrelatedBody) unrelatedBody.innerHTML = '';
   if (missingBody) missingBody.innerHTML = '';
+  if (emptyFoldersBody) emptyFoldersBody.innerHTML = '';
   
   if (compareResults) compareResults.classList.remove('hidden');
 
   updateComparisonInterfaceText(t);
   updateComparisonHealthSummary(t);
   
-  if (untrackedFilesList.length === 0 && unrelatedFilesList.length === 0 && missingFilesList.length === 0) {
+  if (untrackedFilesList.length === 0 && unrelatedFilesList.length === 0 && missingFilesList.length === 0 && emptyFoldersList.length === 0) {
     if (noIssuesFound) noIssuesFound.classList.remove('hidden');
     if (untrackedSection) untrackedSection.classList.add('hidden');
     if (unrelatedSection) unrelatedSection.classList.add('hidden');
     if (missingSection) missingSection.classList.add('hidden');
+    if (emptyFoldersSection) emptyFoldersSection.classList.add('hidden');
     showToast(isEn ? 'Folder comparison completed. No issues found!' : 'Dosya karşılaştırması tamamlandı. Sorun bulunamadı!', 'success');
     return;
   }
@@ -243,8 +357,8 @@ export function renderComparisonResults() {
   const summaryBox = document.getElementById('compare-summary-box');
   if (summaryBox) {
     summaryBox.innerHTML = isEn 
-      ? `Found ${untrackedFilesList.length} untracked files, ${unrelatedFilesList.length} unrelated files, and ${missingFilesList.length} missing records.`
-      : `${untrackedFilesList.length} yetim dosya, ${unrelatedFilesList.length} alakasız dosya ve ${missingFilesList.length} eksik kayıt bulundu.`;
+      ? `Found ${untrackedFilesList.length} untracked files, ${unrelatedFilesList.length} unrelated files, ${missingFilesList.length} missing records, and ${emptyFoldersList.length} empty/unfollowed channel folders.`
+      : `${untrackedFilesList.length} yetim dosya, ${unrelatedFilesList.length} alakasız dosya, ${missingFilesList.length} eksik kayıt ve ${emptyFoldersList.length} sahipsiz/boş kanal klasörü bulundu.`;
   }
   
   showToast(isEn ? 'Folder comparison completed.' : 'Dosya karşılaştırması tamamlandı.', 'success');
@@ -264,7 +378,6 @@ export function renderComparisonResults() {
         </td>
         <td>${file.channelName || '<span class="text-muted">--</span>'}</td>
         <td class="text-nowrap">${file.fileSize || '--'}</td>
-        <td class="compare-select-cell"><input type="checkbox" data-compare-select="unrelated" data-compare-key="${encodeURIComponent(file.filePath)}" aria-label="${t.compare_select_item || 'Öğeyi seç'}"></td>
         <td>
           <div class="action-buttons-cell" style="text-align: right;">
             <button class="btn btn-secondary btn-sm" onclick="openFileLocation('${file.filePath.replace(/\\/g, '\\\\')}')" title="${isEn ? 'Open File Location' : 'Dosya Konumunu Aç'}">
@@ -290,13 +403,13 @@ export function renderComparisonResults() {
     if (untrackedSection) untrackedSection.classList.add('hidden');
   }
   
-  // Unrelated Files
+  // Unrelated Files (Artık / Alakasız Dosyalar)
   if (unrelatedFilesList.length > 0) {
     if (unrelatedSection) unrelatedSection.classList.remove('hidden');
     unrelatedFilesList.forEach(file => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="compare-select-cell"><input type="checkbox" data-compare-select="missing" data-compare-key="${encodeURIComponent(file.id)}" aria-label="${t.compare_select_item || 'Öğeyi seç'}"></td>
+        <td class="compare-select-cell"><input type="checkbox" data-compare-select="unrelated" data-compare-key="${encodeURIComponent(file.filePath)}" aria-label="${t.compare_select_item || 'Öğeyi seç'}"></td>
         <td>
           <div class="file-name-cell" title="${file.filePath}">
             <i data-lucide="file" class="file-icon" style="color: var(--text-muted);"></i>
@@ -323,12 +436,13 @@ export function renderComparisonResults() {
     if (unrelatedSection) unrelatedSection.classList.add('hidden');
   }
   
-  // Missing Files
+  // Missing Files (Veritabanında Olup Diskte Olmayanlar)
   if (missingFilesList.length > 0) {
     if (missingSection) missingSection.classList.remove('hidden');
     missingFilesList.forEach(file => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
+        <td class="compare-select-cell"><input type="checkbox" data-compare-select="missing" data-compare-key="${encodeURIComponent(file.id)}" aria-label="${t.compare_select_item || 'Öğeyi seç'}"></td>
         <td>
           <div class="file-name-cell" title="${file.filePath || ''}">
             <i data-lucide="video-off" class="file-icon"></i>
@@ -358,6 +472,49 @@ export function renderComparisonResults() {
   } else {
     if (missingSection) missingSection.classList.add('hidden');
   }
+
+  // Empty & Abandoned Channel Folders (Boş / Sahipsiz Kanal Klasörleri)
+  if (emptyFoldersList.length > 0) {
+    if (emptyFoldersSection) emptyFoldersSection.classList.remove('hidden');
+    emptyFoldersList.forEach(folder => {
+      const tr = document.createElement('tr');
+      const statusLabel = folder.hasOnlyJunk 
+        ? (isEn ? 'Empty / Only Icons' : 'Boş / Yalnızca Simge') 
+        : (isEn ? 'Unfollowed Channel' : 'Takip Edilmeyen Kanal');
+      const statusClass = folder.hasOnlyJunk ? 'text-muted' : 'text-warning';
+
+      tr.innerHTML = `
+        <td class="compare-select-cell"><input type="checkbox" data-compare-select="folders" data-compare-key="${encodeURIComponent(folder.folderPath)}" aria-label="${t.compare_select_item || 'Öğeyi seç'}"></td>
+        <td>
+          <div class="file-name-cell" title="${folder.folderPath}">
+            <i data-lucide="folder-x" class="file-icon" style="color: var(--accent-red);"></i>
+            <strong>${escapeHtml(folder.folderName)}</strong>
+          </div>
+        </td>
+        <td class="text-muted" style="font-size: 0.8rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${folder.folderPath}">
+          ${escapeHtml(folder.folderPath)}
+        </td>
+        <td>
+          <span class="${statusClass}" style="font-size: 0.85rem; font-weight: 500;">${statusLabel} (${folder.fileCount} dosya)</span>
+        </td>
+        <td>
+          <div class="action-buttons-cell" style="text-align: right;">
+            <button class="btn btn-secondary btn-sm" onclick="openFileLocation('${folder.folderPath.replace(/\\/g, '\\\\')}')" title="${isEn ? 'Open Folder' : 'Klasörü Aç'}">
+              <i data-lucide="external-link"></i>
+              <span>${isEn ? 'Open Location' : 'Konumu Aç'}</span>
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="deleteEmptyFolder('${folder.folderPath.replace(/\\/g, '\\\\')}')" title="${isEn ? 'Delete Folder' : 'Klasörü Sil'}">
+              <i data-lucide="trash-2"></i>
+              <span>${t.btn_delete_file || 'Delete'}</span>
+            </button>
+          </div>
+        </td>
+      `;
+      emptyFoldersBody.appendChild(tr);
+    });
+  } else {
+    if (emptyFoldersSection) emptyFoldersSection.classList.add('hidden');
+  }
   
   bindComparisonSelectionControls();
   applyComparisonFilter();
@@ -366,6 +523,7 @@ export function renderComparisonResults() {
 }
 
 function updateComparisonInterfaceText(t) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
   const setText = (id, value) => {
     const el = document.getElementById(id);
     if (el) el.textContent = value;
@@ -376,8 +534,11 @@ function updateComparisonInterfaceText(t) {
   setText('compare-untracked-label', t.compare_health_untracked);
   setText('compare-unrelated-label', t.compare_health_unrelated);
   setText('compare-missing-label', t.compare_health_missing);
+  setText('compare-folders-label', t.compare_health_folders || (isEn ? 'Empty folder' : 'Boş klasör'));
   setText('compare-clear-selection', t.compare_clear_selection);
-  setText('btn-delete-all-unrelated', t.auto_delete_btn_delete_all);
+  setText('btn-delete-all-unrelated', t.auto_delete_btn_delete_all || (isEn ? 'Delete All' : 'Tümünü Sil'));
+  setText('btn-delete-all-folders', t.auto_delete_btn_delete_all || (isEn ? 'Delete All' : 'Tümünü Sil'));
+  setText('sync-all-btn-text', t.compare_sync_all_btn || (isEn ? 'One-Click Sync' : 'Tek Tıkla Senkronize Et'));
   document.querySelectorAll('[data-compare-select-all]').forEach(input => {
     input.setAttribute('aria-label', t.compare_select_item);
   });
@@ -385,7 +546,7 @@ function updateComparisonInterfaceText(t) {
 
 function updateComparisonHealthSummary(t) {
   const summary = document.getElementById('compare-health-summary');
-  const totalIssues = untrackedFilesList.length + unrelatedFilesList.length + missingFilesList.length;
+  const totalIssues = untrackedFilesList.length + unrelatedFilesList.length + missingFilesList.length + emptyFoldersList.length;
   const setCount = (id, count) => {
     const el = document.getElementById(id);
     if (el) el.textContent = count;
@@ -394,7 +555,14 @@ function updateComparisonHealthSummary(t) {
   setCount('compare-untracked-count', untrackedFilesList.length);
   setCount('compare-unrelated-count', unrelatedFilesList.length);
   setCount('compare-missing-count', missingFilesList.length);
+  setCount('compare-folders-count', emptyFoldersList.length);
   if (summary) summary.classList.remove('hidden');
+
+  const syncAllBtn = document.getElementById('sync-all-btn');
+  if (syncAllBtn) {
+    const syncableCount = unrelatedFilesList.length + missingFilesList.length + emptyFoldersList.length;
+    syncAllBtn.classList.toggle('hidden', syncableCount === 0);
+  }
 }
 
 function bindComparisonSelectionControls() {
@@ -457,7 +625,7 @@ function updateComparisonSelectionBar(t = translations[localDb.settings?.lang ||
   bar.classList.toggle('hidden', count === 0);
   countEl.textContent = (t.compare_selection_count || '{count} öğe seçildi').replace('{count}', count);
   const type = types.length === 1 ? types[0] : null;
-  safeBtn.classList.toggle('hidden', !type || type === 'unrelated');
+  safeBtn.classList.toggle('hidden', !type || type === 'unrelated' || type === 'folders');
   dangerBtn.classList.toggle('hidden', !type);
   safeBtn.disabled = !type;
   dangerBtn.disabled = !type;
@@ -466,14 +634,19 @@ function updateComparisonSelectionBar(t = translations[localDb.settings?.lang ||
     return;
   }
   safeBtn.textContent = type === 'untracked' ? t.compare_import_selected : t.compare_mark_selected;
-  dangerBtn.textContent = type === 'missing' ? t.compare_delete_history_selected : t.compare_delete_disk_selected;
+  dangerBtn.textContent = type === 'missing' ? t.compare_delete_history_selected : type === 'folders' ? (t.compare_delete_folders_selected || 'Seçilen klasörleri sil') : t.compare_delete_disk_selected;
 }
 
 function applyComparisonFilter() {
   document.querySelectorAll('[data-compare-filter]').forEach(button => {
     button.classList.toggle('is-active', button.dataset.compareFilter === comparisonFilter);
   });
-  const sections = { untracked: 'untracked-section', unrelated: 'unrelated-section', missing: 'missing-section' };
+  const sections = {
+    untracked: 'untracked-section',
+    unrelated: 'unrelated-section',
+    missing: 'missing-section',
+    folders: 'empty-folders-section'
+  };
   Object.entries(sections).forEach(([type, id]) => {
     const section = document.getElementById(id);
     if (section) section.classList.toggle('compare-filter-hidden', comparisonFilter !== 'all' && comparisonFilter !== type);
@@ -481,13 +654,14 @@ function applyComparisonFilter() {
 }
 
 async function runSelectedComparisonAction(kind) {
+  const isEn = localDb.settings && localDb.settings.lang === 'en';
   const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
   const types = getSelectedComparisonType();
   if (types.length !== 1) return;
   const type = types[0];
   const keys = comparisonSelection[type];
-  const list = type === 'untracked' ? untrackedFilesList : type === 'unrelated' ? unrelatedFilesList : missingFilesList;
-  const selected = list.filter(item => keys.has(encodeURIComponent(type === 'missing' ? item.id : item.filePath)));
+  const list = type === 'untracked' ? untrackedFilesList : type === 'unrelated' ? unrelatedFilesList : type === 'missing' ? missingFilesList : emptyFoldersList;
+  const selected = list.filter(item => keys.has(encodeURIComponent(type === 'missing' ? item.id : type === 'folders' ? item.folderPath : item.filePath)));
   if (!selected.length) return;
 
   let body;
@@ -500,6 +674,9 @@ async function runSelectedComparisonAction(kind) {
   } else if (kind === 'danger' && type === 'missing') {
     if (!confirm((t.compare_confirm_delete_history || '{count} kaydı geçmişten silmek istiyor musunuz?').replace('{count}', selected.length))) return;
     body = { action: 'delete-history-item', videoIds: selected.map(file => file.id) };
+  } else if (kind === 'danger' && type === 'folders') {
+    if (!confirm(isEn ? `Delete ${selected.length} folder(s) from disk?` : `${selected.length} klasörü diskten kalıcı olarak silmek istiyor musunuz?`)) return;
+    body = { action: 'delete-empty-folders', folderPaths: selected.map(f => f.folderPath) };
   } else if (kind === 'danger') {
     if (!confirm((t.compare_confirm_delete_disk || '{count} dosyayı diskten kalıcı olarak silmek istiyor musunuz?').replace('{count}', selected.length))) return;
     body = { action: type === 'unrelated' ? 'delete-unrelated-file' : 'delete-untracked-file', filePaths: selected.map(file => file.filePath) };
@@ -517,7 +694,6 @@ async function runSelectedComparisonAction(kind) {
     showToast(t.compare_connection_error, 'error');
   }
 }
-
 export async function fixFileIssue(actionType, filePath, id) {
   const isEn = localDb.settings && localDb.settings.lang === 'en';
   let body = {};
@@ -742,6 +918,10 @@ window.runFileComparison = runFileComparison;
 window.openFileLocation = openFileLocation;
 window.deleteAllUnrelated = deleteAllUnrelated;
 window.updateScanProgressToast = updateScanProgressToast;
+window.deleteEmptyFolder = deleteEmptyFolder;
+window.deleteAllEmptyFolders = deleteAllEmptyFolders;
+window.runSyncAllAction = runSyncAllAction;
+
 
 // === DOWNLISTER / DOWNLOADER FRONTEND MANTIĞI ===
 let activePlaylistVideos = [];

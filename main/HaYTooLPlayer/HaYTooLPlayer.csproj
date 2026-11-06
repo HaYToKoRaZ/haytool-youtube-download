@@ -10,6 +10,10 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <ApplicationIcon>..\icon.ico</ApplicationIcon>
     <AssemblyName>Multimedia HaYTooL</AssemblyName>
+    <Company>HaYTooL</Company>
+    <Product>Multimedia HaYTooL</Product>
+    <Copyright>Copyright © 2026 HaYTooL. All rights reserved.</Copyright>
+    <Description>Multimedia HaYTooL - YouTube Video ve Ses İndirici &amp; Oynatıcı</Description>
   </PropertyGroup>
 
   <ItemGroup>

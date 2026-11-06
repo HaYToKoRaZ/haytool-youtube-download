@@ -1,4 +1,4 @@
-import { escapeHtml, formatDate, formatDateTime, getDaysAgoText, getDaysAgoInfo, isShortVideo, isMembersOnlyVideo, parseTimeToSeconds, getVideoRemainingInfo, detectVideoPlatform, getPlatformBadgeHtml, getPlatformSvgIcon } from '../utils/helpers.js';
+import { escapeHtml, formatDate, formatDateTime, getDaysAgoText, getDaysAgoInfo, isShortVideo, isMembersOnlyVideo, parseTimeToSeconds, getVideoRemainingInfo, detectVideoPlatform, getPlatformBadgeHtml, getPlatformSvgIcon, getChannelOrSiteAvatarHtml, hasFollowedChannelAvatar } from '../utils/helpers.js?v=12.3.5.1';
 import { translations } from '../utils/i18n.js';
 
 // YouTube SVG İkon Şablonu
@@ -105,6 +105,8 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
       const isDownloadedSelected = isBulkMode && window.selectedDownloadedBulkDeleteIds && window.selectedDownloadedBulkDeleteIds.has(item.id);
 
       const card = document.createElement('div');
+      card.setAttribute('data-testid', 'video-card');
+      if (item.id) card.setAttribute('data-video-id', item.id);
       card.className = 'video-card'
         + (isShort ? ' is-short' : '')
         + (isBulkMode ? ' bulk-delete-active' : '')
@@ -260,6 +262,16 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
             ${webActionBtnSvg}
           </button>
         `;
+      } else if (item.status === 'pending_merge' || item.status === 'merging_deferred') {
+        const isMergingNow = item.status === 'merging_deferred';
+        const badgeTitle = isMergingNow ? (t.badge_merging_now || 'Birleştiriliyor') : (t.badge_pending_merge || 'Birleştirme Bekliyor');
+        statusHtml = `<span class="status-pill" title="${escapeHtml(badgeTitle)}" style="background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.35); color: var(--primary); padding: 4px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: help;"><i data-lucide="layers" class="${isMergingNow ? 'pulse-animation' : ''}" style="width: 14px; height: 14px;"></i></span>`;
+        actionsHtml = `
+          ${!isMergingNow ? `<button class="btn-icon btn-action-download" onclick="event.stopPropagation(); mergeSingleDeferredVideo('${escapeHtml(item.id)}')" title="${escapeHtml(t.btn_merge_now || 'Şimdi Birleştir')}"><i data-lucide="layers"></i></button>` : ''}
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
+          </button>
+        `;
       } else if (item.status === 'waiting_live_processing' || item.status === 'live_processing') {
         const tooltipMsg = t.tooltip_waiting_live_processing || 'Canlı Yayın İşleniyor (Otomatik Yeniden Deneniyor)';
         statusHtml = `<span class="status-pill live-processing-badge" title="${escapeHtml(tooltipMsg)}" style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.3); color: #eab308; padding: 4px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: help;"><i data-lucide="radio" class="pulse-animation" style="width: 14px; height: 14px;"></i></span>`;
@@ -304,6 +316,24 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
             ${webActionBtnSvg}
           </button>
         `;
+      } else if (item.status === 'upcoming' || item.duration === 'upcoming') {
+        const upcomingTitle = t.badge_upcoming_title || 'Bu video henüz yayınlanmadı (Prömiyer). Yayınlandığında indirilebilir olacaktır.';
+        statusHtml = `<span class="status-dot-upcoming" title="${escapeHtml(upcomingTitle)}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;box-shadow:0 0 6px rgba(245, 158, 11, 0.6);"></span>`;
+        actionsHtml = `
+          <button class="btn-icon btn-action-upcoming" disabled title="${escapeHtml(upcomingTitle)}" style="opacity: 0.7; cursor: not-allowed; color: #f59e0b;">
+            <i data-lucide="clock"></i>
+          </button>
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
+          </button>
+        `;
+      } else if ((item.status === 'live' || item.duration === 'live') && item.status !== 'completed') {
+        statusHtml = `<span class="status-dot-live" title="${escapeHtml(t.card_live || 'Canlı Yayın')}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px rgba(239, 68, 68, 0.6);"></span>`;
+        actionsHtml = `
+          <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
+            ${webActionBtnSvg}
+          </button>
+        `;
       } else if (item.status === 'ignored') {
         statusHtml = `<span class="status-dot-ignored" title="${t.card_download_now || 'Göz Ardı Edildi'}"></span>`;
         actionsHtml = `
@@ -318,7 +348,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
 
       if (item.status === 'completed' && item.duration !== 'live') {
         actionsHtml += `
-          <button class="btn-icon video-action-delete" onclick="event.stopPropagation(); (window.showDeleteModal || showDeleteModal)('${item.id}')" title="${t.btn_delete_history || 'Geçmişten/Diskten Sil'}">
+          <button class="btn-icon video-action-delete" onclick="event.stopPropagation(); (window.showDeleteModal || showDeleteModal)('${item.id}')" title="${t.btn_delete_history || 'Geçmişten/Diskten Sil'}" aria-label="${t.btn_delete_history || 'Geçmişten/Diskten Sil'}">
             <i data-lucide="trash-2"></i>
           </button>
         `;
@@ -327,7 +357,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
       if (gridElement.id === 'history-grid') {
         if (item.hidden === true) {
           actionsHtml += `
-            <button class="btn-icon video-action-unhide" onclick="event.stopPropagation(); unhideVideo('${item.id}')" title="${t.card_unhide_video || 'Videoyu Göster'}" style="color: var(--success);">
+            <button class="btn-icon video-action-unhide" onclick="event.stopPropagation(); unhideVideo('${item.id}')" title="${t.card_unhide_video || 'Videoyu Göster'}" aria-label="${t.card_unhide_video || 'Videoyu Göster'}" style="color: var(--success);">
               <i data-lucide="eye"></i>
             </button>
           `;
@@ -335,7 +365,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           const isDownloaded = item.status === 'completed' && !isMissing;
           if (!isDownloaded || item.duration === 'live') {
             actionsHtml += `
-              <button class="btn-icon video-action-hide" onclick="event.stopPropagation(); hideVideo('${item.id}')" title="${t.label_history_hide || 'Hide'}">
+              <button class="btn-icon video-action-hide" onclick="event.stopPropagation(); hideVideo('${item.id}')" title="${t.label_history_hide || 'Hide'}" aria-label="${t.label_history_hide || 'Hide'}">
                 <i data-lucide="eye-off"></i>
               </button>
             `;
@@ -400,16 +430,21 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         // İndirilenler Sekmesi: Kart üzerinde indirilme tarihi & saati; üzerine gelince yayınlanma tarihi & saati
         cardDateLabel = t.card_download_label || t.card_download_time || 'İndirilme';
         cardDateValue = downloadExact || publishExact;
-        cardDateTooltip = publishExact ? `${t.card_publish_label || t.card_publish_time || 'Yayınlanma'}: ${publishExact}` : (downloadExact ? `${cardDateLabel}: ${downloadExact}` : '');
+        cardDateTooltip = publishExact ? `${t.card_publish_label || t.card_publish_time || 'Yayınlanma'}: ${publishExact}` : '';
       } else {
-        // Kütüphane Sekmesi: Kart üzerinde yayınlanma tarihi & saati; üzerine gelince indirilme tarihi & saati
+        // Kütüphane Sekmesi: Kart üzerinde yayınlanma tarihi & saati; yalnızca gerçekten indirilmişse üzerine gelince indirilme tarihi gösterilir
         cardDateLabel = t.card_publish_label || t.card_publish_time || 'Yayınlanma';
         cardDateValue = publishExact || downloadExact;
-        cardDateTooltip = downloadExact ? `${t.card_download_label || t.card_download_time || 'İndirilme'}: ${downloadExact}` : (publishExact ? `${cardDateLabel}: ${publishExact}` : '');
+        cardDateTooltip = (item.status === 'completed' && downloadExact)
+          ? `${t.card_download_label || t.card_download_time || 'İndirilme'}: ${downloadExact}`
+          : '';
       }
 
       const currentDb = window.localDb || {};
-      const expireInfo = (item.status === 'completed' && !isMissing) ? getVideoRemainingInfo(item, currentDb) : null;
+      const isDownloadedGrid = !!(gridElement && gridElement.id === 'downloaded-grid');
+      const currentSort = isDownloadedGrid ? (sortVal || (typeof window !== 'undefined' ? window.downloadedSortVal : '') || '') : '';
+      const isAutoDeleteFilter = isDownloadedGrid && currentSort === 'auto-delete';
+      const expireInfo = (isAutoDeleteFilter && item.status === 'completed' && !isMissing) ? getVideoRemainingInfo(item, currentDb) : null;
       const expireBadgeHtml = expireInfo ? `
         <span class="video-card-expire-badge ${expireInfo.isExpired ? 'is-expired' : ''}" title="${escapeHtml(expireInfo.tooltip)}" style="font-size: 0.72rem; padding: 1px 5px; border-radius: 4px; background: ${expireInfo.isExpired ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.15)'}; color: ${expireInfo.isExpired ? '#ef4444' : '#f59e0b'}; font-weight: 600; cursor: help; border: 1px solid ${expireInfo.isExpired ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.3)'};">
           ${escapeHtml(expireInfo.badgeText)}
@@ -489,15 +524,13 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           channelClickTitle = `${t.btn_open_profile || 'Profili Aç'}: ${displayChannelName || rawHandle}`;
         }
 
-        channelAvatarHtml = (typeof getPlatformSvgIcon === 'function')
-          ? `<span class="video-card-platform-icon-inline" style="display:inline-flex; align-items:center; opacity:0.85; margin-right:3px;">${getPlatformSvgIcon(platform, 13)}</span>`
-          : '';
+        channelAvatarHtml = getChannelOrSiteAvatarHtml(item, 'video-card-channel-avatar');
       } else {
-        if (item.channelId) {
+        if (item.channelId && item.channelId !== 'manual' && hasFollowedChannelAvatar(item.channelId)) {
           channelClickAction = `event.stopPropagation(); filterByChannel('${item.channelId}', '${gridElement.id}')`;
           channelClickTitle = `${t.filter_by_channel || 'Kanala göre filtrele'}: ${item.channelName || ''}`;
-          channelAvatarHtml = `<img src="/api/channels/${item.channelId}/avatar" class="video-card-channel-avatar" alt="" aria-hidden="true" onerror="this.style.display='none';" />`;
         }
+        channelAvatarHtml = getChannelOrSiteAvatarHtml(item, 'video-card-channel-avatar');
       }
 
       let cardDisplayTitle = item.title || '';
@@ -510,7 +543,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
 
       card.innerHTML = `
         <div class="video-thumbnail-wrapper" data-video-id="${item.id}" data-platform="${platform}" onclick="${clickAction}" style="cursor: pointer; position: relative;" title="${clickTitle}">
-          <img class="video-thumbnail" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
+          <img class="video-thumbnail" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" loading="lazy" decoding="async" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
           ${qualityBadgeHtml}
           ${unlistedBadgeHtml}
           ${durationBadgeHtml}
@@ -535,7 +568,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         </div>
         <div class="video-card-content">
           <div class="video-card-title-wrap">
-            <h3 class="video-card-title" onclick="${clickAction}" style="cursor: pointer;" title="${escapeHtml(cardDisplayTitle)}">${escapeHtml(cardDisplayTitle)}</h3>
+            <h3 class="video-card-title" data-testid="video-title" onclick="${clickAction}" style="cursor: pointer;" title="${escapeHtml(cardDisplayTitle)}">${escapeHtml(cardDisplayTitle)}</h3>
           </div>
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap: wrap;">
             <span class="video-card-duration-text">${durationText || (t.card_duration_not_specified || 'Süre Belirtilmedi')}</span>
@@ -547,7 +580,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
               ${channelAvatarHtml}
               ${escapeHtml(displayChannelName || item.channelName || '')}
             </span>
-            <span title="${escapeHtml(cardDateTooltip)}" style="cursor: help;">${escapeHtml(cardDateLabel)}: ${cardDateValue}</span>
+            <span${cardDateTooltip ? ` title="${escapeHtml(cardDateTooltip)}" style="cursor: help;"` : ''}>${escapeHtml(cardDateLabel)}: ${cardDateValue}</span>
             ${item.status === 'completed' ? `<span>${t.card_size || 'Boyut'}: ${item.fileSize || '-- MB'}</span>` : ''}
           </div>
           <div class="video-card-bottom">
@@ -558,7 +591,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
               </span>
               ${expireBadgeHtml}
             </div>
-            <div class="video-card-actions">
+            <div class="video-card-actions" data-testid="video-actions">
               ${actionsHtml}
             </div>
           </div>

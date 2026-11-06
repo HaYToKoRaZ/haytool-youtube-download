@@ -66,6 +66,13 @@
                 </button>
               </div>
               <div class="filter-group" style="margin:0;">
+                <input type="checkbox" id="history-show-upcoming" style="display:none;">
+                <button type="button" class="filter-chip-btn" id="btn-filter-show-upcoming" onclick="toggleFilterChip('history-show-upcoming')" title="Henüz Başlamamış Bekleme Odalarını ve Prömiyerleri Göster/Gizle">
+                  <i data-lucide="clock"></i>
+                  <span id="lbl-history-show-upcoming">Bekleyen Odalar</span>
+                </button>
+              </div>
+              <div class="filter-group" style="margin:0;">
                 <input type="checkbox" id="history-only-no-auto-download" style="display:none;">
                 <button type="button" class="filter-chip-btn" id="btn-filter-no-auto-download" onclick="toggleFilterChip('history-only-no-auto-download')" title="Sadece Otomatik İndirmesi Kapalı Olanları Göster/Gizle">
                   <i data-lucide="download-cloud"></i>

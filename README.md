@@ -133,66 +133,54 @@ When the video player is focused, you can control playback using standard shortc
 
 ---
 
-## 💻 CLI & Console Commands
+## 💻 CLI, Console & Taskbar Jump List Commands
 
-You can manage download queues, speeds, background profiles, launch modes, or UI visibility directly through the CLI using `"Multimedia HaYTooL.exe"` or via the interactive Console Input at the bottom of the System Tray log window:
+You can manage download queues, Game Mode (deferred FFmpeg merge), speeds, launch modes, or UI visibility directly via **`.\haytool <command>`** (or `"Multimedia HaYTooL.exe" <command>`), via the **Windows Taskbar Jump List** (right-click the taskbar icon), or via the interactive Console Input at the bottom of the System Tray log window:
 
 | Command | Arguments | Description | Example |
 | :--- | :--- | :--- | :--- |
-| `silent` | - | Starts app as silent background service (NO tray icon, NO UI window) | `"Multimedia HaYTooL.exe" silent` |
-| `--tray-only`| - | Starts app minimized directly to tray without opening UI window | `"Multimedia HaYTooL.exe" --tray-only` |
-| `open` / `gui` | - | Brings the media player window to foreground and restores if hidden | `"Multimedia HaYTooL.exe" open` |
-| `hide` / `min` | - | Hides the player window to system tray while keeping service active | `"Multimedia HaYTooL.exe" hide` |
-| `tray` | - | Makes the system tray icon visible if running in silent mode | `"Multimedia HaYTooL.exe" tray` |
-| `pause` | - | Pauses the download queue (safely suspends active downloads) | `"Multimedia HaYTooL.exe" pause` |
-| `resume` | - | Resumes the paused download queue and continues downloads | `"Multimedia HaYTooL.exe" resume` |
-| `pd` | `[youtube-url]` | If URL provided: adds video to queue; If no URL: toggles pause/resume | `"Multimedia HaYTooL.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ` |
-| `status` / `info` | - | Shows active download queue, waiting count, limits, and Turtle/Fakap state | `"Multimedia HaYTooL.exe" status` |
-| `ton` / `turtleon` | - | Enables Turtle Mode (Alternative speed limit profile) | `"Multimedia HaYTooL.exe" ton` |
-| `toff` / `turtleoff` | - | Disables Turtle Mode (Returns to normal speed limit) | `"Multimedia HaYTooL.exe" toff` |
-| `toggle` / `turtle` | - | Switches between normal and Turtle speed modes | `"Multimedia HaYTooL.exe" toggle` |
-| `speed` | `<kb\|off>` | Sets standard download speed limit in KB/s (or disable with `off` / `0`) | `"Multimedia HaYTooL.exe" speed 2500` |
-| `altspeed`| `<kb>` | Sets turtle mode speed limit value in KB/s | `"Multimedia HaYTooL.exe" altspeed 500` |
-| `check` / `scan` | - | Instantly triggers full RSS channel scan for newly published videos | `"Multimedia HaYTooL.exe" check` |
-| `backup` | - | Immediately triggers daily system database and settings backup | `"Multimedia HaYTooL.exe" backup` |
-| `fakap` | - | Manually runs Fakap retention cleanup and maintenance | `"Multimedia HaYTooL.exe" fakap` |
-| `stop` / `exit` | - | Safely shuts down the background server and terminates application | `"Multimedia HaYTooL.exe" stop` |
-| `clear` | - | Clears the on-screen log window in the Tray console | `clear` |
-| `help` | - | Displays full list of available commands and parameters | `help` |
+| `gameon` / `game on` | - | **Game Mode ON:** Downloads at full speed with 0% FFmpeg load; holds merges in queue | `.\haytool gameon` |
+| `gameoff` / `game off` | - | **Game Mode OFF:** Disables Game Mode and auto-merges queued streams sequentially | `.\haytool gameoff` |
+| `game` | - | Toggles Game Mode on/off (auto-starts sequential merge when turned off) | `.\haytool game` |
+| `merge` / `merge-pause` | - | Starts or pauses sequential FFmpeg merging of pending streams on demand | `.\haytool merge` |
+| `paste` | - | Reads URL directly from clipboard and adds it to the download queue | `.\haytool paste` |
+| `pd` | `[video-url]` | If URL provided: adds video/playlist to queue; If no URL: toggles pause/resume | `.\haytool pd "https://youtu.be/dQw4w9WgXcQ"` |
+| `pause` / `resume` | - | Pauses or resumes the active download queue safely | `.\haytool pause` |
+| `ton` / `toff` / `toggle` | - | Enables, disables, or toggles Turtle Mode (alternative speed limit profile) | `.\haytool ton` |
+| `speed` | `<kb\|off\|on>` | Sets normal speed limit in KB/s, disables (`off`/`0`), or restores last limit (`on`) | `.\haytool speed 2500` |
+| `altspeed`| `<kb>` | Sets Turtle Mode speed limit value in KB/s | `.\haytool altspeed 500` |
+| `status` / `info` | - | Prints active queue, pending FFmpeg merges, speed limits, and Game/Turtle state | `.\haytool status` |
+| `check` / `scan` | - | Instantly triggers full RSS channel scan for newly published videos | `.\haytool check` |
+| `backup` / `fakap` | - | Triggers instant system DB backup or runs Fakap retention maintenance | `.\haytool backup` |
+| `silent` / `--tray-only` | - | Starts app headless (no tray/window) or minimized directly to system tray | `.\haytool --tray-only` |
+| `open` / `hide` / `tray` | - | Restores UI window, hides window to system tray (`hide`/`min`), or shows tray icon | `.\haytool hide` |
+| `stop` / `exit` | - | Safely shuts down the background server and terminates the application | `.\haytool stop` |
+| `clear` / `help` | - | Clears Tray console log screen or displays full command reference | `.\haytool help` |
 
-**CLI Usage Examples:**
-```cmd
-:: Launch completely silent without tray icon or window (silent service mode):
-"Multimedia HaYTooL.exe" silent
+**CLI Usage Examples (PowerShell & CMD):**
+```powershell
+# Enable Game Mode before gaming (1000 Mbps download, 0% FFmpeg CPU/GPU muxing load):
+.\haytool gameon
 
-:: Bring running player window to the front (even after starting in silent mode):
-"Multimedia HaYTooL.exe" open
+# Disable Game Mode after gaming (automatically merges pending videos one by one):
+.\haytool gameoff
 
-:: Pause all downloads immediately:
-"Multimedia HaYTooL.exe" pause
+# Download the URL currently copied in your clipboard:
+.\haytool paste
 
-:: Resume download queue:
-"Multimedia HaYTooL.exe" resume
+# Enqueue a specific video or playlist URL:
+.\haytool pd "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
-:: Toggle pause/resume using quick shortcut:
-"Multimedia HaYTooL.exe" pd
+# Set normal speed limit to 2500 KB/s, turn it off, or restore last limit:
+.\haytool speed 2500
+.\haytool speed off
+.\haytool speed on
 
-:: Safely stop/terminate running background service and player from terminal:
-"Multimedia HaYTooL.exe" stop
+# Enable Turtle Mode (alternative low-speed profile) or check full status:
+.\haytool ton
+.\haytool status
 
-:: Download a video directly via Windows Command Prompt / PowerShell:
-"Multimedia HaYTooL.exe" pd "https://www.youtube.com/watch?v=example"
-
-:: Check server status and active downloads:
-"Multimedia HaYTooL.exe" status
-
-:: Enable turtle speed mode (e.g. while gaming or streaming):
-"Multimedia HaYTooL.exe" ton
-
-:: Set custom download speed limit to 3000 KB/s:
-"Multimedia HaYTooL.exe" speed 3000
-
-:: Trigger an instant channel scan:
+# Or call the executable directly with quotes:
 "Multimedia HaYTooL.exe" check
 ```
 
@@ -321,66 +309,54 @@ Oynatıcı aktifken, aşağıdaki kısayollar ile oynatımı kontrol edebilirsin
 
 ---
 
-## 💻 Komut Satırı & Konsol Kontrolleri
+## 💻 Komut Satırı (CLI), Konsol & Görev Çubuğu (Jump List) Kontrolleri
 
-İndirme kuyruklarını, hız profillerini, arka plan servis modunu, başlatma veya pencere görünürlüğünü `"Multimedia HaYTooL.exe"` üzerinden terminalden ya da Sistem Tepsisi log ekranının altındaki komut satırından doğrudan yönetebilirsiniz:
+İndirme kuyruklarını, **Oyun Modunu** (ertelenmiş FFmpeg birleştirme), hız profillerini ve pencere görünürlüğünü **`.\haytool <komut>`** kısayoluyla (veya `"Multimedia HaYTooL.exe" <komut>`), **Windows Görev Çubuğu (Taskbar Jump List)** sağ tık menüsünden ya da Sistem Tepsisi log ekranının altındaki konsol satırından doğrudan yönetebilirsiniz:
 
 | Komut | Parametre | Açıklama | Örnek |
 | :--- | :--- | :--- | :--- |
-| `silent` | - | Uygulamayı sessiz arka plan servisi olarak başlatır (Tepsi simgesi YOK, pencere YOK) | `"Multimedia HaYTooL.exe" silent` |
-| `--tray-only`| - | Pencere açmadan doğrudan sistem tepsisine simge olarak başlar | `"Multimedia HaYTooL.exe" --tray-only` |
-| `open` / `gui` | - | Oynatıcı penceresini ve tepsi simgesini en öne getirir | `"Multimedia HaYTooL.exe" open` |
-| `hide` / `min` | - | Oynatıcı penceresini sistem tepsisine gizler (servis çalışmaya devam eder) | `"Multimedia HaYTooL.exe" hide` |
-| `tray` | - | Sessiz modda çalışan uygulamanın sistem tepsisi simgesini görünür yapar | `"Multimedia HaYTooL.exe" tray` |
-| `pause` | - | İndirme kuyruğunu duraklatır (aktif indirmeyi bekletmeye alır) | `"Multimedia HaYTooL.exe" pause` |
-| `resume` | - | Duraklatılmış indirme kuyruğunu devam ettirir | `"Multimedia HaYTooL.exe" resume` |
-| `pd` | `[youtube-linki]` | Link verilirse kuyruğa ekler; linksiz çağrılırsa duraklat/devam geçişi yapar | `"Multimedia HaYTooL.exe" pd https://www.youtube.com/watch?v=dQw4w9WgXcQ` |
-| `status` / `info` | - | Aktif kuyruğu, bekleyen sayısını, hız sınırlarını, Fakap ve Kaplumbağa durumunu listeler | `"Multimedia HaYTooL.exe" status` |
-| `ton` / `turtleon` | - | Kaplumbağa Modunu (Alternatif hız profilini) aktif hale getirir | `"Multimedia HaYTooL.exe" ton` |
-| `toff` / `turtleoff`| - | Kaplumbağa Modunu kapatır (Normal hız limitine döner) | `"Multimedia HaYTooL.exe" toff` |
-| `toggle` / `turtle` | - | Normal hız ve Kaplumbağa modu arasında tek komutla geçiş yapar | `"Multimedia HaYTooL.exe" toggle` |
-| `speed` | `<kb\|off>` | Standart indirme hız limitini KB/s cinsinden ayarlar (veya `off` / `0` ile kapatır) | `"Multimedia HaYTooL.exe" speed 2500` |
-| `altspeed`| `<kb>` | Kaplumbağa modu alternatif hız profilini KB/s cinsinden belirler | `"Multimedia HaYTooL.exe" altspeed 500` |
-| `check` / `scan` | - | Takip edilen tüm kanalları yeni videolar için anında RSS ile denetler | `"Multimedia HaYTooL.exe" check` |
-| `backup` | - | Veritabanı ve ayarların günlük sistem yedeğini anında tetikler | `"Multimedia HaYTooL.exe" backup` |
-| `fakap` | - | Fakap otomatik yedekleme kontrol ve bakım döngüsünü manuel tetikler | `"Multimedia HaYTooL.exe" fakap` |
-| `stop` / `exit` | - | Arka plan sunucusunu ve çalışan uygulamayı güvenle kapatıp sonlandırır | `"Multimedia HaYTooL.exe" stop` |
-| `clear` | - | Konsol log penceresindeki ekran çıktılarını anında temizler | `clear` |
-| `help` | - | Kullanılabilir tüm komutların ve açıklamaların listesini yazdırır | `help` |
+| `gameon` / `oyunac` | - | **Oyun Modunu Açar:** Tam hızda indirir (%0 FFmpeg yükü), birleştirmeleri kuyrukta bekletir | `.\haytool gameon` |
+| `gameoff` / `oyunkapat` | - | **Oyun Modunu Kapatır:** Modu kapatır ve bekleyen videoları otomatik sırayla birleştirir | `.\haytool gameoff` |
+| `game` / `oyun` | - | Oyun Modu arasında aç/kapat geçişi yapar (kapatıldığında sırayla birleştirir) | `.\haytool game` |
+| `merge` / `merge-pause` | - | Kuyrukta bekleyen FFmpeg birleştirmelerini manuel başlatır veya duraklatır | `.\haytool merge` |
+| `paste` / `pano` | - | Panodaki video bağlantısını doğrudan okur ve indirme kuyruğuna ekler | `.\haytool paste` |
+| `pd` | `[video-linki]` | Link verilirse kuyruğa ekler; linksiz çağrılırsa duraklat/devam geçişi yapar | `.\haytool pd "https://youtu.be/dQw4w9WgXcQ"` |
+| `pause` / `resume` | - | İndirme kuyruğunu duraklatır veya kaldığı yerden devam ettirir | `.\haytool pause` |
+| `ton` / `toff` / `toggle` | - | Kaplumbağa Modunu (alternatif düşük hız profilini) açar, kapatır veya değiştirir | `.\haytool ton` |
+| `speed` | `<kb\|off\|on>` | Standart hız limitini KB/s ayarlar, kapatır (`off`/`0`) veya son değere geri açar (`on`) | `.\haytool speed 2500` |
+| `altspeed`| `<kb>` | Kaplumbağa modu alternatif hız profilini KB/s cinsinden belirler | `.\haytool altspeed 500` |
+| `status` / `durum` | - | Aktif kuyruğu, bekleyen birleştirmeleri, hız sınırlarını ve Oyun/Turtle durumunu yazdırır | `.\haytool status` |
+| `check` / `tara` | - | Takip edilen tüm kanalları yeni videolar için anında RSS ile denetler | `.\haytool check` |
+| `backup` / `fakap` | - | Veritabanı anlık yedeğini alır veya Fakap bakım döngüsünü tetikler | `.\haytool backup` |
+| `silent` / `--tray-only`| - | Tamamen sessiz servis modunda veya doğrudan sistem tepsisinde başlatır | `.\haytool --tray-only` |
+| `open` / `hide` / `tray` | - | Pencereyi öne getirir, sistem tepsisine gizler (`hide`/`min`) veya simgeyi gösterir | `.\haytool hide` |
+| `stop` / `exit` | - | Arka plan sunucusunu ve çalışan uygulamayı güvenle kapatıp sonlandırır | `.\haytool stop` |
+| `clear` / `help` | - | Konsol ekranını temizler veya tüm kullanılabilir komut listesini yazdırır | `.\haytool help` |
 
-**CLI Kullanım Örnekleri:**
-```cmd
-:: Uygulamayı saat yanında simge ve pencere olmadan tamamen sessiz arka plan servisi olarak başlatın:
-"Multimedia HaYTooL.exe" silent
+**CLI Kullanım Örnekleri (PowerShell & CMD):**
+```powershell
+# Oyuna girmeden önce Oyun Modunu açın (1000 Mbps indirme, %0 FFmpeg birleştirme yükü):
+.\haytool gameon
 
-:: Sessiz modda çalışan uygulamanın arayüzünü masaüstüne getirin:
-"Multimedia HaYTooL.exe" open
+# Oyundan çıkınca Oyun Modunu kapatın (bekleyen videolar otomatik sırayla birleştirilir):
+.\haytool gameoff
 
-:: Tüm indirmeleri anında duraklatın:
-"Multimedia HaYTooL.exe" pause
+# Panoya kopyaladığınız bağlantıyı tek komutla indirme kuyruğuna ekleyin:
+.\haytool paste
 
-:: Duraklatılmış indirmeleri devam ettirin:
-"Multimedia HaYTooL.exe" resume
+# Doğrudan bağlantı vererek video veya çalma listesi indirin:
+.\haytool pd "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
-:: Hızlı kısayol ile duraklat/devam durumunu değiştirin:
-"Multimedia HaYTooL.exe" pd
+# Normal hız limitini 2500 KB/s yapın, kapatın veya son değere geri açın:
+.\haytool speed 2500
+.\haytool speed off
+.\haytool speed on
 
-:: Çalışan arka plan servisini ve uygulamayı terminalden tek komutla kapatın:
-"Multimedia HaYTooL.exe" stop
+# Kaplumbağa modunu açın veya tam sistem durumunu sorgulayın:
+.\haytool ton
+.\haytool status
 
-:: Bir videoyu veya oynatma listesini terminal üzerinden doğrudan indirme kuyruğuna ekleyin:
-"Multimedia HaYTooL.exe" pd "https://www.youtube.com/watch?v=ornek"
-
-:: Sunucu durumunu, aktif indirmeleri ve kuyruk özetini sorgulayın:
-"Multimedia HaYTooL.exe" status
-
-:: Oyun oynarken veya video izlerken bant genişliğini korumak için Kaplumbağa modunu açın:
-"Multimedia HaYTooL.exe" ton
-
-:: Normal indirme hızını 4000 KB/s olarak sınırlayın:
-"Multimedia HaYTooL.exe" speed 4000
-
-:: Kanalları yeni yüklenen videolar için anında taratın:
+# Doğrudan exe adıyla (tırnak içinde) çalıştırma:
 "Multimedia HaYTooL.exe" check
 ```
 

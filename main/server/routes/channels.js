@@ -198,7 +198,7 @@ router.post('/import', localhostOnly, (req, res) => {
  * @param {object} res - Express yanıt nesnesi
  * @returns {Promise<void>}
  */
-router.get('/search', async (req, res) => {
+router.get('/search', localhostOnly, async (req, res) => {
   const { q } = req.query;
   if (!q) {
     return res.status(400).json({ error: 'Arama sorgusu boş olamaz.' });

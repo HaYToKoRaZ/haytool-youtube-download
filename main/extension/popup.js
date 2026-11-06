@@ -1,7 +1,7 @@
-// Multimedia HaYTooL Chromium Extension Popup Script (v12.3.3)
+// Multimedia HaYTooL Chromium Extension Popup Script
 let BACKEND_PORT = 4141;
 let BACKEND_URL = 'http://127.0.0.1:4141';
-const CURRENT_EXT_VERSION = '12.3.3';
+const CURRENT_EXT_VERSION = (chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '12.3.5';
 
 async function loadSettings() {
   return new Promise((resolve) => {
@@ -33,6 +33,10 @@ const btnActionText = document.getElementById('btn-action-text');
 const feedbackBox = document.getElementById('feedback-box');
 const versionWarningBox = document.getElementById('version-warning-box');
 const btnOpenInstallGuide = document.getElementById('btn-open-install-guide');
+const extVersionBadge = document.getElementById('ext-version-badge');
+if (extVersionBadge) {
+  extVersionBadge.textContent = `v${CURRENT_EXT_VERSION}`;
+}
 
 // Seçenek Panelleri
 const videoOptionsPanel = document.getElementById('video-options-panel');
@@ -70,7 +74,7 @@ async function checkBackendAndVersion() {
       statusDot.className = 'status-dot online';
       statusText.textContent = getMessage('statusConnected', `Uygulamaya Bağlı (${BACKEND_PORT})`);
 
-      const serverVer = data.version || '12.3.3';
+      const serverVer = data.version || CURRENT_EXT_VERSION;
       if (serverVer !== CURRENT_EXT_VERSION) {
         versionWarningBox.classList.remove('hidden');
         versionWarningBox.querySelector('span').textContent = `Yeni sürüm mevcut: v${serverVer} (Sizdeki: v${CURRENT_EXT_VERSION})`;

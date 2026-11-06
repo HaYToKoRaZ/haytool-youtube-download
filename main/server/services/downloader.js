@@ -13,10 +13,12 @@ import {
   defaultDownloadDir 
 } from '../database.js';
 import { broadcast, addTerminalLog } from './sse.js';
-import { ytdlpPath, testFfmpegSync, getFfmpegPath, getLocalTempDir, getStagingTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp, getVideoResolution, getVideoDurationFromFile } from './paths.js';
+import { ytdlpPath, testFfmpegSync, getFfmpegPath, detectHwaccel, getLocalTempDir, getStagingTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp, getVideoResolution, getVideoDurationFromFile } from './paths.js';
 import { getWorkingProxy, rotateProxy } from './proxyManager.js';
 import { getTempSpaceInfo, isTempExtractionError, buildDiskFullMessage, DISK_FULL_ERROR_CODE } from './diskGuard.js';
 import { isInsideFakap } from './fakapPaths.js';
+import { mergeQueue, getItemStagingDir } from './mergeQueue.js';
+import { playAppSound } from './soundService.js';
 
 // Türkçe Açıklama: İndirmeleri gerçekleştiren yt-dlp motorunun varlığını kontrol eder, yoksa GitHub üzerinden otomatik indirir.
 export async function ensureYtdlp() {
@@ -102,7 +104,7 @@ export async function performYtdlpUpdate(target = 'nightly') {
   }
 
   let binaryUpdated = false;
-  if (fs.existsSync(ytdlpPath)) {
+  if (runMode !== 'python' && fs.existsSync(ytdlpPath)) {
     try {
       const updateCmd = `"${ytdlpPath}" --update-to ${cleanTarget}`;
       console.log(`[yt-dlp Binary Update] Komut çalıştırılıyor: ${updateCmd}`);
@@ -196,7 +198,6 @@ export async function performYtdlpUpdate(target = 'nightly') {
     execYtdlp(`"${ytdlpPath}" --version`, { timeout: 10000 }, (verErr, verStdout) => {
       const newVersion = verErr ? '' : (verStdout || '').trim();
       const successMsg = `yt-dlp başarıyla ${newVersion || cleanTarget} sürümüne güncellendi.`;
-      console.log(`[yt-dlp Update] ${successMsg}`);
       addTerminalLog(`[yt-dlp] ${successMsg}`, 'success');
       resolve({ success: true, output: successMsg + (pipOutput ? '\n' + pipOutput : ''), newVersion });
     });
@@ -246,63 +247,55 @@ export function cleanupResidualFiles(videoId, channelName, downloadPath, skipCha
   }
 }
 
-// Türkçe Açıklama: İndirme durumlarına göre özel melodik bip seslerini (başlama, başarı, hata) ses kartı üzerinden çalar.
+// Türkçe Açıklama: İndirme ve kuyruk durumlarına göre kullanıcı ayarlı özel sesleri (chime, bell, fanfare vb.) çalar.
 export function playSystemSound(type = 'notification') {
-  const db = readDb();
-  if (db.settings && db.settings.playSounds === false) return;
-
-  // Türkçe Açıklama: Eğer sunucu tray launcher (arayüz) tarafından başlatıldıysa, komutu tray'e ileterek native çaldır.
-  console.log(`[TRAY_CMD] play_sound=${type}`);
-
-  if (os.platform() !== 'win32') return;
-
-  // Türkçe Açıklama: Eğer stdout yönlendirilmişse (isTTY değilse), tray launcher sesi zaten native çalar. Çift çalmayı engelleyelim.
-  const isRunningInTray = !process.stdout.isTTY;
-  if (isRunningInTray) return;
-  
-  let soundCmd = '';
-  if (type === 'success') {
-    soundCmd = '[System.Console]::Beep(1046, 120)';
-  } else if (type === 'error') {
-    soundCmd = '[System.Console]::Beep(330, 200)';
-  }
-  
-  if (soundCmd) {
-    exec(`powershell -c "${soundCmd}"`, (err) => {
-      if (err) console.error('Uygulama özel bildirim sesi çalınamadı:', err.message);
-    });
+  if (type === 'start') {
+    playAppSound('download_start');
+  } else if (type === 'success') {
+    playAppSound('download_complete');
+  } else if (type === 'error' || type === 'warning') {
+    playAppSound('error');
+  } else {
+    playAppSound('download_start');
   }
 }
 
-// Türkçe Açıklama: Windows işletim sisteminde PowerShell kullanarak masaüstü bildirim balonu gösterir.
+// Türkçe Açıklama: Windows 10/11 WinRT Toast bildirim motoru (saat yanında geçici tepsi balonu açmaz, gerçek İşlem Merkezi masaüstü kartı gösterir).
 export function showWindowsNotification(title, message) {
   const db = readDb();
   if (db.settings && db.settings.showNotifications === false) return;
   if (os.platform() !== 'win32') return;
 
-  const cleanTitle = title.replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
-  const cleanMessage = message.replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+  const cleanTitle = String(title || 'HaYTooL').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+  const cleanMessage = String(message || '').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
 
   const escapedTitle = cleanTitle.replace(/'/g, "''");
   const escapedMessage = cleanMessage.replace(/'/g, "''");
 
-  const iconPath = path.resolve(process.cwd(), 'icon.ico').replace(/\\/g, '\\\\');
-
   const psScript = `
-    [void] [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms');
-    [void] [System.Reflection.Assembly]::LoadWithPartialName('System.Drawing');
-    $notification = New-Object System.Windows.Forms.NotifyIcon;
-    if (Test-Path '${iconPath}') {
-      $notification.Icon = New-Object System.Drawing.Icon('${iconPath}');
-    } else {
-      $notification.Icon = [System.Drawing.SystemIcons]::Information;
+    try {
+      $appId = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe';
+      [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null;
+      $template = [Windows.UI.Notifications.ToastTemplateType]::ToastText02;
+      $xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent($template);
+      $textNodes = $xml.GetElementsByTagName('text');
+      $textNodes.Item(0).AppendChild($xml.CreateTextNode('${escapedTitle}')) | Out-Null;
+      $textNodes.Item(1).AppendChild($xml.CreateTextNode('${escapedMessage}')) | Out-Null;
+      $toast = [Windows.UI.Notifications.ToastNotification]::new($xml);
+      $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId);
+      $notifier.Show($toast);
+    } catch {
+      # Fallback: Eski Windows sürümleri veya WinRT kısıtlı ortamlar
+      [void] [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms');
+      $n = New-Object System.Windows.Forms.NotifyIcon;
+      $n.Icon = [System.Drawing.SystemIcons]::Information;
+      $n.BalloonTipTitle = '${escapedTitle}';
+      $n.BalloonTipText = '${escapedMessage}';
+      $n.Visible = $true;
+      $n.ShowBalloonTip(4000);
+      Start-Sleep -s 3;
+      $n.Dispose();
     }
-    $notification.BalloonTipTitle = '${escapedTitle}';
-    $notification.BalloonTipText = '${escapedMessage}';
-    $notification.Visible = $true;
-    $notification.ShowBalloonTip(5000);
-    Start-Sleep -s 4;
-    $notification.Dispose();
   `;
 
   const base64Script = Buffer.from(psScript, 'utf16le').toString('base64');
@@ -349,7 +342,7 @@ function mergeCookieFiles(filePaths) {
 
   if (cookieMap.size === 0) return null;
 
-  const mergedPath = path.join(os.tmpdir(), 'haytool_cookies_merged.txt');
+  const mergedPath = path.join(getLocalTempDir(), 'haytool_cookies_merged.txt');
   const merged = '# Netscape HTTP Cookie File\n' + Array.from(cookieMap.values()).join('\n') + '\n';
   fs.writeFileSync(mergedPath, merged, 'utf8');
   return mergedPath;
@@ -568,7 +561,8 @@ export class DownloadQueue {
           isStandalone: video.isStandalone || false,
           duration: video.duration || '',
           platform: video.platform || (video.url && (video.url.includes('tiktok.com') ? 'tiktok' : (video.url.includes('twitter.com') || video.url.includes('x.com') ? 'x' : (video.url.includes('instagram.com') ? 'instagram' : 'youtube')))) || 'youtube',
-          webUrl: video.webUrl || video.url || ''
+          webUrl: video.webUrl || video.url || '',
+          viewCount: video.viewCount || 0
         };
         db.history.push(historyItem);
         writeDb(db);
@@ -589,6 +583,9 @@ export class DownloadQueue {
         }
         if (video.duration) {
           historyItem.duration = video.duration;
+        }
+        if (video.viewCount !== undefined) {
+          historyItem.viewCount = video.viewCount;
         }
         writeDb(db);
       }
@@ -871,6 +868,7 @@ export class DownloadQueue {
 
     updateHistoryItem(video.id, { status: 'downloading', progress: 0 });
     addTerminalLog(`[Kuyruk] "${video.title}" videosu için indirme süreci başlatıldı.`, 'info');
+    playSystemSound('start');
     showWindowsNotification(
       settings.lang === 'en' ? 'Download Started' : 'İndirme Başlatıldı',
       settings.lang === 'en' ? `"${video.title}" download process has started.` : `"${video.title}" videosunun indirme işlemi başladı.`
@@ -952,8 +950,31 @@ export class DownloadQueue {
       '--encoding', 'utf-8'
     ];
 
+    const hasWorkingFfmpegEarly = testFfmpegSync();
+    const isLiveStreamNow = (video.duration === 'live' || video.status === 'live');
+    const isDeferMerge = Boolean(settings.deferMerge) && hasWorkingFfmpegEarly && (settings.mergeType || 'single') !== 'separate' && !isLiveStreamNow;
+    const deferStagingDir = isDeferMerge ? getItemStagingDir(targetBaseDir, video.id) : '';
+    if (isDeferMerge) {
+      try {
+        if (fs.existsSync(deferStagingDir)) {
+          fs.rmSync(deferStagingDir, { recursive: true, force: true });
+        }
+        fs.mkdirSync(deferStagingDir, { recursive: true });
+      } catch (e) {}
+      args.push('--fixup', 'never');
+    }
+
     // SSD / Hızlı Geçici Klasörde İndir ve Birleştir (Tamamlanınca Hedefe Taşı)
-    if (settings.useTempDownloadStaging === true) {
+    if (isDeferMerge) {
+      if (settings.useTempDownloadStaging === true) {
+        const stagingDir = getStagingTempDir();
+        args.push('-P', `home:${deferStagingDir}`);
+        args.push('-P', `temp:${stagingDir}`);
+        args.push('-o', outputFilename);
+      } else {
+        args.push('-o', path.join(deferStagingDir, outputFilename));
+      }
+    } else if (settings.useTempDownloadStaging === true) {
       const stagingDir = getStagingTempDir();
       args.push('-P', `home:${outputDir}`);
       args.push('-P', `temp:${stagingDir}`);
@@ -1024,6 +1045,8 @@ export class DownloadQueue {
       addTerminalLog(`[Warning] FFmpeg not found or not working. Falling back to single file download (best pre-merged quality).`, 'warning');
     }
 
+    const audioPrefChain = `bestaudio[language^=${prefLang}]/bestaudio[language=original]/bestaudio`;
+
     if (video.isFakap) {
       // Türkçe Açıklama: Fakap yedeği istenen çözünürlükte yoksa sırayla bir üst basamağa çıkar
       // (144 -> 240 -> 360). Hiçbiri yoksa mevcut en düşük akışa düşer; böylece video asla boşta kalmaz.
@@ -1035,23 +1058,35 @@ export class DownloadQueue {
       const steps = LADDER.filter(h => h >= maxH);
       if (steps.length === 0) steps.push(maxH);
       const fakapParts = [];
-      for (const h of steps) {
-        fakapParts.push(`bestvideo[height<=${h}]+bestaudio[language^=${prefLang}]`);
-        fakapParts.push(`bestvideo[height<=${h}]+bestaudio[language=original]`);
-        fakapParts.push(`bestvideo[height<=${h}]+bestaudio`);
-        fakapParts.push(`best[height<=${h}]`);
-      }
-      fakapParts.push('worstvideo+worstaudio/worst');
-      args.push('-f', fakapParts.join('/'));
-      if (hasWorkingFfmpeg) {
-        args.push('--merge-output-format', 'mp4');
+      if (isDeferMerge) {
+        for (const h of steps) {
+          fakapParts.push(`((bestvideo[height<=${h}]),(${audioPrefChain}))`);
+          fakapParts.push(`best[height<=${h}]`);
+        }
+        fakapParts.push('((worstvideo),(worstaudio))/worst');
+        args.push('-f', fakapParts.join('/'));
+      } else {
+        for (const h of steps) {
+          fakapParts.push(`bestvideo[height<=${h}]+bestaudio[language^=${prefLang}]`);
+          fakapParts.push(`bestvideo[height<=${h}]+bestaudio[language=original]`);
+          fakapParts.push(`bestvideo[height<=${h}]+bestaudio`);
+          fakapParts.push(`best[height<=${h}]`);
+        }
+        fakapParts.push('worstvideo+worstaudio/worst');
+        args.push('-f', fakapParts.join('/'));
+        if (hasWorkingFfmpeg) {
+          args.push('--merge-output-format', 'mp4');
+        }
       }
     } else if (video.customFormat) {
       const fmt = video.customFormat;
       if (fmt === 'audio-mp3') {
         const bitrate = video.audioBitrate || '192';
-        const audioOnlyFmt = `bestaudio[language^=${prefLang}]/bestaudio[language=original]/bestaudio`;
-        args.push('-f', audioOnlyFmt, '--extract-audio', '--audio-format', 'mp3', '--audio-quality', `${bitrate}K`, '--embed-thumbnail');
+        if (isDeferMerge) {
+          args.push('-f', audioPrefChain);
+        } else {
+          args.push('-f', audioPrefChain, '--extract-audio', '--audio-format', 'mp3', '--audio-quality', `${bitrate}K`, '--embed-thumbnail');
+        }
       } else {
         let maxH = 1080;
         if (fmt === 'video-720p') maxH = 720;
@@ -1065,10 +1100,14 @@ export class DownloadQueue {
 
         const excludeAv01 = (video._fallbackCodec || video.retryAttempt === 2) ? '[vcodec!^=av01]' : '';
         const vSpec = `bestvideo[height<=${maxH}]${excludeAv01}`;
-        const fmtCombo = `${vSpec}+bestaudio[language^=${prefLang}]/${vSpec}+bestaudio[language=original]/${vSpec}+bestaudio/best[height<=${maxH}]/best`;
-        args.push('-f', fmtCombo);
-        if (hasWorkingFfmpeg) {
-          args.push('--merge-output-format', 'mp4');
+        if (isDeferMerge) {
+          args.push('-f', `((${vSpec}),(${audioPrefChain}))/best[height<=${maxH}]/best`);
+        } else {
+          const fmtCombo = `${vSpec}+bestaudio[language^=${prefLang}]/${vSpec}+bestaudio[language=original]/${vSpec}+bestaudio/best[height<=${maxH}]/best`;
+          args.push('-f', fmtCombo);
+          if (hasWorkingFfmpeg) {
+            args.push('--merge-output-format', 'mp4');
+          }
         }
       }
     } else {
@@ -1078,8 +1117,9 @@ export class DownloadQueue {
       const fmtCombo = `${vSpec}+bestaudio[language^=${prefLang}]/${vSpec}+bestaudio[language=original]/${vSpec}+bestaudio/best[height<=${maxH}]/best`;
       
       if (actualMergeType === 'separate') {
-        const audioFmt = `bestaudio[language^=${prefLang}]/bestaudio[language=original]/bestaudio`;
-        args.push('-f', `${vSpec},${audioFmt}`);
+        args.push('-f', `${vSpec},${audioPrefChain}`);
+      } else if (isDeferMerge) {
+        args.push('-f', `((${vSpec}),(${audioPrefChain}))/best[height<=${maxH}]/best`);
       } else {
         args.push('-f', fmtCombo);
         if (hasWorkingFfmpeg) {
@@ -1090,13 +1130,40 @@ export class DownloadQueue {
 
     if (settings.writeThumbnail || isMp3) {
       args.push('--write-thumbnail');
-      if (hasWorkingFfmpeg) {
+      if (hasWorkingFfmpeg && !isDeferMerge) {
         args.push('--convert-thumbnails', 'jpg');
       }
     }
 
-    if (hasWorkingFfmpeg) {
+    if (isDeferMerge) {
+      const deferLog = `[OYUN MODU] Birleştirme ertelendi — yalnızca ham akışlar indiriliyor (0% FFmpeg yükü): "${video.title}"`;
+      console.log(deferLog);
+      addTerminalLog(deferLog, 'info');
+    } else if (hasWorkingFfmpeg) {
       args.push('--ffmpeg-location', path.dirname(getFfmpegPath()));
+
+      const hwMode = settings.hardwareAcceleration || 'auto';
+      const hwInfo = detectHwaccel();
+      const effectiveHw = (hwMode === 'auto') ? hwInfo.recommended : hwMode;
+
+      if (effectiveHw === 'nvenc' && (hwInfo.nvenc || hwMode === 'nvenc')) {
+        args.push('--postprocessor-args', 'VideoConvertor:-c:v h264_nvenc');
+        const logMsg = '[DONANIM HIZLANDIRMA] NVIDIA NVENC GPU hızlandırması devrede.';
+        console.log(logMsg);
+        addTerminalLog(logMsg, 'info');
+      } else if (effectiveHw === 'qsv' && (hwInfo.qsv || hwMode === 'qsv')) {
+        args.push('--postprocessor-args', 'VideoConvertor:-c:v h264_qsv');
+        const logMsg = '[DONANIM HIZLANDIRMA] Intel Quick Sync (QSV) hızlandırması devrede.';
+        console.log(logMsg);
+        addTerminalLog(logMsg, 'info');
+      } else if (effectiveHw === 'amf' && (hwInfo.amf || hwMode === 'amf')) {
+        args.push('--postprocessor-args', 'VideoConvertor:-c:v h264_amf');
+        const logMsg = '[DONANIM HIZLANDIRMA] AMD AMF GPU hızlandırması devrede.';
+        console.log(logMsg);
+        addTerminalLog(logMsg, 'info');
+      } else {
+        args.push('--postprocessor-args', 'VideoConvertor:-c:v libx264');
+      }
     }
     // Canlı Yayın Garantili İndirme: Sadece aktif canlı yayınlarda --live-from-start kullan, normal ve sonlanmış yayınlarda kullanma
     if (video.duration === 'live' || video.status === 'live') {
@@ -1222,7 +1289,7 @@ export class DownloadQueue {
         }
       }
 
-      if (isMergingOutput || isProgress100) {
+      if (!isDeferMerge && (isMergingOutput || isProgress100)) {
         const procInfo = this.activeProcesses.get(video.id);
         if (procInfo && procInfo.status === 'downloading') {
           procInfo.status = 'merging';
@@ -1342,7 +1409,15 @@ export class DownloadQueue {
         lowerTrimmed.includes('#ext-x-')
       );
 
-      if (isFfmpegProgress || isFfmpegOpening || isFfmpegInfo || isFfmpegConnection || isFfmpegSkip) {
+      if (
+        isFfmpegProgress ||
+        isFfmpegOpening ||
+        isFfmpegInfo ||
+        isFfmpegConnection ||
+        isFfmpegSkip ||
+        lowerTrimmed.includes('no impersonate target is available') ||
+        lowerTrimmed.includes('impersonation for this download')
+      ) {
         return;
       }
 
@@ -1350,13 +1425,10 @@ export class DownloadQueue {
 
       if (lowerTrimmed.includes('unable to download video subtitles') || lowerTrimmed.includes('http error 429')) {
         const cleanMsg = `[yt-dlp Uyarı] Altyazı uyarısı (YouTube sunucusu 429 kısıtlaması verdi - Video indirmesi kesintisiz devam ediyor).`;
-        console.log(cleanMsg);
         addTerminalLog(cleanMsg, 'warning');
       } else if (isWarning) {
-        console.log(`yt-dlp uyarı satırı: ${trimmed}`);
         addTerminalLog(`[yt-dlp Uyarı] ${trimmed}`, 'warning');
       } else {
-        console.error(`yt-dlp error line: ${trimmed}`);
         addTerminalLog(`[yt-dlp Error] ${trimmed}`, 'error');
         realErrorLines.push(trimmed);
       }
@@ -1407,6 +1479,9 @@ export class DownloadQueue {
       const isCancelled = currentItem && currentItem.error === 'Kullanıcı tarafından iptal edildi.';
 
       if (isCancelled) {
+        if (isDeferMerge && deferStagingDir && fs.existsSync(deferStagingDir)) {
+          try { fs.rmSync(deferStagingDir, { recursive: true, force: true }); } catch (_) {}
+        }
         broadcast('status_log', { message: `İndirme iptal edildi: ${video.title}`, type: 'info', thumbnail: `/api/video/${video.id}/thumbnail` });
         addTerminalLog(`[Kuyruk] İndirme kullanıcı tarafından iptal edildi: "${video.title}"`, 'warning');
         broadcast('db_update', readDb());
@@ -1414,7 +1489,170 @@ export class DownloadQueue {
         return;
       }
 
-      if (code === 0) {
+      if (code === 0 && isDeferMerge) {
+        const skipChannelFolder = video.skipChannelFolder === true;
+        const ytVideoId = video.originalId || (video.id ? video.id.replace(/^fakap_/, '') : '');
+        const nonMediaExts = new Set(['.jpg', '.jpeg', '.webp', '.png', '.json', '.temp', '.part', '.ytdl', '.srt', '.vtt', '.description', '.txt']);
+
+        let stagedFiles = [];
+        try {
+          if (fs.existsSync(deferStagingDir)) {
+            stagedFiles = fs.readdirSync(deferStagingDir).filter(f => f !== 'manifest.json');
+          }
+        } catch (_) {}
+
+        const mediaFiles = stagedFiles.filter(f => !nonMediaExts.has(path.extname(f).toLowerCase()));
+        const companionFiles = stagedFiles.filter(f => ['.srt', '.vtt', '.description', '.jpg', '.jpeg', '.webp', '.png'].includes(path.extname(f).toLowerCase()));
+
+        if (mediaFiles.length === 0) {
+          updateHistoryItem(video.id, {
+            status: 'failed',
+            progress: 0,
+            speed: '',
+            eta: '',
+            error: settings.lang === 'en' ? 'Video stream files not found.' : 'İndirilen ham video akışları bulunamadı.'
+          });
+          addTerminalLog(`[Kuyruk] İndirme FAILED: "${video.title}" - Ham akış dosyaları bulunamadı.`, 'error');
+          playSystemSound('error');
+        } else {
+          // Başlığı ilk medya dosyasından çözümle (.fXXX eki ve [id] ayıklanarak)
+          let resolvedTitle = video.title;
+          try {
+            const firstFile = mediaFiles[0];
+            const baseNoExt = path.basename(firstFile, path.extname(firstFile)).replace(/\.f[a-zA-Z0-9_-]+$/, '');
+            const idPattern = ` [${ytVideoId}]`;
+            if (baseNoExt.endsWith(idPattern)) {
+              const withoutId = baseNoExt.substring(0, baseNoExt.length - idPattern.length);
+              if (skipChannelFolder) {
+                resolvedTitle = withoutId;
+              } else {
+                const prefix = `${video.channelName} - `;
+                if (withoutId.startsWith(prefix)) {
+                  resolvedTitle = withoutId.substring(prefix.length);
+                } else {
+                  const dashIdx = withoutId.indexOf(' - ');
+                  resolvedTitle = dashIdx !== -1 ? withoutId.substring(dashIdx + 3) : withoutId;
+                }
+              }
+            }
+          } catch (_) {}
+
+          // Zaten tek parça hazır .mp4 ise (örn. TikTok/Instagram/X) bekletmeden doğrudan hedefe taşı
+          const isAlreadySingleMp4 = !isMp3 &&
+            !settings.writeThumbnail &&
+            mediaFiles.length === 1 &&
+            path.extname(mediaFiles[0]).toLowerCase() === '.mp4' &&
+            !/\.f[a-zA-Z0-9_-]+\.mp4$/i.test(mediaFiles[0]);
+
+          if (isAlreadySingleMp4) {
+            if (!fs.existsSync(outputDir)) {
+              fs.mkdirSync(outputDir, { recursive: true });
+            }
+            const finalDirectPath = path.join(outputDir, mediaFiles[0]);
+            try {
+              if (fs.existsSync(finalDirectPath)) fs.unlinkSync(finalDirectPath);
+              fs.renameSync(path.join(deferStagingDir, mediaFiles[0]), finalDirectPath);
+            } catch (_) {
+              fs.copyFileSync(path.join(deferStagingDir, mediaFiles[0]), finalDirectPath);
+            }
+            for (const cf of companionFiles) {
+              try {
+                const destCf = path.join(outputDir, cf);
+                if (fs.existsSync(destCf)) fs.unlinkSync(destCf);
+                fs.renameSync(path.join(deferStagingDir, cf), destCf);
+              } catch (_) {}
+            }
+            try {
+              fs.rmSync(deferStagingDir, { recursive: true, force: true });
+              const pRoot = path.dirname(deferStagingDir);
+              if (path.basename(pRoot) === '.pending_merge' && fs.existsSync(pRoot) && fs.readdirSync(pRoot).length === 0) {
+                fs.rmdirSync(pRoot);
+              }
+            } catch (_) {}
+
+            const stats = fs.statSync(finalDirectPath);
+            const sizeStr = stats.size >= 1024 * 1024 * 1024
+              ? (stats.size / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+              : Math.max(1, Math.round(stats.size / (1024 * 1024))) + ' MB';
+            const actualQuality = getVideoResolution(finalDirectPath);
+            const actualDurationInfo = getVideoDurationFromFile(finalDirectPath);
+
+            updateHistoryItem(video.id, {
+              status: 'completed',
+              progress: 100,
+              filePath: finalDirectPath,
+              title: resolvedTitle,
+              ...(video.channelName ? { channelName: video.channelName } : {}),
+              ...(video.channelId ? { channelId: video.channelId } : {}),
+              ...(video.platform ? { platform: video.platform } : {}),
+              ...(video.webUrl ? { webUrl: video.webUrl } : {}),
+              speed: '',
+              eta: '',
+              fileSize: sizeStr,
+              ...(actualQuality ? { actualQuality } : {}),
+              ...(actualDurationInfo ? { duration: actualDurationInfo.duration, durationSeconds: actualDurationInfo.durationSeconds } : {})
+            });
+            broadcast('status_log', { message: `İndirme tamamlandı (Tek Akış): ${resolvedTitle}`, type: 'success', thumbnail: `/api/video/${video.id}/thumbnail` });
+            addTerminalLog(`[Oyun Modu] Tek akışlı hazır MP4 indirildi (FFmpeg gerekmedi): "${resolvedTitle}"`, 'success');
+          } else {
+            // Ham parçaları birleştirme kuyruğuna (pending_merge) kaydet
+            let totalRawBytes = 0;
+            for (const mf of mediaFiles) {
+              try { totalRawBytes += fs.statSync(path.join(deferStagingDir, mf)).size; } catch (_) {}
+            }
+            const rawSizeStr = totalRawBytes >= 1024 * 1024 * 1024
+              ? (totalRawBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+              : Math.max(1, Math.round(totalRawBytes / (1024 * 1024))) + ' MB';
+
+            const manifestData = {
+              id: video.id,
+              ytVideoId,
+              title: resolvedTitle,
+              channelName: video.channelName || '',
+              channelId: video.channelId || '',
+              platform: video.platform || '',
+              webUrl: video.webUrl || '',
+              isFakap: !!video.isFakap,
+              skipChannelFolder,
+              outputDir,
+              isMp3,
+              audioBitrate: video.audioBitrate || '192',
+              writeThumbnail: !!settings.writeThumbnail,
+              mediaFiles,
+              companionFiles,
+              createdAt: new Date().toISOString()
+            };
+            fs.writeFileSync(path.join(deferStagingDir, 'manifest.json'), JSON.stringify(manifestData, null, 2), 'utf8');
+
+            updateHistoryItem(video.id, {
+              status: 'pending_merge',
+              progress: 100,
+              title: resolvedTitle,
+              ...(video.channelName ? { channelName: video.channelName } : {}),
+              ...(video.channelId ? { channelId: video.channelId } : {}),
+              ...(video.platform ? { platform: video.platform } : {}),
+              ...(video.webUrl ? { webUrl: video.webUrl } : {}),
+              speed: '',
+              eta: '',
+              stagingDir: deferStagingDir,
+              targetFormat: isMp3 ? 'MP3' : 'MP4',
+              fileSize: rawSizeStr
+            });
+
+            const queuedMsg = settings.lang === 'en'
+              ? `Downloaded (Awaiting Merge): ${resolvedTitle} (${rawSizeStr})`
+              : `İndirildi (Birleştirme Bekliyor): ${resolvedTitle} (${rawSizeStr})`;
+            broadcast('status_log', { message: queuedMsg, type: 'info', thumbnail: `/api/video/${video.id}/thumbnail` });
+            addTerminalLog(`[Oyun Modu] Ham akışlar indirildi ve Birleştirme Kuyruğuna alındı: "${resolvedTitle}" (${rawSizeStr})`, 'success');
+
+            // İndirme sürerken kullanıcı Oyun Modunu kapattıysa bekletmeden otomatik sıraya al
+            const freshDb = readDb();
+            if (!freshDb.settings?.deferMerge) {
+              setTimeout(() => mergeQueue.startAllAutoIfIdle(), 100);
+            }
+          }
+        }
+      } else if (code === 0) {
         let actualPath = '';
         let resolvedTitle = video.title;
         const skipChannelFolder = video.skipChannelFolder === true;

@@ -9,17 +9,53 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Multimedia HaYTooL</title>
+  <!-- Erken Hata Yakalayıcı: error-bridge.js yüklenene kadar hataları kuyruğa alır -->
+  <script>
+    (function () {
+      window.__htErrQ = [];
+      window.__htErr = function (message, stack) {
+        try {
+          window.__htErrQ.push({
+            m: String(message == null ? '' : message).slice(0, 4000),
+            s: String(stack == null ? '' : stack).slice(0, 4000),
+            u: String(location.pathname + location.hash).slice(0, 300),
+            t: Date.now()
+          });
+          if (window.__htErrQ.length > 60) window.__htErrQ.shift();
+        } catch (e) {}
+      };
+      window.addEventListener('error', function (e) {
+        if (e && e.message) {
+          window.__htErr(e.message, (e.error && e.error.stack) || (e.filename ? e.filename + ':' + e.lineno : ''));
+        } else if (e && e.target && e.target !== window && (e.target.src || e.target.href)) {
+          var tUrl = e.target.src || e.target.href || '';
+          var isHandledImg = e.target.tagName === 'IMG' && (e.target.hasAttribute('onerror') || typeof e.target.onerror === 'function');
+          if (tUrl && !isHandledImg && !tUrl.endsWith('/downlist') && !tUrl.includes('/thumbnail') && !tUrl.includes('/avatar') && !tUrl.startsWith('data:')) {
+            window.__htErr('Kaynak yüklenemedi: ' + tUrl);
+          }
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) {
+        var r = e && e.reason;
+        window.__htErr('Yakalanmamış promise: ' + (r && r.message ? r.message : String(r)), r && r.stack);
+      });
+    })();
+  </script>
   <link rel="icon" type="image/png" href="/logo.png">
   <!-- Google Fonts: Outfit & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Lucide Icons (Yerel) -->
-  <script src="/lucide.min.js"></script>
+  <script src="/lucide.min.js" defer></script>
   <!-- Plyr Video Player (Yerel) -->
   <link rel="stylesheet" href="/plyr.css" />
-  <script src="/plyr.min.js"></script>
-  <link rel="stylesheet" href="/style.css?v=12.3.3">
+  <script src="/plyr.min.js" defer></script>
+  <link rel="stylesheet" href="/style.css?v=12.3.3.1">
+  <style>
+    .settings-subtab-panel:not(.active) { display: none !important; }
+    .settings-subtab-panel.active { display: block !important; }
+  </style>
 </head>
 <body>
   <script>
@@ -64,6 +100,8 @@
   </div>
 
   <!--PARTIAL:modals-->
-  <script type="module" src="/app.js?v=12.3.3"></script>
+  <!-- Önyüz Hata Köprüsü: app.js'den önce yüklenir, hataları sunucu oturum loguna aktarır -->
+  <script type="module" src="/modules/error-bridge.js?v=12.3.5.1"></script>
+  <script type="module" src="/app.js?v=12.3.5.1"></script>
 </body>
 </html>

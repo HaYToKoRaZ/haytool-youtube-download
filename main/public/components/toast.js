@@ -13,6 +13,8 @@ export function showToast(message, type = 'info', thumbnail = null, action = nul
   if (!container) return;
   
   const toast = document.createElement('div');
+  toast.setAttribute('data-testid', 'toast-notification');
+  toast.setAttribute('data-toast-type', type);
   toast.className = `toast toast-${type}${thumbnail ? ' toast-has-thumbnail' : ''}`;
   
   let iconName = 'info';

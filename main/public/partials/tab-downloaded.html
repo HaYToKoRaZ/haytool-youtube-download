@@ -11,12 +11,13 @@
               <!-- 1. Satır: Kanal Logosu/İsmi ve Video Başlığı -->
               <div class="inline-player-header-row">
                 <div class="inline-player-channel" style="display: flex; align-items: center; gap: 6px;">
-                  <img id="inline-player-channel-avatar" class="inline-channel-avatar" src="" onerror="this.style.display='none';" />
+                  <img id="inline-player-channel-avatar" class="inline-channel-avatar" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'></svg>" onerror="this.style.display='none';" />
                   <span id="inline-player-platform-icon" style="display: none; align-items: center;"></span>
                   <span id="inline-player-logo-divider" style="color: rgba(255, 255, 255, 0.15); display: none;">/</span>
                   <span id="inline-player-channel-name">Kanal Adı</span>
                   <span id="inline-player-channel-divider" style="color: rgba(255, 255, 255, 0.15); display: none;">/</span>
                   <span id="inline-player-channel-subs" style="font-size: 0.72rem; color: var(--accent-primary); background: rgba(168, 85, 247, 0.08); padding: 2px 8px; border-radius: 20px; font-weight: 600; border: 1px solid rgba(168, 85, 247, 0.15); display: none; align-items: center; gap: 4px;"><i data-lucide="users" style="width:10px; height:10px;"></i><span id="inline-player-channel-subs-text">--</span></span>
+                  <span id="inline-player-video-views" class="inline-player-badge inline-player-views-badge" style="display: none; align-items: center; gap: 4px;" title="İzlenme Sayısı" data-i18n-title="inline_player_views_title"><i data-lucide="eye" style="width:10px; height:10px;"></i><span id="inline-player-video-views-text">--</span></span>
                 </div>
                 <h3 id="inline-player-title" class="inline-player-title">Video Başlığı</h3>
               </div>
@@ -39,22 +40,22 @@
                   <i data-lucide="message-square" style="width: 16px; height: 16px;"></i>
                 </button>
                 <!-- Altyazı Çevir Butonu (Altyazıyı istenen dile çevirmek için) -->
-                <button class="btn btn-secondary btn-sm" id="inline-btn-translate-sub" title="Altyazı Çevir" data-i18n-title="inline_btn_translate_sub" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #10b981; font-weight: 600; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                <button class="btn btn-secondary btn-sm" id="inline-btn-translate-sub" onclick="handleInlineTranslateSubClick()" title="Altyazı Çevir" aria-label="Altyazı Çevir" data-i18n-title="inline_btn_translate_sub" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #10b981; font-weight: 600; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
                   <i data-lucide="languages" style="width:16px; height:16px;"></i>
                 </button>
 
                 <!-- SponsorBlock Geçici Aç/Kapat Butonu -->
-                <button class="btn btn-secondary btn-sm" id="inline-btn-sponsorblock-toggle" title="SponsorBlock Aktif" style="width: 32px; height: 32px; display: none; align-items: center; justify-content: center; padding: 0; color: #4ade80; background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.2);">
+                <button class="btn btn-secondary btn-sm" id="inline-btn-sponsorblock-toggle" title="SponsorBlock Aktif" aria-label="SponsorBlock Geçişi" style="width: 32px; height: 32px; display: none; align-items: center; justify-content: center; padding: 0; color: #4ade80; background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.2);">
                   <i data-lucide="shield" style="width: 16px; height: 16px;"></i>
                 </button>
 
                 <!-- Otomatik Geçiş (Autoplay) Aç/Kapat Butonu -->
-                <button class="btn btn-secondary btn-sm" id="inline-btn-autoplay-toggle" title="Sonraki Videoya Otomatik Geç" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--text-muted); background: rgba(255, 255, 255, 0.03); border-color: var(--border-color);">
+                <button class="btn btn-secondary btn-sm" id="inline-btn-autoplay-toggle" title="Sonraki Videoya Otomatik Geç" aria-label="Sonraki Videoya Otomatik Geç" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--text-muted); background: rgba(255, 255, 255, 0.03); border-color: var(--border-color);">
                   <i data-lucide="play-circle" style="width: 16px; height: 16px;"></i>
                 </button>
 
                 <!-- Açıklama ve Yorumları Güncelleme Butonu -->
-                <button class="btn btn-secondary btn-sm" id="inline-btn-refresh-details" title="Yorum ve Açıklamaları Güncelle" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--text-muted); background: rgba(255, 255, 255, 0.03); border-color: var(--border-color);">
+                <button class="btn btn-secondary btn-sm" id="inline-btn-refresh-details" title="Açıklama, Yorumlar, İzlenme ve Kanal Abone Sayısını Güncelle" aria-label="Açıklama, Yorumlar, İzlenme ve Kanal Abone Sayısını Güncelle" data-i18n-title="inline_btn_refresh_details" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--text-muted); background: rgba(255, 255, 255, 0.03); border-color: var(--border-color);">
                   <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
                 </button>
 
@@ -65,7 +66,7 @@
 
                 <!-- Videoyu Paylaş Butonu ve Seçenek Menüsü -->
                 <div class="inline-share-wrapper" style="position: relative; display: inline-flex;">
-                  <button class="btn btn-secondary btn-sm" id="inline-btn-share" title="Videoyu Paylaş" data-i18n-title="btn_share_video" onclick="toggleShareMenu(event)" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--accent-color, #38bdf8); background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.2);">
+                  <button class="btn btn-secondary btn-sm" id="inline-btn-share" title="Videoyu Paylaş" aria-label="Videoyu Paylaş" data-i18n-title="btn_share_video" onclick="toggleShareMenu(event)" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--accent-color, #38bdf8); background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.2);">
                     <i data-lucide="share-2" style="width: 16px; height: 16px;"></i>
                   </button>
                   <div id="inline-share-menu" class="inline-share-menu card hidden" style="position: absolute; bottom: calc(100% + 8px); right: 0; min-width: 260px; z-index: 100; padding: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card, #1e1b2e); display: none; flex-direction: column; gap: 4px;">
@@ -94,6 +95,11 @@
                 </div>
 
                 <!-- Aktif Videoyu Sil Butonu (Çöp Kutusu) -->
+                <!-- Yapay Zekâ ile Özet Çıkar Butonu -->
+                <button class="btn btn-secondary btn-sm" id="inline-btn-summary" title="Yapay Zekâ ile Özet Çıkar" data-i18n-title="inline_btn_summary" onclick="toggleSummaryPanel()" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: #a855f7; background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.25);">
+                  <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
+                </button>
+
                 <button class="btn btn-secondary btn-sm btn-action-danger" id="inline-btn-delete-active" title="Videoyu Sil" data-i18n-title="btn_delete_history" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--accent-red); background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.25);">
                   <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
                 </button>
@@ -206,6 +212,126 @@
             </div>
             
             <!-- Açıklama Paneli -->
+            <!-- Yapay Zekâ ile Özet Çıkar Paneli -->
+            <div id="inline-player-summary-container" class="inline-player-summary-container card inline hidden" style="margin-top: 15px; padding: 20px; max-height: 480px; overflow-y: auto;">
+              <!-- Panel Başlığı: başlık + meta rozetleri + hızlı aksiyonlar -->
+              <div class="summary-header">
+                <div class="summary-title-row">
+                  <h4 class="summary-title">
+                    <i data-lucide="sparkles" style="color: #a855f7;"></i>
+                    <span id="summary-title-text" data-i18n="inline_summary_title">Video Özeti (AI)</span>
+                  </h4>
+                  <div class="summary-meta">
+                    <span id="summary-status-chip" class="summary-chip summary-chip-status" style="display: none;">
+                      <span class="summary-pulse-dot"></span>
+                      <span id="summary-status-text" data-i18n="summary_status_generating">üretiliyor</span>
+                    </span>
+                    <span id="summary-engine-badge" class="summary-chip" style="display: none;"></span>
+                    <span id="summary-word-count-text" class="summary-chip summary-chip-muted" style="display: none;"></span>
+                    <span id="summary-elapsed-chip" class="summary-chip summary-chip-muted" style="display: none;"></span>
+                  </div>
+                  <div class="summary-actions">
+                    <button type="button" class="btn btn-secondary btn-xs summary-icon-btn" id="summary-btn-speak" onclick="onSummarySpeakClick()" title="Özeti Dinle" data-i18n-title="inline_summary_btn_speak">
+                      <i data-lucide="volume-2" style="width: 13px; height: 13px;"></i>
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-xs summary-icon-btn" id="summary-btn-stop" onclick="onSummaryStopClick()" title="Durdur" data-i18n-title="inline_summary_btn_stop" style="opacity: 0.45;">
+                      <i data-lucide="square" style="width: 12px; height: 12px;"></i>
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-xs summary-icon-btn" id="summary-btn-copy" onclick="copySummaryText()" title="Özeti Kopyala" data-i18n-title="inline_summary_btn_copy">
+                      <i data-lucide="copy" style="width: 13px; height: 13px;"></i>
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-xs summary-icon-btn" id="summary-btn-close" onclick="toggleSummaryPanel()" title="Kapat" data-i18n-title="inline_summary_btn_close">
+                      <i data-lucide="x" style="width: 13px; height: 13px;"></i>
+                    </button>
+                  </div>
+                </div>
+                <!-- Araç Çubuğu: motor önce, sonra model / biçim / dil kontrolleri -->
+                <div class="summary-toolbar">
+                  <!-- AI Sağlayıcı Seçici (önce: hangi model menüsünün görüneceğini belirler) -->
+                  <div style="display: inline-flex; align-items: center; gap: 4px;">
+                    <i data-lucide="cpu" style="width: 13px; height: 13px; color: #a855f7;"></i>
+                    <select id="summary-provider-select" onchange="onSummaryProviderChange(this.value)" class="form-select form-select-xs" style="padding: 2px 8px; font-size: 0.78rem; height: 26px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;" title="Özet Çıkarma Motoru / API" data-i18n-title="inline_summary_provider_title">
+                      <option value="auto" data-i18n="ai_provider_auto">⚡ Otomatik</option>
+                      <option value="lmstudio" data-i18n="ai_provider_lmstudio">🖥️ LM Studio (Yerel & Ücretsiz)</option>
+                      <option value="groq" data-i18n="ai_provider_groq">🚀 Groq (Llama 3.3 - Hızlı & Ücretsiz)</option>
+                      <option value="gemini" data-i18n="ai_provider_gemini">✨ Gemini Flash (Google - Ücretsiz)</option>
+                      <option value="deepseek" data-i18n="ai_provider_deepseek">🐋 DeepSeek (En Ucuz API)</option>
+                      <option value="ollama" data-i18n="ai_provider_ollama">🦙 Ollama (Yerel)</option>
+                      <option value="openai" data-i18n="ai_provider_openai">🤖 OpenAI (GPT-4o-mini)</option>
+                      <option value="gguf" data-i18n="ai_provider_gguf">📁 Yerel GGUF Modeli</option>
+                      <option value="local" data-i18n="ai_provider_local">🧠 Yerel NLP (Apisiz)</option>
+                    </select>
+                  </div>
+                  <!-- LM Studio Model Seçici (LM Studio aktif olduğunda görünür) -->
+                  <div id="summary-lmstudio-model-wrap" style="display: none; align-items: center; gap: 4px;">
+                    <i data-lucide="box" style="width: 13px; height: 13px; color: #a855f7;"></i>
+                    <select id="summary-lmstudio-model-select" onchange="onSummaryModelChange(this.value)" class="form-select form-select-xs" style="padding: 2px 8px; font-size: 0.78rem; height: 26px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;" title="LM Studio Modeli">
+                      <option value="auto">⚡ Otomatik Model</option>
+                    </select>
+                  </div>
+                  <!-- GGUF Model Seçici (Yerel GGUF sağlayıcısı aktif olduğunda görünür) -->
+                  <div id="summary-gguf-model-wrap" style="display: none; align-items: center; gap: 4px;">
+                    <i data-lucide="file-box" style="width: 13px; height: 13px; color: #60a5fa;"></i>
+                    <select id="summary-gguf-model-select" onchange="onSummaryGgufModelChange(this.value)" class="form-select form-select-xs" style="padding: 2px 8px; font-size: 0.78rem; height: 26px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;" title="GGUF Modeli" data-i18n-title="summary_gguf_model_title"></select>
+                  </div>
+                  <!-- Özet Türü / Modu (Süresiz / Süreli) -->
+                  <div style="display: inline-flex; align-items: center; gap: 4px;">
+                    <i data-lucide="file-text" style="width: 13px; height: 13px; color: #a855f7;"></i>
+                    <select id="summary-mode-select" onchange="onSummaryModeChange(this.value)" class="form-select form-select-xs" style="padding: 2px 8px; font-size: 0.78rem; height: 26px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;" title="Özet Biçimi" data-i18n-title="inline_summary_mode_title">
+                      <option value="narrative" data-i18n="inline_summary_mode_narrative">📝 Süresiz Tam Özet</option>
+                      <option value="timestamped" data-i18n="inline_summary_mode_timestamped">⏱️ Süreli Anlar (Dakikalı)</option>
+                    </select>
+                  </div>
+                  <!-- Kaynak Altyazı Seçici (Diskteki dillerden) -->
+                  <div id="summary-subtitle-lang-wrap" style="display: inline-flex; align-items: center; gap: 4px;">
+                    <i data-lucide="subtitles" style="width: 13px; height: 13px; color: #a855f7;"></i>
+                    <select id="summary-subtitle-lang-select" onchange="onSummarySubtitleLangChange(this.value)" class="form-select form-select-xs" style="padding: 2px 8px; font-size: 0.78rem; height: 26px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;" title="Kaynak Altyazı Dili" data-i18n-title="summary_sub_lang_title">
+                      <option value="auto" data-i18n="summary_sub_lang_auto">🌐 Otomatik Altyazı</option>
+                    </select>
+                  </div>
+                  <!-- Özet Çıktı Dili Seçici -->
+                  <div id="summary-output-lang-wrap" style="display: inline-flex; align-items: center; gap: 4px;">
+                    <i data-lucide="languages" style="width: 13px; height: 13px; color: #a855f7;"></i>
+                    <select id="summary-output-lang-select" onchange="onSummaryOutputLangChange(this.value)" class="form-select form-select-xs" style="padding: 2px 8px; font-size: 0.78rem; height: 26px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;" title="Özet Çıktı Dili" data-i18n-title="summary_out_lang_title">
+                      <option value="app" data-i18n="summary_out_lang_app">🌐 Uygulama Dili</option>
+                      <option value="tr">🇹🇷 Türkçe</option>
+                      <option value="en">🇬🇧 English</option>
+                      <option value="de">🇩🇪 Deutsch</option>
+                      <option value="es">🇪🇸 Español</option>
+                      <option value="pt">🇵🇹 Português</option>
+                      <option value="ru">🇷🇺 Русский</option>
+                      <option value="ar">🇸🇦 العربية</option>
+                    </select>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-xs" id="summary-btn-regenerate" onclick="regenerateSummary()" style="padding: 4px 10px; font-size: 0.8rem; height: 26px; display: inline-flex; align-items: center; gap: 5px; margin-left: auto;" title="Yeniden Özetle" data-i18n-title="inline_summary_btn_regenerate">
+                    <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i>
+                    <span data-i18n="inline_summary_btn_regenerate">Yeniden Özetle</span>
+                  </button>
+                </div>
+                <!-- İnce belirsiz ilerleme çubuğu (özet üretilirken görünür) -->
+                <div class="summary-progress" id="summary-progress-bar" style="display: none;">
+                  <div class="summary-progress-bar"></div>
+                </div>
+                <audio id="summary-audio-el" preload="none" style="display: none;"></audio>
+              </div>
+
+              <!-- Yükleniyor Durumu -->
+              <div id="summary-loading" class="text-center text-muted" style="padding: 24px; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px;">
+                <i data-lucide="loader" class="spin-animation" style="width: 24px; height: 24px; color: #a855f7;"></i>
+                <div data-i18n="inline_summary_loading" style="font-size: 0.85rem;">Altyazı taranıyor ve yapay zekâ ile özet oluşturuluyor...</div>
+              </div>
+
+              <!-- Boş/Hata Durumu -->
+              <div id="summary-empty" class="text-center text-muted" style="padding: 20px; display: none; font-size: 0.85rem; line-height: 1.5; background: rgba(255, 255, 255, 0.02); border-radius: 8px; border: 1px dashed var(--border-color);">
+                Altyazı dosyası bulunamadı.
+              </div>
+
+              <!-- Özet Gövdesi -->
+              <div id="summary-content-body" style="display: flex; flex-direction: column; gap: 12px;">
+                <!-- Özet içeriği buraya gelecek -->
+              </div>
+            </div>
+
             <div id="inline-player-description-container" class="inline-player-description-container card hidden" style="margin-top: 15px; padding: 20px; max-height: 400px; overflow-y: auto;">
               <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;">
                 <h4 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">

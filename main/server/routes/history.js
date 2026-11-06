@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import open from 'open';
-import { exec, execSync, execFile, spawn } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { 
   readDb, 
   writeDb, 
@@ -867,6 +867,7 @@ function getFilesRecursively(dir) {
   try {
     const list = fs.readdirSync(dir);
     for (const file of list) {
+      if (file === '.pending_merge' || file.startsWith('.')) continue;
       const filePath = path.join(dir, file);
       if (isInsideFakap(filePath)) continue; // Fakap yedek klasörü ve dosyaları karşılaştırmadan tamamen dışlanır
       const stat = fs.statSync(filePath);
@@ -1155,9 +1156,13 @@ router.get('/tools/compare-files', localhostOnly, (req, res) => {
     }
 
     // İlgili video için indirilmiş kapak resmi (.jpg, .webp) veya açıklama (.description, .vtt) yardımcı dosyalarını alakasız sayma
+    // Ancak ana video dosyası diskte fiziksel olarak yoksa bu yardımcı dosyalar ARTIK (yetim) sayılmalıdır
     const basePath = filePath.slice(0, -ext.length);
-    const isAuxiliaryOfCompleted = videoExtensions.some(vext => completedPaths.has(path.resolve(basePath + vext).toLowerCase()));
-    if (isAuxiliaryOfCompleted) {
+    const masterVideoExists = videoExtensions.some(vext => {
+      const candidateVideoPath = basePath + vext;
+      return completedPaths.has(path.resolve(candidateVideoPath).toLowerCase()) && fs.existsSync(candidateVideoPath);
+    });
+    if (masterVideoExists) {
       continue;
     }
     
@@ -1217,11 +1222,91 @@ router.get('/tools/compare-files', localhostOnly, (req, res) => {
     }
   }
 
+  const emptyFolders = [];
+  try {
+    const rootEntries = fs.readdirSync(folder, { withFileTypes: true });
+    const followedChannelNames = new Set();
+    const followedChannelCustomFolders = new Set();
+    (db.channels || []).forEach(c => {
+      const name = (c.name || '').trim();
+      if (name) {
+        followedChannelNames.add(name.toLowerCase());
+        followedChannelNames.add(name.replace(/[. ]+$/, '#').toLowerCase());
+        followedChannelNames.add(name.replace(/[<>:"/\\|?*]/g, '_').toLowerCase());
+      }
+      if (c.customFolder) {
+        followedChannelCustomFolders.add(c.customFolder.trim().toLowerCase());
+      }
+      if (c.id) {
+        followedChannelNames.add(c.id.trim().toLowerCase());
+      }
+    });
+    
+    const activeHistoryDirs = new Set(
+      completedHistory
+        .map(h => h.filePath ? path.dirname(path.resolve(h.filePath)).toLowerCase() : '')
+        .filter(Boolean)
+    );
+
+    for (const entry of rootEntries) {
+      if (!entry.isDirectory()) continue;
+      const dirName = entry.name;
+      const dirPath = path.join(folder, dirName);
+      const dirPathResolved = path.resolve(dirPath);
+      const dirLower = dirPathResolved.toLowerCase();
+      
+      // Fakap veya sistem/özel klasörleri atla
+      if (isInsideFakap(dirPathResolved) || dirName.toLowerCase() === 'fakap' || dirName.startsWith('.')) continue;
+
+      try {
+        const dirNameLower = dirName.toLowerCase();
+        const isFollowed = followedChannelNames.has(dirNameLower) || followedChannelCustomFolders.has(dirNameLower);
+        const hasActiveVideosInHistory = activeHistoryDirs.has(dirLower);
+
+        // KRİTİK GÜVENLİK: Kanal takip listesindeyse (isFollowed) veya veritabanında aktif videosu varsa (hasActiveVideosInHistory)
+        // diskteki klasörü ve simge/avatar dosyaları ASLA temizlenemez, korunur.
+        if (isFollowed || hasActiveVideosInHistory) {
+          continue;
+        }
+
+        const subEntries = fs.readdirSync(dirPathResolved);
+        const hasAnyVideo = subEntries.some(name => videoExtensions.includes(path.extname(name).toLowerCase()));
+        if (hasAnyVideo) {
+          continue;
+        }
+
+        const nonJunkEntries = subEntries.filter(name => {
+          const n = name.toLowerCase();
+          return n !== 'avatar.ico' && n !== 'avatar.jpg' && n !== 'desktop.ini' && n !== 'thumbs.db' && n !== 'folder.jpg';
+        });
+
+        const isCompletelyEmpty = subEntries.length === 0;
+        const hasOnlyJunk = subEntries.length > 0 && nonJunkEntries.length === 0;
+
+        // Yalnızca takipten çıkılmış (sahipsiz) ve içinde video kalmamış klasörler:
+        if (isCompletelyEmpty || hasOnlyJunk || nonJunkEntries.length <= 3) {
+          emptyFolders.push({
+            folderName: dirName,
+            folderPath: dirPathResolved,
+            fileCount: subEntries.length,
+            isFollowed: false,
+            hasOnlyJunk: hasOnlyJunk || isCompletelyEmpty
+          });
+        }
+      } catch (subErr) {
+        // İzin veya erişim hatası olan alt klasörleri atla
+      }
+    }
+  } catch (err) {
+    console.error('Kanal klasörleri taranırken hata:', err.message);
+  }
+
   res.json({
     success: true,
     untrackedFiles,
     unrelatedFiles,
-    missingFiles
+    missingFiles,
+    emptyFolders
   });
 });
 
@@ -1331,7 +1416,7 @@ router.post('/tools/open-file-location', localhostOnly, (req, res) => {
  * @returns {Promise<void>}
  */
 router.post('/tools/fix-files', localhostOnly, async (req, res) => {
-  const { action, videoIds, filePaths, filesToImport } = req.body;
+  const { action, videoIds, filePaths, filesToImport, folderPaths, unrelatedFilePaths, missingVideoIds, emptyFolderPaths } = req.body;
   const release = await acquireDbLock();
   
   try {
@@ -1504,6 +1589,120 @@ router.post('/tools/fix-files', localhostOnly, async (req, res) => {
           writeDb(db);
         }
       }
+    } else if (action === 'delete-empty-folders' || action === 'delete-empty-folder') {
+      const targets = folderPaths || (req.body.folderPath ? [req.body.folderPath] : []);
+      if (targets && targets.length > 0) {
+        const followedChannelNames = new Set();
+        const followedChannelCustomFolders = new Set();
+        (db.channels || []).forEach(c => {
+          const name = (c.name || '').trim();
+          if (name) {
+            followedChannelNames.add(name.toLowerCase());
+            followedChannelNames.add(name.replace(/[. ]+$/, '#').toLowerCase());
+            followedChannelNames.add(name.replace(/[<>:"/\\|?*]/g, '_').toLowerCase());
+          }
+          if (c.customFolder) followedChannelCustomFolders.add(c.customFolder.trim().toLowerCase());
+          if (c.id) followedChannelNames.add(c.id.trim().toLowerCase());
+        });
+
+        for (const fp of targets) {
+          const resolvedDir = path.resolve(fp);
+          if (!resolvedDir.toLowerCase().startsWith(downloadPathResolved.toLowerCase())) continue;
+          if (resolvedDir.toLowerCase() === downloadPathResolved.toLowerCase()) continue;
+          if (isInsideFakap(resolvedDir) || path.basename(resolvedDir).toLowerCase() === 'fakap') continue;
+
+          const baseNameLower = path.basename(resolvedDir).toLowerCase();
+          if (followedChannelNames.has(baseNameLower) || followedChannelCustomFolders.has(baseNameLower)) {
+            console.warn(`[Güvenlik] Takip edilen kanal klasörü korundu, silinemez: ${resolvedDir}`);
+            continue;
+          }
+
+          try {
+            if (fs.existsSync(resolvedDir)) {
+              fs.rmSync(resolvedDir, { recursive: true, force: true });
+              deletedCount++;
+            }
+          } catch (e) {
+            console.error(`Klasör silinemedi: ${resolvedDir}`, e.message);
+          }
+        }
+      }
+    } else if (action === 'sync-all') {
+      // 1. Diskteki tüm alakasız/artık dosyaları sil
+      const filesToDelete = unrelatedFilePaths || filePaths || [];
+      for (const f of filesToDelete) {
+        const resolvedFile = path.resolve(f);
+        if (!resolvedFile.toLowerCase().startsWith(downloadPathResolved.toLowerCase())) continue;
+        if (isInsideFakap(resolvedFile)) continue;
+        try {
+          if (fs.existsSync(resolvedFile)) {
+            fs.unlinkSync(resolvedFile);
+            deletedCount++;
+          }
+        } catch (e) {}
+      }
+
+      // 2. Diskte olmayan tüm eksik video kayıtlarını veritabanından kaldır
+      let cleanedHistoryCount = 0;
+      const missingIds = missingVideoIds || videoIds || [];
+      if (missingIds.length > 0) {
+        const idSet = new Set(missingIds);
+        db.history = db.history.filter(item => {
+          if (idSet.has(item.id)) {
+            cleanedHistoryCount++;
+            return false;
+          }
+          return true;
+        });
+        if (cleanedHistoryCount > 0) {
+          writeDb(db);
+        }
+      }
+
+      // 3. Sahipsiz / boş kanal klasörlerini diskten sil
+      let deletedFoldersCount = 0;
+      const foldersToDelete = emptyFolderPaths || folderPaths || [];
+      const followedChannelNames = new Set();
+      const followedChannelCustomFolders = new Set();
+      (db.channels || []).forEach(c => {
+        const name = (c.name || '').trim();
+        if (name) {
+          followedChannelNames.add(name.toLowerCase());
+          followedChannelNames.add(name.replace(/[. ]+$/, '#').toLowerCase());
+          followedChannelNames.add(name.replace(/[<>:"/\\|?*]/g, '_').toLowerCase());
+        }
+        if (c.customFolder) followedChannelCustomFolders.add(c.customFolder.trim().toLowerCase());
+        if (c.id) followedChannelNames.add(c.id.trim().toLowerCase());
+      });
+
+      for (const fp of foldersToDelete) {
+        const resolvedDir = path.resolve(fp);
+        if (!resolvedDir.toLowerCase().startsWith(downloadPathResolved.toLowerCase())) continue;
+        if (resolvedDir.toLowerCase() === downloadPathResolved.toLowerCase()) continue;
+        if (isInsideFakap(resolvedDir) || path.basename(resolvedDir).toLowerCase() === 'fakap') continue;
+
+        const baseNameLower = path.basename(resolvedDir).toLowerCase();
+        if (followedChannelNames.has(baseNameLower) || followedChannelCustomFolders.has(baseNameLower)) {
+          console.warn(`[Güvenlik] Takip edilen kanal klasörü korundu, silinemez: ${resolvedDir}`);
+          continue;
+        }
+
+        try {
+          if (fs.existsSync(resolvedDir)) {
+            fs.rmSync(resolvedDir, { recursive: true, force: true });
+            deletedFoldersCount++;
+          }
+        } catch (e) {}
+      }
+
+      broadcast('db_update', readDb());
+      return res.json({
+        success: true,
+        deletedCount,
+        cleanedHistoryCount,
+        deletedFoldersCount,
+        message: `${deletedCount} artık dosya, ${cleanedHistoryCount} eksik kayıt ve ${deletedFoldersCount} sahipsiz klasör temizlendi.`
+      });
     }
 
     broadcast('db_update', readDb());
@@ -1517,17 +1716,20 @@ router.post('/tools/fix-files', localhostOnly, async (req, res) => {
 
 /**
  * Windows işletim sistemine özel yerel klasör seçim diyaloğunu (FolderBrowserDialog) başlatarak seçilen yolu döner.
+ * İsteğe bağlı req.body.startPath verilirse diyalog o klasörde açılır, aksi halde indirme klasörü kullanılır.
  * 
  * @name POST /api/select-folder
  * @function
  * @inner
  * @param {object} req - Express istek nesnesi
+ * @param {string} [req.body.startPath] - Diyaloğun açılacağı başlangıç klasörü
  * @param {object} res - Express yanıt nesnesi
  * @returns {void}
  */
 router.post('/select-folder', localhostOnly, (req, res) => {
   const db = readDb();
-  const currentPath = db.settings.downloadPath || '';
+  const bodyStart = (typeof req.body?.startPath === 'string') ? req.body.startPath.trim() : '';
+  const currentPath = (bodyStart && fs.existsSync(bodyStart)) ? bodyStart : (db.settings.downloadPath || '');
   const escapedPath = currentPath.replace(/'/g, "''");
   
   const psCommand = `powershell -NoProfile -STA -Command "Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Please select a download folder'; $dialog.SelectedPath = '${escapedPath}'; $dialog.ShowNewFolderButton = $true; $form = New-Object System.Windows.Forms.Form; $form.TopMost = $true; $form.Opacity = 0; $form.Show(); $form.Activate(); $result = $dialog.ShowDialog($form); $form.Close(); if ($result -eq 'OK') { Write-Output $dialog.SelectedPath } else { Write-Output 'CANCEL' }"`;
@@ -1750,16 +1952,16 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
             }
           }
 
-          // Windows üzerinde fs.unlink kilitliyse CMD force delete dene
+          // Türkçe Açıklama: fs.unlink kilitliyse salt-okunur özniteliğini kaldırıp tekrar dene.
+          // Eski cmd.exe /c del çağrısı kaldırıldı: dosya adındaki tırnak işaretleriyle kabuk enjeksiyonuna açıktı.
           if (!deleted && process.platform === 'win32') {
             try {
-              execSync(`cmd.exe /c del /f /q /a "${fullPath}"`, { windowsHide: true, stdio: 'ignore' });
-              if (!fs.existsSync(fullPath)) {
-                console.log(`BAŞARI (CMD force delete): ${path.basename(fullPath)}`);
-                deletedAny = true;
-                deleted = true;
-              }
-            } catch (cmdErr) {}
+              await fs.promises.chmod(fullPath, 0o666).catch(() => {});
+              await fs.promises.unlink(fullPath);
+              console.log(`BAŞARI (Zorla silme): ${path.basename(fullPath)}`);
+              deletedAny = true;
+              deleted = true;
+            } catch (forceErr) {}
           }
 
           // Dosya harici bir uygulama (antivirüs vb.) tarafından kilitli kalmışsa arka plan temizliğine al
@@ -2674,11 +2876,20 @@ router.post('/tools/copy-file-to-clipboard', localhostOnly, (req, res) => {
     return res.status(404).json({ success: false, error: 'Dosya bulunamadı' });
   }
   try {
-    const escaped = filePath.replace(/'/g, "''");
-    const cmd = `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $sc = New-Object System.Collections.Specialized.StringCollection; $sc.Add('${escaped}'); [System.Windows.Forms.Clipboard]::SetFileDropList($sc);"`;
-    exec(cmd, { windowsHide: true }, (err) => {
-      if (err) return res.status(500).json({ success: false, error: err.message });
-      res.json({ success: true });
+    // Türkçe Açıklama: Dosya yolu kabuk dizgesine gömülmez — ortam değişkeniyle PowerShell'e
+    // taşınır (eski tırnak kaçışı yetersizdi ve kabuk enjeksiyonuna açıktı).
+    const psScript = "Add-Type -AssemblyName System.Windows.Forms; $sc = New-Object System.Collections.Specialized.StringCollection; $sc.Add($env:HT_CLIP_PATH); [System.Windows.Forms.Clipboard]::SetFileDropList($sc);";
+    const child = spawn('powershell.exe', ['-NoProfile', '-Command', psScript], {
+      windowsHide: true,
+      env: { ...process.env, HT_CLIP_PATH: String(filePath) }
+    });
+    child.on('error', (err) => {
+      if (!res.headersSent) res.status(500).json({ success: false, error: err.message });
+    });
+    child.on('exit', (code) => {
+      if (res.headersSent) return;
+      if (code === 0) return res.json({ success: true });
+      res.status(500).json({ success: false, error: `PowerShell çıkış kodu: ${code}` });
     });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });

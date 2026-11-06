@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const appRootDir = path.resolve(__dirname, '..');
 const isAppImage = process.env.APPIMAGE;
 
-let dataRootDir = appRootDir;
+let dataRootDir = process.env.HAYTOOL_DATA_DIR || appRootDir;
 if (isAppImage) {
   if (process.platform === 'linux') {
     dataRootDir = path.join(os.homedir(), '.config', 'HaYTooL-YT-Downloader');
@@ -28,15 +28,208 @@ export const channelsIniPath = path.join(dataRootDir, 'channels.ini');
 export const categoriesIniPath = path.join(dataRootDir, 'categories.ini');
 
 /**
+ * Türkçe Açıklama: Bir dosya içeriğinin elektrik kesintisi / yarım yazma kaynaklı bozulup bozulmadığını denetler.
+ * NTFS güç kesintilerinde oluşan 0x00 (null byte) bloklarını ve bozuk JSON/INI yapılarını yakalar.
+ *
+ * @param {string} raw Okunan ham metin
+ * @param {'json'|'ini'} type Dosya türü
+ * @returns {boolean} İçerik sağlamsa true
+ */
+export function isValidFileContent(raw, type = 'ini') {
+  if (!raw || typeof raw !== 'string') return false;
+  const cleaned = raw.replace(/^\uFEFF/, '').trim();
+  if (cleaned.length < 2) return false;
+  // NTFS ani güç kesintilerinde dosya boyutu korunup içerik 0x00 (NULL) ile dolabilir
+  if (cleaned.includes('\u0000')) return false;
+
+  if (type === 'json') {
+    try {
+      const parsed = JSON.parse(cleaned);
+      return Boolean(parsed && typeof parsed === 'object' && !Array.isArray(parsed));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  if (type === 'ini') {
+    // Geçerli bir INI dosyasında en az bir [Bölüm] başlığı bulunmalıdır
+    return /^\[.+\]/m.test(cleaned);
+  }
+  return true;
+}
+
+/**
+ * Türkçe Açıklama: Veriyi önce geçici dosyaya yazar, fsync ile fiziksel diske (SSD/HDD) zorla boşaltır,
+ * ardından atomik rename ile hedef dosyanın üzerine alır. Elektrik kesintisinde yarım dosya oluşmasını önler.
+ */
+export function atomicWriteFileSyncWithFlush(filePath, content) {
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 7)}.tmp`;
+  let fd = null;
+  try {
+    fd = fs.openSync(tempPath, 'w');
+    fs.writeFileSync(fd, content, 'utf-8');
+    fs.fsyncSync(fd);
+  } finally {
+    if (fd !== null) {
+      try { fs.closeSync(fd); } catch (_) {}
+    }
+  }
+
+  for (let i = 0; i < 6; i++) {
+    try {
+      fs.renameSync(tempPath, filePath);
+      return;
+    } catch (err) {
+      if (i === 5) {
+        try {
+          const directFd = fs.openSync(filePath, 'w');
+          try {
+            fs.writeFileSync(directFd, content, 'utf-8');
+            fs.fsyncSync(directFd);
+          } finally {
+            try { fs.closeSync(directFd); } catch (_) {}
+          }
+        } finally {
+          try { fs.unlinkSync(tempPath); } catch (_) {}
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Türkçe Açıklama: Asenkron donanım senkronizasyonlu (fsync / datasync) atomik dosya yazıcı.
+ */
+export async function atomicWriteFileAsyncWithFlush(filePath, content) {
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 7)}.tmp`;
+  let handle = null;
+  try {
+    handle = await fs.promises.open(tempPath, 'w');
+    await handle.writeFile(content, 'utf-8');
+    await handle.sync();
+  } finally {
+    if (handle) {
+      try { await handle.close(); } catch (_) {}
+    }
+  }
+
+  for (let i = 0; i < 8; i++) {
+    try {
+      await fs.promises.rename(tempPath, filePath);
+      return;
+    } catch (renameErr) {
+      if (i === 7) {
+        try {
+          let directHandle = null;
+          try {
+            directHandle = await fs.promises.open(filePath, 'w');
+            await directHandle.writeFile(content, 'utf-8');
+            await directHandle.sync();
+          } finally {
+            if (directHandle) await directHandle.close().catch(() => {});
+          }
+        } catch (writeErr) {
+          console.warn(`[atomicWrite] Dosya yazımı geçici olarak kilitli (${filePath}):`, writeErr.message);
+        }
+        try { await fs.promises.unlink(tempPath); } catch (_) {}
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 40 * (i + 1)));
+      }
+    }
+  }
+}
+
+/**
+ * Türkçe Açıklama: Hedef dosya gerçekten sağlamsa 3 kademeli döner yedek halkasını (bak1 -> bak2 -> bak3 ve .bak) günceller.
+ * Bozuk veya 0x00 içeren bir dosya ASLA sağlam yedeklerin üzerine kopyalanmaz.
+ */
+export function rotateValidBackupsSync(filePath, type = 'ini') {
+  try {
+    if (!fs.existsSync(filePath)) return;
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    if (!isValidFileContent(raw, type)) {
+      console.warn(`[Koruma Kalkanı] ${path.basename(filePath)} bozuk veya eksik olduğu için sağlam yedeklerin üzerine yazılması engellendi!`);
+      return;
+    }
+    const bak1 = `${filePath}.bak1`;
+    const bak2 = `${filePath}.bak2`;
+    const bak3 = `${filePath}.bak3`;
+    const legacyBak = `${filePath}.bak`;
+
+    // İçerik bak1 ile birebir aynıysa yedek halkasını gereksiz kaydırma
+    if (fs.existsSync(bak1)) {
+      try {
+        const bak1Raw = fs.readFileSync(bak1, 'utf-8');
+        if (bak1Raw === raw) return;
+      } catch (_) {}
+    }
+
+    if (fs.existsSync(bak2)) {
+      try { fs.copyFileSync(bak2, bak3); } catch (_) {}
+    }
+    if (fs.existsSync(bak1)) {
+      try { fs.copyFileSync(bak1, bak2); } catch (_) {}
+    }
+    try { fs.copyFileSync(filePath, bak1); } catch (_) {}
+    try { fs.copyFileSync(filePath, legacyBak); } catch (_) {}
+  } catch (err) {
+    console.warn(`[rotateValidBackupsSync] Yedek rotasyonu uyarısı (${path.basename(filePath)}):`, err.message);
+  }
+}
+
+/**
+ * Türkçe Açıklama: Dosyayı okur; eğer dosya bozulmuşsa, 0 byte ise veya 0x00 içeriyorsa
+ * sırasıyla .bak1, .bak2, .bak3, .bak ve .emergency.bak yedeklerinden sağlam olanı otomatik bulup onarır (Self-Healing).
+ */
+export function readAndHealFileSync(filePath, type = 'ini') {
+  if (fs.existsSync(filePath)) {
+    try {
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      if (isValidFileContent(raw, type)) {
+        return raw;
+      }
+      console.error(`[AUTO-HEAL] ${path.basename(filePath)} bozuk veya yarım yazılmış tespit edildi! Yedek zincirinden otomatik onarılıyor...`);
+    } catch (readErr) {
+      console.error(`[AUTO-HEAL] ${path.basename(filePath)} okuma hatası (${readErr.message}). Yedek zinciri kontrol ediliyor...`);
+    }
+  }
+
+  const candidates = [
+    `${filePath}.bak1`,
+    `${filePath}.bak2`,
+    `${filePath}.bak3`,
+    `${filePath}.bak`,
+    `${filePath}.emergency.bak`
+  ];
+
+  for (const candidate of candidates) {
+    if (!fs.existsSync(candidate)) continue;
+    try {
+      const candidateRaw = fs.readFileSync(candidate, 'utf-8');
+      if (isValidFileContent(candidateRaw, type)) {
+        console.log(`[AUTO-HEAL] ✅ ${path.basename(filePath)} dosyası '${path.basename(candidate)}' yedeğinden başarıyla onarıldı!`);
+        try {
+          atomicWriteFileSyncWithFlush(filePath, candidateRaw);
+        } catch (_) {}
+        return candidateRaw;
+      }
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+/**
  * Belirtilen INI dosyasını okuyup JavaScript nesnesi (JSON) olarak ayrıştırır.
  * Açıklama satırlarını (; veya #) ve boşlukları göz ardı eder.
+ * Dosya bozuksa yedek halkasından otomatik onarır.
  * 
  * @param {string} filePath INI dosyasının tam yolu
  * @returns {object} Ayrıştırılmış INI verisi (anahtar-değer çiftleri)
  */
 export function parseIni(filePath) {
-  if (!fs.existsSync(filePath)) return {};
-  let content = fs.readFileSync(filePath, 'utf-8');
+  let content = readAndHealFileSync(filePath, 'ini');
+  if (!content) return {};
   content = content.replace(/^\uFEFF/, ''); // UTF-8 BOM temizle
   
   const result = {};
@@ -104,11 +297,13 @@ export const settingComments = {
 
   quality: '# Video İndirme Kalitesi / Video Download Quality\n# Açıklama: İndirilecek videolar için hedeflenen maksimum çözünürlük kalitesi.\n# Description: Target maximum video resolution quality for downloads.\n# Seçenekler / Options: best, 2160p, 1440p, 1080p, 720p, 480p, 360p, audio_only\n# Varsayılan / Default: best',
 
-  channelCheckInterval: '# Tüm Kanalları Otomatik Denetleme Sıklığı (Saniye) / All Channels Automatic Check Interval (Seconds)\n# Açıklama: Takip edilen tüm kanalların arka planda otomatik taranma sıklığı.\n# Description: Frequency in seconds for automatically scanning all tracked channels in background.\n# Seçenekler / Options: Sayısal değer (Saniye / Seconds, örn: 300, 600, 1500, 1800)\n# Varsayılan / Default: 1800',
+  channelCheckInterval: '# Tüm Kanalları Otomatik Denetleme Sıklığı (Dakika) / All Channels Automatic Check Interval (Minutes)\n# Açıklama: Takip edilen tüm kanalların arka planda otomatik taranma sıklığı (dakika). 5 dakikanın altı önerilmez ve kabul edilmez.\n# Description: Frequency in minutes for automatically scanning all tracked channels in background. Values under 5 minutes are not recommended and not accepted.\n# Seçenekler / Options: Sayısal değer (Dakika / Minutes, 5 - 1440, örn: 5, 15, 30, 60, 120)\n# Varsayılan / Default: 30',
 
   autoDownload: '# Yeni Videoları Otomatik İndir / Auto-download New Videos\n# Açıklama: Takip edilen kanallarda yeni video yayınlandığında indirme kuyruğuna otomatik ekler.\n# Description: Automatically enqueues newly published videos for download from tracked channels.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
 
   mergeType: '# Ses ve Video Birleştirme Biçimi / Video Merge Type\n# Açıklama: İndirilen video ve ses akışlarının nasıl birleştirileceğini belirler.\n# Description: Determines how downloaded video and audio streams should be merged.\n# Seçenekler / Options: merge (FFmpeg ile birleştir / Merge with FFmpeg), video (Sadece video / Video only), audio (Sadece ses / Audio only)\n# Varsayılan / Default: merge',
+
+  hardwareAcceleration: '# Video Donanım Hızlandırma / Hardware Acceleration\n# Açıklama: Video dönüştürme ve birleştirmede GPU donanım hızlandırma modu.\n# Description: Hardware acceleration mode for video conversion and merging.\n# Seçenekler / Options: auto (Otomatik / Auto GPU), nvenc (NVIDIA NVENC), qsv (Intel Quick Sync), amf (AMD AMF), cpu (Yalnızca CPU / CPU only)\n# Varsayılan / Default: auto',
 
   writeThumbnail: '# Önizleme Resmini İndir / Download Video Thumbnail\n# Açıklama: Video kapak görselini yerel video dosyasına gömer veya yanına kaydeder.\n# Description: Embeds or saves thumbnail image alongside the downloaded video file.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
 
@@ -214,7 +409,71 @@ export const settingComments = {
 
   autoCookieRefresh: '# Otomatik YouTube Çerez Yenileme / Automatic YouTube Cookie Refresh\n# Açıklama: YouTube oturum çerezlerinin geçerliliğini periyodik olarak kontrol edip arka planda sessizce tazeler.\n# Description: Periodically checks YouTube session cookies and refreshes them silently in the background.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
 
-  cookieRefreshInterval: '# Çerez Yenileme ve Denetleme Sıklığı (Dakika) / Cookie Refresh & Check Interval (Minutes)\n# Açıklama: YouTube oturum çerezlerinin kontrol edilip yenileneceği periyot (dakika).\n# Description: Periodic interval in minutes to check and refresh YouTube session cookies.\n# Seçenekler / Options: 15, 30, 60, 120, 360, 720\n# Varsayılan / Default: 30'
+  cookieRefreshInterval: '# Çerez Yenileme ve Denetleme Sıklığı (Dakika) / Cookie Refresh & Check Interval (Minutes)\n# Açıklama: YouTube oturum çerezlerinin kontrol edilip yenileneceği periyot (dakika).\n# Description: Periodic interval in minutes to check and refresh YouTube session cookies.\n# Seçenekler / Options: 15, 30, 60, 120, 360, 720\n# Varsayılan / Default: 30',
+
+  autoDeleteRequireConfirmation: '# Otomatik Silmede Onay İste / Require Confirmation for Auto-delete\n# Açıklama: Otomatik silme çalışmadan önce kullanıcıdan onay ister.\n# Description: Asks for user confirmation before auto-delete runs.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
+
+  checkYtdlpOnStartup: '# Başlangıçta yt-dlp Güncellemesi Denetle / Check yt-dlp Update on Startup\n# Açıklama: Uygulama açılırken yt-dlp motor güncellemesi denetlenir ve uygulanır.\n# Description: Checks and applies yt-dlp engine update when the app starts.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: false',
+
+  ytdlpStartupTarget: '# Başlangıç yt-dlp Güncelleme Kanalı / Startup yt-dlp Update Channel\n# Açıklama: Başlangıç güncellemesinde hedeflenen yt-dlp sürüm kanalı.\n# Description: yt-dlp release channel targeted by the startup update.\n# Seçenekler / Options: stable, nightly, master\n# Varsayılan / Default: nightly',
+
+  useTempDownloadStaging: '# Geçici Klasörde İndir (Staging) / Use Temporary Download Staging\n# Açıklama: İndirmeler önce geçici klasörde tamamlanır, sonra hedefe taşınır.\n# Description: Downloads complete in a temp folder first, then are moved to the target.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: false',
+
+  historyViewMode: '# Kütüphane Görünüm Modu / Library View Mode\n# Açıklama: Kütüphane sekmesinin yerleşim düzeni.\n# Description: Layout of the library tab.\n# Seçenekler / Options: grid, list\n# Varsayılan / Default: grid',
+
+  downloadedViewMode: '# İndirilenler Görünüm Modu / Downloaded View Mode\n# Açıklama: İndirilenler sekmesinin yerleşim düzeni.\n# Description: Layout of the downloaded tab.\n# Seçenekler / Options: grid, list\n# Varsayılan / Default: grid',
+
+  downloadedSortMode: '# İndirilenler Sıralama Modu / Downloaded Sort Mode\n# Açıklama: İndirilenler listesinin sıralama ölçütü.\n# Description: Sort order of the downloaded list.\n# Seçenekler / Options: date-desc, date-asc, title, vb.\n# Varsayılan / Default: date-desc',
+
+  historySortMode: '# Kütüphane Sıralama Modu / Library Sort Mode\n# Açıklama: Kütüphane listesinin sıralama ölçütü.\n# Description: Sort order of the library list.\n# Seçenekler / Options: date-desc, date-asc, title, vb.\n# Varsayılan / Default: date-desc',
+
+  historyShowLive: '# Kütüphanede Canlı Yayınları Göster / Show Live Streams in Library\n# Açıklama: Hızlı filtre: aktif canlı yayınları kütüphanede gösterir.\n# Description: Quick filter: shows active live streams in the library.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
+
+  historyShowUpcoming: '# Kütüphanede Bekleyen Odaları / Prömiyerleri Göster / Show Upcoming Rooms in Library\n# Açıklama: Hızlı filtre: henüz başlamamış bekleme odalarını ve prömiyerleri kütüphanede gösterir.\n# Description: Quick filter: shows unstarted waiting rooms and premieres in the library.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: false',
+
+  historyOnlyNoAutoDownload: '# Yalnızca Otomatik İndirilmeyenler / Only Non-Auto-Download\n# Açıklama: Hızlı filtre: otomatik indirme dışı kanalların videolarını gösterir.\n# Description: Quick filter: shows videos of channels without auto-download.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: false',
+
+  historyOnlyNotDownloaded: '# Yalnızca İndirilmemişler / Only Not Downloaded\n# Açıklama: Hızlı filtre: henüz indirilmemiş videoları gösterir.\n# Description: Quick filter: shows videos not yet downloaded.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: false',
+
+  historyOnlyLiveProcessing: '# Yalnızca Canlı/İşlenen Yayınlar / Only Live/Processing\n# Açıklama: Hızlı filtre: canlı veya işlenmekte olan yayınları gösterir.\n# Description: Quick filter: shows live or processing streams.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: false',
+
+  historyShowMembers: '# Üyelere Özel Videoları Göster / Show Members-only Videos\n# Açıklama: Hızlı filtre: üyelere özel videoları kütüphanede gösterir.\n# Description: Quick filter: shows members-only videos in the library.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
+
+  historyShowHidden: '# Gizli Videoları Göster / Show Hidden Videos\n# Açıklama: Hızlı filtre: gizlenmiş videoları kütüphanede gösterir.\n# Description: Quick filter: shows hidden videos in the library.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: false',
+
+  autoSyncLocalWatchtime: '# Yerel Oynatıcı İzleme Süresi Senkronizasyonu / Local Player Watchtime Sync\n# Açıklama: Yerel oynatıcıda izlenen süreyi veritabanına kaydeder.\n# Description: Saves local player progress to the database.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
+
+  networkRetryIntervalSeconds: '# İnternet Kesintisinde Tekrar Deneme Sıklığı (Saniye) / Network Retry Interval (Seconds)\n# Açıklama: İnternet koptuğunda kuyruğun bağlantıyı yeniden deneme sıklığı.\n# Description: How often the queue retries when the connection drops.\n# Seçenekler / Options: Sayısal değer (Saniye / Seconds, 5 - 3600)\n# Varsayılan / Default: 120',
+
+  fakapEnabled: '# Fakap (Otomatik Düşük Kalite Yedek) Etkin / Fakap (Low-Quality Auto Backup) Enabled\n# Açıklama: Yeni videoların düşük kaliteli yedeklerini otomatik indirir.\n# Description: Automatically downloads low-quality backups of new videos.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
+
+  fakapPath: '# Fakap Yedek Klasörü / Fakap Backup Folder\n# Açıklama: Fakap yedeklerinin kaydedileceği klasör (boş = varsayılan).\n# Description: Folder where Fakap backups are saved (empty = default).\n# Seçenekler / Options: Geçerli klasör yolu / Any valid folder path\n# Varsayılan / Default: Boş / Empty',
+
+  fakapQuality: '# Fakap Yedek Kalitesi / Fakap Backup Quality\n# Açıklama: Fakap yedeklerinin çözünürlüğü.\n# Description: Resolution of Fakap backups.\n# Seçenekler / Options: 144, 240, 360\n# Varsayılan / Default: 360',
+
+  fakapRetentionDays: '# Fakap Saklama Süresi (Gün) / Fakap Retention (Days)\n# Açıklama: Fakap yedeklerinin silinmeden önce saklanacağı gün sayısı.\n# Description: Days Fakap backups are kept before deletion.\n# Seçenekler / Options: never, 7, 14, 30, 60, 90\n# Varsayılan / Default: never',
+
+  aiProvider: '# Yapay Zekâ Sağlayıcısı / AI Provider\n# Açıklama: Video özeti ve çeviri için kullanılacak yapay zekâ sağlayıcısı.\n# Description: AI provider used for video summaries and translation.\n# Seçenekler / Options: auto, gemini, groq, deepseek, openai, lmstudio, gguf\n# Varsayılan / Default: auto',
+
+  lmStudioPort: '# LM Studio Portu / LM Studio Port\n# Açıklama: Yerel LM Studio sunucusunun TCP portu.\n# Description: TCP port of the local LM Studio server.\n# Seçenekler / Options: 1000 - 65535\n# Varsayılan / Default: 1234',
+
+  lmStudioModel: '# LM Studio Modeli / LM Studio Model\n# Açıklama: LM Studio üzerinde kullanılacak model adı.\n# Description: Model name used on LM Studio.\n# Seçenekler / Options: Metin değeri / Text\n# Varsayılan / Default: Boş / Empty',
+
+  ggufModelPath: '# Yerel GGUF Model Dosyası / Local GGUF Model File\n# Açıklama: Yerel yapay zekâ için seçili .gguf model dosyası yolu.\n# Description: Path of the selected .gguf model file for local AI.\n# Seçenekler / Options: Geçerli dosya yolu / Any valid file path\n# Varsayılan / Default: Boş / Empty',
+
+  ggufModelsDir: '# GGUF Model Klasörü / GGUF Models Folder\n# Açıklama: GGUF modellerinin taranacağı klasör.\n# Description: Folder scanned for GGUF models.\n# Seçenekler / Options: Geçerli klasör yolu / Any valid folder path\n# Varsayılan / Default: Boş / Empty',
+
+  ggufGpuMode: '# GGUF GPU (Vulkan) Modu / GGUF GPU (Vulkan) Mode\n# Açıklama: Yerel yapay zekâ motorunu GPU ile çalıştırmayı dener.\n# Description: Tries to run the local AI engine on the GPU.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
+
+  unloadUiOnHide: '# Sistem Tepsisine Küçültüldüğünde Arayüzü Uyut (RAM / GPU Tasarrufu) / Unload UI When Hidden to System Tray\n# Açıklama: Pencere X ile sistem tepsisine gizlendiğinde WebView2 arayüzünü uyutarak RAM ve GPU belleğini boşaltır (Görev çubuğuna küçültüldüğünde oynatma devam eder).\n# Description: Unloads the WebView2 UI when hidden to the system tray via X to free RAM and GPU memory (playback continues when minimized to the taskbar).\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
+
+  playerGpuMode: '# Video Oynatıcı Donanım Hızlandırma (GPU / CPU) / Video Player Hardware Acceleration (GPU / CPU)\n# Açıklama: Masaüstü WebView2 ve dahili video oynatıcının videoları ekran kartı (GPU) veya işlemci (CPU) ile çözmesini belirler.\n# Description: Controls whether the desktop WebView2 and built-in video player decode videos via GPU or CPU.\n# Seçenekler / Options: gpu (GPU hızlandırma / GPU acceleration), cpu (Yazılımsal CPU çözme / Software CPU decoding)\n# Varsayılan / Default: gpu',
+
+  ttsVoiceId: '# Sesli Okuma Ses Paketi / Text-to-Speech Voice\n# Açıklama: Sesli okuma için seçili ses paketi kimliği.\n# Description: Selected voice pack id for text-to-speech.\n# Seçenekler / Options: Ses kimliği / Voice id\n# Varsayılan / Default: Boş / Empty',
+
+  ttsSpeed: '# Sesli Okuma Hızı / Text-to-Speech Speed\n# Açıklama: Sesli okuma hız çarpanı.\n# Description: Speed multiplier for text-to-speech.\n# Seçenekler / Options: 0.5 - 2.0\n# Varsayılan / Default: 1',
+
+  ttsVoicesDir: '# Ses Paketleri Klasörü / Voice Packs Folder\n# Açıklama: Sesli okuma ses paketlerinin saklandığı klasör.\n# Description: Folder where text-to-speech voice packs are stored.\n# Seçenekler / Options: Geçerli klasör yolu / Any valid folder path\n# Varsayılan / Default: Boş / Empty'
 };
 
 /**
@@ -250,27 +509,9 @@ export async function writeIni(filePath, data) {
     } catch (_) {}
   }
 
-  // Türkçe Açıklama: Windows üzerinde eş zamanlı okuma/yazma kilitlenmelerine (EBUSY) karşı rastgele geçici dosya ve kademeli yeniden deneme.
-  const tempPath = `${filePath}.${Date.now()}.${Math.random().toString(36).slice(2, 7)}.tmp`;
-  await fs.promises.writeFile(tempPath, content, 'utf-8');
-  let renamed = false;
-  for (let i = 0; i < 8; i++) {
-    try {
-      await fs.promises.rename(tempPath, filePath);
-      renamed = true;
-      break;
-    } catch (renameErr) {
-      if (i === 7) {
-        try {
-          await fs.promises.writeFile(filePath, content, 'utf-8');
-          renamed = true;
-        } catch (writeErr) {
-          console.warn(`[writeIni] Dosya yazımı geçici olarak kilitli (${filePath}):`, writeErr.message);
-        }
-        try { await fs.promises.unlink(tempPath); } catch (e) {}
-      } else {
-        await new Promise(resolve => setTimeout(resolve, 50 * (i + 1)));
-      }
-    }
-  }
+  // Yazmadan önce mevcut sağlam INI dosyasını 3 kademeli yedek halkasına (.bak1, .bak2, .bak3) aktar
+  rotateValidBackupsSync(filePath, 'ini');
+
+  // Donanım senkronizasyonlu (fsync) atomik yazım
+  await atomicWriteFileAsyncWithFlush(filePath, content);
 }

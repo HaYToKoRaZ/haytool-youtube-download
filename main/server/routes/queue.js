@@ -8,6 +8,7 @@ import {
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
 import { downloadQueue, resolveItemDownloadUrl } from '../services/downloader.js';
+import { mergeQueue } from '../services/mergeQueue.js';
 import { testFfmpegSync } from '../services/paths.js';
 import { broadcast, addTerminalLog, addClient, removeClient } from '../services/sse.js';
 import { getPendingAutoDeleteVideos } from '../services/autoDeleteService.js';
@@ -345,7 +346,7 @@ router.post('/cancel-all-queued', localhostOnly, (req, res) => {
 router.post('/cancel-download', localhostOnly, (req, res) => {
   const { videoId } = req.body;
   if (!videoId) return res.status(400).json({ error: 'Video ID gereklidir.' });
-  if (!/^(?:fakap_)?[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+  if (!/^(?:fakap_[a-zA-Z0-9_-]{11}|ext_[a-zA-Z0-9_-]{1,32}|[a-zA-Z0-9_-]{11})$/.test(videoId)) {
     return res.status(400).json({ error: 'Geçersiz Video ID formatı.' });
   }
 
@@ -578,4 +579,49 @@ router.post('/queue/reset-engine', localhostOnly, (req, res) => {
 
   downloadQueue.process();
   res.json({ success: true, message: 'İndirme motoru sıfırlandı ve kuyruk yeniden başlatıldı.' });
+});
+
+/**
+ * Birleştirme kuyruğunun anlık durumunu döner.
+ * @name GET /api/merge-queue/status
+ */
+router.get('/merge-queue/status', localhostOnly, (req, res) => {
+  res.json({ success: true, ...mergeQueue.getStatusSnapshot() });
+});
+
+/**
+ * Bekleyen birleştirme işlerini (tekli, seçili dizi veya 'all') sırayla başlatır.
+ * @name POST /api/merge-queue/start
+ */
+router.post('/merge-queue/start', localhostOnly, (req, res) => {
+  const { videoIds, mode } = req.body || {};
+  let targets = 'all';
+  if (mode !== 'all' && Array.isArray(videoIds) && videoIds.length > 0) {
+    targets = videoIds.map(id => String(id));
+  }
+  const result = mergeQueue.enqueue(targets);
+  res.json({ success: true, ...result, ...mergeQueue.getStatusSnapshot() });
+});
+
+/**
+ * Sıralı birleştirme kuyruğunu duraklatır.
+ * @name POST /api/merge-queue/pause
+ */
+router.post('/merge-queue/pause', localhostOnly, (req, res) => {
+  const abortActive = Boolean(req.body && req.body.abortActive);
+  mergeQueue.pause(abortActive);
+  res.json({ success: true, ...mergeQueue.getStatusSnapshot() });
+});
+
+/**
+ * Bekleyen bir birleştirme işini iptal edip ham geçici dosyalarını temizler.
+ * @name POST /api/merge-queue/cancel
+ */
+router.post('/merge-queue/cancel', localhostOnly, (req, res) => {
+  const { videoId } = req.body || {};
+  if (!videoId) {
+    return res.status(400).json({ success: false, error: 'videoId gerekli.' });
+  }
+  const ok = mergeQueue.cancelItem(String(videoId));
+  res.json({ success: ok, ...mergeQueue.getStatusSnapshot() });
 });

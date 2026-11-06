@@ -45,6 +45,10 @@
               <button class="btn btn-secondary" onclick="toggleAlternativeSpeed()" id="alt-speed-toggle-btn" style="padding: 2px 6px; display:flex; align-items:center; justify-content:center;" title="Alternatif Hız Sınırı (Turtle) Aç/Kapat">
                 <i data-lucide="turtle" style="width:16px; height:16px;"></i>
               </button>
+              <button class="btn btn-secondary" onclick="toggleDeferMergeMode()" id="defer-merge-toggle-btn" style="padding: 4px 10px; font-size: 0.78rem; display:flex; align-items:center; gap:5px;" title="Oyun Modunu Aç: Tam hızda indir, FFmpeg birleştirmelerini ertele">
+                <i data-lucide="gamepad-2" style="width:15px; height:15px;"></i>
+                <span id="defer-merge-btn-label">Oyun Modu</span>
+              </button>
             </div>
           </div>
         </header>
@@ -53,6 +57,12 @@
         <div id="queue-paused-notice" class="alert alert-warning" style="display: none; align-items: center; gap: 8px; margin: 10px 0 16px 0; padding: 10px 14px; font-size: 0.82rem; border-radius: 8px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24;">
           <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0; color: #fbbf24;"></i>
           <span id="queue-paused-notice-text">Kuyruk duraklatıldı. Aktif inen video bitince yeni indirmeye geçilmeyecek.</span>
+        </div>
+
+        <!-- Oyun Modu (Ertelenmiş Birleştirme) Bilgilendirme Rozeti -->
+        <div id="defer-merge-notice" class="alert alert-info" style="display: none; align-items: center; gap: 8px; margin: 10px 0 16px 0; padding: 10px 14px; font-size: 0.82rem; border-radius: 8px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.28); color: var(--primary);">
+          <i data-lucide="gamepad-2" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+          <span id="defer-merge-notice-text">Oyun Modu aktif: Videolar 0% FFmpeg yüküyle tam hızda indiriliyor, birleştirmeler bekletiliyor.</span>
         </div>
 
         <div class="queue-layout">
@@ -74,7 +84,7 @@
             <div id="active-download-details" class="download-progress-container hidden" style="width:100%;">
               <div style="display:flex; gap:16px; align-items:flex-start; margin-bottom:14px;">
                 <div id="active-thumbnail-wrapper" data-thumb-hover="1" onmouseenter="handleThumbMouseEnter(this)" onmouseleave="handleThumbMouseLeave(this); syncActiveThumbCycle(window._activeThumbWanted)" style="width:120px; height:68px; border-radius:8px; overflow:hidden; background:var(--bg-body); border:1px solid var(--border-color); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
-                  <img id="active-thumbnail-img" data-thumb-img="1" src="" alt="Thumbnail" style="width:100%; height:100%; object-fit:cover; display:none;" onerror="this.onerror=null; this.src='/api/video/' + (window._activeVideoId || '') + '/thumbnail';" />
+                  <img id="active-thumbnail-img" data-thumb-img="1" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'></svg>" alt="Thumbnail" style="width:100%; height:100%; object-fit:cover; display:none;" onerror="this.onerror=null; if(window._activeVideoId){this.src='/api/video/' + window._activeVideoId + '/thumbnail';}else{this.style.display='none';}" />
                   <i id="active-thumbnail-placeholder" data-lucide="video" style="width:24px; height:24px; color:var(--text-muted);"></i>
                 </div>
                 <div style="flex:1; min-width:0;">
@@ -126,6 +136,37 @@
             </div>
             <div class="queue-list" id="queue-list" style="flex:1; display:flex; flex-direction:column; gap:8px;">
               <div class="text-center text-muted" id="queue-list-empty" style="padding: 30px 0; font-size: 0.85rem;">Kuyrukta bekleyen video yok.</div>
+            </div>
+          </div>
+
+          <!-- Oyun Modu: Birleştirme ve Dönüştürme Bekleyenler Kartı -->
+          <div id="pending-merge-card" class="card queue-card-container" style="display: none; padding: 25px; flex-direction: column; min-height: auto; overflow: visible;">
+            <div class="card-title-bar" style="margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" id="pending-merge-select-all" onchange="toggleSelectAllPendingMerge(this.checked)" title="Tümünü Seç" style="width:16px; height:16px; cursor:pointer;" />
+                <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 0; color:var(--text-main);">
+                  <i data-lucide="layers" style="width: 18px; height: 18px; color: var(--primary);"></i>
+                  <span id="pending-merge-card-title">Birleştirme Bekleyenler</span> (<span id="pending-merge-count">0</span>)
+                </h3>
+                <span id="pending-merge-batch-counter" style="display:none; font-size:0.76rem; font-weight:600; padding:2px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981;"></span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap:wrap;">
+                <button type="button" id="btn-merge-selected" class="btn btn-secondary" onclick="startMergeSelected()" style="display:none; padding: 5px 10px; font-size: 0.78rem; align-items:center; gap:5px; border-color:var(--primary); color:var(--primary);">
+                  <i data-lucide="check-square" style="width:13px; height:13px;"></i>
+                  <span id="btn-merge-selected-text">Seçilenleri Birleştir</span>
+                </button>
+                <button type="button" id="btn-merge-pause" class="btn btn-secondary" onclick="pauseMergeQueue()" style="display:none; padding: 5px 10px; font-size: 0.78rem; align-items:center; gap:5px;">
+                  <i data-lucide="pause" style="width:13px; height:13px;"></i>
+                  <span id="btn-merge-pause-text">Duraklat</span>
+                </button>
+                <button type="button" id="btn-merge-all" class="btn btn-primary" onclick="startMergeAllSequential()" style="padding: 5px 12px; font-size: 0.78rem; display:inline-flex; align-items:center; gap:5px;">
+                  <i data-lucide="play" style="width:13px; height:13px;"></i>
+                  <span id="btn-merge-all-text">Tümünü Sırayla Birleştir</span>
+                </button>
+              </div>
+            </div>
+            <div class="queue-list" id="pending-merge-list" style="flex:1; display:flex; flex-direction:column; gap:8px;">
+              <div class="text-center text-muted" style="padding: 24px 0; font-size: 0.85rem;">Birleştirme bekleyen video bulunmuyor.</div>
             </div>
           </div>
 

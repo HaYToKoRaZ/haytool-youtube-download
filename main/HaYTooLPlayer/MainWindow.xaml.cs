@@ -17,6 +17,8 @@ namespace HaYTooLPlayer
         private TrayManager? _trayManager;
         private bool _isHookAdded = false;
         private WindowState _previousWindowState = WindowState.Maximized;
+        private string? _unloadedUrl = null;
+        private bool _uiUnloaded = false;
 
         public MainWindow()
         {
@@ -71,16 +73,15 @@ namespace HaYTooLPlayer
                 };
 
                 StartCookieKeepaliveTimer();
-                // Kapatıldığında uygulamayı öldürmek yerine tepsiye gizle
-                this.Closing += (s, e) =>
+                // Kapatıldığında uygulamayı öldürmek yerine tepsiye gizle (unloadUiOnHide açıksa arayüzü uyut)
+                this.Closing += async (s, e) =>
                 {
                     e.Cancel = true;
                     if (this.WindowState != WindowState.Minimized)
                     {
                         _previousWindowState = this.WindowState;
                     }
-                    this.Hide();
-                    SyncYouTubeCookiesToFileAsync();
+                    await HideToTrayAsync();
                 };
 
                 // Tepsi Yöneticisini Başlat
@@ -103,18 +104,21 @@ namespace HaYTooLPlayer
             InitializeAsync();
         }
 
-        public void OpenInitialUI()
+        public TrayManager? Tray => _trayManager;
+
+        public void OpenInitialUI(string? initialPath = null)
         {
             try
             {
+                string route = string.IsNullOrWhiteSpace(initialPath) ? "/downlist" : initialPath;
                 string pref = TrayManager.GetDoubleClickActionSetting();
                 if (pref == "player")
                 {
-                    BringWindowToFront();
+                    BringWindowToFront(route);
                 }
                 else
                 {
-                    _trayManager?.ExecutePreferredOpenAction("/downlist");
+                    _trayManager?.ExecutePreferredOpenAction(route);
                 }
             }
             catch (Exception ex)
@@ -147,7 +151,114 @@ namespace HaYTooLPlayer
         private const int SW_MAXIMIZE = 3;
         private const int SW_SHOW = 5;
 
-        public void BringWindowToFront()
+        public static string ReadIniSetting(string key, string defaultVal)
+        {
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+                string parentDir = Path.GetDirectoryName(baseDir) ?? baseDir;
+                string iniPath = Path.Combine(baseDir, "configwin.ini");
+                if (!File.Exists(iniPath))
+                {
+                    iniPath = Path.Combine(parentDir, "configwin.ini");
+                }
+                if (File.Exists(iniPath))
+                {
+                    foreach (var line in File.ReadLines(iniPath))
+                    {
+                        var trimmed = line.Trim();
+                        if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith(";") || trimmed.StartsWith("#") || trimmed.StartsWith("[")) continue;
+                        int eqIdx = trimmed.IndexOf('=');
+                        if (eqIdx > 0)
+                        {
+                            string k = trimmed.Substring(0, eqIdx).Trim();
+                            if (k.Equals(key, StringComparison.OrdinalIgnoreCase))
+                            {
+                                string v = trimmed.Substring(eqIdx + 1).Trim();
+                                if (!string.IsNullOrEmpty(v)) return v;
+                            }
+                        }
+                    }
+                }
+            }
+            catch {}
+            return defaultVal;
+        }
+
+        public async System.Threading.Tasks.Task HideToTrayAsync()
+        {
+            try
+            {
+                await SyncYouTubeCookiesToFileAsync();
+                bool unloadUi = !ReadIniSetting("unloadUiOnHide", "true").Equals("false", StringComparison.OrdinalIgnoreCase);
+                if (unloadUi && webView?.CoreWebView2 != null)
+                {
+                    string currentSrc = webView.Source?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(currentSrc) && !currentSrc.StartsWith("about:blank", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _unloadedUrl = currentSrc;
+                    }
+                    _uiUnloaded = true;
+                    webView.CoreWebView2.Navigate("about:blank");
+                    try
+                    {
+                        webView.CoreWebView2.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Low;
+                    }
+                    catch {}
+                }
+            }
+            catch {}
+            this.Hide();
+        }
+
+        public bool RestoreUiIfUnloaded(string? targetPath = null)
+        {
+            try
+            {
+                if (webView?.CoreWebView2 != null)
+                {
+                    string currentSrc = webView.Source?.ToString() ?? "";
+                    if (_uiUnloaded || currentSrc.StartsWith("about:blank", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _uiUnloaded = false;
+                        try
+                        {
+                            webView.CoreWebView2.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Normal;
+                        }
+                        catch {}
+
+                        string baseUrl = GetAppUrl().TrimEnd('/');
+                        string restoreUrl;
+                        if (!string.IsNullOrEmpty(targetPath) && targetPath != "/downlist" && targetPath != "/")
+                        {
+                            if (targetPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || targetPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                            {
+                                restoreUrl = targetPath;
+                            }
+                            else
+                            {
+                                restoreUrl = baseUrl + (targetPath.StartsWith("/") ? targetPath : "/" + targetPath);
+                            }
+                        }
+                        else if (!string.IsNullOrEmpty(_unloadedUrl) && !_unloadedUrl.StartsWith("about:blank", StringComparison.OrdinalIgnoreCase))
+                        {
+                            restoreUrl = _unloadedUrl;
+                        }
+                        else
+                        {
+                            restoreUrl = baseUrl + "/downlist";
+                        }
+
+                        webView.CoreWebView2.Navigate(restoreUrl);
+                        return true;
+                    }
+                }
+            }
+            catch {}
+            return false;
+        }
+
+        public void BringWindowToFront(string? targetPath = null)
         {
             try
             {
@@ -174,6 +285,7 @@ namespace HaYTooLPlayer
                 }
                 this.Activate();
                 this.Focus();
+                RestoreUiIfUnloaded(targetPath);
             }
             catch {}
         }
@@ -219,10 +331,10 @@ namespace HaYTooLPlayer
                                 return;
                             }
 
-                            if (lowerCmd == "hide" || lowerCmd == "minimize" || lowerCmd == "--hide" || lowerCmd == "/hide" || lowerCmd == "--minimize" || lowerCmd == "/minimize")
+                            if (lowerCmd == "hide" || lowerCmd == "min" || lowerCmd == "minimize" || lowerCmd == "--hide" || lowerCmd == "/hide" || lowerCmd == "--min" || lowerCmd == "/min" || lowerCmd == "--minimize" || lowerCmd == "/minimize")
                             {
                                 _trayManager?.EnsureTrayVisible();
-                                this.Hide();
+                                _ = HideToTrayAsync();
                                 return;
                             }
 
@@ -238,15 +350,13 @@ namespace HaYTooLPlayer
                                 return;
                             }
 
-                            if (lowerCmd.StartsWith("pd ") || lowerCmd == "pd" || lowerCmd == "status" || lowerCmd == "info" || lowerCmd == "durum" ||
-                                lowerCmd == "ton" || lowerCmd == "toff" || lowerCmd == "toggle" || lowerCmd == "turtle" ||
-                                lowerCmd == "turtleon" || lowerCmd == "turtleoff" || lowerCmd == "turtleac" || lowerCmd == "turtlekapat" ||
-                                lowerCmd == "turtle-on" || lowerCmd == "turtle-off" || lowerCmd == "turtle-toggle" ||
-                                lowerCmd.StartsWith("speed") || lowerCmd.StartsWith("altspeed") || lowerCmd == "help" || lowerCmd == "?" || lowerCmd == "komutlar" ||
-                                lowerCmd == "pause" || lowerCmd == "duraklat" || lowerCmd == "pause-all" ||
-                                lowerCmd == "resume" || lowerCmd == "devam" || lowerCmd == "resume-all" ||
-                                lowerCmd == "check" || lowerCmd == "scan" || lowerCmd == "tara" ||
-                                lowerCmd == "backup" || lowerCmd == "yedek" || lowerCmd == "fakap" || lowerCmd == "fakap-run")
+                            if (lowerCmd == "paste" || lowerCmd == "pano" || lowerCmd == "clipboard" || lowerCmd == "--paste" || lowerCmd == "/paste")
+                            {
+                                _trayManager?.PasteAndDownloadCommand(openQueueWindow: false, silentOnError: false);
+                                return;
+                            }
+
+                            if (TrayManager.IsHeadlessCliCommand(path))
                             {
                                 _trayManager?.SendCommandToNode(path.Trim());
                                 return;
@@ -254,7 +364,8 @@ namespace HaYTooLPlayer
 
                             // Kullanıcı normal olarak uygulamayı açtı veya kısayola çift tıkladı:
                             _trayManager?.EnsureTrayVisible();
-                            BringWindowToFront();
+                            bool wasUnloaded = _uiUnloaded || (webView?.Source != null && webView.Source.ToString().StartsWith("about:blank", StringComparison.OrdinalIgnoreCase));
+                            BringWindowToFront(path);
 
                             // 2. Eğer pencere henüz hiç açılmamışsa (silent moddaysa):
                             if (!this.IsVisible)
@@ -300,12 +411,15 @@ namespace HaYTooLPlayer
                                 if (path == "/settings") tabName = "settings";
                                 else if (path == "/home") tabName = "history";
                                 else if (path == "/channels") tabName = "channels";
-                                else if (path == "/download") tabName = "download";
+                                else if (path == "/download" || path == "/queue") tabName = "queue";
+                                else if (path == "/downloaded") tabName = "downloaded";
+                                else if (path == "/downloader") tabName = "downloader";
                                 else if (path == "/iptv") tabName = "iptv";
                                 else if (path == "/tools") tabName = "tools";
 
                                 if (tabName != null)
                                 {
+                                    if (wasUnloaded) return;
                                     string script = $"if(typeof window.switchTab==='function'){{window.switchTab('{tabName}');}}";
                                     webView.CoreWebView2.ExecuteScriptAsync(script);
                                     return;
@@ -340,12 +454,15 @@ namespace HaYTooLPlayer
 
             if (webView != null && webView.CoreWebView2 != null)
             {
+                if (RestoreUiIfUnloaded(path)) return;
+
                 string? tabName = null;
                 if (path == "/settings") tabName = "settings";
                 else if (path == "/home") tabName = "history";
                 else if (path == "/channels") tabName = "channels";
-                else if (path == "/download") tabName = "download";
+                else if (path == "/download" || path == "/queue") tabName = "queue";
                 else if (path == "/downloaded") tabName = "downloaded";
+                else if (path == "/downloader") tabName = "downloader";
                 else if (path == "/iptv") tabName = "iptv";
                 else if (path == "/tools") tabName = "tools";
 
@@ -380,7 +497,11 @@ namespace HaYTooLPlayer
                 // CoreWebView2Environment ile CORS'u devre dışı bırak ve otomatik oynatmayı bypass et
                 string profileName = isSilentCookieRefresh ? "HaYTooLPlayer_Silent" : "HaYTooLPlayer_Main";
                 string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), profileName);
-                var options = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions("--disable-web-security --autoplay-policy=no-user-gesture-required");
+                bool useCpuRender = ReadIniSetting("playerGpuMode", "gpu").Equals("cpu", StringComparison.OrdinalIgnoreCase);
+                string browserArgs = useCpuRender
+                    ? "--disable-web-security --autoplay-policy=no-user-gesture-required --disable-gpu --disable-gpu-compositing --disable-accelerated-video-decode"
+                    : "--disable-web-security --autoplay-policy=no-user-gesture-required --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist";
+                var options = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions(browserArgs);
                 var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
 
                 // WebView2 Başlat
@@ -728,10 +849,7 @@ namespace HaYTooLPlayer
             }
         }
 
-        private WindowStyle _webPrevWindowStyle = WindowStyle.SingleBorderWindow;
-        private WindowState _webPrevWindowState = WindowState.Maximized;
-        private ResizeMode _webPrevResizeMode = ResizeMode.CanResize;
-        private bool _webPrevTopmost = false;
+        private readonly WindowHelper.FullScreenState _webFullScreenState = new WindowHelper.FullScreenState();
 
         private void WebCoreWebView2_ContainsFullScreenElementChanged(object sender, object e)
         {
@@ -742,26 +860,11 @@ namespace HaYTooLPlayer
             {
                 if (webView.ContainsFullScreenElement)
                 {
-                    // Tam Ekran Moduna Geç
-                    _webPrevWindowStyle = this.WindowStyle;
-                    _webPrevWindowState = this.WindowState;
-                    _webPrevResizeMode = this.ResizeMode;
-                    _webPrevTopmost = this.Topmost;
-
-                    // WPF'te görev çubuğunu tamamen kaplamak için önce Normal sonra Maximized yapılmalıdır
-                    this.WindowState = WindowState.Normal;
-                    this.WindowStyle = WindowStyle.None;
-                    this.ResizeMode = ResizeMode.NoResize;
-                    this.Topmost = true;
-                    this.WindowState = WindowState.Maximized;
+                    WindowHelper.EnterFullScreen(this, _webFullScreenState);
                 }
                 else
                 {
-                    // Normal / Önceki Pencere Moduna Dön
-                    this.Topmost = _webPrevTopmost;
-                    this.WindowStyle = _webPrevWindowStyle;
-                    this.ResizeMode = _webPrevResizeMode;
-                    this.WindowState = _webPrevWindowState == WindowState.Normal ? WindowState.Normal : WindowState.Maximized;
+                    WindowHelper.ExitFullScreen(this, _webFullScreenState);
                 }
             });
         }
@@ -1033,7 +1136,11 @@ namespace HaYTooLPlayer
                         {
                             string profileName = "HaYTooLPlayer_Main";
                             string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), profileName);
-                            var options = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions("--disable-web-security --autoplay-policy=no-user-gesture-required");
+                            bool useCpuRender = ReadIniSetting("playerGpuMode", "gpu").Equals("cpu", StringComparison.OrdinalIgnoreCase);
+                string browserArgs = useCpuRender
+                    ? "--disable-web-security --autoplay-policy=no-user-gesture-required --disable-gpu --disable-gpu-compositing --disable-accelerated-video-decode"
+                    : "--disable-web-security --autoplay-policy=no-user-gesture-required --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist";
+                var options = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions(browserArgs);
                             var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
                             await wv.EnsureCoreWebView2Async(env);
                         }

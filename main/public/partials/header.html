@@ -4,33 +4,33 @@
         <div class="brand-icon" style="cursor: pointer;" title="Multimedia HaYTooL Web Sitesi" onclick="window.open('https://haytokoraz.github.io/haytool-youtube-download/', '_blank')">
           <img src="/logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
-        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYTooL-YT-Downloader/releases" target="_blank" style="color: inherit; text-decoration: none;">v12.3.3</a></span>
+        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYTooL-YT-Downloader/releases" target="_blank" style="color: inherit; text-decoration: none;">v12.3.5</a></span>
       </div>
 
       <nav class="nav-menu">
-        <button class="nav-item active" data-tab="history">
+        <button class="nav-item active" data-tab="history" data-testid="nav-tab-history">
           <i data-lucide="library" class="nav-tab-icon"></i>
           <span id="lbl-nav-history">Kütüphane</span>
         </button>
-        <button class="nav-item" data-tab="downloaded">
+        <button class="nav-item" data-tab="downloaded" data-testid="nav-tab-downloaded">
           <i data-lucide="folder-check" class="nav-tab-icon"></i>
           <span id="lbl-nav-downloaded">İndirilenler</span>
         </button>
-        <button class="nav-item" data-tab="iptv" id="nav-iptv-btn">
+        <button class="nav-item" data-tab="iptv" id="nav-iptv-btn" data-testid="nav-tab-iptv">
           <i data-lucide="monitor-play" class="nav-tab-icon"></i>
           <span id="lbl-nav-iptv">IPTV</span>
         </button>
-        <button class="nav-item" data-tab="queue" id="nav-queue-btn">
+        <button class="nav-item" data-tab="queue" id="nav-queue-btn" data-testid="nav-tab-queue">
           <i data-lucide="list-ordered" class="nav-tab-icon"></i>
           <span id="lbl-nav-queue">Kuyruk</span>
           <span class="queue-nav-badge" id="nav-queue-count-badge" title="Bekleyen İndirme Sayısı">0</span>
         </button>
-        <button class="nav-item" data-tab="channels" id="nav-channels-btn">
+        <button class="nav-item" data-tab="channels" id="nav-channels-btn" data-testid="nav-tab-channels">
           <i data-lucide="tv" class="nav-tab-icon"></i>
           <span id="lbl-nav-channels">Kanallar</span>
         </button>
         <div class="nav-dropdown" id="tools-dropdown">
-          <button class="tools-btn" id="tools-btn" title="Araçlar Menüsü">
+          <button class="tools-btn" id="tools-btn" title="Araçlar Menüsü" aria-label="Araçlar Menüsü">
             <i data-lucide="wrench" class="nav-tab-icon"></i>
             <span id="nav-tools-text">Araçlar</span>
             <div class="nav-tab-badge"><i data-lucide="chevron-down" class="dropdown-arrow"></i></div>
@@ -177,17 +177,18 @@
       </div>
 
       <div class="topbar-actions">
-        <button id="open-downloads-folder-btn" onclick="openFolder()" class="btn btn-secondary btn-icon-only" title="İndirilenler Klasörünü Aç">
+        <button id="open-downloads-folder-btn" onclick="openFolder()" class="btn btn-secondary btn-icon-only" title="İndirilenler Klasörünü Aç" aria-label="İndirilenler Klasörünü Aç">
           <i data-lucide="folder-open"></i>
         </button>
         <button id="quick-theme-toggle-btn" onclick="toggleQuickTheme()" class="btn btn-secondary btn-icon-only theme-toggle-btn" data-theme-current="dark" title="Tema: Koyu • Sonraki: Açık (tıkla)" aria-label="Tema: Koyu • Sonraki: Açık (tıkla)">
           <i data-lucide="moon" id="quick-theme-icon"></i>
         </button>
-        <button id="header-settings-btn" class="btn btn-secondary btn-icon-only" title="Ayarlar">
+        <button id="header-settings-btn" class="btn btn-secondary btn-icon-only" data-testid="nav-tab-settings" title="Ayarlar" aria-label="Ayarlar">
           <i data-lucide="settings"></i>
         </button>
-        <button id="sync-now-btn" class="btn btn-secondary btn-icon-only" title="Kanalları Şimdi Denetle">
+        <button id="sync-now-btn" class="btn btn-secondary btn-icon-only" title="Kanalları Şimdi Denetle" aria-label="Kanalları Şimdi Denetle">
           <i data-lucide="refresh-cw"></i>
         </button>
       </div>
     </header>
+

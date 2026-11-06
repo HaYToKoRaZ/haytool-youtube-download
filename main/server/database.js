@@ -13,7 +13,12 @@ import {
   parseIni, 
   getCaseInsensitiveKey, 
   writeIni,
-  dataRootDir
+  dataRootDir,
+  isValidFileContent,
+  atomicWriteFileSyncWithFlush,
+  atomicWriteFileAsyncWithFlush,
+  rotateValidBackupsSync,
+  readAndHealFileSync
 } from './config.js';
 import { getVideoResolution } from './services/paths.js';
 import { isInsideFakap } from './services/fakapPaths.js';
@@ -142,7 +147,7 @@ export const defaultDb = {
   settings: {
     downloadPath: defaultDownloadDir,
     quality: 'best',
-    channelCheckInterval: 1800,
+    channelCheckInterval: 30,
     autoDownload: true,
     showShorts: false,
     rssLimit: 15,
@@ -154,6 +159,7 @@ export const defaultDb = {
     cookieDefaultMigrationDone: true,
     downloadSpeedLimit: 0,
     useAlternativeSpeed: false,
+    deferMerge: false,
     alternativeSpeedLimit: 3000,
     port: 4141,
     playerPreference: 'system',
@@ -168,6 +174,7 @@ export const defaultDb = {
     autoOpenBrowser: true,
     historyLimitPerChannel: 30,
     mergeType: 'single',
+    hardwareAcceleration: 'auto',
     writeThumbnail: false,
     playSounds: true,
     shortsDurationLimit: 180,
@@ -199,16 +206,33 @@ export const defaultDb = {
     autoSyncGist: false,
     channelScanMode: 'fast',
     weatherEnabled: true,
-    weatherCity: 'İstanbul',
-    weatherLatitude: 41.0082,
-    weatherLongitude: 28.9784,
+    weatherCity: 'Derince',
+    weatherLatitude: 40.75694,
+    weatherLongitude: 29.81472,
     weatherUnit: 'celsius',
     queueViewMode: 'table',
     networkRetryIntervalSeconds: 120,
     fakapEnabled: true,
     fakapPath: '',
     fakapQuality: '360',
-    fakapRetentionDays: 'never'
+    fakapRetentionDays: 'never',
+    aiProvider: 'auto',
+    geminiApiKey: '',
+    groqApiKey: '',
+    deepseekApiKey: '',
+    openAiApiKey: '',
+    lmStudioPort: 1234,
+    lmStudioModel: '',
+    ggufModelPath: '',
+    ggufModelsDir: '',
+    ggufGpuMode: true,
+    unloadUiOnHide: true,
+    playerGpuMode: 'gpu',
+    historyShowLive: true,
+    historyShowUpcoming: false,
+    ttsVoiceId: '',
+    ttsSpeed: 1,
+    ttsVoicesDir: ''
   },
   deletedVideos: []
 };
@@ -289,6 +313,26 @@ export function convertPngToIco(pngPath, icoPath) {
 }
 
 /**
+ * Kanal denetleme sıklığı birim göçü yardımcıları (saniye -> dakika).
+ * Geçerli aralık 5-1440 dakikadır.
+ */
+function toIntervalMinutes(v) {
+  const n = parseInt(v, 10);
+  if (!n || n < 0) return 30;
+  return Math.min(1440, Math.max(5, Math.round(n / 60)));
+}
+
+function migrateIniChannelInterval() {
+  try {
+    if (!fs.existsSync(configIniPath)) return;
+    const raw = fs.readFileSync(configIniPath, 'utf-8');
+    const re = /^(\s*channelCheckInterval\s*=\s*)(\d+)/m;
+    if (!re.test(raw)) return;
+    fs.writeFileSync(configIniPath, raw.replace(re, (m, p, n) => p + toIntervalMinutes(n)), 'utf-8');
+  } catch (e) {}
+}
+
+/**
  * Veritabanını (db.json) dosyadan okur, eksik alanları varsayılanlarla doldurur,
  * INI dosyalarıyla eşitler ve RAM önbelleğini yönetir.
  * 
@@ -333,9 +377,10 @@ export function readDb() {
     }
 
     let db = defaultDb;
-    if (fs.existsSync(dbPath)) {
-      const data = fs.readFileSync(dbPath, 'utf8');
-      const parsed = JSON.parse(data);
+    let channelIntervalMigrated = false;
+    const rawDbData = readAndHealFileSync(dbPath, 'json');
+    if (rawDbData) {
+      const parsed = JSON.parse(rawDbData.replace(/^\uFEFF/, ''));
       db = {
         ...defaultDb,
         ...parsed,
@@ -354,21 +399,52 @@ export function readDb() {
         }
         delete db.settings.checkInterval;
       }
+      // Kanal denetleme sıklığı birim göçü (saniye -> dakika), tek seferlik
+      if (!db.settings.channelIntervalInMinutes) {
+        const hadValue = parsed.settings && (parsed.settings.channelCheckInterval !== undefined || parsed.settings.checkInterval !== undefined);
+        if (hadValue) {
+          db.settings.channelCheckInterval = toIntervalMinutes(db.settings.channelCheckInterval);
+          migrateIniChannelInterval();
+        }
+        db.settings.channelIntervalInMinutes = true;
+        channelIntervalMigrated = true;
+      }
       if (db.settings.rssDelay !== undefined) {
         delete db.settings.rssDelay;
       }
 
-      // Şifrelenmiş githubToken varsa RAM'e yüklerken çöz
-      if (db.settings && db.settings.githubToken) {
-        db.settings.githubToken = decryptSecret(db.settings.githubToken);
+      // Şifrelenmiş hassas anahtarlar (Token/API Keys) varsa RAM'e yüklerken çöz
+      if (db.settings) {
+        const sensitiveFields = ['githubToken', 'geminiApiKey', 'groqApiKey', 'openAiApiKey', 'deepseekApiKey'];
+        for (const f of sensitiveFields) {
+          if (db.settings[f]) {
+            db.settings[f] = decryptSecret(db.settings[f]);
+          }
+        }
       }
     } else {
-      fs.writeFileSync(dbPath, JSON.stringify(defaultDb, null, 2), 'utf8');
+      atomicWriteFileSyncWithFlush(dbPath, JSON.stringify(defaultDb, null, 2));
       dbJsonMtime = fs.statSync(dbPath).mtimeMs;
     }
     
     // config.ini ve channels.ini dosyasından eşitleme yap
     syncWithIni(db);
+
+    // Kanal denetleme sıklığı güvenlik sınırı (5-1440 dk); eski saniye değeri kalmışsa dakikaya çevir
+    if (!db.settings.channelIntervalInMinutes) {
+      db.settings.channelIntervalInMinutes = true;
+      channelIntervalMigrated = true;
+    }
+    {
+      let civ = parseInt(db.settings.channelCheckInterval, 10) || 30;
+      if (civ > 1440) civ = Math.round(civ / 60);
+      civ = Math.min(1440, Math.max(5, civ));
+      if (civ !== db.settings.channelCheckInterval) channelIntervalMigrated = true;
+      db.settings.channelCheckInterval = civ;
+    }
+    if (channelIntervalMigrated) {
+      writeDb(db);
+    }
 
     // Shorts indirme ayarı migrasyonu (Mevcut tüm kanalların Shorts ayarlarını otomatik false yapar)
     if (!db.settings.shortsMigrationDone) {
@@ -424,6 +500,29 @@ export async function writeDb(data) {
 }
 
 /**
+ * Türkçe Açıklama: Ani veri sıfırlanmasına (kanal veya geçmiş listesinin yanlışlıkla 0'lanmasına) karşı
+ * ezilmeden hemen önce mevcut sağlam db.json dosyasını db.json.emergency.bak olarak koruma altına alır.
+ */
+function guardAgainstMassWipeSync(targetDbPath, incomingData) {
+  try {
+    if (!fs.existsSync(targetDbPath)) return;
+    const raw = fs.readFileSync(targetDbPath, 'utf-8');
+    if (!isValidFileContent(raw, 'json')) return;
+    const existing = JSON.parse(raw.replace(/^\uFEFF/, ''));
+    const prevChannels = Array.isArray(existing.channels) ? existing.channels.length : 0;
+    const prevHistory = Array.isArray(existing.history) ? existing.history.length : 0;
+    const nextChannels = Array.isArray(incomingData?.channels) ? incomingData.channels.length : 0;
+    const nextHistory = Array.isArray(incomingData?.history) ? incomingData.history.length : 0;
+
+    if ((prevChannels >= 3 && nextChannels === 0) || (prevHistory >= 10 && nextHistory === 0)) {
+      const emergencyPath = `${targetDbPath}.emergency.bak`;
+      fs.copyFileSync(targetDbPath, emergencyPath);
+      console.warn(`[Sanity Guard] ⚠️ Ani veri azalması tespit edildi (Kanallar: ${prevChannels}->${nextChannels}, Geçmiş: ${prevHistory}->${nextHistory}). Acil durum yedeği alındı: ${path.basename(emergencyPath)}`);
+    }
+  } catch (_) {}
+}
+
+/**
  * Kilit almadan yazan iç fonksiyon. Yalnızca kilit zaten elde tutuluyorken
  * (writeDb veya updateDb içinden) çağrılmalıdır; aksi halde kilit çakışır.
  */
@@ -433,46 +532,23 @@ async function writeDbUnlocked(data) {
     cachedDb = data;
     lastCacheCheckTime = Date.now();
     
-    // Otomatik rolling yedek (db.json.bak)
-    if (fs.existsSync(dbPath)) {
-      try {
-        const stats = await fs.promises.stat(dbPath);
-        if (stats.size > 0) {
-          await fs.promises.copyFile(dbPath, dbPath + '.bak');
-        }
-      } catch (bakErr) {
-        // Sessizce geç
-      }
-    }
+    // Ani sıfırlanma kilidi + Doğrulamalı 3 kademeli döner yedek (bak1, bak2, bak3, .bak)
+    guardAgainstMassWipeSync(dbPath, data);
+    rotateValidBackupsSync(dbPath, 'json');
 
-    // Disk için kopyasını al ve hassas verileri (githubToken) AES-256 ile şifrele
+    // Disk için kopyasını al ve hassas verileri (githubToken, API Keys) AES-256 ile şifrele
     const dataToSave = JSON.parse(JSON.stringify(data));
-    if (dataToSave.settings && dataToSave.settings.githubToken) {
-      dataToSave.settings.githubToken = encryptSecret(dataToSave.settings.githubToken);
+    if (dataToSave.settings) {
+      const sensitiveFields = ['githubToken', 'geminiApiKey', 'groqApiKey', 'openAiApiKey', 'deepseekApiKey'];
+      for (const f of sensitiveFields) {
+        if (dataToSave.settings[f]) {
+          dataToSave.settings[f] = encryptSecret(dataToSave.settings[f]);
+        }
+      }
     }
 
     const dbString = JSON.stringify(dataToSave);
-    const tempDbPath = `${dbPath}.${Date.now()}.${Math.random().toString(36).slice(2, 7)}.tmp`;
-    await fs.promises.writeFile(tempDbPath, dbString, 'utf8');
-    
-    let renamed = false;
-    for (let i = 0; i < 5; i++) {
-      try {
-        await fs.promises.rename(tempDbPath, dbPath);
-        renamed = true;
-        break;
-      } catch (renameErr) {
-        if (i === 4) {
-          // Son çare olarak doğrudan yaz
-          await fs.promises.writeFile(dbPath, dbString, 'utf8');
-          try { await fs.promises.unlink(tempDbPath); } catch (e) {}
-          renamed = true;
-        } else {
-          // Asenkron bekleme (event loop bloklanmaz)
-          await new Promise(resolve => setTimeout(resolve, 20));
-        }
-      }
-    }
+    await atomicWriteFileAsyncWithFlush(dbPath, dbString);
 
     try {
       const stats = await fs.promises.stat(dbPath);
@@ -525,52 +601,27 @@ export async function writeDbFast(data) {
     cachedDb = data;
     lastCacheCheckTime = Date.now();
 
-    // Seyrek .bak yedek: son 5 dakikada alınmamışsa al
+    // Ani sıfırlanma kilidi + Seyrek doğrulamalı 3 kademeli yedek: son 5 dakikada alınmamışsa al
+    guardAgainstMassWipeSync(dbPath, data);
     const now = Date.now();
     if (now - lastFastBackupMs > FAST_BACKUP_INTERVAL_MS) {
-      if (fs.existsSync(dbPath)) {
-        try {
-          const stats = fs.statSync(dbPath);
-          if (stats.size > 0) {
-            fs.copyFileSync(dbPath, dbPath + '.bak');
-            lastFastBackupMs = now;
-          }
-        } catch (bakErr) {
-          // Sessizce geç
-        }
-      }
+      rotateValidBackupsSync(dbPath, 'json');
+      lastFastBackupMs = now;
     }
 
-    // Disk kopyasını hazırla, hassas veriyi şifrele
+    // Disk kopyasını hazırla, hassas veriyi (Token ve AI API Keys) şifrele
     const dataToSave = JSON.parse(JSON.stringify(data));
-    if (dataToSave.settings && dataToSave.settings.githubToken) {
-      dataToSave.settings.githubToken = encryptSecret(dataToSave.settings.githubToken);
+    if (dataToSave.settings) {
+      const sensitiveFields = ['githubToken', 'geminiApiKey', 'groqApiKey', 'openAiApiKey', 'deepseekApiKey'];
+      for (const f of sensitiveFields) {
+        if (dataToSave.settings[f]) {
+          dataToSave.settings[f] = encryptSecret(dataToSave.settings[f]);
+        }
+      }
     }
 
     const dbString = JSON.stringify(dataToSave);
-    const tempDbPath = `${dbPath}.${Date.now()}.${Math.random().toString(36).slice(2, 7)}.tmp`;
-
-    // Async yazma ile event loop'u bloklamıyoruz
-    await fs.promises.writeFile(tempDbPath, dbString, 'utf8');
-
-    // Rename ile atomik takas — EBUSY'de birkaç deneme
-    let renamed = false;
-    for (let i = 0; i < 5; i++) {
-      try {
-        await fs.promises.rename(tempDbPath, dbPath);
-        renamed = true;
-        break;
-      } catch (renameErr) {
-        if (i === 4) {
-          await fs.promises.writeFile(dbPath, dbString, 'utf8');
-          try { await fs.promises.unlink(tempDbPath); } catch (e) {}
-          renamed = true;
-        } else {
-          // Async bekleme — event loop'u bloklamaz
-          await new Promise(resolve => setTimeout(resolve, 20));
-        }
-      }
-    }
+    await atomicWriteFileAsyncWithFlush(dbPath, dbString);
 
     try {
       lastDbJsonMtime = fs.statSync(dbPath).mtimeMs;
@@ -687,13 +738,13 @@ export function syncWithIni(db) {
     }
   }
 
-  // 1. config.ini (Ayarlar) Eşitlemesi
-  if (!fs.existsSync(configIniPath)) {
-    console.log(`[Sync] ${configIniName} bulunamadı. Mevcut ayarlarla oluşturuluyor.`);
+  // 1. config.ini (Ayarlar) Eşitlemesi — parseIni bozuk dosyayı otomatik olarak .bak1/.bak2/.bak3'ten onarır
+  const iniData = parseIni(configIniPath);
+  const settingsSection = getCaseInsensitiveKey(iniData, 'Settings') || iniData;
+  if (!settingsSection || Object.keys(settingsSection).length === 0) {
+    console.log(`[Sync] ${configIniName} bulunamadı veya boş. Mevcut ayarlarla oluşturuluyor.`);
     saveSettingsToIni(db);
   } else {
-    const iniData = parseIni(configIniPath);
-    const settingsSection = getCaseInsensitiveKey(iniData, 'Settings') || iniData;
     if (settingsSection) {
       const downloadPath = getCaseInsensitiveKey(settingsSection, 'downloadPath');
       if (downloadPath !== undefined && downloadPath.trim() !== '') {
@@ -707,7 +758,7 @@ export function syncWithIni(db) {
 
       const channelCheckInterval = getCaseInsensitiveKey(settingsSection, 'channelCheckInterval');
       if (channelCheckInterval !== undefined) {
-        db.settings.channelCheckInterval = parseInt(channelCheckInterval, 10) || 60;
+        db.settings.channelCheckInterval = parseInt(channelCheckInterval, 10) || 30;
       }
 
       const autoDownload = getCaseInsensitiveKey(settingsSection, 'autoDownload');
@@ -717,6 +768,9 @@ export function syncWithIni(db) {
 
       const mergeType = getCaseInsensitiveKey(settingsSection, 'mergeType');
       if (mergeType !== undefined) db.settings.mergeType = mergeType;
+
+      const hardwareAcceleration = getCaseInsensitiveKey(settingsSection, 'hardwareAcceleration');
+      if (hardwareAcceleration !== undefined) db.settings.hardwareAcceleration = hardwareAcceleration;
 
       const writeThumbnail = getCaseInsensitiveKey(settingsSection, 'writeThumbnail');
       if (writeThumbnail !== undefined) {
@@ -756,6 +810,11 @@ export function syncWithIni(db) {
       const useAlternativeSpeed = getCaseInsensitiveKey(settingsSection, 'useAlternativeSpeed');
       if (useAlternativeSpeed !== undefined) {
         db.settings.useAlternativeSpeed = useAlternativeSpeed === 'true';
+      }
+
+      const deferMerge = getCaseInsensitiveKey(settingsSection, 'deferMerge');
+      if (deferMerge !== undefined) {
+        db.settings.deferMerge = deferMerge === 'true';
       }
 
       const alternativeSpeedLimit = getCaseInsensitiveKey(settingsSection, 'alternativeSpeedLimit');
@@ -916,12 +975,12 @@ export function syncWithIni(db) {
 
       const weatherLatitude = getCaseInsensitiveKey(settingsSection, 'weatherLatitude');
       if (weatherLatitude !== undefined) {
-        db.settings.weatherLatitude = parseFloat(weatherLatitude) || 41.0082;
+        db.settings.weatherLatitude = parseFloat(weatherLatitude) || 40.75694;
       }
 
       const weatherLongitude = getCaseInsensitiveKey(settingsSection, 'weatherLongitude');
       if (weatherLongitude !== undefined) {
-        db.settings.weatherLongitude = parseFloat(weatherLongitude) || 28.9784;
+        db.settings.weatherLongitude = parseFloat(weatherLongitude) || 29.81472;
       }
 
       const weatherUnit = getCaseInsensitiveKey(settingsSection, 'weatherUnit');
@@ -958,6 +1017,10 @@ export function syncWithIni(db) {
       const historyShowLive = getCaseInsensitiveKey(settingsSection, 'historyShowLive');
       if (historyShowLive !== undefined) {
         db.settings.historyShowLive = historyShowLive !== 'false';
+      }
+      const historyShowUpcoming = getCaseInsensitiveKey(settingsSection, 'historyShowUpcoming');
+      if (historyShowUpcoming !== undefined) {
+        db.settings.historyShowUpcoming = historyShowUpcoming === 'true';
       }
       const historyOnlyNoAutoDownload = getCaseInsensitiveKey(settingsSection, 'historyOnlyNoAutoDownload');
       if (historyOnlyNoAutoDownload !== undefined) {
@@ -997,6 +1060,83 @@ export function syncWithIni(db) {
       if (fakapRetentionDays !== undefined) {
         db.settings.fakapRetentionDays = String(fakapRetentionDays);
       }
+
+      const preferredAudioLang = getCaseInsensitiveKey(settingsSection, 'preferredAudioLang');
+      if (preferredAudioLang !== undefined) db.settings.preferredAudioLang = String(preferredAudioLang).trim();
+
+      const historyLimitPerChannel = getCaseInsensitiveKey(settingsSection, 'historyLimitPerChannel');
+      if (historyLimitPerChannel !== undefined) db.settings.historyLimitPerChannel = parseInt(historyLimitPerChannel, 10) || 30;
+
+      const shortsDurationLimit = getCaseInsensitiveKey(settingsSection, 'shortsDurationLimit');
+      if (shortsDurationLimit !== undefined) db.settings.shortsDurationLimit = parseInt(shortsDurationLimit, 10) || 180;
+
+      const tempDirType = getCaseInsensitiveKey(settingsSection, 'tempDirType');
+      if (tempDirType !== undefined) db.settings.tempDirType = tempDirType;
+
+      const durationFetchMethod = getCaseInsensitiveKey(settingsSection, 'durationFetchMethod');
+      if (durationFetchMethod !== undefined) db.settings.durationFetchMethod = durationFetchMethod;
+
+      const ytdlpRunMode = getCaseInsensitiveKey(settingsSection, 'ytdlpRunMode');
+      if (ytdlpRunMode !== undefined) db.settings.ytdlpRunMode = ytdlpRunMode;
+
+      const liveStreamHandling = getCaseInsensitiveKey(settingsSection, 'liveStreamHandling');
+      if (liveStreamHandling !== undefined) db.settings.liveStreamHandling = liveStreamHandling;
+
+      const liveStreamRetryInterval = getCaseInsensitiveKey(settingsSection, 'liveStreamRetryInterval');
+      if (liveStreamRetryInterval !== undefined) db.settings.liveStreamRetryInterval = parseInt(liveStreamRetryInterval, 10) || 30;
+
+      const pythonCmd = getCaseInsensitiveKey(settingsSection, 'pythonCmd');
+      if (pythonCmd !== undefined) db.settings.pythonCmd = pythonCmd;
+
+      const maxConcurrentDownloads = getCaseInsensitiveKey(settingsSection, 'maxConcurrentDownloads');
+      if (maxConcurrentDownloads !== undefined) db.settings.maxConcurrentDownloads = parseInt(maxConcurrentDownloads, 10) || 1;
+
+      const hideOnDelete = getCaseInsensitiveKey(settingsSection, 'hideOnDelete');
+      if (hideOnDelete !== undefined) db.settings.hideOnDelete = hideOnDelete !== 'false';
+
+      const channelScanMode = getCaseInsensitiveKey(settingsSection, 'channelScanMode');
+      if (channelScanMode !== undefined) db.settings.channelScanMode = channelScanMode;
+
+      const aiProvider = getCaseInsensitiveKey(settingsSection, 'aiProvider');
+      if (aiProvider !== undefined) db.settings.aiProvider = aiProvider;
+
+      const lmStudioPort = getCaseInsensitiveKey(settingsSection, 'lmStudioPort');
+      if (lmStudioPort !== undefined) db.settings.lmStudioPort = parseInt(lmStudioPort, 10) || 1234;
+
+      const lmStudioModel = getCaseInsensitiveKey(settingsSection, 'lmStudioModel');
+      if (lmStudioModel !== undefined) db.settings.lmStudioModel = String(lmStudioModel).trim();
+
+      const ggufModelPath = getCaseInsensitiveKey(settingsSection, 'ggufModelPath');
+      if (ggufModelPath !== undefined) db.settings.ggufModelPath = String(ggufModelPath).trim();
+
+      const ggufModelsDir = getCaseInsensitiveKey(settingsSection, 'ggufModelsDir');
+      if (ggufModelsDir !== undefined) db.settings.ggufModelsDir = String(ggufModelsDir).trim();
+
+      const ggufGpuMode = getCaseInsensitiveKey(settingsSection, 'ggufGpuMode');
+      if (ggufGpuMode !== undefined) db.settings.ggufGpuMode = ggufGpuMode !== 'false';
+
+      const unloadUiOnHide = getCaseInsensitiveKey(settingsSection, 'unloadUiOnHide');
+      if (unloadUiOnHide !== undefined) db.settings.unloadUiOnHide = unloadUiOnHide !== 'false';
+
+      const playerGpuMode = getCaseInsensitiveKey(settingsSection, 'playerGpuMode');
+      if (playerGpuMode !== undefined && ['gpu', 'cpu'].includes(String(playerGpuMode).trim().toLowerCase())) {
+        db.settings.playerGpuMode = String(playerGpuMode).trim().toLowerCase();
+      }
+
+      const ttsVoiceId = getCaseInsensitiveKey(settingsSection, 'ttsVoiceId');
+      if (ttsVoiceId !== undefined) db.settings.ttsVoiceId = String(ttsVoiceId).trim();
+
+      const ttsSpeed = getCaseInsensitiveKey(settingsSection, 'ttsSpeed');
+      if (ttsSpeed !== undefined) db.settings.ttsSpeed = parseFloat(ttsSpeed) || 1;
+
+      const ttsVoicesDir = getCaseInsensitiveKey(settingsSection, 'ttsVoicesDir');
+      if (ttsVoicesDir !== undefined) db.settings.ttsVoicesDir = String(ttsVoicesDir).trim();
+
+      const githubGistId = getCaseInsensitiveKey(settingsSection, 'githubGistId');
+      if (githubGistId !== undefined) db.settings.githubGistId = String(githubGistId).trim();
+
+      const autoSyncGist = getCaseInsensitiveKey(settingsSection, 'autoSyncGist');
+      if (autoSyncGist !== undefined) db.settings.autoSyncGist = autoSyncGist === 'true';
     }
   }
 
@@ -1010,45 +1150,19 @@ export function syncWithIni(db) {
     saveSettingsToIni(db);
   }
 
-  // 2. channels.ini (Kanallar) Eşitlemesi
+  // 2. channels.ini (Kanallar) Eşitlemesi — parseIni bozuk dosyayı otomatik olarak .bak1/.bak2/.bak3'ten onarır
   let channelsData = null;
   if (migratedChannels) {
     channelsData = migratedChannels;
-  } else if (fs.existsSync(channelsIniPath)) {
-    let rawContent = '';
-    try {
-      rawContent = fs.readFileSync(channelsIniPath, 'utf-8').trim();
-    } catch (e) {
-      console.error('[Hata] channels.ini okunamadı:', e);
-    }
-
-    if (!rawContent) {
-      console.warn('[Uyarı] channels.ini boş (0 byte) tespit edildi! Otomatik kurtarma devreye giriyor...');
+  } else {
+    const parsedChannels = parseIni(channelsIniPath);
+    channelsData = getCaseInsensitiveKey(parsedChannels, 'Channels') || parsedChannels;
+    if (!channelsData || Object.keys(channelsData).length === 0) {
       if (db.channels && db.channels.length > 0) {
-        console.log(`[Kurtarma] db.json içindeki ${db.channels.length} adet kanal channels.ini dosyasına yeniden yazılıyor...`);
+        console.warn(`[Uyarı] channels.ini boş/bulunamadı fakat db.json içinde ${db.channels.length} kanal var. channels.ini koruma amacıyla yeniden yazılıyor.`);
         saveChannelsToIni(db);
-        channelsData = null;
-      } else if (fs.existsSync(channelsIniPath + '.bak')) {
-        try {
-          const bakContent = fs.readFileSync(channelsIniPath + '.bak', 'utf-8').trim();
-          if (bakContent) {
-            console.log('[Kurtarma] channels.ini.bak yedeğinden geri yükleniyor...');
-            fs.writeFileSync(channelsIniPath, bakContent, 'utf-8');
-            const parsedChannels = parseIni(channelsIniPath);
-            channelsData = getCaseInsensitiveKey(parsedChannels, 'Channels') || parsedChannels;
-          }
-        } catch (bakErr) {
-          console.error('[Hata] channels.ini.bak okuma hatası:', bakErr);
-        }
       }
-    } else {
-      const parsedChannels = parseIni(channelsIniPath);
-      channelsData = getCaseInsensitiveKey(parsedChannels, 'Channels') || parsedChannels;
-      if (channelsData && Object.keys(channelsData).length === 0 && db.channels && db.channels.length > 0) {
-        console.warn('[Uyarı] channels.ini içinde kanal bulunamadı fakat db.json dolu. channels.ini koruma amacıyla yeniden yazılıyor.');
-        saveChannelsToIni(db);
-        channelsData = null;
-      }
+      channelsData = null;
     }
   }
 
@@ -1297,9 +1411,10 @@ export async function saveSettingsToIni(db) {
   
   iniData.Settings.downloadPath = db.settings.downloadPath;
   iniData.Settings.quality = db.settings.quality;
-  iniData.Settings.channelCheckInterval = (db.settings.channelCheckInterval !== undefined ? db.settings.channelCheckInterval : 1800).toString();
+  iniData.Settings.channelCheckInterval = (db.settings.channelCheckInterval !== undefined ? db.settings.channelCheckInterval : 30).toString();
   iniData.Settings.autoDownload = db.settings.autoDownload.toString();
   iniData.Settings.mergeType = (db.settings.mergeType || 'merge').toString();
+  iniData.Settings.hardwareAcceleration = (db.settings.hardwareAcceleration || 'auto').toString();
   iniData.Settings.writeThumbnail = (db.settings.writeThumbnail !== false).toString();
   iniData.Settings.showShorts = (db.settings.showShorts !== false).toString();
   iniData.Settings.rssLimit = (db.settings.rssLimit !== undefined ? db.settings.rssLimit : 15).toString();
@@ -1309,6 +1424,7 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.theme = (db.settings.theme || 'dark').toString();
   iniData.Settings.downloadSpeedLimit = (db.settings.downloadSpeedLimit || 0).toString();
   iniData.Settings.useAlternativeSpeed = (db.settings.useAlternativeSpeed === true).toString();
+  iniData.Settings.deferMerge = (db.settings.deferMerge === true).toString();
   iniData.Settings.alternativeSpeedLimit = (db.settings.alternativeSpeedLimit !== undefined ? db.settings.alternativeSpeedLimit : 3000).toString();
   iniData.Settings.port = (db.settings.port || 4141).toString();
   iniData.Settings.playerPreference = (db.settings.playerPreference || 'system').toString();
@@ -1331,9 +1447,9 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.historyDurationFilter = (db.settings.historyDurationFilter || 'off').toString();
   iniData.Settings.enableAltThumbnailsHover = (db.settings.enableAltThumbnailsHover !== false).toString();
   iniData.Settings.weatherEnabled = (db.settings.weatherEnabled !== false).toString();
-  iniData.Settings.weatherCity = (db.settings.weatherCity || 'İstanbul').toString();
-  iniData.Settings.weatherLatitude = (db.settings.weatherLatitude !== undefined ? db.settings.weatherLatitude : 41.0082).toString();
-  iniData.Settings.weatherLongitude = (db.settings.weatherLongitude !== undefined ? db.settings.weatherLongitude : 28.9784).toString();
+  iniData.Settings.weatherCity = (db.settings.weatherCity || 'Derince').toString();
+  iniData.Settings.weatherLatitude = (db.settings.weatherLatitude !== undefined ? db.settings.weatherLatitude : 40.75694).toString();
+  iniData.Settings.weatherLongitude = (db.settings.weatherLongitude !== undefined ? db.settings.weatherLongitude : 29.81472).toString();
   iniData.Settings.weatherUnit = (db.settings.weatherUnit || 'celsius').toString();
   iniData.Settings.queueViewMode = (db.settings.queueViewMode || 'table').toString();
   iniData.Settings.historyViewMode = (db.settings.historyViewMode || 'grid').toString();
@@ -1341,6 +1457,7 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.downloadedSortMode = (db.settings.downloadedSortMode || 'date-desc').toString();
   iniData.Settings.historySortMode = (db.settings.historySortMode || 'date-desc').toString();
   iniData.Settings.historyShowLive = (db.settings.historyShowLive !== false).toString();
+  iniData.Settings.historyShowUpcoming = (db.settings.historyShowUpcoming === true).toString();
   iniData.Settings.historyOnlyNoAutoDownload = (db.settings.historyOnlyNoAutoDownload === true).toString();
   iniData.Settings.historyOnlyNotDownloaded = (db.settings.historyOnlyNotDownloaded === true).toString();
   iniData.Settings.historyOnlyLiveProcessing = (db.settings.historyOnlyLiveProcessing === true).toString();
@@ -1358,6 +1475,31 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.fakapPath = (db.settings.fakapPath || '').toString();
   iniData.Settings.fakapQuality = (db.settings.fakapQuality || '360').toString();
   iniData.Settings.fakapRetentionDays = (db.settings.fakapRetentionDays || 'never').toString();
+  iniData.Settings.preferredAudioLang = (db.settings.preferredAudioLang || 'auto').toString();
+  iniData.Settings.historyLimitPerChannel = (db.settings.historyLimitPerChannel || 30).toString();
+  iniData.Settings.shortsDurationLimit = (db.settings.shortsDurationLimit || 180).toString();
+  iniData.Settings.tempDirType = (db.settings.tempDirType || 'system').toString();
+  iniData.Settings.durationFetchMethod = (db.settings.durationFetchMethod || 'auto').toString();
+  iniData.Settings.ytdlpRunMode = (db.settings.ytdlpRunMode || 'exe').toString();
+  iniData.Settings.liveStreamHandling = (db.settings.liveStreamHandling || 'instant_retry').toString();
+  iniData.Settings.liveStreamRetryInterval = (db.settings.liveStreamRetryInterval || 30).toString();
+  iniData.Settings.pythonCmd = (db.settings.pythonCmd || 'python').toString();
+  iniData.Settings.maxConcurrentDownloads = (db.settings.maxConcurrentDownloads || 1).toString();
+  iniData.Settings.hideOnDelete = (db.settings.hideOnDelete !== false).toString();
+  iniData.Settings.channelScanMode = (db.settings.channelScanMode || 'fast').toString();
+  iniData.Settings.aiProvider = (db.settings.aiProvider || 'auto').toString();
+  iniData.Settings.lmStudioPort = (db.settings.lmStudioPort || 1234).toString();
+  iniData.Settings.lmStudioModel = (db.settings.lmStudioModel || '').toString();
+  iniData.Settings.ggufModelPath = (db.settings.ggufModelPath || '').toString();
+  iniData.Settings.ggufModelsDir = (db.settings.ggufModelsDir || '').toString();
+  iniData.Settings.ggufGpuMode = (db.settings.ggufGpuMode !== false).toString();
+  iniData.Settings.unloadUiOnHide = (db.settings.unloadUiOnHide !== false).toString();
+  iniData.Settings.playerGpuMode = (db.settings.playerGpuMode || 'gpu').toString();
+  iniData.Settings.ttsVoiceId = (db.settings.ttsVoiceId || '').toString();
+  iniData.Settings.ttsSpeed = (db.settings.ttsSpeed !== undefined ? db.settings.ttsSpeed : 1).toString();
+  iniData.Settings.ttsVoicesDir = (db.settings.ttsVoicesDir || '').toString();
+  iniData.Settings.githubGistId = (db.settings.githubGistId || '').toString();
+  iniData.Settings.autoSyncGist = (db.settings.autoSyncGist === true).toString();
 
   await writeIni(configIniPath, iniData);
 }
@@ -1370,15 +1512,8 @@ export async function saveSettingsToIni(db) {
 export async function saveChannelsToIni(db) {
   if (!db || !Array.isArray(db.channels)) return;
 
-  // Otomatik .bak koruma yedeği
-  if (fs.existsSync(channelsIniPath)) {
-    try {
-      const stats = fs.statSync(channelsIniPath);
-      if (stats.size > 0) {
-        fs.copyFileSync(channelsIniPath, channelsIniPath + '.bak');
-      }
-    } catch (e) {}
-  }
+  // Doğrulamalı 3 kademeli .bak koruma yedeği
+  rotateValidBackupsSync(channelsIniPath, 'ini');
 
   const iniData = { Channels: {} };
   
@@ -1527,7 +1662,8 @@ export async function syncDbWithDisk(forceManual = false, syncMode = 'fast') {
     }
 
     const { downloadQueue } = await import('./services/downloader.js');
-    if (downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
+    const { mergeQueue } = await import('./services/mergeQueue.js');
+    if ((downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) || (mergeQueue && mergeQueue.activeJob)) {
       console.log('[Disk Sync] Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.');
       if (forceManual) {
         addTerminalLog('[Disk Sync] Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.', 'warn');
@@ -1545,15 +1681,12 @@ export async function syncDbWithDisk(forceManual = false, syncMode = 'fast') {
 
 function performDiskSync(forceManual = false, mode = 'fast') {
   try {
-    let db = defaultDb;
-    if (fs.existsSync(dbPath)) {
-      try {
-        db = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-      } catch (e) {
-        return { success: false, error: 'db.json okunamadı' };
-      }
-    } else {
+    if (!fs.existsSync(dbPath)) {
       return { success: false, error: 'db.json mevcut değil' };
+    }
+    const db = readDb();
+    if (!db || !db.settings) {
+      return { success: false, error: 'db.json okunamadı' };
     }
 
     if (forceManual) {
@@ -1684,9 +1817,10 @@ function performDiskSync(forceManual = false, mode = 'fast') {
       }
 
       if (dbUpdated) {
-        db.history = newHistory;
-        writeDb(db);
-        broadcast('db_update', db);
+        const freshDb = readDb();
+        freshDb.history = newHistory;
+        writeDb(freshDb);
+        broadcast('db_update', freshDb);
       }
     }
 
@@ -1810,7 +1944,7 @@ export function createHistoryItem(videoId, title, channelId, channelName, publis
     channelId: channelId,
     channelName: channelName,
     downloadedAt: new Date().toISOString(),
-    publishedAt: publishedAt || new Date().toISOString(),
+    publishedAt: publishedAt || '',
     status: status,
     progress: progress,
     fileSize: fileSize,

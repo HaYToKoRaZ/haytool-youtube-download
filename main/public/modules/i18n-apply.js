@@ -85,6 +85,11 @@ export function applyLanguage(lang) {
   el('lbl-history-only-no-auto-download', 'lbl_history_only_no_auto_download');
   el('lbl-history-only-not-downloaded', 'lbl_history_only_not_downloaded');
   el('lbl-history-show-members', 'lbl_history_show_members');
+  el('lbl-history-show-upcoming', 'lbl_history_show_upcoming');
+  const btnShowUpcoming = document.getElementById('btn-filter-show-upcoming');
+  if (btnShowUpcoming && t.title_history_show_upcoming) {
+    btnShowUpcoming.title = t.title_history_show_upcoming;
+  }
 
   el('opt-date-all', 'filter_all');
   el('opt-date-today', 'filter_today');
@@ -104,11 +109,23 @@ export function applyLanguage(lang) {
   elQuery('#downloaded-view-grid-btn span', 'view_grid');
   elQuery('#downloaded-view-list-btn span', 'view_list');
   elQuery('#inline-btn-description', 'inline_btn_description', 'title');
+    elQuery('#inline-btn-summary', 'inline_btn_summary', 'title');
+    el('summary-title-text', 'inline_summary_title');
   elQuery('#description-title-text', 'inline_description_title');
   el('btn-update-metadata-dl', 'btn_update_metadata_dl');
   el('btn-bulk-delete-dl-toggle', 'btn_bulk_delete_dl_toggle');
   el('btn-text-resume-filter', 'btn_filter_resume');
   elQuery('#downloaded-filter-resume-btn', 'btn_filter_resume_title', 'title');
+
+  // Ayarlar Alt Sekme Butonları (Subtabs)
+  el('settings-subtab-label-all', 'settings_subtab_all');
+  el('settings-subtab-label-general', 'settings_subtab_general');
+  el('settings-subtab-label-download', 'settings_subtab_download');
+  el('settings-subtab-label-system', 'settings_subtab_system');
+  el('settings-subtab-label-media', 'settings_subtab_media');
+  el('settings-subtab-label-notifications', 'settings_subtab_notifications');
+  el('settings-subtab-label-automation', 'settings_subtab_automation');
+  el('settings-subtab-label-backup', 'settings_subtab_backup');
 
   // Ayarlar Sekmesi Kart Başlıkları
   el('settings-title-general-text', 'settings_title_general_text');
@@ -190,6 +207,27 @@ export function applyLanguage(lang) {
   elQuery('label[for="settings-playsounds"] + span', 'desc_play_sounds');
   elQuery('label[for="settings-shownotifications"]:not(.toggle-label)', 'label_show_notifications');
   elQuery('label[for="settings-shownotifications"] + span', 'desc_show_notifications');
+  el('btn-test-notification-text', 'btn_test_notification');
+  el('label-sound-download', 'label_sound_download');
+  el('desc-sound-download', 'desc_sound_download');
+  el('label-sound-merge', 'label_sound_merge');
+  el('desc-sound-merge', 'desc_sound_merge');
+  el('btn-test-sound-dl-text', 'btn_test_sound');
+  el('btn-test-sound-mr-text', 'btn_test_sound');
+  el('opt-sound-dl-chime', 'opt_sound_chime');
+  el('opt-sound-dl-bell', 'opt_sound_bell');
+  el('opt-sound-dl-pop', 'opt_sound_pop');
+  el('opt-sound-dl-fanfare', 'opt_sound_fanfare');
+  el('opt-sound-dl-melodic', 'opt_sound_melodic');
+  el('opt-sound-dl-subtle', 'opt_sound_subtle');
+  el('opt-sound-dl-silent', 'opt_sound_silent');
+  el('opt-sound-mr-chime', 'opt_sound_chime');
+  el('opt-sound-mr-bell', 'opt_sound_bell');
+  el('opt-sound-mr-pop', 'opt_sound_pop');
+  el('opt-sound-mr-fanfare', 'opt_sound_fanfare');
+  el('opt-sound-mr-melodic', 'opt_sound_melodic');
+  el('opt-sound-mr-subtle', 'opt_sound_subtle');
+  el('opt-sound-mr-silent', 'opt_sound_silent');
   elQuery('label[for="settings-autoopenbrowser"]:not(.toggle-label)', 'label_auto_open_browser');
   elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
   elQuery('label[for="settings-checkonstartup"]:not(.toggle-label)', 'label_check_on_startup');
@@ -218,7 +256,7 @@ export function applyLanguage(lang) {
   }
   elQuery('label[for="settings-lang"]', 'label_lang');
   el('label-temp-dir-type', 'label_temp_dir_type');
-  el('desc-temp-dir-type', 'desc_temp_dir_type');
+  el('desc-temp-dir-info', 'desc_temp_dir_info', 'innerHTML');
   el('opt-temp-local', 'opt_temp_local');
   el('opt-temp-system', 'opt_temp_system');
   el('btn-open-temp-text', 'btn_open_temp_text');
@@ -310,7 +348,7 @@ export function applyLanguage(lang) {
   elQuery('#btn-add-channel-text', 'btn_add_channel');
   elQuery('label[for="settings-lang"]', 'label_lang');
   el('label-temp-dir-type', 'label_temp_dir_type');
-  el('desc-temp-dir-type', 'desc_temp_dir_type');
+  el('desc-temp-dir-info', 'desc_temp_dir_info', 'innerHTML');
   el('opt-temp-local', 'opt_temp_local');
   el('opt-temp-system', 'opt_temp_system');
   el('btn-open-temp-text', 'btn_open_temp_text');
@@ -346,6 +384,13 @@ export function applyLanguage(lang) {
   el('label-alt-thumbnails-hover', 'label_alt_thumbnails_hover');
   el('desc-alt-thumbnails-hover', 'desc_alt_thumbnails_hover');
 
+  el('label-unload-ui-on-hide', 'label_unload_ui_on_hide');
+  el('desc-unload-ui-on-hide', 'desc_unload_ui_on_hide');
+  el('label-player-gpu-mode', 'label_player_gpu_mode');
+  el('opt-player-gpu', 'opt_player_gpu');
+  el('opt-player-cpu', 'opt_player_cpu');
+  el('desc-player-gpu-mode', 'desc_player_gpu_mode');
+
   el('label-subtitle-color', 'label_subtitle_color');
   el('desc-subtitle-color', 'desc_subtitle_color');
   el('opt-sub-white', 'opt_sub_white');
@@ -379,6 +424,11 @@ export function applyLanguage(lang) {
   const inlineBtnTranslate = document.getElementById('inline-btn-translate-sub');
   if (inlineBtnTranslate) {
     inlineBtnTranslate.title = t.inline_btn_translate_sub;
+  }
+  const inlineBtnRefresh = document.getElementById('inline-btn-refresh-details');
+  if (inlineBtnRefresh && t.inline_btn_refresh_details) {
+    inlineBtnRefresh.title = t.inline_btn_refresh_details;
+    inlineBtnRefresh.setAttribute('aria-label', t.inline_btn_refresh_details);
   }
   const inlineBtnSyncWatchtime = document.getElementById('inline-btn-sync-watchtime');
   if (inlineBtnSyncWatchtime) {
@@ -564,6 +614,14 @@ export function applyLanguage(lang) {
   el('opt-merge-merge', 'opt_merge_merge');
   el('opt-merge-separate', 'opt_merge_separate');
   el('desc-merge-type', 'desc_merge_type');
+  el('label-hwaccel', 'label_hwaccel');
+  el('opt-hwaccel-auto', 'opt_hwaccel_auto');
+  el('opt-hwaccel-nvenc', 'opt_hwaccel_nvenc');
+  el('opt-hwaccel-qsv', 'opt_hwaccel_qsv');
+  el('opt-hwaccel-amf', 'opt_hwaccel_amf');
+  el('opt-hwaccel-cpu', 'opt_hwaccel_cpu');
+  el('desc-hwaccel', 'desc_hwaccel');
+  el('label-gpu-detected-text', 'label_gpu_detected_text');
   el('desc-speed-limit', 'desc_speed_limit');
   el('desc-alt-speed-limit', 'desc_alt_speed_limit');
   el('label-network-retry-interval', 'setting_network_retry_interval_label');
@@ -614,10 +672,9 @@ export function applyLanguage(lang) {
     if (badgeConn) badgeConn.title = connTitle;
   }
 
-  // CLI aciklama HTML kutusu dinamik guncellemesi
-  const cliInfoDesc = document.getElementById('cli-info-desc');
-  if (cliInfoDesc) {
-    cliInfoDesc.innerHTML = t.cli_info_desc + `<br><small style="color: var(--accent-color); opacity: 0.8; font-weight: bold;" id="cli-info-note">${t.cli_info_note}</small>`;
+  // Kopyalanabilir CLI & Konsol Komut Rehberi dinamik dil güncellemesi
+  if (typeof window.renderCliCommandsPanel === 'function') {
+    window.renderCliCommandsPanel();
   }
 
   // IPTV Cevirileri
@@ -762,6 +819,53 @@ export function applyLanguage(lang) {
   const urlInput = document.getElementById('downloader-url-input');
   if (urlInput && t.downloader_url_placeholder) {
     urlInput.placeholder = t.downloader_url_placeholder;
+  }
+
+  // GGUF Model Klasörü (Ayarlar) i18n
+  elQuery('#btn-select-gguf-dir span', 'settings_gguf_browse');
+  el('btn-rescan-gguf', 'settings_gguf_rescan', 'title');
+  el('gguf-detected-label-text', 'settings_gguf_detected_label');
+
+  // Özet Paneli Başlık Rozetleri ve İkon Butonları i18n
+  el('summary-status-text', 'summary_status_generating');
+  el('summary-btn-copy', 'inline_summary_btn_copy', 'title');
+  el('summary-btn-close', 'inline_summary_btn_close', 'title');
+
+  // GGUF CPU / GPU (Vulkan) Çalıştırma Tercihi i18n
+  el('gguf-gpu-mode-label', 'settings_gguf_gpu_mode');
+  el('gguf-gpu-mode-hint', 'settings_gguf_gpu_hint');
+  el('llama-download-btn-text', 'settings_llama_engine_download');
+  if (typeof window.checkLlamaEngineStatusInUI === 'function') window.checkLlamaEngineStatusInUI();
+
+  // Önerilen Başlangıç Modeli Kartı (Gemma 3 1B QAT) i18n
+  el('gguf-rec-title', 'settings_gguf_rec_title');
+  el('gguf-rec-desc', 'settings_gguf_rec_desc');
+  el('btn-download-rec-model', 'settings_gguf_rec_download');
+  el('btn-cancel-rec-model', 'settings_gguf_rec_cancel');
+
+  // Sesli Okuma (Piper TTS) Ayar Kartı + Özet Paneli 🔊 Butonu i18n
+  el('tts-title-span', 'tts_title');
+  el('tts-hint-span', 'tts_hint');
+  el('tts-desc', 'tts_desc');
+  el('tts-speed-label', 'tts_speed_label');
+  el('piper-download-btn-text', 'tts_engine_download');
+  el('tts-voice-btn-text', 'tts_voice_download');
+  el('tts-test-btn-text', 'tts_test_button');
+  el('tts-dir-label', 'tts_custom_dir');
+  el('settings-tts-voices-dir', 'tts_custom_dir_placeholder', 'placeholder');
+  el('summary-btn-speak', 'inline_summary_btn_speak', 'title');
+  el('summary-btn-stop', 'inline_summary_btn_stop', 'title');
+
+  // Oyun Modu (Ertelenmiş Birleştirme Kuyruğu) i18n
+  el('defer-merge-btn-label', 'defer_merge_btn_label');
+  el('defer-merge-notice-text', 'defer_merge_notice_text');
+  el('pending-merge-card-title', 'pending_merge_card_title');
+  el('btn-merge-all-text', 'btn_merge_all_seq');
+  el('btn-merge-pause-text', 'btn_merge_pause');
+  el('label-settings-defer-merge', 'settings_defer_merge_label');
+  el('desc-settings-defer-merge', 'settings_defer_merge_desc');
+  if (typeof window.renderPendingMergeSection === 'function' && window.localDb) {
+    window.renderPendingMergeSection(window.localDb);
   }
 
   // Format seçeneklerinin metinlerini güncelle

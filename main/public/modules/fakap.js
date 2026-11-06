@@ -1,4 +1,4 @@
-/**
+﻿/**
  * HaYTooL YouTube Downloader - Fakap (Otomatik Kanal Yedekleri) Yönetim Modülü
  *
  * Sorumluluklar:
@@ -487,6 +487,8 @@ export function updateFakapSettingsControls(data) {
  * Canlı indirme ilerlemesini Fakap kartına yansıtır (SSE 'progress' olayı).
  * Kart ekranda değilse sessizce hiçbir şey yapmaz.
  */
+window.updateFakapSettingsControls = updateFakapSettingsControls;
+
 export function updateFakapProgress(data) {
   if (!data || !data.id) return;
   const track = document.querySelector('[data-fakap-progress="' + data.id + '"]');

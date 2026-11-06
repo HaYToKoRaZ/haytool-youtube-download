@@ -1,3 +1,28 @@
+export function togglePasswordVisibility(inputId, iconId) {
+  const input = document.getElementById(inputId);
+  const icon = document.getElementById(iconId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.setAttribute('data-lucide', 'eye-off');
+  } else {
+    input.type = 'password';
+    if (icon) icon.setAttribute('data-lucide', 'eye');
+  }
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
+  }
+}
+window.togglePasswordVisibility = togglePasswordVisibility;
+
+export function onAiProviderChange() {
+  if (typeof window.resetSummaryState === 'function') {
+    window.resetSummaryState();
+  }
+  triggerAutoSave(true);
+}
+window.onAiProviderChange = onAiProviderChange;
+
 /**
  * Ayarlar, Tema, Sistem Yedekleme ve GitHub Gist Modülü (settings.js)
  * 
@@ -184,7 +209,22 @@ window.initSettingsThemeListener = initSettingsThemeListener;
 
 let autoSaveTimer = null;
 
+export function togglePythonSettingsVisibility() {
+  const runModeSelect = document.getElementById('settings-ytdlp-run-mode');
+  const pythonContainer = document.getElementById('python-settings-container');
+  if (!runModeSelect || !pythonContainer) return;
+  if (runModeSelect.value === 'python') {
+    pythonContainer.classList.remove('hidden');
+  } else {
+    pythonContainer.classList.add('hidden');
+  }
+}
+window.togglePythonSettingsVisibility = togglePythonSettingsVisibility;
+
 export function triggerAutoSave(immediate = false) {
+  if (!window._settingsFormPopulated || !localDb?.settings || Object.keys(localDb.settings).length === 0) {
+    return;
+  }
   if (autoSaveTimer) {
     clearTimeout(autoSaveTimer);
     autoSaveTimer = null;
@@ -198,6 +238,9 @@ export function triggerAutoSave(immediate = false) {
 window.triggerAutoSave = triggerAutoSave;
 
 export async function performAutoSave() {
+  if (!window._settingsFormPopulated || !localDb?.settings || Object.keys(localDb.settings).length === 0) {
+    return;
+  }
   const settingsForm = document.getElementById('settings-form');
   if (!settingsForm) return;
 
@@ -213,6 +256,7 @@ export async function performAutoSave() {
   const oldPort = (localDb.settings && localDb.settings.port !== undefined && localDb.settings.port !== null) 
     ? (parseInt(localDb.settings.port, 10) || 4141) 
     : (settingsPortInput ? (parseInt(settingsPortInput.defaultValue, 10) || 4141) : 4141);
+  const oldPlayerGpuMode = (localDb.settings && localDb.settings.playerGpuMode) || 'gpu';
 
   const rawDownloadPath = settingsDownloadPath ? settingsDownloadPath.value.trim() : '';
   const effectiveDownloadPath = rawDownloadPath || (localDb.settings?.downloadPath || '');
@@ -225,9 +269,11 @@ export async function performAutoSave() {
     ytdlpRunMode: document.getElementById('settings-ytdlp-run-mode') ? document.getElementById('settings-ytdlp-run-mode').value : 'exe',
     pythonCmd: document.getElementById('settings-python-cmd') ? document.getElementById('settings-python-cmd').value : 'python',
     quality: settingsQuality ? settingsQuality.value : (localDb.settings?.quality || 'best'),
-    channelCheckInterval: settingsChannelCheckInterval ? (parseInt(settingsChannelCheckInterval.value, 10) || 60) : 60,
+    channelCheckInterval: (() => { const prev = parseInt(localDb.settings?.channelCheckInterval, 10) || 30; const v = settingsChannelCheckInterval ? parseInt(settingsChannelCheckInterval.value, 10) : NaN; return Number.isFinite(v) ? Math.max(5, Math.min(v, 1440)) : prev; })(),
     autoDownload: settingsAutoDownload ? settingsAutoDownload.checked : false,
-    mergeType: document.getElementById('settings-mergetype') ? document.getElementById('settings-mergetype').value : 'mkv',
+    mergeType: document.getElementById('settings-mergetype') ? document.getElementById('settings-mergetype').value : 'single',
+    hardwareAcceleration: document.getElementById('settings-hwaccel') ? document.getElementById('settings-hwaccel').value : 'auto',
+    deferMerge: document.getElementById('settings-defer-merge') ? document.getElementById('settings-defer-merge').checked : Boolean(localDb.settings?.deferMerge),
     writeThumbnail: document.getElementById('settings-writethumbnail') ? document.getElementById('settings-writethumbnail').checked : true,
     showShorts: document.getElementById('settings-showshorts') ? document.getElementById('settings-showshorts').checked : true,
     hideOnDelete: document.getElementById('settings-hideondelete') ? document.getElementById('settings-hideondelete').checked : false,
@@ -248,6 +294,8 @@ export async function performAutoSave() {
     subtitleSize: localDb.settings?.subtitleSize || '26px',
     sponsorBlockEnabled: document.getElementById('settings-sponsorblock') ? document.getElementById('settings-sponsorblock').checked : false,
     playSounds: document.getElementById('settings-playsounds') ? document.getElementById('settings-playsounds').checked : true,
+    soundDownloadComplete: document.getElementById('settings-sound-download') ? document.getElementById('settings-sound-download').value : (localDb.settings?.soundDownloadComplete || 'chime'),
+    soundMergeComplete: document.getElementById('settings-sound-merge') ? document.getElementById('settings-sound-merge').value : (localDb.settings?.soundMergeComplete || 'fanfare'),
     autoSyncWatchtime: document.getElementById('settings-autosync-watchtime') ? document.getElementById('settings-autosync-watchtime').checked : (localDb.settings?.autoSyncWatchtime !== false),
     autoSyncLocalWatchtime: document.getElementById('settings-autosync-local-watchtime') ? document.getElementById('settings-autosync-local-watchtime').checked : (localDb.settings?.autoSyncLocalWatchtime !== false),
     autoDiskSync: document.getElementById('settings-auto-disk-sync') ? document.getElementById('settings-auto-disk-sync').checked : (localDb.settings?.autoDiskSync !== false),
@@ -256,6 +304,8 @@ export async function performAutoSave() {
     cookieRefreshInterval: document.getElementById('settings-cookie-refresh-interval') ? (parseInt(document.getElementById('settings-cookie-refresh-interval').value, 10) || 30) : (localDb.settings?.cookieRefreshInterval !== undefined ? localDb.settings.cookieRefreshInterval : 30),
     showNotifications: document.getElementById('settings-shownotifications') ? document.getElementById('settings-shownotifications').checked : true,
     autoOpenBrowser: document.getElementById('settings-autoopenbrowser') ? document.getElementById('settings-autoopenbrowser').checked : true,
+    unloadUiOnHide: document.getElementById('settings-unload-ui-on-hide') ? document.getElementById('settings-unload-ui-on-hide').checked : (localDb.settings?.unloadUiOnHide !== false),
+    playerGpuMode: document.getElementById('settings-player-gpu-mode') ? document.getElementById('settings-player-gpu-mode').value : (localDb.settings?.playerGpuMode || 'gpu'),
     checkChannelsOnStartup: document.getElementById('settings-checkonstartup') ? document.getElementById('settings-checkonstartup').checked : false,
     checkYtdlpOnStartup: document.getElementById('settings-check-ytdlp-on-startup') ? document.getElementById('settings-check-ytdlp-on-startup').checked : false,
     ytdlpStartupTarget: document.getElementById('ytdlp-target-select') ? document.getElementById('ytdlp-target-select').value : (localDb.settings?.ytdlpStartupTarget || 'nightly'),
@@ -266,15 +316,32 @@ export async function performAutoSave() {
     doubleClickAction: document.getElementById('settings-doubleclickaction') ? document.getElementById('settings-doubleclickaction').value : 'player',
     historyLimitPerChannel: document.getElementById('settings-history-limit') ? (parseInt(document.getElementById('settings-history-limit').value, 10) || 30) : 30,
     shortsDurationLimit: settingsShortsDurationLimit ? (parseInt(settingsShortsDurationLimit.value, 10) || 180) : (localDb.settings?.shortsDurationLimit || 180),
+      geminiApiKey: (document.getElementById('gemini-api-key-input') && document.getElementById('gemini-api-key-input').value.trim()) || (localDb.settings && localDb.settings.geminiApiKey) || '',
+      groqApiKey: (document.getElementById('groq-api-key-input') && document.getElementById('groq-api-key-input').value.trim()) || (localDb.settings && localDb.settings.groqApiKey) || '',
+      deepseekApiKey: (document.getElementById('deepseek-api-key-input') && document.getElementById('deepseek-api-key-input').value.trim()) || (localDb.settings && localDb.settings.deepseekApiKey) || '',
+      openAiApiKey: (document.getElementById('openai-api-key-input') && document.getElementById('openai-api-key-input').value.trim()) || (localDb.settings && localDb.settings.openAiApiKey) || '',
+      lmStudioPort: (document.getElementById('settings-lmstudio-port') && parseInt(document.getElementById('settings-lmstudio-port').value, 10)) || (localDb.settings && localDb.settings.lmStudioPort) || 1234,
+      lmStudioModel: (document.getElementById('settings-lmstudio-model') && document.getElementById('settings-lmstudio-model').value.trim()) || (localDb.settings && localDb.settings.lmStudioModel) || '',
+      ggufModelPath: (document.getElementById('settings-gguf-model-path') && document.getElementById('settings-gguf-model-path').value.trim()) || (localDb.settings && localDb.settings.ggufModelPath) || '',
+      ggufModelsDir: (localDb.settings && localDb.settings.ggufModelsDir) || '',
+      ggufGpuMode: !!(document.getElementById('settings-gguf-gpu-mode') && document.getElementById('settings-gguf-gpu-mode').checked),
+      ttsVoiceId: (localDb.settings && localDb.settings.ttsVoiceId) || '',
+      ttsSpeed: parseFloat((document.getElementById('settings-tts-speed') && document.getElementById('settings-tts-speed').value) || '1') || 1,
+      ttsVoicesDir: String((document.getElementById('settings-tts-voices-dir') && document.getElementById('settings-tts-voices-dir').value) || '').trim(),
+      aiProvider: (document.getElementById('settings-ai-provider') && document.getElementById('settings-ai-provider').value) || (localDb.settings && localDb.settings.aiProvider) || 'auto',
     githubToken: (document.getElementById('gist-token-input') && document.getElementById('gist-token-input').value.trim()) || (localDb.settings && localDb.settings.githubToken) || '',
     githubGistId: (document.getElementById('gist-id-input') && document.getElementById('gist-id-input').value.trim()) || (localDb.settings && localDb.settings.githubGistId) || '',
     autoSyncGist: document.getElementById('gist-auto-sync-checkbox') ? document.getElementById('gist-auto-sync-checkbox').checked : (localDb.settings?.autoSyncGist || false),
     channelScanMode: 'fast',
-    weatherEnabled: document.getElementById('settings-weatherenabled') ? document.getElementById('settings-weatherenabled').checked : true,
-    weatherCity: document.getElementById('settings-weathercity') ? document.getElementById('settings-weathercity').value.trim() : 'İstanbul',
-    weatherUnit: document.getElementById('settings-weatherunit') ? document.getElementById('settings-weatherunit').value : 'celsius',
-    weatherLatitude: document.getElementById('settings-weatherlatitude') ? (parseFloat(document.getElementById('settings-weatherlatitude').value) || 41.0082) : 41.0082,
-    weatherLongitude: document.getElementById('settings-weatherlongitude') ? (parseFloat(document.getElementById('settings-weatherlongitude').value) || 28.9784) : 28.9784
+    weatherEnabled: document.getElementById('settings-weatherenabled') ? document.getElementById('settings-weatherenabled').checked : (localDb.settings?.weatherEnabled !== false),
+    weatherCity: (document.getElementById('settings-weathercity') && document.getElementById('settings-weathercity').value.trim()) || localDb.settings?.weatherCity || 'Derince',
+    weatherUnit: document.getElementById('settings-weatherunit') ? document.getElementById('settings-weatherunit').value : (localDb.settings?.weatherUnit || 'celsius'),
+    weatherLatitude: (() => { const el = document.getElementById('settings-weatherlatitude'); const v = el ? parseFloat(el.value) : NaN; return Number.isFinite(v) ? v : (localDb.settings?.weatherLatitude ?? 40.75694); })(),
+    weatherLongitude: (() => { const el = document.getElementById('settings-weatherlongitude'); const v = el ? parseFloat(el.value) : NaN; return Number.isFinite(v) ? v : (localDb.settings?.weatherLongitude ?? 29.81472); })(),
+    fakapEnabled: document.getElementById('settings-fakap-enabled') ? document.getElementById('settings-fakap-enabled').checked : (localDb.settings?.fakapEnabled !== false),
+    fakapPath: (document.getElementById('fakap-path-input') && document.getElementById('fakap-path-input').value.trim()) || (localDb.settings && localDb.settings.fakapPath) || '',
+    fakapQuality: (document.getElementById('fakap-quality-select') && document.getElementById('fakap-quality-select').value) || (localDb.settings && localDb.settings.fakapQuality) || '360',
+    fakapRetentionDays: (document.getElementById('fakap-retention-select') && document.getElementById('fakap-retention-select').value) || (localDb.settings && localDb.settings.fakapRetentionDays) || 'never'
   };
 
   const statusSpan = document.getElementById('settings-status');
@@ -303,6 +370,10 @@ export async function performAutoSave() {
       showToast(isEn ? 'Settings saved successfully' : 'Ayarlar başarıyla kaydedildi', 'success');
       if (settingsPortInput && oldPort && port !== oldPort) {
         showToast(isEn ? 'Port changed. Please restart the app to apply.' : 'Port değiştirildi. Yeni portun aktif olması için uygulamayı yeniden başlatın.', 'warning');
+      }
+      if (settings.playerGpuMode && settings.playerGpuMode !== oldPlayerGpuMode) {
+        const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
+        showToast(t.toast_player_gpu_restart || (isEn ? 'Video player hardware acceleration changed. Restart the app to apply.' : 'Video oynatıcı donanım hızlandırma modu değiştirildi. Etkinleşmesi için uygulamayı yeniden başlatın.'), 'warning');
       }
       if (typeof window.updateDiskSpace === 'function') window.updateDiskSpace();
       if (typeof window.updateWeatherBadge === 'function') window.updateWeatherBadge(true);
@@ -344,9 +415,123 @@ export async function openFolder(channelName) {
 }
 window.openFolder = openFolder;
 
+// ==========================================
+// GGUF Model Klasörü: Otomatik .gguf Tarama ve Model Seçimi
+// ==========================================
+
+/**
+ * Seçilen klasördeki .gguf modellerini sunucudan taratıp ayarlardaki model listesini doldurur.
+ * @param {string} dir - Taranacak klasör (boşsa kayıtlı ggufModelsDir kullanılır)
+ * @param {boolean} [silent=false] - true ise hata toast'ı gösterilmez (sessiz açılış taraması)
+ */
+export async function refreshGgufModelList(dir, silent = false) {
+  const wrap = document.getElementById('settings-gguf-model-list-wrap');
+  const select = document.getElementById('settings-gguf-model-select');
+  const hint = document.getElementById('gguf-model-scan-hint');
+  if (!wrap || !select) return;
+
+  const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
+  const targetDir = (typeof dir === 'string' && dir.trim()) ? dir.trim() : (localDb.settings?.ggufModelsDir || '');
+
+  try {
+    const res = await fetch(`/api/gguf/models?dir=${encodeURIComponent(targetDir)}`);
+    const data = await res.json();
+    if (!data.success) {
+      wrap.style.display = 'none';
+      if (!silent) showToast(data.error || t.settings_gguf_no_models || 'Model klasörü bulunamadı.', 'warning');
+      return;
+    }
+
+    const savedPath = localDb.settings?.ggufModelPath || '';
+    select.innerHTML = '';
+    let savedFound = false;
+    (data.models || []).forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.path;
+      opt.textContent = `${m.name} (${m.sizeMB} MB)`;
+      opt.title = m.path;
+      if (m.path === savedPath) { opt.selected = true; savedFound = true; }
+      select.appendChild(opt);
+    });
+
+    wrap.style.display = 'block';
+    if (hint) {
+      if ((data.models || []).length === 0) {
+        hint.textContent = t.settings_gguf_no_models || 'Bu klasörde .gguf model bulunamadı.';
+        hint.style.color = 'var(--text-muted)';
+      } else if (savedPath && !savedFound) {
+        hint.textContent = `${data.models.length} ${t.settings_gguf_models_found || 'model bulundu'} — ${t.settings_gguf_current_missing || ''}`.trim();
+        hint.style.color = '#f59e0b';
+      } else {
+        hint.textContent = `${data.models.length} ${t.settings_gguf_models_found || 'model bulundu'}`;
+        hint.style.color = '#60a5fa';
+      }
+    }
+    if ((data.models || []).length === 0) select.innerHTML = '<option value="">—</option>';
+  } catch (err) {
+    console.warn('[GGUF Model Scan Warn]:', err);
+    if (!silent) showToast('Model taraması sırasında bağlantı hatası.', 'error');
+  }
+}
+window.refreshGgufModelList = refreshGgufModelList;
+
+/**
+ * Windows klasör seçim diyaloğunu açıp seçilen klasörü ggufModelsDir olarak kaydeder ve tarama başlatır.
+ */
+export async function selectGgufFolder() {
+  const isEn = localDb.settings?.lang === 'en';
+  showToast(isEn ? 'Opening folder selection window, please wait...' : 'Klasör seçim penceresi açılıyor, lütfen bekleyin...', 'info');
+  const savedModelPath = localDb.settings?.ggufModelPath || '';
+  const startPath = (localDb.settings?.ggufModelsDir || '').trim() || (savedModelPath ? savedModelPath.replace(/[\\/][^\\/]*$/, '') : '');
+
+  try {
+    const res = await fetch('/api/select-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startPath })
+    });
+    const data = await res.json();
+    if (data.success && data.path) {
+      if (localDb.settings) localDb.settings.ggufModelsDir = data.path;
+      await refreshGgufModelList(data.path);
+      triggerAutoSave(true);
+    } else if (data.message) {
+      showToast(data.message, 'warning');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error while selecting folder.' : 'Klasör seçilirken bir bağlantı hatası oluştu.', 'error');
+  }
+}
+window.selectGgufFolder = selectGgufFolder;
+
+/**
+ * Ayarlardaki model listesinden seçim yapıldığında tam yolu yazıp otomatik kaydeder.
+ * @param {string} fullPath - Seçilen .gguf dosyasının tam yolu
+ */
+export function onSettingsGgufModelSelect(fullPath) {
+  if (!fullPath) return;
+  const pathInput = document.getElementById('settings-gguf-model-path');
+  if (pathInput) pathInput.value = fullPath;
+  if (localDb.settings) localDb.settings.ggufModelPath = fullPath;
+  triggerAutoSave(true);
+}
+window.onSettingsGgufModelSelect = onSettingsGgufModelSelect;
+
 /**
  * Ayarlar formundaki input olaylarını ve klasör işlem butonlarını bağlar.
  */
+// Kanal denetleme sıklığı 5 dk altındaysa açıklama satırını sarı uyarıya çevirir.
+export function updateChannelIntervalWarning() {
+  const input = document.getElementById('settings-channelcheckinterval');
+  const desc = document.getElementById('desc-channel-check-interval');
+  if (!input || !desc) return;
+  const v = parseInt(input.value, 10);
+  const low = input.value !== '' && Number.isFinite(v) && v < 5;
+  desc.style.color = low ? '#f59e0b' : '';
+  desc.style.fontWeight = low ? '600' : '';
+}
+window.updateChannelIntervalWarning = updateChannelIntervalWarning;
+
 export function initSettingsFormListeners() {
   const settingsForm = document.getElementById('settings-form');
   if (settingsForm && !settingsForm.dataset.settingsFormInit) {
@@ -360,8 +545,15 @@ export function initSettingsFormListeners() {
     inputs.forEach(input => {
       if (input.type === 'checkbox' || input.tagName.toLowerCase() === 'select') {
         input.addEventListener('change', () => triggerAutoSave(true));
+      } else if (input.id === 'settings-weathercity') {
+        input.addEventListener('change', () => triggerAutoSave(true));
+        input.addEventListener('blur', () => {
+          setTimeout(() => triggerAutoSave(true), 200);
+        });
       } else {
         input.addEventListener('input', () => triggerAutoSave(false));
+        input.addEventListener('change', () => triggerAutoSave(true));
+        input.addEventListener('blur', () => triggerAutoSave(true));
       }
     });
   }
@@ -438,30 +630,129 @@ export function initSettingsFormListeners() {
       }
     });
   }
+
+  // GGUF model klasörü butonları ve model listesi
+  const ggufBrowseBtn = document.getElementById('btn-select-gguf-dir');
+  if (ggufBrowseBtn && !ggufBrowseBtn.dataset.settingsInit) {
+    ggufBrowseBtn.dataset.settingsInit = 'true';
+    ggufBrowseBtn.addEventListener('click', selectGgufFolder);
+  }
+
+  const ggufRescanBtn = document.getElementById('btn-rescan-gguf');
+  if (ggufRescanBtn && !ggufRescanBtn.dataset.settingsInit) {
+    ggufRescanBtn.dataset.settingsInit = 'true';
+    ggufRescanBtn.addEventListener('click', () => refreshGgufModelList(localDb.settings?.ggufModelsDir || ''));
+  }
+
+  // CPU / GPU (Vulkan) tercihi değişince motor durum çubuğu ve indirme butonu tercih güncellenir
+  const ggufGpuModeCheckbox = document.getElementById('settings-gguf-gpu-mode');
+  if (ggufGpuModeCheckbox && !ggufGpuModeCheckbox.dataset.settingsInit) {
+    ggufGpuModeCheckbox.dataset.settingsInit = 'true';
+    ggufGpuModeCheckbox.addEventListener('change', () => checkLlamaEngineStatusInUI());
+  }
+
+  // Sesli okuma hızı kaydırıcısı: etiketi canlı güncelle (kayıt formun otomatik listener'ınca yapılır)
+  const ttsSpeedRange = document.getElementById('settings-tts-speed');
+  if (ttsSpeedRange && !ttsSpeedRange.dataset.settingsInit) {
+    ttsSpeedRange.dataset.settingsInit = 'true';
+    ttsSpeedRange.addEventListener('input', () => updateTtsSpeedLabel());
+  }
+
+  const ggufModelSelect = document.getElementById('settings-gguf-model-select');
+  if (ggufModelSelect && !ggufModelSelect.dataset.settingsInit) {
+    ggufModelSelect.dataset.settingsInit = 'true';
+    ggufModelSelect.addEventListener('change', () => onSettingsGgufModelSelect(ggufModelSelect.value));
+  }
+
+  const intervalInput = document.getElementById('settings-channelcheckinterval');
+  if (intervalInput && !intervalInput.dataset.warnInit) {
+    intervalInput.dataset.warnInit = 'true';
+    intervalInput.addEventListener('input', updateChannelIntervalWarning);
+    updateChannelIntervalWarning();
+  }
+
+  // Alt sekmeleri bağla
+  initSettingsSubtabs();
 }
+window.addEventListener('beforeunload', () => {
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+    performAutoSave();
+  }
+});
+
 window.initSettingsFormListeners = initSettingsFormListeners;
 
 // ==========================================
 // Ayarlar Alt Sekmeleri (Subtabs)
 // ==========================================
 
+export function switchSettingsSubtab(targetSubtab) {
+  const subtabButtons = document.querySelectorAll('.settings-subtab-btn');
+  const subtabPanels = document.querySelectorAll('.settings-subtab-panel');
+  const container = document.getElementById('settings-layout-container');
+
+  if (!targetSubtab) targetSubtab = 'all';
+
+  subtabButtons.forEach(b => {
+    const isActive = (b.getAttribute('data-subtab') === targetSubtab);
+    b.classList.toggle('active', isActive);
+    b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+
+  if (container) {
+    if (targetSubtab === 'all') {
+      container.classList.add('view-all');
+      container.classList.remove('view-single');
+    } else {
+      container.classList.remove('view-all');
+      container.classList.add('view-single');
+    }
+  }
+
+  subtabPanels.forEach(p => {
+    const shouldShow = (targetSubtab === 'all' || p.id === 'settings-subtab-' + targetSubtab);
+    p.classList.toggle('active', shouldShow);
+    p.style.display = shouldShow ? 'block' : 'none';
+  });
+
+  try {
+    localStorage.setItem('haytool_settings_subtab', targetSubtab);
+  } catch (e) {}
+
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    lucide.createIcons();
+  }
+}
+window.switchSettingsSubtab = switchSettingsSubtab;
+
 export function initSettingsSubtabs() {
   const subtabButtons = document.querySelectorAll('.settings-subtab-btn');
   const subtabPanels = document.querySelectorAll('.settings-subtab-panel');
 
+  if (!subtabButtons.length || !subtabPanels.length) return;
+
   subtabButtons.forEach(btn => {
+    if (btn.dataset.subtabBound) return;
+    btn.dataset.subtabBound = 'true';
     btn.addEventListener('click', () => {
-      const targetSubtab = btn.getAttribute('data-subtab');
-      subtabButtons.forEach(b => b.classList.toggle('active', b === btn));
-      subtabPanels.forEach(p => {
-        p.classList.toggle('active', p.id === 'settings-subtab-' + targetSubtab);
-      });
-      if (typeof lucide !== 'undefined' && lucide.createIcons) {
-        lucide.createIcons();
-      }
+      const targetSubtab = btn.getAttribute('data-subtab') || 'all';
+      switchSettingsSubtab(targetSubtab);
     });
   });
+
+  // Sayfa ilk açıldığında veya kayıtlı sekme varsa aktifleştir (Test modunda daima "all")
+  let savedSubtab = 'all';
+  if (typeof navigator !== 'undefined' && !navigator.webdriver) {
+    try {
+      const stored = localStorage.getItem('haytool_settings_subtab');
+      if (stored) savedSubtab = stored;
+    } catch (e) {}
+  }
+  switchSettingsSubtab(savedSubtab);
 }
+window.initSettingsSubtabs = initSettingsSubtabs;
 
 // ==========================================
 // Sistem Yedekleme & Geri Yükleme (backupManager.js modülüne delege edilmiştir)
@@ -642,7 +933,76 @@ export function toggleAutoSyncGist(checked) {
 }
 window.toggleAutoSyncGist = toggleAutoSyncGist;
 
+export function toggleGeminiKeyVisibility() {
+  const input = document.getElementById('gemini-api-key-input');
+  const icon = document.getElementById('gemini-key-eye-icon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.setAttribute('data-lucide', 'eye-off');
+  } else {
+    input.type = 'password';
+    if (icon) icon.setAttribute('data-lucide', 'eye');
+  }
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
+  }
+}
+window.toggleGeminiKeyVisibility = toggleGeminiKeyVisibility;
+
 export function populateGistFields() {
+  const geminiInput = document.getElementById('gemini-api-key-input');
+  if (geminiInput && localDb.settings?.geminiApiKey) {
+    geminiInput.value = localDb.settings.geminiApiKey;
+  }
+  const groqInput = document.getElementById('groq-api-key-input');
+  if (groqInput && localDb.settings?.groqApiKey) {
+    groqInput.value = localDb.settings.groqApiKey;
+  }
+  const deepseekInput = document.getElementById('deepseek-api-key-input');
+  if (deepseekInput && localDb.settings?.deepseekApiKey) {
+    deepseekInput.value = localDb.settings.deepseekApiKey;
+  }
+  const lmPortInput = document.getElementById('settings-lmstudio-port');
+  if (lmPortInput) {
+    lmPortInput.value = localDb.settings?.lmStudioPort || 1234;
+  }
+  const lmModelInput = document.getElementById('settings-lmstudio-model');
+  if (lmModelInput && localDb.settings?.lmStudioModel) {
+    lmModelInput.value = localDb.settings.lmStudioModel;
+  }
+  const ggufPathInput = document.getElementById('settings-gguf-model-path');
+  if (ggufPathInput && localDb.settings?.ggufModelPath) {
+    ggufPathInput.value = localDb.settings.ggufModelPath;
+  }
+  if (localDb.settings?.ggufModelsDir) {
+    refreshGgufModelList(localDb.settings.ggufModelsDir, true);
+  }
+  const ggufGpuModeInput = document.getElementById('settings-gguf-gpu-mode');
+  if (ggufGpuModeInput) {
+    ggufGpuModeInput.checked = localDb.settings?.ggufGpuMode === true;
+  }
+  const ttsSpeedInput = document.getElementById('settings-tts-speed');
+  if (ttsSpeedInput) {
+    const savedSpeed = Number(localDb.settings?.ttsSpeed);
+    ttsSpeedInput.value = (savedSpeed >= 0.7 && savedSpeed <= 1.5) ? String(savedSpeed) : '1';
+    updateTtsSpeedLabel();
+  }
+  const ttsDirInput = document.getElementById('settings-tts-voices-dir');
+  if (ttsDirInput) {
+    ttsDirInput.value = localDb.settings?.ttsVoicesDir || '';
+  }
+  checkLlamaEngineStatusInUI();
+  checkTtsStatusInUI();
+  const openaiInput = document.getElementById('openai-api-key-input');
+  if (openaiInput && localDb.settings?.openAiApiKey) {
+    openaiInput.value = localDb.settings.openAiApiKey;
+  }
+  const providerSelect = document.getElementById('settings-ai-provider');
+  if (providerSelect && localDb.settings?.aiProvider) {
+    providerSelect.value = localDb.settings.aiProvider;
+  }
+
   if (!localDb.settings) return;
   const tokenInput = document.getElementById('gist-token-input');
   const idInput = document.getElementById('gist-id-input');
@@ -932,3 +1292,614 @@ export async function openTempFolder() {
 }
 window.openTempFolder = openTempFolder;
 
+/**
+ * LM Studio sunucusundaki mevcut modelleri çekip arayüze yükler.
+ */
+export async function fetchLmStudioModels() {
+  const portInput = document.getElementById('settings-lmstudio-port');
+  const port = (portInput && portInput.value) || 1234;
+  const hint = document.getElementById('lmstudio-status-hint');
+  const btn = document.getElementById('btn-fetch-lmstudio-models');
+  if (btn) btn.classList.add('loading');
+
+  try {
+    const res = await fetch(`/api/lmstudio/models?port=${encodeURIComponent(port)}`);
+    const data = await res.json();
+    if (data.success && Array.isArray(data.models) && data.models.length > 0) {
+      const datalist = document.getElementById('lmstudio-models-datalist');
+      if (datalist) {
+        datalist.innerHTML = data.models.map(m => `<option value="${m}"></option>`).join('');
+      }
+      const modelInput = document.getElementById('settings-lmstudio-model');
+      if (modelInput && !modelInput.value) {
+        modelInput.value = data.models[0];
+      }
+      if (hint) {
+        hint.innerHTML = `<span style="color: #10b981; font-weight: 600;">✓ ${data.models.length} model algılandı (${data.models.slice(0, 2).join(', ')}${data.models.length > 2 ? '...' : ''})</span>`;
+      }
+      showToast(`${data.models.length} LM Studio modeli başarıyla bulundu!`, 'success');
+      triggerAutoSave(true);
+    } else {
+      if (hint) {
+        hint.innerHTML = `<span style="color: #f59e0b;">⚠ Port ${port} üzerinde model bulunamadı. LM Studio'da bir model yüklü olduğundan emin olun.</span>`;
+      }
+      showToast('LM Studio üzerinde yüklü model bulunamadı.', 'warning');
+    }
+  } catch (err) {
+    if (hint) {
+      hint.innerHTML = `<span style="color: #ef4444;">✗ Bağlantı hatası: ${err.message}</span>`;
+    }
+    showToast('LM Studio sunucusuna bağlanılamadı.', 'error');
+  } finally {
+    if (btn) btn.classList.remove('loading');
+  }
+}
+window.fetchLmStudioModels = fetchLmStudioModels;
+
+
+/**
+ * Taşınabilir LLaMA motorlarının (CPU / GPU-Vulkan) durumunu arayüzdeki tercihe göre gösterir.
+ */
+export async function checkLlamaEngineStatusInUI() {
+  const statusText = document.getElementById('gguf-engine-status-text');
+  const downloadBtn = document.getElementById('btn-download-llama-engine');
+  const btnText = document.getElementById('llama-download-btn-text');
+  if (!statusText) return;
+
+  const gpuMode = !!(document.getElementById('settings-gguf-gpu-mode') && document.getElementById('settings-gguf-gpu-mode').checked);
+  const t = window.translations?.[window.localDb?.settings?.lang || 'tr'] || window.translations?.tr || {};
+
+  try {
+    const res = await fetch('/api/llama/status');
+    const data = await res.json();
+    const installed = gpuMode ? data.gpuInstalled : data.installed;
+
+    if (btnText) {
+      btnText.textContent = gpuMode
+        ? (t.settings_llama_gpu_download || '⬇️ GPU Motorunu İndir (~36 MB)')
+        : (t.settings_llama_engine_download || '⬇️ Motoru İndir (~23 MB)');
+    }
+
+    if (installed) {
+      statusText.innerHTML = gpuMode
+        ? `⚡ <span style="color: #10b981; font-weight: 600;">${t.llama_engine_ready_gpu || 'GPU (Vulkan) Motoru: Hazır'}</span>`
+        : '⚡ <span style="color: #10b981; font-weight: 600;">Taşınabilir LLaMA Motoru: Hazır</span>';
+      if (downloadBtn) downloadBtn.style.display = 'none';
+    } else {
+      statusText.innerHTML = gpuMode
+        ? `⚠️ <span style="color: #f59e0b; font-weight: 600;">${t.llama_engine_missing_gpu || 'GPU Motoru Eksik'}</span>`
+        : '⚠️ <span style="color: #f59e0b; font-weight: 600;">Taşınabilir Motor Eksik</span>';
+      if (downloadBtn) downloadBtn.style.display = 'inline-flex';
+    }
+
+    // Önerilen model kartı: kurulu mu / süren indirme var mı
+    try {
+      const st = await (await fetch('/api/gguf/model/download-status')).json();
+      if (st && st.active) {
+        renderRecommendedModelState('installing');
+        pollRecommendedModelStatus();
+      } else if (data.recommendedInstalled) {
+        renderRecommendedModelState('installed');
+      } else {
+        renderRecommendedModelState('idle');
+      }
+    } catch (_) {}
+  } catch (_) {
+    statusText.textContent = 'Motor durumu alınamadı.';
+  }
+}
+
+/**
+ * Taşınabilir LLaMA motorunu tek tıkla indirip kurar.
+ */
+export async function downloadLlamaEngine() {
+  const statusText = document.getElementById('gguf-engine-status-text');
+  const downloadBtn = document.getElementById('btn-download-llama-engine');
+  const btnText = document.getElementById('llama-download-btn-text');
+  const gpuMode = !!(document.getElementById('settings-gguf-gpu-mode') && document.getElementById('settings-gguf-gpu-mode').checked);
+  if (downloadBtn) {
+    downloadBtn.disabled = true;
+    if (btnText) btnText.textContent = gpuMode ? '⏳ İndiriliyor (~36 MB)...' : '⏳ İndiriliyor (~23 MB)...';
+  }
+  if (statusText) {
+    statusText.innerHTML = '<span style="color: #60a5fa;">İndiriliyor ve kuruluyor, lütfen bekleyin...</span>';
+  }
+
+  try {
+    const res = await fetch('/api/llama/install', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variant: gpuMode ? 'gpu' : 'cpu' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (typeof window.showToast === 'function') window.showToast(data.message || 'Taşınabilir LLaMA motoru başarıyla kuruldu!', 'success');
+      await checkLlamaEngineStatusInUI();
+    } else {
+      if (typeof window.showToast === 'function') window.showToast('Kurulum başarısız: ' + (data.error || 'Bilinmeyen hata'), 'error');
+      if (statusText) statusText.innerHTML = '<span style="color: #ef4444;">İndirme hatası</span>';
+      if (downloadBtn) {
+        downloadBtn.disabled = false;
+        if (btnText) btnText.textContent = '🔄 Tekrar Dene';
+      }
+    }
+  } catch (err) {
+    if (typeof window.showToast === 'function') window.showToast('Bağlantı hatası: ' + err.message, 'error');
+    if (downloadBtn) {
+      downloadBtn.disabled = false;
+      if (btnText) btnText.textContent = '🔄 Tekrar Dene';
+    }
+  }
+}
+window.downloadLlamaEngine = downloadLlamaEngine;
+window.checkLlamaEngineStatusInUI = checkLlamaEngineStatusInUI;
+
+// ── Önerilen Başlangıç Modeli (Gemma 3 1B QAT) indirme akışı ──────────────
+let recModelPollTimer = null;
+
+/**
+ * Önerilen model kartının görünüm durumunu günceller.
+ * @param {'idle'|'installing'|'installed'|'error'} mode
+ * @param {string} [message]
+ */
+function renderRecommendedModelState(mode, message = '') {
+  const dlBtn = document.getElementById('btn-download-rec-model');
+  if (!dlBtn) return;
+  const cancelBtn = document.getElementById('btn-cancel-rec-model');
+  const stateEl = document.getElementById('gguf-rec-state');
+  const progressWrap = document.getElementById('gguf-rec-progress-wrap');
+  const t = window.translations?.[window.localDb?.settings?.lang || 'tr'] || window.translations?.tr || {};
+
+  if (mode === 'installed') {
+    dlBtn.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    if (progressWrap) progressWrap.style.display = 'none';
+    if (stateEl) {
+      stateEl.style.display = 'inline';
+      stateEl.style.color = '#10b981';
+      stateEl.textContent = message || (t.settings_gguf_rec_installed || '✓ Model kurulu ve seçili');
+    }
+  } else if (mode === 'installing') {
+    dlBtn.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+    if (progressWrap) progressWrap.style.display = 'block';
+    if (stateEl) stateEl.style.display = 'none';
+  } else if (mode === 'error') {
+    dlBtn.style.display = 'inline-flex';
+    dlBtn.disabled = false;
+    dlBtn.textContent = t.settings_gguf_rec_retry || '🔄 Tekrar Dene';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    if (progressWrap) progressWrap.style.display = 'none';
+    if (stateEl) {
+      stateEl.style.display = 'inline';
+      stateEl.style.color = '#ef4444';
+      stateEl.textContent = message || '';
+    }
+  } else {
+    dlBtn.style.display = 'inline-flex';
+    dlBtn.disabled = false;
+    dlBtn.textContent = t.settings_gguf_rec_download || '⬇️ Modeli İndir (~687 MB)';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    if (progressWrap) progressWrap.style.display = 'none';
+    if (stateEl) stateEl.style.display = 'none';
+  }
+}
+
+/**
+ * Önerilen model indirmesini sunucuda başlatır ve ilerlemeyi saniyede bir yoklar.
+ */
+export async function downloadRecommendedModel() {
+  renderRecommendedModelState('installing');
+  try {
+    const res = await fetch('/api/gguf/model/download', { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'İndirme başlatılamadı.');
+    if (data.alreadyInstalled) {
+      applyRecommendedModelSettings(data.filePath);
+      return;
+    }
+    pollRecommendedModelStatus();
+  } catch (err) {
+    renderRecommendedModelState('error', err.message);
+  }
+}
+window.downloadRecommendedModel = downloadRecommendedModel;
+
+/**
+ * Devam eden önerilen model indirmesini iptal eder.
+ */
+export async function cancelRecommendedModelUi() {
+  try { await fetch('/api/gguf/model/download-cancel', { method: 'POST' }); } catch (_) {}
+  if (recModelPollTimer) { clearInterval(recModelPollTimer); recModelPollTimer = null; }
+  renderRecommendedModelState('idle');
+}
+window.cancelRecommendedModelUi = cancelRecommendedModelUi;
+
+/**
+ * Sunucudaki indirme durumunu 1 sn'de bir yoklar; ilerleme çubuğunu günceller.
+ */
+function pollRecommendedModelStatus() {
+  if (recModelPollTimer) clearInterval(recModelPollTimer);
+  recModelPollTimer = setInterval(async () => {
+    try {
+      const res = await fetch('/api/gguf/model/download-status');
+      const s = await res.json();
+      const bar = document.getElementById('gguf-rec-progress-bar');
+      const text = document.getElementById('gguf-rec-progress-text');
+      const pct = (s.total > 0) ? Math.min(100, Math.round((s.received / s.total) * 100)) : 0;
+      if (bar) bar.style.width = pct + '%';
+      if (text) text.textContent = pct + '% · ' + Math.round(s.received / 1048576) + ' / ' + Math.round(s.total / 1048576) + ' MB';
+      if (!s.active) {
+        clearInterval(recModelPollTimer);
+        recModelPollTimer = null;
+        if (s.done) {
+          applyRecommendedModelSettings(s.filePath);
+        } else if (s.cancelled) {
+          renderRecommendedModelState('idle');
+        } else {
+          renderRecommendedModelState('error', s.error || 'İndirme yarıda kesildi.');
+        }
+      }
+    } catch (_) {
+      if (recModelPollTimer) { clearInterval(recModelPollTimer); recModelPollTimer = null; }
+      renderRecommendedModelState('error', 'İndirme durumu alınamadı.');
+    }
+  }, 1000);
+}
+
+/**
+ * İndirilen önerilen modeli ayarlara bağlar: yol + klasör + sağlayıcı (GGUF) + otomatik kayıt.
+ * @param {string} filePath - İndirilen .gguf dosyasının tam yolu
+ */
+function applyRecommendedModelSettings(filePath) {
+  if (!filePath) return;
+  const dir = filePath.replace(/[\\/][^\\/]*$/, '');
+  const t = window.translations?.[window.localDb?.settings?.lang || 'tr'] || window.translations?.tr || {};
+
+  const pathInput = document.getElementById('settings-gguf-model-path');
+  if (pathInput) pathInput.value = filePath;
+  if (localDb.settings) {
+    localDb.settings.ggufModelPath = filePath;
+    localDb.settings.ggufModelsDir = dir;
+  }
+  const providerSelect = document.getElementById('settings-ai-provider');
+  if (providerSelect) providerSelect.value = 'gguf';
+
+  triggerAutoSave(true);
+  refreshGgufModelList(dir);
+  renderRecommendedModelState('installed');
+  if (typeof window.refreshGgufModelsInSummary === 'function') window.refreshGgufModelsInSummary();
+  if (typeof window.showToast === 'function') {
+    window.showToast(t.settings_gguf_rec_done_toast || 'Gemma 3 1B kuruldu ve seçildi! Artık sadece CPU/GPU tercihin var.', 'success');
+  }
+}
+
+// ── Sesli Okuma (Piper TTS) ayar arayüzü ──────────────────────────────
+let ttsStatusCache = null;
+
+/**
+ * Hız kaydırıcısının ×1,10 biçimindeki etiketini günceller.
+ */
+function updateTtsSpeedLabel() {
+  const input = document.getElementById('settings-tts-speed');
+  const label = document.getElementById('settings-tts-speed-value');
+  if (!input || !label) return;
+  const v = parseFloat(input.value) || 1;
+  label.textContent = '×' + v.toFixed(2).replace('.', ',');
+}
+
+/**
+ * Piper motoru + ses paketleri durumunu çeker, ses listesini ve durum çubuğunu kurar.
+ */
+export async function checkTtsStatusInUI() {
+  const statusText = document.getElementById('tts-status-text');
+  if (!statusText) return;
+  const engineBtn = document.getElementById('btn-download-piper-engine');
+  const voiceSel = document.getElementById('settings-tts-voice-select');
+  const t = window.translations?.[window.localDb?.settings?.lang || 'tr'] || window.translations?.tr || {};
+
+  try {
+    const res = await fetch('/api/tts/status');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Durum alınamadı.');
+    ttsStatusCache = data;
+    const installed = new Set(data.installedVoices || []);
+
+    if (engineBtn) engineBtn.style.display = data.engineInstalled ? 'none' : 'inline-flex';
+
+    if (voiceSel) {
+      const saved = localDb.settings?.ttsVoiceId || '';
+      voiceSel.innerHTML = '';
+      (data.voices || []).forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.id;
+        opt.textContent = (installed.has(v.id) ? '✓ ' : '⬇️ ') + v.label + ' · ' + (installed.has(v.id) ? (t.tts_voice_installed || 'kurulu') : `~${v.sizeMB} MB`);
+        voiceSel.appendChild(opt);
+      });
+      const ids = (data.voices || []).map(v => v.id);
+      let pick = ids.includes(saved) ? saved : '';
+      if (!pick && installed.has(data.defaultVoiceId)) pick = data.defaultVoiceId;
+      if (!pick) pick = ids[0] || '';
+      voiceSel.value = pick;
+      if (pick && pick !== saved && localDb.settings) {
+        localDb.settings.ttsVoiceId = pick;
+      }
+    }
+
+    if (data.engineInstalled && installed.size > 0) {
+      statusText.innerHTML = `🔊 <span style="color: #10b981; font-weight: 600;">${t.tts_engine_ready || 'Sesli Okuma: Hazır'}</span> · ${installed.size}/${(data.voices || []).length} ${t.tts_voice_installed || 'kurulu'}`;
+    } else if (data.engineInstalled) {
+      statusText.innerHTML = `⚠️ <span style="color: #f59e0b; font-weight: 600;">${t.tts_voice_needed || 'Motor hazır — bir ses paketi indirin'}</span>`;
+    } else {
+      statusText.innerHTML = `⚠️ <span style="color: #f59e0b; font-weight: 600;">${t.tts_engine_missing || 'Ses Motoru Eksik'}</span>`;
+    }
+    updateTtsVoiceDownloadButton();
+  } catch (err) {
+    statusText.textContent = 'Sesli okuma durumu alınamadı.';
+  }
+}
+window.checkTtsStatusInUI = checkTtsStatusInUI;
+
+/**
+ * Seçili ses kurulu değilse durum çubuğundaki "Bu Sesi İndir" butonunu görünür yapar
+ * (liste sesi varsayılan seçili gösterdiğinde change olayı hiç tetiklenmez).
+ */
+function updateTtsVoiceDownloadButton() {
+  const btn = document.getElementById('btn-download-tts-voice');
+  const voiceSel = document.getElementById('settings-tts-voice-select');
+  if (!btn || !voiceSel || !ttsStatusCache) return;
+  const t = window.translations?.[window.localDb?.settings?.lang || 'tr'] || window.translations?.tr || {};
+  const installed = new Set(ttsStatusCache.installedVoices || []);
+  const entry = (ttsStatusCache.voices || []).find(v => v.id === voiceSel.value);
+  const need = !!(entry && !installed.has(entry.id));
+  btn.style.display = need ? 'inline-flex' : 'none';
+  const btnText = document.getElementById('tts-voice-btn-text');
+  if (need && btnText) btnText.textContent = `${t.tts_voice_download || '⬇️ Bu Sesi İndir'} (~${entry.sizeMB} MB)`;
+}
+
+/**
+ * Listede seçili olan (ama henüz kurulmamış) sesi indirir.
+ */
+export async function downloadSelectedTtsVoice() {
+  const voiceSel = document.getElementById('settings-tts-voice-select');
+  if (!voiceSel || !voiceSel.value) return;
+  await onTtsVoiceSelectChange(voiceSel.value);
+}
+window.downloadSelectedTtsVoice = downloadSelectedTtsVoice;
+
+/**
+ * Kullanıcının Piper uyumlu (.onnx + .onnx.json) sesleri koyabileceği özel klasörü seçtirir.
+ */
+export async function selectTtsVoicesFolder() {
+  const isEn = localDb.settings?.lang === 'en';
+  showToast(isEn ? 'Opening folder selection window, please wait...' : 'Klasör seçim penceresi açılıyor, lütfen bekleyin...', 'info');
+  const startPath = String(localDb.settings?.ttsVoicesDir || '').trim();
+
+  try {
+    const res = await fetch('/api/select-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startPath })
+    });
+    const data = await res.json();
+    if (data.success && data.path) {
+      if (localDb.settings) localDb.settings.ttsVoicesDir = data.path;
+      const dirInput = document.getElementById('settings-tts-voices-dir');
+      if (dirInput) dirInput.value = data.path;
+      triggerAutoSave(true);
+      await checkTtsStatusInUI();
+      if (typeof window.invalidateTtsAvailability === 'function') window.invalidateTtsAvailability();
+    } else if (data.message) {
+      showToast(data.message, 'warning');
+    }
+  } catch (err) {
+    showToast(isEn ? 'Connection error while selecting folder.' : 'Klasör seçilirken bir bağlantı hatası oluştu.', 'error');
+  }
+}
+window.selectTtsVoicesFolder = selectTtsVoicesFolder;
+
+/**
+ * Seçili sesle sabit bir Türkçe cümleyi sentezleyip çalar (uçtan uca ses testi).
+ * Sorun sunucuda mı arayüzde mi olduğunu tek tıkla ayırır; hatayı birebir gösterir.
+ */
+export async function testTtsVoice() {
+  const t = window.translations?.[window.localDb?.settings?.lang || 'tr'] || window.translations?.tr || {};
+  const btn = document.getElementById('btn-test-tts');
+  const btnText = document.getElementById('tts-test-btn-text');
+  const statusText = document.getElementById('tts-status-text');
+  const audio = document.getElementById('tts-test-audio');
+  const voiceSel = document.getElementById('settings-tts-voice-select');
+  if (!audio) {
+    if (typeof window.showToast === 'function') window.showToast('Test ses öğesi bulunamadı (sayfayı yenileyin).', 'error');
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  if (btnText) btnText.textContent = '⏳ Test...';
+  if (statusText) statusText.innerHTML = '<span style="color: #60a5fa;">Ses sentezleniyor...</span>';
+
+  try {
+    const speed = parseFloat((document.getElementById('settings-tts-speed') || {}).value || '1') || 1;
+    const res = await fetch('/api/tts/speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: 'Merhaba, bu bir sesli okuma testidir. Ses geliyorsa her şey çalışıyor demektir.',
+        voiceId: (voiceSel && voiceSel.value) || (localDb.settings && localDb.settings.ttsVoiceId) || undefined,
+        speed
+      })
+    });
+    let data = null;
+    try { data = await res.json(); } catch (_) {}
+    if (!res.ok || !data || !data.success) {
+      throw new Error((data && data.error) || `HTTP ${res.status}`);
+    }
+
+    audio.src = `/api/tts/audio/${encodeURIComponent(data.audioId)}`;
+    await new Promise((resolve) => {
+      const done = () => resolve();
+      audio.addEventListener('canplay', done, { once: true });
+      audio.addEventListener('error', done, { once: true });
+      setTimeout(done, 4000);
+      audio.load();
+    });
+    await audio.play();
+    if (statusText) statusText.innerHTML = `<span style="color: #10b981; font-weight: 600;">✅ Ses çalışıyor${data.voiceId ? ' · ' + data.voiceId : ''}</span>`;
+    if (typeof window.showToast === 'function') window.showToast('Ses testi başarılı — hoparlörden ses geliyor.', 'success');
+  } catch (err) {
+    if (statusText) statusText.innerHTML = `<span style="color: #ef4444; font-weight: 600;">❌ ${String(err.message).slice(0, 120)}</span>`;
+    if (typeof window.showToast === 'function') window.showToast('Ses testi başarısız: ' + err.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (btnText) btnText.textContent = t.tts_test_button || '🔊 Sesi Test Et';
+    if (typeof window.invalidateTtsAvailability === 'function') window.invalidateTtsAvailability();
+  }
+}
+window.testTtsVoice = testTtsVoice;
+
+/**
+ * Ses listesi değişince: kurulmamış ses seçilirse onaylayıp indirir, kuruluysa ayarlar.
+ * @param {string} voiceId - Seçilen ses kimliği
+ */
+export async function onTtsVoiceSelectChange(voiceId) {
+  const t = window.translations?.[window.localDb?.settings?.lang || 'tr'] || window.translations?.tr || {};
+  const entry = ttsStatusCache ? (ttsStatusCache.voices || []).find(v => v.id === voiceId) : null;
+  if (!entry) return;
+  const installed = new Set((ttsStatusCache && ttsStatusCache.installedVoices) || []);
+
+  if (installed.has(voiceId)) {
+    if (localDb.settings) localDb.settings.ttsVoiceId = voiceId;
+    triggerAutoSave(true);
+    updateTtsVoiceDownloadButton();
+    if (typeof window.invalidateTtsAvailability === 'function') window.invalidateTtsAvailability();
+    return;
+  }
+
+  const msg = (t.tts_voice_install_confirm || 'Bu ses paketi (~{size} MB) şimdi indirilsin mi?').replace('{size}', String(entry.sizeMB));
+  if (!window.confirm(msg)) {
+    checkTtsStatusInUI();
+    return;
+  }
+
+  const statusText = document.getElementById('tts-status-text');
+  const voiceSel = document.getElementById('settings-tts-voice-select');
+  if (voiceSel) voiceSel.disabled = true;
+  if (statusText) statusText.innerHTML = '<span style="color: #60a5fa;">⏳ Ses indiriliyor, lütfen bekleyin...</span>';
+
+  try {
+    const res = await fetch('/api/tts/voice/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voiceId })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Bilinmeyen hata');
+    if (localDb.settings) localDb.settings.ttsVoiceId = voiceId;
+    triggerAutoSave(true);
+    if (typeof window.showToast === 'function') window.showToast(t.tts_voice_done || 'Ses paketi kuruldu!', 'success');
+  } catch (err) {
+    if (typeof window.showToast === 'function') window.showToast('Ses indirilemedi: ' + err.message, 'error');
+  } finally {
+    if (voiceSel) voiceSel.disabled = false;
+    await checkTtsStatusInUI();
+    if (typeof window.invalidateTtsAvailability === 'function') window.invalidateTtsAvailability();
+  }
+}
+window.onTtsVoiceSelectChange = onTtsVoiceSelectChange;
+
+/**
+ * Piper ses motorunu (~23 MB) indirip kurar.
+ */
+export async function downloadPiperEngine() {
+  const t = window.translations?.[window.localDb?.settings?.lang || 'tr'] || window.translations?.tr || {};
+  const engineBtn = document.getElementById('btn-download-piper-engine');
+  const btnText = document.getElementById('piper-download-btn-text');
+  const statusText = document.getElementById('tts-status-text');
+  if (engineBtn) engineBtn.disabled = true;
+  if (btnText) btnText.textContent = '⏳ İndiriliyor (~23 MB)...';
+  if (statusText) statusText.innerHTML = '<span style="color: #60a5fa;">Ses motoru indiriliyor ve kuruluyor...</span>';
+
+  try {
+    const res = await fetch('/api/tts/engine/download', { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Bilinmeyen hata');
+    if (typeof window.showToast === 'function') window.showToast(data.message || 'Piper ses motoru kuruldu!', 'success');
+  } catch (err) {
+    if (typeof window.showToast === 'function') window.showToast('Motor indirilemedi: ' + err.message, 'error');
+    if (engineBtn) engineBtn.disabled = false;
+    if (btnText) btnText.textContent = '🔄 Tekrar Dene';
+  } finally {
+    await checkTtsStatusInUI();
+    if (typeof window.invalidateTtsAvailability === 'function') window.invalidateTtsAvailability();
+  }
+}
+window.downloadPiperEngine = downloadPiperEngine;
+
+/**
+ * Kullanıcının seçtiği bildirim sesini anında test eder.
+ * @param {'download'|'merge'} type
+ */
+export async function testSoundOption(type) {
+  const selId = type === 'download' ? 'settings-sound-download' : 'settings-sound-merge';
+  const sel = document.getElementById(selId);
+  const soundName = sel ? sel.value : (type === 'download' ? 'chime' : 'fanfare');
+
+  if (soundName === 'silent') {
+    if (typeof window.showToast === 'function') {
+      const isEn = window.localDb?.settings?.lang === 'en';
+      window.showToast(isEn ? 'Sound is set to Silent.' : 'Bu bildirim sessiz olarak ayarlandı.', 'info');
+    }
+    return;
+  }
+
+  // Seçilen sesin veritabanına da anında yansımasını sağla
+  if (type === 'download') {
+    if (localDb.settings) localDb.settings.soundDownloadComplete = soundName;
+  } else {
+    if (localDb.settings) localDb.settings.soundMergeComplete = soundName;
+  }
+  triggerAutoSave(true);
+
+  // Doğrudan HTML5 Audio üzerinden tek bir kez çal (sunucuyla çift çalma yapma)
+  try {
+    const audio = new Audio(`/sounds/${soundName}.wav`);
+    audio.play().catch(() => {
+      // Tarayıcı autoplay engellerse arka uçtan çaldır
+      fetch('/api/settings/test-sound', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sound: soundName })
+      }).catch(() => {});
+    });
+  } catch (_) {}
+}
+window.testSoundOption = testSoundOption;
+
+/**
+ * Windows masaüstü bildirimini test eder.
+ */
+export async function testDesktopNotification() {
+  const isEn = window.localDb?.settings?.lang === 'en';
+  if (typeof window.showToast === 'function') {
+    window.showToast(isEn ? 'Sending test notification...' : 'Masaüstü bildirim testi gönderiliyor...', 'info');
+  }
+
+  try {
+    const res = await fetch('/api/settings/test-notification', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      if (typeof window.showToast === 'function') {
+        window.showToast(isEn ? 'Test notification sent!' : 'Test bildirimi başarıyla gönderildi!', 'success');
+      }
+    } else {
+      if (typeof window.showToast === 'function') {
+        window.showToast(data.message || 'Bildirim gönderilemedi.', 'warning');
+      }
+    }
+  } catch (err) {
+    if (typeof window.showToast === 'function') {
+      window.showToast('Bağlantı hatası: ' + err.message, 'error');
+    }
+  }
+}
+window.testDesktopNotification = testDesktopNotification;

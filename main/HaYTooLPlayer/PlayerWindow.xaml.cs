@@ -148,7 +148,11 @@ namespace HaYTooLPlayer
             {
                 // CoreWebView2Environment ile CORS'u devre dışı bırak ve otomatik oynatma politikasını bypass et
                 string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HaYTooLPlayer");
-                var options = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions("--disable-web-security --autoplay-policy=no-user-gesture-required");
+                bool useCpuRender = MainWindow.ReadIniSetting("playerGpuMode", "gpu").Equals("cpu", StringComparison.OrdinalIgnoreCase);
+                string browserArgs = useCpuRender
+                    ? "--disable-web-security --autoplay-policy=no-user-gesture-required --disable-gpu --disable-gpu-compositing --disable-accelerated-video-decode"
+                    : "--disable-web-security --autoplay-policy=no-user-gesture-required --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist";
+                var options = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions(browserArgs);
                 var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
 
                 // WebView2 Başlat
@@ -955,9 +959,7 @@ namespace HaYTooLPlayer
             }
         }
 
-        private WindowStyle _prevWindowStyle;
-        private WindowState _prevWindowState;
-        private ResizeMode _prevResizeMode;
+        private readonly WindowHelper.FullScreenState _playerFullScreenState = new WindowHelper.FullScreenState();
 
         private void CoreWebView2_ContainsFullScreenElementChanged(object sender, object e)
         {
@@ -968,25 +970,11 @@ namespace HaYTooLPlayer
             {
                 if (webView.ContainsFullScreenElement)
                 {
-                    // Tam Ekran Moduna Geç
-                    _prevWindowStyle = this.WindowStyle;
-                    _prevWindowState = this.WindowState;
-                    _prevResizeMode = this.ResizeMode;
-
-                    // WPF'te görev çubuğunu tamamen kaplamak için önce Normal sonra Maximized yapılmalıdır
-                    this.WindowState = WindowState.Normal;
-                    this.WindowStyle = WindowStyle.None;
-                    this.ResizeMode = ResizeMode.NoResize;
-                    this.Topmost = true;
-                    this.WindowState = WindowState.Maximized;
+                    WindowHelper.EnterFullScreen(this, _playerFullScreenState);
                 }
                 else
                 {
-                    // Normal / Önceki Pencere Moduna Geri Dön
-                    this.Topmost = false;
-                    this.WindowStyle = _prevWindowStyle;
-                    this.ResizeMode = _prevResizeMode;
-                    this.WindowState = _prevWindowState;
+                    WindowHelper.ExitFullScreen(this, _playerFullScreenState);
                 }
             });
         }

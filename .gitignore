@@ -13,6 +13,7 @@ db.json
 db.json*
 *.tmp
 *.bak
+*.bak*
 *.old
 
 # Günlük Log Dosyaları
@@ -37,10 +38,16 @@ yt-dlp.exe
 *.bozuk
 bin/win-x64/
 bin/*.pdb
+main/bin/llama/
+main/bin/piper/
+main/bin/icons/
 
 # Derleme çıktıları ve geçici klasörler
 dist/
 scratch/
+test-results/
+cache/
+main/cache/
 [Dd]esktop.ini
 iptv_cache.json
 Temp/

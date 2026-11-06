@@ -39,7 +39,11 @@ router.post('/channel/:id', localhostOnly, async (req, res) => {
     return res.status(404).json({ error: 'Kanal bulunamadı.' });
   }
   const enabled = req.body?.enabled === true || req.body?.enabled === 'true';
-  await setFakapChannel(id, enabled);
+  try {
+    await setFakapChannel(id, enabled);
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
   broadcast('db_update', readDb());
   // Fakap açıldığında mevcut RSS taramasını tetikle (yeni tarama motoru yok)
   if (enabled) {
@@ -71,7 +75,7 @@ router.post('/channels/disable-all', localhostOnly, async (req, res) => {
 });
 
 /** Fakap ayarlarını (genel anahtar, klasör, çözünürlük, saklama süresi) kaydeder */
-router.post('/settings', localhostOnly, (req, res) => {
+router.post('/settings', localhostOnly, async (req, res) => {
   const db = readDb();
   const body = req.body || {};
 
@@ -102,7 +106,7 @@ router.post('/settings', localhostOnly, (req, res) => {
       db.settings.fakapRetentionDays = isNaN(n) ? 'never' : String(Math.max(1, Math.min(n, 30)));
     }
   }
-  writeDb(db);
+  await writeDb(db);
   ensureFakapDir(db);
   broadcast('db_update', db);
   if (db.settings.fakapEnabled !== false) {
@@ -137,8 +141,12 @@ router.delete('/video/:id', localhostOnly, async (req, res) => {
   const raw = req.params.id;
   if (!/^(?:fakap_)?[A-Za-z0-9_-]{11}$/.test(raw)) return res.status(400).json({ error: 'Geçersiz video ID.' });
   const fullId = raw.startsWith('fakap_') ? raw : `fakap_${raw}`;
-  const ok = await deleteFakapVideo(fullId);
-  res.json({ success: ok });
+  try {
+    const ok = await deleteFakapVideo(fullId);
+    res.json({ success: ok });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
 function findVideo(id) {

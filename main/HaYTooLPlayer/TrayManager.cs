@@ -37,6 +37,7 @@ namespace HaYTooLPlayer
         private ToolStripMenuItem? _settingsItem;
         private ToolStripMenuItem? _checkChannelsItem;
         private ToolStripMenuItem? _altSpeedItem;
+        private ToolStripMenuItem? _deferMergeItem;
         private ToolStripMenuItem? _bootItem;
         private ToolStripMenuItem? _discordRpcItem;
         private ToolStripMenuItem? _showConsoleItem;
@@ -104,6 +105,9 @@ namespace HaYTooLPlayer
                 _altSpeedItem = new ToolStripMenuItem("Alternatif Hız Sınırı (Turtle)", null, ToggleAlternativeSpeed);
                 _altSpeedItem.Checked = GetIniBoolSetting("useAlternativeSpeed");
 
+                _deferMergeItem = new ToolStripMenuItem("Oyun Modu (Birleştirmeyi Ertele)", null, ToggleDeferMerge);
+                _deferMergeItem.Checked = GetIniBoolSetting("deferMerge");
+
                 _bootItem = new ToolStripMenuItem("Sistem Başlangıcında Çalıştır", null, (s, e) =>
                 {
                     bool cur = GetStartOnBootSetting();
@@ -126,6 +130,7 @@ namespace HaYTooLPlayer
                 menu.Items.Add(_pasteDownloadItem);
                 menu.Items.Add(_shortcutsMenu);
                 menu.Items.Add(_altSpeedItem);
+                menu.Items.Add(_deferMergeItem);
                 menu.Items.Add(_bootItem);
                 menu.Items.Add(_discordRpcItem);
                 menu.Items.Add(new ToolStripSeparator());
@@ -139,6 +144,7 @@ namespace HaYTooLPlayer
                 {
                     ApplyThemeToContextMenu();
                     if (_altSpeedItem != null) _altSpeedItem.Checked = GetIniBoolSetting("useAlternativeSpeed");
+                    if (_deferMergeItem != null) _deferMergeItem.Checked = GetIniBoolSetting("deferMerge");
                     if (_bootItem != null) _bootItem.Checked = GetStartOnBootSetting();
                     if (_discordRpcItem != null) _discordRpcItem.Checked = GetIniBoolSetting("discordRpcEnabled");
                 };
@@ -174,10 +180,11 @@ namespace HaYTooLPlayer
             _mainWindow.Dispatcher.Invoke(() =>
             {
                 EnsureTrayVisible();
-                _mainWindow.BringWindowToFront();
+                bool wasUnloaded = _mainWindow.RestoreUiIfUnloaded(path);
+                _mainWindow.BringWindowToFront(path);
 
-                // Eğer varsayılan /downlist tetiklenmişse veya path boşsa, oynatılan videoyu ve mevcut sayfayı kesmemek için ASLA reload yapma!
-                if (string.IsNullOrEmpty(path) || path == "/downlist" || path == "/")
+                // Eğer varsayılan /downlist tetiklenmişse, path boşsa veya arayüz uyku modundan yeni uyandırıldıysa tekrar NavigatePath çağırma!
+                if (wasUnloaded || string.IsNullOrEmpty(path) || path == "/downlist" || path == "/")
                 {
                     return;
                 }
@@ -416,35 +423,43 @@ namespace HaYTooLPlayer
             });
         }
 
-        private void PasteAndDownload(object? sender, EventArgs e)
+        public void PasteAndDownloadCommand(bool openQueueWindow = false, bool silentOnError = false)
         {
             try
             {
                 if (Clipboard.ContainsText())
                 {
                     string text = Clipboard.GetText().Trim();
-                    if (text.Contains("youtube.com/") || text.Contains("youtu.be/"))
+                    if (text.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || text.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (_nodeProcess != null && !_nodeProcess.HasExited)
+                        SendCommandToNode("pd " + text);
+                        if (openQueueWindow)
                         {
-                            _nodeProcess.StandardInput.WriteLine("pd " + text);
+                            ShowMainWindow("/download");
                         }
-                        ShowMainWindow("/download");
                     }
-                    else
+                    else if (!silentOnError)
                     {
-                        System.Windows.MessageBox.Show("Panodaki metin geçerli bir YouTube bağlantısı değil:\n" + text, "Geçersiz Bağlantı", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                        System.Windows.MessageBox.Show("Panodaki metin geçerli bir bağlantı (http/https) değil:\n" + text, "Geçersiz Bağlantı", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                     }
                 }
-                else
+                else if (!silentOnError)
                 {
                     System.Windows.MessageBox.Show("Pano boş veya metin içermiyor.", "Pano Boş", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show("Hata: " + ex.Message, "Pano Hatası", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                if (!silentOnError)
+                {
+                    System.Windows.MessageBox.Show("Hata: " + ex.Message, "Pano Hatası", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                }
             }
+        }
+
+        private void PasteAndDownload(object? sender, EventArgs e)
+        {
+            PasteAndDownloadCommand(openQueueWindow: true, silentOnError: false);
         }
 
         private void ToggleAlternativeSpeed(object? sender, EventArgs e)
@@ -459,6 +474,27 @@ namespace HaYTooLPlayer
                 try
                 {
                     string url = GetAppUrl("/api/settings/toggle-alt-speed");
+                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                    request.Method = "POST";
+                    request.ContentLength = 0;
+                    using (WebResponse response = request.GetResponse()) {}
+                }
+                catch {}
+            });
+        }
+
+        private void ToggleDeferMerge(object? sender, EventArgs e)
+        {
+            if (_deferMergeItem != null)
+            {
+                _deferMergeItem.Checked = !_deferMergeItem.Checked;
+            }
+
+            ThreadPool.QueueUserWorkItem(state =>
+            {
+                try
+                {
+                    string url = GetAppUrl("/api/settings/toggle-defer-merge");
                     HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
                     request.Method = "POST";
                     request.ContentLength = 0;
@@ -802,6 +838,106 @@ namespace HaYTooLPlayer
             return "dark"; // Varsayılan: dark
         }
 
+
+        /// <summary>
+        /// Menü öğeleri için temaya duyarlı 16x16 vektörel simge üretir.
+        /// </summary>
+        private static Bitmap CreateMenuIcon(string iconType, bool isDark)
+        {
+            Bitmap bmp = new Bitmap(16, 16);
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                Color primary = isDark ? Color.FromArgb(244, 244, 245) : Color.FromArgb(24, 24, 27);
+                Color accent = Color.FromArgb(59, 130, 246);
+                Color red = Color.FromArgb(239, 68, 68);
+                Color green = Color.FromArgb(34, 197, 94);
+                Color orange = Color.FromArgb(249, 115, 22);
+
+                using (Pen pen = new Pen(primary, 1.5f))
+                using (Pen accentPen = new Pen(accent, 1.5f))
+                using (Pen redPen = new Pen(red, 1.5f))
+                using (Pen greenPen = new Pen(green, 1.5f))
+                using (Pen orangePen = new Pen(orange, 1.5f))
+                using (Brush brush = new SolidBrush(primary))
+                using (Brush redBrush = new SolidBrush(red))
+                using (Brush greenBrush = new SolidBrush(green))
+                using (Brush accentBrush = new SolidBrush(accent))
+                {
+                    switch (iconType)
+                    {
+                        case "ui": // Pencere / UI
+                            g.DrawRectangle(pen, 2, 3, 12, 10);
+                            g.DrawLine(pen, 2, 6, 14, 6);
+                            break;
+                        case "youtube": // YouTube oynatma üçgeni
+                            g.DrawRoundedRectangle(redPen, new Rectangle(1, 3, 14, 10), new Size(3, 3));
+                            Point[] playPoints = { new Point(6, 6), new Point(6, 10), new Point(11, 8) };
+                            g.FillPolygon(redBrush, playPoints);
+                            break;
+                        case "check": // Yenile / Döngü
+                            g.DrawArc(accentPen, 2, 2, 12, 12, 45, 270);
+                            g.FillPolygon(accentBrush, new Point[] { new Point(13, 2), new Point(13, 7), new Point(9, 5) });
+                            break;
+                        case "paste": // Pano / İndir
+                            g.DrawRectangle(pen, 3, 4, 10, 10);
+                            g.DrawRectangle(accentPen, 5, 2, 6, 3);
+                            g.DrawLine(greenPen, 8, 7, 8, 12);
+                            g.DrawLine(greenPen, 6, 10, 8, 12);
+                            g.DrawLine(greenPen, 10, 10, 8, 12);
+                            break;
+                        case "shortcuts": // Sekmeler / Liste
+                            g.DrawLine(pen, 2, 4, 14, 4);
+                            g.DrawLine(pen, 2, 8, 14, 8);
+                            g.DrawLine(pen, 2, 12, 14, 12);
+                            break;
+                        case "settings": // Dişli / Çark
+                            g.DrawEllipse(accentPen, 5, 5, 6, 6);
+                            g.DrawEllipse(pen, 2, 2, 12, 12);
+                            break;
+                        case "speed": // Kaplumbağa / Hız
+                            g.DrawArc(orangePen, 2, 4, 12, 8, 180, 180);
+                            g.DrawLine(pen, 8, 8, 11, 5);
+                            break;
+                        case "gamemode": // Oyun Kolu / Katmanlar
+                            g.DrawRoundedRectangle(accentPen, new Rectangle(2, 4, 12, 8), new Size(3, 3));
+                            g.DrawLine(pen, 5, 6, 5, 10);
+                            g.DrawLine(pen, 3, 8, 7, 8);
+                            g.FillEllipse(greenBrush, 10, 6, 2, 2);
+                            break;
+                        case "boot": // Güç / Başlangıç
+                            g.DrawArc(pen, 3, 3, 10, 10, 30, 300);
+                            g.DrawLine(accentPen, 8, 1, 8, 7);
+                            break;
+                        case "discord": // Sohbet / Oyun
+                            g.DrawRoundedRectangle(pen, new Rectangle(2, 4, 12, 8), new Size(2, 2));
+                            g.FillEllipse(accentBrush, 5, 6, 2, 2);
+                            g.FillEllipse(accentBrush, 9, 6, 2, 2);
+                            break;
+                        case "restart": // Yeniden Başlat
+                            g.DrawArc(orangePen, 2, 2, 12, 12, 0, 315);
+                            g.FillPolygon(new SolidBrush(orange), new Point[] { new Point(14, 4), new Point(14, 9), new Point(9, 7) });
+                            break;
+                        case "console": // Terminal / Komut Satırı
+                            g.DrawRectangle(pen, 1, 3, 14, 10);
+                            g.DrawLine(greenPen, 3, 6, 5, 8);
+                            g.DrawLine(greenPen, 5, 8, 3, 10);
+                            g.DrawLine(greenPen, 7, 10, 11, 10);
+                            break;
+                        case "exit": // Çıkış / Kapat
+                            g.DrawLine(redPen, 4, 4, 12, 12);
+                            g.DrawLine(redPen, 12, 4, 4, 12);
+                            break;
+                        default:
+                            g.DrawRectangle(pen, 3, 3, 10, 10);
+                            break;
+                    }
+                }
+            }
+            return bmp;
+        }
+
         public void ApplyThemeToContextMenu()
         {
             try
@@ -820,6 +956,21 @@ namespace HaYTooLPlayer
                     _shortcutsMenu.DropDown.Renderer = renderer;
                     ApplyThemeToItems(_shortcutsMenu.DropDownItems, isDark);
                 }
+
+                // Menü öğelerine temaya uyumlu ikonları bağla
+                if (_openUiItem != null) _openUiItem.Image = CreateMenuIcon("ui", isDark);
+                if (_youtubeLoginItem != null) _youtubeLoginItem.Image = CreateMenuIcon("youtube", isDark);
+                if (_settingsItem != null) _settingsItem.Image = CreateMenuIcon("settings", isDark);
+                if (_checkChannelsItem != null) _checkChannelsItem.Image = CreateMenuIcon("check", isDark);
+                if (_pasteDownloadItem != null) _pasteDownloadItem.Image = CreateMenuIcon("paste", isDark);
+                if (_shortcutsMenu != null) _shortcutsMenu.Image = CreateMenuIcon("shortcuts", isDark);
+                if (_altSpeedItem != null) _altSpeedItem.Image = CreateMenuIcon("speed", isDark);
+                if (_deferMergeItem != null) _deferMergeItem.Image = CreateMenuIcon("gamemode", isDark);
+                if (_bootItem != null) _bootItem.Image = CreateMenuIcon("boot", isDark);
+                if (_discordRpcItem != null) _discordRpcItem.Image = CreateMenuIcon("discord", isDark);
+                if (_restartItem != null) _restartItem.Image = CreateMenuIcon("restart", isDark);
+                if (_showConsoleItem != null) _showConsoleItem.Image = CreateMenuIcon("console", isDark);
+                if (_exitItem != null) _exitItem.Image = CreateMenuIcon("exit", isDark);
             }
             catch {}
         }
@@ -939,6 +1090,7 @@ namespace HaYTooLPlayer
                 if (_shortcutsMenu != null) _shortcutsMenu.Text = "Go to Tabs";
                 if (_settingsItem != null) _settingsItem.Text = "Settings";
                 if (_altSpeedItem != null) _altSpeedItem.Text = "Alternative Speed Limit (Turtle)";
+                if (_deferMergeItem != null) _deferMergeItem.Text = "Game Mode (Defer FFmpeg Merge)";
                 if (_bootItem != null) _bootItem.Text = "Run on Windows Startup";
                 if (_discordRpcItem != null) _discordRpcItem.Text = "Discord Status";
                 if (_showConsoleItem != null) _showConsoleItem.Text = "Show Console Output";
@@ -954,11 +1106,346 @@ namespace HaYTooLPlayer
                 if (_shortcutsMenu != null) _shortcutsMenu.Text = "Sekmelere Git";
                 if (_settingsItem != null) _settingsItem.Text = "Ayarlar";
                 if (_altSpeedItem != null) _altSpeedItem.Text = "Alternatif Hız Sınırı (Turtle)";
+                if (_deferMergeItem != null) _deferMergeItem.Text = "Oyun Modu (Birleştirmeyi Ertele)";
                 if (_bootItem != null) _bootItem.Text = "Sistem Başlangıcında Çalıştır";
                 if (_discordRpcItem != null) _discordRpcItem.Text = "Discord Durumu";
                 if (_showConsoleItem != null) _showConsoleItem.Text = "Konsol Çıktısını Göster";
                 if (_restartItem != null) _restartItem.Text = "Sunucuyu Yeniden Başlat";
                 if (_exitItem != null) _exitItem.Text = "Çıkış";
+            }
+
+            UpdateTaskbarJumpList(lang);
+        }
+
+        private string EnsureJumpListIconFile(string dirPath, string iconType, string fallbackExePath)
+        {
+            try
+            {
+                Directory.CreateDirectory(dirPath);
+                string icoPath = Path.Combine(dirPath, $"jl_{iconType}.ico");
+                const int size = 32;
+                using (Bitmap bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb))
+                {
+                    using (Graphics g = Graphics.FromImage(bmp))
+                    {
+                        g.SmoothingMode = SmoothingMode.AntiAlias;
+                        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        g.Clear(Color.Transparent);
+                        g.ScaleTransform(2f, 2f);
+                        using (Bitmap src = CreateMenuIcon(iconType, true))
+                        {
+                            g.DrawImage(src, 0, 0, 16, 16);
+                        }
+                    }
+
+                    // Standart sıkıştırmasız 32-bit ARGB Win32 DIB ICO formatı (Windows 10/11 Explorer ile %100 uyumlu)
+                    int xorSize = size * size * 4;
+                    int andStride = ((size + 31) / 32) * 4;
+                    int andSize = andStride * size;
+                    uint imageBytesLen = (uint)(40 + xorSize + andSize);
+
+                    using (FileStream fs = new FileStream(icoPath, FileMode.Create, FileAccess.Write, FileShare.Read))
+                    using (BinaryWriter bw = new BinaryWriter(fs))
+                    {
+                        // ICONDIR (6 byte)
+                        bw.Write((ushort)0);
+                        bw.Write((ushort)1);
+                        bw.Write((ushort)1);
+                        // ICONDIRENTRY (16 byte)
+                        bw.Write((byte)size);
+                        bw.Write((byte)size);
+                        bw.Write((byte)0);
+                        bw.Write((byte)0);
+                        bw.Write((ushort)1);
+                        bw.Write((ushort)32);
+                        bw.Write(imageBytesLen);
+                        bw.Write((uint)22);
+                        // BITMAPINFOHEADER (40 byte)
+                        bw.Write((uint)40);
+                        bw.Write((int)size);
+                        bw.Write((int)(size * 2)); // XOR + AND height
+                        bw.Write((ushort)1);
+                        bw.Write((ushort)32);
+                        bw.Write((uint)0); // BI_RGB
+                        bw.Write((uint)(xorSize + andSize));
+                        bw.Write((int)0);
+                        bw.Write((int)0);
+                        bw.Write((uint)0);
+                        bw.Write((uint)0);
+
+                        // Bottom-up BGRA piksel verisi
+                        for (int y = size - 1; y >= 0; y--)
+                        {
+                            for (int x = 0; x < size; x++)
+                            {
+                                Color c = bmp.GetPixel(x, y);
+                                bw.Write(c.B);
+                                bw.Write(c.G);
+                                bw.Write(c.R);
+                                bw.Write(c.A);
+                            }
+                        }
+                        // AND maskesi (tümü 0 — alfa kanalı kullanılır)
+                        bw.Write(new byte[andSize]);
+                    }
+                }
+                return icoPath;
+            }
+            catch
+            {
+                return fallbackExePath;
+            }
+        }
+
+        public void RefreshTaskbarJumpList()
+        {
+            UpdateTaskbarJumpList(_currentLang ?? GetLanguageSetting());
+        }
+
+        public void UpdateTaskbarJumpList(string lang)
+        {
+            try
+            {
+                System.Windows.Application? app = System.Windows.Application.Current;
+                if (app == null) return;
+
+                app.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, new Action(() =>
+                {
+                    string dbgLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wv2_debug.log");
+                    try
+                    {
+                        string exePath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? "";
+                        if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+                        {
+                            try { File.AppendAllText(dbgLog, $"[{DateTime.Now}] [JumpList] Skipped: exePath not found ('{exePath}')\n"); } catch {}
+                            return;
+                        }
+
+                        string workDir = Path.GetDirectoryName(exePath) ?? AppDomain.CurrentDomain.BaseDirectory;
+                        dbgLog = Path.Combine(workDir, "wv2_debug.log");
+                        // Temp klasörü başlangıçta temizlendiği için kalıcı bin/icons dizinini kullan
+                        string iconDir = Path.Combine(workDir, "bin", "icons");
+                        bool isEn = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase);
+
+                        string icoUi = EnsureJumpListIconFile(iconDir, "ui", exePath);
+                        string icoPaste = EnsureJumpListIconFile(iconDir, "paste", exePath);
+                        string icoCheck = EnsureJumpListIconFile(iconDir, "check", exePath);
+                        string icoGame = EnsureJumpListIconFile(iconDir, "gamemode", exePath);
+                        string icoSpeed = EnsureJumpListIconFile(iconDir, "speed", exePath);
+                        string icoSettings = EnsureJumpListIconFile(iconDir, "settings", exePath);
+                        string icoQueue = EnsureJumpListIconFile(iconDir, "shortcuts", exePath);
+                        string icoMerge = EnsureJumpListIconFile(iconDir, "youtube", exePath);
+
+                        var jumpList = new System.Windows.Shell.JumpList
+                        {
+                            ShowFrequentCategory = false,
+                            ShowRecentCategory = false
+                        };
+
+                        jumpList.JumpItemsRejected += (s, rejArgs) =>
+                        {
+                            try
+                            {
+                                for (int i = 0; i < rejArgs.RejectedItems.Count; i++)
+                                {
+                                    var rItem = rejArgs.RejectedItems[i] as System.Windows.Shell.JumpTask;
+                                    var reason = rejArgs.RejectionReasons[i];
+                                    File.AppendAllText(dbgLog, $"[{DateTime.Now}] [JumpList REJECTED] Title='{rItem?.Title}' Args='{rItem?.Arguments}' Reason={reason}\n");
+                                }
+                            }
+                            catch {}
+                        };
+
+                        // CustomCategory = null bırakılarak doğrudan standart Windows "Görevler (Tasks)" grubuna eklenir.
+                        // Böylece Windows "Son açılan öğeleri göster (Start_TrackDocs)" kapalı olsa dahi %100 görünür.
+                        System.Windows.Shell.JumpTask MakeTask(string title, string desc, string args, string iconFile)
+                        {
+                            return new System.Windows.Shell.JumpTask
+                            {
+                                Title = title,
+                                Description = desc,
+                                ApplicationPath = exePath,
+                                Arguments = args,
+                                WorkingDirectory = workDir,
+                                IconResourcePath = iconFile,
+                                IconResourceIndex = 0
+                            };
+                        }
+
+                        jumpList.JumpItems.Add(MakeTask(
+                            isEn ? "Open Library" : "Kütüphaneyi Aç",
+                            isEn ? "Open main video library" : "Ana video kütüphanesini açar",
+                            "/home", icoUi));
+
+                        jumpList.JumpItems.Add(MakeTask(
+                            isEn ? "Download Queue" : "İndirme Kuyruğu",
+                            isEn ? "View active downloads and pending merges" : "Aktif indirmeleri ve bekleyen birleştirmeleri gösterir",
+                            "/download", icoQueue));
+
+                        jumpList.JumpItems.Add(MakeTask(
+                            isEn ? "Download Clipboard URL" : "Panodaki Linki İndir",
+                            isEn ? "Add copied video URL directly to queue" : "Kopyalanan video bağlantısını doğrudan kuyruğa ekler",
+                            "paste", icoPaste));
+
+                        jumpList.JumpItems.Add(MakeTask(
+                            isEn ? "Scan Channels Now" : "Kanalları Şimdi Tara",
+                            isEn ? "Check followed channels for new videos" : "Takip edilen kanallarda yeni video taraması başlatır",
+                            "check", icoCheck));
+
+                        // Görsel ayırıcı çizgi (Tasks grubu içinde standart Win32 ayırıcı)
+                        jumpList.JumpItems.Add(new System.Windows.Shell.JumpTask());
+
+                        jumpList.JumpItems.Add(MakeTask(
+                            isEn ? "Toggle Game Mode (Defer Merge)" : "Oyun Modu Aç / Kapat (Birleştirmeyi Ertele)",
+                            isEn ? "Download at full speed with zero FFmpeg load while gaming" : "Oyundayken sıfır FFmpeg yüküyle indirir; kapatınca sırayla birleştirir",
+                            "game", icoGame));
+
+                        jumpList.JumpItems.Add(MakeTask(
+                            isEn ? "Start Pending Merges" : "Bekleyen Birleştirmeleri Başlat",
+                            isEn ? "Sequentially merge deferred videos now" : "Kuyrukta bekleyen ham videoları sırayla birleştirir",
+                            "merge", icoMerge));
+
+                        jumpList.JumpItems.Add(MakeTask(
+                            isEn ? "Toggle Turtle Speed Limit" : "Kaplumbağa Hız Modu Aç / Kapat",
+                            isEn ? "Switch between normal and alternative download speed" : "Normal ve alternatif indirme hız sınırı arasında geçiş yapar",
+                            "toggle", icoSpeed));
+
+                        jumpList.JumpItems.Add(MakeTask(
+                            isEn ? "Pause / Resume Queue" : "Kuyruğu Duraklat / Devam Ettir",
+                            isEn ? "Pause or resume active downloads" : "Aktif indirme kuyruğunu duraklatır veya devam ettirir",
+                            "pd", icoQueue));
+
+                        jumpList.JumpItems.Add(new System.Windows.Shell.JumpTask());
+
+                        jumpList.JumpItems.Add(MakeTask(
+                            isEn ? "Settings" : "Ayarlar",
+                            isEn ? "Open application settings" : "Uygulama ayarlarını açar",
+                            "/settings", icoSettings));
+
+                        int beforeCount = jumpList.JumpItems.Count;
+                        System.Windows.Shell.JumpList.SetJumpList(app, jumpList);
+                        jumpList.Apply();
+                        try { File.AppendAllText(dbgLog, $"[{DateTime.Now}] [JumpList] Applied {jumpList.JumpItems.Count}/{beforeCount} tasks successfully for '{exePath}'.\n"); } catch {}
+                    }
+                    catch (Exception ex)
+                    {
+                        try { File.AppendAllText(dbgLog, $"[{DateTime.Now}] [JumpList ERROR] {ex}\n"); } catch {}
+                    }
+                }));
+            }
+            catch {}
+        }
+
+        public static bool IsHeadlessCliCommand(string rawCmd)
+        {
+            if (string.IsNullOrWhiteSpace(rawCmd)) return false;
+            string trimmed = rawCmd.Trim();
+            string first = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant().TrimStart('-', '/');
+            switch (first)
+            {
+                case "pd":
+                case "paste":
+                case "pano":
+                case "clipboard":
+                case "status":
+                case "info":
+                case "durum":
+                case "ton":
+                case "turtleon":
+                case "turtleac":
+                case "turtle-on":
+                case "toff":
+                case "turtleoff":
+                case "turtlekapat":
+                case "turtle-off":
+                case "toggle":
+                case "turtle":
+                case "turtle-toggle":
+                case "speed":
+                case "altspeed":
+                case "game":
+                case "gamemode":
+                case "game-mode":
+                case "gameon":
+                case "game-on":
+                case "gameoff":
+                case "game-off":
+                case "gametoggle":
+                case "game-toggle":
+                case "oyun":
+                case "oyunac":
+                case "oyun-ac":
+                case "oyunkapat":
+                case "oyun-kapat":
+                case "oyuntoggle":
+                case "defer-on":
+                case "deferon":
+                case "defer-off":
+                case "deferoff":
+                case "defer-merge":
+                case "defermerge":
+                case "merge":
+                case "merge-all":
+                case "merge-pause":
+                case "birlestir":
+                case "birlestir-duraklat":
+                case "pause":
+                case "duraklat":
+                case "pause-all":
+                case "resume":
+                case "devam":
+                case "resume-all":
+                case "check":
+                case "scan":
+                case "tara":
+                case "backup":
+                case "yedek":
+                case "fakap":
+                case "fakap-run":
+                case "help":
+                case "?":
+                case "komutlar":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static bool TrySendHttpCliCommandStatic(string command, out string responseMessage)
+        {
+            responseMessage = "";
+            try
+            {
+                string portStr = MainWindow.ReadIniSetting("port", "4141");
+                if (!int.TryParse(portStr, out int port) || port <= 0) port = 4141;
+                string url = $"http://127.0.0.1:{port}/api/cli/exec";
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                request.Method = "POST";
+                request.ContentType = "application/json; charset=utf-8";
+                request.Timeout = 8000;
+                string escaped = command.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", " ");
+                byte[] body = Encoding.UTF8.GetBytes("{\"command\":\"" + escaped + "\"}");
+                request.ContentLength = body.Length;
+                using (Stream reqStream = request.GetRequestStream())
+                {
+                    reqStream.Write(body, 0, body.Length);
+                }
+                using (WebResponse resp = request.GetResponse())
+                using (Stream respStream = resp.GetResponseStream())
+                using (StreamReader reader = new StreamReader(respStream, Encoding.UTF8))
+                {
+                    string json = reader.ReadToEnd();
+                    var m = Regex.Match(json, "\"message\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
+                    if (m.Success)
+                    {
+                        responseMessage = Regex.Unescape(m.Groups[1].Value);
+                    }
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -970,7 +1457,17 @@ namespace HaYTooLPlayer
                 {
                     _nodeProcess.StandardInput.WriteLine(command);
                     AppendLog("[GİRDİ] > " + command);
+                    return;
                 }
+
+                // Backend ayrı süreç olarak çalışıyorsa HTTP /api/cli/exec üzerinden ilet
+                ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    if (TrySendHttpCliCommandStatic(command, out string msg) && !string.IsNullOrEmpty(msg))
+                    {
+                        AppendLog(msg);
+                    }
+                });
             }
             catch (Exception ex)
             {

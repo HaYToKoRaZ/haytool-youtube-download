@@ -6,20 +6,24 @@
  */
 
 import { translations } from './utils/i18n.js';
-import { escapeHtml, formatDate, getDaysAgoText, parseSizeToBytes, isShortVideo, parseTimeToSeconds, formatDescriptionTimestamps, parseLikes, parseRelativeTime, debounce, isMembersOnlyVideo, getCatTranslatedName, getVideoRemainingInfo } from './utils/helpers.js';
+import { escapeHtml, formatDate, getDaysAgoText, parseSizeToBytes, isShortVideo, parseTimeToSeconds, formatDescriptionTimestamps, parseLikes, parseRelativeTime, debounce, isMembersOnlyVideo, getCatTranslatedName, getVideoRemainingInfo, hasFollowedChannelAvatar, getSiteFaviconInfo, getChannelOrSiteAvatarHtml } from './utils/helpers.js?v=12.3.5.1';
 import { showToast, toastSuccess, toastError, toastWarning, toastInfo } from './components/toast.js';
-import { renderVideoGrid } from './components/videoCard.js?v=12.3.3';
+import { renderVideoGrid } from './components/videoCard.js?v=12.3.5.1';
 import { renderChannelsList, getChannelsRenderSignature, buildChannelCardElement } from './components/channelRow.js';
 window.buildChannelCardElement = buildChannelCardElement;
 // Araçlar ve dosya karşılaştırma alt modülü
 import './modules/tools.js';
 import './modules/fakap.js';
+import { renderPendingMergeSection, updateMergeQueueState, handleMergeProgressEvent } from './modules/mergeQueue.js';
+import { renderCliCommandsPanel } from './modules/cliCommands.js';
 // Ayarlar, yedekleme ve Gist senkronizasyon alt modülü
-import { initSettings, populateGistFields, checkYouTubeAuthStatus, openTempFolder, openFolder, triggerAutoSave, performAutoSave, initSettingsFormListeners } from './modules/settings.js';
+import { initSettings, populateGistFields, checkYouTubeAuthStatus, openTempFolder, openFolder, triggerAutoSave, performAutoSave, initSettingsFormListeners, switchSettingsSubtab, initSettingsSubtabs } from './modules/settings.js';
 window.openTempFolder = openTempFolder;
 window.openFolder = openFolder;
 window.triggerAutoSave = triggerAutoSave;
 window.performAutoSave = performAutoSave;
+window.switchSettingsSubtab = switchSettingsSubtab;
+window.initSettingsSubtabs = initSettingsSubtabs;
 // Dinamik dil ve arayüz çevirisi alt modülü
 import { applyLanguage } from './modules/i18n-apply.js';
 window.applyLanguage = applyLanguage;
@@ -117,6 +121,30 @@ import {
 window.applySubtitlesToPlayer = applySubtitlesToPlayer;
 window.fetchVideoSubtitles = fetchVideoSubtitles;
 window.openSubtitleTranslateModal = openSubtitleTranslateModal;
+
+window.handleInlineTranslateSubClick = async function() {
+  const videoId = window.currentPlayingVideoId;
+  if (!videoId) {
+    if (typeof showToast === 'function') {
+      const lang = window.localDb?.settings?.lang || 'tr';
+      showToast((window.translations && window.translations[lang]?.['modal_translate_no_subs']) || 'Lütfen önce bir video oynatın.', 'warning');
+    }
+    return;
+  }
+  let subs = (typeof getCurrentSubtitles === 'function' && getCurrentSubtitles().length > 0)
+    ? getCurrentSubtitles()
+    : await fetchVideoSubtitles(videoId);
+
+  openSubtitleTranslateModal(videoId, subs, {
+    playerContainer: document.getElementById('inline-player-body'),
+    onComplete: () => {
+      if (typeof playVideoEmbedded === 'function') {
+        playVideoEmbedded(videoId, window.videoPlayerInstance ? window.videoPlayerInstance.currentTime : null);
+      }
+    }
+  });
+};
+
 window.initSubtitleStyleControls = initSubtitleStyleControls;
 window.getCurrentSubtitles = getCurrentSubtitles;
 window.setCurrentSubtitles = setCurrentSubtitles;
@@ -209,6 +237,16 @@ window.initYtdlpEvents = initYtdlpEvents;
 // İndirici arayüzü alt modülü (tekil/playlist indirme, eksik video kuyruğa ekleme)
 import { handleDownloaderStart, handleDownloaderAll, renderPlaylistResults, downloadMissingVideo } from './modules/downloaderUI.js';
 // Video yorumları ve sayfalama alt modülü
+import { toggleSummaryPanel, copySummaryText, resetSummaryState, regenerateSummary, onSummaryProviderChange, onSummaryModeChange, onSummaryModelChange, useFallbackLocalNlp, seekSummaryVideo } from './modules/videoSummary.js';
+window.toggleSummaryPanel = toggleSummaryPanel;
+window.copySummaryText = copySummaryText;
+window.resetSummaryState = resetSummaryState;
+window.regenerateSummary = regenerateSummary;
+window.onSummaryProviderChange = onSummaryProviderChange;
+window.onSummaryModeChange = onSummaryModeChange;
+window.seekSummaryVideo = seekSummaryVideo;
+window.onSummaryModelChange = onSummaryModelChange;
+window.useFallbackLocalNlp = useFallbackLocalNlp;
 import { loadComments, loadMoreComments, renderCommentsList, toggleCommentsPanel } from './modules/comments.js';
 // Tema yönetimi ve döngüsel geçiş alt modülü
 import { applyTheme, toggleQuickTheme, updateThemeToggleUI } from './modules/theme.js';
@@ -260,6 +298,7 @@ window.resetDownloadEngine = async function() {
 };
 let localDb = { channels: [], history: [], settings: {} };
 window.localDb = localDb;
+window._settingsFormPopulated = false;
 let currentPlayingVideoId = null;
 window.currentPlayingVideoId = null;
 let eventSource = null;
@@ -278,6 +317,8 @@ window.historyFilterDays = 'all';
 window.historyOnlyNoAutoDownload = false;
 window.historyOnlyNotDownloaded = false;
 window.historyOnlyLiveProcessing = false;
+window.historyShowLive = true;
+window.historyShowUpcoming = false;
 window.historyShowMembers = true;
 window.historyShowHidden = false;
 window.historyViewMode = 'grid';
@@ -490,7 +531,7 @@ function persistHistorySortMode() {
     fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(localDb.settings)
+      body: JSON.stringify({ historySortMode })
     }).catch(() => {});
   }
 }
@@ -618,6 +659,10 @@ function performTabSwitchUI(targetTab) {
     }
   });
 
+  if (targetTab === 'settings' && typeof window.initSettingsSubtabs === 'function') {
+    window.initSettingsSubtabs();
+  }
+
   // Sekme değiştirildiğinde ana içerik alanını en yukarı kaydır
   const mainContent = document.querySelector('.main-content');
   if (mainContent) {
@@ -733,6 +778,13 @@ function connectSSE() {
   eventSource.addEventListener('channel_scan_progress', (e) => {
     const data = JSON.parse(e.data);
     updateScanProgressToast(data);
+  });
+
+  eventSource.addEventListener('merge_progress', (e) => {
+    try { handleMergeProgressEvent(JSON.parse(e.data)); } catch (_) {}
+  });
+  eventSource.addEventListener('merge_queue_state', (e) => {
+    try { updateMergeQueueState(JSON.parse(e.data)); } catch (_) {}
   });
 
   // Temp sürücüsü dolu uyarısı (yt-dlp açılamaz)
@@ -898,7 +950,7 @@ function toggleFilterChip(checkboxId) {
     fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...currentDb.settings, showShorts })
+      body: JSON.stringify({ showShorts })
     }).then(r => r.json()).then(data => {
       if (data.success) {
         showToast(showShorts ? 'Shorts videoları gösteriliyor.' : 'Shorts videoları gizlendi.', 'success');
@@ -911,6 +963,15 @@ function toggleFilterChip(checkboxId) {
     window.historyShowLive = cb.checked;
     if (!currentDb.settings) currentDb.settings = {};
     currentDb.settings.historyShowLive = cb.checked;
+    if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
+    if (typeof updateUI === 'function') updateUI(currentDb);
+    return;
+  }
+
+  if (checkboxId === 'history-show-upcoming') {
+    window.historyShowUpcoming = cb.checked;
+    if (!currentDb.settings) currentDb.settings = {};
+    currentDb.settings.historyShowUpcoming = cb.checked;
     if (typeof saveHistoryFilterState === 'function') saveHistoryFilterState();
     if (typeof updateUI === 'function') updateUI(currentDb);
     return;
@@ -966,6 +1027,7 @@ function syncFilterChipUI(checkboxId) {
     'history-show-members': 'btn-filter-show-members',
     'history-show-shorts': 'btn-filter-show-shorts',
     'history-show-live': 'btn-filter-show-live',
+    'history-show-upcoming': 'btn-filter-show-upcoming',
     'history-only-no-auto-download': 'btn-filter-no-auto-download'
   };
   const btnId = chipMap[checkboxId];
@@ -1009,7 +1071,7 @@ function toggleDownloadedShowShorts(showShorts) {
   fetch('/api/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...currentDb.settings, showShorts: !!showShorts })
+    body: JSON.stringify({ showShorts: !!showShorts })
   }).then(r => r.json()).then(data => {
     if (data.success) {
       showToast(showShorts ? 'Shorts videoları gösteriliyor.' : 'Shorts videoları gizlendi.', 'success');
@@ -1064,6 +1126,7 @@ function updateHistoryFiltersCount() {
   const ids = [
     'history-show-shorts',
     'history-show-live',
+    'history-show-upcoming',
     'history-only-no-auto-download',
     'history-only-not-downloaded',
     'history-only-live-processing',
@@ -1975,8 +2038,17 @@ function updateUI(db) {
   }
   const historyShowLiveCheck = document.getElementById('history-show-live');
   if (historyShowLiveCheck) {
-    historyShowLiveCheck.checked = localDb.settings?.historyShowLive !== false;
+    const showLiveVal = localDb.settings?.historyShowLive !== undefined ? localDb.settings.historyShowLive !== false : window.historyShowLive !== false;
+    window.historyShowLive = showLiveVal;
+    historyShowLiveCheck.checked = showLiveVal;
     syncFilterChipUI('history-show-live');
+  }
+  const historyShowUpcomingCheck = document.getElementById('history-show-upcoming');
+  if (historyShowUpcomingCheck) {
+    const showUpcomingVal = localDb.settings?.historyShowUpcoming !== undefined ? localDb.settings.historyShowUpcoming === true : window.historyShowUpcoming === true;
+    window.historyShowUpcoming = showUpcomingVal;
+    historyShowUpcomingCheck.checked = showUpcomingVal;
+    syncFilterChipUI('history-show-upcoming');
   }
   const historyOnlyLiveProcessingCheck = document.getElementById('history-only-live-processing');
   if (historyOnlyLiveProcessingCheck) {
@@ -2047,12 +2119,17 @@ function updateUI(db) {
       filteredHistory = filteredHistory.filter(item => disabledChannelIds.has(item.channelId));
     }
     
-    if (window.historyOnlyNotDownloaded) {
-      filteredHistory = filteredHistory.filter(item => item.status !== 'completed');
-    }
-
     if (window.historyOnlyLiveProcessing) {
       filteredHistory = filteredHistory.filter(item => item.status === 'waiting_live_processing' || item.status === 'live_processing');
+    } else if (db.settings.liveStreamHandling === 'ignore_live') {
+      filteredHistory = filteredHistory.filter(item =>
+        item.status !== 'live' &&
+        item.status !== 'upcoming' &&
+        item.status !== 'waiting_live_processing' &&
+        item.status !== 'live_processing' &&
+        item.duration !== 'live' &&
+        item.duration !== 'upcoming'
+      );
     }
 
     const showMembers = window.historyShowMembers !== false;
@@ -2104,12 +2181,19 @@ function updateUI(db) {
       });
     }
     
-    // Yüklenme tarihine göre sırala (Yeni olan en üstte)
-    filteredHistory.sort((a, b) => {
-      const dateA = new Date(a.publishedAt || a.downloadedAt || 0).getTime();
-      const dateB = new Date(b.publishedAt || b.downloadedAt || 0).getTime();
-      return dateB - dateA;
-    });
+    // Yüklenme tarihine göre sırala (Yeni olan en üstte; yayın tarihi belirsiz olanlar gerçek tarihlilerin önüne geçemez)
+    const getValidPubOrDlTime = (item) => {
+      if (item.publishedAt && item.publishedAt !== '-') {
+        const t = new Date(item.publishedAt).getTime();
+        if (!isNaN(t) && t > 0) return t;
+      }
+      if (item.downloadedAt && item.downloadedAt !== '-') {
+        const t = new Date(item.downloadedAt).getTime();
+        if (!isNaN(t) && t > 0) return t;
+      }
+      return 0;
+    };
+    filteredHistory.sort((a, b) => getValidPubOrDlTime(b) - getValidPubOrDlTime(a));
 
     // Kanal başına geçmiş limiti sadece Kütüphane sayfasında uygula
     const limit = db.settings.historyLimitPerChannel || 30;
@@ -2127,21 +2211,37 @@ function updateUI(db) {
     }
     filteredHistory = limitedHistory;
 
-    // Silinen/gizlenen videoları limit uygulandıktan sonra filtrele ki
-    // gizlenmiş videolar son videolar kontenjanını kaplasın ve yerine eski videolar sızmasın.
+    // Silinen/gizlenen ve zaten indirilmiş (completed) videoları kanal başına limit uygulandıktan sonra filtrele ki
+    // kanalın son videolar kontenjanını kaplasınlar ve yerlerine aylarca önceki eski videolar sızmasın.
     if (!window.historyShowHidden) {
       filteredHistory = filteredHistory.filter(item => item.hidden !== true);
     }
+    if (window.historyOnlyNotDownloaded) {
+      filteredHistory = filteredHistory.filter(item => item.status !== 'completed');
+    }
+    if (!window.historyOnlyLiveProcessing) {
+      const showLive = db.settings.historyShowLive !== undefined ? db.settings.historyShowLive !== false : window.historyShowLive !== false;
+      if (!showLive) {
+        filteredHistory = filteredHistory.filter(item =>
+          !(item.status === 'live' || (item.duration === 'live' && item.status !== 'waiting_live_processing' && item.status !== 'live_processing'))
+        );
+      }
+      const showUpcoming = db.settings.historyShowUpcoming !== undefined ? db.settings.historyShowUpcoming === true : window.historyShowUpcoming === true;
+      if (!showUpcoming) {
+        filteredHistory = filteredHistory.filter(item => item.status !== 'upcoming' && item.duration !== 'upcoming');
+      }
+    }
 
     // Kütüphane sıralama uygula (configwin.ini / db.settings historySortMode)
+    const getSortDateStr = (item) => (item.publishedAt && item.publishedAt !== '-') ? item.publishedAt : (item.downloadedAt || '');
     if (historySortMode === 'date-asc') {
-      filteredHistory.sort((a, b) => (a.downloadedAt || a.publishedAt || '').localeCompare(b.downloadedAt || b.publishedAt || ''));
+      filteredHistory.sort((a, b) => getSortDateStr(a).localeCompare(getSortDateStr(b)));
     } else if (historySortMode === 'title') {
       filteredHistory.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
     } else if (historySortMode === 'duration') {
       filteredHistory.sort((a, b) => (parseTimeToSeconds(b.duration) || 0) - (parseTimeToSeconds(a.duration) || 0));
     } else {
-      filteredHistory.sort((a, b) => (b.downloadedAt || b.publishedAt || '').localeCompare(a.downloadedAt || a.publishedAt || ''));
+      filteredHistory.sort((a, b) => getSortDateStr(b).localeCompare(getSortDateStr(a)));
     }
     
     renderVideoGrid(historyGrid, filteredHistory, historyViewMode);
@@ -2305,15 +2405,17 @@ function updateUI(db) {
     const settingsQuality = document.getElementById('settings-quality');
     if (settingsQuality && document.activeElement !== settingsQuality) settingsQuality.value = db.settings.quality || 'best';
     const settingsChannelCheckInterval = document.getElementById('settings-channelcheckinterval');
-    if (settingsChannelCheckInterval && document.activeElement !== settingsChannelCheckInterval) settingsChannelCheckInterval.value = db.settings.channelCheckInterval || 60;
+    if (settingsChannelCheckInterval && document.activeElement !== settingsChannelCheckInterval) settingsChannelCheckInterval.value = db.settings.channelCheckInterval || 30; if (typeof window.updateChannelIntervalWarning === 'function') window.updateChannelIntervalWarning();
     const settingsAutoDownload = document.getElementById('settings-autodownload');
     if (settingsAutoDownload && document.activeElement !== settingsAutoDownload) settingsAutoDownload.checked = !!db.settings.autoDownload;
     const settingsShortsDurationLimit = document.getElementById('settings-shortsdurationlimit');
     if (settingsShortsDurationLimit && document.activeElement !== settingsShortsDurationLimit) settingsShortsDurationLimit.value = db.settings.shortsDurationLimit || 180;
 
     const settingsMergeType = document.getElementById('settings-mergetype');
+    const settingsHwaccel = document.getElementById('settings-hwaccel');
     const settingsWriteThumbnail = document.getElementById('settings-writethumbnail');
     if (settingsMergeType && document.activeElement !== settingsMergeType) settingsMergeType.value = db.settings.mergeType || 'single';
+    if (settingsHwaccel && document.activeElement !== settingsHwaccel) settingsHwaccel.value = db.settings.hardwareAcceleration || 'auto';
     if (settingsWriteThumbnail && document.activeElement !== settingsWriteThumbnail) settingsWriteThumbnail.checked = db.settings.writeThumbnail !== false;
 
     const settingsShowShorts = document.getElementById('settings-showshorts');
@@ -2369,6 +2471,12 @@ function updateUI(db) {
     const settingsPlaySounds = document.getElementById('settings-playsounds');
     if (settingsPlaySounds && document.activeElement !== settingsPlaySounds) settingsPlaySounds.checked = db.settings.playSounds !== false;
 
+    const settingsSoundDownload = document.getElementById('settings-sound-download');
+    if (settingsSoundDownload && document.activeElement !== settingsSoundDownload) settingsSoundDownload.value = db.settings.soundDownloadComplete || 'chime';
+
+    const settingsSoundMerge = document.getElementById('settings-sound-merge');
+    if (settingsSoundMerge && document.activeElement !== settingsSoundMerge) settingsSoundMerge.value = db.settings.soundMergeComplete || 'fanfare';
+
     const settingsAutoSyncWatchtime = document.getElementById('settings-autosync-watchtime');
     if (settingsAutoSyncWatchtime && document.activeElement !== settingsAutoSyncWatchtime) settingsAutoSyncWatchtime.checked = db.settings.autoSyncWatchtime !== false;
 
@@ -2403,6 +2511,12 @@ function updateUI(db) {
 
     const settingsAutoOpenBrowser = document.getElementById('settings-autoopenbrowser');
     if (settingsAutoOpenBrowser && document.activeElement !== settingsAutoOpenBrowser) settingsAutoOpenBrowser.checked = db.settings.autoOpenBrowser !== false;
+
+    const settingsUnloadUiOnHide = document.getElementById('settings-unload-ui-on-hide');
+    if (settingsUnloadUiOnHide && document.activeElement !== settingsUnloadUiOnHide) settingsUnloadUiOnHide.checked = db.settings.unloadUiOnHide !== false;
+
+    const settingsPlayerGpuMode = document.getElementById('settings-player-gpu-mode');
+    if (settingsPlayerGpuMode && document.activeElement !== settingsPlayerGpuMode) settingsPlayerGpuMode.value = db.settings.playerGpuMode || 'gpu';
 
     const settingsLang = document.getElementById('settings-lang');
     const effectiveLang = db.settings.lang || localStorage.getItem('haytool_user_lang') || 'tr';
@@ -2527,10 +2641,28 @@ function updateUI(db) {
     
     // YouTube Oturumu ve Çerez durumunu kontrol et
     checkYouTubeAuthStatus();
+    window._settingsFormPopulated = true;
   }
 
   // Gist alanlarını ve bağlantılarını doldur
-  populateGistFields();
+  if (window._settingsFormPopulated) {
+    populateGistFields();
+  }
+
+  if (typeof updateFakapSettingsControls === 'function' && localDb?.settings) {
+    updateFakapSettingsControls({
+      enabled: localDb.settings.fakapEnabled,
+      dir: localDb.settings.fakapPath,
+      quality: localDb.settings.fakapQuality,
+      retentionDays: localDb.settings.fakapRetentionDays
+    });
+  }
+
+  renderPendingMergeSection(db);
+  if (!window._cliCommandsRendered) {
+    renderCliCommandsPanel();
+    window._cliCommandsRendered = true;
+  }
 
   // İkonları yeniden yükle
   lucide.createIcons();
@@ -3510,9 +3642,18 @@ window.switchInlinePlayerToModal = function() {
 
   // Modal başlık ve logoyu güncelle
   if (modalTitle) modalTitle.textContent = video ? video.title : 'Gömülü Video Oynatıcı';
-  if (modalLogo && video?.channelId) {
-    modalLogo.src = `/api/channels/${video.channelId}/avatar`;
-    modalLogo.style.display = 'block';
+  if (modalLogo && video) {
+    const vPlat = (typeof detectVideoPlatform === 'function') ? detectVideoPlatform(video) : 'youtube';
+    if (vPlat === 'youtube' && hasFollowedChannelAvatar(video.channelId)) {
+      modalLogo.onerror = function() { this.style.display = 'none'; };
+      modalLogo.src = `/api/channels/${encodeURIComponent(video.channelId)}/avatar`;
+      modalLogo.style.display = 'block';
+    } else {
+      const fav = getSiteFaviconInfo(video);
+      modalLogo.onerror = function() { this.onerror = null; this.src = fav.fallback; };
+      modalLogo.src = fav.src;
+      modalLogo.style.display = 'block';
+    }
   } else if (modalLogo) {
     modalLogo.style.display = 'none';
   }
@@ -3564,6 +3705,7 @@ window.cleanupAllPlayers = function() {
       console.error("Error destroying videoPlayerInstance:", e);
     }
     videoPlayerInstance = null;
+    window.videoPlayerInstance = null;
   }
 
   const videoElements = document.querySelectorAll('video, audio');
@@ -3723,23 +3865,33 @@ window.updateInlinePlayerMetadata = function(videoObj) {
   const logoDividerEl = document.getElementById('inline-player-logo-divider');
   const platformIconEl = document.getElementById('inline-player-platform-icon');
   if (avatarEl) {
-    if (isYouTube && videoChannelId) {
-      avatarEl.src = `/api/channels/${videoChannelId}/avatar`;
+    if (isYouTube && hasFollowedChannelAvatar(videoChannelId)) {
+      avatarEl.onerror = function() { this.style.display = 'none'; };
+      avatarEl.src = `/api/channels/${encodeURIComponent(videoChannelId)}/avatar`;
+      avatarEl.style.display = 'block';
+      if (logoDividerEl) logoDividerEl.style.display = 'inline';
+      if (platformIconEl) platformIconEl.style.display = 'none';
+    } else if (videoObj) {
+      const fav = getSiteFaviconInfo(videoObj);
+      avatarEl.onerror = function() { this.onerror = null; this.src = fav.fallback; };
+      avatarEl.src = fav.src;
       avatarEl.style.display = 'block';
       if (logoDividerEl) logoDividerEl.style.display = 'inline';
       if (platformIconEl) platformIconEl.style.display = 'none';
     } else {
       avatarEl.style.display = 'none';
       if (logoDividerEl) logoDividerEl.style.display = 'none';
-      if (platformIconEl) {
-        if (!isYouTube && typeof getPlatformSvgIcon === 'function') {
-          platformIconEl.innerHTML = getPlatformSvgIcon(platform, 16);
-          platformIconEl.style.display = 'inline-flex';
-        } else {
-          platformIconEl.style.display = 'none';
-        }
-      }
+      if (platformIconEl) platformIconEl.style.display = 'none';
     }
+  }
+
+  function formatInlineViewsCount(views) {
+    const num = Number(views);
+    if (!Number.isFinite(num) || num <= 0) return null;
+    if (num >= 1000000000) return (num / 1000000000).toFixed(1).replace(/\.0$/, '') + 'B';
+    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return num.toLocaleString();
   }
 
   const subsEl = document.getElementById('inline-player-channel-subs');
@@ -3758,6 +3910,27 @@ window.updateInlinePlayerMetadata = function(videoObj) {
     } else {
       subsEl.style.display = 'none';
       if (dividerEl) dividerEl.style.display = 'none';
+    }
+  }
+
+  // YouTube İzlenme Sayısı Rozeti (#inline-player-video-views)
+  const viewsEl = document.getElementById('inline-player-video-views');
+  const viewsTextEl = document.getElementById('inline-player-video-views-text');
+  if (viewsEl && viewsTextEl) {
+    if (isYouTube) {
+      const histItem = window.localDb?.history?.find(h => h.id === videoObj.id);
+      const viewVal = (histItem && histItem.viewCount) || videoObj.viewCount;
+      const formatted = formatInlineViewsCount(viewVal);
+      viewsTextEl.textContent = formatted || '--';
+      if (viewVal && Number(viewVal) > 0) {
+        viewsEl.title = Number(viewVal).toLocaleString();
+      }
+      viewsEl.style.display = 'inline-flex';
+      try {
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      } catch (e) {}
+    } else {
+      viewsEl.style.display = 'none';
     }
   }
 
@@ -3872,6 +4045,16 @@ window.updateInlinePlayerMetadata = function(videoObj) {
             };
 
             updateRydDisplay();
+
+            // RYD üzerinden gelen güncel viewCount varsa ve rozet boşsa güncelle
+            if (viewsEl && viewsTextEl && isYouTube && data.viewCount) {
+              const formatted = formatInlineViewsCount(data.viewCount);
+              if (formatted) {
+                viewsTextEl.textContent = formatted;
+                viewsEl.title = Number(data.viewCount).toLocaleString();
+                viewsEl.style.display = 'inline-flex';
+              }
+            }
 
             // Kullanıcının daha önceki oyunu yerel hafızadan kontrol et
             const storageVoteKey = `ryd_vote_${videoObj.id}`;
@@ -4142,8 +4325,14 @@ window.updateInlinePlayerMetadata = function(videoObj) {
 
       if (isCompleted) {
         btnTranslate.style.display = 'inline-flex';
-        btnTranslate.onclick = () => {
-          openSubtitleTranslateModal(videoId, availableSubtitles, {
+        btnTranslate.onclick = async () => {
+          let currentSubs = (typeof getCurrentSubtitles === 'function' && getCurrentSubtitles().length > 0)
+            ? getCurrentSubtitles()
+            : null;
+          if (!currentSubs || currentSubs.length === 0) {
+            currentSubs = await fetchVideoSubtitles(videoId);
+          }
+          openSubtitleTranslateModal(videoId, currentSubs, {
             playerContainer: playerContainer || document.getElementById('inline-player-body'),
             onComplete: () => {
               playVideoEmbedded(videoId, videoPlayerInstance ? videoPlayerInstance.currentTime : null);
@@ -4330,6 +4519,22 @@ window.updateInlinePlayerMetadata = function(videoObj) {
             const descContainer = document.getElementById('inline-player-description-container');
             if (descContainer) {
               descContainer.classList.remove('hidden');
+            }
+
+            // İzlenme sayısını da tazele
+            if (descData.viewCount !== undefined && descData.viewCount !== null) {
+              const vEl = document.getElementById('inline-player-video-views');
+              const vTextEl = document.getElementById('inline-player-video-views-text');
+              if (vEl && vTextEl) {
+                const formatted = (typeof formatInlineViewsCount === 'function')
+                  ? formatInlineViewsCount(descData.viewCount)
+                  : ((Number(descData.viewCount) >= 1000000) ? (Number(descData.viewCount)/1000000).toFixed(1)+'M' : Number(descData.viewCount).toLocaleString());
+                vTextEl.textContent = formatted || '--';
+                vEl.title = Number(descData.viewCount).toLocaleString();
+                vEl.style.display = 'inline-flex';
+              }
+              const localHist = window.localDb?.history?.find(h => h.id === videoId);
+              if (localHist) localHist.viewCount = descData.viewCount;
             }
 
             // Yorumları yeniden yükle
@@ -4531,6 +4736,7 @@ window.updateInlinePlayerMetadata = function(videoObj) {
     // Floating Modal player
     const inlineContainer = document.getElementById('downloaded-inline-player-container');
     const listContainer = document.getElementById('downloaded-list-container');
+    if (typeof resetSummaryState === 'function') resetSummaryState();
     if (inlineContainer) inlineContainer.classList.add('hidden');
     if (listContainer) listContainer.classList.remove('hidden');
 
@@ -4544,8 +4750,12 @@ window.updateInlinePlayerMetadata = function(videoObj) {
       const modalPlatform = (typeof detectVideoPlatform === 'function') ? detectVideoPlatform(video) : 'youtube';
       const isModalYouTube = modalPlatform === 'youtube';
       const logoEl = document.getElementById('player-modal-logo');
-      if (logoEl && isModalYouTube && videoChannelId) {
-        logoEl.src = `/api/channels/${videoChannelId}/avatar`;
+      if (logoEl && isModalYouTube && hasFollowedChannelAvatar(videoChannelId)) {
+        logoEl.onerror = function() {
+          this.onerror = null;
+          this.src = getSiteFaviconInfo(video).fallback;
+        };
+        logoEl.src = `/api/channels/${encodeURIComponent(videoChannelId)}/avatar`;
         logoEl.style.display = 'block';
         logoEl.style.cursor = 'pointer';
         logoEl.title = localDb.settings?.lang === 'en' ? 'Go to Channel Videos' : 'Kanala Git';
@@ -4553,9 +4763,26 @@ window.updateInlinePlayerMetadata = function(videoObj) {
           e.preventDefault();
           window.open(`https://www.youtube.com/channel/${videoChannelId}/videos`, '_blank');
         };
+      } else if (logoEl && video) {
+        const fav = getSiteFaviconInfo(video);
         logoEl.onerror = function() {
-          this.src = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22><rect width=%2224%22 height=%2224%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2210%22>?</text></svg>';
+          this.onerror = null;
+          this.src = fav.fallback;
         };
+        logoEl.src = fav.src;
+        logoEl.style.display = 'block';
+        const extTargetUrl = video.webUrl || video.url || '';
+        if (extTargetUrl && (extTargetUrl.startsWith('http://') || extTargetUrl.startsWith('https://'))) {
+          logoEl.style.cursor = 'pointer';
+          logoEl.title = fav.domain || '';
+          logoEl.onclick = (e) => {
+            e.preventDefault();
+            window.open(extTargetUrl, '_blank');
+          };
+        } else {
+          logoEl.style.cursor = 'default';
+          logoEl.onclick = null;
+        }
       } else if (logoEl) {
         logoEl.style.display = 'none';
         logoEl.style.cursor = 'default';
@@ -4615,6 +4842,7 @@ window.updateInlinePlayerMetadata = function(videoObj) {
       playerContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${rawYtId}?autoplay=${autoplayVal}&fs=1&rel=0" style="width: 100%; height: 100%; border: none; display: block;" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
     }
     videoPlayerInstance = null;
+    window.videoPlayerInstance = null;
     if (forcePaused !== true) {
       sendPlayerActivity(true);
     }
@@ -4677,6 +4905,7 @@ window.updateInlinePlayerMetadata = function(videoObj) {
           hl: (localDb.settings && localDb.settings.lang) || 'tr'
         }
       });
+      window.videoPlayerInstance = videoPlayerInstance;
 
           const bindPlyrInteractions = () => {
             const containerSelector = isInline ? '#downloaded-inline-player-container' : '#player-modal';
@@ -5121,7 +5350,7 @@ function renderDownloadedPlaylist(currentVideoId) {
       <div class="playlist-item-details">
         <h5 class="playlist-item-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h5>
         <div class="playlist-item-channel" title="${escapeHtml(item.channelName || '')} • ${item.fileSize || '-- MB'} • ${formatDate(item.publishedAt || item.downloadedAt)}">
-          ${item.channelId ? `<img src="/api/channels/${item.channelId}/avatar" class="playlist-item-channel-avatar" onerror="this.style.display='none';" alt="" />` : ''}
+          ${getChannelOrSiteAvatarHtml(item, 'playlist-item-channel-avatar')}
           <span class="playlist-item-channel-name">${escapeHtml(item.channelName || '')}</span>
           <span class="playlist-item-meta-sep">•</span>
           <span class="playlist-item-meta-info">${item.fileSize || '-- MB'} • ${formatDate(item.publishedAt || item.downloadedAt)}</span>
@@ -5995,6 +6224,7 @@ function saveHistoryFilterState() {
     const dateSelect = document.getElementById('history-date-filter');
     const showShortsCb = document.getElementById('history-show-shorts');
     const showLiveCb = document.getElementById('history-show-live');
+    const showUpcomingCb = document.getElementById('history-show-upcoming');
     const showMembersCb = document.getElementById('history-show-members');
     const noAutoDlCb = document.getElementById('history-only-no-auto-download');
     const notDownloadedCb = document.getElementById('history-only-not-downloaded');
@@ -6007,7 +6237,8 @@ function saveHistoryFilterState() {
       duration: durationSelect ? durationSelect.value : 'off',
       date: dateSelect ? dateSelect.value : (window.historyFilterDays || 'all'),
       showShorts: showShortsCb ? showShortsCb.checked : false,
-      showLive: showLiveCb ? showLiveCb.checked : true,
+      showLive: showLiveCb ? showLiveCb.checked : (window.historyShowLive !== false),
+      showUpcoming: showUpcomingCb ? showUpcomingCb.checked : !!window.historyShowUpcoming,
       showMembers: showMembersCb ? showMembersCb.checked : (window.historyShowMembers !== false),
       noAutoDownload: noAutoDlCb ? noAutoDlCb.checked : !!window.historyOnlyNoAutoDownload,
       notDownloaded: notDownloadedCb ? notDownloadedCb.checked : !!window.historyOnlyNotDownloaded,
@@ -6021,15 +6252,16 @@ function saveHistoryFilterState() {
     // Configwin.ini kalıcılığı: hızlı filtre çipleri sunucuya da yazılır (kanal filtresi hariç)
     if (localDb && localDb.settings) {
       const iniPatch = {
-        ...localDb.settings,
         showShorts: state.showShorts !== false,
         historyShowLive: state.showLive !== false,
+        historyShowUpcoming: !!state.showUpcoming,
         historyShowMembers: state.showMembers !== false,
         historyOnlyNoAutoDownload: !!state.noAutoDownload,
         historyOnlyNotDownloaded: !!state.notDownloaded,
         historyOnlyLiveProcessing: !!state.onlyLiveProcessing,
         historyShowHidden: !!state.showHidden
       };
+      Object.assign(localDb.settings, iniPatch);
       fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -6077,12 +6309,16 @@ function restoreHistoryFilterState() {
     // Configwin.ini / db.settings öncelikli hızlı filtre çipleri (kalıcılık INI üzerinden)
     const ini = localDb.settings || {};
     const iniHas = {
+      showLive: ini.historyShowLive !== undefined,
+      showUpcoming: ini.historyShowUpcoming !== undefined,
       noAutoDownload: ini.historyOnlyNoAutoDownload !== undefined,
       notDownloaded: ini.historyOnlyNotDownloaded !== undefined,
       onlyLiveProcessing: ini.historyOnlyLiveProcessing !== undefined,
       showMembers: ini.historyShowMembers !== undefined,
       showHidden: ini.historyShowHidden !== undefined
     };
+    if (iniHas.showLive) window.historyShowLive = ini.historyShowLive !== false;
+    if (iniHas.showUpcoming) window.historyShowUpcoming = ini.historyShowUpcoming === true;
     if (iniHas.noAutoDownload) window.historyOnlyNoAutoDownload = ini.historyOnlyNoAutoDownload;
     if (iniHas.notDownloaded) window.historyOnlyNotDownloaded = ini.historyOnlyNotDownloaded;
     if (iniHas.onlyLiveProcessing) window.historyOnlyLiveProcessing = ini.historyOnlyLiveProcessing;
@@ -6112,6 +6348,8 @@ function restoreHistoryFilterState() {
     }
 
     // localStorage'daki değerler yalnızca INI'de tanımlı değilse uygulanır (INI öncelikli)
+    if (state.showLive !== undefined && !iniHas.showLive) window.historyShowLive = state.showLive !== false;
+    if (state.showUpcoming !== undefined && !iniHas.showUpcoming) window.historyShowUpcoming = !!state.showUpcoming;
     if (state.noAutoDownload !== undefined && !iniHas.noAutoDownload) window.historyOnlyNoAutoDownload = !!state.noAutoDownload;
     if (state.notDownloaded !== undefined && !iniHas.notDownloaded) window.historyOnlyNotDownloaded = !!state.notDownloaded;
     if (state.showMembers !== undefined && !iniHas.showMembers) window.historyShowMembers = state.showMembers !== false;
@@ -6124,7 +6362,8 @@ function restoreHistoryFilterState() {
 
     const checkMap = {
       'history-show-shorts': state.showShorts,
-      'history-show-live': state.showLive,
+      'history-show-live': window.historyShowLive !== false,
+      'history-show-upcoming': !!window.historyShowUpcoming,
       'history-show-members': window.historyShowMembers !== false,
       'history-only-no-auto-download': window.historyOnlyNoAutoDownload,
       'history-only-not-downloaded': window.historyOnlyNotDownloaded,
@@ -6184,7 +6423,6 @@ function saveDownloadedFilterState() {
     // Aynı origin'deki tüm portlar (4141, EXE içi WebView2) bu alanları db.settings üzerinden okur.
     if (localDb && localDb.settings) {
       const iniPatch = {
-        ...localDb.settings,
         downloadedFilterChannel: state.channel,
         downloadedSortMode: state.sortVal,
         downloadedShowShorts: state.showShorts,
@@ -6192,6 +6430,7 @@ function saveDownloadedFilterState() {
         downloadedOnlyResume: state.onlyResume,
         downloadedSearchQuery: state.searchQuery
       };
+      Object.assign(localDb.settings, iniPatch);
       fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -6218,8 +6457,9 @@ function restoreDownloadedFilterState() {
       }
     }
     if (localDb.settings && localDb.settings.downloadedSortMode) {
-      window.downloadedSortVal = localDb.settings.downloadedSortMode;
-      localStorage.setItem('downloaded-sort-val', localDb.settings.downloadedSortMode);
+      const initialSort = localDb.settings.downloadedSortMode === 'auto-delete' ? 'date-desc' : localDb.settings.downloadedSortMode;
+      window.downloadedSortVal = initialSort;
+      localStorage.setItem('downloaded-sort-val', initialSort);
       const group = document.getElementById('downloaded-sort-group');
       if (group) {
         group.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-sort') === localDb.settings.downloadedSortMode));
@@ -6374,7 +6614,7 @@ if (viewGridBtn) {
       fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(localDb.settings)
+        body: JSON.stringify({ historyViewMode: 'grid' })
       }).catch(() => {});
     }
     updateUI(localDb);
@@ -6390,7 +6630,7 @@ if (viewListBtn) {
       fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(localDb.settings)
+        body: JSON.stringify({ historyViewMode: 'list' })
       }).catch(() => {});
     }
     updateUI(localDb);
@@ -6435,7 +6675,7 @@ if (downloadedViewGridBtn) {
       fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(localDb.settings)
+        body: JSON.stringify({ downloadedViewMode: 'grid' })
       }).catch(() => {});
     }
     updateUI(localDb);
@@ -6451,7 +6691,7 @@ if (downloadedViewListBtn) {
       fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(localDb.settings)
+        body: JSON.stringify({ downloadedViewMode: 'list' })
       }).catch(() => {});
     }
     updateUI(localDb);
@@ -6630,6 +6870,12 @@ function syncDownloadedSortButtons(sortVal) {
   if (autoBtn) autoBtn.classList.toggle('active', isAuto);
   if (userBtn) userBtn.classList.toggle('active', isUser);
 
+  if (typeof document !== 'undefined') {
+    document.body.classList.toggle('sort-auto-delete-active', isAuto);
+    const dlGrid = document.getElementById('downloaded-grid');
+    if (dlGrid) dlGrid.classList.toggle('sort-auto-delete-active', isAuto);
+  }
+
   group.querySelectorAll('.sort-btn[data-sort]').forEach(b => {
     b.classList.toggle('active', b.getAttribute('data-sort') === curSort);
   });
@@ -6675,7 +6921,7 @@ function toggleDownloadedViewMode() {
     fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(localDb.settings)
+      body: JSON.stringify({ downloadedViewMode: newMode })
     }).catch(() => {});
   }
   updateDownloadedViewButtonUI();
@@ -6695,6 +6941,11 @@ window.toggleDownloadedShortsChip = toggleDownloadedShortsChip;
 
 // Sıralama Butonları Dinleyicisi
 let downloadedSortVal = localStorage.getItem('downloaded-sort-val') || 'date-desc';
+if (downloadedSortVal === 'auto-delete') {
+  downloadedSortVal = 'date-desc';
+  localStorage.setItem('downloaded-sort-val', 'date-desc');
+}
+window.downloadedSortVal = downloadedSortVal;
 
 // Türkçe Açıklama: İndirilenler sıralama tercihini db.settings + configwin.ini'ye kalıcı kaydeder.
 function persistDownloadedSortMode() {
@@ -6703,7 +6954,7 @@ function persistDownloadedSortMode() {
     fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(localDb.settings)
+      body: JSON.stringify({ downloadedSortMode: downloadedSortVal })
     }).catch(() => {});
   }
 }
@@ -6712,7 +6963,10 @@ document.addEventListener('click', (e) => {
   const btn = e.target.closest('.sort-btn');
   if (btn && btn.closest('#downloaded-sort-group')) {
     const sortVal = btn.getAttribute('data-sort');
-    if (sortVal) {
+    if (sortVal === 'auto-delete') {
+      const nextSort = (downloadedSortVal === 'auto-delete') ? 'date-desc' : 'auto-delete';
+      applyDownloadedSort(nextSort);
+    } else if (sortVal) {
       applyDownloadedSort(sortVal);
     }
   }
@@ -6752,6 +7006,28 @@ document.addEventListener('DOMContentLoaded', () => {
     historyOnlyLiveProcessingCheck.addEventListener('change', () => {
       window.historyOnlyLiveProcessing = historyOnlyLiveProcessingCheck.checked;
       syncFilterChipUI('history-only-live-processing');
+      saveHistoryFilterState();
+      updateUI(localDb);
+    });
+  }
+
+  const historyShowLiveCheck = document.getElementById('history-show-live');
+  if (historyShowLiveCheck) {
+    historyShowLiveCheck.addEventListener('change', () => {
+      window.historyShowLive = historyShowLiveCheck.checked;
+      if (localDb && localDb.settings) localDb.settings.historyShowLive = historyShowLiveCheck.checked;
+      syncFilterChipUI('history-show-live');
+      saveHistoryFilterState();
+      updateUI(localDb);
+    });
+  }
+
+  const historyShowUpcomingCheck = document.getElementById('history-show-upcoming');
+  if (historyShowUpcomingCheck) {
+    historyShowUpcomingCheck.addEventListener('change', () => {
+      window.historyShowUpcoming = historyShowUpcomingCheck.checked;
+      if (localDb && localDb.settings) localDb.settings.historyShowUpcoming = historyShowUpcomingCheck.checked;
+      syncFilterChipUI('history-show-upcoming');
       saveHistoryFilterState();
       updateUI(localDb);
     });
@@ -7413,9 +7689,21 @@ function setupSortableContainer(container, itemSelector, storageKey) {
 // Sayfa yüklendiğinde yt-dlp sürümünü, dinleyicilerini ve Gist alanlarını otomatik sorgula
 document.addEventListener('DOMContentLoaded', () => {
   fetchYtdlpVersion();
+  fetch('/api/merge-queue/status').then(r => r.json()).then(d => { if (d && d.success) updateMergeQueueState(d); }).catch(() => {});
   initYtdlpEvents();
   setTimeout(() => {
-    populateGistFields();
+    if (window._settingsFormPopulated) {
+      populateGistFields();
+    }
+
+    if (window._settingsFormPopulated && typeof updateFakapSettingsControls === 'function' && localDb?.settings) {
+      updateFakapSettingsControls({
+        enabled: localDb.settings.fakapEnabled,
+        dir: localDb.settings.fakapPath,
+        quality: localDb.settings.fakapQuality,
+        retentionDays: localDb.settings.fakapRetentionDays
+      });
+    }
   }, 500);
 });
 

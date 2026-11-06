@@ -16,7 +16,7 @@ import {
 } from '../database.js';
 import { broadcast, addTerminalLog } from './sse.js';
 import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, getVideoDurationFromFile, formatDurationStr } from './paths.js';
-import { downloadQueue } from './downloader.js';
+import { downloadQueue, getCookieArgs } from './downloader.js';
 
 const parser = new Parser({
   headers: {
@@ -237,18 +237,23 @@ export function downloadChannelAvatar(url, channelName) {
  * @param {boolean} isShortFallback - Yalnızca Shorts yönlendirmesi tespit edildiğinde varsayılan süre verilsin mi?
  * @returns {object} { duration, publishedAt, title, channelName }
  */
-function parseDurationFromHtml(html, isShortFallback = false) {
+export function parseDurationFromHtml(html, isShortFallback = false) {
   let duration = '';
   let publishedAt = '';
   let title = '';
   let channelName = '';
+  let channelId = '';
+  let viewCount = 0;
   let isUnavailable = false;
   let isUnlisted = false;
   let reason = '';
   let endTimestamp = null;
   let startTimestamp = null;
+  let upcomingStartTimestamp = null;
   let isLiveNow = false;
   let isUpcoming = false;
+  let isLiveProcessing = false;
+  let parsedPlayerResponse = false;
 
   if (isShortFallback) {
     duration = '0:30';
@@ -258,12 +263,33 @@ function parseDurationFromHtml(html, isShortFallback = false) {
   if (playerResponseMatch) {
     try {
       const playerResponse = JSON.parse(playerResponseMatch[1]);
+      parsedPlayerResponse = true;
       const playability = playerResponse.playabilityStatus;
+      let pStatus = '';
+      let rawPlayReason = '';
       if (playability) {
-        const pStatus = playability.status;
+        pStatus = playability.status || '';
+        const offlineSlateRuns = playability.liveStreamability?.liveStreamabilityRenderer?.offlineSlate?.liveStreamOfflineSlateRenderer?.mainText?.runs;
+        const offlineSlateText = Array.isArray(offlineSlateRuns) ? offlineSlateRuns.map(r => r?.text || '').join(' ') : '';
+        rawPlayReason =
+          playability.reason ||
+          playability.errorScreen?.playerErrorMessageRenderer?.reason?.simpleText ||
+          playability.errorScreen?.playerErrorMessageRenderer?.subreason?.simpleText ||
+          playability.errorScreen?.playerInterstitialRenderer?.content?.interstitialViewModel?.description?.content ||
+          offlineSlateText ||
+          '';
+
         if (pStatus === 'UNPLAYABLE' || pStatus === 'LOGIN_REQUIRED' || pStatus === 'ERROR') {
+          const hasMembersOffer = Boolean(
+            playability.errorScreen?.playerLegacyDesktopYpcOfferRenderer ||
+            playability.errorScreen?.ypcTrailerRenderer
+          );
           isUnavailable = true;
-          reason = playability.reason || playability.errorScreen?.playerErrorMessageRenderer?.subreason?.simpleText || 'Video gizli, üyelere özel veya erişilemez.';
+          if (hasMembersOffer || /members-only|üyelere özel|uyelere ozel|join this channel|katıl/i.test(rawPlayReason)) {
+            reason = 'Video üyelere özel (Katıl) içeriğidir.';
+          } else {
+            reason = rawPlayReason || 'Video gizli, üyelere özel veya erişilemez.';
+          }
         }
       }
 
@@ -286,26 +312,43 @@ function parseDurationFromHtml(html, isShortFallback = false) {
           if (liveBroadcastDetails.startTimestamp) startTimestamp = liveBroadcastDetails.startTimestamp;
           if (liveBroadcastDetails.endTimestamp) endTimestamp = liveBroadcastDetails.endTimestamp;
         }
+        if (upcomingEventData?.startTimestamp) {
+          const epochSec = parseInt(upcomingEventData.startTimestamp, 10);
+          if (!isNaN(epochSec) && epochSec > 0) {
+            upcomingStartTimestamp = new Date(epochSec * 1000).toISOString();
+          }
+        }
 
-        isLiveNow = (videoDetails.isLive === true) || 
+        isLiveNow = (videoDetails.isLive === true) ||
                     (liveBroadcastDetails?.isLiveNow === true);
 
-        isUpcoming = (upcomingEventData !== undefined) ||
-                     (liveBroadcastDetails && liveBroadcastDetails.isLiveNow === false && !liveBroadcastDetails.endTimestamp) ||
-                     (videoDetails.isUpcoming === true);
+        const endedOfflineStream =
+          !isLiveNow &&
+          seconds === 0 &&
+          (Boolean(endTimestamp) || (pStatus === 'LIVE_STREAM_OFFLINE' && /has ended|sona erdi|süresi doldu|stream offline/i.test(rawPlayReason)));
 
-        if (isLiveNow) {
+        if (endedOfflineStream) {
+          isLiveProcessing = true;
           duration = 'live';
-        } else if (isUpcoming || (seconds === 0 && liveBroadcastDetails && !liveBroadcastDetails.endTimestamp)) {
-          duration = 'upcoming';
-        } else if (seconds > 0) {
-          const hrs = Math.floor(seconds / 3600);
-          const mins = Math.floor((seconds % 3600) / 60);
-          const secs = seconds % 60;
-          if (hrs > 0) {
-            duration = `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-          } else {
-            duration = `${mins}:${secs.toString().padStart(2, '0')}`;
+        } else {
+          isUpcoming = (upcomingEventData !== undefined) ||
+                       (liveBroadcastDetails && liveBroadcastDetails.isLiveNow === false && !liveBroadcastDetails.endTimestamp) ||
+                       (videoDetails.isUpcoming === true) ||
+                       (pStatus === 'LIVE_STREAM_OFFLINE' && seconds === 0);
+
+          if (isLiveNow) {
+            duration = 'live';
+          } else if (isUpcoming || (seconds === 0 && liveBroadcastDetails && !liveBroadcastDetails.endTimestamp)) {
+            duration = 'upcoming';
+          } else if (seconds > 0) {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            if (hrs > 0) {
+              duration = `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+              duration = `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
           }
         }
         if (videoDetails.title) {
@@ -313,6 +356,13 @@ function parseDurationFromHtml(html, isShortFallback = false) {
         }
         if (videoDetails.author) {
           channelName = videoDetails.author;
+        }
+        if (videoDetails.channelId) {
+          channelId = videoDetails.channelId;
+        }
+        if (videoDetails.viewCount) {
+          const parsedVc = parseInt(videoDetails.viewCount, 10);
+          if (!isNaN(parsedVc) && parsedVc >= 0) viewCount = parsedVc;
         }
       }
 
@@ -334,22 +384,22 @@ function parseDurationFromHtml(html, isShortFallback = false) {
     isUnlisted = true;
   }
 
-  if (!isUnavailable && html) {
-    if (/members-only|uyelere-ozel|Üyelere özel|join this channel/i.test(html)) {
+  // Türkçe Açıklama: Yalnızca ytInitialPlayerResponse ayrıştırılamadığında yedek HTML kontrolü yap.
+  // Kanalın genel "Katıl" butonu metinleri ("üyelere özel" / "join this channel") veya VOD işleme aşamasındaki
+  // "Canlı yayın sona erdi" metni açık videoları sahte olarak erişilemez işaretlememelidir.
+  if (!parsedPlayerResponse && !isUnavailable && html) {
+    if (/"playerLegacyDesktopYpcOfferRenderer"\s*:/i.test(html)) {
       isUnavailable = true;
       reason = 'Video üyelere özel (Katıl) içeriğidir.';
     } else if (/This video is private|Bu video gizli|Özel video|Private video/i.test(html)) {
       isUnavailable = true;
       reason = 'Bu video gizlidir.';
     } else if (/This live stream has ended|Canlı yayın sona erdi|Yayının süresi doldu|Stream offline/i.test(html)) {
-      isUnavailable = true;
-      reason = 'Canlı yayın sona erdi.';
+      isLiveProcessing = true;
+      if (!duration) duration = 'live';
     } else if (/Video unavailable|Bu video kaldırıldı|removed by the uploader|Bu içerik kullanılamıyor/i.test(html)) {
       isUnavailable = true;
       reason = 'Video kaldırılmış veya kullanılamıyor.';
-    } else if (/This video is private|Bu video gizli|Video unavailable|Bu video kaldırıldı|removed by the uploader|This live stream has ended|Canlı yayın sona erdi|Yayının süresi doldu|Bu içerik kullanılamıyor|Özel video|Private video|Stream offline/i.test(html)) {
-      isUnavailable = true;
-      reason = 'Video gizli, sonlanmış veya kaldırılamıyor.';
     }
   }
 
@@ -357,13 +407,15 @@ function parseDurationFromHtml(html, isShortFallback = false) {
     const lengthMatch = html.match(/"lengthSeconds"\s*:\s*"(\d+)"/);
     if (lengthMatch) {
       const seconds = parseInt(lengthMatch[1], 10);
-      const hrs = Math.floor(seconds / 3600);
-      const mins = Math.floor((seconds % 3600) / 60);
-      const secs = seconds % 60;
-      if (hrs > 0) {
-        duration = `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-      } else {
-        duration = `${mins}:${secs.toString().padStart(2, '0')}`;
+      if (seconds > 0) {
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        if (hrs > 0) {
+          duration = `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        } else {
+          duration = `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
       }
     }
   }
@@ -389,7 +441,14 @@ function parseDurationFromHtml(html, isShortFallback = false) {
     }
   }
 
-  return { duration, publishedAt, title, channelName, isUnavailable, isUnlisted, reason, endTimestamp, startTimestamp, isLiveNow, isUpcoming };
+  if (!channelId) {
+    const chIdM = html.match(/"externalChannelId"\s*:\s*"(UC[a-zA-Z0-9_-]{20,})"/) || html.match(/"channelId"\s*:\s*"(UC[a-zA-Z0-9_-]{20,})"/);
+    if (chIdM) {
+      channelId = chIdM[1];
+    }
+  }
+
+  return { duration, publishedAt, title, channelName, channelId, viewCount, isUnavailable, isUnlisted, reason, endTimestamp, startTimestamp, upcomingStartTimestamp, isLiveNow, isUpcoming, isLiveProcessing };
 }
 
 export function fetchVideoDuration(videoId) {
@@ -629,13 +688,18 @@ export function fetchChannelVideosYtdlp(channelId, limit) {
     if (settings.lang) {
       args.push('--extractor-args', `youtube:lang=${settings.lang}`);
     }
+    // Oturum & Azerbaycan/Bölge çerezlerini kanal taramasına bağla (Bölgesel engelleri aşar)
+    const cookieArgs = getCookieArgs(settings);
+    if (cookieArgs && cookieArgs.length > 0) {
+      args.push(...cookieArgs);
+    }
     let targetUrl;
     if (channelId.startsWith('http://') || channelId.startsWith('https://')) {
-      targetUrl = channelId;
+      targetUrl = channelId.replace(/\/videos$/, '') + '/videos';
     } else if (channelId.startsWith('@')) {
-      targetUrl = `https://www.youtube.com/${channelId}`;
+      targetUrl = `https://www.youtube.com/${channelId}/videos`;
     } else {
-      targetUrl = `https://www.youtube.com/channel/${channelId}`;
+      targetUrl = `https://www.youtube.com/channel/${channelId}/videos`;
     }
     
     args.push(targetUrl);
@@ -654,7 +718,7 @@ export function fetchChannelVideosYtdlp(channelId, limit) {
         try { proc.kill(); } catch (e) {}
         reject(new Error('bölge kısıtlaması/zaman aşımı (Geo-blocked)'));
       }
-    }, 5000);
+    }, 15000);
     
     let stdout = '';
     let stderr = '';
@@ -749,8 +813,10 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
       try {
         feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
       } catch (ytdlpErr) {
-        console.error(`[RSS] [HATA] ${channel.name} taranamadı:`, ytdlpErr.message);
-        addTerminalLog(`[RSS] "${channel.name}" taranamadı (${ytdlpErr.message}).`, 'warn');
+        if (!/does not have a (videos|streams|shorts) tab/i.test(ytdlpErr.message || '')) {
+          console.error(`[RSS] [HATA] ${channel.name} taranamadı:`, ytdlpErr.message);
+          addTerminalLog(`[RSS] "${channel.name}" taranamadı (${ytdlpErr.message}).`, 'warn');
+        }
       }
     }
 
@@ -797,80 +863,109 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
             }
           }
 
-          if (existingHistory.status === 'upcoming' || existingHistory.duration === 'upcoming' || existingHistory.status === 'live' || existingHistory.duration === 'live') {
+          if (
+            existingHistory.status === 'upcoming' ||
+            existingHistory.duration === 'upcoming' ||
+            existingHistory.status === 'live' ||
+            existingHistory.duration === 'live' ||
+            existingHistory.status === 'waiting_live_processing'
+          ) {
             try {
-              const result = await fetchVideoDuration(videoId);
-              if (result && result.duration) {
-                if (result.duration === 'live' && (existingHistory.duration !== 'live' || existingHistory.status !== 'live')) {
-                  console.log(`[RSS] Upcoming video is now LIVE: ${item.title}`);
-                  addTerminalLog(`[RSS] "${item.title}" yayını CANLI olarak başladı! (${channel.name})`, 'info');
-                  const release = await acquireDbLock();
-                  try {
-                    const freshDb = readDb();
-                    const freshHistory = freshDb.history.find(h => h.id === videoId);
-                    if (freshHistory) {
-                      freshHistory.duration = 'live';
-                      freshHistory.status = 'live';
-                      writeDb(freshDb);
-                      broadcast('db_update', freshDb);
-                    }
-                  } finally {
-                    release();
-                  }
-                } else if (result.duration !== 'upcoming' && result.duration !== 'live') {
-                  console.log(`[RSS] Upcoming/live video is now published/completed: ${item.title}`);
-                  addTerminalLog(`[RSS] Yaklaşan/Canlı yayın artık normal video halinde yayında: "${item.title}" (${channel.name})`, 'info');
-                  
-                  let lockReleased = false;
-                  const release = await acquireDbLock();
-                  try {
-                    const freshDb = readDb();
-                    const freshHistory = freshDb.history.find(h => h.id === videoId);
-                    if (freshHistory && (freshHistory.status === 'upcoming' || freshHistory.duration === 'upcoming' || freshHistory.status === 'live' || freshHistory.duration === 'live')) {
-                      freshHistory.duration = result.duration;
-                      if (result.publishedAt) {
-                        freshHistory.publishedAt = result.publishedAt;
-                      }
-                      
-                      const channelConfig = freshDb.channels.find(c => c.id === channel.id);
-                      if (freshDb.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true)) {
-                        const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
-                        const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
-                        
-                        let shouldDownload = true;
-                        if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
-                          shouldDownload = false;
-                          freshHistory.status = 'ignored';
-                          console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
-                        }
-                        
-                        if (shouldDownload) {
-                          freshHistory.status = 'waiting';
-                          writeDb(freshDb);
-                          
-                          lockReleased = true;
-                          release();
-                          
-                          await downloadQueue.add({
-                            id: videoId,
-                            title: item.title,
-                            channelId: channel.id,
-                            channelName: channel.name,
-                            url: item.link,
-                            publishedAt: freshHistory.publishedAt,
-                            duration: result.duration || ''
-                          });
-                        } else {
-                          writeDb(freshDb);
-                        }
-                      } else {
-                        freshHistory.status = 'ignored';
+              const liveHandling = db.settings?.liveStreamHandling || 'instant_retry';
+              if (liveHandling !== 'ignore_live') {
+                const result = await fetchVideoDuration(videoId);
+                if (result && !result.isUnavailable && result.duration) {
+                  if (result.duration === 'live' && !result.isLiveProcessing && (existingHistory.duration !== 'live' || existingHistory.status === 'upcoming')) {
+                    console.log(`[RSS] Upcoming video is now LIVE: ${item.title}`);
+                    addTerminalLog(`[RSS] "${item.title}" yayını CANLI olarak başladı! (${channel.name})`, 'info');
+                    const release = await acquireDbLock();
+                    try {
+                      const freshDb = readDb();
+                      const freshHistory = freshDb.history.find(h => h.id === videoId);
+                      if (freshHistory) {
+                        freshHistory.duration = 'live';
+                        freshHistory.status = liveHandling === 'vod_only' ? 'waiting_live_processing' : 'live';
+                        delete freshHistory.error;
                         writeDb(freshDb);
+                        broadcast('db_update', freshDb);
                       }
-                    }
-                  } finally {
-                    if (!lockReleased) {
+                    } finally {
                       release();
+                    }
+                  } else if (result.duration !== 'upcoming' && result.duration !== 'live') {
+                    console.log(`[RSS] Upcoming/live video is now published/completed: ${item.title}`);
+                    addTerminalLog(`[RSS] Yaklaşan/Canlı yayın artık normal video halinde yayında: "${item.title}" (${channel.name})`, 'info');
+
+                    let lockReleased = false;
+                    const release = await acquireDbLock();
+                    try {
+                      const freshDb = readDb();
+                      const freshHistory = freshDb.history.find(h => h.id === videoId);
+                      if (
+                        freshHistory &&
+                        freshHistory.status !== 'completed' &&
+                        freshHistory.status !== 'downloading' &&
+                        freshHistory.status !== 'waiting'
+                      ) {
+                        freshHistory.duration = result.duration;
+                        delete freshHistory.error;
+                        if (result.publishedAt) {
+                          freshHistory.publishedAt = result.publishedAt;
+                        }
+
+                        const channelConfig = freshDb.channels.find(c => c.id === channel.id);
+                        if (freshDb.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true)) {
+                          const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
+                          const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
+
+                          let shouldDownload = true;
+                          if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
+                            shouldDownload = false;
+                            freshHistory.status = 'ignored';
+                            console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
+                          }
+
+                          if (shouldDownload) {
+                            freshHistory.status = 'waiting';
+                            const convertedQueueObj = {
+                              id: videoId,
+                              title: item.title,
+                              channelId: channel.id,
+                              channelName: channel.name,
+                              url: item.link,
+                              publishedAt: freshHistory.publishedAt,
+                              duration: result.duration || ''
+                            };
+                            let convertedFakap = null;
+                            const fakapPair = buildFakapPairIfEligible(freshDb, convertedQueueObj);
+                            if (fakapPair) {
+                              freshDb.history.push(fakapPair.historyObj);
+                              convertedFakap = fakapPair.queueObj;
+                            }
+                            writeDb(freshDb);
+                            broadcast('db_update', freshDb);
+
+                            lockReleased = true;
+                            release();
+
+                            await downloadQueue.add(convertedQueueObj);
+                            if (convertedFakap) {
+                              await downloadQueue.add(convertedFakap);
+                            }
+                          } else {
+                            writeDb(freshDb);
+                            broadcast('db_update', freshDb);
+                          }
+                        } else {
+                          freshHistory.status = 'ignored';
+                          writeDb(freshDb);
+                          broadcast('db_update', freshDb);
+                        }
+                      }
+                    } finally {
+                      if (!lockReleased) {
+                        release();
+                      }
                     }
                   }
                 }
@@ -897,11 +992,26 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
             }
           }
 
+          const channelHist = db.history.filter(h => (h.channelId === channel.id || h.channelName === channel.name) && h.publishedAt && h.publishedAt !== '-');
+          let latestHistTime = 0;
+          if (channelHist.length > 0) {
+            const valid = channelHist.map(h => new Date(h.publishedAt).getTime()).filter(t => !isNaN(t) && t > 0);
+            if (valid.length > 0) latestHistTime = Math.max(...valid);
+          }
+
           let isHistoricalVideo = false;
-          if (publishDateStr && channel.addedAt) {
+          if (publishDateStr) {
             const pubTime = new Date(publishDateStr).getTime();
-            const addedTime = new Date(channel.addedAt).getTime();
-            if (pubTime < addedTime - 60000) {
+            if (latestHistTime > 0) {
+              if (pubTime < (latestHistTime - 60000)) {
+                isHistoricalVideo = true;
+              }
+            } else if (channel.addedAt) {
+              const addedTime = new Date(channel.addedAt).getTime();
+              if (pubTime < (addedTime - 60000)) {
+                isHistoricalVideo = true;
+              }
+            } else if ((Date.now() - pubTime) > (48 * 60 * 60 * 1000)) {
               isHistoricalVideo = true;
             }
           }
@@ -1005,12 +1115,16 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
                 console.log(`Live stream / premiere ignored per user settings: ${item.title}`);
               } else if (liveHandling === 'vod_only' && (duration === 'upcoming' || duration === 'live')) {
                 shouldDownload = false;
-                historyItem.status = 'waiting_live_processing';
+                historyItem.status = duration === 'upcoming' ? 'upcoming' : 'waiting_live_processing';
                 console.log(`Live stream detected. Deferring download until VOD conversion: ${item.title}`);
-              } else if (duration === 'upcoming' || duration === 'live') {
+              } else if (duration === 'upcoming') {
+                shouldDownload = false;
+                historyItem.status = 'upcoming';
+                console.log(`Upcoming premiere/stream detected. Tracking until broadcast finishes: ${item.title}`);
+              } else if (duration === 'live') {
                 shouldDownload = true;
                 historyItem.status = 'waiting';
-                console.log(`Live stream / premiere detected. Queueing for instant download attempt: ${item.title}`);
+                console.log(`Live stream detected. Queueing for instant download attempt: ${item.title}`);
               } else if (!downloadShorts && !duration) {
                 shouldDownload = false;
                 historyItem.status = 'waiting_duration';
@@ -1170,8 +1284,10 @@ export async function resolveMissingDurations() {
       continue;
     }
 
-    // Türkçe Açıklama: Göz ardı edilmiş (ignored) videoların sürelerini sorgulayarak sistemi yormaya ve logları kirletmeye gerek yok.
-    if (item.status === 'ignored' && item.duration && item.duration !== '-') continue;
+    // Türkçe Açıklama: Gizlenmiş (hidden: true) olan göz ardı edilmiş (ignored) videoların sürelerini sorgulamaya gerek yok;
+    // ancak Kütüphane sekmesinde görünür olan (hidden !== true) videoların süresi veya yayın tarihi eksikse mutlaka çözülür.
+    if (item.status === 'ignored' && item.hidden === true) continue;
+    if (item.duration === '-' && item.publishedAt && item.publishedAt !== '-') continue;
 
     // Türkçe Açıklama: Süresi çözümlenmeyi bekleyen (waiting_duration) videolardan süresi netleşmiş olanları denetler.
     // Eğer süresi çözülmüşse veya '-' olarak işaretlenmişse ve kanal Shorts istemiyorsa göz ardı eder, aksi halde kuyruğa alır.
@@ -1217,7 +1333,7 @@ export async function resolveMissingDurations() {
       continue;
     }
 
-    const needsDuration = !item.duration || item.duration === '-';
+    const needsDuration = !item.duration;
     const needsPublishDate = !item.publishedAt;
     if (needsDuration || needsPublishDate) {
       console.log(`Eksik bilgiler çözümleniyor: ${item.title}`);
@@ -1402,8 +1518,10 @@ export async function checkAllChannelsRssParallel() {
       try {
         feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
       } catch (ytdlpErr) {
-        console.log(`[RSS] "${channel.name}" atlandı (${ytdlpErr.message})`);
-        addTerminalLog(`[RSS] "${channel.name}" atlandı (${ytdlpErr.message}).`, 'warn');
+        if (!/does not have a (videos|streams|shorts) tab/i.test(ytdlpErr.message || '')) {
+          console.log(`[RSS] "${channel.name}" atlandı (${ytdlpErr.message})`);
+          addTerminalLog(`[RSS] "${channel.name}" atlandı (${ytdlpErr.message}).`, 'warn');
+        }
       }
     }
     return { channel, feed };
@@ -1459,10 +1577,13 @@ export async function checkAllChannelsRssParallel() {
 
 
     // Türkçe Açıklama: Kanal geçmişindeki en son videonun yayınlanma tarihini referans almak için bul
-    const channelHistory = freshDb.history.filter(h => h.channelId === channel.id && h.publishedAt && h.publishedAt !== '-');
+    const channelHistory = freshDb.history.filter(h => (h.channelId === channel.id || h.channelName === channel.name) && h.publishedAt && h.publishedAt !== '-');
     let latestHistoryTime = 0;
     if (channelHistory.length > 0) {
-      latestHistoryTime = Math.max(...channelHistory.map(h => new Date(h.publishedAt).getTime()));
+      const validTimes = channelHistory.map(h => new Date(h.publishedAt).getTime()).filter(t => !isNaN(t) && t > 0);
+      if (validTimes.length > 0) {
+        latestHistoryTime = Math.max(...validTimes);
+      }
     }
 
     // RSS limitini ayardan çekelim
@@ -1495,70 +1616,99 @@ export async function checkAllChannelsRssParallel() {
         }
 
         // Türkçe Açıklama: Yaklaşan veya Canlı yayın durumundaki videoların yayınlanıp yayınlanmadığını kontrol et
-        if (existingHistory.status === 'upcoming' || existingHistory.duration === 'upcoming' || existingHistory.status === 'live' || existingHistory.duration === 'live') {
+        if (
+          existingHistory.status === 'upcoming' ||
+          existingHistory.duration === 'upcoming' ||
+          existingHistory.status === 'live' ||
+          existingHistory.duration === 'live' ||
+          existingHistory.status === 'waiting_live_processing'
+        ) {
           try {
-            const result = await fetchVideoDuration(videoId);
-            if (result && result.duration) {
-              if (result.duration === 'live' && (existingHistory.duration !== 'live' || existingHistory.status !== 'live')) {
-                addTerminalLog(`[RSS Paralel] "${item.title}" yayını CANLI olarak başladı! (${channel.name})`, 'info');
-                const release = await acquireDbLock();
-                try {
-                  const freshDb = readDb();
-                  const freshHistory = freshDb.history.find(h => h.id === videoId);
-                  if (freshHistory) {
-                    freshHistory.duration = 'live';
-                    freshHistory.status = 'live';
-                    writeDb(freshDb);
-                    broadcast('db_update', freshDb);
-                  }
-                } finally {
-                  release();
-                }
-              } else if (result.duration !== 'upcoming' && result.duration !== 'live') {
-                addTerminalLog(`[RSS Paralel] Yaklaşan/Canlı yayın videoya dönüştü: "${item.title}" (${channel.name})`, 'info');
-                let videoToAdd = null;
-                const release = await acquireDbLock();
-                try {
-                  const freshDb = readDb();
-                  const freshHistory = freshDb.history.find(h => h.id === videoId);
-                  const channelConfig = freshDb.channels.find(c => c.id === channel.id);
-                  const autoDownload = freshDb.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true);
-                  const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
-                  const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
-
-                  if (freshHistory) {
-                    freshHistory.duration = result.duration;
-                    if (!autoDownload) {
-                      freshHistory.status = 'ignored';
-                      writeDb(freshDb);
-                      broadcast('db_update', freshDb);
-                      console.log(`[RSS Paralel] Auto-download disabled for channel ${channel.name}. Ignoring converted video: ${item.title}`);
-                    } else if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
-                      freshHistory.status = 'ignored';
-                      writeDb(freshDb);
-                      broadcast('db_update', freshDb);
-                      console.log(`[RSS Paralel] Short video detected. Ignoring converted video: ${item.title}`);
-                    } else {
-                      freshHistory.status = 'waiting';
-                      writeDb(freshDb);
-                      broadcast('db_update', freshDb);
-                      videoToAdd = {
-                        id: videoId,
-                        title: item.title,
-                        channelId: channel.id,
-                        channelName: channel.name,
-                        url: item.link,
-                        publishedAt: freshHistory.publishedAt,
-                        duration: result.duration || ''
-                      };
+            const liveHandling = freshDb.settings?.liveStreamHandling || 'instant_retry';
+            if (liveHandling !== 'ignore_live') {
+              const result = await fetchVideoDuration(videoId);
+              if (result && !result.isUnavailable && result.duration) {
+                if (result.duration === 'live' && !result.isLiveProcessing && (existingHistory.duration !== 'live' || existingHistory.status === 'upcoming')) {
+                  addTerminalLog(`[RSS Paralel] "${item.title}" yayını CANLI olarak başladı! (${channel.name})`, 'info');
+                  const release = await acquireDbLock();
+                  try {
+                    const latestDb = readDb();
+                    const freshHistory = latestDb.history.find(h => h.id === videoId);
+                    if (freshHistory) {
+                      freshHistory.duration = 'live';
+                      freshHistory.status = liveHandling === 'vod_only' ? 'waiting_live_processing' : 'live';
+                      delete freshHistory.error;
+                      writeDb(latestDb);
+                      broadcast('db_update', latestDb);
                     }
+                  } finally {
+                    release();
                   }
-                } finally {
-                  release();
-                }
+                } else if (result.duration !== 'upcoming' && result.duration !== 'live') {
+                  addTerminalLog(`[RSS Paralel] Yaklaşan/Canlı yayın videoya dönüştü: "${item.title}" (${channel.name})`, 'info');
+                  let videoToAdd = null;
+                  let fakapToAdd = null;
+                  const release = await acquireDbLock();
+                  try {
+                    const latestDb = readDb();
+                    const freshHistory = latestDb.history.find(h => h.id === videoId);
+                    const channelConfig = latestDb.channels.find(c => c.id === channel.id);
+                    const autoDownload = latestDb.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true);
+                    const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
+                    const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
 
-                if (videoToAdd) {
-                  await downloadQueue.add(videoToAdd);
+                    if (
+                      freshHistory &&
+                      freshHistory.status !== 'completed' &&
+                      freshHistory.status !== 'downloading' &&
+                      freshHistory.status !== 'waiting'
+                    ) {
+                      freshHistory.duration = result.duration;
+                      delete freshHistory.error;
+                      if (result.publishedAt) {
+                        freshHistory.publishedAt = result.publishedAt;
+                      }
+                      if (!autoDownload) {
+                        freshHistory.status = 'ignored';
+                        writeDb(latestDb);
+                        broadcast('db_update', latestDb);
+                        console.log(`[RSS Paralel] Auto-download disabled for channel ${channel.name}. Ignoring converted video: ${item.title}`);
+                      } else if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
+                        freshHistory.status = 'ignored';
+                        writeDb(latestDb);
+                        broadcast('db_update', latestDb);
+                        console.log(`[RSS Paralel] Short video detected. Ignoring converted video: ${item.title}`);
+                      } else {
+                        freshHistory.status = 'waiting';
+                        videoToAdd = {
+                          id: videoId,
+                          title: item.title,
+                          channelId: channel.id,
+                          channelName: channel.name,
+                          url: item.link,
+                          publishedAt: freshHistory.publishedAt,
+                          duration: result.duration || ''
+                        };
+                        const fakapPair = buildFakapPairIfEligible(latestDb, videoToAdd);
+                        if (fakapPair) {
+                          latestDb.history.push(fakapPair.historyObj);
+                          fakapToAdd = fakapPair.queueObj;
+                        }
+                        writeDb(latestDb);
+                        broadcast('db_update', latestDb);
+                      }
+                    }
+                  } finally {
+                    release();
+                  }
+
+                  if (videoToAdd) {
+                    await downloadQueue.add(videoToAdd);
+                  }
+                  if (fakapToAdd) {
+                    await downloadQueue.add(fakapToAdd);
+                    addTerminalLog(`[RSS Fakap] Kuyruğa alındı: "${item.title}" (${channel.name})`, 'info');
+                  }
                 }
               }
             }
@@ -1568,31 +1718,42 @@ export async function checkAllChannelsRssParallel() {
         }
       } else {
         // Yeni video keşfedildi
-        let publishDateStr = item.isoDate || item.pubDate || new Date().toISOString();
-        
-        let isHistoricalVideo = false;
-        const pubTime = new Date(publishDateStr).getTime();
-        const nowTime = Date.now();
-        
-        if (latestHistoryTime > 0) {
-          // Geçmişte video varsa: Geçmişteki en yeni videodan eski ise tarihi geçmiş say
-          if (pubTime < latestHistoryTime - 60000) {
-            isHistoricalVideo = true;
+        const checkIsHistorical = (dateStr) => {
+          if (!dateStr) return true; // Tarih yoksa güvenli mod: eski video kabul edilir
+          const pTime = new Date(dateStr).getTime();
+          if (isNaN(pTime)) return true;
+          const nowTime = Date.now();
+          if (latestHistoryTime > 0) {
+            return pTime < (latestHistoryTime - 60000);
           }
-        } else {
-          // Geçmiş boşsa: addedAt kontrolü yap veya en son 48 saati baz al
           if (channel.addedAt) {
             const addedTime = new Date(channel.addedAt).getTime();
-            if (pubTime < addedTime - 60000) {
-              isHistoricalVideo = true;
-            }
-          } else {
-            const isTooOld = (nowTime - pubTime) > (48 * 60 * 60 * 1000);
-            if (isTooOld) {
-              isHistoricalVideo = true;
+            if (!isNaN(addedTime) && pTime < (addedTime - 60000)) {
+              return true;
             }
           }
+          return (nowTime - pTime) > (48 * 60 * 60 * 1000);
+        };
+
+        let initialDate = item.isoDate || item.pubDate || '';
+        let duration = '';
+
+        // Türkçe Açıklama: Eğer yayınlanma tarihi boş gelirse (yt-dlp flat-playlist sınırlaması nedeniyle),
+        // sahte "bugün" tarihi basmak yerine YouTube'dan gerçek yayın tarihini ve süresini çek.
+        if (!initialDate) {
+          try {
+            const result = await fetchVideoDuration(videoId);
+            if (result) {
+              if (result.publishedAt) initialDate = result.publishedAt;
+              if (result.duration) duration = result.duration;
+            }
+          } catch (e) {
+            console.error(`[RSS Paralel] Detayları önceden çekme hatası (${videoId}):`, e.message);
+          }
         }
+
+        let isHistoricalVideo = checkIsHistorical(initialDate);
+        let publishDateStr = initialDate || '';
 
         const historyItem = createHistoryItem(
           videoId,
@@ -1600,33 +1761,39 @@ export async function checkAllChannelsRssParallel() {
           channel.id,
           channel.name,
           publishDateStr,
-          '', // Süreyi şimdilik boş geçiyoruz, resolveMissingDurations halledecek
+          duration, // Süre henüz çözülmediyse resolveMissingDurations arka planda tamamlayacak
           freshDb.settings
         );
 
         const channelConfig = freshDb.channels.find(c => c.id === channel.id);
 
-        // İlk başlangıç veya tarihi geçmiş video ise indirme kuyruğuna almayacağız, sadece geçmişe ekleyeceğiz
-        if (isHistoricalVideo) {
+        // Tarihi geçmiş video ise indirme kuyruğuna almayacağız, sadece geçmişe ekleyeceğiz
+        if (isHistoricalVideo && initialDate) {
           historyItem.status = 'ignored';
           historyToAdd.push(historyItem);
         } else {
-          // İndirme kontrolü
+          // İndirme veya detay kontrolü (tarihi bilinmeyen veya yeni videolar)
           const autoDownload = freshDb.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true);
 
           if (autoDownload) {
-            let duration = '';
             let publishedAt = publishDateStr;
 
-            // Eğer süre henüz alınmamışsa detayları çek
-            try {
-              const result = await fetchVideoDuration(videoId);
-              if (result) {
-                if (result.duration) duration = result.duration;
-                if (result.publishedAt) publishedAt = result.publishedAt;
+            // Eğer süre veya tarih henüz netleşmediyse detayları çek
+            if (!duration || !publishedAt) {
+              try {
+                const result = await fetchVideoDuration(videoId);
+                if (result) {
+                  if (result.duration) duration = result.duration;
+                  if (result.publishedAt) {
+                    publishedAt = result.publishedAt;
+                    publishDateStr = result.publishedAt;
+                    // Gerçek yayın tarihine göre tarihi geçmişlik kontrolünü güncelle
+                    isHistoricalVideo = checkIsHistorical(publishedAt);
+                  }
+                }
+              } catch (e) {
+                console.error(`[RSS Paralel] Error fetching duration for newly discovered video:`, e.message);
               }
-            } catch (e) {
-              console.error(`[RSS Paralel] Error fetching duration for newly discovered video:`, e.message);
             }
 
             // Eğer fetchVideoDuration başarısız olduysa ve waterfall modu aktif değilse yt-dlp ile yedek süre kontrolü yap
@@ -1647,16 +1814,30 @@ export async function checkAllChannelsRssParallel() {
 
             const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
             const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
+            const liveHandling = freshDb.settings?.liveStreamHandling || 'instant_retry';
 
             let shouldDownload = true;
-            if (duration === 'upcoming') {
+            if (isHistoricalVideo) {
+              // Tarihi geçmiş olduğu teyit edildiyse asla indirilmez
+              shouldDownload = false;
+              historyItem.status = 'ignored';
+              console.log(`[RSS Paralel] Tarihi geçmiş eski video tespit edildi, kuyruğa alınmadı: ${item.title} (${publishedAt})`);
+            } else if (liveHandling === 'ignore_live' && (duration === 'upcoming' || duration === 'live')) {
+              shouldDownload = false;
+              historyItem.status = 'ignored';
+              console.log(`[RSS Paralel] Live stream / premiere ignored per user settings: ${item.title}`);
+            } else if (liveHandling === 'vod_only' && (duration === 'upcoming' || duration === 'live')) {
+              shouldDownload = false;
+              historyItem.status = duration === 'upcoming' ? 'upcoming' : 'waiting_live_processing';
+              console.log(`[RSS Paralel] Live stream detected. Deferring download until VOD conversion: ${item.title}`);
+            } else if (duration === 'upcoming') {
               shouldDownload = false;
               historyItem.status = 'upcoming';
-              console.log(`[RSS Paralel] Upcoming video detected. Skipping download: ${item.title}`);
+              console.log(`[RSS Paralel] Upcoming video detected. Tracking until broadcast finishes: ${item.title}`);
             } else if (duration === 'live') {
-              shouldDownload = false;
-              historyItem.status = 'live';
-              console.log(`[RSS Paralel] Live stream detected. Skipping download: ${item.title}`);
+              shouldDownload = true;
+              historyItem.status = 'waiting';
+              console.log(`[RSS Paralel] Live stream detected. Queueing for instant download attempt: ${item.title}`);
             } else if (!downloadShorts && !duration) {
               shouldDownload = false;
               historyItem.status = 'waiting_duration';
@@ -1874,12 +2055,24 @@ export async function triggerChannelCheck(source = 'manual') {
 export async function checkPendingLiveStreams() {
   try {
     const db = readDb();
-    const pendingItems = (db.history || []).filter(h => 
+    const liveHandling = db.settings?.liveStreamHandling || 'instant_retry';
+    if (liveHandling === 'ignore_live') return;
+
+    const pendingItems = (db.history || []).filter(h =>
       !h.hidden &&
-      h.status !== 'ignored' &&
       h.status !== 'downloaded' &&
+      h.status !== 'completed' &&
       h.status !== 'unavailable' &&
-      (h.status === 'upcoming' || h.duration === 'upcoming' || h.status === 'waiting_live_processing' || h.status === 'live' || (h.error && h.error.includes('Canlı Yayın')))
+      h.status !== 'downloading' &&
+      h.status !== 'waiting' &&
+      (
+        h.status === 'upcoming' ||
+        h.duration === 'upcoming' ||
+        h.status === 'waiting_live_processing' ||
+        h.status === 'live' ||
+        h.duration === 'live' ||
+        (h.status !== 'ignored' && h.error && h.error.includes('Canlı Yayın'))
+      )
     );
 
     if (pendingItems.length === 0) return;
@@ -1890,9 +2083,11 @@ export async function checkPendingLiveStreams() {
       try {
         const result = await fetchVideoDuration(item.id);
 
-        // 1. Durum: Video Gizli, Üyelere Özel, Silinmiş veya Erişilemez durumda
+        // 1. Durum: Video gerçekten Gizli, Üyelere Özel, Silinmiş veya Erişilemez durumda
         if (result && result.isUnavailable) {
-          addTerminalLog(`[CANLI YAYIN] "${item.title}" (${item.channelName || 'Kanal'}) yayını gizli/üyelere özel veya silinmiş olduğu için takipten çıkarıldı.`, 'warning');
+          if (item.status !== 'ignored') {
+            addTerminalLog(`[CANLI YAYIN] "${item.title}" (${item.channelName || 'Kanal'}) yayını gizli/üyelere özel veya silinmiş olduğu için takipten çıkarıldı.`, 'warning');
+          }
           const release = await acquireDbLock();
           try {
             const freshDb = readDb();
@@ -1900,8 +2095,11 @@ export async function checkPendingLiveStreams() {
             if (target) {
               target.status = 'ignored';
               target.error = result.reason || 'Video gizli, üyelere özel veya kaldırılmış.';
-              if (result.duration && result.duration !== 'live') {
+              if (result.duration && result.duration !== 'live' && result.duration !== 'upcoming') {
                 target.duration = result.duration;
+              } else if (target.duration === 'upcoming' || target.duration === 'live') {
+                // Sonsuz uyarı döngüsünü önlemek için takipten düşen kayıtta 'upcoming'/'live' süresini temizle
+                target.duration = '';
               }
               if (result.isUnlisted) {
                 target.isUnlisted = true;
@@ -1917,20 +2115,56 @@ export async function checkPendingLiveStreams() {
 
         // 2. Durum: Süre veya yayın durumu başarılı çözümlendi
         if (result && result.duration) {
-          // 6 Saatlik VOD Dönüşüm Zaman Aşımı Kontrolü (6-Hour VOD Conversion Timeout)
-          const refTime = result.endTimestamp || result.startTimestamp || item.publishedAt || item.addedAt;
-          const elapsedMs = refTime ? (Date.now() - new Date(refTime).getTime()) : 0;
-          const SIX_HOURS_MS = 6 * 60 * 60 * 1000; // 6 saat
+          const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+          const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+          const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-          if (refTime && elapsedMs > SIX_HOURS_MS && (result.duration === 'live' || result.duration === 'upcoming')) {
-            addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını 6 saat içinde VOD videoya dönüşmediği için takipten çıkarıldı.`, 'warning');
+          // A) Yayın sona ermiş ve VOD işlemesi bekleniyorsa: endTimestamp'ten itibaren 6 saat tanı
+          // B) Aktif canlı yayın 24 saati aştıysa (7/24 radyo yayınları): takipten düşür
+          // C) Hiç başlamamış bekleme odası ("Stream Now" / planlı prömiyer): planlı başlama saati geçmişse veya 7 günü doldurmuşsa sessizce düşür
+          let isTimedOut = false;
+          let timeoutSilent = false;
+          if (result.endTimestamp) {
+            const endedElapsed = Date.now() - new Date(result.endTimestamp).getTime();
+            if (endedElapsed > SIX_HOURS_MS && (result.duration === 'live' || result.duration === 'upcoming')) {
+              isTimedOut = true;
+            }
+          } else if (result.duration === 'live') {
+            const liveRef = result.startTimestamp || item.publishedAt || item.downloadedAt || item.addedAt;
+            const liveElapsed = liveRef ? (Date.now() - new Date(liveRef).getTime()) : 0;
+            const limitMs = result.isLiveProcessing ? SIX_HOURS_MS : TWENTY_FOUR_HOURS_MS;
+            if (liveRef && liveElapsed > limitMs) {
+              isTimedOut = true;
+            }
+          } else if (result.duration === 'upcoming') {
+            if (result.upcomingStartTimestamp) {
+              const schedElapsed = Date.now() - new Date(result.upcomingStartTimestamp).getTime();
+              if (schedElapsed > TWENTY_FOUR_HOURS_MS) {
+                isTimedOut = true;
+                timeoutSilent = true;
+              }
+            } else {
+              const createdRef = item.publishedAt || item.downloadedAt || item.addedAt;
+              const createdElapsed = createdRef ? (Date.now() - new Date(createdRef).getTime()) : 0;
+              if (createdRef && createdElapsed > SEVEN_DAYS_MS) {
+                isTimedOut = true;
+                timeoutSilent = true;
+              }
+            }
+          }
+
+          if (isTimedOut) {
+            if (!timeoutSilent) {
+              addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını zaman aşımı içinde VOD videoya dönüşmediği için takipten çıkarıldı.`, 'warning');
+            }
             const release = await acquireDbLock();
             try {
               const freshDb = readDb();
               const target = freshDb.history.find(h => h.id === item.id);
               if (target) {
                 target.status = 'ignored';
-                target.error = 'Canlı yayın 6 saat içinde VOD videoya dönüşmedi (Takipten çıkarıldı).';
+                target.duration = '';
+                target.error = 'Canlı yayın zaman aşımı içinde VOD videoya dönüşmedi (Takipten çıkarıldı).';
                 writeDb(freshDb);
                 broadcast('db_update', freshDb);
               }
@@ -1940,16 +2174,17 @@ export async function checkPendingLiveStreams() {
             continue;
           }
 
-          if (result.duration === 'live') {
-            if (item.duration !== 'live' || item.status !== 'live') {
-              addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını CANLI olarak başladı!`, 'info');
+          if (result.duration === 'upcoming') {
+            // Geçmişte sahte "Üyelere özel" hatasıyla 'ignored' kalmış bekleme odalarını temizle
+            if (item.status === 'ignored' || item.error) {
               const release = await acquireDbLock();
               try {
                 const freshDb = readDb();
                 const target = freshDb.history.find(h => h.id === item.id);
                 if (target) {
-                  target.duration = 'live';
-                  target.status = 'live';
+                  target.status = 'upcoming';
+                  target.duration = 'upcoming';
+                  delete target.error;
                   target.liveCheckFailCount = 0;
                   writeDb(freshDb);
                   broadcast('db_update', freshDb);
@@ -1958,31 +2193,116 @@ export async function checkPendingLiveStreams() {
                 release();
               }
             }
+          } else if (result.duration === 'live') {
+            if (result.isLiveProcessing) {
+              if (item.status !== 'waiting_live_processing') {
+                addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını sona erdi, YouTube VOD işlemesi bekleniyor...`, 'info');
+                const release = await acquireDbLock();
+                try {
+                  const freshDb = readDb();
+                  const target = freshDb.history.find(h => h.id === item.id);
+                  if (target) {
+                    target.duration = 'live';
+                    target.status = 'waiting_live_processing';
+                    target.error = 'Canlı yayın yeni sonlandı, YouTube VOD işlemesi bekleniyor.';
+                    target.liveCheckFailCount = 0;
+                    writeDb(freshDb);
+                    broadcast('db_update', freshDb);
+                  }
+                } finally {
+                  release();
+                }
+              }
+            } else {
+              const channelConfig = db.channels.find(c => c.id === item.channelId);
+              const autoDownload = db.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true);
+              const desiredLiveStatus = (autoDownload && liveHandling === 'vod_only') ? 'waiting_live_processing' : 'live';
+
+              if (item.duration !== 'live' || (item.status !== desiredLiveStatus && item.status !== 'waiting_live_processing')) {
+                addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını CANLI olarak başladı!`, 'info');
+                let instantLiveVideo = null;
+                const release = await acquireDbLock();
+                try {
+                  const freshDb = readDb();
+                  const target = freshDb.history.find(h => h.id === item.id);
+                  if (target) {
+                    target.duration = 'live';
+                    delete target.error;
+                    target.liveCheckFailCount = 0;
+                    if (autoDownload && liveHandling === 'instant_retry' && item.status !== 'waiting_live_processing') {
+                      target.status = 'waiting';
+                      instantLiveVideo = {
+                        id: item.id,
+                        title: target.title,
+                        channelId: target.channelId,
+                        channelName: target.channelName,
+                        url: `https://www.youtube.com/watch?v=${item.id}`,
+                        publishedAt: target.publishedAt,
+                        duration: 'live'
+                      };
+                    } else {
+                      target.status = desiredLiveStatus;
+                    }
+                    writeDb(freshDb);
+                    broadcast('db_update', freshDb);
+                  }
+                } finally {
+                  release();
+                }
+                if (instantLiveVideo) {
+                  await downloadQueue.add(instantLiveVideo);
+                }
+              }
+            }
           } else if (result.duration !== 'upcoming') {
-            addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını tamamlandı ve videoya dönüştü (${result.duration}), indirme kuyruğuna alındı.`, 'success');
+            const channelConfig = db.channels.find(c => c.id === item.channelId);
+            const autoDownload = db.settings.autoDownload && (channelConfig ? channelConfig.autoDownload !== false : true);
+            const downloadShorts = channelConfig ? channelConfig.downloadShorts !== false : true;
+            const shortsLimit = (channelConfig && channelConfig.shortsDurationLimit !== undefined) ? channelConfig.shortsDurationLimit : 180;
+            const isShort = !downloadShorts && isShortDuration(result.duration, shortsLimit);
+            const shouldAutoDownload = autoDownload && !isShort;
 
             let convertedVideo = null;
+            let convertedFakap = null;
             const release = await acquireDbLock();
             try {
               const freshDb = readDb();
               const target = freshDb.history.find(h => h.id === item.id);
-              if (target) {
+              if (
+                target &&
+                target.status !== 'completed' &&
+                target.status !== 'downloading' &&
+                target.status !== 'waiting'
+              ) {
                 target.duration = result.duration;
+                delete target.error;
                 if (result.publishedAt) target.publishedAt = result.publishedAt;
-                target.status = 'waiting';
                 target.liveCheckFailCount = 0;
+
+                if (shouldAutoDownload) {
+                  target.status = 'waiting';
+                  convertedVideo = {
+                    id: item.id,
+                    title: target.title,
+                    channelId: target.channelId,
+                    channelName: target.channelName,
+                    url: `https://www.youtube.com/watch?v=${item.id}`,
+                    publishedAt: target.publishedAt,
+                    duration: result.duration || ''
+                  };
+                  const fakapPair = buildFakapPairIfEligible(freshDb, convertedVideo);
+                  if (fakapPair) {
+                    freshDb.history.push(fakapPair.historyObj);
+                    convertedFakap = fakapPair.queueObj;
+                  }
+                  addTerminalLog(`[CANLI YAYIN / PRÖMİYER] "${item.title}" yayını tamamlandı ve videoya dönüştü (${result.duration}), indirme kuyruğuna alındı.`, 'success');
+                } else {
+                  target.status = 'ignored';
+                  addTerminalLog(`[CANLI YAYIN / PRÖMİYER] "${item.title}" yayını tamamlandı ve videoya dönüştü (${result.duration}). Kütüphanede indirmeye hazır.`, 'info');
+                }
+
                 writeDb(freshDb);
                 broadcast('db_update', freshDb);
-
-                convertedVideo = {
-                  id: item.id,
-                  title: target.title,
-                  channelId: target.channelId,
-                  channelName: target.channelName,
-                  url: `https://www.youtube.com/watch?v=${item.id}`,
-                  publishedAt: target.publishedAt,
-                  duration: result.duration || ''
-                };
               }
             } finally {
               release();
@@ -1990,6 +2310,9 @@ export async function checkPendingLiveStreams() {
 
             if (convertedVideo) {
               await downloadQueue.add(convertedVideo);
+            }
+            if (convertedFakap) {
+              await downloadQueue.add(convertedFakap);
             }
           }
         } else {
@@ -2000,10 +2323,11 @@ export async function checkPendingLiveStreams() {
             const target = freshDb.history.find(h => h.id === item.id);
             if (target) {
               target.liveCheckFailCount = (target.liveCheckFailCount || 0) + 1;
-              const refTime = target.publishedAt || target.addedAt;
+              const refTime = target.publishedAt || target.downloadedAt || target.addedAt;
               const itemAgeHours = refTime ? (Date.now() - new Date(refTime).getTime()) / (1000 * 60 * 60) : 0;
-              if (target.liveCheckFailCount >= 3 || itemAgeHours > 6) {
+              if (target.liveCheckFailCount >= 3 && itemAgeHours > 6) {
                 target.status = 'ignored';
+                target.duration = '';
                 target.error = 'Canlı yayın 6 saat içinde VOD videoya dönüşmedi veya erişilemedi (Takipten çıkarıldı).';
                 addTerminalLog(`[CANLI YAYIN] "${item.title}" yayını 6 saat içinde VOD videoya dönüşmediği için takipten çıkarıldı.`, 'warning');
                 broadcast('db_update', freshDb);

@@ -1,11 +1,11 @@
-import crypto from 'crypto';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { exec, spawn } from 'child_process';
 import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, execYtdlp, formatDurationStr } from '../services/paths.js';
 import { downloadQueue, performYtdlpUpdate } from '../services/downloader.js';
-import { readDb } from '../database.js';
+import { readDb, writeDb } from '../database.js';
 import { fetchVideoDuration, resolveMissingDurations } from '../services/rss.js';
 import { addTerminalLog } from '../services/sse.js';
 import { localhostOnly } from '../middleware/security.js';
@@ -22,7 +22,7 @@ export const router = express.Router();
  */
 function extractVideoId(url) {
   if (!url) return null;
-  const youtubeRegex = /(?:youtu\.be\/|(?:music\.)?youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([^?&"'>\s]{11})/;
+  const youtubeRegex = /(?:youtu\.be\/|(?:music\.)?youtube\.com\/(?:embed\/|v\/|live\/|watch\?v=|watch\?.+&v=|shorts\/))([^?&"'>\s]{11})/;
   const match = url.match(youtubeRegex);
   return match ? match[1] : null;
 }
@@ -41,7 +41,7 @@ function fetchMetadataViaYtdlp(target, isDirectUrl = false) {
       '--skip-download',
       '--encoding', 'utf-8',
       '--replace-in-metadata', 'description', '[\\r\\n]+', ' ',
-      '--print', '%(title)s\t%(uploader)s\t%(uploader_id)s\t%(channel_id,id)s\t%(duration_string)s\t%(id)s\t%(thumbnail)s\t%(webpage_url)s\t%(description).120s',
+      '--print', '%(title)s\t%(uploader)s\t%(uploader_id)s\t%(channel_id,id)s\t%(duration_string)s\t%(id)s\t%(thumbnail)s\t%(webpage_url)s\t%(description).120s\t%(view_count)s',
       targetUrl
     ];
     const localTemp = getLocalTempDir();
@@ -109,6 +109,10 @@ function fetchMetadataViaYtdlp(target, isDirectUrl = false) {
             }
           }
 
+          const rawViews = parts[9]?.trim();
+          const parsedViews = parseInt(rawViews, 10);
+          const viewCount = (!isNaN(parsedViews) && parsedViews >= 0) ? parsedViews : 0;
+
           return resolve({
             title: cleanTitle,
             channelName: channelName || parts[1]?.trim(),
@@ -116,7 +120,8 @@ function fetchMetadataViaYtdlp(target, isDirectUrl = false) {
             duration: formatDurationStr(rawDur),
             extractedId: extractedId,
             thumbnail: thumbnail || '',
-            webUrl: webpageUrl || targetUrl
+            webUrl: webpageUrl || targetUrl,
+            viewCount: viewCount
           });
         }
       }
@@ -225,6 +230,10 @@ router.post('/download', localhostOnly, async (req, res) => {
   }
   if (extractedHandle) defaultChannelName = extractedHandle;
 
+  let metadata = null;
+  let resolvedPublishedAt = '';
+  let resolvedViewCount = 0;
+
   // Eğer başlık veya kanal bilgisi yoksa veya başlık hatalı bir URL ise metadata çek
   if (!title || !channelName || title.startsWith('http')) {
     try {
@@ -234,12 +243,21 @@ router.post('/download', localhostOnly, async (req, res) => {
           title = title || details.title;
           channelName = channelName || details.channelName;
           channelId = channelId || details.channelId;
+          if (!duration && details.duration) {
+            duration = details.duration;
+          }
+          if (details.publishedAt) {
+            resolvedPublishedAt = details.publishedAt;
+          }
+          if (details.viewCount) {
+            resolvedViewCount = details.viewCount;
+          }
         }
       }
       
       // Eğer hâlâ başlık yoksa veya doğrudan URL ise yt-dlp ile çözmeyi dene
       if (!title || !channelName || title.startsWith('http') || !duration) {
-        const metadata = await fetchMetadataViaYtdlp(isDirectUrl ? url : targetVideoId, isDirectUrl);
+        metadata = await fetchMetadataViaYtdlp(isDirectUrl ? url : targetVideoId, isDirectUrl);
         if (metadata) {
           title = metadata.title || title;
           channelName = metadata.channelName || channelName;
@@ -295,7 +313,7 @@ router.post('/download', localhostOnly, async (req, res) => {
   }
 
   // Kuyruğa ekle
-  downloadQueue.add({
+  await downloadQueue.add({
     id: targetVideoId,
     title: title || 'Bilinmeyen Video',
     channelId: channelId || 'manual',
@@ -303,17 +321,18 @@ router.post('/download', localhostOnly, async (req, res) => {
     url: finalDownloadUrl,
     webUrl: url || finalDownloadUrl,
     platform: detectedPlatform,
-    publishedAt: new Date().toISOString(),
+    publishedAt: resolvedPublishedAt || new Date().toISOString(),
     skipChannelFolder: false, // 0- klasörlerine düzgün dağıtılması için false
     customFormat: customFormat,
     audioBitrate: audioBitrate,
     isStandalone: true,
     duration: duration || '',
-    thumbnail: thumbnail || ''
+    thumbnail: thumbnail || '',
+    viewCount: Number(req.body.viewCount) || (metadata && metadata.viewCount) || resolvedViewCount || 0
   });
 
-  // Eksik süreleri tamamla (YouTube için)
-  if (!isDirectUrl && typeof resolveMissingDurations === 'function') {
+  // Eksik süreleri tamamla (yalnızca süre çözümlenemediyse tetikle)
+  if (!isDirectUrl && !duration && typeof resolveMissingDurations === 'function') {
     resolveMissingDurations();
   }
 

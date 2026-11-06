@@ -50,7 +50,61 @@ public partial class App : System.Windows.Application
     [DllImport("user32.dll")]
     private static extern bool AllowSetForegroundWindow(uint dwProcessId);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool AttachConsole(int dwProcessId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool FreeConsole();
+
+    private const int ATTACH_PARENT_PROCESS = -1;
     private const uint ASFW_ANY = unchecked((uint)-1);
+
+    private static void WriteCliConsoleOutput(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+        try
+        {
+            if (AttachConsole(ATTACH_PARENT_PROCESS))
+            {
+                Console.OutputEncoding = Encoding.UTF8;
+                Console.WriteLine();
+                Console.WriteLine(text);
+                Console.Out.Flush();
+                FreeConsole();
+            }
+        }
+        catch {}
+    }
+
+    private static string? ResolveEffectiveCliCommand(string rawArgs)
+    {
+        if (!TrayManager.IsHeadlessCliCommand(rawArgs)) return null;
+        string trimmed = rawArgs.Trim();
+        string first = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant().TrimStart('-', '/');
+        if (first == "paste" || first == "pano" || first == "clipboard")
+        {
+            try
+            {
+                if (System.Windows.Clipboard.ContainsText())
+                {
+                    string clip = System.Windows.Clipboard.GetText().Trim();
+                    if (clip.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || clip.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return "pd " + clip;
+                    }
+                    WriteCliConsoleOutput("[Console] Panodaki metin geçerli bir bağlantı (http/https) değil.");
+                    return "";
+                }
+                WriteCliConsoleOutput("[Console] Pano boş veya metin içermiyor.");
+                return "";
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        return trimmed;
+    }
 
     private static IntPtr FindMainWindowForProcess(Process proc)
     {
@@ -117,6 +171,23 @@ public partial class App : System.Windows.Application
             try
             {
                 try { File.AppendAllText(dbgPath, $"[{DateTime.Now}] Second instance started with args: '{rawArgs}'\n"); } catch {}
+
+                // Arka plan CLI komutuysa doğrudan yerel HTTP API üzerinden çalıştır ve çıktıyı terminale bas
+                string? resolvedCli = ResolveEffectiveCliCommand(rawArgs);
+                if (resolvedCli != null)
+                {
+                    if (resolvedCli.Length == 0)
+                    {
+                        Environment.Exit(0);
+                        return;
+                    }
+                    if (TrayManager.TrySendHttpCliCommandStatic(resolvedCli, out string cliReply))
+                    {
+                        WriteCliConsoleOutput(cliReply);
+                        Environment.Exit(0);
+                        return;
+                    }
+                }
 
                 Process current = Process.GetCurrentProcess();
                 Process[] processes = Process.GetProcessesByName(current.ProcessName);
@@ -208,6 +279,7 @@ public partial class App : System.Windows.Application
         TaskScheduler.UnobservedTaskException += (s, args) =>
         {
             try { File.AppendAllText(logPath, $"[{DateTime.Now}] [CRASH Task] {args.Exception}\n"); } catch {}
+            try { args.SetObserved(); } catch {}
         };
 
         RootWindow = new MainWindow();
@@ -217,13 +289,19 @@ public partial class App : System.Windows.Application
         bool isSilent = TrayManager.IsSilentMode(e.Args);
         bool silentCookieMode = e.Args != null && e.Args.Any(a => a.Equals("--silent-cookie-refresh", StringComparison.OrdinalIgnoreCase) || a.Equals("REFRESH_COOKIES", StringComparison.OrdinalIgnoreCase));
         bool isTrayOnly = e.Args != null && e.Args.Any(a => a.Equals("--tray-only", StringComparison.OrdinalIgnoreCase) || a.Equals("--minimized", StringComparison.OrdinalIgnoreCase) || a.Equals("/minimized", StringComparison.OrdinalIgnoreCase));
+        string? startupCliCmd = (e.Args != null && e.Args.Length > 0) ? ResolveEffectiveCliCommand(rawArgs) : null;
+        bool isJumpListRoute = e.Args != null && e.Args.Length > 0 && rawArgs.StartsWith("/") && !isTrayOnly && !silentCookieMode && !isSilent;
 
-        // Kullanıcı ayarlarında "Tarayıcıyı Otomatik Aç" (autoOpenBrowser) açık mı denetle
+        // Kullanıcı doğrudan exe'yi çalıştırdığında (sessiz/tepsi/CLI başlatma parametresi yoksa) arayüz açılır.
+        // Yalnızca Windows başlangıcı veya arka plan parametrelerinde autoOpenBrowser kontrol edilir.
         bool autoOpen = TrayManager.GetAutoOpenBrowserSetting();
+        string pref = TrayManager.GetDoubleClickActionSetting();
 
-        if (!isSilent && !silentCookieMode && !isTrayOnly && autoOpen)
+        bool shouldOpenUI = !isSilent && !silentCookieMode && !isTrayOnly && startupCliCmd == null && (isJumpListRoute || autoOpen || pref == "player" || (e.Args == null || e.Args.Length == 0));
+
+        if (shouldOpenUI)
         {
-            mainWindow.OpenInitialUI();
+            mainWindow.OpenInitialUI(isJumpListRoute ? rawArgs : null);
         }
         else
         {
@@ -234,6 +312,23 @@ public partial class App : System.Windows.Application
             mainWindow.Hide();
             mainWindow.Opacity = 1;
             mainWindow.ShowInTaskbar = true;
+
+            if (!string.IsNullOrEmpty(startupCliCmd))
+            {
+                string cmdToRun = startupCliCmd;
+                ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    for (int i = 0; i < 20; i++)
+                    {
+                        Thread.Sleep(500);
+                        if (TrayManager.TrySendHttpCliCommandStatic(cmdToRun, out string replyMsg))
+                        {
+                            WriteCliConsoleOutput(replyMsg);
+                            break;
+                        }
+                    }
+                });
+            }
         }
     }
 

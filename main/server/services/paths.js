@@ -5,6 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { execSync, execFileSync, spawn, exec } from 'child_process';
 import { dataRootDir } from '../config.js';
+import { readDb } from '../database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -307,6 +308,85 @@ export function setFfmpegWorkingCached(val) {
   isFfmpegWorkingCached = val;
 }
 
+export let hwaccelStatusCache = null;
+
+/**
+ * Sistemdeki GPU ve FFmpeg donanım hızlandırma yeteneklerini tespit eder.
+ * NVIDIA NVENC, Intel QSV ve AMD AMF desteğini test eder ve önbelleğe alır.
+ * 
+ * @param {boolean} forceRecheck Önbelleği atlayıp yeniden test etmeye zorlar
+ * @returns {{ nvenc: boolean, qsv: boolean, amf: boolean, recommended: string, gpuName: string }}
+ */
+export function detectHwaccel(forceRecheck = false) {
+  if (!forceRecheck && hwaccelStatusCache !== null) {
+    return hwaccelStatusCache;
+  }
+
+  const result = {
+    nvenc: false,
+    qsv: false,
+    amf: false,
+    recommended: 'cpu',
+    gpuName: ''
+  };
+
+  const ffmpegPath = getFfmpegPath();
+  if (!fs.existsSync(ffmpegPath) || !testFfmpegSync()) {
+    hwaccelStatusCache = result;
+    return result;
+  }
+
+  // Windows'ta GPU adını tespit et
+  if (os.platform() === 'win32') {
+    try {
+      const gpuOut = execSync('powershell -NoProfile -Command "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"', {
+        encoding: 'utf-8',
+        timeout: 3000,
+        stdio: ['ignore', 'pipe', 'ignore']
+      });
+      if (gpuOut) result.gpuName = gpuOut.trim();
+    } catch (e) {
+      // GPU adı sorgulanamazsa devam et
+    }
+  }
+
+  // FFmpeg ile 256x256 lavfi testi yaparak gerçek donanım/sürücü kodlayıcısını doğrula
+  const testEncoder = (encoderName) => {
+    try {
+      execFileSync(ffmpegPath, [
+        '-hide_banner',
+        '-loglevel', 'error',
+        '-f', 'lavfi',
+        '-i', 'color=c=black:s=256x256:d=0.04',
+        '-c:v', encoderName,
+        '-f', 'null',
+        '-'
+      ], { timeout: 3000, stdio: 'ignore' });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  };
+
+  result.nvenc = testEncoder('h264_nvenc');
+  result.qsv = !result.nvenc && testEncoder('h264_qsv');
+  result.amf = !result.nvenc && !result.qsv && testEncoder('h264_amf');
+
+  if (result.nvenc) {
+    result.recommended = 'nvenc';
+  } else if (result.qsv) {
+    result.recommended = 'qsv';
+  } else if (result.amf) {
+    result.recommended = 'amf';
+  } else {
+    result.recommended = 'cpu';
+  }
+
+  hwaccelStatusCache = result;
+  return result;
+}
+
+
 /**
  * Uygulamanın ana dizinindeki 'Temp' klasörünün dinamik yolunu döner.
  * Klasör yoksa otomatik oluşturur.
@@ -359,7 +439,88 @@ export function getStagingTempDir() {
   return stagingDir;
 }
 
+/**
+ * TTS seslendirme önbelleği için Temp altındaki dizin yolunu döner.
+ * Eski 'cache/tts' dizini varsa dosyaları buraya taşır ve eskiyi temizler.
+ * @returns {string} Temp/tts dizin yolu
+ */
+export function getTtsCacheDir() {
+  const ttsDir = path.join(getLocalTempDir(), 'tts');
+  if (!fs.existsSync(ttsDir)) {
+    try {
+      fs.mkdirSync(ttsDir, { recursive: true });
+    } catch (_) {}
+  }
+
+  try {
+    const legacyCacheDir = path.join(writableRootDir, 'cache', 'tts');
+    if (fs.existsSync(legacyCacheDir)) {
+      const files = fs.readdirSync(legacyCacheDir);
+      for (const file of files) {
+        const src = path.join(legacyCacheDir, file);
+        const dest = path.join(ttsDir, file);
+        if (!fs.existsSync(dest)) {
+          fs.copyFileSync(src, dest);
+        }
+        try { fs.unlinkSync(src); } catch (_) {}
+      }
+      try { fs.rmdirSync(legacyCacheDir); } catch (_) {}
+      const parentCache = path.join(writableRootDir, 'cache');
+      try { fs.rmdirSync(parentCache); } catch (_) {}
+    }
+  } catch (_) {}
+
+  return ttsDir;
+}
+
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Uygulama kök 'bin' klasörü (motorlar: llama, piper, ahenk...). CWD = kurulum dizini (main/).
+ * @returns {string} Mutlak bin yolu
+ */
+export function getAppBinDir() {
+  return path.join(process.cwd(), 'bin');
+}
+
+/**
+ * Eski sürümlerde motorlar iç içe 'main/main/bin/<engine>' altına indiriliyordu.
+ * Bu fonksiyon eski konumu yeni 'bin/<engine>' konumuna tek seferde taşır (birleştirmez, taşır).
+ * @param {string} engineName - Motor klasör adı (llama, piper...)
+ * @param {string} markerFile - Taşımanın doğrulanması için aranan dosya (ör. llama-cli.exe)
+ * @returns {string} Motorun güncel mutlak yolu
+ */
+export function migrateLegacyEngineDir(engineName, markerFile) {
+  const targetDir = path.join(getAppBinDir(), engineName);
+  const legacyDir = path.join(process.cwd(), 'main', 'bin', engineName);
+
+  try {
+    const legacyReady = fs.existsSync(path.join(legacyDir, markerFile));
+    if (!legacyReady) return targetDir;
+
+    // Hedefte eski/kısmi kopya varsa temizle, sonra taşı (kopyala+yeniden adlandır başarısız olursa)
+    if (fs.existsSync(targetDir)) {
+      fs.rmSync(targetDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(path.dirname(targetDir), { recursive: true });
+    try {
+      fs.renameSync(legacyDir, targetDir);
+    } catch (_) {
+      fs.cpSync(legacyDir, targetDir, { recursive: true, force: true });
+      fs.rmSync(legacyDir, { recursive: true, force: true });
+    }
+    // Boşalan eski iç içe klasörleri temizle (main/main/bin, main/main)
+    for (const dir of [path.dirname(legacyDir), path.dirname(path.dirname(legacyDir))]) {
+      try {
+        if (fs.existsSync(dir) && fs.readdirSync(dir).length === 0) fs.rmdirSync(dir);
+      } catch (_) {}
+    }
+    console.log(`[Migration] ${engineName} motoru "${legacyDir}" -> "${targetDir}" taşındı.`);
+  } catch (e) {
+    console.warn(`[Migration] ${engineName} taşınamadı:`, e.message);
+  }
+  return targetDir;
+}
 
 /**
  * Sunucu başlatıldığında ana dizindeki 'Temp' klasöründeki eski geçici dosyaları temizler.
@@ -380,6 +541,18 @@ export async function cleanLocalTempDir() {
         // Aktif işlem tarafından kilitli tutulan geçici dosyalar varsa yoksay
       }
     }
+    const sysTemp = os.tmpdir();
+    try {
+      const sysFiles = await fs.promises.readdir(sysTemp);
+      for (const f of sysFiles) {
+        if (f.startsWith('_MEI')) {
+          try {
+            await fs.promises.rm(path.join(sysTemp, f), { recursive: true, force: true });
+            cleanedCount++;
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
     if (cleanedCount > 0) {
       console.log(`[Temp] Ana dizindeki Temp klasörü temizlendi (${cleanedCount} öge silindi).`);
     }
@@ -402,41 +575,44 @@ async function runCentralizedCleanup() {
   isCleanupWorkerRunning = true;
   
   const tempDir = getLocalTempDir();
+  const sysTempDir = os.tmpdir();
+  const checkDirs = Array.from(new Set([tempDir, sysTempDir]));
   
   try {
-    const dirExists = await fs.promises.access(tempDir).then(() => true).catch(() => false);
-    if (dirExists) {
-      const files = await fs.promises.readdir(tempDir);
-      
+    for (const dir of checkDirs) {
+      const dirExists = await fs.promises.access(dir).then(() => true).catch(() => false);
+      if (!dirExists) continue;
+      const files = await fs.promises.readdir(dir);
       for (const pid of Array.from(pendingMeiPids)) {
-        const prefix = `_MEI${pid}`;
+        const prefix = '_MEI' + pid;
         const targets = files.filter(f => f.startsWith(prefix));
-        
-        if (targets.length === 0) {
-          // Klasör zaten silinmiş veya hiç oluşmamışsa listeden çıkar
-          pendingMeiPids.delete(pid);
-          continue;
-        }
-        
-        let allDeleted = true;
         for (const target of targets) {
-          const targetPath = path.join(tempDir, target);
+          const targetPath = path.join(dir, target);
           try {
             await fs.promises.rm(targetPath, { recursive: true, force: true });
-            // Disk I/O yükünü hafifletmek için 5 saniye (5000ms) bekle
-            await sleep(5000);
-          } catch (err) {
-            allDeleted = false;
-          }
-        }
-        
-        if (allDeleted) {
-          pendingMeiPids.delete(pid);
+            await sleep(300);
+          } catch (err) {}
         }
       }
     }
+    for (const pid of Array.from(pendingMeiPids)) {
+      const prefix = '_MEI' + pid;
+      let stillExists = false;
+      for (const dir of checkDirs) {
+        try {
+          const files = await fs.promises.readdir(dir);
+          if (files.some(f => f.startsWith(prefix))) {
+            stillExists = true;
+            break;
+          }
+        } catch (_) {}
+      }
+      if (!stillExists) {
+        pendingMeiPids.delete(pid);
+      }
+    }
   } catch (err) {
-    // Kasıtlı sessiz: Hataları yoksay
+    // Kasıtlı sessiz
   }
   
   isCleanupWorkerRunning = false;
@@ -471,6 +647,10 @@ export function cleanMeiForPid(pid) {
  * @returns {ChildProcess} Başlatılan süreç
  */
 export function spawnYtdlp(args, options = {}) {
+  // Otomatik temp yönlendirmesi: _MEI ve part dosyalarını kullanıcının seçtiği klasöre zorlar
+  const activeTemp = getLocalTempDir();
+  const existingEnv = options.env || process.env;
+  options = { ...options, env: { ...existingEnv, TEMP: activeTemp, TMP: activeTemp, TMPDIR: activeTemp } };
   let db;
   try {
     db = readDb();
@@ -498,6 +678,9 @@ export function spawnYtdlp(args, options = {}) {
  * @returns {ChildProcess} Başlatılan süreç
  */
 export function execYtdlp(cmdString, options = {}, callback = null) {
+  const activeTemp = getLocalTempDir();
+  const existingEnv = options.env || process.env;
+  options = { ...options, env: { ...existingEnv, TEMP: activeTemp, TMP: activeTemp, TMPDIR: activeTemp } };
   let db;
   try {
     db = readDb();

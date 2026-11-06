@@ -6,8 +6,14 @@ import open from 'open';
 import dns from 'dns';
 import { spawn, execFile, exec } from 'child_process';
 import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, getFfmpegPath } from '../services/paths.js';
+import { updateChannelFullInfo } from './channels.js';
+import { getCookieArgs } from '../services/downloader.js';
+import { writeDb } from '../database.js';
+import { broadcast } from '../services/sse.js';
 import { readDb, findVideoFileInDownloadDir } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
+import { generateVideoSummary, getLmStudioModels, checkLlamaEngineStatus, downloadAndInstallLlamaEngine, scanGgufModels, stopLlamaEngine, startRecommendedModelDownload, getRecommendedModelDownloadStatus, cancelRecommendedModelDownload } from '../services/aiSummary.js';
+import { getTtsStatus, downloadPiperEngine, downloadPiperVoice, speakText, stopTtsEngine, VOICE_CATALOG, getTtsCacheDir } from '../services/tts.js';
 
 export const router = express.Router();
 
@@ -68,7 +74,7 @@ router.post('/video-stream/close', localhostOnly, (req, res) => {
  * @param {object} res - Express yanıt nesnesi
  * @returns {void}
  */
-router.get('/video-stream', (req, res) => {
+router.get('/video-stream', localhostOnly, (req, res) => {
   const rawId = req.query.videoId;
   if (!rawId) return res.status(400).send('Video ID is required');
   const videoId = String(rawId).replace(/^fakap_/, '');
@@ -132,7 +138,7 @@ const PLATFORM_SVG_BANNERS = {
   youtube: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="#0f0f13"/><g transform="translate(136, 66) scale(2)" fill="#ff0000"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></g></svg>`
 };
 
-router.get('/video/:videoId/thumbnail', (req, res) => {
+router.get('/video/:videoId/thumbnail', localhostOnly, (req, res) => {
   const rawId = req.params.videoId;
   const videoId = String(rawId).replace(/^fakap_/, '');
 
@@ -282,7 +288,18 @@ router.get('/video/:videoId/description', (req, res) => {
 
 function fetchDescriptionFromYtdlp(videoId) {
   return new Promise((resolve, reject) => {
-    const args = ['--encoding', 'utf-8', '--get-description', `https://www.youtube.com/watch?v=${videoId}`];
+    let db;
+    try { db = readDb(); } catch(e) { db = {}; }
+    const settings = db.settings || {};
+    const cookieArgs = typeof getCookieArgs === 'function' ? getCookieArgs(settings) : [];
+
+    const args = [
+      '--encoding', 'utf-8',
+      '--no-playlist',
+      ...cookieArgs,
+      '--get-description',
+      `https://www.youtube.com/watch?v=${videoId}`
+    ];
     
     // Windows ve diğer platformlarda UTF-8 kodlamasını garanti altına al
     const localTemp = getLocalTempDir();
@@ -334,20 +351,69 @@ router.post('/video/:videoId/refresh-details', localhostOnly, async (req, res) =
 
   try {
     const db = readDb();
-    const item = db.history.find(h => h.id === videoId);
+    const item = db.history.find(h => h.id === videoId || h.originalId === videoId);
 
-    // YouTube'dan güncel açıklamayı çek
-    const updatedDesc = await fetchDescriptionFromYtdlp(videoId);
-
-    // .description dosyasını diske kaydet
-    if (item && item.filePath) {
-      const ext = path.extname(item.filePath);
-      const basePath = item.filePath.slice(0, -ext.length);
-      const descPath = basePath + '.description';
-      await fs.promises.writeFile(descPath, updatedDesc, 'utf8');
+    // 1. YouTube'dan güncel açıklamayı çek
+    let updatedDesc = '';
+    try {
+      updatedDesc = await fetchDescriptionFromYtdlp(videoId);
+    } catch (e) {
+      console.warn(`[Refresh Details] Description fetch warning for ${videoId}:`, e.message);
     }
 
-    res.json({ success: true, description: updatedDesc });
+    // .description dosyasını diske kaydet
+    if (item && item.filePath && updatedDesc) {
+      try {
+        const ext = path.extname(item.filePath);
+        const basePath = item.filePath.slice(0, -ext.length);
+        const descPath = basePath + '.description';
+        await fs.promises.writeFile(descPath, updatedDesc, 'utf8');
+      } catch (e) {}
+    }
+
+    // 2. Güncel İzlenme Sayısını Çek (RYD API)
+    let latestViews = (item && item.viewCount) || 0;
+    try {
+      const rydRes = await fetch(`https://returnyoutubedislikeapi.com/votes?videoId=${encodeURIComponent(videoId)}`, {
+        headers: { 'User-Agent': 'HaYTooL-YT-Downloader/1.0' }
+      });
+      if (rydRes.ok) {
+        const rydData = await rydRes.json();
+        if (rydData && rydData.viewCount) {
+          latestViews = rydData.viewCount;
+          if (item) item.viewCount = latestViews;
+        }
+      }
+    } catch (e) {}
+
+    // 3. Kanal Abone Sayısını Güncelle
+    let updatedChannel = null;
+    let targetChannelId = item ? item.channelId : null;
+    let targetChannelName = item ? item.channelName : null;
+
+    if (db.channels && db.channels.length > 0) {
+      let channel = db.channels.find(c => (targetChannelId && c.id === targetChannelId) || (targetChannelName && c.name === targetChannelName));
+      if (channel) {
+        try {
+          await updateChannelFullInfo(channel);
+          updatedChannel = channel;
+        } catch (err) {
+          console.warn(`[Refresh Details] Channel update warning for ${channel.name}:`, err.message);
+        }
+      }
+    }
+
+    writeDb(db);
+    broadcast('db_update', db);
+
+    res.json({
+      success: true,
+      description: updatedDesc,
+      viewCount: latestViews,
+      channelId: updatedChannel ? updatedChannel.id : targetChannelId,
+      channelName: updatedChannel ? updatedChannel.name : targetChannelName,
+      subscriberCount: updatedChannel ? updatedChannel.subscriberCount : null
+    });
   } catch (err) {
     console.error(`Error refreshing description/comments for ${videoId}:`, err.message);
     res.status(500).json({ error: `Detaylar güncellenemedi: ${err.message}` });
@@ -368,7 +434,7 @@ router.post('/video/:videoId/refresh-details', localhostOnly, async (req, res) =
 router.get('/video/:videoId/subtitles', (req, res) => {
   const { videoId } = req.params;
   const db = readDb();
-  const video = db.history.find(h => h.id === videoId);
+  const video = db.history.find(h => h.id === videoId || h.originalId === videoId);
   
   if (!video || !video.filePath) {
     return res.json({ success: true, subtitles: [] });
@@ -582,7 +648,7 @@ router.post('/video/:videoId/translate-subtitle', localhostOnly, async (req, res
   const { videoId } = req.params;
   const { fromLang, toLang } = req.body;
   const db = readDb();
-  const video = db.history.find(h => h.id === videoId);
+  const video = db.history.find(h => h.id === videoId || h.originalId === videoId);
 
   if (!video || !video.filePath) {
     return res.status(404).json({ success: false, error: 'Video veya dosya konumu bulunamadı.' });
@@ -633,7 +699,7 @@ router.post('/video/:videoId/translate-subtitle', localhostOnly, async (req, res
 router.get('/video/:videoId/subtitle/:lang', (req, res) => {
   const { videoId, lang } = req.params;
   const db = readDb();
-  const video = db.history.find(h => h.id === videoId);
+  const video = db.history.find(h => h.id === videoId || h.originalId === videoId);
 
   if (!video || !video.filePath) {
     return res.status(404).send('Video bulunamadı.');
@@ -663,6 +729,281 @@ router.get('/video/:videoId/subtitle/:lang', (req, res) => {
 });
 
 /**
+ * Belirtilen videonun altyazı içeriğini yapay zeka (veya yerel NLP) ile özetler.
+ * Desteklenen modlar: 'narrative' (süresiz, akıcı paragraflar, başlıksız ve maddesiz) veya 'timestamped' (süreli anlar [mm:ss]).
+ * 
+ * @name GET /api/video/:videoId/ai-summary
+ * @function
+ * @inner
+ * @param {object} req - Express istek nesnesi
+ * @param {string} req.params.videoId - Hedef video ID'si
+ * @param {string} [req.query.provider] - AI sağlayıcısı ('auto', 'lmstudio', 'groq', 'gemini', 'deepseek', 'openai', 'ollama', 'local')
+ * @param {string} [req.query.mode] - 'narrative' (varsayılan) veya 'timestamped'
+ * @param {string} [req.query.lang] - Tercih edilen altyazı dili (varsayılan 'tr')
+ * @param {string} [req.query.model] - Özel model adı
+ * @param {number} [req.query.port] - LM Studio portu (varsayılan 1234)
+ * @param {boolean} [req.query.forceRefresh] - Önbelleği atlayıp yeniden özetle
+ * @param {object} res - Express yanıt nesnesi
+ * @returns {Promise<void>}
+ */
+router.get('/video/:videoId/ai-summary', localhostOnly, async (req, res) => {
+  const { videoId } = req.params;
+  const {
+    provider = 'auto',
+    mode = 'narrative',
+    lang = 'tr',
+    subLang = 'auto',
+    outputLang = 'app',
+    model,
+    port,
+    forceRefresh = 'false'
+  } = req.query;
+
+  try {
+    const summaryResult = await generateVideoSummary(videoId, {
+      provider,
+      mode,
+      lang,
+      subLang,
+      outputLang,
+      model,
+      port: port ? parseInt(port, 10) : undefined,
+      forceRefresh: forceRefresh === 'true'
+    });
+
+    return res.json({
+      success: true,
+      ...summaryResult
+    });
+  } catch (err) {
+    console.error('[AI Summary Route Error]:', err.message);
+    return res.status(500).json({
+      success: false,
+      error: err.message || 'Özet oluşturulurken bir hata meydana geldi.'
+    });
+  }
+});
+
+/**
+ * LM Studio yerel sunucusundaki mevcut yüklü modelleri listeler.
+ * 
+ * @name GET /api/lmstudio/models
+ */
+router.get('/lmstudio/models', localhostOnly, async (req, res) => {
+  const db = readDb();
+  const port = parseInt(req.query.port, 10) || db.settings?.lmStudioPort || 1234;
+  try {
+    const models = await getLmStudioModels(port);
+    return res.json({ success: true, models, port });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Taşınabilir LLaMA motorunun (bin/llama/llama-cli.exe) sistemdeki durumunu döndürür.
+ * 
+ * @name GET /api/llama/status
+ */
+router.get('/llama/status', localhostOnly, (req, res) => {
+  try {
+    const status = checkLlamaEngineStatus();
+    return res.json({ success: true, ...status });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Çalışmakta olan llama-cli.exe özet sürecini anında sonlandırır (örn. "Yeniden Özetle" tıklanınca).
+ * 
+ * @name POST /api/llama/stop
+ */
+router.post('/llama/stop', localhostOnly, (req, res) => {
+  try {
+    const stopped = stopLlamaEngine();
+    return res.json({ success: true, stopped });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Önerilen başlangıç modelini (Gemma 3 1B QAT GGUF) indirmeyi arka planda başlatır.
+ * 
+ * @name POST /api/gguf/model/download
+ */
+router.post('/gguf/model/download', localhostOnly, (req, res) => {
+  try {
+    return res.json({ success: true, ...startRecommendedModelDownload() });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Önerilen model indirmesinin güncel durumunu döndürür (istemci ~1 sn'de bir yoklar).
+ * 
+ * @name GET /api/gguf/model/download-status
+ */
+router.get('/gguf/model/download-status', localhostOnly, (req, res) => {
+  try {
+    return res.json({ success: true, ...getRecommendedModelDownloadStatus() });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Devam eden önerilen model indirmesini iptal eder.
+ * 
+ * @name POST /api/gguf/model/download-cancel
+ */
+router.post('/gguf/model/download-cancel', localhostOnly, (req, res) => {
+  try {
+    return res.json({ success: true, ...cancelRecommendedModelDownload() });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Yerel TTS (Piper) motor durumu + kurulu sesler + ses kataloğu.
+ * 
+ * @name GET /api/tts/status
+ */
+router.get('/tts/status', localhostOnly, (req, res) => {
+  try {
+    const customDir = typeof readDb().settings?.ttsVoicesDir === 'string' ? readDb().settings.ttsVoicesDir : '';
+    const status = getTtsStatus(customDir);
+    return res.json({ success: true, ...status, voices: [...VOICE_CATALOG, ...(status.customVoices || [])] });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Piper ses motorunu (~23 MB) indirip kurar.
+ * 
+ * @name POST /api/tts/engine/download
+ */
+router.post('/tts/engine/download', localhostOnly, async (req, res) => {
+  try {
+    return res.json(await downloadPiperEngine());
+  } catch (err) {
+    console.error('[TTS Engine Install API Error]:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Katalogdan seçilen ses paketini (~63 MB) indirip kurar.
+ * 
+ * @name POST /api/tts/voice/download
+ */
+router.post('/tts/voice/download', localhostOnly, async (req, res) => {
+  try {
+    const voiceId = typeof req.body?.voiceId === 'string' ? req.body.voiceId : '';
+    return res.json(await downloadPiperVoice(voiceId));
+  } catch (err) {
+    console.error('[TTS Voice Install API Error]:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Özet metnini Piper ile WAV'a sesler (önbellekli; sentez bitince döner).
+ * 
+ * @name POST /api/tts/speak
+ */
+router.post('/tts/speak', localhostOnly, async (req, res) => {
+  try {
+    const { text, voiceId, speed } = req.body || {};
+    if (typeof text !== 'string' || !text.trim()) {
+      return res.status(400).json({ success: false, error: 'Okunacak metin boş.' });
+    }
+    const customDir = typeof readDb().settings?.ttsVoicesDir === 'string' ? readDb().settings.ttsVoicesDir : '';
+    const result = await speakText({ text: text.slice(0, 50000), voiceId, speed, customDir });
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[TTS Speak API Error]:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Üretilen WAV dosyasını cache'ten sunar (yalnızca 40 haneli hex kimlikler).
+ * 
+ * @name GET /api/tts/audio/:id
+ */
+router.get('/tts/audio/:id', localhostOnly, (req, res) => {
+  const id = String(req.params.id || '');
+  if (!/^[a-f0-9]{40}$/.test(id)) {
+    return res.status(400).json({ success: false, error: 'Geçersiz ses kimliği.' });
+  }
+  const wavPath = path.join(getTtsCacheDir(), `${id}.wav`);
+  if (!fs.existsSync(wavPath)) {
+    return res.status(404).json({ success: false, error: 'Ses dosyası bulunamadı.' });
+  }
+  res.set('Cache-Control', 'private, max-age=604800');
+  return res.type('audio/wav').sendFile(wavPath);
+});
+
+/**
+ * Çalışmakta olan piper.exe sentez sürecini anında sonlandırır.
+ * 
+ * @name POST /api/tts/stop
+ */
+router.post('/tts/stop', localhostOnly, (req, res) => {
+  try {
+    return res.json({ success: true, stopped: stopTtsEngine() });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Seçilen klasördeki (ve alt klasörlerindeki) .gguf model dosyalarını listeler.
+ * dir verilmezse kayıtlı ggufModelPath'in klasörü, o da yoksa indirme klasörü taranır.
+ * 
+ * @name GET /api/gguf/models
+ */
+router.get('/gguf/models', localhostOnly, (req, res) => {
+  try {
+    const db = readDb();
+    let dir = (typeof req.query.dir === 'string') ? req.query.dir.trim() : '';
+    if (!dir && db.settings?.ggufModelPath) {
+      dir = path.dirname(db.settings.ggufModelPath);
+    }
+    if (!dir && db.settings?.downloadPath) {
+      dir = db.settings.downloadPath;
+    }
+    const result = scanGgufModels(dir);
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (err) {
+    console.error('[GGUF Models Scan Error]:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Resmi GitHub b12058 sürümünden taşınabilir LLaMA motorunu indirip kurar.
+ * Gövdedeki variant: 'cpu' (23 MB, varsayılan) | 'gpu' (Vulkan, 36 MB).
+ * 
+ * @name POST /api/llama/install
+ */
+router.post('/llama/install', localhostOnly, async (req, res) => {
+  try {
+    const variant = req.body?.variant === 'gpu' ? 'gpu' : 'cpu';
+    const result = await downloadAndInstallLlamaEngine(variant);
+    return res.json(result);
+  } catch (err) {
+    console.error('[Llama Install API Error]:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * YouTube'un dahili Innertube API'sini simüle ederek bir videoya ait kullanıcı yorumlarını ve sayfalama belirteçlerini çeker.
  * 
  * @name GET /api/video/:videoId/comments
@@ -674,7 +1015,7 @@ router.get('/video/:videoId/subtitle/:lang', (req, res) => {
  * @param {object} res - Express yanıt nesnesi
  * @returns {Promise<void>}
  */
-router.get('/video/:videoId/comments', async (req, res) => {
+router.get('/video/:videoId/comments', localhostOnly, async (req, res) => {
   const { videoId } = req.params;
   const { token } = req.query;
   if (!videoId) {
@@ -1037,7 +1378,7 @@ router.get('/system-dns', localhostOnly, async (req, res) => {
  * @param {object} res - Express yanıt nesnesi
  */
 const rydCache = new Map();
-router.get('/video/:videoId/votes', async (req, res) => {
+router.get('/video/:videoId/votes', localhostOnly, async (req, res) => {
   const { videoId } = req.params;
   if (!videoId || videoId.length < 5) {
     return res.status(400).json({ error: 'Geçersiz Video ID.' });
@@ -1160,7 +1501,7 @@ async function ensureRydRegistration(force = false) {
   return storedRydUserId;
 }
 
-router.post('/video/:videoId/vote', async (req, res) => {
+router.post('/video/:videoId/vote', localhostOnly, async (req, res) => {
   const { videoId } = req.params;
   const value = parseInt(req.body.value, 10); // 1 = Like, -1 = Dislike, 0 = Nötr
   if (!videoId || isNaN(value)) {

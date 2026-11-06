@@ -58,18 +58,23 @@ export function computePrunePlan(db, now = Date.now()) {
   let slimmed = 0;
 
   for (const list of groups.values()) {
-    // Yeniden eskiye sırala (tarih yoksa en eski kabul edilir)
+    // Yeniden eskiye sırala (yayınlanma tarihi öncelikli; tarih yoksa en eski kabul edilir)
     list.sort((a, b) => {
-      const da = new Date(a.downloadedAt || a.publishedAt || 0).getTime() || 0;
-      const db_ = new Date(b.downloadedAt || b.publishedAt || 0).getTime() || 0;
+      const pubA = (a.publishedAt && a.publishedAt !== '-') ? new Date(a.publishedAt).getTime() : 0;
+      const pubB = (b.publishedAt && b.publishedAt !== '-') ? new Date(b.publishedAt).getTime() : 0;
+      const da = (pubA > 0 ? pubA : new Date(a.downloadedAt || 0).getTime()) || 0;
+      const db_ = (pubB > 0 ? pubB : new Date(b.downloadedAt || 0).getTime()) || 0;
       return db_ - da;
     });
 
     list.forEach((item, index) => {
+      // Türkçe Açıklama: Kullanıcının izlediği veya sildiği/gizlediği (hidden: true / lastWatchedAt) kayıtlar
+      // ASLA silinmez; silinirse sonraki RSS taramasında "yeni video" sanılıp Kütüphane'de tekrar hortlar.
+      const isProtected = item.hidden === true || Boolean(item.lastWatchedAt) || Boolean(item.watchProgress);
       const stamp = new Date(item.downloadedAt || item.publishedAt || 0).getTime() || 0;
       const isFresh = stamp > 0 && (now - stamp) < graceMs;
 
-      if (index >= keepPerChannel && !isFresh) {
+      if (!isProtected && index >= keepPerChannel && !isFresh) {
         removed++;
         return; // at
       }

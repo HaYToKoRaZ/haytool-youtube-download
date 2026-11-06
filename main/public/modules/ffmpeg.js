@@ -64,6 +64,24 @@ export async function checkFfmpegStatus() {
         settingsBtn.innerText = t.ffmpeg_btn_install || 'Kur';
       }
     }
+
+    const gpuBadge = document.getElementById('settings-gpu-detected');
+    if (gpuBadge && data.hwaccel) {
+      const gpuName = data.hwaccel.gpuName || '';
+      const rec = (data.hwaccel.recommended || 'cpu').toUpperCase();
+      if (data.hwaccel.recommended && data.hwaccel.recommended !== 'cpu') {
+        const supportedText = t.hwaccel_supported || 'Destekleniyor';
+        gpuBadge.textContent = `${gpuName ? gpuName + ' • ' : ''}${rec} ${supportedText}`;
+        gpuBadge.style.color = '#34d399';
+        gpuBadge.style.borderColor = 'rgba(52, 211, 153, 0.3)';
+        gpuBadge.style.background = 'rgba(52, 211, 153, 0.1)';
+      } else {
+        gpuBadge.textContent = gpuName ? `${gpuName} • ${t.hwaccel_cpu_mode || 'CPU Modu'}` : (t.hwaccel_cpu_mode || 'Yalnızca CPU');
+        gpuBadge.style.color = 'var(--text-muted)';
+        gpuBadge.style.borderColor = 'var(--border-color)';
+        gpuBadge.style.background = 'rgba(255, 255, 255, 0.05)';
+      }
+    }
   } catch (err) {
     console.error('Error checking FFmpeg status:', err);
   }

@@ -2,7 +2,7 @@
 import https from 'https';
 import http from 'http';
 import { spawn } from 'child_process';
-import { ytdlpPath, getLocalTempDir, cleanMeiForPid } from './paths.js';
+import { getLocalTempDir, cleanMeiForPid, spawnYtdlp } from './paths.js';
 
 let cachedWorkingProxies = [];
 let lastProxyCheck = 0;
@@ -65,7 +65,7 @@ export async function testProxyWithYtdlp(proxy, testUrl = 'https://www.youtube.c
       ...(process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {})
     };
 
-    const proc = spawn(ytdlpPath, args, spawnOptions);
+    const proc = spawnYtdlp(args, spawnOptions);
     let out = '';
     const timer = setTimeout(() => {
       try { proc.kill(); } catch (e) {}

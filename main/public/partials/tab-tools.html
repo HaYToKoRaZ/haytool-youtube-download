@@ -1,4 +1,4 @@
-      <!-- Tab: Araçlar (Gelişmiş Araçlar & Bakım) -->
+﻿      <!-- Tab: Araçlar (Gelişmiş Araçlar & Bakım) -->
       <section id="tab-tools" class="tab-content">
         <header class="content-header">
           <div>
@@ -25,6 +25,10 @@
               <i data-lucide="refresh-cw"></i>
               <span id="compare-btn-text">Karşılaştırmayı Başlat</span>
             </button>
+            <button type="button" class="btn btn-warning hidden" id="sync-all-btn" style="display: inline-flex; align-items: center; gap: 6px;">
+              <i data-lucide="zap"></i>
+              <span id="sync-all-btn-text">Tek Tıkla Senkronize Et</span>
+            </button>
             <div id="compare-loading" class="hidden text-center compare-loading" role="status" aria-live="polite">
               <i data-lucide="loader" class="spin" style="width: 20px; height: 20px; color: var(--accent-color);"></i>
               <span style="font-size: 0.9rem; color: var(--text-muted);" id="compare-loading-text">Dosyalar taranıyor...</span>
@@ -43,6 +47,9 @@
             </button>
             <button type="button" class="compare-health-card" data-compare-filter="missing">
               <i data-lucide="video-off" aria-hidden="true"></i><span class="compare-health-value" id="compare-missing-count">0</span><span id="compare-missing-label">Eksik kayıt</span>
+            </button>
+            <button type="button" class="compare-health-card" data-compare-filter="folders">
+              <i data-lucide="folder-x" aria-hidden="true"></i><span class="compare-health-value" id="compare-folders-count">0</span><span id="compare-folders-label">Boş Klasör</span>
             </button>
           </div>
 
@@ -126,6 +133,29 @@
                     </tr>
                   </thead>
                   <tbody id="missing-files-list"></tbody>
+                </table>
+              </div>
+            </div>
+            <!-- Empty & Abandoned Channel Folders Section -->
+            <div id="empty-folders-section" class="hidden" style="display: flex; flex-direction: column;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
+                <h4 style="margin:0; font-size:1.05rem; font-weight:600; color:var(--accent-color);" id="empty-folders-title">Sahipsiz / Boş Kanal Klasörleri</h4>
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" class="btn btn-secondary btn-xs" onclick="deleteAllEmptyFolders()" id="btn-delete-all-folders" style="padding: 6px 12px; font-size: 0.8rem; color: var(--accent-red);" title="Tüm sahipsiz boş klasörleri diskten sil">Tümünü Sil</button>
+                </div>
+              </div>
+              <div class="table-container" style="overflow-x:auto; border: 1px solid var(--border-color); border-radius: 8px;">
+                <table class="tools-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">
+                  <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
+                    <tr style="border-bottom:1px solid var(--border-color); color:var(--text-muted);">
+                      <th class="compare-select-column"><input type="checkbox" data-compare-select-all="folders" aria-label="Tüm boş klasörleri seç"></th>
+                      <th style="padding:10px 12px;" id="col-foldername">Klasör Adı</th>
+                      <th style="padding:10px 12px;" id="col-folderpath">Klasör Yolu</th>
+                      <th style="padding:10px 12px;" id="col-folderstatus">Durum</th>
+                      <th style="padding:10px 12px; text-align:right;" id="col-actions-folders">Eylemler</th>
+                    </tr>
+                  </thead>
+                  <tbody id="empty-folders-list"></tbody>
                 </table>
               </div>
             </div>

@@ -19,10 +19,13 @@ import {
   saveCategoriesToIni
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
-import { ytdlpPath, getFfmpegPath, testFfmpegSync, setFfmpegWorkingCached, getLocalTempDir, spawnYtdlp } from '../services/paths.js';
-import { downloadQueue, getEffectiveSpeedLimit, getCookieArgs, resolveItemDownloadUrl } from '../services/downloader.js';
+import { ytdlpPath, getFfmpegPath, detectHwaccel, testFfmpegSync, setFfmpegWorkingCached, getLocalTempDir, spawnYtdlp } from '../services/paths.js';
+import { downloadQueue, getEffectiveSpeedLimit, getCookieArgs, resolveItemDownloadUrl, showWindowsNotification } from '../services/downloader.js';
+import { playWavSound, AVAILABLE_SOUNDS } from '../services/soundService.js';
+import { mergeQueue } from '../services/mergeQueue.js';
 import { broadcast, addTerminalLog, terminalLogs, rawLogs } from '../services/sse.js';
 import { restartCookieHealthCheck } from '../services/cookieHealth.js';
+import { triggerChannelCheck, checkPendingLiveStreams } from '../services/rss.js';
 import { categoriesIniPath } from '../config.js';
 export function formatBackupDateStr(now = new Date()) {
   const day = String(now.getDate()).padStart(2, '0');
@@ -69,14 +72,38 @@ export function setupPeriodicDiskSync(intervalMinutes = null) {
 }
 
 let checkIntervalTimer = null;
+let liveStreamTimer = null;
 
-// Türkçe Açıklama: RSS video kontrol döngüsünü ayardaki saniyeye göre başlatır (rss.js modülünü dinamik çağırır).
 /**
- * RSS video kontrol döngüsünü ayardaki saniyeye göre başlatır / günceller.
- * 
- * @returns {Promise<void>}
+ * Bekleyen canlı yayınların tekrar deneme zamanlayıcısını başlatır / günceller.
+ *
+ * @returns {void}
  */
-export async function startIntervalTimer() {
+export function startLiveStreamTimer() {
+  const db = readDb();
+  if (liveStreamTimer) {
+    clearInterval(liveStreamTimer);
+    liveStreamTimer = null;
+  }
+  if (db.settings.isPaused) return;
+
+  const mins = parseInt(db.settings.liveStreamRetryInterval, 10) || 30;
+  liveStreamTimer = setInterval(async () => {
+    try {
+      await checkPendingLiveStreams();
+    } catch (err) {
+      console.error('[Canlı Yayın Zamanlayıcı] Kontrol hatası:', err.message);
+    }
+  }, mins * 60 * 1000);
+}
+
+// Türkçe Açıklama: RSS video kontrol döngüsünü ayardaki dakikaya (5-1440 dk) göre başlatır / günceller.
+/**
+ * RSS video kontrol döngüsünü ayardaki dakikaya göre başlatır / günceller.
+ * 
+ * @returns {void}
+ */
+export function startIntervalTimer() {
   const db = readDb();
   if (checkIntervalTimer) {
     clearInterval(checkIntervalTimer);
@@ -85,17 +112,18 @@ export async function startIntervalTimer() {
 
   // Türkçe Açıklama: İndirme listesi duraklatılmış olsa bile kanal taraması çalışabilir; indirme engeli DownloadQueue içinde yönetilir.
 
-  const seconds = db.settings.channelCheckInterval || 300;
-  console.log(`[Zamanlayıcı] RSS kontrol döngüsü ${seconds} saniyede bir çalışacak şekilde başlatıldı.`);
+  const minutes = Math.max(5, Math.min(1440, parseInt(db.settings.channelCheckInterval, 10) || 30));
+  console.log(`[Zamanlayıcı] RSS kontrol döngüsü her ${minutes} dakikada bir çalışacak şekilde başlatıldı.`);
   
   checkIntervalTimer = setInterval(async () => {
     try {
-      const { triggerChannelCheck } = await import('../services/rss.js');
       await triggerChannelCheck('timer');
     } catch (err) {
       console.error('[Zamanlayıcı Error] RSS kontrolü çalıştırılamadı:', err.message);
     }
-  }, seconds * 1000);
+  }, minutes * 60 * 1000);
+
+  startLiveStreamTimer();
 }
 
 /**
@@ -385,7 +413,7 @@ function getWmoWeatherInfo(code) {
  * @param {object} res - Express yanıt nesnesi
  * @returns {Promise<void>}
  */
-router.get('/weather', async (req, res) => {
+router.get('/weather', localhostOnly, async (req, res) => {
   try {
     const db = readDb();
     const settings = db.settings || {};
@@ -478,7 +506,7 @@ router.get('/weather', async (req, res) => {
  * @param {object} res - Express yanıt nesnesi
  * @returns {Promise<void>}
  */
-router.get('/weather/geocode', async (req, res) => {
+router.get('/weather/geocode', localhostOnly, async (req, res) => {
   try {
     const query = (req.query.query || '').trim();
     if (!query || query.length < 2) {
@@ -521,7 +549,7 @@ router.get('/weather/geocode', async (req, res) => {
  * @param {object} res - Express yanıt nesnesi
  * @returns {void}
  */
-router.get('/logs', (req, res) => {
+router.get('/logs', localhostOnly, (req, res) => {
   // ?raw=1 → Node sürecinin ham stdout/stderr akışı (tray konsoluyla aynı içerik)
   if (req.query.raw === '1' || req.query.raw === 'true') return res.json(rawLogs);
   res.json(terminalLogs);
@@ -538,7 +566,7 @@ router.get('/logs', (req, res) => {
  * @param {object} res - Express yanıt nesnesi
  * @returns {void}
  */
-router.post('/settings', localhostOnly, (req, res) => {
+router.post('/settings', localhostOnly, async (req, res) => {
   const db = readDb();
   const oldSpeedLimit = getEffectiveSpeedLimit(db.settings);
   const oldDownloadPath = db.settings.downloadPath;
@@ -558,7 +586,7 @@ router.post('/settings', localhostOnly, (req, res) => {
   }
   if (req.body.channelCheckInterval !== undefined) {
     const val = parseInt(req.body.channelCheckInterval, 10);
-    req.body.channelCheckInterval = isNaN(val) ? 1800 : Math.max(5, Math.min(val, 86400));
+    req.body.channelCheckInterval = isNaN(val) ? 30 : Math.max(5, Math.min(val, 1440));
   }
   if (req.body.rssLimit !== undefined) {
     const val = parseInt(req.body.rssLimit, 10);
@@ -588,28 +616,90 @@ router.post('/settings', localhostOnly, (req, res) => {
     const val = parseInt(req.body.liveStreamRetryInterval, 10);
     req.body.liveStreamRetryInterval = isNaN(val) ? 30 : Math.max(5, Math.min(val, 1440));
   }
+  if (req.body.weatherCity !== undefined && typeof req.body.weatherCity === 'string') {
+    const trimmedCity = req.body.weatherCity.trim();
+    req.body.weatherCity = trimmedCity || db.settings.weatherCity || 'Derince';
+  }
   if (req.body.weatherLatitude !== undefined) {
     const val = parseFloat(req.body.weatherLatitude);
-    req.body.weatherLatitude = isNaN(val) ? 41.0082 : Math.max(-90, Math.min(val, 90));
+    req.body.weatherLatitude = isNaN(val) ? (db.settings.weatherLatitude ?? 40.75694) : Math.max(-90, Math.min(val, 90));
   }
   if (req.body.weatherLongitude !== undefined) {
     const val = parseFloat(req.body.weatherLongitude);
-    req.body.weatherLongitude = isNaN(val) ? 28.9784 : Math.max(-180, Math.min(val, 180));
+    req.body.weatherLongitude = isNaN(val) ? (db.settings.weatherLongitude ?? 29.81472) : Math.max(-180, Math.min(val, 180));
+  }
+  // Kullanıcı şehir adını elle yazıp listeden seçmeden kaydettiyse koordinatları otomatik çözümle
+  if (
+    req.body.weatherCity &&
+    req.body.weatherCity !== db.settings.weatherCity &&
+    (req.body.weatherLatitude === undefined || Math.abs(req.body.weatherLatitude - (db.settings.weatherLatitude ?? 0)) < 0.0001) &&
+    (req.body.weatherLongitude === undefined || Math.abs(req.body.weatherLongitude - (db.settings.weatherLongitude ?? 0)) < 0.0001)
+  ) {
+    try {
+      const geoCtrl = new AbortController();
+      const geoTimeout = setTimeout(() => geoCtrl.abort(), 2500);
+      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(req.body.weatherCity)}&count=1&language=tr&format=json`;
+      const geoRes = await fetch(geoUrl, { signal: geoCtrl.signal });
+      clearTimeout(geoTimeout);
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        if (geoData.results && geoData.results.length > 0) {
+          req.body.weatherLatitude = geoData.results[0].latitude;
+          req.body.weatherLongitude = geoData.results[0].longitude;
+        }
+      }
+    } catch (_) {
+      // Çevrimdışı veya zaman aşımında mevcut koordinatları koru
+    }
+  }
+  if (req.body.ttsSpeed !== undefined) {
+    const val = parseFloat(req.body.ttsSpeed);
+    req.body.ttsSpeed = isNaN(val) ? 1 : Math.max(0.5, Math.min(val, 2));
   }
 
   // 2. Boolean (Açık/Kapalı) Güvenlik Doğrulamaları
   const booleanFields = [
-    'useAlternativeSpeed', 'sponsorBlockEnabled', 'checkChannelsOnStartup',
+    'useAlternativeSpeed', 'deferMerge', 'sponsorBlockEnabled', 'checkChannelsOnStartup',
     'checkYtdlpOnStartup',
     'autoDownload', 'writeThumbnail', 'showShorts', 'hideOnDelete',
     'playSounds', 'showNotifications', 'autoOpenBrowser', 'discordRpcEnabled',
     'enableAltThumbnailsHover', 'autoSyncWatchtime', 'autoSyncLocalWatchtime',
     'autoDiskSync', 'autoCookieRefresh', 'weatherEnabled', 'autoSyncGist',
-    'autoDeleteRequireConfirmation'
+    'autoDeleteRequireConfirmation', 'ggufGpuMode', 'unloadUiOnHide',
+    'historyShowLive', 'historyShowUpcoming', 'historyOnlyNoAutoDownload',
+    'historyOnlyNotDownloaded', 'historyOnlyLiveProcessing', 'historyShowMembers', 'historyShowHidden'
   ];
   for (const field of booleanFields) {
     if (req.body[field] !== undefined) {
       req.body[field] = req.body[field] === true || req.body[field] === 'true';
+    }
+  }
+
+  // 2.2 Ses Seçimleri Doğrulaması
+  if (req.body.soundDownloadComplete !== undefined) {
+    if (!AVAILABLE_SOUNDS.includes(req.body.soundDownloadComplete)) req.body.soundDownloadComplete = 'chime';
+  }
+  if (req.body.soundMergeComplete !== undefined) {
+    if (!AVAILABLE_SOUNDS.includes(req.body.soundMergeComplete)) req.body.soundMergeComplete = 'fanfare';
+  }
+
+  // 2.5 Donanım Hızlandırma ve Oynatıcı GPU Modu Doğrulaması
+  if (req.body.hardwareAcceleration !== undefined) {
+    const validHw = ['auto', 'nvenc', 'qsv', 'amf', 'cpu'];
+    if (!validHw.includes(req.body.hardwareAcceleration)) {
+      req.body.hardwareAcceleration = 'auto';
+    }
+  }
+  if (req.body.playerGpuMode !== undefined) {
+    const validPlayerGpu = ['gpu', 'cpu'];
+    if (!validPlayerGpu.includes(req.body.playerGpuMode)) {
+      req.body.playerGpuMode = 'gpu';
+    }
+  }
+  if (req.body.liveStreamHandling !== undefined) {
+    const validLiveModes = ['instant_retry', 'vod_only', 'ignore_live'];
+    if (!validLiveModes.includes(req.body.liveStreamHandling)) {
+      req.body.liveStreamHandling = 'instant_retry';
     }
   }
 
@@ -621,19 +711,48 @@ router.post('/settings', localhostOnly, (req, res) => {
     }
   }
 
+  const prevInterval = db.settings.channelCheckInterval;
+  const prevLiveRetryInterval = db.settings.liveStreamRetryInterval;
+  const prevLiveHandling = db.settings.liveStreamHandling;
+  const prevDiskSync = db.settings.periodicDiskSyncInterval;
+  const prevCookieAuto = db.settings.autoCookieRefresh;
+  const prevCookieInterval = db.settings.cookieRefreshInterval;
+  const prevLang = db.settings.lang;
+  const prevDeferMerge = Boolean(db.settings.deferMerge);
+
   db.settings = { ...db.settings, ...req.body };
   const newSpeedLimit = getEffectiveSpeedLimit(db.settings);
   const speedLimitChanged = newSpeedLimit !== oldSpeedLimit;
   const downloadPathChanged = Boolean(req.body.downloadPath && req.body.downloadPath !== oldDownloadPath);
 
-  if (req.body.lang) {
+  if (req.body.lang && req.body.lang !== prevLang) {
     console.log(`[TRAY_CMD] lang=${req.body.lang}`);
   }
 
-  writeDb(db);
-  startIntervalTimer(); // Süre değiştiyse zamanlayıcıyı güncelle
-  setupPeriodicDiskSync(); // Disk senkronizasyon sıklığı değiştiyse güncelle
-  restartCookieHealthCheck(db.settings); // Otomatik çerez yenileme ayarı ve sıklığını güncelle
+  await writeDb(db);
+  if (req.body.channelCheckInterval !== undefined && req.body.channelCheckInterval !== prevInterval) {
+    startIntervalTimer(); // Sadece kanal denetleme süresi değiştiyse zamanlayıcıyı güncelle
+  } else if (req.body.liveStreamRetryInterval !== undefined && req.body.liveStreamRetryInterval !== prevLiveRetryInterval) {
+    startLiveStreamTimer(); // Canlı yayın tekrar deneme süresi değiştiyse ilgili zamanlayıcıyı hemen güncelle
+  }
+  if (
+    req.body.liveStreamHandling !== undefined &&
+    req.body.liveStreamHandling !== prevLiveHandling &&
+    req.body.liveStreamHandling !== 'ignore_live'
+  ) {
+    setTimeout(() => {
+      checkPendingLiveStreams().catch(err => console.error('[Settings] Canlı yayın kontrolü hatası:', err.message));
+    }, 100);
+  }
+  if (req.body.periodicDiskSyncInterval !== undefined && req.body.periodicDiskSyncInterval !== prevDiskSync) {
+    setupPeriodicDiskSync(); // Sadece disk senkronizasyon sıklığı değiştiyse güncelle
+  }
+  if (
+    (req.body.autoCookieRefresh !== undefined && req.body.autoCookieRefresh !== prevCookieAuto) ||
+    (req.body.cookieRefreshInterval !== undefined && req.body.cookieRefreshInterval !== prevCookieInterval)
+  ) {
+    restartCookieHealthCheck(db.settings); // Sadece çerez yenileme ayarı değiştiyse güncelle
+  }
 
   import('../services/discord.js').then(({ discordRpc }) => {
     if (db.settings.discordRpcEnabled !== false) {
@@ -644,6 +763,10 @@ router.post('/settings', localhostOnly, (req, res) => {
   }).catch(e => console.error('DiscordRPC dynamic import fail:', e.message));
 
   broadcast('db_update', db);
+
+  if (prevDeferMerge && !db.settings.deferMerge) {
+    setTimeout(() => mergeQueue.startAllAutoIfIdle(), 100);
+  }
 
   // Yalnızca indirme klasörü yolu fiziksel olarak değiştiğinde disk senkronizasyonu çalıştır
   if (downloadPathChanged) {
@@ -707,6 +830,33 @@ router.post('/settings', localhostOnly, (req, res) => {
   }
 
   res.json({ success: true, settings: db.settings });
+});
+
+// Bildirim Sesi ve Masaüstü Bildirim Test Rotaları
+router.post('/settings/test-sound', localhostOnly, (req, res) => {
+  try {
+    const sound = String(req.body?.sound || 'chime').trim();
+    if (sound && sound !== 'silent') {
+      playWavSound(sound);
+    }
+    res.json({ ok: true, sound });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/settings/test-notification', localhostOnly, (req, res) => {
+  try {
+    const db = readDb();
+    const isEn = db.settings?.lang === 'en';
+    showWindowsNotification(
+      isEn ? 'HaYTooL Test Notification' : 'HaYTooL Test Bildirimi',
+      isEn ? 'Desktop notifications are working correctly.' : 'Masaüstü bildirimleri sorunsuz çalışıyor.'
+    );
+    res.json({ ok: true, message: 'Test bildirimi gönderildi.' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // FFmpeg İndirme Durumu ve API Rotaları
@@ -1086,6 +1236,7 @@ router.get('/ffmpeg/status', (req, res) => {
     installed: info.installed,
     localVersion: info.version,
     remoteVersion: 'v6.1',
+    hwaccel: detectHwaccel(),
     status: ffmpegDownloadState.status,
     progress: ffmpegDownloadState.progress,
     error: ffmpegDownloadState.error
@@ -1097,12 +1248,12 @@ router.post('/ffmpeg/download', localhostOnly, (req, res) => {
   res.json({ success: true });
 });
 
-router.post('/settings/toggle-alt-speed', localhostOnly, (req, res) => {
+router.post('/settings/toggle-alt-speed', localhostOnly, async (req, res) => {
   const db = readDb();
   const oldSpeed = getEffectiveSpeedLimit(db.settings);
   db.settings.useAlternativeSpeed = !db.settings.useAlternativeSpeed;
   const newSpeed = getEffectiveSpeedLimit(db.settings);
-  writeDb(db);
+  await writeDb(db);
   broadcast('db_update', db);
   
   if (oldSpeed !== newSpeed && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
@@ -1141,14 +1292,14 @@ router.post('/settings/toggle-alt-speed', localhostOnly, (req, res) => {
   res.json({ success: true, settings: db.settings });
 });
 
-router.post('/settings/toggle-discord-rpc', localhostOnly, (req, res) => {
+router.post('/settings/toggle-discord-rpc', localhostOnly, async (req, res) => {
   const db = readDb();
   if (req.body && req.body.discordRpcEnabled !== undefined) {
     db.settings.discordRpcEnabled = req.body.discordRpcEnabled === true || req.body.discordRpcEnabled === 'true';
   } else {
     db.settings.discordRpcEnabled = !db.settings.discordRpcEnabled;
   }
-  writeDb(db);
+  await writeDb(db);
   broadcast('db_update', db);
   
   import('../services/discord.js').then(({ discordRpc }) => {
@@ -1160,6 +1311,33 @@ router.post('/settings/toggle-discord-rpc', localhostOnly, (req, res) => {
   }).catch(e => console.error('DiscordRPC dynamic import fail:', e.message));
   
   res.json({ success: true, settings: db.settings });
+});
+
+router.post('/settings/toggle-defer-merge', localhostOnly, async (req, res) => {
+  const db = readDb();
+  const wasDefer = Boolean(db.settings.deferMerge);
+  if (req.body && req.body.deferMerge !== undefined) {
+    db.settings.deferMerge = req.body.deferMerge === true || req.body.deferMerge === 'true';
+  } else {
+    db.settings.deferMerge = !wasDefer;
+  }
+  await writeDb(db);
+  broadcast('db_update', db);
+
+  const stateLabel = db.settings.deferMerge ? 'AÇIK (Birleştirme Erteleniyor)' : 'KAPALI (Otomatik Birleştirme)';
+  addTerminalLog(`[Oyun Modu] Birleştirme Erteleme Modu: ${stateLabel}`, 'info');
+
+  let autoResult = { added: 0 };
+  if (wasDefer && !db.settings.deferMerge) {
+    autoResult = mergeQueue.startAllAutoIfIdle();
+  }
+
+  res.json({
+    success: true,
+    deferMerge: db.settings.deferMerge,
+    autoStartedCount: autoResult.added || 0,
+    settings: db.settings
+  });
 });
 
 function getDirSize(dirPath) {
@@ -1503,6 +1681,18 @@ function parseBackupBuffer(buffer, filename = '') {
  * @param {object} res - Express yanıt nesnesi
  * @returns {void}
  */
+// Türkçe Açıklama: Yedek dosya adını doğrular — yol ayracı, ":" ve ".." içeren adları reddeder
+// (path traversal ile yedek dizini dışında keyfi dosya silme/okumaya karşı savunma).
+function isSafeBackupFilename(filename) {
+  if (typeof filename !== 'string') return false;
+  if (filename.length === 0 || filename.length > 200) return false;
+  if (filename.startsWith('.')) return false;
+  if (!/^[A-Za-z0-9][A-Za-z0-9 ._-]*$/.test(filename)) return false;
+  if (filename.includes('..')) return false;
+  const safeBackupsDir = path.resolve(dataRootDir, 'backup');
+  return path.resolve(safeBackupsDir, filename).startsWith(safeBackupsDir + path.sep);
+}
+
 router.get('/backups', localhostOnly, (req, res) => {
   const backupsDir = path.join(dataRootDir, 'backup');
   try {
@@ -1645,6 +1835,9 @@ router.post('/backup', localhostOnly, (req, res) => {
 router.post('/restore', localhostOnly, async (req, res) => {
   const { filename } = req.body;
   if (!filename) return res.status(400).json({ error: 'filename parametresi gereklidir.' });
+  if (!isSafeBackupFilename(filename)) {
+    return res.status(400).json({ error: 'Geçersiz yedek dosya adı.' });
+  }
   
   const backupsDir = path.join(dataRootDir, 'backup');
   const backupFilePath = path.join(backupsDir, filename);
@@ -1761,6 +1954,9 @@ router.post('/restore-upload', localhostOnly, async (req, res) => {
  */
 router.delete('/backup/:filename', localhostOnly, (req, res) => {
   const { filename } = req.params;
+  if (!isSafeBackupFilename(filename)) {
+    return res.status(400).json({ error: 'Geçersiz yedek dosya adı.' });
+  }
   const backupsDir = path.join(dataRootDir, 'backup');
   const backupFilePath = path.join(backupsDir, filename);
 
@@ -1786,6 +1982,9 @@ router.delete('/backup/:filename', localhostOnly, (req, res) => {
  */
 router.get('/backup/download/:filename', localhostOnly, (req, res) => {
   const { filename } = req.params;
+  if (!isSafeBackupFilename(filename)) {
+    return res.status(400).json({ error: 'Geçersiz yedek dosya adı.' });
+  }
   const backupsDir = path.join(dataRootDir, 'backup');
   const backupFilePath = path.join(backupsDir, filename);
 

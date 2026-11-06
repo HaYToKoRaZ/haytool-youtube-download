@@ -133,15 +133,17 @@ export async function openSubtitleTranslateModal(videoId, availableSubs = null, 
     const lang = localDb.settings?.lang || window.currentLang || 'tr';
     const t = translations[lang] || translations.tr;
 
-    let subs = availableSubs;
-    // Eğer parametre olarak gelmediyse veya taze çekim isteniyorsa
-    if (!subs) {
+    // Eğer parametre olarak gelmediyse, boş dizi geldiyse veya tanımsızsa güncel altyazıları sunucudan çek
+    let subs = (Array.isArray(availableSubs) && availableSubs.length > 0) ? availableSubs : null;
+    if (!subs || subs.length === 0) {
       try {
         subs = await fetchVideoSubtitles(videoId);
-        applySubtitlesToPlayer(subs);
+        if (subs && subs.length > 0) {
+          applySubtitlesToPlayer(subs);
+        }
       } catch (e) {
         console.warn('[Translate Modal] Sub fetch error:', e);
-        subs = currentSubtitles || [];
+        subs = (typeof getCurrentSubtitles === 'function' ? getCurrentSubtitles() : currentSubtitles) || [];
       }
     }
 
@@ -292,6 +294,12 @@ export async function openSubtitleTranslateModal(videoId, availableSubs = null, 
             const data = await res.json();
             if (data.success) {
               showToast(lang === 'en' ? 'Subtitles successfully translated!' : 'Altyazılar başarıyla çevrildi!', 'success');
+              try {
+                const refreshedSubs = await fetchVideoSubtitles(videoId);
+                if (refreshedSubs && refreshedSubs.length > 0) {
+                  applySubtitlesToPlayer(refreshedSubs);
+                }
+              } catch (e) {}
               if (typeof options.onComplete === 'function') {
                 options.onComplete();
               } else if (typeof window.playVideoEmbedded === 'function') {

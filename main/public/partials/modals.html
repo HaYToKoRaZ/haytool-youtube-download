@@ -183,7 +183,7 @@
       <div class="modal-header player-modal-header" style="padding: 8px 14px; margin-bottom: 0; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: move; user-select: none;">
         <div style="display: flex; flex-direction: column; max-width: 80%; overflow: hidden;">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <img id="player-modal-logo" src="" alt="" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); display: none; flex-shrink: 0;">
+            <img id="player-modal-logo" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'></svg>" alt="" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); display: none; flex-shrink: 0;">
             <h3 id="player-modal-title" style="margin: 0; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; font-size: 0.95rem; font-weight: 700; color: var(--text-main);">Gömülü Video Oynatıcı</h3>
           </div>
           <span id="player-sponsorblock-status" style="font-size: 0.7rem; color: #ff0055; margin-left: 30px; margin-top: 1px; font-weight: 600; display: none;"></span>
@@ -227,10 +227,10 @@
   </div>
 
   <!-- Sistem Konsolu Modalı -->
-  <div id="console-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div id="console-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="console-modal-title">
     <div class="modal-content card" style="max-width: 750px; border-radius: 12px; padding: 0; display: flex; flex-direction: column; overflow: hidden; background: #0c0c0c; border: 1px solid #333;">
       <div class="modal-header" style="background: #1a1a1a; padding: 12px 16px; border-bottom: 1px solid #333; margin: 0; display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="margin: 0; font-size: 0.95rem; font-family: monospace; color: #a3a3a3; font-weight: 600;"><i data-lucide="terminal" style="width:16px;height:16px;vertical-align:middle;margin-right:8px;color:#4af626;"></i> Sistem Konsolu (Live)</h3>
+        <h3 id="console-modal-title" style="margin: 0; font-size: 0.95rem; font-family: monospace; color: #a3a3a3; font-weight: 600;"><i data-lucide="terminal" style="width:16px;height:16px;vertical-align:middle;margin-right:8px;color:#4af626;"></i> Sistem Konsolu (Live)</h3>
         <div style="display:flex; align-items:center; gap:8px;">
           <button type="button" id="console-mode-btn" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 6px; background: transparent; border: 1px solid #444; color: #a3a3a3; cursor: pointer;" title="Uygulama günlüğü ile ham sistem çıktısı arasında geçiş yap">Ham Çıktı</button>
           <button class="modal-close-btn" id="close-console-modal-btn" aria-label="Kapat" style="color: #a3a3a3; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;"><i data-lucide="x"></i></button>
@@ -249,14 +249,14 @@
 
   <!-- DNS Sorgulayıcı Modalı -->
   <!-- Aktif DNS Sunucusu Modalı -->
-  <div id="dns-lookup-modal" class="modal hidden" role="dialog" aria-modal="true" style="z-index: 10500;">
+  <div id="dns-lookup-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dns-modal-title" style="z-index: 10500;">
     <div class="modal-content card" style="max-width: 600px; width: 95%; border-radius: 18px; background: rgba(18,14,34,0.97); border: 1px solid rgba(99,102,241,0.25); backdrop-filter: blur(24px); box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.12); cursor: default;">
       <div class="modal-header" style="padding: 18px 22px 14px; border-bottom: 1px solid rgba(99,102,241,0.15); display: flex; align-items: center; gap: 12px;">
         <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(56,189,248,0.12); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
           <i data-lucide="network" style="width: 20px; height: 20px;"></i>
         </div>
         <div>
-          <h3 style="margin: 0; font-size: 1.05rem; color: #e2e8f0; font-weight: 700;">Aktif DNS Sunucusu Bilgisi</h3>
+          <h3 id="dns-modal-title" style="margin: 0; font-size: 1.05rem; color: #e2e8f0; font-weight: 700;">Aktif DNS Sunucusu Bilgisi</h3>
           <p style="margin: 0; font-size: 0.75rem; color: #94a3b8;">Sisteminizin ve internet çıkışınızın kullandığı DNS sağlayıcısı</p>
         </div>
         <button class="modal-close-btn" id="dns-modal-close-btn" aria-label="Kapat" style="margin-left: auto;" onclick="closeDnsLookupModal()">
@@ -389,7 +389,7 @@
   </div>
 
   <!-- Kanal Hızlı Ayarlar Modalı (Video Kartı & Kanallar Sekmesi Ortak) -->
-  <div id="channel-quick-settings-modal" class="modal hidden" role="dialog" aria-modal="true" style="z-index: 10025;" onclick="if(event.target === this) closeChannelQuickSettingsModal()">
+  <div id="channel-quick-settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Kanal Hızlı Ayarları" style="z-index: 10025;" onclick="if(event.target === this) closeChannelQuickSettingsModal()">
     <div class="channel-quick-modal-card-wrapper" style="position: relative; width: 330px; max-width: 94vw; margin: auto;">
       <button type="button" class="channel-quick-modal-close-btn" aria-label="Kapat" title="Kapat" onclick="closeChannelQuickSettingsModal()" style="position: absolute; top: -12px; right: -12px; z-index: 30; width: 30px; height: 30px; border-radius: 50%; background: #1e1b38; border: 1px solid rgba(255, 255, 255, 0.25); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
         <i data-lucide="x" style="width: 15px; height: 15px;"></i>
