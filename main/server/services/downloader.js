@@ -1037,7 +1037,11 @@ export class DownloadQueue {
 
     const hasWorkingFfmpegEarly = testFfmpegSync();
     const isLiveStreamNow = (video.duration === 'live' || video.status === 'live');
-    const isDeferMerge = Boolean(settings.deferMerge) && hasWorkingFfmpegEarly && (settings.mergeType || 'single') !== 'separate' && !isLiveStreamNow;
+    const isYouTubeUrl = (vUrl.includes('youtube.com') || vUrl.includes('youtu.be')) && (!video.platform || video.platform === 'youtube');
+    const isDeferMerge = Boolean(settings.deferMerge) && isYouTubeUrl && hasWorkingFfmpegEarly && (settings.mergeType || 'single') !== 'separate' && !isLiveStreamNow;
+    if (Boolean(settings.deferMerge) && !isYouTubeUrl) {
+      addTerminalLog(`[Oyun Modu] YouTube dışı kaynak (${video.platform || 'Harici'}) algılandı — Oyun Modu ertelemesi atlanarak doğrudan indiriliyor: "${video.title}"`, 'info');
+    }
     const deferStagingDir = isDeferMerge ? getItemStagingDir(targetBaseDir, video.id) : '';
     if (isDeferMerge) {
       try {
@@ -1081,7 +1085,6 @@ export class DownloadQueue {
     const cookieArgs = getCookieArgs(settings);
     const hasCookies = cookieArgs.length > 0;
 
-    const isYouTubeUrl = vUrl.includes('youtube.com') || vUrl.includes('youtu.be');
     if (isYouTubeUrl) {
       if (video._fallbackClient) {
         args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=${video._fallbackClient}`);
