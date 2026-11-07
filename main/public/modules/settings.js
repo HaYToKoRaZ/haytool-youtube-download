@@ -33,6 +33,7 @@ window.onAiProviderChange = onAiProviderChange;
  */
 
 import { translations } from '../utils/i18n.js';
+import { initSettingsSearch } from './settingsSearch.js';
 import { showToast } from '../components/toast.js';
 
 let _getState = null;
@@ -295,15 +296,10 @@ export async function performAutoSave() {
     sponsorBlockEnabled: document.getElementById('settings-sponsorblock') ? document.getElementById('settings-sponsorblock').checked : false,
     playSounds: document.getElementById('settings-playsounds') ? document.getElementById('settings-playsounds').checked : true,
     soundDownloadComplete: document.getElementById('settings-sound-download') ? document.getElementById('settings-sound-download').value : (localDb.settings?.soundDownloadComplete || 'chime'),
-    soundMergeComplete: document.getElementById('settings-sound-merge') ? document.getElementById('settings-sound-merge').value : (localDb.settings?.soundMergeComplete || 'fanfare'),
     notifyDownloadStartToast: document.getElementById('settings-notify-dl-start-toast') ? document.getElementById('settings-notify-dl-start-toast').checked : (localDb.settings?.notifyDownloadStartToast !== false),
     notifyDownloadStartSound: document.getElementById('settings-notify-dl-start-sound') ? document.getElementById('settings-notify-dl-start-sound').checked : (localDb.settings?.notifyDownloadStartSound !== false),
     notifyDownloadCompleteToast: document.getElementById('settings-notify-dl-complete-toast') ? document.getElementById('settings-notify-dl-complete-toast').checked : (localDb.settings?.notifyDownloadCompleteToast !== false),
     notifyDownloadCompleteSound: document.getElementById('settings-notify-dl-complete-sound') ? document.getElementById('settings-notify-dl-complete-sound').checked : (localDb.settings?.notifyDownloadCompleteSound !== false),
-    notifyMergeStartToast: document.getElementById('settings-notify-mr-start-toast') ? document.getElementById('settings-notify-mr-start-toast').checked : (localDb.settings?.notifyMergeStartToast !== false),
-    notifyMergeStartSound: document.getElementById('settings-notify-mr-start-sound') ? document.getElementById('settings-notify-mr-start-sound').checked : (localDb.settings?.notifyMergeStartSound !== false),
-    notifyMergeCompleteToast: document.getElementById('settings-notify-mr-complete-toast') ? document.getElementById('settings-notify-mr-complete-toast').checked : (localDb.settings?.notifyMergeCompleteToast !== false),
-    notifyMergeCompleteSound: document.getElementById('settings-notify-mr-complete-sound') ? document.getElementById('settings-notify-mr-complete-sound').checked : (localDb.settings?.notifyMergeCompleteSound !== false),
     autoSyncWatchtime: document.getElementById('settings-autosync-watchtime') ? document.getElementById('settings-autosync-watchtime').checked : (localDb.settings?.autoSyncWatchtime !== false),
     autoSyncLocalWatchtime: document.getElementById('settings-autosync-local-watchtime') ? document.getElementById('settings-autosync-local-watchtime').checked : (localDb.settings?.autoSyncLocalWatchtime !== false),
     autoDiskSync: document.getElementById('settings-auto-disk-sync') ? document.getElementById('settings-auto-disk-sync').checked : (localDb.settings?.autoDiskSync !== false),
@@ -318,6 +314,7 @@ export async function performAutoSave() {
     checkYtdlpOnStartup: document.getElementById('settings-check-ytdlp-on-startup') ? document.getElementById('settings-check-ytdlp-on-startup').checked : false,
     ytdlpStartupTarget: document.getElementById('ytdlp-target-select') ? document.getElementById('ytdlp-target-select').value : (localDb.settings?.ytdlpStartupTarget || 'nightly'),
     discordRpcEnabled: document.getElementById('settings-discordrpc') ? document.getElementById('settings-discordrpc').checked : false,
+    preventSleepOnDownload: document.getElementById('settings-prevent-sleep') ? document.getElementById('settings-prevent-sleep').checked : true,
     enableAltThumbnailsHover: document.getElementById('settings-alt-thumbnails-hover') ? document.getElementById('settings-alt-thumbnails-hover').checked : true,
     lang: document.getElementById('settings-lang') ? document.getElementById('settings-lang').value : 'tr',
     preferredAudioLang: document.getElementById('settings-preferredaudiolang') ? document.getElementById('settings-preferredaudiolang').value : 'auto',
@@ -551,6 +548,7 @@ export function initSettingsFormListeners() {
 
     const inputs = settingsForm.querySelectorAll('input, select, textarea');
     inputs.forEach(input => {
+      if (input.hasAttribute('data-no-autosave')) return; // örn. ayar arama kutusu
       if (input.type === 'checkbox' || input.tagName.toLowerCase() === 'select') {
         input.addEventListener('change', () => triggerAutoSave(true));
       } else if (input.id === 'settings-weathercity') {
@@ -755,10 +753,11 @@ export function initSettingsSubtabs() {
   if (typeof navigator !== 'undefined' && !navigator.webdriver) {
     try {
       const stored = localStorage.getItem('haytool_settings_subtab');
-      if (stored) savedSubtab = stored;
+      if (stored && (stored === 'all' || document.getElementById('settings-subtab-' + stored))) savedSubtab = stored;
     } catch (e) {}
   }
   switchSettingsSubtab(savedSubtab);
+  initSettingsSearch();
 }
 window.initSettingsSubtabs = initSettingsSubtabs;
 
@@ -1002,6 +1001,8 @@ export function populateGistFields() {
   }
   checkLlamaEngineStatusInUI();
   checkTtsStatusInUI();
+  checkProtocolStatus();
+  checkCliPathStatus();
   const openaiInput = document.getElementById('openai-api-key-input');
   if (openaiInput && localDb.settings?.openAiApiKey) {
     openaiInput.value = localDb.settings.openAiApiKey;
@@ -1151,7 +1152,7 @@ export async function checkYouTubeAuthStatus() {
       if (topbarCookieIndicator) {
         topbarCookieIndicator.style.backgroundColor = '#22c55e';
         topbarCookieIndicator.style.boxShadow = '0 0 6px rgba(34, 197, 94, 0.8)';
-        topbarCookieIndicator.title = 'YouTube Oturumu Doğrulandı';
+        topbarCookieIndicator.title = t.topbar_cookie_verified || 'YouTube Oturumu Doğrulandı';
       }
     } else {
       if (badgeEl) {
@@ -1167,7 +1168,7 @@ export async function checkYouTubeAuthStatus() {
       if (topbarCookieIndicator) {
         topbarCookieIndicator.style.backgroundColor = '#ef4444';
         topbarCookieIndicator.style.boxShadow = 'none';
-        topbarCookieIndicator.title = 'YouTube Oturumu Bulunamadı';
+        topbarCookieIndicator.title = t.topbar_cookie_missing || 'YouTube Oturumu Bulunamadı';
       }
     }
     if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
@@ -1847,10 +1848,9 @@ window.downloadPiperEngine = downloadPiperEngine;
  * Kullanıcının seçtiği bildirim sesini anında test eder.
  * @param {'download'|'merge'} type
  */
-export async function testSoundOption(type) {
-  const selId = type === 'download' ? 'settings-sound-download' : 'settings-sound-merge';
-  const sel = document.getElementById(selId);
-  const soundName = sel ? sel.value : (type === 'download' ? 'chime' : 'fanfare');
+export async function testSoundOption(type = 'download') {
+  const sel = document.getElementById('settings-sound-download');
+  const soundName = sel ? sel.value : 'chime';
 
   if (soundName === 'silent') {
     if (typeof window.showToast === 'function') {
@@ -1861,11 +1861,7 @@ export async function testSoundOption(type) {
   }
 
   // Seçilen sesin veritabanına da anında yansımasını sağla
-  if (type === 'download') {
-    if (localDb.settings) localDb.settings.soundDownloadComplete = soundName;
-  } else {
-    if (localDb.settings) localDb.settings.soundMergeComplete = soundName;
-  }
+  if (localDb.settings) localDb.settings.soundDownloadComplete = soundName;
   triggerAutoSave(true);
 
   // Doğrudan HTML5 Audio üzerinden tek bir kez çal (sunucuyla çift çalma yapma)
@@ -1911,3 +1907,121 @@ export async function testDesktopNotification() {
   }
 }
 window.testDesktopNotification = testDesktopNotification;
+
+/**
+ * Windows haytool:// URI protokol durumunu denetler ve arayüzdeki butonları günceller.
+ */
+export async function checkProtocolStatus() {
+  try {
+    const res = await fetch('/api/settings/protocol-status');
+    const data = await res.json();
+    const btnReg = document.getElementById('btn-protocol-register');
+    const btnRegText = document.getElementById('btn-protocol-register-text');
+    const btnUnreg = document.getElementById('btn-protocol-unregister');
+    const card = document.getElementById('protocol-integration-card');
+    const isEn = window.localDb?.settings?.lang === 'en';
+
+    if (!data.supported) {
+      if (card) card.style.display = 'none';
+      return;
+    }
+
+    if (data.registered) {
+      if (btnUnreg) btnUnreg.style.display = 'inline-flex';
+      if (btnReg) {
+        if (!data.matchesCurrentPath) {
+          if (btnRegText) btnRegText.textContent = isEn ? 'Update App Location' : 'Konumu Güncelle';
+          btnReg.className = 'btn btn-sm btn-warning';
+        } else {
+          if (btnRegText) btnRegText.textContent = isEn ? 'Active (Re-register)' : 'Aktif (Yeniden Kaydet)';
+          btnReg.className = 'btn btn-sm btn-secondary';
+        }
+      }
+    } else {
+      if (btnUnreg) btnUnreg.style.display = 'none';
+      if (btnReg) {
+        if (btnRegText) btnRegText.textContent = isEn ? 'Enable Feature' : 'Özelliği Etkinleştir';
+        btnReg.className = 'btn btn-sm btn-primary';
+      }
+    }
+  } catch (_) {}
+}
+window.checkProtocolStatus = checkProtocolStatus;
+
+/**
+ * haytool:// protokolünü açık onayla kaydeder/günceller.
+ */
+export async function handleProtocolRegister() {
+  const isEn = window.localDb?.settings?.lang === 'en';
+  try {
+    const res = await fetch('/api/settings/register-protocol', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      if (typeof window.showToast === 'function') {
+        window.showToast(isEn ? 'Notification click-to-play enabled!' : 'Bildirime tıklayarak oynatma özelliği etkinleştirildi!', 'success');
+      }
+      checkProtocolStatus();
+    } else {
+      if (typeof window.showToast === 'function') {
+        window.showToast(data.error || 'İşlem başarısız oldu.', 'error');
+      }
+    }
+  } catch (err) {
+    if (typeof window.showToast === 'function') window.showToast(err.message, 'error');
+  }
+}
+window.handleProtocolRegister = handleProtocolRegister;
+
+/**
+ * haytool:// protokol kaydını sistemden kaldırır.
+ */
+export async function handleProtocolUnregister() {
+  const isEn = window.localDb?.settings?.lang === 'en';
+  try {
+    const res = await fetch('/api/settings/unregister-protocol', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      if (typeof window.showToast === 'function') {
+        window.showToast(isEn ? 'Feature removed from registry.' : 'Özellik sistemden tamamen kaldırıldı.', 'info');
+      }
+      checkProtocolStatus();
+    }
+  } catch (err) {
+    if (typeof window.showToast === 'function') window.showToast(err.message, 'error');
+  }
+}
+window.handleProtocolUnregister = handleProtocolUnregister;
+
+/**
+ * Windows PATH entegrasyon durumunu denetler ve Bildirim & Entegrasyon sekmesindeki kartı senkronize eder.
+ */
+export async function checkCliPathStatus() {
+  try {
+    const res = await fetch('/api/settings/cli-path-status');
+    const data = await res.json();
+    const isEn = window.localDb?.settings?.lang === 'en';
+    const card = document.getElementById('cli-path-integration-card');
+    const badge = document.getElementById('badge-cli-path-status');
+    const badgeText = document.getElementById('text-cli-path-status');
+    const btnEnable = document.getElementById('btn-cli-path-enable');
+    const btnDisable = document.getElementById('btn-cli-path-disable');
+
+    if (!data.supported) {
+      if (card) card.style.display = 'none';
+      return;
+    }
+
+    if (data.inPath) {
+      if (badge) badge.className = 'cli-path-status-badge active';
+      if (badgeText) badgeText.textContent = isEn ? 'PATH: Active' : 'PATH: Aktif';
+      if (btnEnable) btnEnable.style.display = 'none';
+      if (btnDisable) btnDisable.style.display = 'inline-flex';
+    } else {
+      if (badge) badge.className = 'cli-path-status-badge inactive';
+      if (badgeText) badgeText.textContent = isEn ? 'PATH: Inactive' : 'PATH: Pasif';
+      if (btnEnable) btnEnable.style.display = 'inline-flex';
+      if (btnDisable) btnDisable.style.display = 'none';
+    }
+  } catch (_) {}
+}
+window.checkCliPathStatus = checkCliPathStatus;

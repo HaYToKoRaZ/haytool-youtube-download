@@ -21,6 +21,24 @@ const FIRST_CHECK_DELAY_MS = 45 * 1000;   // Sunucu açılışında arka plan ye
 const REFRESH_VERIFY_DELAY_MS = 25 * 1000; // Sessiz yenileme sonrası doğrulama beklemesi
 
 let cookieHealthTimer = null;
+let lastCookieHealth = null; // { healthy: boolean, checkedAt: number } | null
+
+/**
+ * Türkçe Açıklama: Son periyodik çerez sağlık sonucunu döner (henüz kontrol yapılmadıysa null).
+ * @returns {{healthy: boolean, checkedAt: number}|null}
+ */
+export function getLastCookieHealth() {
+  return lastCookieHealth;
+}
+
+/**
+ * Türkçe Açıklama: Sağlık sonucunu saklar ve arayüzdeki topbar çerez rozetinin güncellenmesi için SSE ile yayınlar.
+ * @param {boolean} healthy
+ */
+function publishCookieHealth(healthy) {
+  lastCookieHealth = { healthy, checkedAt: Date.now() };
+  try { broadcast('cookie_status', lastCookieHealth); } catch (e) {}
+}
 
 /**
  * Türkçe Açıklama: Kök ve bin/ çerez dosyalarını birleştirip tek Cookie header'ı üretir.
@@ -94,7 +112,10 @@ export async function isYouTubeSessionHealthy() {
  */
 export async function runCookieHealthCheck() {
   const healthy = await isYouTubeSessionHealthy();
-  if (healthy) return true;
+  if (healthy) {
+    publishCookieHealth(true);
+    return true;
+  }
 
   addTerminalLog('[Çerez Sağlık] YouTube oturum çerezleri geçersiz tespit edildi. Sessiz yenileme deneniyor...', 'warning');
   try {
@@ -106,6 +127,7 @@ export async function runCookieHealthCheck() {
   const healthyAfter = await isYouTubeSessionHealthy();
   if (healthyAfter) {
     addTerminalLog('[Çerez Sağlık] YouTube çerezleri otomatik olarak yenilendi.', 'success');
+    publishCookieHealth(true);
     return true;
   }
 
@@ -114,6 +136,7 @@ export async function runCookieHealthCheck() {
     message: 'YouTube oturum çerezleriniz geçersiz! Ayarlar sekmesinden "YouTube\'da Oturum Aç" ile oturumunuzu yenileyin.',
     type: 'error'
   });
+  publishCookieHealth(false);
   return false;
 }
 

@@ -443,6 +443,8 @@ export const settingComments = {
 
   autoSyncLocalWatchtime: '# Yerel Oynatıcı İzleme Süresi Senkronizasyonu / Local Player Watchtime Sync\n# Açıklama: Yerel oynatıcıda izlenen süreyi veritabanına kaydeder.\n# Description: Saves local player progress to the database.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
 
+  preventSleepOnDownload: '# İndirme Sırasında Uykuyu Engelle / Prevent Sleep While Downloading\n# Açıklama: Kuyrukta aktif indirme varken Windows uyku/hazırda bekletme moduna girmez (ekran kapanabilir). İndirme bitince normale döner.\n# Description: Prevents Windows sleep/hibernate while a download is active in the queue (display may still turn off). Returns to normal when finished.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',
+
   networkRetryIntervalSeconds: '# İnternet Kesintisinde Tekrar Deneme Sıklığı (Saniye) / Network Retry Interval (Seconds)\n# Açıklama: İnternet koptuğunda kuyruğun bağlantıyı yeniden deneme sıklığı.\n# Description: How often the queue retries when the connection drops.\n# Seçenekler / Options: Sayısal değer (Saniye / Seconds, 5 - 3600)\n# Varsayılan / Default: 120',
 
   fakapEnabled: '# Fakap (Otomatik Düşük Kalite Yedek) Etkin / Fakap (Low-Quality Auto Backup) Enabled\n# Açıklama: Yeni videoların düşük kaliteli yedeklerini otomatik indirir.\n# Description: Automatically downloads low-quality backups of new videos.\n# Seçenekler / Options: true (etkin / enabled), false (devre dışı / disabled)\n# Varsayılan / Default: true',

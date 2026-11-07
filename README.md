@@ -2,7 +2,7 @@
   <img src="main/public/logo.png" alt="Multimedia HaYTooL Logo" width="120" style="border-radius: 20px; box-shadow: 0 8px 16px rgba(0,0,0,0.3);"/>
 </p>
 
-# <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v12.3.5)</p>
+# <p align="center">📥 Multimedia HaYTooL - Personal YouTube Library & Automation System (v12.3.6)</p>
 
 <p align="center">
   <b>Portable YouTube Library & Native Player: Follow, Auto-Download & Watch Offline</b><br/>
@@ -22,7 +22,7 @@
   <img src="https://img.shields.io/badge/UI-Vanilla%20CSS3%20%7C%20Lucide%20Icons-1572B6?style=for-the-badge&logo=css3" alt="UI" />
   <img src="https://img.shields.io/badge/Player-Plyr-ff0000?style=for-the-badge&logo=youtube" alt="Players" />
   <img src="https://img.shields.io/badge/Downloader-yt--dlp%20%7C%20FFmpeg-4af626?style=for-the-badge" alt="Downloader" />
-  <img src="https://img.shields.io/badge/Version-v12.3.5-purple?style=for-the-badge&logo=git" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v12.3.6-purple?style=for-the-badge&logo=git" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
   <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases/latest"><img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/latest/total?style=for-the-badge&logo=github&color=2ea44f&label=LATEST%20DOWNLOADS" alt="Latest Release Downloads" /></a>
   <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download/releases"><img src="https://img.shields.io/github/downloads/HaYToKoRaZ/haytool-youtube-download/total?style=for-the-badge&logo=github&color=0969da&label=TOTAL%20DOWNLOADS" alt="Total Downloads" /></a>
@@ -66,6 +66,7 @@
 * **Windows System Tray & Interactive Terminal Console:** Runs silently in the background with a Windows Tray Icon. Right-click to navigate, toggle speed limits, or control Discord activity. The console window features a command input field piping stdin controls directly (`ton`, `toff`, `status`, `pd <link>`).
 * **Single-Instance Mutex Lock:** Prevents running multiple application processes. Launching a second instance prompts an alert, opens the active dashboard in your browser, and exits.
 * **Discord Rich Presence (RPC):** Integrates directly with Discord using Windows Named Pipe IPC to display the watched video's channel name on the `details` line and the video title as the `state`. Can be toggled in settings and tray.
+* **Interactive Desktop Notifications (Hero Images & Click-to-Play):** Windows desktop notifications display rich hero banner images of the downloaded video with the HaYTooL application icon. Includes an optional "▶️ Play Now" button via the transparent `haytool://play/{videoId}` protocol that wakes or brings the player window to the front and immediately starts playback.
 * **Dual-Boot isolated Configs:** Isolates OS-specific parameters (`configwin.ini` / `configunix.ini`). Prevents file loss on dual-boot setups; missing files are flagged as `fileMissing: true` and automatically restored if they reappear without breaking DB history.
 * **Zero-Dependency Startup:** Pre-packaged with `node_modules/`, `yt-dlp/`, and `ffmpeg/`. Works fully out of the box without external setups.
 * **APE Tool (Mark as Watched):** Paste any video or channel link to instantly mark videos as watched/hidden in your library and sync them to your real YouTube watch history. Works for followed channels, previously downloaded channels, and even completely foreign channels (fetches the last N videos and marks them in the background, 1-200 adjustable).
@@ -139,6 +140,7 @@ You can manage download queues, Game Mode (deferred FFmpeg merge), speeds, launc
 
 | Command | Arguments | Description | Example |
 | :--- | :--- | :--- | :--- |
+| `gton` / `gtoff` | - | **Game + Turtle Combo:** Enables or disables both Game Mode and Turtle speed limit at once | `.\haytool gton` |
 | `gameon` / `game on` | - | **Game Mode ON:** Downloads at full speed with 0% FFmpeg load; holds merges in queue | `.\haytool gameon` |
 | `gameoff` / `game off` | - | **Game Mode OFF:** Disables Game Mode and auto-merges queued streams sequentially | `.\haytool gameoff` |
 | `game` | - | Toggles Game Mode on/off (auto-starts sequential merge when turned off) | `.\haytool game` |
@@ -242,6 +244,7 @@ You can manage download queues, Game Mode (deferred FFmpeg merge), speeds, launc
 * **Windows Tepsi Uygulaması & İnteraktif Konsol:** Arka planda sessizce çalışır. Sağ tık menüsüyle hız profillerini, Discord durumunu yönetebilirsiniz. Konsol ekranındaki komut paneli üzerinden sunucuya doğrudan `ton`, `toff`, `status`, `pd <link>` komutları gönderebilirsiniz.
 * **Tekil Örnek (Mutex) Koruması:** Uygulamanın birden fazla kez açılmasını engeller. İkinci kez açmaya çalıştığınızda çalışmakta olan portu tespit edip tarayıcıda arayüzü açar ve kendini kapatır.
 * **Discord Durumu (Rich Presence) Entegrasyonu:** Windows Named Pipe IPC aracılığıyla izlediğiniz videonun kanal adını `details` satırında, video başlığını ise `state` satırında göstererek Discord profilinizde etkinlik olarak yansıtır.
+* **İnteraktif Masaüstü Bildirimleri (Kapak Görseli & Tek Tıkla Oynatma):** Windows bildirimlerinde indirilen videonun yüksek çözünürlüklü kapak görseli (hero image) ve uygulama logosu gösterilir. Ayarlar'dan şeffaf biçimde yönetilebilen `haytool://play/{videoId}` özel protokolü ve "▶️ Hemen Oynat" butonu sayesinde bildirimden tek tıkla uygulama öne getirilip video anında yürütülür.
 * **Çift Önyükleme (Dual-Boot) Dosya Koruması:** Windows ve Linux üzerinde ayrı ayar dosyaları (`configwin.ini` / `configunix.ini`) tutar. Diskten silinen dosyaları geçmişten silmeden `fileMissing: true` işaretler ve dosya geri geldiğinde geçmişi bozmadan otomatik onarır.
 * **Sıfır Bağımlılık (Zero-Dependency):** Gerekli tüm Node.js modülleri, `yt-dlp` ve `ffmpeg` binary dosyaları depo içinde hazır gelir. Hiçbir harici kuruluma gerek duymadan çift tıklamayla çalışır.
 * **APE Aracı (İzlendi Olarak İşaretleme):** Herhangi bir video veya kanal linkini yapıştırarak videoları kütüphanenizde izlendi/gizlendi olarak anında işaretleyin ve gerçek YouTube izleme geçmişinizle eşitleyin. Takip ettiğiniz kanallar, daha önce indirdiğiniz kanallar ve hatta tamamen yabancı kanallar için çalışır (kanalın son N videosu arka planda çekilip işaretlenir, 1-200 arası ayarlanabilir).
@@ -315,6 +318,7 @@ Oynatıcı aktifken, aşağıdaki kısayollar ile oynatımı kontrol edebilirsin
 
 | Komut | Parametre | Açıklama | Örnek |
 | :--- | :--- | :--- | :--- |
+| `gton` / `gtoff` | - | **Oyun + Kaplumbağa Birlikte:** Oyun Modu ve Kaplumbağa hız limitini tek komutla açar veya kapatır | `.\haytool gton` |
 | `gameon` / `oyunac` | - | **Oyun Modunu Açar:** Tam hızda indirir (%0 FFmpeg yükü), birleştirmeleri kuyrukta bekletir | `.\haytool gameon` |
 | `gameoff` / `oyunkapat` | - | **Oyun Modunu Kapatır:** Modu kapatır ve bekleyen videoları otomatik sırayla birleştirir | `.\haytool gameoff` |
 | `game` / `oyun` | - | Oyun Modu arasında aç/kapat geçişi yapar (kapatıldığında sırayla birleştirir) | `.\haytool game` |

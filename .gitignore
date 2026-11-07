@@ -19,6 +19,7 @@ db.json*
 # Günlük Log Dosyaları
 logs/
 *.log
+.player_hwnd
 
 # YouTube ve Oturum Çerezleri (Kişisel oturum verisidir, ASLA GitHub'a yüklenmez)
 cookies.txt

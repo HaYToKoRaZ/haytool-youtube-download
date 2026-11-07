@@ -305,18 +305,16 @@ export const de = {
   label_notify_dl_start_sound: "Tonalarm bei Download-Start",
   label_notify_dl_complete_toast: "Desktop-Benachrichtigung bei Download-Ende",
   label_notify_dl_complete_sound: "Tonalarm bei Download-Ende",
-  label_notify_triggers_mr: "🔄 Zusammenführungs-Ereignisse",
-  label_notify_mr_start_toast: "Desktop-Benachrichtigung bei Zusammenführungs-Start",
-  label_notify_mr_start_sound: "Tonalarm bei Zusammenführungs-Start",
-  label_notify_mr_complete_toast: "Desktop-Benachrichtigung bei Zusammenführungs-Ende",
-  label_notify_mr_complete_sound: "Tonalarm bei Zusammenführungs-Ende",
-  desc_sound_download: "Ton beim Starten und Beenden von Video-Downloads.",
-  label_sound_merge: "Zusammenführungs-Ton",
-  desc_sound_merge: "Ton nach Abschluss von FFmpeg-Zusammenführung oder MP3-Konvertierung.",
+  label_protocol_title: "Per Klick in App abspielen (Optional)",
+  desc_protocol_purpose: "Ermöglicht das sofortige Abspielen des heruntergeladenen Videos im Multimedia HaYTooL-Player durch Klicken auf die Benachrichtigung oder die Schaltfläche \"▶️ Jetzt abspielen\". Diese Funktion ist optional.",
+  text_protocol_portable_warning: "Portable Nutzung: Wenn Sie die Anwendung in einen anderen Ordner verschieben, klicken Sie einfach auf \"Speicherort aktualisieren\".",
+  btn_protocol_register: "Funktion aktivieren",
+  btn_protocol_unregister: "Funktion entfernen",
+  desc_sound_download: "Ton nach Abschluss von Video-Downloads.",
   opt_sound_chime: "🔔 Sanfter Glockenton (Standard)",
   opt_sound_bell: "🛎️ Klassische Klingel",
   opt_sound_pop: "🫧 Minimal Pop",
-  opt_sound_fanfare: "🎺 Erfolgs-Fanfare (Standard)",
+  opt_sound_fanfare: "🎺 Erfolgs-Fanfare",
   opt_sound_melodic: "🎵 Melodisch",
   opt_sound_subtle: "🌿 Dezent",
   opt_sound_silent: "🔕 Stumm",
@@ -332,6 +330,8 @@ export const de = {
   lbl_swap_screens: 'Bildschirme wechseln',
   label_discord_rpc: 'Discord-Status',
   desc_discord_rpc: 'Gesehene Videos im Discord-Profil anzeigen',
+  label_prevent_sleep: 'Ruhezustand beim Download verhindern',
+  desc_prevent_sleep: 'PC nicht in Standby/Ruhezustand versetzen, solange ein Download läuft',
   label_doubleclickaction: 'Doppelklick-Aktion im Infobereich',
   desc_doubleclickaction: 'Legt fest, wo das Interface geöffnet wird, wenn Sie doppelt auf das Symbol im Infobereich klicken.',
   opt_doubleclick_system: 'Systemstandard-Browser',
@@ -562,7 +562,7 @@ export const de = {
   card_members_only: 'Nur für Mitglieder',
   btn_update_metadata_dl: 'Metadaten Aktualisieren',
   btn_bulk_delete_dl_toggle: 'Massenlöschung',
-  settings_title_backup_text: 'Systemdatenbank & Einstellungssicherung',
+  settings_title_backup_text: 'Backup & Synchronisierung',
   desc_system_backup_info: 'Ihre Datenbank (db.json), verfolgte Kanäle (channels.ini), Kategorien (categories.ini) und Systemeinstellungen werden als unabhängige ZIP-Archive (.zip) gespeichert.',
   backup_auto_info_title: '🤖 Automatische Tägliche Sicherung & Aufbewahrungsrichtlinie',
   backup_auto_info_desc: 'Jeden Tag beim Starten der App wird das erste Backup automatisch als ZIP-Archiv (.zip) erstellt. Es werden 10 Reguläre + 7 Täglich Geschützte (Max. 17 Gesamt) aufbewahrt.',
@@ -597,19 +597,53 @@ export const de = {
   ffmpeg_btn_install: 'Installieren',
   settings_subtab_all: "Alle",
   settings_subtab_general: "Allgemein & Design",
-  settings_subtab_download: "Download & Qualität",
+  settings_subtab_download: "Download",
   settings_subtab_system: "System & Engine",
-  settings_subtab_media: "Player & Medien",
-  settings_subtab_notifications: "Cookies & Benachrichtigungen",
-  settings_subtab_automation: "Automation & RSS",
-  settings_subtab_backup: "Backup & KI",
+  settings_subtab_media: "Player",
+  settings_subtab_notifications: "Benachrichtigungen & Integrationen",
+  settings_subtab_automation: "Automatisierung & Kanäle",
+  settings_subtab_backup: "Backup & Synchronisierung",
+
+  settings_subtab_library: 'Bibliothek & Speicher',
+
+  settings_title_library_text: 'Bibliothek & Speicher',
+
+  settings_subtab_youtube: 'YouTube-Konto',
+
+  settings_title_youtube_text: 'YouTube-Konto',
+
+  settings_subtab_ai: 'KI & Sprache',
+
+  settings_title_ai_text: 'KI & Sprache',
+
+
+  settings_search_placeholder: 'Einstellungen durchsuchen...',
+
+
+  settings_search_empty: 'Keine passenden Einstellungen gefunden.',
+
+
+
+  user_sort_drag_hint: 'Ziehen oder Pfeile zum Sortieren nutzen',
+
+
+
+  user_sort_move_up: 'Nach oben',
+
+
+
+  user_sort_move_down: 'Nach unten',
+
+
+
+  autoplay_playlist_finished: 'Wiedergabeliste beendet.',
 
   settings_title_general_text: 'Allgemeine & Erscheinungsbild-Einstellungen',
-  settings_title_media_text: 'Player & Medien-Einstellungen',
+  settings_title_media_text: 'Player',
   settings_title_system_text: 'System- & Engine-Konfiguration',
-  settings_title_download_text: 'Download- & Qualitätskonfiguration',
-  settings_title_notifications_text: 'Cookie- & Benachrichtigungseinstellungen',
-  settings_title_automation_text: 'Automatisierung & RSS-Überwachung',
+  settings_title_download_text: 'Download',
+  settings_title_notifications_text: 'Benachrichtigungen & Integrationen',
+  settings_title_automation_text: 'Automatisierung & Kanäle',
   label_live_stream_handling: 'Live-Stream- & Premieren-Verwaltung',
   label_live_stream_retry_interval: 'Live-Stream Wiederholungsintervall',
   opt_live_instant_retry: 'Sofort Herunterladen & Automatisch Wiederholen (Empfohlen)',
@@ -685,6 +719,9 @@ export const de = {
   logout_youtube_success: 'Erfolgreich von YouTube abgemeldet.',
   topbar_cookie_active: 'YouTube-Sitzung Aktiv (4K/1080p & Bot-Schutz Aktiv)',
   topbar_cookie_inactive: 'YouTube-Sitzung Inaktiv (Anonymer Modus)',
+  topbar_cookie_verified: 'YouTube-Sitzung bestätigt',
+  topbar_cookie_missing: 'YouTube-Sitzung nicht gefunden',
+  status_audio_only: 'Nur Audio',
   label_delete_file_modal: 'Heruntergeladene Videodatei dauerhaft vom Computer löschen',
   label_mark_watched_modal: 'Auch auf YouTube als gesehen markieren',
   label_hide_library_modal: 'Video auch in der Bibliothek verbergen',
@@ -972,6 +1009,17 @@ export const de = {
   cli_panel_title: 'CLI- & Konsolenbefehle',
   cli_panel_subtitle: 'Zum Kopieren auf eine Zeile klicken',
   cli_mode_haytool: 'Kurzbefehl (.\\haytool)',
+    cli_mode_haytool_global: 'haytool (Globaler PATH)',
+  cli_path_title: 'Terminal- & Konsolen-Integration (Windows-PATH)',
+  cli_path_desc: 'Ermöglicht das Ausführen von Befehlen wie "haytool gameon" oder "haytool speed 2500" direkt aus jedem beliebigen Ordner in CMD oder PowerShell.',
+  cli_path_btn_enable: 'Zu Windows-PATH hinzufügen',
+  cli_path_btn_disable: 'Aus PATH entfernen',
+  cli_path_status_active: 'PATH: Aktiv',
+  cli_path_status_inactive: 'PATH: Inaktiv',
+  cli_path_bar_title: 'Globaler Terminalzugriff (Windows PATH)',
+  cli_path_loading: 'Verarbeitung...',
+  cli_path_toast_enabled: 'Windows-PATH aktualisiert! Sie können den Befehl "haytool" nun direkt in neuen CMD/PowerShell-Fenstern verwenden.',
+  cli_path_toast_disabled: 'Anwendungsverzeichnis wurde erfolgreich aus Windows-PATH entfernt.',
   cli_mode_exe: 'Vollständige Exe',
   cli_mode_console: 'Tray-Konsole',
   cli_btn_copy: 'Kopieren',
@@ -979,6 +1027,10 @@ export const de = {
   cli_toast_copied: 'Befehl in Zwischenablage kopiert',
   cli_btn_show_more: 'Alle CLI-Befehle anzeigen',
   cli_btn_show_less: 'Weniger anzeigen',
+  cli_cmd_gton: 'Spiel- + Turtle-Modus gemeinsam aktivieren',
+  cli_cmd_gtoff: 'Spiel- + Turtle-Modus gemeinsam beenden',
+  cli_cmd_pause: 'Aktive Downloads & Warteschlange pausieren',
+  cli_cmd_resume: 'Pausierte Downloads fortsetzen',
   cli_cmd_gameon: 'Spielmodus ein (FFmpeg aufschieben)',
   cli_cmd_gameoff: 'Spielmodus aus (Reihenfolge starten)',
   cli_cmd_merge: 'Ausstehende Merges jetzt starten',

@@ -542,6 +542,7 @@ router.get('/active-status', (req, res) => {
   res.json({
     activeDownloads,
     isDownloading: activeDownloads > 0,
+    preventSleep: readDb()?.settings?.preventSleepOnDownload !== false,
     queueLength
   });
 });

@@ -3,6 +3,12 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.3.6] - 2026-11-06
+- **feat(notifications/click-to-play):** Windows bildirim kartında yerel kapak görseli (hero image) ve sol üst uygulama logosu desteği sağlandı; "▶️ Hemen Oynat" butonu ile indirilen videonun Multimedia HaYTooL dahili oynatıcısında anında başlatılması entegre edildi.
+- **feat(protocol/settings):** `haytool://play/{videoId}` özel protokolü için Ayarlar sekmesinde şeffaf, kullanıcı kontrollü protokol kaydı/kaldırması eklendi; taşınabilir (portable) kullanımda dizin değişiklikleri ve güncelleme yönergeleri 7 dilde desteklendi.
+- **fix(ipc/webview):** IPC HWND önbellekleme (`.player_hwnd`) ve SSE `play_video` köprüsü ile arayüz tepsiye gizliyken veya uyku modundayken dahi bildirim tıklamalarının pencereyi kusursuz öne getirip videoyu başlatması sağlandı.
+- **fix(extension):** Tarayıcı uzantısı ve arayüz başlığı v12.3.6 sürümüne eşitlendi.
+
 ## [12.3.2] - 2026-10-28
 - **feat(downloader/auto-healing):** Muxing/FFmpeg ve veri bozulması (Invalid data found) yaşayan indirmelere otomatik 2. şans güvenli mod getirildi.
 - **feat(downloader/codecs):** YouTube AV01 stream bozukluklarına karşı 2. denemede kararlı AVC1/H.264 ve VP9 formatına otomatik geçiş sağlandı.

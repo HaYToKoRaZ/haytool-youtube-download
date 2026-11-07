@@ -19,6 +19,7 @@ namespace HaYTooLPlayer
         private WindowState _previousWindowState = WindowState.Maximized;
         private string? _unloadedUrl = null;
         private bool _uiUnloaded = false;
+        private string? _pendingPlayVideoId = null;
 
         public MainWindow()
         {
@@ -90,6 +91,12 @@ namespace HaYTooLPlayer
 
             // Pencere doğrudan gösterilmediğinde bile HWND ve Win32 WndProc hook'unun hazır olmasını sağla
             IntPtr handle = new WindowInteropHelper(this).EnsureHandle();
+            try
+            {
+                string hwndFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".player_hwnd");
+                File.WriteAllText(hwndFile, handle.ToString());
+            }
+            catch {}
             try
             {
                 HwndSource? source = HwndSource.FromHwnd(handle);
@@ -231,7 +238,19 @@ namespace HaYTooLPlayer
                         string restoreUrl;
                         if (!string.IsNullOrEmpty(targetPath) && targetPath != "/downlist" && targetPath != "/")
                         {
-                            if (targetPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || targetPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                            if (targetPath.StartsWith("haytool://play/", StringComparison.OrdinalIgnoreCase) ||
+                                targetPath.StartsWith("haytool:play/", StringComparison.OrdinalIgnoreCase) ||
+                                targetPath.StartsWith("/play/", StringComparison.OrdinalIgnoreCase))
+                            {
+                                string vidId = targetPath.Replace("haytool://play/", "", StringComparison.OrdinalIgnoreCase)
+                                                         .Replace("haytool:play/", "", StringComparison.OrdinalIgnoreCase)
+                                                         .Replace("/play/", "", StringComparison.OrdinalIgnoreCase)
+                                                         .Trim().TrimEnd('/');
+                                vidId = System.Text.RegularExpressions.Regex.Replace(vidId, @"[^a-zA-Z0-9_\-]", "");
+                                _pendingPlayVideoId = vidId;
+                                restoreUrl = baseUrl + "/downloaded?play=" + vidId;
+                            }
+                            else if (targetPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || targetPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                             {
                                 restoreUrl = targetPath;
                             }
@@ -390,6 +409,30 @@ namespace HaYTooLPlayer
                                     return;
                                 }
 
+                                // Bildirim tıklaması veya protokol üzerinden video oynatma isteği: haytool://play/{videoId} veya /play/{videoId}
+                                if (path.StartsWith("haytool://play/", StringComparison.OrdinalIgnoreCase) ||
+                                    path.StartsWith("haytool:play/", StringComparison.OrdinalIgnoreCase) ||
+                                    path.StartsWith("/play/", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string vidId = path.Replace("haytool://play/", "", StringComparison.OrdinalIgnoreCase)
+                                                       .Replace("haytool:play/", "", StringComparison.OrdinalIgnoreCase)
+                                                       .Replace("/play/", "", StringComparison.OrdinalIgnoreCase)
+                                                       .Trim().TrimEnd('/');
+                                    // Sadece güvenli harf/rakam/altçizgi/tire karakterlerini kabul et
+                                    vidId = System.Text.RegularExpressions.Regex.Replace(vidId, @"[^a-zA-Z0-9_\-]", "");
+                                    if (!string.IsNullOrEmpty(vidId))
+                                    {
+                                        if (wasUnloaded)
+                                        {
+                                            _pendingPlayVideoId = vidId;
+                                            return;
+                                        }
+                                        string playScript = $"if(typeof window.playVideoEmbedded==='function'){{window.playVideoEmbedded('{vidId}');}}";
+                                        webView.CoreWebView2.ExecuteScriptAsync(playScript);
+                                        return;
+                                    }
+                                }
+
                                 // Oynatıcı zaten açık durumdayken çift tıklanırsa (varsayılan /downlist tetiklenirse) 
                                 // sayfa değiştirilmez, sadece pencere öne getirilir (video kesilmez).
                                 if (path == "/downlist")
@@ -455,6 +498,23 @@ namespace HaYTooLPlayer
             if (webView != null && webView.CoreWebView2 != null)
             {
                 if (RestoreUiIfUnloaded(path)) return;
+
+                if (path.StartsWith("haytool://play/", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith("haytool:play/", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith("/play/", StringComparison.OrdinalIgnoreCase))
+                {
+                    string vidId = path.Replace("haytool://play/", "", StringComparison.OrdinalIgnoreCase)
+                                       .Replace("haytool:play/", "", StringComparison.OrdinalIgnoreCase)
+                                       .Replace("/play/", "", StringComparison.OrdinalIgnoreCase)
+                                       .Trim().TrimEnd('/');
+                    vidId = System.Text.RegularExpressions.Regex.Replace(vidId, @"[^a-zA-Z0-9_\-]", "");
+                    if (!string.IsNullOrEmpty(vidId))
+                    {
+                        string playScript = $"if(typeof window.playVideoEmbedded==='function'){{window.playVideoEmbedded('{vidId}');}}";
+                        webView.CoreWebView2.ExecuteScriptAsync(playScript);
+                        return;
+                    }
+                }
 
                 string? tabName = null;
                 if (path == "/settings") tabName = "settings";
@@ -618,6 +678,18 @@ namespace HaYTooLPlayer
                             _hasStartupCookieWindowShown = true;
                             this.Dispatcher.InvokeAsync(() => OpenYouTubeCookieWindow(null, isBackgroundStartup: true));
                         }
+                    }
+
+                    if (e.IsSuccess && !string.IsNullOrEmpty(_pendingPlayVideoId))
+                    {
+                        string vToPlay = _pendingPlayVideoId;
+                        _pendingPlayVideoId = null;
+                        this.Dispatcher.InvokeAsync(async () =>
+                        {
+                            await System.Threading.Tasks.Task.Delay(500);
+                            string playScript = $"if(typeof window.playVideoEmbedded==='function'){{window.playVideoEmbedded('{vToPlay}');}}";
+                            webView?.CoreWebView2?.ExecuteScriptAsync(playScript);
+                        });
                     }
                 };
 

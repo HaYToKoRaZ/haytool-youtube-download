@@ -121,18 +121,16 @@ export const ru = {
   label_notify_dl_start_sound: "Звуковое оповещение при начале загрузки",
   label_notify_dl_complete_toast: "Уведомление на рабочем столе при завершении загрузки",
   label_notify_dl_complete_sound: "Звуковое оповещение при завершении загрузки",
-  label_notify_triggers_mr: "🔄 События уведомлений объединения",
-  label_notify_mr_start_toast: "Уведомление на рабочем столе при начале объединения",
-  label_notify_mr_start_sound: "Звуковое оповещение при начале объединения",
-  label_notify_mr_complete_toast: "Уведомление на рабочем столе при завершении объединения",
-  label_notify_mr_complete_sound: "Звуковое оповещение при завершении объединения",
-  desc_sound_download: "Звук при начале и завершении загрузки видео.",
-  label_sound_merge: "Звук уведомления объединения",
-  desc_sound_merge: "Звук при завершении объединения FFmpeg или конвертации MP3.",
+  label_protocol_title: "Воспроизведение в приложении по клику (Опционально)",
+  desc_protocol_purpose: "Позволяет открывать загруженное видео прямо во встроенном плеере Multimedia HaYTooL при нажатии на уведомление или кнопку \"▶️ Воспроизвести сейчас\". Эта функция не обязательна.",
+  text_protocol_portable_warning: "Для переносной версии: при перемещении папки приложения просто нажмите кнопку \"Обновить расположение\".",
+  btn_protocol_register: "Включить функцию",
+  btn_protocol_unregister: "Удалить функцию",
+  desc_sound_download: "Звук при завершении загрузки видео.",
   opt_sound_chime: "🔔 Мягкий колокольчик (По умолч.)",
   opt_sound_bell: "🛎️ Классический звонок",
   opt_sound_pop: "🫧 Минимальный щелчок",
-  opt_sound_fanfare: "🎺 Фанфары успеха (По умолч.)",
+  opt_sound_fanfare: "🎺 Фанфары успеха",
   opt_sound_melodic: "🎵 Мелодичный",
   opt_sound_subtle: "🌿 Мягкий",
   opt_sound_silent: "🔕 Без звука",
@@ -332,6 +330,8 @@ export const ru = {
   lbl_swap_screens: 'Поменять местами',
   label_discord_rpc: 'Статус Discord',
   desc_discord_rpc: 'Показывать просмотренные видео в профиле Discord',
+  label_prevent_sleep: 'Не засыпать при загрузке',
+  desc_prevent_sleep: 'Не переводить ПК в спящий режим/гибернацию во время активной загрузки',
   label_doubleclickaction: 'Действие по двойному клику',
   desc_doubleclickaction: 'Определяет, где открывается интерфейс при двойном клике на иконку в трее.',
   opt_doubleclick_system: 'Системный браузер по умолчанию',
@@ -562,7 +562,7 @@ export const ru = {
   card_members_only: 'Только для спонсоров',
   btn_update_metadata_dl: 'Обновить Метаданные',
   btn_bulk_delete_dl_toggle: 'Массовое Удаление',
-  settings_title_backup_text: 'Резервное Копирование Базы Данных и Настроек',
+  settings_title_backup_text: 'Резервные копии и синхронизация',
   desc_system_backup_info: 'Ваша база данных (db.json), каналы (channels.ini), категории (categories.ini) и настройки сохраняются в виде независимых ZIP-архивов (.zip).',
   backup_auto_info_title: '🤖 Автоматическое Ежедневное Резервное Копирование и Ротация',
   backup_auto_info_desc: 'Каждый день при запуске приложения первая резервная копия автоматически создается в формате ZIP (.zip). Хранится до 10 обычных + 7 ежедневно защищенных (всего до 17).',
@@ -597,19 +597,53 @@ export const ru = {
   ffmpeg_btn_install: 'Установить',
   settings_subtab_all: "Все",
   settings_subtab_general: "Общие и внешний вид",
-  settings_subtab_download: "Загрузка и качество",
+  settings_subtab_download: "Загрузка",
   settings_subtab_system: "Система и движок",
-  settings_subtab_media: "Плеер и медиа",
-  settings_subtab_notifications: "Куки и уведомления",
-  settings_subtab_automation: "Автоматизация и RSS",
-  settings_subtab_backup: "Резервное копирование и ИИ",
+  settings_subtab_media: "Плеер",
+  settings_subtab_notifications: "Уведомления и интеграции",
+  settings_subtab_automation: "Автоматизация и каналы",
+  settings_subtab_backup: "Резервные копии и синхронизация",
+
+  settings_subtab_library: 'Библиотека и хранилище',
+
+  settings_title_library_text: 'Библиотека и хранилище',
+
+  settings_subtab_youtube: 'Аккаунт YouTube',
+
+  settings_title_youtube_text: 'Аккаунт YouTube',
+
+  settings_subtab_ai: 'ИИ и голос',
+
+  settings_title_ai_text: 'ИИ и голос',
+
+
+  settings_search_placeholder: 'Поиск по настройкам...',
+
+
+  settings_search_empty: 'Подходящие настройки не найдены.',
+
+
+
+  user_sort_drag_hint: 'Перетащите или используйте стрелки для сортировки',
+
+
+
+  user_sort_move_up: 'Вверх',
+
+
+
+  user_sort_move_down: 'Вниз',
+
+
+
+  autoplay_playlist_finished: 'Плейлист завершён.',
 
   settings_title_general_text: 'Общие Настройки и Внешний Вид',
-  settings_title_media_text: 'Настройки Плеера и Медиа',
+  settings_title_media_text: 'Плеер',
   settings_title_system_text: 'Конфигурация Системы и Движка',
-  settings_title_download_text: 'Конфигурация Загрузки и Качества',
-  settings_title_notifications_text: 'Настройки Cookie и Уведомлений',
-  settings_title_automation_text: 'Автоматизация и Проверка RSS',
+  settings_title_download_text: 'Загрузка',
+  settings_title_notifications_text: 'Уведомления и интеграции',
+  settings_title_automation_text: 'Автоматизация и каналы',
   label_live_stream_handling: 'Управление Прямыми Трансляциями и Премьерами',
   label_live_stream_retry_interval: 'Интервал Повторной Попытки Трансляции',
   opt_live_instant_retry: 'Скачивать Сразу и Авто-Повтор (Рекомендуется)',
@@ -685,6 +719,9 @@ export const ru = {
   logout_youtube_success: 'Сессия YouTube успешно завершена.',
   topbar_cookie_active: 'Сессия YouTube активна (4K/1080p и защита от ботов)',
   topbar_cookie_inactive: 'Сессия YouTube не активна (Анонимный режим)',
+  topbar_cookie_verified: 'Сеанс YouTube подтверждён',
+  topbar_cookie_missing: 'Сеанс YouTube не найден',
+  status_audio_only: 'Только аудио',
   label_delete_file_modal: 'Навсегда удалить загруженный видеофайл с компьютера',
   label_mark_watched_modal: 'Также отметить как просмотренное на YouTube',
   label_hide_library_modal: 'Также скрыть видео в библиотеке',
@@ -972,6 +1009,17 @@ export const ru = {
   cli_panel_title: 'Примеры команд CLI и консоли',
   cli_panel_subtitle: 'Нажмите на любую строку, чтобы скопировать команду',
   cli_mode_haytool: 'Ярлык (.\\haytool)',
+    cli_mode_haytool_global: 'haytool (Global PATH)',
+  cli_path_title: 'Интеграция с терминалом и консолью (Windows PATH)',
+  cli_path_desc: 'Позволяет запускать команды, такие как "haytool gameon" или "haytool speed 2500", из любой папки в CMD или PowerShell.',
+  cli_path_btn_enable: 'Добавить в Windows PATH',
+  cli_path_btn_disable: 'Удалить из PATH',
+  cli_path_status_active: 'PATH: Активен',
+  cli_path_status_inactive: 'PATH: Неактивен',
+  cli_path_bar_title: 'Глобальный доступ через терминал (Windows PATH)',
+  cli_path_loading: 'Обработка...',
+  cli_path_toast_enabled: 'Windows PATH обновлен! Теперь вы можете использовать команду "haytool" напрямую в новых окнах CMD/PowerShell.',
+  cli_path_toast_disabled: 'Каталог приложения успешно удален из Windows PATH.',
   cli_mode_exe: 'Полный Exe',
   cli_mode_console: 'Консоль в трее',
   cli_btn_copy: 'Копировать',
@@ -979,6 +1027,10 @@ export const ru = {
   cli_toast_copied: 'Команда скопирована в буфер обмена',
   cli_btn_show_more: 'Показать все команды CLI',
   cli_btn_show_less: 'Свернуть список',
+  cli_cmd_gton: 'Включить Игровой режим + Черепаху вместе',
+  cli_cmd_gtoff: 'Выключить Игровой режим + Черепаху вместе',
+  cli_cmd_pause: 'Приостановить активные загрузки и очередь',
+  cli_cmd_resume: 'Возобновить приостановленные загрузки',
   cli_cmd_gameon: 'Включить Игровой режим (без FFmpeg)',
   cli_cmd_gameoff: 'Выключить Игровой режим (автосклейка)',
   cli_cmd_merge: 'Запустить отложенную склейку сейчас',

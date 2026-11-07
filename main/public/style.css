@@ -1242,6 +1242,62 @@ body.light-theme .nav-item[data-tab="queue"].active .queue-nav-badge {
   letter-spacing: 0.2px;
 }
 
+/* Kalite rozeti: normalde yalnızca ikon görünür; fare üzerine gelince "Kalite: Değer" metni açılır */
+#badge-quality {
+  gap: 0;
+  padding: 0 10px;
+  transition: padding 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              gap 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              background 0.3s ease !important;
+}
+
+#badge-quality #topbar-quality-label {
+  display: inline-flex;
+  align-items: center;
+}
+
+#badge-quality #topbar-quality-title,
+#badge-quality #topbar-quality-sep,
+#badge-quality #quality-status {
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+#badge-quality:hover {
+  gap: 7px;
+  padding: 0 12px;
+}
+
+#badge-quality:hover #topbar-quality-title {
+  max-width: 90px;
+  opacity: 0.88;
+}
+
+#badge-quality:hover #topbar-quality-sep {
+  max-width: 12px;
+  opacity: 0.88;
+}
+
+#badge-quality:hover #quality-status {
+  max-width: 140px;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #badge-quality,
+  #badge-quality #topbar-quality-title,
+  #badge-quality #topbar-quality-sep,
+  #badge-quality #quality-status {
+    transition: none !important;
+  }
+}
+
 /* Açık Tema (Light Theme) */
 body.light-theme .status-badge {
   background: rgba(255, 255, 255, 0.88) !important;
@@ -6352,6 +6408,136 @@ body.light-theme .cli-mode-segmented {
 .cli-mode-btn.active {
   background: var(--primary);
   color: #ffffff;
+}
+
+/* Windows PATH Entegrasyon Çubuğu */
+.cli-path-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(56, 189, 248, 0.05);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.75rem;
+}
+
+body.light-theme .cli-path-bar {
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.cli-path-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cli-path-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.cli-path-status-badge.active {
+  background: rgba(34, 197, 94, 0.16);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.cli-path-status-badge.inactive {
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--text-muted);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.cli-path-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.cli-path-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cli-path-title-text {
+  font-weight: 600;
+  color: var(--text-main);
+  font-size: 0.75rem;
+}
+
+.cli-path-meta-text {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+  word-break: break-all;
+}
+
+.cli-path-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cli-path-toggle-btn {
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.18s ease;
+}
+
+.cli-path-toggle-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--primary);
+}
+
+.cli-path-toggle-btn.btn-remove {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.cli-path-toggle-btn.btn-remove:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+}
+
+.cli-path-toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cli-path-spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: cli-spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+@keyframes cli-spin {
+  to { transform: rotate(360deg); }
 }
 
 .cli-cmd-grid {
@@ -13181,4 +13367,358 @@ button,
 .plyr:fullscreen * {
   transition: none !important;
   animation: none !important;
+}
+
+/* ============================================================
+   AYARLAR SAYFASI v2: sol kategori menüsü + sade kartlar
+   Yalnızca #tab-settings kapsamında; diğer sekmeleri etkilemez.
+   Tema renkleri mevcut CSS değişkenlerinden gelir (açık/koyu uyumlu).
+   ============================================================ */
+#tab-settings #settings-form {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  column-gap: 28px;
+  align-items: start;
+}
+
+#tab-settings .settings-rail {
+  position: sticky;
+  top: 84px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding-right: 2px;
+}
+
+#tab-settings .settings-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+#tab-settings .settings-search > i,
+#tab-settings .settings-search > svg {
+  position: absolute;
+  left: 12px;
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+#tab-settings .settings-search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px 0 36px;
+  font-size: 0.85rem;
+  color: var(--text-main);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+#tab-settings .settings-search-input:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+/* Dikey kategori menüsü */
+#tab-settings .settings-subtabs-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  overflow: visible;
+  margin: 0;
+  padding: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+#tab-settings .settings-subtab-btn {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  justify-content: flex-start;
+  gap: 10px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  white-space: normal;
+  text-align: left;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  text-shadow: none;
+  box-shadow: none;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+#tab-settings .settings-subtab-btn:hover {
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--text-main) 7%, transparent);
+  border-color: transparent;
+}
+
+#tab-settings .settings-subtab-btn:active {
+  transform: none;
+  background: color-mix(in srgb, var(--text-main) 11%, transparent);
+}
+
+#tab-settings .settings-subtab-btn.active {
+  color: var(--text-main);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  border-color: transparent;
+  box-shadow: inset 3px 0 0 var(--primary);
+  text-shadow: none;
+}
+
+#tab-settings .settings-subtab-btn.active i,
+#tab-settings .settings-subtab-btn.active svg {
+  color: var(--primary);
+}
+
+#tab-settings .settings-subtab-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* İçerik alanı: tek sütun, okunaklı genişlik */
+#tab-settings .settings-layout-modern,
+#tab-settings .settings-layout-modern.view-all,
+#tab-settings .settings-layout-modern.view-single {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 920px;
+  width: 100%;
+  margin: 0;
+}
+
+#tab-settings .settings-layout-modern .settings-column,
+#tab-settings .settings-layout-modern.view-all .settings-column {
+  display: contents;
+}
+
+#tab-settings .settings-search-hidden {
+  display: none !important;
+}
+
+#tab-settings .settings-search-empty {
+  margin: 0;
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 14px;
+}
+
+/* Kartlar: düz yüzey, ince çerçeve; hareket ve parıltı yok */
+#tab-settings .settings-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 14px !important;
+  padding: 22px 26px;
+  box-shadow: none !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transform: none !important;
+  overflow: visible;
+}
+
+#tab-settings .settings-card::before {
+  display: none;
+}
+
+#tab-settings .settings-card:hover {
+  border-color: var(--border-color) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+#tab-settings .settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding-bottom: 14px;
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--text-main);
+  text-shadow: none;
+  letter-spacing: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+#tab-settings .settings-section-title > i,
+#tab-settings .settings-section-title > svg {
+  flex-shrink: 0;
+  box-sizing: content-box;
+  width: 18px;
+  height: 18px;
+  padding: 7px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border-radius: 10px;
+}
+
+/* Ayar blokları arasında net ritim */
+#tab-settings .settings-card .form-grid {
+  gap: 16px 22px;
+  margin-bottom: 16px;
+}
+
+#tab-settings .settings-card .form-group {
+  margin-bottom: 16px;
+}
+
+#tab-settings .settings-card .form-grid > .form-group {
+  margin-bottom: 0;
+}
+
+#tab-settings .settings-card .form-group > label,
+#tab-settings .settings-card .form-group > .toggle-container + small {
+  color: var(--text-main);
+}
+
+#tab-settings .settings-card .form-text {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+#tab-settings .settings-card :is(input, select, textarea, button):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Dar ekran: menü üstte yatay kaydırmalı çubuğa döner */
+@media (max-width: 960px) {
+  #tab-settings #settings-form {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 16px;
+  }
+  #tab-settings .settings-rail {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+  #tab-settings .settings-subtabs-bar {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+  }
+  #tab-settings .settings-subtab-btn {
+    width: auto;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  #tab-settings .settings-subtab-btn.active {
+    box-shadow: inset 0 -3px 0 var(--primary);
+  }
+}
+
+#tab-settings #settings-form > .form-actions {
+  grid-column: 1 / -1;
+}
+
+/* ============================================================
+   KULLANICI TANIMLI SIRALAMA KONTROLLERİ (Kart + Yan Liste)
+   ============================================================ */
+.user-sortable-card,
+.user-sortable-playlist-item {
+  cursor: grab;
+}
+
+.user-sortable-card.dragging,
+.user-sortable-playlist-item.dragging {
+  opacity: 0.55;
+  outline: 2px dashed var(--primary);
+  cursor: grabbing;
+}
+
+.user-sort-card-controls {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f8fafc;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  user-select: none;
+}
+
+.user-sort-grip {
+  font-size: 0.78rem;
+  line-height: 1;
+  letter-spacing: -1px;
+  opacity: 0.78;
+  cursor: grab;
+  padding: 0 2px;
+}
+
+.user-sort-step-btn,
+.playlist-item-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 0.65rem;
+  line-height: 1;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.user-sort-step-btn:hover,
+.playlist-item-sort-btn:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.playlist-item-sort-controls {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin-right: 4px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.playlist-item-sort-controls .user-sort-grip {
+  font-size: 0.7rem;
+  padding: 0;
+}
+
+body.light-theme .playlist-item-sort-btn {
+  background: rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 23, 42, 0.14);
+  color: var(--text-main);
 }

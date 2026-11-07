@@ -211,6 +211,7 @@ export const defaultDb = {
     weatherLongitude: 29.81472,
     weatherUnit: 'celsius',
     queueViewMode: 'table',
+    preventSleepOnDownload: true,
     networkRetryIntervalSeconds: 120,
     fakapEnabled: true,
     fakapPath: '',
@@ -232,7 +233,8 @@ export const defaultDb = {
     historyShowUpcoming: false,
     ttsVoiceId: '',
     ttsSpeed: 1,
-    ttsVoicesDir: ''
+    ttsVoicesDir: '',
+    downloadedUserOrder: []
   },
   deletedVideos: []
 };
@@ -903,6 +905,11 @@ export function syncWithIni(db) {
         db.settings.networkRetryIntervalSeconds = parseInt(networkRetryIntervalSeconds, 10) || 120;
       }
 
+      const preventSleepOnDownload = getCaseInsensitiveKey(settingsSection, 'preventSleepOnDownload');
+      if (preventSleepOnDownload !== undefined) {
+        db.settings.preventSleepOnDownload = preventSleepOnDownload === 'true';
+      }
+
       const discordRpcEnabled = getCaseInsensitiveKey(settingsSection, 'discordRpcEnabled');
       if (discordRpcEnabled !== undefined) {
         db.settings.discordRpcEnabled = discordRpcEnabled === 'true';
@@ -1470,6 +1477,7 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.periodicDiskSyncInterval = (db.settings.periodicDiskSyncInterval || '360').toString();
   iniData.Settings.autoCookieRefresh = (db.settings.autoCookieRefresh !== false).toString();
   iniData.Settings.cookieRefreshInterval = (db.settings.cookieRefreshInterval !== undefined ? db.settings.cookieRefreshInterval : 30).toString();
+  iniData.Settings.preventSleepOnDownload = (db.settings.preventSleepOnDownload !== false).toString();
   iniData.Settings.networkRetryIntervalSeconds = (db.settings.networkRetryIntervalSeconds !== undefined ? db.settings.networkRetryIntervalSeconds : 120).toString();
   iniData.Settings.fakapEnabled = (db.settings.fakapEnabled !== false).toString();
   iniData.Settings.fakapPath = (db.settings.fakapPath || '').toString();

@@ -260,8 +260,8 @@ export function playSystemSound(type = 'notification') {
   }
 }
 
-// Türkçe Açıklama: Windows 10/11 WinRT Toast bildirim motoru (saat yanında geçici tepsi balonu açmaz, gerçek İşlem Merkezi masaüstü kartı gösterir).
-export function showWindowsNotification(title, message, eventType = 'download_complete') {
+// Türkçe Açıklama: Windows 10/11 WinRT Toast bildirim motoru (Özel logo, şık ToastGeneric kartı ve janjanlı önizleme desteği).
+export function showWindowsNotification(title, message, eventType = 'download_complete', options = {}) {
   const db = readDb();
   const settings = db.settings || {};
   if (settings.showNotifications === false) return;
@@ -270,41 +270,119 @@ export function showWindowsNotification(title, message, eventType = 'download_co
   // Aşama bazlı görsel bildirim açma/kapatma kontrolleri
   if (eventType === 'download_start' && settings.notifyDownloadStartToast === false) return;
   if (eventType === 'download_complete' && settings.notifyDownloadCompleteToast === false) return;
-  if (eventType === 'merge_start' && settings.notifyMergeStartToast === false) return;
-  if (eventType === 'merge_complete' && settings.notifyMergeCompleteToast === false) return;
 
-  const cleanTitle = String(title || 'Multimedia HaYTooL').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
-  const cleanMessage = String(message || '').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+  const escapeXml = (str) => String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 
-  const escapedTitle = cleanTitle.replace(/'/g, "''");
-  const escapedMessage = cleanMessage.replace(/'/g, "''");
+  const cleanTitle = escapeXml(title || 'Multimedia HaYTooL');
+  const cleanMessage = escapeXml(message || '');
+  const extraLine = options.channelName ? escapeXml(`Kanal: ${options.channelName}`) : '';
+
+  const logoFile = path.resolve(process.cwd(), 'main', 'public', 'logo.png');
+  const logoPath = fs.existsSync(logoFile) ? logoFile : '';
+
+  let heroTag = '';
+
+  // 1. Önce her zaman diskteki gerçek yerel kapak dosyasını ara (Windows Toast uzak http linklerini göstermez)
+  let localThumbPath = '';
+  if (options.thumbnail && typeof options.thumbnail === 'string' && fs.existsSync(options.thumbnail)) {
+    localThumbPath = path.resolve(options.thumbnail);
+  } else if (options.videoId) {
+    try {
+      const cleanId = String(options.videoId).replace(/^fakap_/, '');
+      const item = (db.history || []).find(h => h.id === options.videoId || h.id === cleanId);
+      const vPath = item?.filePath || (item?.id ? findVideoFileInDownloadDir(cleanId, db.settings?.downloadPath) : null);
+      if (vPath && fs.existsSync(vPath)) {
+        const vExt = path.extname(vPath);
+        const vBase = vPath.slice(0, -vExt.length);
+        for (const tExt of ['.jpg', '.jpeg', '.webp', '.png']) {
+          const cand = vBase + tExt;
+          if (fs.existsSync(cand)) {
+            localThumbPath = path.resolve(cand);
+            break;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 2. Diskte yerel dosya bulunduysa kesinlikle onu kullan; yoksa ve uzak http linki varsa onu koy
+  if (localThumbPath) {
+    heroTag = `<image placement="hero" src="${escapeXml(localThumbPath)}" />`;
+  } else if (options.thumbnail && typeof options.thumbnail === 'string' && (options.thumbnail.startsWith('http://') || options.thumbnail.startsWith('https://'))) {
+    heroTag = `<image placement="hero" src="${escapeXml(options.thumbnail)}" />`;
+  }
+
+  let logoTag = '';
+  if (logoPath) {
+    logoTag = `<image placement="appLogoOverride" hint-crop="circle" src="${escapeXml(logoPath)}" />`;
+  }
+
+  const rawVideoId = options.videoId ? String(options.videoId).replace(/[^a-zA-Z0-9_\-]/g, '') : '';
+  const launchAttr = rawVideoId ? `launch="haytool://play/${rawVideoId}" activationType="protocol"` : '';
+  const actionButton = rawVideoId ? `
+    <actions>
+      <action content="▶️ Hemen Oynat" arguments="haytool://play/${rawVideoId}" activationType="protocol" />
+    </actions>
+  ` : '';
+
+  const toastXml = `
+<toast duration="short" ${launchAttr}>
+  <visual>
+    <binding template="ToastGeneric">
+      <text>${cleanTitle}</text>
+      <text>${cleanMessage}</text>
+      ${extraLine ? `<text>${extraLine}</text>` : ''}
+      ${logoTag}
+      ${heroTag}
+    </binding>
+  </visual>
+  ${actionButton}
+  <audio silent="true" />
+</toast>
+`.trim();
+
+  const xmlBase64 = Buffer.from(toastXml, 'utf8').toString('base64');
+  const regLogoPath = logoPath.replace(/\\/g, '\\\\');
+  const exePath = path.resolve(process.cwd(), 'main', 'Multimedia HaYTooL.exe').replace(/\\/g, '\\\\');
 
   const psScript = `
     try {
       $appId = 'com.haytool.ytdownloader';
       [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null;
-      $template = [Windows.UI.Notifications.ToastTemplateType]::ToastText02;
-      $xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent($template);
-      $textNodes = $xml.GetElementsByTagName('text');
-      $textNodes.Item(0).AppendChild($xml.CreateTextNode('${escapedTitle}')) | Out-Null;
-      $textNodes.Item(1).AppendChild($xml.CreateTextNode('${escapedMessage}')) | Out-Null;
-      $toast = [Windows.UI.Notifications.ToastNotification]::new($xml);
-      $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId);
-      $notifier.Show($toast);
+      [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null;
+
+      $xmlBytes = [System.Convert]::FromBase64String('${xmlBase64}');
+      $xmlString = [System.Text.Encoding]::UTF8.GetString($xmlBytes);
+
+      $doc = [Windows.Data.Xml.Dom.XmlDocument]::new();
+      $doc.LoadXml($xmlString);
+
+      $toast = [Windows.UI.Notifications.ToastNotification]::new($doc);
+      [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId).Show($toast);
     } catch {
       try {
         $appIdFallback = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe';
-        $notifier2 = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appIdFallback);
-        $notifier2.Show($toast);
+        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appIdFallback).Show($toast);
       } catch {}
     }
   `;
 
-  const base64Script = Buffer.from(psScript, 'utf16le').toString('base64');
-
-  exec(`powershell -NoProfile -NonInteractive -EncodedCommand ${base64Script}`, (err) => {
-    if (err) console.error('Windows masaüstü bildirimi gönderilemedi:', err.message);
-  });
+  // Komut satırı uzunluk limitine (8191 karakter) takılmamak için betiği stdin üzerinden PowerShell'e aktar
+  try {
+    const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '-']);
+    ps.stdin.write(psScript);
+    ps.stdin.end();
+    ps.on('error', (err) => {
+      console.error('Windows masaüstü bildirimi başlatılamadı:', err.message);
+    });
+  } catch (err) {
+    console.error('Windows masaüstü bildirimi gönderilemedi:', err.message);
+  }
 }
 
 // Türkçe Açıklama: Kök ve bin/ çerez dosyalarını tek bir Netscape dosyasında birleştirip yt-dlp argümanlarını döner.
@@ -874,7 +952,11 @@ export class DownloadQueue {
     showWindowsNotification(
       settings.lang === 'en' ? 'Download Started' : 'İndirme Başlatıldı',
       settings.lang === 'en' ? `"${video.title}" download process has started.` : `"${video.title}" videosunun indirme işlemi başladı.`,
-      'download_start'
+      'download_start',
+      {
+        channelName: video.channelName || '',
+        thumbnail: video.thumbnail || (video.id ? `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg` : '')
+      }
     );
 
     const skipChannelFolder = video.skipChannelFolder === true;
@@ -1823,7 +1905,12 @@ export class DownloadQueue {
           showWindowsNotification(
             settings.lang === 'en' ? 'Download Completed' : 'İndirme Tamamlandı',
             settings.lang === 'en' ? `"${resolvedTitle}" downloaded successfully.` : `"${resolvedTitle}" videosu başarıyla indirildi.`,
-            'download_complete'
+            'download_complete',
+            {
+              videoId: video.id || '',
+              channelName: video.channelName || '',
+              thumbnail: video.thumbnail || (video.id ? `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg` : '')
+            }
           );
         }
       } else {

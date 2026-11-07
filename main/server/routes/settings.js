@@ -6,7 +6,11 @@ import os from 'os';
 import https from 'https';
 import http from 'http';
 import zlib from 'zlib';
-import { spawn, exec, execSync, execFileSync } from 'child_process';
+import { fileURLToPath } from 'url';
+import { spawn, spawnSync, exec, execSync, execFileSync } from 'child_process';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { Readable } from 'stream';
 import open from 'open';
 import { dataRootDir } from '../config.js';
@@ -127,7 +131,41 @@ export function startIntervalTimer() {
 }
 
 /**
+ * Türkçe Açıklama: Netscape biçimli bir cookies.txt dosyasında süresi dolmamış bir YouTube/Google
+ * oturum çerezi (SID, PSID, LOGIN_INFO vb.) olup olmadığını denetler. Süre 0 ise oturum çerezidir (geçerli sayılır).
+ *
+ * @param {string} filePath cookies.txt yolu
+ * @returns {{exists: boolean, valid: boolean, expired: boolean}}
+ */
+function inspectCookieFile(filePath) {
+  const result = { exists: false, valid: false, expired: false };
+  if (!fs.existsSync(filePath)) return result;
+  result.exists = true;
+  const authNames = new Set(['SID', 'HSID', 'SSID', 'APISID', 'SAPISID', 'LOGIN_INFO',
+    '__Secure-1PSID', '__Secure-3PSID', '__Secure-1PAPISID', '__Secure-3PAPISID']);
+  const nowSec = Math.floor(Date.now() / 1000);
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    for (const rawLine of content.split(/\r?\n/)) {
+      // "#HttpOnly_" önekli satırlar da gerçek çerezdir; diğer # satırları yorumdur.
+      const line = rawLine.startsWith('#HttpOnly_') ? rawLine.slice(10) : rawLine;
+      if (!line.trim() || line.startsWith('#')) continue;
+      const parts = line.split('\t');
+      if (parts.length < 7 || !authNames.has(parts[5])) continue;
+      const expiry = parseInt(parts[4], 10);
+      if (!expiry || expiry > nowSec) {
+        result.valid = true;
+        return result;
+      }
+      result.expired = true;
+    }
+  } catch (e) {}
+  return result;
+}
+
+/**
  * Sistemdeki aktif çerez durumunu ve YouTube oturumunu kontrol eder.
+ * Çerez dosyasındaki oturum çerezlerinin son kullanma tarihini ve periyodik sağlık denetimi sonucunu dikkate alır.
  * 
  * @name GET /api/youtube-auth-status
  * @function
@@ -137,31 +175,40 @@ export function startIntervalTimer() {
 router.get('/youtube-auth-status', localhostOnly, async (req, res) => {
   const rootCookiesTxt = path.join(dataRootDir, 'cookies.txt');
   const binCookiesTxt = path.join(dataRootDir, 'bin', 'cookies.txt');
-  
+
   let hasValidCookies = false;
+  let expired = false;
   let activeSource = 'none';
 
-  if (fs.existsSync(rootCookiesTxt)) {
-    try {
-      const content = fs.readFileSync(rootCookiesTxt, 'utf8');
-      if (content.includes('LOGIN_INFO') || content.includes('__Secure-1PSID') || content.includes('SID')) {
-        hasValidCookies = true;
-        activeSource = 'cookies.txt';
-      }
-    } catch (e) {}
-  } else if (fs.existsSync(binCookiesTxt)) {
-    try {
-      const content = fs.readFileSync(binCookiesTxt, 'utf8');
-      if (content.includes('LOGIN_INFO') || content.includes('__Secure-1PSID') || content.includes('SID')) {
-        hasValidCookies = true;
-        activeSource = 'cookies.txt';
-      }
-    } catch (e) {}
+  for (const file of [rootCookiesTxt, binCookiesTxt]) {
+    const info = inspectCookieFile(file);
+    if (info.valid) {
+      hasValidCookies = true;
+      activeSource = 'cookies.txt';
+      break;
+    }
+    if (info.expired) expired = true;
   }
+
+  // Periyodik sağlık denetimi oturumu geçersiz bulduysa (sunucu YouTube'a sorup doğruladıysa) rozeti kırmızı göster.
+  let verified = null;
+  try {
+    const { getLastCookieHealth } = await import('../services/cookieHealth.js');
+    const last = getLastCookieHealth();
+    if (last) {
+      verified = last.healthy;
+      if (hasValidCookies && last.healthy === false) {
+        hasValidCookies = false;
+        activeSource = 'none';
+      }
+    }
+  } catch (e) {}
 
   res.json({
     success: true,
     activeSource,
+    expired,
+    verified,
     hasCookiesTxt: hasValidCookies,
     hasWebView2Cookies: hasValidCookies
   });
@@ -668,8 +715,7 @@ router.post('/settings', localhostOnly, async (req, res) => {
     'autoDeleteRequireConfirmation', 'ggufGpuMode', 'unloadUiOnHide',
     'historyShowLive', 'historyShowUpcoming', 'historyOnlyNoAutoDownload',
     'historyOnlyNotDownloaded', 'historyOnlyLiveProcessing', 'historyShowMembers', 'historyShowHidden',
-    'notifyDownloadStartToast', 'notifyDownloadStartSound', 'notifyDownloadCompleteToast', 'notifyDownloadCompleteSound',
-    'notifyMergeStartToast', 'notifyMergeStartSound', 'notifyMergeCompleteToast', 'notifyMergeCompleteSound'
+    'notifyDownloadStartToast', 'notifyDownloadStartSound', 'notifyDownloadCompleteToast', 'notifyDownloadCompleteSound'
   ];
   for (const field of booleanFields) {
     if (req.body[field] !== undefined) {
@@ -680,9 +726,6 @@ router.post('/settings', localhostOnly, async (req, res) => {
   // 2.2 Ses Seçimleri Doğrulaması
   if (req.body.soundDownloadComplete !== undefined) {
     if (!AVAILABLE_SOUNDS.includes(req.body.soundDownloadComplete)) req.body.soundDownloadComplete = 'chime';
-  }
-  if (req.body.soundMergeComplete !== undefined) {
-    if (!AVAILABLE_SOUNDS.includes(req.body.soundMergeComplete)) req.body.soundMergeComplete = 'fanfare';
   }
 
   // 2.5 Donanım Hızlandırma ve Oynatıcı GPU Modu Doğrulaması
@@ -706,6 +749,15 @@ router.post('/settings', localhostOnly, async (req, res) => {
   }
 
   // 3. İndirme Yolu ve Dize Doğrulamaları
+  if (req.body.downloadedUserOrder !== undefined) {
+    if (Array.isArray(req.body.downloadedUserOrder)) {
+      req.body.downloadedUserOrder = req.body.downloadedUserOrder
+        .filter(id => typeof id === 'string' && id.trim().length > 0)
+        .slice(0, 5000);
+    } else {
+      delete req.body.downloadedUserOrder;
+    }
+  }
   if (req.body.downloadPath !== undefined && typeof req.body.downloadPath === 'string') {
     req.body.downloadPath = req.body.downloadPath.trim();
     if (!req.body.downloadPath && db.settings.downloadPath) {
@@ -851,11 +903,97 @@ router.post('/settings/test-notification', localhostOnly, (req, res) => {
   try {
     const db = readDb();
     const isEn = db.settings?.lang === 'en';
+    const sampleItem = (db.history || []).find(h => h.status === 'completed' && h.filePath && fs.existsSync(h.filePath)) ||
+                       (db.history || []).find(h => h.status === 'completed' && h.id);
+    const sampleId = sampleItem ? sampleItem.id : 'dj2Xus-pUzs';
+    const sampleTitle = sampleItem ? sampleItem.title : (isEn ? 'Sample Downloaded Video' : 'Örnek Tamamlanan Video');
+    const sampleChannel = sampleItem?.channelName || (isEn ? 'Official Channel' : 'Örnek Kanal');
+
     showWindowsNotification(
-      isEn ? 'HaYTooL Test Notification' : 'HaYTooL Test Bildirimi',
-      isEn ? 'Desktop notifications are working correctly.' : 'Masaüstü bildirimleri sorunsuz çalışıyor.'
+      isEn ? 'Multimedia HaYTooL' : 'Multimedia HaYTooL',
+      isEn ? `"${sampleTitle}" downloaded successfully.` : `"${sampleTitle}" videosu başarıyla indirildi.`,
+      'download_complete',
+      {
+        videoId: sampleId,
+        channelName: sampleChannel
+      }
     );
     res.json({ ok: true, message: 'Test bildirimi gönderildi.' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/**
+ * Windows haytool:// URI protokol durumunu sorgular (Kullanıcının HKCU kaydında var mı ve yolu güncel mi?).
+ */
+function getMultimediaExePath() {
+  const cand1 = path.join(dataRootDir, 'Multimedia HaYTooL.exe');
+  if (fs.existsSync(cand1)) return cand1;
+  const cand2 = path.resolve(process.cwd(), 'Multimedia HaYTooL.exe');
+  if (fs.existsSync(cand2)) return cand2;
+  const cand3 = path.resolve(process.cwd(), 'main', 'Multimedia HaYTooL.exe');
+  if (fs.existsSync(cand3)) return cand3;
+  return cand1;
+}
+
+router.get('/settings/protocol-status', localhostOnly, (req, res) => {
+  if (process.platform !== 'win32') {
+    return res.json({ supported: false, registered: false, matchesCurrentPath: false });
+  }
+
+  const exePath = getMultimediaExePath();
+  try {
+    const r = spawnSync('reg.exe', ['query', 'HKCU\\Software\\Classes\\haytool\\shell\\open\\command', '/ve'], { encoding: 'utf8' });
+    if (r.status !== 0 || !r.stdout) {
+      return res.json({ supported: true, registered: false, matchesCurrentPath: false, exePath });
+    }
+    const match = r.stdout.match(/REG_SZ\s+(.*)$/m);
+    if (!match) {
+      return res.json({ supported: true, registered: false, matchesCurrentPath: false, exePath });
+    }
+    const rawVal = match[1].trim();
+    const cleanOutput = rawVal.replace(/^"/, '').replace(/"\s*"%1"$/, '').replace(/"\s*%1$/, '').replace(/"/g, '').trim();
+    const matchesCurrentPath = cleanOutput.toLowerCase() === exePath.toLowerCase();
+    return res.json({ supported: true, registered: true, matchesCurrentPath, registeredPath: cleanOutput, exePath });
+  } catch (err) {
+    return res.json({ supported: true, registered: false, matchesCurrentPath: false, exePath });
+  }
+});
+
+/**
+ * Windows haytool:// URI protokolünü kullanıcı adına açıkça kaydeder veya günceller.
+ */
+router.post('/settings/register-protocol', localhostOnly, (req, res) => {
+  if (process.platform !== 'win32') {
+    return res.status(400).json({ ok: false, error: 'Sadece Windows işletim sisteminde desteklenir.' });
+  }
+
+  const exePath = getMultimediaExePath();
+  try {
+    spawnSync('reg.exe', ['add', 'HKCU\\Software\\Classes\\haytool', '/ve', '/t', 'REG_SZ', '/d', 'URL:HaYTooL Protocol', '/f']);
+    spawnSync('reg.exe', ['add', 'HKCU\\Software\\Classes\\haytool', '/v', 'URL Protocol', '/t', 'REG_SZ', '/d', '', '/f']);
+    const r = spawnSync('reg.exe', ['add', 'HKCU\\Software\\Classes\\haytool\\shell\\open\\command', '/ve', '/t', 'REG_SZ', '/d', `"${exePath}" "%1"`, '/f']);
+    if (r.status !== 0) {
+      return res.status(500).json({ ok: false, error: r.stderr?.toString() || 'Kayıt başarısız.' });
+    }
+    res.json({ ok: true, message: 'Protokol başarıyla kaydedildi/güncellendi.' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/**
+ * Windows haytool:// URI protokol kaydını sistemden tamamen kaldırır.
+ */
+router.post('/settings/unregister-protocol', localhostOnly, (req, res) => {
+  if (process.platform !== 'win32') {
+    return res.status(400).json({ ok: false, error: 'Sadece Windows işletim sisteminde desteklenir.' });
+  }
+
+  try {
+    spawnSync('reg.exe', ['delete', 'HKCU\\Software\\Classes\\haytool', '/f']);
+    res.json({ ok: true, message: 'Protokol kaydı kaldırıldı.' });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -2118,4 +2256,113 @@ router.post('/tools/open-extension-folder', localhostOnly, (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+/**
+ * CLI komutlarının ve haytool.cmd dosyasının bulunduğu ana dizini tespit eder.
+ */
+function getCliAppDir() {
+  const candidates = [
+    process.cwd(),
+    dataRootDir,
+    path.join(dataRootDir, 'main'),
+    path.resolve(process.cwd(), 'main'),
+    __dirname,
+    path.resolve(__dirname, '..', '..')
+  ];
+  for (const dir of candidates) {
+    if (dir && fs.existsSync(path.join(dir, 'haytool.cmd'))) {
+      return path.normalize(dir);
+    }
+  }
+  for (const dir of candidates) {
+    if (dir && fs.existsSync(path.join(dir, 'Multimedia HaYTooL.exe'))) {
+      return path.normalize(dir);
+    }
+  }
+  return path.normalize(process.cwd());
+}
+
+/**
+ * Windows Kullanıcı PATH durumunu sorgular.
+ * @name GET /api/settings/cli-path-status
+ */
+router.get('/settings/cli-path-status', localhostOnly, (req, res) => {
+  if (process.platform !== 'win32') {
+    return res.json({ success: true, supported: false, inPath: false, appDir: '' });
+  }
+
+  const appDir = getCliAppDir();
+  exec('powershell -NoProfile -Command "[System.Environment]::GetEnvironmentVariable(\'Path\', \'User\')"', { windowsHide: true }, (err, stdout) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    const currentPath = (stdout || '').trim();
+    const parts = currentPath.split(';').map(p => path.normalize(p.trim().replace(/^"|"$/g, '')).toLowerCase()).filter(Boolean);
+    const target = path.normalize(appDir).toLowerCase();
+    const inPath = parts.includes(target);
+
+    res.json({
+      success: true,
+      supported: true,
+      inPath,
+      appDir,
+      registryKey: 'HKCU\\Environment\\Path'
+    });
+  });
+});
+
+/**
+ * Windows Kullanıcı PATH değişkenine ekler veya çıkarır.
+ * @name POST /api/settings/cli-path-toggle
+ */
+router.post('/settings/cli-path-toggle', localhostOnly, (req, res) => {
+  if (process.platform !== 'win32') {
+    return res.status(400).json({ success: false, error: 'Bu özellik yalnızca Windows işletim sisteminde desteklenmektedir.' });
+  }
+
+  const action = req.body && req.body.action;
+  if (!['enable', 'disable'].includes(action)) {
+    return res.status(400).json({ success: false, error: 'Geçersiz eylem: enable veya disable olmalı.' });
+  }
+
+  const appDir = getCliAppDir();
+  const targetNorm = path.normalize(appDir).toLowerCase();
+
+  exec('powershell -NoProfile -Command "[System.Environment]::GetEnvironmentVariable(\'Path\', \'User\')"', { windowsHide: true }, (err, stdout) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: 'PATH okunamadı: ' + err.message });
+    }
+
+    const currentPath = (stdout || '').trim();
+    const rawParts = currentPath.split(';').map(p => p.trim()).filter(Boolean);
+    const exists = rawParts.some(p => path.normalize(p.replace(/^"|"$/g, '')).toLowerCase() === targetNorm);
+
+    let newParts = [...rawParts];
+
+    if (action === 'enable') {
+      if (!exists) {
+        newParts.push(appDir);
+      }
+    } else if (action === 'disable') {
+      newParts = newParts.filter(p => path.normalize(p.replace(/^"|"$/g, '')).toLowerCase() !== targetNorm);
+    }
+
+    const newPathVal = newParts.join(';');
+    const b64 = Buffer.from(newPathVal, 'utf8').toString('base64');
+    const psScript = `[System.Environment]::SetEnvironmentVariable('Path', [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${b64}')), 'User')`;
+
+    exec(`powershell -NoProfile -Command "${psScript}"`, { windowsHide: true }, (setErr) => {
+      if (setErr) {
+        return res.status(500).json({ success: false, error: 'PATH güncellenemedi: ' + setErr.message });
+      }
+
+      res.json({
+        success: true,
+        action,
+        inPath: action === 'enable',
+        appDir
+      });
+    });
+  });
 });

@@ -273,13 +273,6 @@ class MergeQueue {
     };
     broadcast('merge_queue_state', this.getStatusSnapshot());
 
-    playAppSound('merge_start');
-    showWindowsNotification(
-      db.settings?.lang === 'en' ? 'Merge Started' : 'Birleştirme Başlatıldı',
-      db.settings?.lang === 'en' ? `"${item.title}" merge process has started.` : `"${item.title}" birleştirme işlemi başladı.`,
-      'merge_start'
-    );
-
     try {
       await this._executeMerge(item, db.settings || {});
     } catch (err) {
@@ -591,11 +584,18 @@ class MergeQueue {
       thumbnail: `/api/video/${item.id}/thumbnail`
     });
     addTerminalLog(`[Birleştirme Kuyruğu] TAMAMLANDI: "${resolvedTitle}" -> ${finalOutputPath}`, 'success');
-    playAppSound('merge_complete');
+
+    // Video indirme ve birleştirme süreci tamamen bittiğinde kullanıcıya indirme tamamlandı bildirimi verilir
+    playAppSound('download_complete');
     showWindowsNotification(
-      settings.lang === 'en' ? 'Merge Completed' : 'Birleştirme Tamamlandı',
-      settings.lang === 'en' ? `"${resolvedTitle}" has been merged successfully.` : `"${resolvedTitle}" başarıyla birleştirildi.`,
-      'merge_complete'
+      settings.lang === 'en' ? 'Download Completed' : 'İndirme Tamamlandı',
+      settings.lang === 'en' ? `"${resolvedTitle}" downloaded successfully.` : `"${resolvedTitle}" videosu başarıyla indirildi.`,
+      'download_complete',
+      {
+        videoId: item.id || ytVideoId || '',
+        channelName: item.channelName || '',
+        thumbnail: item.thumbnail || (ytVideoId ? `https://i.ytimg.com/vi/${ytVideoId}/hqdefault.jpg` : '')
+      }
     );
   }
 

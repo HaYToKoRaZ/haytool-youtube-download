@@ -172,6 +172,25 @@ public partial class App : System.Windows.Application
             {
                 try { File.AppendAllText(dbgPath, $"[{DateTime.Now}] Second instance started with args: '{rawArgs}'\n"); } catch {}
 
+                // haytool://play/{videoId} veya /play/{videoId} çağrısını backend'e de HTTP ile ilet
+                if (rawArgs.StartsWith("haytool://play/", StringComparison.OrdinalIgnoreCase) ||
+                    rawArgs.StartsWith("haytool:play/", StringComparison.OrdinalIgnoreCase) ||
+                    rawArgs.StartsWith("/play/", StringComparison.OrdinalIgnoreCase))
+                {
+                    string pVid = rawArgs.Replace("haytool://play/", "", StringComparison.OrdinalIgnoreCase)
+                                         .Replace("haytool:play/", "", StringComparison.OrdinalIgnoreCase)
+                                         .Replace("/play/", "", StringComparison.OrdinalIgnoreCase)
+                                         .Trim().TrimEnd('/');
+                    pVid = System.Text.RegularExpressions.Regex.Replace(pVid, @"[^a-zA-Z0-9_\-]", "");
+                    if (!string.IsNullOrEmpty(pVid))
+                    {
+                        ThreadPool.QueueUserWorkItem(_ =>
+                        {
+                            try { TrayManager.TrySendHttpCliCommandStatic("play " + pVid, out string dummy); } catch {}
+                        });
+                    }
+                }
+
                 // Arka plan CLI komutuysa doğrudan yerel HTTP API üzerinden çalıştır ve çıktıyı terminale bas
                 string? resolvedCli = ResolveEffectiveCliCommand(rawArgs);
                 if (resolvedCli != null)
@@ -196,6 +215,28 @@ public partial class App : System.Windows.Application
                 if (existing != null)
                 {
                     IntPtr hWnd = IntPtr.Zero;
+
+                    // 1. Önce kaydedilmiş HWND dosyasını dene (.player_hwnd)
+                    try
+                    {
+                        string hwndFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".player_hwnd");
+                        if (File.Exists(hwndFile))
+                        {
+                            string content = File.ReadAllText(hwndFile).Trim();
+                            if (long.TryParse(content, out long parsedHwnd) && parsedHwnd != 0)
+                            {
+                                IntPtr cand = new IntPtr(parsedHwnd);
+                                GetWindowThreadProcessId(cand, out uint wPid);
+                                if (wPid == existing.Id)
+                                {
+                                    hWnd = cand;
+                                }
+                            }
+                        }
+                    }
+                    catch {}
+
+                    // 2. HWND henüz bulunamadıysa EnumWindows ile tara
                     for (int attempt = 0; attempt < 15 && hWnd == IntPtr.Zero; attempt++)
                     {
                         hWnd = FindMainWindowForProcess(existing);

@@ -121,8 +121,10 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
       card.onmouseleave = function() {
         if (typeof handleThumbMouseLeave === 'function') handleThumbMouseLeave(card);
       };
-      if (sortVal === 'user' && gridElement === window.downloadedGrid) {
+      const isDownloadedGridCard = !!(gridElement && gridElement.id === 'downloaded-grid');
+      if (sortVal === 'user' && isDownloadedGridCard) {
         card.setAttribute('draggable', 'true');
+        card.classList.add('user-sortable-card');
       }
 
       let durSeconds = item.durationSeconds || 0;
@@ -541,9 +543,18 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         cardDisplayTitle = stripped || (displayChannelName ? `${displayChannelName} Videosu` : 'Instagram Videosu');
       }
 
+      const userSortControlsHtml = (sortVal === 'user' && isDownloadedGridCard) ? `
+        <div class="user-sort-card-controls" onclick="event.stopPropagation()" title="${escapeHtml(t.user_sort_drag_hint || 'Sürükleyerek veya oklarla sıralayın')}">
+          <span class="user-sort-grip" aria-hidden="true">⋮⋮</span>
+          <button type="button" class="user-sort-step-btn" onclick="event.stopPropagation(); window.moveDownloadedItemInUserOrder && window.moveDownloadedItemInUserOrder('${escapeHtml(item.id)}', 'up')" title="${escapeHtml(t.user_sort_move_up || 'Yukarı Taşı')}" aria-label="${escapeHtml(t.user_sort_move_up || 'Yukarı Taşı')}">▲</button>
+          <button type="button" class="user-sort-step-btn" onclick="event.stopPropagation(); window.moveDownloadedItemInUserOrder && window.moveDownloadedItemInUserOrder('${escapeHtml(item.id)}', 'down')" title="${escapeHtml(t.user_sort_move_down || 'Aşağı Taşı')}" aria-label="${escapeHtml(t.user_sort_move_down || 'Aşağı Taşı')}">▼</button>
+        </div>
+      ` : '';
+
       card.innerHTML = `
-        <div class="video-thumbnail-wrapper" data-video-id="${item.id}" data-platform="${platform}" onclick="${clickAction}" style="cursor: pointer; position: relative;" title="${clickTitle}">
-          <img class="video-thumbnail" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" loading="lazy" decoding="async" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
+        <div class="video-thumbnail-wrapper" data-video-id="${item.id}" data-platform="${platform}" onclick="if(window._justDraggedSortable) { event.stopPropagation(); return; } ${clickAction}" style="cursor: pointer; position: relative;" title="${clickTitle}">
+          <img class="video-thumbnail" draggable="false" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" loading="lazy" decoding="async" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
+          ${userSortControlsHtml}
           ${qualityBadgeHtml}
           ${unlistedBadgeHtml}
           ${durationBadgeHtml}

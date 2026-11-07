@@ -1,39 +1,39 @@
 {
-    "manifest_version":  3,
-    "name":  "__MSG_extName__",
-    "description":  "__MSG_extDesc__",
-    "version":  "12.3.5",
-    "default_locale":  "tr",
-    "icons":  {
-                  "16":  "icons/icon16.png",
-                  "32":  "icons/icon32.png",
-                  "48":  "icons/icon48.png",
-                  "128":  "icons/icon128.png"
-              },
-    "action":  {
-                   "default_popup":  "popup.html",
-                   "default_icon":  {
-                                        "16":  "icons/icon16.png",
-                                        "32":  "icons/icon32.png",
-                                        "48":  "icons/icon48.png",
-                                        "128":  "icons/icon128.png"
-                                    },
-                   "default_title":  "Multimedia HaYTooL (v12.3.5)"
-               },
-    "background":  {
-                       "service_worker":  "background.js"
-                   },
-    "options_ui":  {
-                       "page":  "options.html",
-                       "open_in_tab":  true
-                   },
-    "permissions":  [
-                        "activeTab",
-                        "contextMenus",
-                        "storage"
-                    ],
-    "host_permissions":  [
-                             "http://127.0.0.1:*/*",
-                             "http://localhost:*/*"
-                         ]
+  "manifest_version": 3,
+  "name": "__MSG_extName__",
+  "description": "__MSG_extDesc__",
+  "version": "12.3.7",
+  "default_locale": "tr",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Multimedia HaYTooL (v12.3.7)"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:*/*",
+    "http://localhost:*/*"
+  ]
 }

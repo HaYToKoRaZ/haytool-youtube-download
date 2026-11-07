@@ -374,6 +374,16 @@ app.post('/api/cli/exec', localhostOnly, async (req, res) => {
   }
 });
 
+// Bildirim veya Protokol Tıklamasında Videoyu Arayüzde Doğrudan Oynatma Uç Noktası
+app.post('/api/play-video', localhostOnly, (req, res) => {
+  const vidId = String(req.body?.videoId || req.query?.videoId || '').replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+  if (!vidId) {
+    return res.status(400).json({ ok: false, error: 'Video ID gereklidir.' });
+  }
+  broadcast('play_video', { id: vidId });
+  res.json({ ok: true, videoId: vidId });
+});
+
 // Eşleşmeyen API Uç Noktaları İçin 404 Yakalayıcı (nodejs-backend-patterns)
 app.all('/api/*', (req, res) => {
   res.status(404).json({
@@ -549,54 +559,60 @@ function autoDeleteOldVideos() {
   checkAndProcessAutoDelete(downloadQueue);
 }
 
-// Konsoldan alternatif hız limitini değiştirince aktif indirmeyi yeniden başlat
+// Konsoldan alternatif hız limitini değiştirince aktif indirmeleri yeniden başlat
 function restartActiveDownloadWithNewLimit(db, oldSpeedLimit, newSpeedLimit) {
-  const videoId = downloadQueue.activeVideoId;
-  const historyItem = db.history.find(h => h.id === videoId);
-  if (historyItem) {
-    console.log(`[Console] Hız sınırı değişti (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: ${historyItem.title}`);
-    addTerminalLog(`[Console] Hız sınırı değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
-    
-    const targetUrl = resolveItemDownloadUrl(historyItem);
-    downloadQueue.queue.unshift({
-      id: videoId,
-      originalId: historyItem.originalId || videoId,
-      title: historyItem.title,
-      channelId: historyItem.channelId,
-      channelName: historyItem.channelName,
-      url: targetUrl,
-      webUrl: historyItem.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
-      platform: historyItem.platform,
-      publishedAt: historyItem.publishedAt || ''
-    });
-    
-    updateHistoryItem(videoId, {
-      status: 'waiting',
-      progress: historyItem.progress || 0,
-      speed: '',
-      eta: ''
-    });
-    
+  let restartedAny = false;
+  while (downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+    const videoId = downloadQueue.activeVideoId;
     const proc = downloadQueue.activeProcess;
-    const pid = proc.pid;
-    
+    const pid = proc ? proc.pid : null;
+    const historyItem = db.history.find(h => h.id === videoId);
+
     downloadQueue.activeProcess = null;
     downloadQueue.activeVideoId = null;
     if (downloadQueue.activeDownloads > 0) {
       downloadQueue.activeDownloads--;
     }
-    
+
+    if (historyItem) {
+      restartedAny = true;
+      console.log(`[Console] Hız sınırı değişti (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: ${historyItem.title}`);
+      addTerminalLog(`[Console] Hız sınırı değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
+
+      const targetUrl = resolveItemDownloadUrl(historyItem);
+      downloadQueue.queue.unshift({
+        id: videoId,
+        originalId: historyItem.originalId || videoId,
+        title: historyItem.title,
+        channelId: historyItem.channelId,
+        channelName: historyItem.channelName,
+        url: targetUrl,
+        webUrl: historyItem.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+        platform: historyItem.platform,
+        publishedAt: historyItem.publishedAt || ''
+      });
+
+      updateHistoryItem(videoId, {
+        status: 'waiting',
+        progress: historyItem.progress || 0,
+        speed: '',
+        eta: ''
+      });
+    }
+
     if (pid) {
-      exec(`taskkill /F /T /PID ${pid}`, (err) => {
+      exec(`taskkill /F /T /PID ${pid}`, () => {
         try {
           proc.kill('SIGKILL');
         } catch (e) {}
-        
-        setTimeout(() => {
-          downloadQueue.process();
-        }, 1000);
       });
     }
+  }
+
+  if (restartedAny && !downloadQueue.isPaused) {
+    setTimeout(() => {
+      downloadQueue.process();
+    }, 1000);
   }
 }
 
@@ -668,10 +684,22 @@ function pauseDownloadQueue() {
   writeDb(db);
   console.log('[Kuyruk] CLI komutu ile indirme kuyruğu duraklatıldı.');
   addTerminalLog('[Kuyruk] İndirme sırası duraklatıldı.', 'warning');
-  if (downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+
+  let pausedActiveCount = 0;
+  while (downloadQueue.activeProcess && downloadQueue.activeVideoId) {
     const videoId = downloadQueue.activeVideoId;
+    const proc = downloadQueue.activeProcess;
+    const pid = proc ? proc.pid : null;
     const historyItem = db.history.find(h => h.id === videoId);
+
+    downloadQueue.activeProcess = null;
+    downloadQueue.activeVideoId = null;
+    if (downloadQueue.activeDownloads > 0) {
+      downloadQueue.activeDownloads--;
+    }
+
     if (historyItem) {
+      pausedActiveCount++;
       const targetUrl = resolveItemDownloadUrl(historyItem);
       downloadQueue.queue.unshift({
         id: videoId,
@@ -690,21 +718,18 @@ function pauseDownloadQueue() {
         speed: '',
         eta: ''
       });
-      const proc = downloadQueue.activeProcess;
-      const pid = proc.pid;
-      downloadQueue.activeProcess = null;
-      downloadQueue.activeVideoId = null;
-      if (downloadQueue.activeDownloads > 0) {
-        downloadQueue.activeDownloads--;
-      }
-      if (pid) {
-        exec(`taskkill /F /T /PID ${pid}`, () => {
-          try { proc.kill('SIGKILL'); } catch (e) {}
-        });
-      }
+    }
+
+    if (pid) {
+      exec(`taskkill /F /T /PID ${pid}`, () => {
+        try { proc.kill('SIGKILL'); } catch (e) {}
+      });
     }
   }
+
+  downloadQueue.notifyTrayState();
   broadcast('db_update', readDb());
+  return pausedActiveCount;
 }
 
 function resumeDownloadQueue() {
@@ -745,9 +770,10 @@ async function executeCliCommand(rawLine) {
   if (command === 'help' || command === '?' || command === 'komutlar') {
     const helpMsg = '[Console] Kullanılabilir CLI & Konsol Komutları:\n' +
       '  • status / info / durum        : Sistem, kuyruk, hız ve Oyun Modu durumunu gösterir\n' +
+      '  • gton / gtoff                 : Oyun Modu + Kaplumbağa Hız Limitini aynı anda açar / kapatır\n' +
       '  • gameon / game off / game     : Oyun Modunu (Ertelenmiş FFmpeg Birleştirme) açar, kapatır veya değiştirir\n' +
       '  • merge / merge-pause          : Bekleyen birleştirmeleri sırayla başlatır veya duraklatır\n' +
-      '  • pause / duraklat             : İndirme kuyruğunu duraklatır (aktif indirmeyi bekletir)\n' +
+      '  • pause / duraklat             : Aktif indirmeleri beklemeye alır ve indirme kuyruğunu duraklatır\n' +
       '  • resume / devam               : Duraklatılmış indirme kuyruğunu devam ettirir\n' +
       '  • ton / toff / toggle          : Kaplumbağa alternatif hız limitini açar / kapatır / değiştirir\n' +
       '  • speed <kb|off|on>            : Normal hız limitini ayarlar (KB/s), kapatır veya son değere açar\n' +
@@ -769,13 +795,27 @@ async function executeCliCommand(rawLine) {
   }
 
   if (command === 'pause' || command === 'duraklat' || command === 'pause-all') {
-    pauseDownloadQueue();
-    return { ok: true, message: '[Console] İndirme kuyruğu duraklatıldı.' };
+    const pausedActiveCount = pauseDownloadQueue();
+    const suffix = pausedActiveCount > 0 ? ` (${pausedActiveCount} aktif indirme beklemeye alındı)` : '';
+    return reply(`[Console] İndirme kuyruğu duraklatıldı${suffix}.`, null, 'İndirmeler Duraklatıldı');
   }
 
   if (command === 'resume' || command === 'devam' || command === 'resume-all') {
     resumeDownloadQueue();
-    return { ok: true, message: '[Console] İndirme kuyruğu devam ettiriliyor.' };
+    return reply('[Console] İndirme kuyruğu devam ettiriliyor.', null, 'İndirmeler Devam Ediyor');
+  }
+
+  if (command === 'play' || command === 'oynat') {
+    let vidId = (args[0] || '').trim();
+    if (vidId.startsWith('haytool://play/')) vidId = vidId.replace('haytool://play/', '');
+    if (vidId.startsWith('haytool:play/')) vidId = vidId.replace('haytool:play/', '');
+    if (vidId.startsWith('/play/')) vidId = vidId.replace('/play/', '');
+    vidId = vidId.replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+    if (!vidId) {
+      return { ok: false, message: '[Console] Geçerli bir video ID belirtilmedi.' };
+    }
+    broadcast('play_video', { id: vidId });
+    return reply(`[Console] Video oynatma isteği arayüze iletildi: ${vidId}`, 'info');
   }
 
   if (command === 'check' || command === 'scan' || command === 'tara') {
@@ -808,6 +848,46 @@ async function executeCliCommand(rawLine) {
   }
 
   const db = readDb();
+
+  // Birleşik Oyun Modu + Kaplumbağa Hız Limiti (gameon+ton / gameoff+toff) CLI komutları
+  const isComboOn = command === 'gton' || command === 'gt-on' || command === 'gameton' || command === 'game-ton';
+  const isComboOff = command === 'gtoff' || command === 'gt-off' || command === 'gametoff' || command === 'game-toff';
+
+  if (isComboOn) {
+    const oldLimit = getEffectiveSpeedLimit(db.settings);
+    db.settings.deferMerge = true;
+    db.settings.useAlternativeSpeed = true;
+    if (mergeQueue.queue && mergeQueue.queue.length > 0) {
+      mergeQueue.pause(false);
+    }
+    const newLimit = getEffectiveSpeedLimit(db.settings);
+    const speedLimitChanged = oldLimit !== newLimit;
+    writeDb(db);
+    broadcast('db_update', db);
+    if (speedLimitChanged && !downloadQueue.isPaused && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+      restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+    }
+    return reply(`[Console] Oyun + Kaplumbağa Modu AÇILDI: FFmpeg birleştirmeleri ertelendi, hız sınırı ${newLimit} KB/s olarak uygulandı.`, 'info', 'Oyun + Kaplumbağa Modu Açıldı');
+  }
+
+  if (isComboOff) {
+    const oldLimit = getEffectiveSpeedLimit(db.settings);
+    db.settings.deferMerge = false;
+    db.settings.useAlternativeSpeed = false;
+    const newLimit = getEffectiveSpeedLimit(db.settings);
+    const speedLimitChanged = oldLimit !== newLimit;
+    writeDb(db);
+    broadcast('db_update', db);
+    if (speedLimitChanged && !downloadQueue.isPaused && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
+      restartActiveDownloadWithNewLimit(db, oldLimit, newLimit);
+    }
+    const autoRes = mergeQueue.startAllAutoIfIdle();
+    const mergeSuffix = (autoRes && autoRes.added > 0)
+      ? ` Bekleyen ${autoRes.added} video sırayla birleştiriliyor.`
+      : '';
+    const limitLabel = newLimit > 0 ? `${newLimit} KB/s` : 'Limitsiz';
+    return reply(`[Console] Oyun + Kaplumbağa Modu KAPATILDI: Geçerli hız ${limitLabel}, FFmpeg birleştirmeleri otomatik yapılacak.${mergeSuffix}`, 'info', 'Oyun + Kaplumbağa Modu Kapatıldı');
+  }
 
   // Oyun Modu (Ertelenmiş FFmpeg Birleştirme & Dönüştürme Kuyruğu) CLI komutları
   const isGameExplicitOn = command === 'gameon' || command === 'game-on' || command === 'oyunac' || command === 'oyun-ac' || command === 'defer-on' || command === 'deferon' ||

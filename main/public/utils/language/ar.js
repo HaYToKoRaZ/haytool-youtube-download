@@ -120,18 +120,16 @@ export const ar = {
   label_notify_dl_start_sound: "تنبيه صوتي عند بدء التنزيل",
   label_notify_dl_complete_toast: "إشعار سطح المكتب عند اكتمال التنزيل",
   label_notify_dl_complete_sound: "تنبيه صوتي عند اكتمال التنزيل",
-  label_notify_triggers_mr: "🔄 أحداث إشعارات الدمج",
-  label_notify_mr_start_toast: "إشعار سطح المكتب عند بدء الدمج",
-  label_notify_mr_start_sound: "تنبيه صوتي عند بدء الدمج",
-  label_notify_mr_complete_toast: "إشعار سطح المكتب عند اكتمال الدمج",
-  label_notify_mr_complete_sound: "تنبيه صوتي عند اكتمال الدمج",
-  desc_sound_download: "الصوت الذي يتم تشغيله عند بدء التنزيل أو اكتماله.",
-  label_sound_merge: "صوت إشعار الدمج",
-  desc_sound_merge: "الصوت الذي يتم تشغيله عند اكتمال دمج FFmpeg أو تحويل MP3.",
+  label_protocol_title: "التشغيل في التطبيق عند النقر (اختياري)",
+  desc_protocol_purpose: "يتيح فتح الفيديو الذي تم تنزيله مباشرة داخل مشغل Multimedia HaYTooL عند النقر على إشعار سطح المكتب أو زر \"▶️ تشغيل الآن\". هذه الميزة اختيارية تمامًا.",
+  text_protocol_portable_warning: "للاستخدام المحمول (Portable): إذا قمت بنقل مجلد التطبيق إلى مكان آخر، فما عليك سوى النقر فوق \"تحديث الموقع\".",
+  btn_protocol_register: "تفعيل الميزة",
+  btn_protocol_unregister: "إزالة الميزة",
+  desc_sound_download: "الصوت الذي يتم تشغيله عند اكتمال التنزيل.",
   opt_sound_chime: "🔔 رنين ناعم (افتراضي)",
   opt_sound_bell: "🛎️ جرس كلاسيكي",
   opt_sound_pop: "🫧 فرقعة خفيفة",
-  opt_sound_fanfare: "🎺 لحن النجاح (افتراضي)",
+  opt_sound_fanfare: "🎺 لحن النجاح",
   opt_sound_melodic: "🎵 نغمة موسيقية",
   opt_sound_subtle: "🌿 هادئ",
   opt_sound_silent: "🔕 صامت",
@@ -332,6 +330,8 @@ export const ar = {
   lbl_swap_screens: 'تبديل الشاشات',
   label_discord_rpc: 'حالة ديسكورد',
   desc_discord_rpc: 'عرض مقاطع الفيديو التي تمت مشاهدتها على ملفك الشخصي في ديسكورد',
+  label_prevent_sleep: 'منع السكون أثناء التنزيل',
+  desc_prevent_sleep: 'منع الكمبيوتر من السكون/السبات أثناء وجود تنزيل نشط',
   label_doubleclickaction: 'إجراء النقر المزدوج على أيقونة النظام',
   desc_doubleclickaction: 'يحدد أين تفتح الواجهة عند النقر المزدوج على أيقونة شريط المهام.',
   opt_doubleclick_system: 'متصفح النظام الافتراضي',
@@ -562,7 +562,7 @@ export const ar = {
   card_members_only: 'حصري للأعضاء',
   btn_update_metadata_dl: 'تحديث البيانات الوصفية',
   btn_bulk_delete_dl_toggle: 'الحذف الجماعي',
-  settings_title_backup_text: 'النسخ الاحتياطي لقاعدة البيانات والإعدادات',
+  settings_title_backup_text: 'النسخ الاحتياطي والمزامنة',
   desc_system_backup_info: 'تتم تخزين قاعدة البيانات (db.json)، القنوات المتابعة (channels.ini)، الفئات (categories.ini) وإعدادات النظام كأرشيفات ZIP مستقلة (.zip).',
   backup_auto_info_title: '🤖 النسخ الاحتياطي اليومي التلقائي وسياسة التدوير',
   backup_auto_info_desc: 'كل يوم عند بدء التطبيق، يتم إنشاء أول نسخة احتياطية كأرشيف ZIP (.zip). يتم الاحتفاظ بـ 10 عادية + 7 محمية يومياً (الحد الأقصى 17).',
@@ -597,19 +597,53 @@ export const ar = {
   ffmpeg_btn_install: 'تثبيت',
   settings_subtab_all: "الكل",
   settings_subtab_general: "عام والمظهر",
-  settings_subtab_download: "التنزيل والجودة",
+  settings_subtab_download: "التنزيل",
   settings_subtab_system: "النظام والمحرك",
-  settings_subtab_media: "المشغل والوسائط",
-  settings_subtab_notifications: "ملفات تعريف الارتباط والإشعارات",
-  settings_subtab_automation: "الأتمتة و RSS",
-  settings_subtab_backup: "النسخ الاحتياطي والذكاء الاصطناعي",
+  settings_subtab_media: "المشغل",
+  settings_subtab_notifications: "الإشعارات والتكاملات",
+  settings_subtab_automation: "الأتمتة والقنوات",
+  settings_subtab_backup: "النسخ الاحتياطي والمزامنة",
+
+  settings_subtab_library: 'المكتبة والتخزين',
+
+  settings_title_library_text: 'المكتبة والتخزين',
+
+  settings_subtab_youtube: 'حساب يوتيوب',
+
+  settings_title_youtube_text: 'حساب يوتيوب',
+
+  settings_subtab_ai: 'الذكاء الاصطناعي والصوت',
+
+  settings_title_ai_text: 'الذكاء الاصطناعي والصوت',
+
+
+  settings_search_placeholder: 'ابحث في الإعدادات...',
+
+
+  settings_search_empty: 'لم يتم العثور على إعدادات مطابقة.',
+
+
+
+  user_sort_drag_hint: 'اسحب أو استخدم الأسهم لإعادة الترتيب',
+
+
+
+  user_sort_move_up: 'تحريك لأعلى',
+
+
+
+  user_sort_move_down: 'تحريك لأسفل',
+
+
+
+  autoplay_playlist_finished: 'انتهت قائمة التشغيل.',
 
   settings_title_general_text: 'الإعدادات العامة والمظهر',
-  settings_title_media_text: 'تفضيلات المشغل والوسائط',
+  settings_title_media_text: 'المشغل',
   settings_title_system_text: 'تكوين النظام والمحرك',
-  settings_title_download_text: 'تكوين التنزيل والجودة',
-  settings_title_notifications_text: 'إعدادات الكوكيز والإشعارات',
-  settings_title_automation_text: 'الأتمتة ومراقبة RSS',
+  settings_title_download_text: 'التنزيل',
+  settings_title_notifications_text: 'الإشعارات والتكاملات',
+  settings_title_automation_text: 'الأتمتة والقنوات',
   label_live_stream_handling: 'إدارة البث المباشر والعروض الأولى',
   label_live_stream_retry_interval: 'فترة إعادة محاولة البث المباشر',
   opt_live_instant_retry: 'تنزيل فوراً وإعادة المحاولة تلقائياً (موصى به)',
@@ -685,6 +719,9 @@ export const ar = {
   logout_youtube_success: 'تم تسجيل الخروج من YouTube بنجاح.',
   topbar_cookie_active: 'جلسة YouTube نشطة (4K/1080p وحماية البوت مفعلة)',
   topbar_cookie_inactive: 'جلسة YouTube غير مسجلة (الوضع المجهول)',
+  topbar_cookie_verified: 'تم التحقق من جلسة يوتيوب',
+  topbar_cookie_missing: 'لم يتم العثور على جلسة يوتيوب',
+  status_audio_only: 'صوت فقط',
   label_delete_file_modal: 'حذف ملف الفيديو الذي تم تنزيله نهائيًا من الكمبيوتر',
   label_mark_watched_modal: 'وضع علامة تمت المشاهدة على YouTube أيضًا',
   label_hide_library_modal: 'إخفاء الفيديو أيضًا في المكتبة',
@@ -972,6 +1009,17 @@ export const ar = {
   cli_panel_title: 'أمثلة أوامر CLI ووحدة التحكم',
   cli_panel_subtitle: 'انقر على أي سطر لنسخ الأمر فوراً',
   cli_mode_haytool: 'اختصار (.\\haytool)',
+    cli_mode_haytool_global: 'haytool (PATH العام)',
+  cli_path_title: 'تكامل موجه الأوامر ووحدة التحكم (Windows PATH)',
+  cli_path_desc: 'يتيح لك تشغيل أوامر مثل "haytool gameon" أو "haytool speed 2500" مباشرة من أي مجلد في CMD أو PowerShell.',
+  cli_path_btn_enable: 'إضافة إلى Windows PATH',
+  cli_path_btn_disable: 'إزالة من PATH',
+  cli_path_status_active: 'PATH: نشط',
+  cli_path_status_inactive: 'PATH: غير نشط',
+  cli_path_bar_title: 'الوصول العام للموجه (Windows PATH)',
+  cli_path_loading: 'جارٍ المعالجة...',
+  cli_path_toast_enabled: 'تم تحديث Windows PATH! يمكنك الآن استخدام الأمر "haytool" مباشرة في نوافذ CMD/PowerShell الجديدة.',
+  cli_path_toast_disabled: 'تمت إزالة مسار التطبيق بنجاح من متغير Windows PATH.',
   cli_mode_exe: 'ملف Exe الكامل',
   cli_mode_console: 'وحدة تحكم الشريط',
   cli_btn_copy: 'نسخ',
@@ -979,6 +1027,10 @@ export const ar = {
   cli_toast_copied: 'تم نسخ الأمر إلى الحافظة',
   cli_btn_show_more: 'عرض جميع أوامر CLI',
   cli_btn_show_less: 'عرض أقل',
+  cli_cmd_gton: 'تفعيل وضع الألعاب + السلحفاة معاً',
+  cli_cmd_gtoff: 'إيقاف وضع الألعاب + السلحفاة معاً',
+  cli_cmd_pause: 'إيقاف التنزيلات النشطة والطابور مؤقتاً',
+  cli_cmd_resume: 'استئناف التنزيلات المتوقفة مؤقتاً',
   cli_cmd_gameon: 'تفعيل وضع الألعاب (تأجيل FFmpeg)',
   cli_cmd_gameoff: 'إيقاف وضع الألعاب (دمج متتابع)',
   cli_cmd_merge: 'بدء عمليات الدمج المنتظرة الآن',

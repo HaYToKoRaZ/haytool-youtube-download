@@ -125,18 +125,16 @@ export const tr = {
   label_notify_dl_start_sound: "İndirme başladığında sesli uyarı",
   label_notify_dl_complete_toast: "İndirme bittiğinde masaüstü bildirimi",
   label_notify_dl_complete_sound: "İndirme bittiğinde sesli uyarı",
-  label_notify_triggers_mr: "🔄 Birleştirme Bildirim Olayları",
-  label_notify_mr_start_toast: "Birleştirme başladığında masaüstü bildirimi",
-  label_notify_mr_start_sound: "Birleştirme başladığında sesli uyarı",
-  label_notify_mr_complete_toast: "Birleştirme bittiğinde masaüstü bildirimi",
-  label_notify_mr_complete_sound: "Birleştirme bittiğinde sesli uyarı",
-  desc_sound_download: "Video indirmesi başladığında ve bittiğinde çalınacak ses.",
-  label_sound_merge: "Birleştirme Bildirim Sesi",
-  desc_sound_merge: "FFmpeg video/ses birleştirmesi veya MP3 dönüştürmesi tamamlandığında çalınacak ses.",
+  label_protocol_title: "Bildirime Tıklayınca Uygulamada Oynatma (İsteğe Bağlı)",
+  desc_protocol_purpose: "İndirme tamamlandığında Windows masaüstü bildirimine veya \"▶️ Hemen Oynat\" butonuna tıklandığında videonun doğrudan Multimedia HaYTooL yerleşik oynatıcısında açılmasını sağlar. Bu özellik zorunlu değildir; eklemek istemiyorsanız hiçbir işlem yapmanıza gerek yoktur.",
+  text_protocol_portable_warning: "Taşınabilir (Portable) Kullanım: Uygulamanın bulunduğu klasörün yerini değiştirirseniz yeni konumu eşitlemek için \"Konumu Güncelle\" butonuna basmanız yeterlidir.",
+  btn_protocol_register: "Özelliği Etkinleştir",
+  btn_protocol_unregister: "Özelliği Kaldır",
+  desc_sound_download: "Video indirmesi tamamlandığında çalınacak ses.",
   opt_sound_chime: "🔔 Yumuşak Zil (Varsayılan)",
   opt_sound_bell: "🛎️ Klasik Zil",
   opt_sound_pop: "🫧 Minimal Pop",
-  opt_sound_fanfare: "🎺 Başarı Akoru (Varsayılan)",
+  opt_sound_fanfare: "🎺 Başarı Akoru",
   opt_sound_melodic: "🎵 Melodik",
   opt_sound_subtle: "🌿 Hafif",
   opt_sound_silent: "🔕 Sessiz",
@@ -332,6 +330,8 @@ export const tr = {
   lbl_swap_screens: 'Yer Değiştir',
   label_discord_rpc: 'Discord Durumu',
   desc_discord_rpc: 'İzlenen videoları Discord profilinde göster',
+  label_prevent_sleep: 'İndirirken Uykuyu Engelle',
+  desc_prevent_sleep: 'Aktif indirme varken bilgisayar uykuya/hazırda beklemeye geçmesin',
   label_doubleclickaction: 'Tepsi Çift Tıklama Eylemi',
   desc_doubleclickaction: 'Tepsi simgesine çift tıklandığında arayüzün nerede açılacağını belirler.',
   opt_doubleclick_system: 'Sistem Varsayılan Tarayıcısı',
@@ -562,7 +562,7 @@ export const tr = {
   card_members_only: 'Katıl / Üyelere Özel',
   btn_update_metadata_dl: 'Metadata Güncelle',
   btn_bulk_delete_dl_toggle: 'Toplu Silme',
-  settings_title_backup_text: 'Sistem Veritabanı & Ayar Yedekleme',
+  settings_title_backup_text: 'Yedekleme & Senkron',
   desc_system_backup_info: 'Veritabanınız (db.json), takip ettiğiniz kanallar (channels.ini), kategorileriniz (categories.ini) ve sistem yapılandırmalarınız tıpkı Gist\'teki gibi bağımsız ayrı dosyalar halinde ZIP arşivi (.zip) olarak saklanır.',
   backup_auto_info_title: '🤖 Otomatik Günlük Sistem Yedeği & Rotasyon Politikası',
   backup_auto_info_desc: 'Her gün uygulama başlatıldığında bugünün ilk yedeği otomatik olarak ZIP arşivi (.zip) formatında alınır. Klasörde 10 Normal + 7 Günlük Korunan (Toplam Maksimum 17 Yedek) saklanır.',
@@ -597,19 +597,53 @@ export const tr = {
   ffmpeg_btn_install: 'Kur',
   settings_subtab_all: "Tümü",
   settings_subtab_general: "Genel & Görünüm",
-  settings_subtab_download: "İndirme & Kalite",
+  settings_subtab_download: "İndirme",
   settings_subtab_system: "Sistem & Motor",
-  settings_subtab_media: "Oynatıcı & Medya",
-  settings_subtab_notifications: "Çerez & Bildirim",
-  settings_subtab_automation: "Otomasyon & RSS",
-  settings_subtab_backup: "Yedekleme & AI",
+  settings_subtab_media: "Oynatıcı",
+  settings_subtab_notifications: "Bildirim & Entegrasyon",
+  settings_subtab_automation: "Otomasyon & Kanallar",
+  settings_subtab_backup: "Yedekleme & Senkron",
+
+  settings_subtab_library: 'Kütüphane & Depolama',
+
+  settings_title_library_text: 'Kütüphane & Depolama',
+
+  settings_subtab_youtube: 'YouTube Hesabı',
+
+  settings_title_youtube_text: 'YouTube Hesabı',
+
+  settings_subtab_ai: 'Yapay Zekâ & Ses',
+
+  settings_title_ai_text: 'Yapay Zekâ & Ses',
+
+
+  settings_search_placeholder: 'Ayarlarda ara...',
+
+
+  settings_search_empty: 'Eşleşen ayar bulunamadı.',
+
+
+
+  user_sort_drag_hint: 'Sürükleyerek veya oklarla sıralayın',
+
+
+
+  user_sort_move_up: 'Yukarı Taşı',
+
+
+
+  user_sort_move_down: 'Aşağı Taşı',
+
+
+
+  autoplay_playlist_finished: 'Çalma listesi tamamlandı.',
 
   settings_title_general_text: 'Genel & Görünüm Ayarları',
-  settings_title_media_text: 'Oynatıcı & Medya Tercihleri',
+  settings_title_media_text: 'Oynatıcı',
   settings_title_system_text: 'Sistem & Motor Yapılandırması',
-  settings_title_download_text: 'İndirme ve Kalite Yapılandırması',
-  settings_title_notifications_text: 'Çerez & Bildirim Ayarları',
-  settings_title_automation_text: 'Otomasyon & RSS Denetimi',
+  settings_title_download_text: 'İndirme',
+  settings_title_notifications_text: 'Bildirim & Entegrasyon',
+  settings_title_automation_text: 'Otomasyon & Kanallar',
   label_live_stream_handling: 'Canlı Yayın & Prömiyer Yönetimi',
   label_live_stream_retry_interval: 'Canlı Yayın Tekrar Deneme Aralığı',
   opt_live_instant_retry: 'Anında İndir & Otomatik Tekrar Dene (Önerilen)',
@@ -685,6 +719,9 @@ export const tr = {
   logout_youtube_success: 'YouTube oturumu başarıyla kapatıldı.',
   topbar_cookie_active: 'YouTube Oturumu Aktif (4K/1080p ve Bot Koruması Devrede)',
   topbar_cookie_inactive: 'YouTube Oturumu Açılmamış (Anonim Mod)',
+  topbar_cookie_verified: 'YouTube Oturumu Doğrulandı',
+  topbar_cookie_missing: 'YouTube Oturumu Bulunamadı',
+  status_audio_only: 'Yalnızca Ses',
   label_delete_file_modal: 'İndirilen video dosyasını bilgisayardan da kalıcı olarak sil',
   label_mark_watched_modal: 'YouTube\'da da izlendi olarak işaretle',
   label_hide_library_modal: 'Videoyu kütüphanede gizlenenlere ekle',
@@ -978,6 +1015,17 @@ export const tr = {
   cli_panel_title: 'CLI & Konsol Komut Örnekleri',
   cli_panel_subtitle: 'Herhangi bir satıra tıklayarak komutu kopyalayın',
   cli_mode_haytool: 'Kısayol (.\\haytool)',
+  cli_mode_haytool_global: 'haytool (Global PATH)',
+  cli_path_title: 'Terminal & Konsol Entegrasyonu (Windows PATH)',
+  cli_path_desc: 'CMD veya PowerShell penceresinde herhangi bir klasördeyken doğrudan "haytool gameon" veya "haytool speed 2500" gibi komutları çalıştırabilmenizi sağlar.',
+  cli_path_btn_enable: 'Windows PATH\'e Ekle',
+  cli_path_btn_disable: 'PATH\'ten Kaldır',
+  cli_path_status_active: 'PATH: Aktif',
+  cli_path_status_inactive: 'PATH: Pasif',
+  cli_path_bar_title: 'Global Terminal Erişimi (Windows PATH)',
+  cli_path_loading: 'İşleniyor...',
+  cli_path_toast_enabled: 'Windows PATH güncellendi! Yeni açılacak CMD/PowerShell pencerelerinde "haytool" komutunu doğrudan kullanabilirsiniz.',
+  cli_path_toast_disabled: 'Uygulama dizini Windows PATH değişkeninden başarıyla kaldırıldı.',
   cli_mode_exe: 'Tam Exe',
   cli_mode_console: 'Tepsi Konsolu',
   cli_btn_copy: 'Kopyala',
@@ -985,6 +1033,10 @@ export const tr = {
   cli_toast_copied: 'Komut panoya kopyalandı',
   cli_btn_show_more: 'Tüm CLI Komutlarını Göster',
   cli_btn_show_less: 'Daha Az Göster',
+  cli_cmd_gton: 'Oyun + Kaplumbağa modunu birlikte aç',
+  cli_cmd_gtoff: 'Oyun + Kaplumbağa modunu birlikte kapat',
+  cli_cmd_pause: 'Aktif indirmeleri ve kuyruğu duraklat',
+  cli_cmd_resume: 'Duraklatılan indirmeleri devam ettir',
   cli_cmd_gameon: 'Oyun modunu aç (FFmpeg ertele)',
   cli_cmd_gameoff: 'Oyun modunu kapat (sırayla birleştir)',
   cli_cmd_merge: 'Bekleyen birleştirmeleri başlat',

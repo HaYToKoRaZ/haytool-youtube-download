@@ -11,48 +11,65 @@
         <div class="card card-settings">
           <form id="settings-form">
             <!-- Modern Ayarlar Alt Sekme Çubuğu -->
-            <div class="settings-subtabs-bar" role="tablist" aria-label="Ayarlar Kategorileri">
-              <button type="button" class="settings-subtab-btn active" data-subtab="all" onclick="switchSettingsSubtab('all')" role="tab" aria-selected="true">
-                <i data-lucide="layout-grid"></i>
-                <span id="settings-subtab-label-all">Tümü</span>
-              </button>
-              <button type="button" class="settings-subtab-btn" data-subtab="general" onclick="switchSettingsSubtab('general')" role="tab" aria-selected="false">
-                <i data-lucide="palette"></i>
-                <span id="settings-subtab-label-general">Genel & Görünüm</span>
-              </button>
-              <button type="button" class="settings-subtab-btn" data-subtab="download" onclick="switchSettingsSubtab('download')" role="tab" aria-selected="false">
-                <i data-lucide="download-cloud"></i>
-                <span id="settings-subtab-label-download">İndirme & Kalite</span>
-              </button>
-              <button type="button" class="settings-subtab-btn" data-subtab="system" onclick="switchSettingsSubtab('system')" role="tab" aria-selected="false">
-                <i data-lucide="cpu"></i>
-                <span id="settings-subtab-label-system">Sistem & Motor</span>
-              </button>
-              <button type="button" class="settings-subtab-btn" data-subtab="media" onclick="switchSettingsSubtab('media')" role="tab" aria-selected="false">
-                <i data-lucide="play-circle"></i>
-                <span id="settings-subtab-label-media">Oynatıcı & Medya</span>
-              </button>
-              <button type="button" class="settings-subtab-btn" data-subtab="notifications" onclick="switchSettingsSubtab('notifications')" role="tab" aria-selected="false">
-                <i data-lucide="bell"></i>
-                <span id="settings-subtab-label-notifications">Çerez & Bildirim</span>
-              </button>
-              <button type="button" class="settings-subtab-btn" data-subtab="automation" onclick="switchSettingsSubtab('automation')" role="tab" aria-selected="false">
-                <i data-lucide="bot"></i>
-                <span id="settings-subtab-label-automation">Otomasyon & RSS</span>
-              </button>
-              <button type="button" class="settings-subtab-btn" data-subtab="backup" onclick="switchSettingsSubtab('backup')" role="tab" aria-selected="false">
-                <i data-lucide="database"></i>
-                <span id="settings-subtab-label-backup">Yedekleme & AI</span>
-              </button>
-            </div>
+            <aside class="settings-rail">
+                <div class="settings-search">
+                  <i data-lucide="search" aria-hidden="true"></i>
+                  <input type="search" id="settings-search-input" class="settings-search-input" autocomplete="off" spellcheck="false" data-no-autosave placeholder="Ayarlarda ara..." aria-label="Ayarlarda ara">
+                </div>
+                <div class="settings-subtabs-bar" role="tablist" aria-label="Ayarlar Kategorileri">
+                <button type="button" class="settings-subtab-btn active" data-subtab="all" onclick="switchSettingsSubtab('all')" role="tab" aria-selected="true">
+                  <i data-lucide="layout-grid"></i>
+                  <span id="settings-subtab-label-all">Tümü</span>
+                </button>
+                <button type="button" class="settings-subtab-btn" data-subtab="general" onclick="switchSettingsSubtab('general')" role="tab" aria-selected="false">
+                  <i data-lucide="palette"></i>
+                  <span id="settings-subtab-label-general">Genel & Görünüm</span>
+                </button>
+                <button type="button" class="settings-subtab-btn" data-subtab="download" onclick="switchSettingsSubtab('download')" role="tab" aria-selected="false">
+                  <i data-lucide="download-cloud"></i>
+                  <span id="settings-subtab-label-download">İndirme</span>
+                </button>
+                <button type="button" class="settings-subtab-btn" data-subtab="library" onclick="switchSettingsSubtab('library')" role="tab" aria-selected="false">
+                  <i data-lucide="library"></i>
+                  <span id="settings-subtab-label-library">Kütüphane & Depolama</span>
+                </button>
+                <button type="button" class="settings-subtab-btn" data-subtab="automation" onclick="switchSettingsSubtab('automation')" role="tab" aria-selected="false">
+                  <i data-lucide="bot"></i>
+                  <span id="settings-subtab-label-automation">Otomasyon & Kanallar</span>
+                </button>
+                <button type="button" class="settings-subtab-btn" data-subtab="media" onclick="switchSettingsSubtab('media')" role="tab" aria-selected="false">
+                  <i data-lucide="play-circle"></i>
+                  <span id="settings-subtab-label-media">Oynatıcı</span>
+                </button>
+                <button type="button" class="settings-subtab-btn" data-subtab="youtube" onclick="switchSettingsSubtab('youtube')" role="tab" aria-selected="false">
+                  <i data-lucide="shield-check"></i>
+                  <span id="settings-subtab-label-youtube">YouTube Hesabı</span>
+                </button>
+                <button type="button" class="settings-subtab-btn" data-subtab="notifications" onclick="switchSettingsSubtab('notifications')" role="tab" aria-selected="false">
+                  <i data-lucide="bell"></i>
+                  <span id="settings-subtab-label-notifications">Bildirim & Entegrasyon</span>
+                </button>
+                <button type="button" class="settings-subtab-btn" data-subtab="system" onclick="switchSettingsSubtab('system')" role="tab" aria-selected="false">
+                  <i data-lucide="cpu"></i>
+                  <span id="settings-subtab-label-system">Sistem & Motor</span>
+                </button>
+                <button type="button" class="settings-subtab-btn" data-subtab="backup" onclick="switchSettingsSubtab('backup')" role="tab" aria-selected="false">
+                  <i data-lucide="database"></i>
+                  <span id="settings-subtab-label-backup">Yedekleme & Senkron</span>
+                </button>
+                <button type="button" class="settings-subtab-btn" data-subtab="ai" onclick="switchSettingsSubtab('ai')" role="tab" aria-selected="false">
+                  <i data-lucide="sparkles"></i>
+                  <span id="settings-subtab-label-ai">Yapay Zekâ & Ses</span>
+                </button>
+                </div>
+              </aside>
 
                         <div class="settings-layout-modern view-all" id="settings-layout-container">
-              <!-- Sütun 1: Genel, Oynatıcı, Çerez & Bildirim, Otomasyon -->
-              <div class="settings-column">
+                <p id="settings-search-empty" class="settings-search-empty" hidden>Eşleşen ayar bulunamadı.</p>
+                <div class="settings-column">
                 <div class="settings-subtab-panel active" id="settings-subtab-general" data-category="general">
                 <div class="settings-card" id="subtab-general">
                   <h3 class="settings-section-title"><i data-lucide="palette"></i> <span id="settings-title-general-text">Genel & Görünüm Ayarları</span></h3>
-                  
                   <div class="form-grid">
                     <div class="form-group">
                       <label id="label-lang">Uygulama Dili / App Language</label>
@@ -96,24 +113,6 @@
                       <input type="hidden" id="settings-lang" value="tr">
                       <small class="form-text" id="desc-lang">Arayüz dilini seçin.</small>
                     </div>
-
-                    <div class="form-group">
-                      <label for="settings-preferredaudiolang" id="label-preferred-audio-lang">Tercih Edilen Ses & Başlık Dili</label>
-                      <select id="settings-preferredaudiolang">
-                        <option value="auto" id="opt-audio-lang-auto">Otomatik (Uygulama Diliyle Aynı)</option>
-                        <option value="tr" id="opt-audio-lang-tr">Türkçe (TR)</option>
-                        <option value="en" id="opt-audio-lang-en">English (EN)</option>
-                        <option value="es" id="opt-audio-lang-es">Español (ES)</option>
-                        <option value="de" id="opt-audio-lang-de">Deutsch (DE)</option>
-                        <option value="pt" id="opt-audio-lang-pt">Português (PT)</option>
-                        <option value="ru" id="opt-audio-lang-ru">Русский (RU)</option>
-                        <option value="ar" id="opt-audio-lang-ar">العربية (AR)</option>
-                      </select>
-                      <small class="form-text" id="desc-preferred-audio-lang">Çoklu dil sunan videolarda öncelikli ses dili.</small>
-                    </div>
-                  </div>
-
-                  <div class="form-grid">
                     <div class="form-group">
                       <label for="settings-theme" id="label-theme">Görünüm Teması</label>
                       <select id="settings-theme">
@@ -125,24 +124,6 @@
                       </select>
                       <small class="form-text" id="desc-theme">Arayüzün renk temasını seçin.</small>
                     </div>
-
-                    <div class="form-group">
-                      <label for="settings-doubleclickaction" id="label-doubleclickaction">Tepsi Çift Tıklama Eylemi</label>
-                      <select id="settings-doubleclickaction">
-                        <option value="system" id="opt-doubleclick-system">Sistem Varsayılan Tarayıcısı</option>
-                        <option value="embedded" id="opt-doubleclick-embedded">Kendi Tarayıcısı (Edge Uygulama Modu)</option>
-                        <option value="player" id="opt-doubleclick-player" selected>Yerleşik Oynatıcı (Multimedia HaYTooL)</option>
-                      </select>
-                      <small class="form-text" id="desc-doubleclickaction">Tepsi simgesine çift tıklandığında açılacak ortam.</small>
-                    </div>
-                  </div>
-
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-port" id="label-port">Uygulama Port Numarası</label>
-                      <input type="number" id="settings-port" min="80" max="65535" required>
-                      <small class="form-text" id="desc-port">Uygulama arayüz portu.</small>
-                    </div>
                     <div class="form-group">
                       <label for="settings-autoopenbrowser" id="label-auto-open-browser-container">Tarayıcıyı Otomatik Aç</label>
                       <div class="toggle-container" style="margin-top: 12px;">
@@ -151,9 +132,6 @@
                         <span id="desc-auto-open-browser">Açılışta localhost sayfasını otomatik aç</span>
                       </div>
                     </div>
-                  </div>
-
-                  <div class="form-grid">
                     <div class="form-group" style="grid-column: 1 / -1;">
                       <label for="settings-unload-ui-on-hide" id="label-unload-ui-on-hide">Sistem Tepsisine Küçültüldüğünde Arayüzü Uyut (RAM / GPU Tasarrufu)</label>
                       <div class="toggle-container" style="margin-top: 10px;">
@@ -163,8 +141,6 @@
                       </div>
                     </div>
                   </div>
-
-                  <!-- Hava Durumu Yapılandırması -->
                   <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-color);">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                       <label style="font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--text-main); font-size: 0.9rem;">
@@ -228,163 +204,229 @@
                     </div>
                   </div>
                 </div>
-              </div>
-
-                <div class="settings-subtab-panel active" id="settings-subtab-media" data-category="media">
-                <div class="settings-card" id="subtab-media">
-                  <h3 class="settings-section-title"><i data-lucide="play-circle"></i> <span id="settings-title-media-text">Oynatıcı & Medya Tercihleri</span></h3>
-
-                    <div class="form-group">
-                      <label for="settings-player-gpu-mode" id="label-player-gpu-mode">Video Oynatma & Arayüz Donanım Hızlandırma (GPU / CPU)</label>
-                      <select id="settings-player-gpu-mode">
-                        <option value="gpu" id="opt-player-gpu">🚀 Ekran Kartı (GPU) ile Oynat — Akıcı Video & Düşük CPU (Önerilen)</option>
-                        <option value="cpu" id="opt-player-cpu">🖥️ İşlemci (CPU) ile Oynat — Yazılımsal Çözme (GPU Sorunları İçin)</option>
-                      </select>
-                      <small id="desc-player-gpu-mode" class="form-text">İndirilen videoların dahili oynatıcıda ve masaüstü arayüzünde ekran kartı (GPU) mı yoksa işlemci (CPU) ile mi çözüleceğini belirler (Değişiklik için yeniden başlatma gerekir).</small>
+                </div>
+                <div class="settings-subtab-panel active" id="settings-subtab-download" data-category="download">
+                <div class="settings-card" id="subtab-download">
+                  <h3 class="settings-section-title"><i data-lucide="download-cloud"></i> <span id="settings-title-download-text">İndirme</span></h3>
+                  <div class="form-group">
+                    <label for="settings-download-path" id="label-download-path">İndirme Klasörü Konumu</label>
+                    <div class="input-action-row">
+                      <input type="text" id="settings-download-path" required>
+                      <button type="button" id="select-folder-btn" class="btn btn-secondary">
+                        <i data-lucide="folder"></i>
+                        <span>Klasör Seç</span>
+                      </button>
+                      <button type="button" id="test-folder-btn" class="btn btn-secondary">
+                        <i data-lucide="folder-open"></i>
+                        <span>Test Et</span>
+                      </button>
                     </div>
-                  
-                    <div class="form-group">
-                      <label for="settings-subtitle-color" id="label-subtitle-color">Altyazı Rengi</label>
-                      <select id="settings-subtitle-color">
-                        <option value="#ffffff" id="opt-sub-white">Beyaz</option>
-                        <option value="#ffff00" id="opt-sub-yellow">Sarı</option>
-                        <option value="#00ff00" id="opt-sub-green">Yeşil</option>
-                        <option value="#00ffff" id="opt-sub-cyan">Turkuaz</option>
-                        <option value="#ff00ff" id="opt-sub-magenta">Pembe</option>
-                        <option value="#ff0000" id="opt-sub-red">Kırmızı</option>
-                      </select>
-                      <small id="desc-subtitle-color" class="form-text">Gömülü oynatıcı altyazı rengi.</small>
-                    </div>
-
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-sponsorblock" id="label-sponsorblock">SponsorBlock (Oynatıcı)</label>
-                      <div class="toggle-container" style="margin-top: 12px;">
-                        <input type="checkbox" id="settings-sponsorblock" class="toggle-input">
-                        <label for="settings-sponsorblock" class="toggle-label"></label>
-                        <span id="desc-sponsorblock">Sponsorlu alanları otomatik atla</span>
+                    <small class="form-text" id="desc-download-path">Videoların kaydedileceği bilgisayarınızdaki klasör yolu.</small>
+                  </div>
+                    <div class="form-group" style="margin-top: 12px;">
+                      <label for="settings-temp-dir-type" id="label-temp-dir-type">Geçici Dosyalar (Temp) Klasörü Konumu</label>
+                      <div class="input-action-row" style="display: flex; gap: 8px; align-items: center;">
+                        <select id="settings-temp-dir-type" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem; flex: 1;">
+                          <option value="system" id="opt-temp-system" selected>Windows Varsayılanı (Sistem Geçici Klasörü)</option>
+                          <option value="local" id="opt-temp-local">Uygulama İçi (Uygulama klasöründeki Temp dizini)</option>
+                        </select>
+                        <button type="button" id="open-temp-folder-btn" onclick="openTempFolder()" class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px;">
+                          <i data-lucide="folder-open"></i>
+                          <span id="btn-open-temp-text">Temp Klasörünü Aç</span>
+                        </button>
+                      </div>
+                      <div class="adv-disadv-box" style="margin-top: 6px; padding: 8px 10px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); font-size: 0.78rem; line-height: 1.45;">
+                        <span id="desc-temp-dir-info">
+                          <strong>Uygulama İçi (Önerilen):</strong> Tüm indirme parçalarını ve geçici dosyaları uygulamanın kendi 'Temp' klasörüne yönlendirir; sistem açılışında otomatik temizlenir ve Windows Temp dizinini şişirmez.<br>
+                          <strong>Windows Varsayılanı:</strong> İşletim sisteminin standart geçici klasörünü (AppData\Local\Temp) kullanır.
+                        </span>
                       </div>
                     </div>
+                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <label for="settings-use-temp-staging" id="label-use-temp-staging" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0; cursor: pointer;">
+                          <i data-lucide="hard-drive-download" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
+                          <span id="text-use-temp-staging-title">SSD Tamponlama: Geçici Klasörde İndir & Birleştir</span>
+                        </label>
+                        <div class="toggle-container">
+                          <input type="checkbox" id="settings-use-temp-staging" class="toggle-input">
+                          <label for="settings-use-temp-staging" class="toggle-label"></label>
+                        </div>
+                      </div>
+                      <div class="adv-disadv-box" style="margin-top: 8px; padding: 8px 10px; border-radius: 6px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.15); font-size: 0.76rem; line-height: 1.45; color: var(--text-muted);">
+                        <span id="desc-use-temp-staging-info">
+                          <strong>Mekanik Harici HDD Koruma Modu:</strong> Açıldığında indirme ve FFmpeg ses/video birleştirme işlemleri sistemin hızlı geçici klasöründe (SSD / Temp) yürütülür. Video tamamen bittiğinde hedef indirme klasörüne tek parça halinde taşınır. Mekanik harici disklerin indirme ve birleştirme esnasında %100 kullanıma ulaşıp kilitlenmesini ve aşırı ısınmasını önler.
+                        </span>
+                      </div>
+                    </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-quality" id="label-quality">Varsayılan İndirme Kalitesi</label>
+                      <select id="settings-quality">
+                        <option value="best" id="opt-quality-best">En Yüksek Kalite (Otomatik)</option>
+                        <option value="1080p" id="opt-quality-1080p">Maksimum 1080p Full HD</option>
+                        <option value="720p" id="opt-quality-720p">Maksimum 720p HD</option>
+                      </select>
+                      <small class="form-text" id="desc-quality">Varsayılan indirme kalitesi.</small>
+                    </div>
 
                     <div class="form-group">
-                      <label for="settings-alt-thumbnails-hover" id="label-alt-thumbnails-hover">Alternatif Kapak Döngüsü</label>
-                      <div class="toggle-container" style="margin-top: 12px;">
-                        <input type="checkbox" id="settings-alt-thumbnails-hover" class="toggle-input" checked>
-                        <label for="settings-alt-thumbnails-hover" class="toggle-label"></label>
-                        <span id="desc-alt-thumbnails-hover">Fare üzerinde kapak resimlerini döndür</span>
+                      <label for="settings-mergetype" id="label-merge-type">İndirme Yöntemi (FFmpeg / Dosya Yapısı)</label>
+                      <select id="settings-mergetype">
+                        <option value="single" id="opt-merge-single" selected>Tek Hazır Dosya (720p max)</option>
+                        <option value="merge" id="opt-merge-merge">Otomatik Birleştir (1080p+ ffmpeg)</option>
+                        <option value="separate" id="opt-merge-separate">Ses ve Videoyu Ayrı İndir</option>
+                      </select>
+                      <div class="settings-ffmpeg-row" style="margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span id="label-ffmpeg-status-text" style="font-size: 0.78rem; color: var(--text-muted);">Sistem FFmpeg Durumu:</span>
+                        <span id="settings-ffmpeg-status" class="ffmpeg-status-indicator not-installed">Kontrol ediliyor...</span>
+                        <span id="settings-ffmpeg-version-info" style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border-color); display: none;"></span>
+                        <button type="button" class="btn btn-secondary btn-xs" id="settings-ffmpeg-btn" style="margin-left: 4px;">Kur</button>
                       </div>
                     </div>
                   </div>
-
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-preferredaudiolang" id="label-preferred-audio-lang">Tercih Edilen Ses & Başlık Dili</label>
+                      <select id="settings-preferredaudiolang">
+                        <option value="auto" id="opt-audio-lang-auto">Otomatik (Uygulama Diliyle Aynı)</option>
+                        <option value="tr" id="opt-audio-lang-tr">Türkçe (TR)</option>
+                        <option value="en" id="opt-audio-lang-en">English (EN)</option>
+                        <option value="es" id="opt-audio-lang-es">Español (ES)</option>
+                        <option value="de" id="opt-audio-lang-de">Deutsch (DE)</option>
+                        <option value="pt" id="opt-audio-lang-pt">Português (PT)</option>
+                        <option value="ru" id="opt-audio-lang-ru">Русский (RU)</option>
+                        <option value="ar" id="opt-audio-lang-ar">العربية (AR)</option>
+                      </select>
+                      <small class="form-text" id="desc-preferred-audio-lang">Çoklu dil sunan videolarda öncelikli ses dili.</small>
+                    </div>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-hwaccel" id="label-hwaccel">İndirme Birleştirme & Dönüştürme (FFmpeg GPU / CPU)</label>
+                      <select id="settings-hwaccel">
+                        <option value="auto" id="opt-hwaccel-auto">Otomatik (Önerilen GPU / CPU)</option>
+                        <option value="nvenc" id="opt-hwaccel-nvenc">NVIDIA NVENC (GeForce / RTX)</option>
+                        <option value="qsv" id="opt-hwaccel-qsv">Intel Quick Sync (QSV)</option>
+                        <option value="amf" id="opt-hwaccel-amf">AMD AMF (Radeon)</option>
+                        <option value="cpu" id="opt-hwaccel-cpu">Yalnızca CPU (Yazılımsal)</option>
+                      </select>
+                      <div class="settings-hwaccel-row" style="margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span id="label-gpu-detected-text" style="font-size: 0.78rem; color: var(--text-muted);">Algılanan Donanım:</span>
+                        <span id="settings-gpu-detected" style="font-size: 0.75rem; color: var(--accent-color); background: rgba(56, 189, 248, 0.1); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">Tarama yapılıyor...</span>
+                      </div>
+                      <small class="form-text" id="desc-hwaccel">İndirilen yüksek çözünürlüklü (1080p/4K) videoların FFmpeg ile birleştirilmesi ve dönüştürülmesinde ekran kartı (GPU) veya işlemci (CPU) kullanımını belirler.</small>
+                      <div style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                          <label for="settings-defer-merge" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0; cursor: pointer;">
+                            <i data-lucide="gamepad-2" style="width: 16px; height: 16px; color: var(--primary);"></i>
+                            <span id="label-settings-defer-merge">Oyun Modu: FFmpeg Birleştirme ve Dönüştürmeyi Ertele</span>
+                          </label>
+                          <div class="toggle-container">
+                            <input type="checkbox" id="settings-defer-merge" class="toggle-input">
+                            <label for="settings-defer-merge" class="toggle-label"></label>
+                          </div>
+                        </div>
+                        <small class="form-text" id="desc-settings-defer-merge" style="display:block; margin-top:6px;">Açıkken videolar tam hızda indirilir ancak PC'ye yük bindirmemek için FFmpeg birleştirmeleri kuyrukta bekletilir. Mod kapatıldığında otomatik sırayla birleştirilir.</small>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-speedlimit" id="label-settings-speed-limit">Maksimum İndirme Hızı (KB/s)</label>
+                      <input type="number" id="settings-speedlimit" min="0" max="100000" required>
+                      <small class="form-text" id="desc-speed-limit">Hız sınırı (Sınırsız için 0).</small>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-altspeedlimit" id="label-settings-alt-speed-limit"><span id="label-settings-alt-speed-limit-text">Alternatif İndirme Hızı (KB/s)</span> <i data-lucide="turtle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-left:4px;"></i></label>
+                      <input type="number" id="settings-altspeedlimit" min="0" max="100000" required>
+                      <small class="form-text" id="desc-alt-speed-limit">Turtle modu hızı.</small>
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin-top: 8px;">
+                    <label for="settings-writethumbnail" id="label-write-thumbnail">Kapak Resmi</label>
+                    <div class="toggle-container" style="margin-top: 8px;">
+                      <input type="checkbox" id="settings-writethumbnail" class="toggle-input">
+                      <label for="settings-writethumbnail" class="toggle-label"></label>
+                      <span id="desc-write-thumbnail">Video kapak resmini yanına indir</span>
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin-top: 10px;">
+                    <label for="settings-network-retry-interval" id="label-network-retry-interval">İnternet Kesintisinde Tekrar Deneme Sıklığı (Saniye)</label>
+                    <input type="number" id="settings-network-retry-interval" min="5" max="3600" value="120" required>
+                    <small class="form-text" id="desc-network-retry-interval">İnternet bağlantısı koptuğunda kuyruğun bağlantıyı yeniden deneme sıklığı (Varsayılan: 120 saniye / 2 dakika).</small>
+                  </div>
+                  <div class="form-group" style="margin-top: 8px;">
+                    <label for="settings-prevent-sleep" id="label-prevent-sleep">İndirirken Uykuyu Engelle</label>
+                    <div class="toggle-container" style="margin-top: 8px;">
+                      <input type="checkbox" id="settings-prevent-sleep" class="toggle-input">
+                      <label for="settings-prevent-sleep" class="toggle-label"></label>
+                      <span id="desc-prevent-sleep">Aktif indirme varken bilgisayar uykuya/hazırda beklemeye geçmesin</span>
+                    </div>
+                  </div>
+                  <div id="cli-commands-panel" class="cli-commands-panel"></div>
+                </div>
+                </div>
+                <div class="settings-subtab-panel active" id="settings-subtab-library" data-category="library">
+                <div class="settings-card" id="subtab-library">
+                  <h3 class="settings-section-title"><i data-lucide="library"></i> <span id="settings-title-library-text">Kütüphane & Depolama</span></h3>
                   <div class="form-group" style="margin-top: 10px;">
                     <label id="label-history-limit" for="settings-history-limit">Kütüphane Görüntüleme Sınırı</label>
                     <input type="number" id="settings-history-limit" min="1" max="10000" required style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
                     <small id="desc-history-limit" class="form-text">Kütüphanede kanal başına <strong>görüntülenecek</strong> maksimum video sayısı (veritabanı sınırı değil).</small>
                   </div>
-                </div>
-              </div>
-
-                <div class="settings-subtab-panel active" id="settings-subtab-notifications" data-category="notifications">
-                <div class="settings-card" id="subtab-notifications">
-                  <h3 class="settings-section-title"><i data-lucide="bell"></i> <span id="settings-title-notifications-text">Çerez & Bildirim</span></h3>
-                  
-                  <!-- YouTube Oturumu & Çerez Yönetimi -->
-                  <div class="form-group" style="margin-bottom: 16px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
-                      <label style="font-weight: 600; margin: 0; color: var(--text-main); font-size: 0.9rem;" id="label-youtube-auth-title">YouTube Oturumu & Bot Koruması</label>
-                      <div id="cookie-status-badge" style="font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; font-weight: 600; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); display: inline-flex; align-items: center; gap: 4px;">
-                        <i data-lucide="shield-alert" style="width: 12px; height: 12px;"></i>
-                        <span id="cookie-status-text">Oturum Açılmamış (Anonim Mod)</span>
-                      </div>
-                    </div>
-
-                    <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-                      <span style="font-size: 0.78rem; color: var(--text-muted);" id="cookie-tray-hint">
-                        💡 Oturum açmak için sağ alttaki tepsi simgesine sağ tıklayıp <strong>"YouTube'da Oturum Aç"</strong> seçebilirsiniz.
-                      </span>
-                      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" id="btn-open-yt-login" onclick="openYouTubeLogin()" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; justify-content: center; background: #e11d48; border-color: #be123c;">
-                          <i data-lucide="log-in" style="width: 15px; height: 15px;"></i>
-                          <span id="btn-text-yt-login">YouTube'da Oturum Aç</span>
-                        </button>
-                        <button type="button" id="btn-test-cookies-live" onclick="testCookies()" class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; min-width: 140px; justify-content: center;">
-                          <i data-lucide="check-circle" style="width: 15px; height: 15px;"></i>
-                          <span id="btn-text-test-cookies">Çerezleri Doğrula</span>
-                        </button>
-                        <button type="button" id="btn-logout-youtube" onclick="logoutYouTube()" class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; justify-content: center; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">
-                          <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
-                          <span id="btn-text-logout-youtube">Oturumu Kapat</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div class="cookie-warning-box" style="margin-top: 6px; padding: 8px;">
-                      <i data-lucide="info" style="width:14px;height:14px;color:var(--accent-primary);"></i>
-                      <div style="font-size: 0.75rem;">
-                        <strong id="cookie-info-title">Akıllı Oturum:</strong>
-                        <span id="cookie-info-desc">Dahili oturum açıldığında tüm 4K/1080p videolar bot kısıtlaması olmadan yüksek hızda indirilir.</span>
-                      </div>
-                    </div>
-
-                    <!-- Otomatik Çerez Yenileme & Denetleme Kartı -->
-                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-                      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
-                        <label for="settings-auto-cookie-refresh" id="label-auto-cookie-refresh" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0;">
-                          <i data-lucide="refresh-cw" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
-                          <span id="text-auto-cookie-refresh-title">Otomatik Çerez Yenileme & Sağlık Denetimi</span>
-                        </label>
-                      </div>
-
-                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
-                        <!-- Aç / Kapat Toggle -->
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                          <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-color);" id="lbl-auto-cookie-refresh">Periyodik Çerez Denetimi</span>
-                          <div class="toggle-container" style="margin-top: 2px;">
-                            <input type="checkbox" id="settings-auto-cookie-refresh" class="toggle-input" checked>
-                            <label for="settings-auto-cookie-refresh" class="toggle-label"></label>
-                            <span id="desc-auto-cookie-refresh" style="font-size: 0.75rem;">Arka planda çerez geçerliliğini denetle ve otomatik yenile</span>
-                          </div>
-                        </div>
-
-                        <!-- Yenileme Sıklığı Dropdown -->
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                          <label for="settings-cookie-refresh-interval" id="lbl-cookie-refresh-interval" style="font-size: 0.8rem; font-weight: 600; color: var(--text-color); margin: 0;">Denetleme Sıklığı (Süre)</label>
-                          <select id="settings-cookie-refresh-interval" class="form-control form-control-sm" style="padding: 4px 8px; font-size: 0.8rem; border-radius: 6px; height: 32px;">
-                            <option value="15" id="opt-cookie-interval-15m">Her 15 Dakikada Bir</option>
-                            <option value="30" id="opt-cookie-interval-30m" selected>Her 30 Dakikada Bir (Varsayılan)</option>
-                            <option value="60" id="opt-cookie-interval-1h">Her 1 Saatte Bir</option>
-                            <option value="120" id="opt-cookie-interval-2h">Her 2 Saatte Bir</option>
-                            <option value="360" id="opt-cookie-interval-6h">Her 6 Saatte Bir</option>
-                            <option value="720" id="opt-cookie-interval-12h">Her 12 Saatte Bir</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
-                      <label for="settings-autosync-watchtime" id="label-autosync-watchtime" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
-                        <i data-lucide="bookmark-check" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
-                        <span id="text-autosync-watchtime-title">YouTube İzleme Süresi Eşitleme (Uzak Sunucu)</span>
-                      </label>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-hideondelete" id="label-hide-on-delete">Silme ve Gizleme</label>
                       <div class="toggle-container" style="margin-top: 8px;">
-                        <input type="checkbox" id="settings-autosync-watchtime" class="toggle-input" checked>
-                        <label for="settings-autosync-watchtime" class="toggle-label"></label>
-                        <span id="desc-autosync-watchtime">Videoyu duraklatınca kaldığım yeri YouTube geçmişine kaydet</span>
+                        <input type="checkbox" id="settings-hideondelete" class="toggle-input" checked>
+                        <label for="settings-hideondelete" class="toggle-label"></label>
+                        <span id="desc-hide-on-delete">Silinen videoları Kütüphaneden gizle</span>
                       </div>
                     </div>
-
-                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
-                      <label for="settings-autosync-local-watchtime" id="label-autosync-local-watchtime" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
-                        <i data-lucide="save" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
-                        <span id="text-autosync-local-watchtime-title">Yerel İzleme Süresi Kaydetme (Kaldığın Yerden Devam Et)</span>
+                  </div>
+                  <div class="form-group" style="margin-top: 8px;">
+                    <label for="settings-showshorts" id="label-show-shorts">Shorts Videoları</label>
+                    <div class="toggle-container" style="margin-top: 8px;">
+                      <input type="checkbox" id="settings-showshorts" class="toggle-input">
+                      <label for="settings-showshorts" class="toggle-label"></label>
+                      <span id="desc-show-shorts">Kanal taramalarında Shorts videolarını dahil et</span>
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin-top: 10px;">
+                    <label id="label-shorts-duration-limit" for="settings-shortsdurationlimit">Shorts Süresi Sınırı (saniye)</label>
+                    <input type="number" id="settings-shortsdurationlimit" min="1" max="3600" required style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
+                    <small id="desc-shorts-duration-limit" class="form-text">Bu sürenin altındaki videolar Shorts sayılır ve filtrelenebilir. Varsayılan: 180 sn (3 dk).</small>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-autodelete" id="label-auto-delete">Otomatik Sil (Gün)</label>
+                      <input type="number" id="settings-autodelete" min="0" max="365" required>
+                      <small class="form-text" id="desc-auto-delete">İndirilen videoların kaç gün sonra silineceğini belirler (0: kapalı). Kanallar sekmesinden kanala özel kural atanabilir.</small>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-autodelete-max-count" id="label-auto-delete-max-count">Otomatik Sil (Maksimum Video Sınırı)</label>
+                      <input type="number" id="settings-autodelete-max-count" min="0" max="10000" required>
+                      <small class="form-text" id="desc-auto-delete-max-count">Kanal başına saklanacak azami video sayısı (0: sınırsız/kapalı). Sınır aşıldığında en eski indirilenler silinir.</small>
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin-top: 10px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                      <label for="settings-autodelete-require-confirmation" id="label-autodelete-require-confirm" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0;">
+                        <i data-lucide="shield-check" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
+                        <span id="text-autodelete-require-confirm-title">Otomatik Silme Öncesi Onay & Erteleme Penceresi</span>
                       </label>
-                      <div class="toggle-container" style="margin-top: 8px;">
-                        <input type="checkbox" id="settings-autosync-local-watchtime" class="toggle-input" checked>
-                        <label for="settings-autosync-local-watchtime" class="toggle-label"></label>
-                        <span id="desc-autosync-local-watchtime">Uygulamayı kapattığımda videolara kaldığım saniyeden devam edebilmek için yerel veritabanına kaydet</span>
-                      </div>
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-postponed-autodelete" onclick="resetAutoDeletePostponed()" style="padding: 4px 10px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 5px;" title="Ertelenen videoların süresini sıfırlayıp bildirim penceresini hemen açar">
+                        <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i>
+                        <span id="btn-text-reset-postponed">Ertelemeleri Sıfırla & Şimdi Kontrol Et</span>
+                      </button>
                     </div>
-
+                    <div class="toggle-container" style="margin-top: 8px;">
+                      <input type="checkbox" id="settings-autodelete-require-confirmation" class="toggle-input" checked>
+                      <label for="settings-autodelete-require-confirmation" class="toggle-label"></label>
+                      <span id="desc-autodelete-require-confirm">Süresi dolan videoları silmeden önce liste halinde sor; şimdi silme veya erteleme seçeneği sun</span>
+                    </div>
+                  </div>
                     <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
                       <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
                         <label for="settings-auto-disk-sync" id="label-auto-disk-sync" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0;">
@@ -444,8 +486,282 @@
                         </div>
                       </div>
                     </div>
+                </div>
+                </div>
+                <div class="settings-subtab-panel active" id="settings-subtab-automation" data-category="automation">
+                <div class="settings-card" id="subtab-automation">
+                  <h3 class="settings-section-title"><i data-lucide="bot"></i> <span id="settings-title-automation-text">Otomasyon & Kanallar</span></h3>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-autodownload" id="label-auto-download">Otomatik İndirme</label>
+                      <div class="toggle-container" style="margin-top: 8px;">
+                        <input type="checkbox" id="settings-autodownload" class="toggle-input" checked>
+                        <label for="settings-autodownload" class="toggle-label"></label>
+                        <span id="desc-auto-download">Yeni videoları otomatik indir</span>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="settings-channelcheckinterval" id="label-interval">Denetleme Sıklığı (Dakika)</label>
+                      <input type="number" id="settings-channelcheckinterval" min="5" max="1440" required>
+                      <small class="form-text" id="desc-channel-check-interval">Kanalları denetleme süresi (5-1440 dk). ⚠️ 5 dakikanın altı önerilmez.</small>
+                    </div>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-rsslimit" id="label-rss-limit">RSS Limiti (Video)</label>
+                      <input type="number" id="settings-rsslimit" min="1" max="50" required>
+                      <small class="form-text" id="desc-rss-limit">Kanal başına taranacak en güncel video sayısı. Kota ve ağ kullanımını korur (Varsayılan: 15).</small>
+                    </div>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-livestreamhandling" id="label-live-stream-handling">Canlı Yayın & Prömiyer Yönetimi</label>
+                      <select id="settings-livestreamhandling">
+                        <option value="instant_retry" id="opt-live-instant-retry">Anında İndir & Otomatik Tekrar Dene (Önerilen)</option>
+                        <option value="vod_only" id="opt-live-vod-only">Sadece İşlenmiş VOD Videoları İndir</option>
+                        <option value="ignore_live" id="opt-live-ignore">Canlı Yayınları İndirme / Gösterme</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="settings-livestreamretryinterval" id="label-live-stream-retry-interval">Canlı Yayın Tekrar Deneme Aralığı</label>
+                      <select id="settings-livestreamretryinterval">
+                        <option value="15">15 Dakika</option>
+                        <option value="30">30 Dakika (Varsayılan)</option>
+                        <option value="45">45 Dakika</option>
+                        <option value="60">60 Dakika (1 Saat)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-checkonstartup" id="label-check-on-startup">Başlangıç Taraması</label>
+                      <div class="toggle-container" style="margin-top: 8px;">
+                        <input type="checkbox" id="settings-checkonstartup" class="toggle-input">
+                        <label for="settings-checkonstartup" class="toggle-label"></label>
+                        <span id="desc-check-on-startup">Açılışta kanalları otomatik tara</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style="margin-top: 18px;">
+                  <div class="settings-card" id="subtab-fakap">
+                  <h3 class="settings-section-title" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                    <span id="fakap-settings-title" style="display:inline-flex; align-items:center; gap:8px;">
+                      <i data-lucide="archive"></i>
+                      <span id="fakap-settings-title-text">Fakap (Otomatik Yedek)</span>
+                    </span>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="switchToolsSubSection('fakap')" style="display:inline-flex; align-items:center; gap:5px; font-size:0.78rem; padding:4px 10px;">
+                      <i data-lucide="external-link" style="width:13px;height:13px;"></i>
+                      <span id="btn-goto-fakap-page">Fakap Sayfasına Git</span>
+                    </button>
+                  </h3>
+
+                  <!-- Fakap Genel Açma / Kapama Anahtarı (Master Switch) -->
+                  <div class="form-group" style="margin-bottom: 12px; padding: 12px; border-radius: 8px; background: rgba(56, 189, 248, 0.04); border: 1px solid rgba(56, 189, 248, 0.2);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                      <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <label for="settings-fakap-enabled" id="lbl-fakap-master-switch" style="font-size: 0.88rem; font-weight: 700; color: var(--text-main); margin: 0; cursor: pointer;">Fakap Otomatik Yedekleme (Genel Anahtar)</label>
+                        <small id="desc-fakap-master-switch" style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.4;">Açık olduğunda, kanal ayarında Fakap açık olan kanalların filtrelerden geçen videolarını yedekler. Kapalı olduğunda kanal ayarı açık olsa dahi tüm Fakap indirmeleri durur.</small>
+                      </div>
+                      <div class="toggle-container" style="flex-shrink: 0;">
+                        <input type="checkbox" id="settings-fakap-enabled" class="toggle-input" checked onchange="fakapSaveSettings()">
+                        <label for="settings-fakap-enabled" class="toggle-label"></label>
+                      </div>
+                    </div>
                   </div>
 
+                  <div id="fakap-settings-controls-wrap">
+                    <div class="form-group">
+                      <label for="fakap-path-input" id="fakap-path-label" style="font-size:0.85rem;">Fakap İndirme Konumu</label>
+                      <div class="input-action-row">
+                        <input type="text" id="fakap-path-input" readonly placeholder="Varsayılan: [İndirme Klasörü]/Fakap">
+                        <button type="button" id="fakap-path-browse-btn" class="btn btn-secondary" onclick="fakapBrowseFolder()">
+                          <i data-lucide="folder"></i>
+                          <span id="fakap-path-browse-text">Klasör Seç</span>
+                        </button>
+                        <button type="button" id="fakap-path-default-btn" class="btn btn-secondary" onclick="fakapResetFolder()">
+                          <i data-lucide="rotate-ccw"></i>
+                          <span id="fakap-path-default-text">Varsayılan</span>
+                        </button>
+                      </div>
+                      <small class="form-text" id="fakap-path-desc">Takip edilen kanalların yedek videolarının indirileceği bağımsız klasör konumu.</small>
+                    </div>
+
+                    <div class="form-grid" style="margin-top:10px;">
+                      <div class="form-group">
+                        <label for="fakap-quality-select" id="fakap-quality-label" style="font-size:0.85rem;">Fakap Çözünürlüğü</label>
+                        <select id="fakap-quality-select" onchange="fakapSaveSettings()" style="width:100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
+                          <option value="144">144p</option>
+                          <option value="240">240p</option>
+                          <option value="360" selected>360p</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label for="fakap-retention-select" id="fakap-retention-label" style="font-size:0.85rem;">Fakap Silinme Süresi</label>
+                        <select id="fakap-retention-select" onchange="fakapSaveSettings()" style="width:100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
+                          <option value="never">Asla (Hiç Silinmez)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </div>
+                </div>
+                </div>
+                <div class="settings-column">
+                <div class="settings-subtab-panel active" id="settings-subtab-media" data-category="media">
+                <div class="settings-card" id="subtab-media">
+                  <h3 class="settings-section-title"><i data-lucide="play-circle"></i> <span id="settings-title-media-text">Oynatıcı Tercihleri</span></h3>
+                    <div class="form-group">
+                      <label for="settings-player-gpu-mode" id="label-player-gpu-mode">Video Oynatma & Arayüz Donanım Hızlandırma (GPU / CPU)</label>
+                      <select id="settings-player-gpu-mode">
+                        <option value="gpu" id="opt-player-gpu">🚀 Ekran Kartı (GPU) ile Oynat — Akıcı Video & Düşük CPU (Önerilen)</option>
+                        <option value="cpu" id="opt-player-cpu">🖥️ İşlemci (CPU) ile Oynat — Yazılımsal Çözme (GPU Sorunları İçin)</option>
+                      </select>
+                      <small id="desc-player-gpu-mode" class="form-text">İndirilen videoların dahili oynatıcıda ve masaüstü arayüzünde ekran kartı (GPU) mı yoksa işlemci (CPU) ile mi çözüleceğini belirler (Değişiklik için yeniden başlatma gerekir).</small>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-subtitle-color" id="label-subtitle-color">Altyazı Rengi</label>
+                      <select id="settings-subtitle-color">
+                        <option value="#ffffff" id="opt-sub-white">Beyaz</option>
+                        <option value="#ffff00" id="opt-sub-yellow">Sarı</option>
+                        <option value="#00ff00" id="opt-sub-green">Yeşil</option>
+                        <option value="#00ffff" id="opt-sub-cyan">Turkuaz</option>
+                        <option value="#ff00ff" id="opt-sub-magenta">Pembe</option>
+                        <option value="#ff0000" id="opt-sub-red">Kırmızı</option>
+                      </select>
+                      <small id="desc-subtitle-color" class="form-text">Gömülü oynatıcı altyazı rengi.</small>
+                    </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-sponsorblock" id="label-sponsorblock">SponsorBlock (Oynatıcı)</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-sponsorblock" class="toggle-input">
+                        <label for="settings-sponsorblock" class="toggle-label"></label>
+                        <span id="desc-sponsorblock">Sponsorlu alanları otomatik atla</span>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="settings-alt-thumbnails-hover" id="label-alt-thumbnails-hover">Alternatif Kapak Döngüsü</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-alt-thumbnails-hover" class="toggle-input" checked>
+                        <label for="settings-alt-thumbnails-hover" class="toggle-label"></label>
+                        <span id="desc-alt-thumbnails-hover">Fare üzerinde kapak resimlerini döndür</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-doubleclickaction" id="label-doubleclickaction">Tepsi Çift Tıklama Eylemi</label>
+                      <select id="settings-doubleclickaction">
+                        <option value="system" id="opt-doubleclick-system">Sistem Varsayılan Tarayıcısı</option>
+                        <option value="embedded" id="opt-doubleclick-embedded">Kendi Tarayıcısı (Edge Uygulama Modu)</option>
+                        <option value="player" id="opt-doubleclick-player" selected>Yerleşik Oynatıcı (Multimedia HaYTooL)</option>
+                      </select>
+                      <small class="form-text" id="desc-doubleclickaction">Tepsi simgesine çift tıklandığında açılacak ortam.</small>
+                    </div>
+                  </div>
+                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                      <label for="settings-autosync-watchtime" id="label-autosync-watchtime" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                        <i data-lucide="bookmark-check" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
+                        <span id="text-autosync-watchtime-title">YouTube İzleme Süresi Eşitleme (Uzak Sunucu)</span>
+                      </label>
+                      <div class="toggle-container" style="margin-top: 8px;">
+                        <input type="checkbox" id="settings-autosync-watchtime" class="toggle-input" checked>
+                        <label for="settings-autosync-watchtime" class="toggle-label"></label>
+                        <span id="desc-autosync-watchtime">Videoyu duraklatınca kaldığım yeri YouTube geçmişine kaydet</span>
+                      </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                      <label for="settings-autosync-local-watchtime" id="label-autosync-local-watchtime" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                        <i data-lucide="save" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
+                        <span id="text-autosync-local-watchtime-title">Yerel İzleme Süresi Kaydetme (Kaldığın Yerden Devam Et)</span>
+                      </label>
+                      <div class="toggle-container" style="margin-top: 8px;">
+                        <input type="checkbox" id="settings-autosync-local-watchtime" class="toggle-input" checked>
+                        <label for="settings-autosync-local-watchtime" class="toggle-label"></label>
+                        <span id="desc-autosync-local-watchtime">Uygulamayı kapattığımda videolara kaldığım saniyeden devam edebilmek için yerel veritabanına kaydet</span>
+                      </div>
+                    </div>
+                </div>
+                </div>
+                <div class="settings-subtab-panel active" id="settings-subtab-youtube" data-category="youtube">
+                <div class="settings-card" id="subtab-youtube">
+                  <h3 class="settings-section-title"><i data-lucide="shield-check"></i> <span id="settings-title-youtube-text">YouTube Hesabı & Çerez</span></h3>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                      <label style="font-weight: 600; margin: 0; color: var(--text-main); font-size: 0.9rem;" id="label-youtube-auth-title">YouTube Oturumu & Bot Koruması</label>
+                      <div id="cookie-status-badge" style="font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; font-weight: 600; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); display: inline-flex; align-items: center; gap: 4px;">
+                        <i data-lucide="shield-alert" style="width: 12px; height: 12px;"></i>
+                        <span id="cookie-status-text">Oturum Açılmamış (Anonim Mod)</span>
+                      </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                      <span style="font-size: 0.78rem; color: var(--text-muted);" id="cookie-tray-hint">
+                        💡 Oturum açmak için sağ alttaki tepsi simgesine sağ tıklayıp <strong>"YouTube'da Oturum Aç"</strong> seçebilirsiniz.
+                      </span>
+                      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" id="btn-open-yt-login" onclick="openYouTubeLogin()" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; justify-content: center; background: #e11d48; border-color: #be123c;">
+                          <i data-lucide="log-in" style="width: 15px; height: 15px;"></i>
+                          <span id="btn-text-yt-login">YouTube'da Oturum Aç</span>
+                        </button>
+                        <button type="button" id="btn-test-cookies-live" onclick="testCookies()" class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; min-width: 140px; justify-content: center;">
+                          <i data-lucide="check-circle" style="width: 15px; height: 15px;"></i>
+                          <span id="btn-text-test-cookies">Çerezleri Doğrula</span>
+                        </button>
+                        <button type="button" id="btn-logout-youtube" onclick="logoutYouTube()" class="btn btn-outline" style="font-size: 0.8rem; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; justify-content: center; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">
+                          <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
+                          <span id="btn-text-logout-youtube">Oturumu Kapat</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="cookie-warning-box" style="margin-top: 6px; padding: 8px;">
+                      <i data-lucide="info" style="width:14px;height:14px;color:var(--accent-primary);"></i>
+                      <div style="font-size: 0.75rem;">
+                        <strong id="cookie-info-title">Akıllı Oturum:</strong>
+                        <span id="cookie-info-desc">Dahili oturum açıldığında tüm 4K/1080p videolar bot kısıtlaması olmadan yüksek hızda indirilir.</span>
+                      </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+                        <label for="settings-auto-cookie-refresh" id="label-auto-cookie-refresh" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0;">
+                          <i data-lucide="refresh-cw" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
+                          <span id="text-auto-cookie-refresh-title">Otomatik Çerez Yenileme & Sağlık Denetimi</span>
+                        </label>
+                      </div>
+
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
+                        <!-- Aç / Kapat Toggle -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                          <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-color);" id="lbl-auto-cookie-refresh">Periyodik Çerez Denetimi</span>
+                          <div class="toggle-container" style="margin-top: 2px;">
+                            <input type="checkbox" id="settings-auto-cookie-refresh" class="toggle-input" checked>
+                            <label for="settings-auto-cookie-refresh" class="toggle-label"></label>
+                            <span id="desc-auto-cookie-refresh" style="font-size: 0.75rem;">Arka planda çerez geçerliliğini denetle ve otomatik yenile</span>
+                          </div>
+                        </div>
+
+                        <!-- Yenileme Sıklığı Dropdown -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                          <label for="settings-cookie-refresh-interval" id="lbl-cookie-refresh-interval" style="font-size: 0.8rem; font-weight: 600; color: var(--text-color); margin: 0;">Denetleme Sıklığı (Süre)</label>
+                          <select id="settings-cookie-refresh-interval" class="form-control form-control-sm" style="padding: 4px 8px; font-size: 0.8rem; border-radius: 6px; height: 32px;">
+                            <option value="15" id="opt-cookie-interval-15m">Her 15 Dakikada Bir</option>
+                            <option value="30" id="opt-cookie-interval-30m" selected>Her 30 Dakikada Bir (Varsayılan)</option>
+                            <option value="60" id="opt-cookie-interval-1h">Her 1 Saatte Bir</option>
+                            <option value="120" id="opt-cookie-interval-2h">Her 2 Saatte Bir</option>
+                            <option value="360" id="opt-cookie-interval-6h">Her 6 Saatte Bir</option>
+                            <option value="720" id="opt-cookie-interval-12h">Her 12 Saatte Bir</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                </div>
+                </div>
+                <div class="settings-subtab-panel active" id="settings-subtab-notifications" data-category="notifications">
+                <div class="settings-card" id="subtab-notifications">
+                  <h3 class="settings-section-title"><i data-lucide="bell"></i> <span id="settings-title-notifications-text">Bildirim & Entegrasyon</span></h3>
                   <div class="form-grid">
                     <div class="form-group">
                       <label for="settings-playsounds" id="label-play-sounds">Sesli Bildirimler</label>
@@ -471,8 +787,6 @@
                       </div>
                     </div>
                   </div>
-
-                  <!-- Bildirim Tetikleyicileri (Başlama / Bitiş Seçenekleri) -->
                   <div class="form-grid" id="notification-events-grid" style="margin-top: 12px; padding: 12px; border-radius: 6px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color);">
                     <div class="form-group" style="margin-bottom: 0;">
                       <label style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block;" id="label-notify-triggers-dl">📥 İndirme Bildirim Olayları</label>
@@ -495,31 +809,7 @@
                         </label>
                       </div>
                     </div>
-
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label style="font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; display: block;" id="label-notify-triggers-mr">🔄 Birleştirme Bildirim Olayları</label>
-                      <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
-                          <input type="checkbox" id="settings-notify-mr-start-toast" checked>
-                          <span id="label-notify-mr-start-toast">Birleştirme başladığında masaüstü bildirimi</span>
-                        </label>
-                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
-                          <input type="checkbox" id="settings-notify-mr-start-sound" checked>
-                          <span id="label-notify-mr-start-sound">Birleştirme başladığında sesli uyarı</span>
-                        </label>
-                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
-                          <input type="checkbox" id="settings-notify-mr-complete-toast" checked>
-                          <span id="label-notify-mr-complete-toast">Birleştirme bittiğinde masaüstü bildirimi</span>
-                        </label>
-                        <label class="checkbox-label" style="font-size: 0.78rem; display: flex; align-items: center; gap: 6px;">
-                          <input type="checkbox" id="settings-notify-mr-complete-sound" checked>
-                          <span id="label-notify-mr-complete-sound">Birleştirme bittiğinde sesli uyarı</span>
-                        </label>
-                      </div>
-                    </div>
                   </div>
-
-                  <!-- Özel Bildirim Sesleri Seçimi -->
                   <div class="form-grid" id="sound-options-grid" style="margin-top: 12px; padding: 12px; border-radius: 6px; background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.15);">
                     <div class="form-group" style="margin-bottom: 0;">
                       <label for="settings-sound-download" id="label-sound-download" style="font-size: 0.82rem; font-weight: 500;">İndirme Bildirim Sesi</label>
@@ -537,29 +827,68 @@
                           <span id="btn-test-sound-dl-text">Test Et</span>
                         </button>
                       </div>
-                      <small id="desc-sound-download" class="form-text" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; display: block;">Video indirmesi başladığında ve bittiğinde çalınacak ses.</small>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label for="settings-sound-merge" id="label-sound-merge" style="font-size: 0.82rem; font-weight: 500;">Birleştirme Bildirim Sesi</label>
-                      <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
-                        <select id="settings-sound-merge" class="form-control" style="font-size: 0.8rem; padding: 4px 8px; height: 32px;">
-                          <option value="fanfare" id="opt-sound-mr-fanfare">🎺 Başarı Akoru (Varsayılan)</option>
-                          <option value="chime" id="opt-sound-mr-chime">🔔 Yumuşak Zil</option>
-                          <option value="bell" id="opt-sound-mr-bell">🛎️ Klasik Zil</option>
-                          <option value="pop" id="opt-sound-mr-pop">🫧 Minimal Pop</option>
-                          <option value="melodic" id="opt-sound-mr-melodic">🎵 Melodik</option>
-                          <option value="subtle" id="opt-sound-mr-subtle">🌿 Hafif</option>
-                          <option value="silent" id="opt-sound-mr-silent">🔕 Sessiz</option>
-                        </select>
-                        <button type="button" class="btn btn-secondary btn-xs" onclick="testSoundOption('merge')" style="font-size: 0.72rem; height: 32px; padding: 0 10px; white-space: nowrap;">
-                          <span id="btn-test-sound-mr-text">Test Et</span>
-                        </button>
-                      </div>
-                      <small id="desc-sound-merge" class="form-text" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; display: block;">FFmpeg video/ses birleştirmesi veya MP3 dönüştürmesi tamamlandığında çalınacak ses.</small>
+                      <small id="desc-sound-download" class="form-text" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; display: block;">Video indirmesi tamamlandığında çalınacak ses.</small>
                     </div>
                   </div>
-
+                  <div class="form-group" id="protocol-integration-card" style="margin-top: 12px; padding: 12px; border-radius: 8px; background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.2);">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                      <div style="flex: 1; min-width: 260px;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.85rem; margin: 0; color: var(--text-color);">
+                          <i data-lucide="play-circle" style="width: 16px; height: 16px; color: #10b981;"></i>
+                          <span id="label-protocol-title">Bildirime Tıklayınca Uygulamada Oynatma (İsteğe Bağlı)</span>
+                        </label>
+                        <p id="desc-protocol-purpose" style="font-size: 0.75rem; color: var(--text-muted); margin: 6px 0 4px 0; line-height: 1.45;">
+                          İndirme tamamlandığında Windows masaüstü bildirimine veya <strong>"▶️ Hemen Oynat"</strong> butonuna tıklandığında videonun doğrudan Multimedia HaYTooL yerleşik oynatıcısında açılmasını sağlar. Bu özellik zorunlu değildir; eklemek istemiyorsanız hiçbir işlem yapmanıza gerek yoktur.
+                        </p>
+                        <div id="desc-protocol-portable-warning" style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: #f59e0b; margin-top: 4px;">
+                          <i data-lucide="alert-circle" style="width: 13px; height: 13px; flex-shrink: 0;"></i>
+                          <span id="text-protocol-portable-warning">Taşınabilir (Portable) Kullanım: Uygulamanın bulunduğu klasörün yerini değiştirirseniz yeni konumu eşitlemek için "Konumu Güncelle" butonuna basmanız yeterlidir.</span>
+                        </div>
+                      </div>
+                      <div style="display: flex; flex-direction: column; gap: 6px; align-self: center;">
+                        <button type="button" class="btn btn-sm btn-primary" id="btn-protocol-register" onclick="handleProtocolRegister()" style="font-size: 0.75rem; padding: 5px 12px; white-space: nowrap;">
+                          <i data-lucide="link-2" style="width: 13px; height: 13px; display: inline-block; vertical-align: middle;"></i>
+                          <span id="btn-protocol-register-text">Özelliği Etkinleştir</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" id="btn-protocol-unregister" onclick="handleProtocolUnregister()" style="font-size: 0.72rem; padding: 4px 10px; white-space: nowrap; display: none;">
+                          <i data-lucide="trash-2" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle;"></i>
+                          <span id="btn-protocol-unregister-text">Özelliği Kaldır</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-group" id="cli-path-integration-card" style="margin-top: 12px; padding: 12px; border-radius: 8px; background: rgba(56, 189, 248, 0.04); border: 1px solid rgba(56, 189, 248, 0.2);">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                      <div style="flex: 1; min-width: 260px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                          <label style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.85rem; margin: 0; color: var(--text-color);">
+                            <i data-lucide="terminal" style="width: 16px; height: 16px; color: #38bdf8;"></i>
+                            <span id="label-cli-path-title">Terminal & Konsol Entegrasyonu (Windows PATH)</span>
+                          </label>
+                          <span id="badge-cli-path-status" class="cli-path-status-badge inactive">
+                            <span class="cli-path-status-dot"></span>
+                            <span id="text-cli-path-status">PATH: Pasif</span>
+                          </span>
+                        </div>
+                        <p id="desc-cli-path-purpose" style="font-size: 0.75rem; color: var(--text-muted); margin: 6px 0 4px 0; line-height: 1.45;">
+                          CMD veya PowerShell penceresinde herhangi bir klasördeyken (örneğin Masaüstü veya Kullanıcı klasörü) doğrudan <code>haytool gameon</code> veya <code>haytool speed 2500</code> komutlarını çalıştırabilmenizi sağlar.
+                        </p>
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; font-family: var(--font-mono, monospace); word-break: break-all;">
+                          <span style="opacity: 0.75;">Kayıt Konumu:</span> <code>HKCU\Environment\Path</code> (Yönetici izni gerektirmez, sadece mevcut kullanıcıyı etkiler)
+                        </div>
+                      </div>
+                      <div style="display: flex; flex-direction: column; gap: 6px; align-self: center;">
+                        <button type="button" class="btn btn-sm btn-primary" id="btn-cli-path-enable" onclick="toggleCliPath('enable')" style="font-size: 0.75rem; padding: 5px 12px; white-space: nowrap;">
+                          <i data-lucide="plus-circle" style="width: 13px; height: 13px; display: inline-block; vertical-align: middle;"></i>
+                          <span id="btn-cli-path-enable-text">PATH'e Ekle</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" id="btn-cli-path-disable" onclick="toggleCliPath('disable')" style="font-size: 0.72rem; padding: 4px 10px; white-space: nowrap; display: none; border-color: rgba(239, 68, 68, 0.35); color: #ef4444;">
+                          <i data-lucide="trash-2" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle;"></i>
+                          <span id="btn-cli-path-disable-text">PATH'ten Kaldır</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                   <div class="form-group" style="margin-top: 8px;">
                     <label for="settings-discordrpc" id="label-discord-rpc">Discord Durumu</label>
                     <div class="toggle-container" style="margin-top: 8px;">
@@ -569,280 +898,17 @@
                     </div>
                   </div>
                 </div>
-              </div>
-
-                <div class="settings-subtab-panel active" id="settings-subtab-automation" data-category="automation">
-                <div class="settings-card" id="subtab-automation">
-                  <h3 class="settings-section-title"><i data-lucide="rss"></i> <span id="settings-title-automation-text">Otomasyon & RSS</span></h3>
-                  
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-autodownload" id="label-auto-download">Otomatik İndirme</label>
-                      <div class="toggle-container" style="margin-top: 8px;">
-                        <input type="checkbox" id="settings-autodownload" class="toggle-input" checked>
-                        <label for="settings-autodownload" class="toggle-label"></label>
-                        <span id="desc-auto-download">Yeni videoları otomatik indir</span>
-                      </div>
-                    </div>
-
-                    <div class="form-group">
-                      <label for="settings-channelcheckinterval" id="label-interval">Denetleme Sıklığı (Dakika)</label>
-                      <input type="number" id="settings-channelcheckinterval" min="5" max="1440" required>
-                      <small class="form-text" id="desc-channel-check-interval">Kanalları denetleme süresi (5-1440 dk). ⚠️ 5 dakikanın altı önerilmez.</small>
-                    </div>
-                  </div>
-
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-rsslimit" id="label-rss-limit">RSS Limiti (Video)</label>
-                      <input type="number" id="settings-rsslimit" min="1" max="50" required>
-                      <small class="form-text" id="desc-rss-limit">Kanal başına taranacak en güncel video sayısı. Kota ve ağ kullanımını korur (Varsayılan: 15).</small>
-                    </div>
-
-                    <div class="form-group">
-                      <label for="settings-autodelete" id="label-auto-delete">Otomatik Sil (Gün)</label>
-                      <input type="number" id="settings-autodelete" min="0" max="365" required>
-                      <small class="form-text" id="desc-auto-delete">İndirilen videoların kaç gün sonra silineceğini belirler (0: kapalı). Kanallar sekmesinden kanala özel kural atanabilir.</small>
-                    </div>
-                    <div class="form-group">
-                      <label for="settings-autodelete-max-count" id="label-auto-delete-max-count">Otomatik Sil (Maksimum Video Sınırı)</label>
-                      <input type="number" id="settings-autodelete-max-count" min="0" max="10000" required>
-                      <small class="form-text" id="desc-auto-delete-max-count">Kanal başına saklanacak azami video sayısı (0: sınırsız/kapalı). Sınır aşıldığında en eski indirilenler silinir.</small>
-                    </div>
-                  </div>
-
-                  <div class="form-group" style="margin-top: 10px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-                      <label for="settings-autodelete-require-confirmation" id="label-autodelete-require-confirm" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0;">
-                        <i data-lucide="shield-check" style="width: 15px; height: 15px; color: var(--accent-primary);"></i>
-                        <span id="text-autodelete-require-confirm-title">Otomatik Silme Öncesi Onay & Erteleme Penceresi</span>
-                      </label>
-                      <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-postponed-autodelete" onclick="resetAutoDeletePostponed()" style="padding: 4px 10px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 5px;" title="Ertelenen videoların süresini sıfırlayıp bildirim penceresini hemen açar">
-                        <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i>
-                        <span id="btn-text-reset-postponed">Ertelemeleri Sıfırla & Şimdi Kontrol Et</span>
-                      </button>
-                    </div>
-                    <div class="toggle-container" style="margin-top: 8px;">
-                      <input type="checkbox" id="settings-autodelete-require-confirmation" class="toggle-input" checked>
-                      <label for="settings-autodelete-require-confirmation" class="toggle-label"></label>
-                      <span id="desc-autodelete-require-confirm">Süresi dolan videoları silmeden önce liste halinde sor; şimdi silme veya erteleme seçeneği sun</span>
-                    </div>
-                  </div>
-
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-livestreamhandling" id="label-live-stream-handling">Canlı Yayın & Prömiyer Yönetimi</label>
-                      <select id="settings-livestreamhandling">
-                        <option value="instant_retry" id="opt-live-instant-retry">Anında İndir & Otomatik Tekrar Dene (Önerilen)</option>
-                        <option value="vod_only" id="opt-live-vod-only">Sadece İşlenmiş VOD Videoları İndir</option>
-                        <option value="ignore_live" id="opt-live-ignore">Canlı Yayınları İndirme / Gösterme</option>
-                      </select>
-                    </div>
-
-                    <div class="form-group">
-                      <label for="settings-livestreamretryinterval" id="label-live-stream-retry-interval">Canlı Yayın Tekrar Deneme Aralığı</label>
-                      <select id="settings-livestreamretryinterval">
-                        <option value="15">15 Dakika</option>
-                        <option value="30">30 Dakika (Varsayılan)</option>
-                        <option value="45">45 Dakika</option>
-                        <option value="60">60 Dakika (1 Saat)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-checkonstartup" id="label-check-on-startup">Başlangıç Taraması</label>
-                      <div class="toggle-container" style="margin-top: 8px;">
-                        <input type="checkbox" id="settings-checkonstartup" class="toggle-input">
-                        <label for="settings-checkonstartup" class="toggle-label"></label>
-                        <span id="desc-check-on-startup">Açılışta kanalları otomatik tara</span>
-                      </div>
-                    </div>
-
-                    <div class="form-group">
-                      <label for="settings-hideondelete" id="label-hide-on-delete">Silme ve Gizleme</label>
-                      <div class="toggle-container" style="margin-top: 8px;">
-                        <input type="checkbox" id="settings-hideondelete" class="toggle-input" checked>
-                        <label for="settings-hideondelete" class="toggle-label"></label>
-                        <span id="desc-hide-on-delete">Silinen videoları Kütüphaneden gizle</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="form-group" style="margin-top: 8px;">
-                    <label for="settings-showshorts" id="label-show-shorts">Shorts Videoları</label>
-                    <div class="toggle-container" style="margin-top: 8px;">
-                      <input type="checkbox" id="settings-showshorts" class="toggle-input">
-                      <label for="settings-showshorts" class="toggle-label"></label>
-                      <span id="desc-show-shorts">Kanal taramalarında Shorts videolarını dahil et</span>
-                    </div>
-                  </div>
-
-                  <div class="form-group" style="margin-top: 10px;">
-                    <label id="label-shorts-duration-limit" for="settings-shortsdurationlimit">Shorts Süresi Sınırı (saniye)</label>
-                    <input type="number" id="settings-shortsdurationlimit" min="1" max="3600" required style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
-                    <small id="desc-shorts-duration-limit" class="form-text">Bu sürenin altındaki videolar Shorts sayılır ve filtrelenebilir. Varsayılan: 180 sn (3 dk).</small>
-                  </div>
                 </div>
-              </div>
-              </div>
-
-              <!-- Sütun 2: İndirme & Kalite, Sistem & Motor, Yedekleme & AI -->
-              <div class="settings-column">
-                <div class="settings-subtab-panel active" id="settings-subtab-download" data-category="download">
-                <div class="settings-card" id="subtab-download">
-                  <h3 class="settings-section-title"><i data-lucide="download-cloud"></i> <span id="settings-title-download-text">İndirme ve Kalite</span></h3>
-                  
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-quality" id="label-quality">Varsayılan İndirme Kalitesi</label>
-                      <select id="settings-quality">
-                        <option value="best" id="opt-quality-best">En Yüksek Kalite (Otomatik)</option>
-                        <option value="1080p" id="opt-quality-1080p">Maksimum 1080p Full HD</option>
-                        <option value="720p" id="opt-quality-720p">Maksimum 720p HD</option>
-                      </select>
-                      <small class="form-text" id="desc-quality">Varsayılan indirme kalitesi.</small>
-                    </div>
-
-                    <div class="form-group">
-                      <label for="settings-mergetype" id="label-merge-type">İndirme Yöntemi (FFmpeg / Dosya Yapısı)</label>
-                      <select id="settings-mergetype">
-                        <option value="single" id="opt-merge-single" selected>Tek Hazır Dosya (720p max)</option>
-                        <option value="merge" id="opt-merge-merge">Otomatik Birleştir (1080p+ ffmpeg)</option>
-                        <option value="separate" id="opt-merge-separate">Ses ve Videoyu Ayrı İndir</option>
-                      </select>
-                      <div class="settings-ffmpeg-row" style="margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <span id="label-ffmpeg-status-text" style="font-size: 0.78rem; color: var(--text-muted);">Sistem FFmpeg Durumu:</span>
-                        <span id="settings-ffmpeg-status" class="ffmpeg-status-indicator not-installed">Kontrol ediliyor...</span>
-                        <span id="settings-ffmpeg-version-info" style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border-color); display: none;"></span>
-                        <button type="button" class="btn btn-secondary btn-xs" id="settings-ffmpeg-btn" style="margin-left: 4px;">Kur</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-hwaccel" id="label-hwaccel">İndirme Birleştirme & Dönüştürme (FFmpeg GPU / CPU)</label>
-                      <select id="settings-hwaccel">
-                        <option value="auto" id="opt-hwaccel-auto">Otomatik (Önerilen GPU / CPU)</option>
-                        <option value="nvenc" id="opt-hwaccel-nvenc">NVIDIA NVENC (GeForce / RTX)</option>
-                        <option value="qsv" id="opt-hwaccel-qsv">Intel Quick Sync (QSV)</option>
-                        <option value="amf" id="opt-hwaccel-amf">AMD AMF (Radeon)</option>
-                        <option value="cpu" id="opt-hwaccel-cpu">Yalnızca CPU (Yazılımsal)</option>
-                      </select>
-                      <div class="settings-hwaccel-row" style="margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <span id="label-gpu-detected-text" style="font-size: 0.78rem; color: var(--text-muted);">Algılanan Donanım:</span>
-                        <span id="settings-gpu-detected" style="font-size: 0.75rem; color: var(--accent-color); background: rgba(56, 189, 248, 0.1); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">Tarama yapılıyor...</span>
-                      </div>
-                      <small class="form-text" id="desc-hwaccel">İndirilen yüksek çözünürlüklü (1080p/4K) videoların FFmpeg ile birleştirilmesi ve dönüştürülmesinde ekran kartı (GPU) veya işlemci (CPU) kullanımını belirler.</small>
-                      <div style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                          <label for="settings-defer-merge" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0; cursor: pointer;">
-                            <i data-lucide="gamepad-2" style="width: 16px; height: 16px; color: var(--primary);"></i>
-                            <span id="label-settings-defer-merge">Oyun Modu: FFmpeg Birleştirme ve Dönüştürmeyi Ertele</span>
-                          </label>
-                          <div class="toggle-container">
-                            <input type="checkbox" id="settings-defer-merge" class="toggle-input">
-                            <label for="settings-defer-merge" class="toggle-label"></label>
-                          </div>
-                        </div>
-                        <small class="form-text" id="desc-settings-defer-merge" style="display:block; margin-top:6px;">Açıkken videolar tam hızda indirilir ancak PC'ye yük bindirmemek için FFmpeg birleştirmeleri kuyrukta bekletilir. Mod kapatıldığında otomatik sırayla birleştirilir.</small>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="form-grid">
-                    <div class="form-group">
-                      <label for="settings-speedlimit" id="label-settings-speed-limit">Maksimum İndirme Hızı (KB/s)</label>
-                      <input type="number" id="settings-speedlimit" min="0" max="100000" required>
-                      <small class="form-text" id="desc-speed-limit">Hız sınırı (Sınırsız için 0).</small>
-                    </div>
-                    <div class="form-group">
-                      <label for="settings-altspeedlimit" id="label-settings-alt-speed-limit"><span id="label-settings-alt-speed-limit-text">Alternatif İndirme Hızı (KB/s)</span> <i data-lucide="turtle" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-left:4px;"></i></label>
-                      <input type="number" id="settings-altspeedlimit" min="0" max="100000" required>
-                      <small class="form-text" id="desc-alt-speed-limit">Turtle modu hızı.</small>
-                    </div>
-                  </div>
-
-                  <div id="cli-commands-panel" class="cli-commands-panel"></div>
-
-                  <div class="form-group" style="margin-top: 8px;">
-                    <label for="settings-writethumbnail" id="label-write-thumbnail">Kapak Resmi</label>
-                    <div class="toggle-container" style="margin-top: 8px;">
-                      <input type="checkbox" id="settings-writethumbnail" class="toggle-input">
-                      <label for="settings-writethumbnail" class="toggle-label"></label>
-                      <span id="desc-write-thumbnail">Video kapak resmini yanına indir</span>
-                    </div>
-                  </div>
-
-                  <div class="form-group" style="margin-top: 10px;">
-                    <label for="settings-network-retry-interval" id="label-network-retry-interval">İnternet Kesintisinde Tekrar Deneme Sıklığı (Saniye)</label>
-                    <input type="number" id="settings-network-retry-interval" min="5" max="3600" value="120" required>
-                    <small class="form-text" id="desc-network-retry-interval">İnternet bağlantısı koptuğunda kuyruğun bağlantıyı yeniden deneme sıklığı (Varsayılan: 120 saniye / 2 dakika).</small>
-                  </div>
-                </div>
-              </div>
-
                 <div class="settings-subtab-panel active" id="settings-subtab-system" data-category="system">
                 <div class="settings-card" id="subtab-system">
                   <h3 class="settings-section-title"><i data-lucide="cpu"></i> <span id="settings-title-system-text">Sistem & Motor Yapılandırması</span></h3>
-                  
-                  <div class="form-group">
-                    <label for="settings-download-path" id="label-download-path">İndirme Klasörü Konumu</label>
-                    <div class="input-action-row">
-                      <input type="text" id="settings-download-path" required>
-                      <button type="button" id="select-folder-btn" class="btn btn-secondary">
-                        <i data-lucide="folder"></i>
-                        <span>Klasör Seç</span>
-                      </button>
-                      <button type="button" id="test-folder-btn" class="btn btn-secondary">
-                        <i data-lucide="folder-open"></i>
-                        <span>Test Et</span>
-                      </button>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label for="settings-port" id="label-port">Uygulama Port Numarası</label>
+                      <input type="number" id="settings-port" min="80" max="65535" required>
+                      <small class="form-text" id="desc-port">Uygulama arayüz portu.</small>
                     </div>
-                    <small class="form-text" id="desc-download-path">Videoların kaydedileceği bilgisayarınızdaki klasör yolu.</small>
                   </div>
-
-                    <div class="form-group" style="margin-top: 12px;">
-                      <label for="settings-temp-dir-type" id="label-temp-dir-type">Geçici Dosyalar (Temp) Klasörü Konumu</label>
-                      <div class="input-action-row" style="display: flex; gap: 8px; align-items: center;">
-                        <select id="settings-temp-dir-type" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem; flex: 1;">
-                          <option value="system" id="opt-temp-system" selected>Windows Varsayılanı (Sistem Geçici Klasörü)</option>
-                          <option value="local" id="opt-temp-local">Uygulama İçi (Uygulama klasöründeki Temp dizini)</option>
-                        </select>
-                        <button type="button" id="open-temp-folder-btn" onclick="openTempFolder()" class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px;">
-                          <i data-lucide="folder-open"></i>
-                          <span id="btn-open-temp-text">Temp Klasörünü Aç</span>
-                        </button>
-                      </div>
-                      <div class="adv-disadv-box" style="margin-top: 6px; padding: 8px 10px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); font-size: 0.78rem; line-height: 1.45;">
-                        <span id="desc-temp-dir-info">
-                          <strong>Uygulama İçi (Önerilen):</strong> Tüm indirme parçalarını ve geçici dosyaları uygulamanın kendi 'Temp' klasörüne yönlendirir; sistem açılışında otomatik temizlenir ve Windows Temp dizinini şişirmez.<br>
-                          <strong>Windows Varsayılanı:</strong> İşletim sisteminin standart geçici klasörünü (AppData\Local\Temp) kullanır.
-                        </span>
-                      </div>
-                    </div>
-
-                    <!-- SSD / Geçici Klasörde İndir ve Birleştir (Tamamlanınca Taşı) -->
-                    <div class="form-group" style="margin-top: 12px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-                      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                        <label for="settings-use-temp-staging" id="label-use-temp-staging" style="display: flex; align-items: center; gap: 6px; font-weight: 600; margin: 0; cursor: pointer;">
-                          <i data-lucide="hard-drive-download" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
-                          <span id="text-use-temp-staging-title">SSD Tamponlama: Geçici Klasörde İndir & Birleştir</span>
-                        </label>
-                        <div class="toggle-container">
-                          <input type="checkbox" id="settings-use-temp-staging" class="toggle-input">
-                          <label for="settings-use-temp-staging" class="toggle-label"></label>
-                        </div>
-                      </div>
-                      <div class="adv-disadv-box" style="margin-top: 8px; padding: 8px 10px; border-radius: 6px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.15); font-size: 0.76rem; line-height: 1.45; color: var(--text-muted);">
-                        <span id="desc-use-temp-staging-info">
-                          <strong>Mekanik Harici HDD Koruma Modu:</strong> Açıldığında indirme ve FFmpeg ses/video birleştirme işlemleri sistemin hızlı geçici klasöründe (SSD / Temp) yürütülür. Video tamamen bittiğinde hedef indirme klasörüne tek parça halinde taşınır. Mekanik harici disklerin indirme ve birleştirme esnasında %100 kullanıma ulaşıp kilitlenmesini ve aşırı ısınmasını önler.
-                        </span>
-                      </div>
-                    </div>
-                  
                   <div class="form-group" style="margin-top: 12px;">
                     <label for="settings-duration-fetch-method" id="label-duration-fetch-method">Süre Sorgulama Yöntemi</label>
                     <select id="settings-duration-fetch-method" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem; width: 100%;">
@@ -858,7 +924,6 @@
                       </span>
                     </div>
                   </div>
-
                   <div class="form-group" style="margin-top: 12px;">
                     <label for="settings-ytdlp-run-mode" id="label-ytdlp-run-mode">yt-dlp Çalıştırma Modu</label>
                     <select id="settings-ytdlp-run-mode" onchange="togglePythonSettingsVisibility()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem; width: 100%;">
@@ -866,7 +931,6 @@
                       <option value="python" id="opt-ytdlp-python">Sistem Python (SSD Dostu - python -m yt_dlp)</option>
                     </select>
                   </div>
-
                   <div id="python-settings-container" class="hidden" style="margin-top: 10px; padding: 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); background: rgba(0,0,0,0.15);">
                     <div class="form-group" style="margin-bottom: 8px;">
                       <label for="settings-python-cmd" id="label-python-cmd" style="font-size: 0.8rem;">Python Komut Adı veya Yol</label>
@@ -883,7 +947,6 @@
                       </button>
                     </div>
                   </div>
-
                   <div class="form-group" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                       <label id="label-ytdlp-version" style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); margin-bottom: 0;">yt-dlp Motor Sürümü & Kanalı</label>
@@ -924,16 +987,13 @@
                     </div>
                   </div>
                 </div>
-              </div>
-
+                </div>
                 <div class="settings-subtab-panel active" id="settings-subtab-backup" data-category="backup">
                 <div class="settings-card" id="subtab-backup">
-                  <h3 class="settings-section-title"><i data-lucide="database"></i> <span id="settings-title-backup-text">Sistem Veritabanı & Ayar Yedekleme</span></h3>
+                  <h3 class="settings-section-title"><i data-lucide="database"></i> <span id="settings-title-backup-text">Yedekleme & Senkronizasyon</span></h3>
                   <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;" id="desc-system-backup-info">
                     Veritabanınız (db.json), takip ettiğiniz kanallar (channels.ini), kategorileriniz (categories.ini) ve sistem yapılandırmalarınız tıpkı Gist'teki gibi bağımsız ayrı dosyalar halinde ZIP arşivi (.zip) olarak saklanır.
                   </p>
-
-                  <!-- Otomatik Günlük Yedek Bilgilendirme Kutusu -->
                   <div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 15px; font-size: 0.8rem; line-height: 1.5; color: var(--text-main); display: flex; align-items: flex-start; gap: 10px;">
                     <i data-lucide="info" style="width: 18px; height: 18px; color: #a855f7; flex-shrink: 0; margin-top: 2px;"></i>
                     <div>
@@ -941,8 +1001,6 @@
                       <span id="backup-auto-info-desc">Her gün uygulama başlatıldığında bugünün ilk yedeği otomatik olarak ZIP arşivi (.zip) formatında alınır. Klasörde 10 Normal + 7 Günlük Korunan (Toplam Maksimum 17 Yedek) saklanır.</span>
                     </div>
                   </div>
-
-                  <!-- Alt Başlık 1: Çevrimdışı / Yerel Sıkıştırılmış Yedekleme -->
                   <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 15px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
                       <label style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
@@ -988,8 +1046,104 @@
                       </table>
                     </div>
                   </div>
+                  <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
+                    <label id="label-gist-sync-title" style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:16px;height:16px;color:#a855f7;flex-shrink:0;"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+                      <span id="text-gist-sync-title">2. GitHub Gist Çevrimiçi (Online) Senkronizasyonu</span>
+                    </label>
+                    <small id="desc-gist-sync-info" class="form-text" style="margin-bottom: 10px; margin-top: 2px;">
+                      Tüm sistem verilerinizi (db.json, kanallar, kategoriler ve ayarlar) GitHub hesabınızda gizli bir Gist olarak online yedekleyin veya istediğiniz bilgisayardan tek tıkla geri yükleyin.
+                    </small>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                      <!-- STATE 1: Token Kayıtlı Değilse -->
+                      <div id="gist-unregistered-state">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                          <div style="flex: 1; min-width: 200px;">
+                            <label id="label-gist-token" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 3px; display: block;">GitHub Token (PAT)</label>
+                            <div style="position: relative;">
+                              <input type="password" id="gist-token-input" placeholder="ghp_xxxxxxxxxxxx" style="width: 100%; padding: 6px 30px 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 32px;">
+                              <button type="button" onclick="toggleGistTokenVisibility()" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px;">
+                                <i id="gist-token-eye-icon" data-lucide="eye" style="width:14px;height:14px;"></i>
+                              </button>
+                            </div>
+                          </div>
+                          <div style="flex: 1; min-width: 180px;">
+                            <label id="label-gist-id" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 3px; display: block;">Gist ID (İsteğe Bağlı)</label>
+                            <input type="text" id="gist-id-input" placeholder="Otomatik oluşturulur" style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 32px;">
+                          </div>
+                        </div>
 
-                  <!-- Alt Başlık 3: Yapay Zekâ (AI) Özet Ayarları -->
+                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px;">
+                          <button type="button" onclick="openGetGistTokenPage()" class="btn btn-secondary" style="height: 30px; display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px; background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.35); color: #a855f7; cursor: pointer; border-radius: 6px;">
+                            <i data-lucide="key" style="width:13px;height:13px;"></i>
+                            <span id="btn-gist-get-token-text">Token Al</span>
+                          </button>
+                          <button type="button" onclick="saveGistToken()" class="btn btn-primary" style="background: #10b981; border-color: #059669; height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                            <i data-lucide="save" style="width:13px;height:13px;"></i>
+                            <span id="btn-gist-save-text">Token'ı Kaydet</span>
+                          </button>
+                          <button type="button" onclick="testGistToken()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                            <i data-lucide="shield-check" style="width:13px;height:13px;"></i>
+                            <span id="btn-gist-test-text">Token'ı Test Et</span>
+                          </button>
+                          <button type="button" onclick="pushGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                            <i data-lucide="cloud-upload" style="width:13px;height:13px;"></i>
+                            <span id="btn-gist-push-text">Gist'e Yükle (Push)</span>
+                          </button>
+                          <button type="button" onclick="pullGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                            <i data-lucide="cloud-download" style="width:13px;height:13px;"></i>
+                            <span id="btn-gist-pull-text">Gist'ten Çek & Geri Yükle (Pull)</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- STATE 2: Token Kayıtlıysa -->
+                      <div id="gist-registered-state" style="display: none; background: rgba(168, 85, 247, 0.06); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 8px; padding: 10px 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                          <div>
+                            <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.82rem; color: #10b981;">
+                              <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i>
+                              <span id="gist-status-connected-text">GitHub Hesabı Bağlı (PAT Saklandı)</span>
+                            </div>
+                            <div id="gist-online-link-container" style="margin-top: 4px; font-size: 0.75rem; display: none;">
+                              <a id="gist-online-link" href="#" target="_blank" style="color: #a855f7; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
+                                <i data-lucide="external-link" style="width: 12px; height: 12px;"></i>
+                                <span id="text-gist-online-link">🌐 Gist Yedeğinizi GitHub'da Görüntüleyin</span>
+                              </a>
+                            </div>
+                          </div>
+                          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                            <button type="button" onclick="pushGistChannels()" class="btn btn-primary" style="background: #8b5cf6; border-color: #7c3aed; height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                              <i data-lucide="cloud-upload" style="width:13px;height:13px;"></i>
+                              <span id="btn-gist-push-registered-text">Gist'e Yükle (Push)</span>
+                            </button>
+                            <button type="button" onclick="pullGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
+                              <i data-lucide="cloud-download" style="width:13px;height:13px;"></i>
+                              <span id="btn-gist-pull-registered-text">Gist'ten Çek & Geri Yükle (Pull)</span>
+                            </button>
+                            <button type="button" onclick="deleteGistToken()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px; border-color: rgba(239, 68, 68, 0.4); color: #ef4444; background: rgba(239, 68, 68, 0.08);">
+                              <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
+                              <span id="btn-gist-delete-text">Token'ı Sil</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                        <label class="switch" style="position: relative; display: inline-block; width: 34px; height: 18px;">
+                          <input type="checkbox" id="gist-auto-sync-checkbox" onchange="toggleAutoSyncGist(this.checked)">
+                          <span class="slider round"></span>
+                        </label>
+                        <span id="label-gist-auto-sync" style="font-size: 0.78rem; color: var(--text-main);">Kanal ve ayar değişikliklerinde otomatik Gist'e yedekle</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </div>
+                <div class="settings-subtab-panel active" id="settings-subtab-ai" data-category="ai">
+                <div class="settings-card" id="subtab-ai">
+                  <h3 class="settings-section-title"><i data-lucide="sparkles"></i> <span id="settings-title-ai-text">Yapay Zekâ & Ses</span></h3>
                     <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 15px;">
                       <label id="label-ai-summary-title" style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
                         <i data-lucide="sparkles" style="width:16px;height:16px;color:#a855f7;"></i>
@@ -1193,167 +1347,9 @@
                         <span>Güvenlik: Tüm API anahtarları cihazınızda AES-256 ile şifrelenir ve .gitignore korumasıyla pushlanamaz.</span>
                       </div>
                     </div>
-
-                    <!-- Alt Başlık 2: GitHub Gist Çevrimiçi Senkronizasyonu -->
-                  <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
-                    <label id="label-gist-sync-title" style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:16px;height:16px;color:#a855f7;flex-shrink:0;"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
-                      <span id="text-gist-sync-title">2. GitHub Gist Çevrimiçi (Online) Senkronizasyonu</span>
-                    </label>
-                    <small id="desc-gist-sync-info" class="form-text" style="margin-bottom: 10px; margin-top: 2px;">
-                      Tüm sistem verilerinizi (db.json, kanallar, kategoriler ve ayarlar) GitHub hesabınızda gizli bir Gist olarak online yedekleyin veya istediğiniz bilgisayardan tek tıkla geri yükleyin.
-                    </small>
-                    
-                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
-                      <!-- STATE 1: Token Kayıtlı Değilse -->
-                      <div id="gist-unregistered-state">
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                          <div style="flex: 1; min-width: 200px;">
-                            <label id="label-gist-token" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 3px; display: block;">GitHub Token (PAT)</label>
-                            <div style="position: relative;">
-                              <input type="password" id="gist-token-input" placeholder="ghp_xxxxxxxxxxxx" style="width: 100%; padding: 6px 30px 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 32px;">
-                              <button type="button" onclick="toggleGistTokenVisibility()" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px;">
-                                <i id="gist-token-eye-icon" data-lucide="eye" style="width:14px;height:14px;"></i>
-                              </button>
-                            </div>
-                          </div>
-                          <div style="flex: 1; min-width: 180px;">
-                            <label id="label-gist-id" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 3px; display: block;">Gist ID (İsteğe Bağlı)</label>
-                            <input type="text" id="gist-id-input" placeholder="Otomatik oluşturulur" style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 32px;">
-                          </div>
-                        </div>
-
-                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px;">
-                          <button type="button" onclick="openGetGistTokenPage()" class="btn btn-secondary" style="height: 30px; display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px; background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.35); color: #a855f7; cursor: pointer; border-radius: 6px;">
-                            <i data-lucide="key" style="width:13px;height:13px;"></i>
-                            <span id="btn-gist-get-token-text">Token Al</span>
-                          </button>
-                          <button type="button" onclick="saveGistToken()" class="btn btn-primary" style="background: #10b981; border-color: #059669; height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                            <i data-lucide="save" style="width:13px;height:13px;"></i>
-                            <span id="btn-gist-save-text">Token'ı Kaydet</span>
-                          </button>
-                          <button type="button" onclick="testGistToken()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                            <i data-lucide="shield-check" style="width:13px;height:13px;"></i>
-                            <span id="btn-gist-test-text">Token'ı Test Et</span>
-                          </button>
-                          <button type="button" onclick="pushGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                            <i data-lucide="cloud-upload" style="width:13px;height:13px;"></i>
-                            <span id="btn-gist-push-text">Gist'e Yükle (Push)</span>
-                          </button>
-                          <button type="button" onclick="pullGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                            <i data-lucide="cloud-download" style="width:13px;height:13px;"></i>
-                            <span id="btn-gist-pull-text">Gist'ten Çek & Geri Yükle (Pull)</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <!-- STATE 2: Token Kayıtlıysa -->
-                      <div id="gist-registered-state" style="display: none; background: rgba(168, 85, 247, 0.06); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 8px; padding: 10px 14px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                          <div>
-                            <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.82rem; color: #10b981;">
-                              <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i>
-                              <span id="gist-status-connected-text">GitHub Hesabı Bağlı (PAT Saklandı)</span>
-                            </div>
-                            <div id="gist-online-link-container" style="margin-top: 4px; font-size: 0.75rem; display: none;">
-                              <a id="gist-online-link" href="#" target="_blank" style="color: #a855f7; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px; font-weight: 500;">
-                                <i data-lucide="external-link" style="width: 12px; height: 12px;"></i>
-                                <span id="text-gist-online-link">🌐 Gist Yedeğinizi GitHub'da Görüntüleyin</span>
-                              </a>
-                            </div>
-                          </div>
-                          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                            <button type="button" onclick="pushGistChannels()" class="btn btn-primary" style="background: #8b5cf6; border-color: #7c3aed; height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                              <i data-lucide="cloud-upload" style="width:13px;height:13px;"></i>
-                              <span id="btn-gist-push-registered-text">Gist'e Yükle (Push)</span>
-                            </button>
-                            <button type="button" onclick="pullGistChannels()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px;">
-                              <i data-lucide="cloud-download" style="width:13px;height:13px;"></i>
-                              <span id="btn-gist-pull-registered-text">Gist'ten Çek & Geri Yükle (Pull)</span>
-                            </button>
-                            <button type="button" onclick="deleteGistToken()" class="btn btn-secondary" style="height: 30px; display: flex; align-items: center; gap: 5px; font-size: 0.78rem; padding: 3px 10px; border-color: rgba(239, 68, 68, 0.4); color: #ef4444; background: rgba(239, 68, 68, 0.08);">
-                              <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
-                              <span id="btn-gist-delete-text">Token'ı Sil</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-                        <label class="switch" style="position: relative; display: inline-block; width: 34px; height: 18px;">
-                          <input type="checkbox" id="gist-auto-sync-checkbox" onchange="toggleAutoSyncGist(this.checked)">
-                          <span class="slider round"></span>
-                        </label>
-                        <span id="label-gist-auto-sync" style="font-size: 0.78rem; color: var(--text-main);">Kanal ve ayar değişikliklerinde otomatik Gist'e yedekle</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div style="margin-top: 18px;">
-                  <div class="settings-card" id="subtab-fakap">
-                  <h3 class="settings-section-title" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
-                    <span id="fakap-settings-title" style="display:inline-flex; align-items:center; gap:8px;">
-                      <i data-lucide="archive"></i>
-                      <span id="fakap-settings-title-text">Fakap (Otomatik Yedek)</span>
-                    </span>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="switchToolsSubSection('fakap')" style="display:inline-flex; align-items:center; gap:5px; font-size:0.78rem; padding:4px 10px;">
-                      <i data-lucide="external-link" style="width:13px;height:13px;"></i>
-                      <span id="btn-goto-fakap-page">Fakap Sayfasına Git</span>
-                    </button>
-                  </h3>
-
-                  <!-- Fakap Genel Açma / Kapama Anahtarı (Master Switch) -->
-                  <div class="form-group" style="margin-bottom: 12px; padding: 12px; border-radius: 8px; background: rgba(56, 189, 248, 0.04); border: 1px solid rgba(56, 189, 248, 0.2);">
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                      <div style="display: flex; flex-direction: column; gap: 3px;">
-                        <label for="settings-fakap-enabled" id="lbl-fakap-master-switch" style="font-size: 0.88rem; font-weight: 700; color: var(--text-main); margin: 0; cursor: pointer;">Fakap Otomatik Yedekleme (Genel Anahtar)</label>
-                        <small id="desc-fakap-master-switch" style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.4;">Açık olduğunda, kanal ayarında Fakap açık olan kanalların filtrelerden geçen videolarını yedekler. Kapalı olduğunda kanal ayarı açık olsa dahi tüm Fakap indirmeleri durur.</small>
-                      </div>
-                      <div class="toggle-container" style="flex-shrink: 0;">
-                        <input type="checkbox" id="settings-fakap-enabled" class="toggle-input" checked onchange="fakapSaveSettings()">
-                        <label for="settings-fakap-enabled" class="toggle-label"></label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div id="fakap-settings-controls-wrap">
-                    <div class="form-group">
-                      <label for="fakap-path-input" id="fakap-path-label" style="font-size:0.85rem;">Fakap İndirme Konumu</label>
-                      <div class="input-action-row">
-                        <input type="text" id="fakap-path-input" readonly placeholder="Varsayılan: [İndirme Klasörü]/Fakap">
-                        <button type="button" id="fakap-path-browse-btn" class="btn btn-secondary" onclick="fakapBrowseFolder()">
-                          <i data-lucide="folder"></i>
-                          <span id="fakap-path-browse-text">Klasör Seç</span>
-                        </button>
-                        <button type="button" id="fakap-path-default-btn" class="btn btn-secondary" onclick="fakapResetFolder()">
-                          <i data-lucide="rotate-ccw"></i>
-                          <span id="fakap-path-default-text">Varsayılan</span>
-                        </button>
-                      </div>
-                      <small class="form-text" id="fakap-path-desc">Takip edilen kanalların yedek videolarının indirileceği bağımsız klasör konumu.</small>
-                    </div>
-
-                    <div class="form-grid" style="margin-top:10px;">
-                      <div class="form-group">
-                        <label for="fakap-quality-select" id="fakap-quality-label" style="font-size:0.85rem;">Fakap Çözünürlüğü</label>
-                        <select id="fakap-quality-select" onchange="fakapSaveSettings()" style="width:100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
-                          <option value="144">144p</option>
-                          <option value="240">240p</option>
-                          <option value="360" selected>360p</option>
-                        </select>
-                      </div>
-                      <div class="form-group">
-                        <label for="fakap-retention-select" id="fakap-retention-label" style="font-size:0.85rem;">Fakap Silinme Süresi</label>
-                        <select id="fakap-retention-select" onchange="fakapSaveSettings()" style="width:100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: #fff; font-size: 0.88rem;">
-                          <option value="never">Asla (Hiç Silinmez)</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
                 </div>
                 </div>
-              </div>
-              </div>
+                </div>
             </div>
 
             <div class="form-actions" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-color);">

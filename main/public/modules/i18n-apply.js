@@ -126,6 +126,9 @@ export function applyLanguage(lang) {
   el('settings-subtab-label-notifications', 'settings_subtab_notifications');
   el('settings-subtab-label-automation', 'settings_subtab_automation');
   el('settings-subtab-label-backup', 'settings_subtab_backup');
+  el('settings-subtab-label-library', 'settings_subtab_library');
+  el('settings-subtab-label-youtube', 'settings_subtab_youtube');
+  el('settings-subtab-label-ai', 'settings_subtab_ai');
 
   // Ayarlar Sekmesi Kart Başlıkları
   el('settings-title-general-text', 'settings_title_general_text');
@@ -134,6 +137,9 @@ export function applyLanguage(lang) {
   el('settings-title-download-text', 'settings_title_download_text');
   el('settings-title-notifications-text', 'settings_title_notifications_text');
   el('settings-title-automation-text', 'settings_title_automation_text');
+  el('settings-title-library-text', 'settings_title_library_text');
+  el('settings-title-youtube-text', 'settings_title_youtube_text');
+  el('settings-title-ai-text', 'settings_title_ai_text');
 
   elQuery('#tab-settings .content-header h2', 'settings_title');
   elQuery('#tab-settings .content-header p', 'settings_desc');
@@ -210,10 +216,7 @@ export function applyLanguage(lang) {
   el('btn-test-notification-text', 'btn_test_notification');
   el('label-sound-download', 'label_sound_download');
   el('desc-sound-download', 'desc_sound_download');
-  el('label-sound-merge', 'label_sound_merge');
-  el('desc-sound-merge', 'desc_sound_merge');
   el('btn-test-sound-dl-text', 'btn_test_sound');
-  el('btn-test-sound-mr-text', 'btn_test_sound');
   el('opt-sound-dl-chime', 'opt_sound_chime');
   el('opt-sound-dl-bell', 'opt_sound_bell');
   el('opt-sound-dl-pop', 'opt_sound_pop');
@@ -221,29 +224,28 @@ export function applyLanguage(lang) {
   el('opt-sound-dl-melodic', 'opt_sound_melodic');
   el('opt-sound-dl-subtle', 'opt_sound_subtle');
   el('opt-sound-dl-silent', 'opt_sound_silent');
-  el('opt-sound-mr-chime', 'opt_sound_chime_simple');
-  el('opt-sound-mr-bell', 'opt_sound_bell');
-  el('opt-sound-mr-pop', 'opt_sound_pop');
-  el('opt-sound-mr-fanfare', 'opt_sound_fanfare');
-  el('opt-sound-mr-melodic', 'opt_sound_melodic');
-  el('opt-sound-mr-subtle', 'opt_sound_subtle');
-  el('opt-sound-mr-silent', 'opt_sound_silent');
   el('label-notify-triggers-dl', 'label_notify_triggers_dl');
   el('label-notify-dl-start-toast', 'label_notify_dl_start_toast');
   el('label-notify-dl-start-sound', 'label_notify_dl_start_sound');
   el('label-notify-dl-complete-toast', 'label_notify_dl_complete_toast');
   el('label-notify-dl-complete-sound', 'label_notify_dl_complete_sound');
-  el('label-notify-triggers-mr', 'label_notify_triggers_mr');
-  el('label-notify-mr-start-toast', 'label_notify_mr_start_toast');
-  el('label-notify-mr-start-sound', 'label_notify_mr_start_sound');
-  el('label-notify-mr-complete-toast', 'label_notify_mr_complete_toast');
-  el('label-notify-mr-complete-sound', 'label_notify_mr_complete_sound');
+  el('label-protocol-title', 'label_protocol_title');
+  el('desc-protocol-purpose', 'desc_protocol_purpose');
+  el('text-protocol-portable-warning', 'text_protocol_portable_warning');
+  el('btn-protocol-register-text', 'btn_protocol_register');
+  el('btn-protocol-unregister-text', 'btn_protocol_unregister');
+  el('label-cli-path-title', 'cli_path_title');
+  el('desc-cli-path-purpose', 'cli_path_desc');
+  el('btn-cli-path-enable-text', 'cli_path_btn_enable');
+  el('btn-cli-path-disable-text', 'cli_path_btn_disable');
   elQuery('label[for="settings-autoopenbrowser"]:not(.toggle-label)', 'label_auto_open_browser');
   elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
   elQuery('label[for="settings-checkonstartup"]:not(.toggle-label)', 'label_check_on_startup');
   elQuery('label[for="settings-checkonstartup"] + span', 'desc_check_on_startup');
   elQuery('label[for="settings-discordrpc"]:not(.toggle-label)', 'label_discord_rpc');
   elQuery('label[for="settings-discordrpc"] + span', 'desc_discord_rpc');
+  elQuery('label[for="settings-prevent-sleep"]:not(.toggle-label)', 'label_prevent_sleep');
+  elQuery('label[for="settings-prevent-sleep"] + span', 'desc_prevent_sleep');
   elQuery('#btn-search-channel-text', 'btn_search_channel');
   elQuery('#btn-add-channel-text', 'btn_add_channel');
   el('text-filter-auto-title', 'filter_auto_download_title');
@@ -354,6 +356,8 @@ export function applyLanguage(lang) {
   elQuery('label[for="settings-checkonstartup"] + span', 'desc_check_on_startup');
   elQuery('label[for="settings-discordrpc"]:not(.toggle-label)', 'label_discord_rpc');
   elQuery('label[for="settings-discordrpc"] + span', 'desc_discord_rpc');
+  elQuery('label[for="settings-prevent-sleep"]:not(.toggle-label)', 'label_prevent_sleep');
+  elQuery('label[for="settings-prevent-sleep"] + span', 'desc_prevent_sleep');
   elQuery('#btn-search-channel-text', 'btn_search_channel');
   elQuery('#btn-add-channel-text', 'btn_add_channel');
   elQuery('label[for="settings-lang"]', 'label_lang');
@@ -603,10 +607,7 @@ export function applyLanguage(lang) {
   elQuery('.settings-tab-btn[data-subtab="notifications"] span', 'settings_tab_notifications');
   elQuery('.feedback-btn span', 'settings_tab_feedback');
 
-  el('settings-title-general-text', 'settings_tab_general');
-  el('settings-title-download-text', 'settings_tab_download');
-  el('settings-title-automation-text', 'settings_tab_automation');
-  el('settings-title-notifications-text', 'settings_tab_notifications');
+  // Kategori başlıkları artık settings_title_* anahtarlarından gelir (yukarıda uygulanır).
 
   // Yeni eklenen Ayarlar alanı etiket, option ve açıklama çevirileri
   el('desc-download-path', 'desc_download_path');

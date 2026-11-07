@@ -70,14 +70,6 @@ export function playAppSound(eventType, overrideSound = null) {
       if (settings.notifyDownloadCompleteSound === false) return;
       chosenSound = settings.soundDownloadComplete || settings.downloadSound || 'chime';
       break;
-    case 'merge_start':
-      if (settings.notifyMergeStartSound === false) return;
-      chosenSound = settings.soundMergeStart || 'subtle';
-      break;
-    case 'merge_complete':
-      if (settings.notifyMergeCompleteSound === false) return;
-      chosenSound = settings.soundMergeComplete || settings.mergeSound || 'fanfare';
-      break;
     case 'cli':
       chosenSound = settings.soundCli || 'pop';
       break;

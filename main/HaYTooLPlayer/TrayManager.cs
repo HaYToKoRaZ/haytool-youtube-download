@@ -294,6 +294,29 @@ namespace HaYTooLPlayer
             }
         }
 
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint SetThreadExecutionState(uint esFlags);
+
+        private const uint ES_CONTINUOUS = 0x80000000;
+        private const uint ES_SYSTEM_REQUIRED = 0x00000001;
+        private bool _sleepBlocked = false;
+
+        /// <summary>
+        /// Aktif indirme varken Windows uyku/hazırda bekletmeyi engeller (ekran kapanabilir).
+        /// Yalnızca durum değiştiğinde çağrılır. SetThreadExecutionState iş parçacığı bazlı olduğundan
+        /// her zaman UI iş parçacığından (Dispatcher) çağrılmalıdır.
+        /// </summary>
+        private void UpdateSleepPrevention(bool shouldBlock)
+        {
+            if (shouldBlock == _sleepBlocked) return;
+            try
+            {
+                SetThreadExecutionState(shouldBlock ? (ES_CONTINUOUS | ES_SYSTEM_REQUIRED) : ES_CONTINUOUS);
+                _sleepBlocked = shouldBlock;
+            }
+            catch { }
+        }
+
         private void StartDownloadMonitor()
         {
             _downloadMonitorTimer = new System.Windows.Forms.Timer();
@@ -322,10 +345,13 @@ namespace HaYTooLPlayer
                                 if (matchActive.Success) int.TryParse(matchActive.Groups[1].Value, out active);
                                 var matchDownloading = Regex.Match(json, "\"isDownloading\"\\s*:\\s*(true|false)");
                                 bool downloading = matchDownloading.Success && matchDownloading.Groups[1].Value == "true";
+                                var matchPrevent = Regex.Match(json, "\"preventSleep\"\\s*:\\s*(true|false)");
+                                bool preventSleep = !matchPrevent.Success || matchPrevent.Groups[1].Value == "true";
 
                                 _mainWindow.Dispatcher.Invoke(() =>
                                 {
                                     _isDownloadingActive = downloading || active > 0;
+                                    UpdateSleepPrevention((downloading || active > 0) && preventSleep);
                                 });
                             }
                         }
@@ -1370,6 +1396,14 @@ namespace HaYTooLPlayer
                 case "game-on":
                 case "gameoff":
                 case "game-off":
+                case "gton":
+                case "gt-on":
+                case "gameton":
+                case "game-ton":
+                case "gtoff":
+                case "gt-off":
+                case "gametoff":
+                case "game-toff":
                 case "gametoggle":
                 case "game-toggle":
                 case "oyun":
@@ -1877,6 +1911,7 @@ namespace HaYTooLPlayer
 
         public void Dispose()
         {
+            UpdateSleepPrevention(false);
             if (_downloadMonitorTimer != null)
             {
                 _downloadMonitorTimer.Stop();
