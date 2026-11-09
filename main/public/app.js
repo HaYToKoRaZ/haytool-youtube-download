@@ -248,7 +248,14 @@ window.onSummaryModeChange = onSummaryModeChange;
 window.seekSummaryVideo = seekSummaryVideo;
 window.onSummaryModelChange = onSummaryModelChange;
 window.useFallbackLocalNlp = useFallbackLocalNlp;
-import { loadComments, loadMoreComments, renderCommentsList, toggleCommentsPanel } from './modules/comments.js';
+import { loadComments, loadMoreComments, renderCommentsList, toggleCommentsPanel, onCommentsProviderChange, onCommentsModelChange, refreshGgufModelsInComments, updateCommentsOutputLangUI, toggleCommentsFlagDropdown, selectCommentsOutputLang, initCommentsPreferences } from './modules/comments.js';
+window.onCommentsProviderChange = onCommentsProviderChange;
+window.onCommentsModelChange = onCommentsModelChange;
+window.refreshGgufModelsInComments = refreshGgufModelsInComments;
+window.updateCommentsOutputLangUI = updateCommentsOutputLangUI;
+window.toggleCommentsFlagDropdown = toggleCommentsFlagDropdown;
+window.selectCommentsOutputLang = selectCommentsOutputLang;
+window.initCommentsPreferences = initCommentsPreferences;
 // Tema yönetimi ve döngüsel geçiş alt modülü
 import { applyTheme, toggleQuickTheme, updateThemeToggleUI } from './modules/theme.js';
 
@@ -1176,8 +1183,27 @@ document.addEventListener('click', (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    const shortcutsModal = document.getElementById('shortcuts-modal');
+    if (shortcutsModal && !shortcutsModal.classList.contains('hidden')) {
+      if (typeof window.closeShortcutsModal === 'function') window.closeShortcutsModal();
+      return;
+    }
     const panel = document.getElementById('history-filters-panel');
     if (panel) panel.classList.remove('open');
+  }
+
+  // '?' kısayolu ile kısayol cheatsheet modalını aç
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    const activeEl = document.activeElement;
+    const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+    if (!isTyping) {
+      e.preventDefault();
+      const iptvTab = document.getElementById('tab-iptv');
+      const isIptv = iptvTab && !iptvTab.classList.contains('hidden') && iptvTab.style.display !== 'none';
+      if (typeof window.openShortcutsModal === 'function') {
+        window.openShortcutsModal(isIptv ? 'iptv' : 'player');
+      }
+    }
   }
 });
 
@@ -1204,6 +1230,10 @@ function updateUI(db) {
   }
   if (db.settings && db.settings.subtitleSize !== undefined) {
     document.documentElement.style.setProperty('--subtitle-font-size', db.settings.subtitleSize);
+  }
+
+  if (typeof window.initCustomTitlebar === 'function') {
+    window.initCustomTitlebar();
   }
 
   // 1. Sistem Durum Detayları
@@ -1441,6 +1471,7 @@ function updateUI(db) {
                 item.className += ' queue-item-downloading';
                 item.style.borderColor = 'rgba(16, 185, 129, 0.3)';
                 item.style.background = 'rgba(16, 185, 129, 0.03)';
+                item.style.setProperty('--dl-progress', `${video.progress || 0}%`);
               }
             }
 
@@ -1532,6 +1563,7 @@ function updateUI(db) {
                 item.className += ' queue-item-downloading';
                 item.style.borderColor = 'rgba(16, 185, 129, 0.3)';
                 item.style.background = 'rgba(16, 185, 129, 0.03)';
+                item.style.setProperty('--dl-progress', `${video.progress || 0}%`);
               }
             }
 
@@ -2280,7 +2312,9 @@ function updateUI(db) {
     // Fakap yedekleri "İndirilenler" listesinde gösterilmez; kendi sayfasında (Araçlar > Fakap) listelenir.
     let filteredDownloaded = db.history.filter(item => item.status === 'completed' && !(item.isFakap === true || String(item.id || '').startsWith('fakap_')));
     
-    if (downloadedFilterChannel !== 'all') {
+    if (typeof applyDownloadedChannelAndCategoryFilter === 'function') {
+      filteredDownloaded = applyDownloadedChannelAndCategoryFilter(filteredDownloaded, db);
+    } else if (downloadedFilterChannel !== 'all') {
       if (downloadedFilterChannel.startsWith('category:')) {
         const catId = parseInt(downloadedFilterChannel.split(':')[1], 10);
         const channelIdsInCat = (db.channels || []).filter(c => (c.categoryIds || [c.categoryId || 1]).includes(catId)).map(c => c.id);
@@ -2721,13 +2755,17 @@ window.resetHistoryDateFilter = function() {
   updateUI(localDb);
 };
 
-window.resetDownloadedChannelFilter = function() {
+window.resetDownloadedChannelFilter = function(event) {
+  if (event) {
+    event.stopPropagation();
+  }
   const filterSelect = document.getElementById('downloaded-channel-filter');
   if (filterSelect) {
     filterSelect.value = 'all';
   }
   downloadedFilterChannel = 'all';
   window.downloadedFilterChannel = 'all';
+  window.downloadedFilterState = { mode: 'include', categories: [], channels: [], platform: 'all' };
   if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
   if (typeof populateChannelFilters === 'function') populateChannelFilters(localDb);
   updateUI(localDb);
@@ -5264,7 +5302,9 @@ function renderDownloadedPlaylist(currentVideoId) {
   }
 
   let filteredDownloaded = localDb.history.filter(item => item.status === 'completed');
-  if (downloadedFilterChannel !== 'all') {
+  if (typeof applyDownloadedChannelAndCategoryFilter === 'function') {
+    filteredDownloaded = applyDownloadedChannelAndCategoryFilter(filteredDownloaded, localDb);
+  } else if (downloadedFilterChannel !== 'all') {
     if (downloadedFilterChannel.startsWith('category:')) {
       const catId = parseInt(downloadedFilterChannel.split(':')[1], 10);
       const channelIdsInCat = (localDb.channels || []).filter(c => (c.categoryIds || [c.categoryId || 1]).includes(catId)).map(c => c.id);
@@ -5669,11 +5709,15 @@ function showDeleteModal(id) {
   checkboxContainers.forEach(c => c.classList.remove('hidden'));
   if (fileCb) fileCb.checked = true;
 
-  const isExternalPlatform = (item.platform && item.platform !== 'youtube') || (typeof item.id === 'string' && item.id.startsWith('ext_'));
+  const isIptv = (item.platform === 'iptv') || (typeof item.id === 'string' && item.id.startsWith('iptv_')) || (typeof detectVideoPlatform === 'function' && detectVideoPlatform(item) === 'iptv');
+  const isExternalPlatform = isIptv || (item.platform && item.platform !== 'youtube') || (typeof item.id === 'string' && item.id.startsWith('ext_'));
   const markWatchedContainer = document.getElementById('mark-watched-container');
   const hideLibraryContainer = document.getElementById('hide-library-container');
 
-  if (isExternalPlatform) {
+  if (isIptv) {
+    checkboxContainers.forEach(c => c.classList.add('hidden'));
+    if (fileCb) fileCb.checked = true;
+  } else if (isExternalPlatform) {
     if (markWatchedContainer) markWatchedContainer.classList.add('hidden');
     if (hideLibraryContainer) hideLibraryContainer.classList.add('hidden');
   } else {
@@ -6470,11 +6514,15 @@ function restoreDownloadedFilterState() {
     if (iniHasDl.channel) {
       window.downloadedFilterChannel = ini.downloadedFilterChannel;
       downloadedFilterChannel = ini.downloadedFilterChannel;
+      if (typeof parseDownloadedFilterString === 'function') {
+        window.downloadedFilterState = parseDownloadedFilterString(ini.downloadedFilterChannel);
+      }
       const channelSelectEl = document.getElementById('downloaded-channel-filter');
       if (channelSelectEl) channelSelectEl.value = ini.downloadedFilterChannel;
     } else {
       window.downloadedFilterChannel = 'all';
       downloadedFilterChannel = 'all';
+      window.downloadedFilterState = { mode: 'include', categories: [], channels: [], platform: 'all' };
       const channelSelectEl = document.getElementById('downloaded-channel-filter');
       if (channelSelectEl) channelSelectEl.value = 'all';
     }
@@ -6503,6 +6551,9 @@ function restoreDownloadedFilterState() {
       channelSelect.value = state.channel;
       window.downloadedFilterChannel = state.channel;
       downloadedFilterChannel = state.channel;
+      if (typeof parseDownloadedFilterString === 'function') {
+        window.downloadedFilterState = parseDownloadedFilterString(state.channel);
+      }
     }
 
     if (state.sortVal && !(localDb.settings && localDb.settings.downloadedSortMode)) {
@@ -7558,7 +7609,9 @@ function playNextVideoInPlaylist() {
   // 2. Yedek: Yan listede bulunamadıysa filtrelenmiş + sıralanmış veri listesinden bul
   if (!nextVideoId) {
     let filteredDownloaded = (localDb.history || []).filter(item => item.status === 'completed');
-    if (downloadedFilterChannel !== 'all') {
+    if (typeof applyDownloadedChannelAndCategoryFilter === 'function') {
+      filteredDownloaded = applyDownloadedChannelAndCategoryFilter(filteredDownloaded, localDb);
+    } else if (downloadedFilterChannel !== 'all') {
       if (downloadedFilterChannel.startsWith('category:')) {
         const catId = parseInt(downloadedFilterChannel.split(':')[1], 10);
         const channelIdsInCat = (localDb.channels || []).filter(c => (c.categoryIds || [c.categoryId || 1]).includes(catId)).map(c => c.id);
@@ -7968,6 +8021,9 @@ window.filterByChannel = function(channelId, gridId) {
   if (isDownloaded) {
     downloadedFilterChannel = channelId;
     window.downloadedFilterChannel = channelId;
+    if (typeof parseDownloadedFilterString === 'function') {
+      window.downloadedFilterState = parseDownloadedFilterString(channelId);
+    }
     const downloadedChannelFilter = document.getElementById('downloaded-channel-filter');
     if (downloadedChannelFilter) {
       let opt = downloadedChannelFilter.querySelector(`option[value="${CSS.escape(channelId)}"]`);
@@ -8069,6 +8125,7 @@ function selectCustomChannelOption(type, value, event) {
   } else if (type === 'downloaded') {
     downloadedFilterChannel = safeVal;
     window.downloadedFilterChannel = safeVal;
+    window.downloadedFilterState = parseDownloadedFilterString(safeVal);
     if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
   }
 
@@ -8081,12 +8138,270 @@ function selectCustomChannelOption(type, value, event) {
 }
 window.selectCustomChannelOption = selectCustomChannelOption;
 
+// === İndirilenler Çoklu Seçim & Hariç Tutma Filtre Mantığı ===
+function parseDownloadedFilterString(str) {
+  const defaultState = { mode: 'include', categories: [], channels: [], platform: 'all' };
+  if (!str || typeof str !== 'string' || str.trim() === '' || str === 'all') {
+    return defaultState;
+  }
+  const s = str.trim();
+  if (s.startsWith('{') && s.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(s);
+      return {
+        mode: parsed.mode === 'exclude' ? 'exclude' : 'include',
+        categories: Array.isArray(parsed.categories) ? parsed.categories.map(Number).filter(n => !isNaN(n)) : [],
+        channels: Array.isArray(parsed.channels) ? parsed.channels : [],
+        platform: parsed.platform || 'all'
+      };
+    } catch (e) {}
+  }
+  let mode = 'include';
+  let body = s;
+  if (body.startsWith('exclude:')) {
+    mode = 'exclude';
+    body = body.slice('exclude:'.length);
+  } else if (body.startsWith('include:')) {
+    mode = 'include';
+    body = body.slice('include:'.length);
+  }
+
+  const res = { mode, categories: [], channels: [], platform: 'all' };
+
+  if (body.startsWith('category:')) {
+    const cid = parseInt(body.split(':')[1], 10);
+    if (!isNaN(cid)) res.categories.push(cid);
+    return res;
+  }
+  if (body.startsWith('platform:')) {
+    res.platform = body.split(':')[1] || 'all';
+    return res;
+  }
+
+  const parts = body.split(';');
+  parts.forEach(part => {
+    const p = part.trim();
+    if (p.startsWith('cats:')) {
+      const cids = p.slice('cats:'.length).split(',').map(x => parseInt(x.trim(), 10)).filter(n => !isNaN(n));
+      res.categories.push(...cids);
+    } else if (p.startsWith('chans:')) {
+      const chans = p.slice('chans:'.length).split(',').map(x => x.trim()).filter(Boolean);
+      res.channels.push(...chans);
+    } else if (p.startsWith('plat:')) {
+      res.platform = p.slice('plat:'.length).trim() || 'all';
+    } else if (p && p !== 'all') {
+      res.channels.push(p);
+    }
+  });
+
+  return res;
+}
+window.parseDownloadedFilterString = parseDownloadedFilterString;
+
+function serializeDownloadedFilterState(state) {
+  if (!state) return 'all';
+  const hasCats = Array.isArray(state.categories) && state.categories.length > 0;
+  const hasChans = Array.isArray(state.channels) && state.channels.length > 0;
+  const hasPlat = state.platform && state.platform !== 'all';
+
+  if (!hasCats && !hasChans && !hasPlat) return 'all';
+
+  if (state.mode === 'include') {
+    if (hasCats && !hasChans && !hasPlat && state.categories.length === 1) {
+      return `category:${state.categories[0]}`;
+    }
+    if (hasPlat && !hasCats && !hasChans) {
+      return `platform:${state.platform}`;
+    }
+    if (hasChans && !hasCats && !hasPlat && state.channels.length === 1) {
+      return state.channels[0];
+    }
+  }
+
+  const parts = [];
+  if (hasCats) parts.push('cats:' + state.categories.join(','));
+  if (hasChans) parts.push('chans:' + state.channels.join(','));
+  if (hasPlat) parts.push('plat:' + state.platform);
+
+  return `${state.mode}:${parts.join(';')}`;
+}
+window.serializeDownloadedFilterState = serializeDownloadedFilterState;
+
+function getDownloadedFilterState() {
+  if (!window.downloadedFilterState) {
+    window.downloadedFilterState = parseDownloadedFilterString(window.downloadedFilterChannel || 'all');
+  }
+  return window.downloadedFilterState;
+}
+window.getDownloadedFilterState = getDownloadedFilterState;
+
+function applyDownloadedChannelAndCategoryFilter(items, db) {
+  if (!items || !items.length) return [];
+  const state = getDownloadedFilterState();
+  const hasCats = Array.isArray(state.categories) && state.categories.length > 0;
+  const hasChans = Array.isArray(state.channels) && state.channels.length > 0;
+  const hasPlat = state.platform && state.platform !== 'all';
+
+  if (!hasCats && !hasChans && !hasPlat) {
+    return items;
+  }
+
+  const channelsList = (db && db.channels) || (window.localDb && window.localDb.channels) || [];
+  const channelCatMap = new Map();
+  channelsList.forEach(c => {
+    if (c && c.id) {
+      const cids = (Array.isArray(c.categoryIds) && c.categoryIds.length) ? c.categoryIds : [c.categoryId || 1];
+      channelCatMap.set(c.id, new Set(cids));
+    }
+  });
+
+  const chanSet = new Set(state.channels);
+
+  if (state.mode === 'exclude') {
+    return items.filter(item => {
+      if (!item) return false;
+      if (hasPlat) {
+        const p = item.platform || (typeof detectVideoPlatform === 'function' ? detectVideoPlatform(item) : 'youtube');
+        if (p === state.platform) return false;
+      }
+      if (hasChans && chanSet.has(item.channelId)) {
+        return false;
+      }
+      if (hasCats) {
+        const itemCatSet = channelCatMap.get(item.channelId);
+        if (itemCatSet) {
+          for (const cid of state.categories) {
+            if (itemCatSet.has(cid)) return false;
+          }
+        }
+      }
+      return true;
+    });
+  } else {
+    return items.filter(item => {
+      if (!item) return false;
+      if (hasPlat) {
+        const p = item.platform || (typeof detectVideoPlatform === 'function' ? detectVideoPlatform(item) : 'youtube');
+        if (p !== state.platform) return false;
+      }
+      let match = false;
+      if (hasChans && chanSet.has(item.channelId)) {
+        match = true;
+      }
+      if (!match && hasCats) {
+        const itemCatSet = channelCatMap.get(item.channelId);
+        if (itemCatSet) {
+          for (const cid of state.categories) {
+            if (itemCatSet.has(cid)) {
+              match = true;
+              break;
+            }
+          }
+        }
+      }
+      if (!hasCats && !hasChans && hasPlat) {
+        match = true;
+      }
+      return match;
+    });
+  }
+}
+window.applyDownloadedChannelAndCategoryFilter = applyDownloadedChannelAndCategoryFilter;
+
+function setDownloadedFilterMode(mode, event) {
+  if (event) event.stopPropagation();
+  const state = getDownloadedFilterState();
+  state.mode = mode === 'exclude' ? 'exclude' : 'include';
+  commitDownloadedFilterState();
+}
+window.setDownloadedFilterMode = setDownloadedFilterMode;
+
+function toggleDownloadedFilterCategory(catId, event) {
+  if (event) event.stopPropagation();
+  const state = getDownloadedFilterState();
+  const numId = parseInt(catId, 10);
+  const idx = state.categories.indexOf(numId);
+  if (idx > -1) {
+    state.categories.splice(idx, 1);
+  } else {
+    state.categories.push(numId);
+  }
+  commitDownloadedFilterState();
+}
+window.toggleDownloadedFilterCategory = toggleDownloadedFilterCategory;
+
+function toggleDownloadedCategoryPill(catId, event) {
+  if (event) event.stopPropagation();
+  toggleDownloadedFilterCategory(catId, event);
+}
+window.toggleDownloadedCategoryPill = toggleDownloadedCategoryPill;
+
+function toggleDownloadedFilterChannelOption(channelId, event) {
+  if (event) event.stopPropagation();
+  const state = getDownloadedFilterState();
+  const idx = state.channels.indexOf(channelId);
+  if (idx > -1) {
+    state.channels.splice(idx, 1);
+  } else {
+    state.channels.push(channelId);
+  }
+  commitDownloadedFilterState();
+}
+window.toggleDownloadedFilterChannelOption = toggleDownloadedFilterChannelOption;
+
+function toggleDownloadedFilterPlatform(platformId, event) {
+  if (event) event.stopPropagation();
+  const state = getDownloadedFilterState();
+  if (state.platform === platformId) {
+    state.platform = 'all';
+  } else {
+    state.platform = platformId;
+  }
+  commitDownloadedFilterState();
+}
+window.toggleDownloadedFilterPlatform = toggleDownloadedFilterPlatform;
+
+function commitDownloadedFilterState() {
+  const state = getDownloadedFilterState();
+  const serialized = serializeDownloadedFilterState(state);
+  downloadedFilterChannel = serialized;
+  window.downloadedFilterChannel = serialized;
+  
+  const selectEl = document.getElementById('downloaded-channel-filter');
+  if (selectEl) {
+    selectEl.value = serialized;
+  }
+
+  if (typeof saveDownloadedFilterState === 'function') {
+    saveDownloadedFilterState();
+  }
+
+  // Dropdown menü açık ise açık tut ve kaydırma pozisyonunu koru
+  const dropdown = document.getElementById('downloaded-custom-dropdown');
+  const wasOpen = dropdown ? dropdown.classList.contains('open') : false;
+  const itemsList = document.getElementById('downloaded-channel-items-list');
+  const scrollTop = itemsList ? itemsList.scrollTop : 0;
+
+  populateChannelFilters(localDb);
+  
+  if (wasOpen && dropdown) {
+    dropdown.classList.add('open');
+    const newItemsList = document.getElementById('downloaded-channel-items-list');
+    if (newItemsList) newItemsList.scrollTop = scrollTop;
+  }
+
+  if (typeof updateUI === 'function') {
+    updateUI(localDb);
+  }
+}
+window.commitDownloadedFilterState = commitDownloadedFilterState;
+
 function populateChannelFilters(db) {
   const targetDb = db || localDb || {};
   const channels = targetDb.channels || [];
   const categories = targetDb.categories || [];
   const lang = localDb.settings?.lang || currentLang || 'tr';
-  const t = translations[lang] || translations.tr;
+  const t = translations[lang] || translations.tr || {};
 
   ['history', 'downloaded'].forEach(type => {
     const panel = document.getElementById(`${type}-channel-options-panel`);
@@ -8098,7 +8413,30 @@ function populateChannelFilters(db) {
     if (!currentValue || currentValue.trim() === '') currentValue = 'all';
 
     const searchPlaceholder = t.search_channel_placeholder || 'Kanal veya kategori ara...';
+
+    let modeTabsHtml = '';
+    const state = (type === 'downloaded' && typeof getDownloadedFilterState === 'function')
+      ? getDownloadedFilterState()
+      : { mode: 'include', categories: [], channels: [], platform: 'all' };
+
+    if (type === 'downloaded') {
+      const isInc = state.mode !== 'exclude';
+      modeTabsHtml = `
+        <div class="custom-dropdown-mode-tabs">
+          <button type="button" class="custom-dropdown-mode-btn ${isInc ? 'active' : ''}" data-mode="include" onclick="setDownloadedFilterMode('include', event)">
+            <i data-lucide="check" style="width:12px;height:12px;"></i>
+            <span>${escapeHtml(t.filter_mode_include || 'Dahil Et')}</span>
+          </button>
+          <button type="button" class="custom-dropdown-mode-btn ${!isInc ? 'active' : ''}" data-mode="exclude" onclick="setDownloadedFilterMode('exclude', event)">
+            <i data-lucide="ban" style="width:12px;height:12px;"></i>
+            <span>${escapeHtml(t.filter_mode_exclude || 'Hariç Tut')}</span>
+          </button>
+        </div>
+      `;
+    }
+
     const headerHtml = `
+      ${modeTabsHtml}
       <div class="custom-dropdown-search-wrap">
         <div style="position:relative; display:flex; align-items:center;">
           <i data-lucide="search" style="position:absolute; left:8px; width:13px; height:13px; color:var(--text-muted); pointer-events:none;"></i>
@@ -8115,45 +8453,89 @@ function populateChannelFilters(db) {
     // 1. Tüm Kanallar
     const allText = t.filter_all_channels || 'Tüm Kanallar';
     const allIcon = `<i data-lucide="globe" style="width:16px;height:16px;color:var(--accent-color);"></i>`;
-    if (currentValue === 'all') {
-      activeTriggerHtml = `${allIcon}<span>${escapeHtml(allText)}</span>`;
-    }
-    html += `
-      <div class="custom-dropdown-item ${currentValue === 'all' ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', 'all', event)">
-        ${allIcon}
-        <span>${escapeHtml(allText)}</span>
-      </div>
-    `;
 
-    // 1.5 Kaynaklar / Platformlar (YouTube, Twitter/X, Instagram, TikTok)
-    const platformsList = [
-      { id: 'youtube', name: 'YouTube' },
-      { id: 'x', name: 'Twitter / X' },
-      { id: 'instagram', name: 'Instagram' },
-      { id: 'tiktok', name: 'TikTok' }
-    ];
-
-    platformsList.forEach(plat => {
-      const platVal = 'platform:' + plat.id;
-      const platSvg = (typeof getPlatformSvgIcon === 'function')
-        ? getPlatformSvgIcon(plat.id, 16)
-        : '<i data-lucide="video" style="width:16px;height:16px;color:var(--accent-color);"></i>';
-      const isSel = currentValue === platVal;
-      if (isSel) {
-        activeTriggerHtml = '<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;">' + platSvg + '</span><span>' + escapeHtml(plat.name) + '</span>';
+    if (type === 'downloaded') {
+      const isAllActive = state.categories.length === 0 && state.channels.length === 0 && (!state.platform || state.platform === 'all');
+      if (isAllActive) {
+        activeTriggerHtml = `${allIcon}<span>${escapeHtml(allText)}</span>`;
+      } else if (state.mode === 'exclude') {
+        const excCount = state.categories.length + state.channels.length + (state.platform !== 'all' ? 1 : 0);
+        const excText = (t.filter_excluded_count || '{count} Hariç').replace('{count}', excCount);
+        activeTriggerHtml = `<i data-lucide="ban" style="width:14px;height:14px;color:#ef4444;"></i><span style="color:#ef4444;font-weight:600;">${escapeHtml(excText)}</span>`;
+      } else {
+        const totalCount = state.categories.length + state.channels.length + (state.platform !== 'all' ? 1 : 0);
+        if (totalCount === 1) {
+          if (state.categories.length === 1) {
+            const foundCat = categories.find(c => c && c.id === state.categories[0]);
+            const catName = foundCat ? getCatTranslatedName(foundCat, t) : 'Kategori';
+            activeTriggerHtml = `<i data-lucide="folder" style="width:14px;height:14px;color:var(--accent-color);"></i><span>${escapeHtml(catName)}</span>`;
+          } else if (state.channels.length === 1) {
+            const foundChan = channels.find(c => c && c.id === state.channels[0]);
+            const chanName = foundChan ? foundChan.name : 'Kanal';
+            const avatarUrl = `/api/channels/${state.channels[0]}/avatar`;
+            activeTriggerHtml = `<img src="${avatarUrl}" class="custom-dropdown-avatar" onerror="this.src='/logo.png'"><span>${escapeHtml(chanName)}</span>`;
+          } else if (state.platform !== 'all') {
+            const platSvg = (typeof getPlatformSvgIcon === 'function')
+              ? getPlatformSvgIcon(state.platform, 14)
+              : '<i data-lucide="video" style="width:14px;height:14px;color:var(--accent-color);"></i>';
+            activeTriggerHtml = `<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;">${platSvg}</span><span>${escapeHtml(state.platform)}</span>`;
+          }
+        } else {
+          const selText = (t.filter_selected_count || '{count} Seçili').replace('{count}', totalCount);
+          activeTriggerHtml = `<i data-lucide="layers" style="width:14px;height:14px;color:var(--accent-color);"></i><span>${escapeHtml(selText)}</span>`;
+        }
       }
-      selectOptionsHtml += '<option value="' + platVal + '">' + escapeHtml(plat.name) + '</option>';
+
       html += `
-        <div class="custom-dropdown-item ${isSel ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', '${platVal}', event)">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;">${platSvg}</span>
-          <span>${escapeHtml(plat.name)}</span>
+        <div class="custom-dropdown-item ${isAllActive ? 'active' : ''}" onclick="resetDownloadedChannelFilter(event)">
+          ${allIcon}
+          <span>${escapeHtml(allText)}</span>
+          ${isAllActive ? '<i data-lucide="check" style="margin-left:auto;width:14px;height:14px;"></i>' : ''}
         </div>
       `;
-    });
+    } else {
+      // history type
+      if (currentValue === 'all') {
+        activeTriggerHtml = `${allIcon}<span>${escapeHtml(allText)}</span>`;
+      }
+      html += `
+        <div class="custom-dropdown-item ${currentValue === 'all' ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', 'all', event)">
+          ${allIcon}
+          <span>${escapeHtml(allText)}</span>
+        </div>
+      `;
+    }
 
-    html += '<div class="custom-dropdown-divider"></div>';
+    // 1.5 Kaynaklar / Platformlar - SADECE İndirilenler (downloaded) sekmesinde gösterilir (Kütüphane yalnızca YouTube kanallarını takip eder!)
+    if (type === 'downloaded') {
+      const platformsList = [
+        { id: 'youtube', name: 'YouTube' },
+        { id: 'x', name: 'Twitter / X' },
+        { id: 'instagram', name: 'Instagram' },
+        { id: 'tiktok', name: 'TikTok' },
+        { id: 'iptv', name: 'IPTV' }
+      ];
 
-    // 2. Kategoriler (Tek Kategori İkonu)
+      platformsList.forEach(plat => {
+        const platVal = 'platform:' + plat.id;
+        const platSvg = (typeof getPlatformSvgIcon === 'function')
+          ? getPlatformSvgIcon(plat.id, 16)
+          : '<i data-lucide="video" style="width:16px;height:16px;color:var(--accent-color);"></i>';
+        const isSel = state.platform === plat.id;
+        selectOptionsHtml += '<option value="' + platVal + '">' + escapeHtml(plat.name) + '</option>';
+        html += `
+          <div class="custom-dropdown-item ${isSel ? 'active' : ''}" onclick="toggleDownloadedFilterPlatform('${plat.id}', event)">
+            <span class="custom-dropdown-checkbox ${isSel ? 'checked' : ''}"></span>
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex-shrink:0;">${platSvg}</span>
+            <span>${escapeHtml(plat.name)}</span>
+          </div>
+        `;
+      });
+
+      html += '<div class="custom-dropdown-divider"></div>';
+    }
+
+    // 2. Kategoriler
     if (categories && categories.length > 0) {
       const sortedFilterCats = [...categories].sort((a, b) => {
         if (a.id === 1) return -1;
@@ -8166,43 +8548,68 @@ function populateChannelFilters(db) {
         const hasChannel = channels.some(c => (c.categoryIds || [c.categoryId || 1]).includes(cat.id));
         if (hasChannel) {
           const catValue = `category:${cat.id}`;
-          const catText = catName;
           const catIcon = `<i data-lucide="folder" style="width:16px;height:16px;color:var(--accent-color);"></i>`;
-          const isSel = currentValue === catValue;
-          if (isSel) {
-            activeTriggerHtml = `${catIcon}<span>${escapeHtml(catText)}</span>`;
+          
+          if (type === 'downloaded') {
+            const isCatSel = state.categories.includes(cat.id);
+            const isExc = state.mode === 'exclude';
+            selectOptionsHtml += `<option value="${catValue}">${escapeHtml(catName)}</option>`;
+            html += `
+              <div class="custom-dropdown-item ${isCatSel ? 'active' : ''} ${isExc && isCatSel ? 'is-excluded' : ''}" onclick="toggleDownloadedFilterCategory(${cat.id}, event)">
+                <span class="custom-dropdown-checkbox ${isCatSel ? 'checked' : ''}"></span>
+                ${catIcon}
+                <span>${escapeHtml(catName)}</span>
+              </div>
+            `;
+          } else {
+            const isSel = currentValue === catValue;
+            if (isSel) {
+              activeTriggerHtml = `${catIcon}<span>${escapeHtml(catName)}</span>`;
+            }
+            selectOptionsHtml += `<option value="${catValue}">${escapeHtml(catName)}</option>`;
+            html += `
+              <div class="custom-dropdown-item ${isSel ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', '${catValue}', event)">
+                ${catIcon}
+                <span>${escapeHtml(catName)}</span>
+              </div>
+            `;
           }
-          selectOptionsHtml += `<option value="${catValue}">${escapeHtml(catText)}</option>`;
-          html += `
-            <div class="custom-dropdown-item ${isSel ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', '${catValue}', event)">
-              ${catIcon}
-              <span>${escapeHtml(catText)}</span>
-            </div>
-          `;
         }
       });
 
       html += `<div class="custom-dropdown-divider"></div>`;
     }
 
-    // 3. Kanallar (GERÇEK YOUTUBE KANAL LOGOLARI/AVATARLARI İLE)
+    // 3. Kanallar
     const sortedChannels = [...channels].sort((a, b) => a.name.localeCompare(b.name, 'tr'));
     sortedChannels.forEach(channel => {
       const avatarUrl = `/api/channels/${channel.id}/avatar`;
-      const isSel = currentValue === channel.id;
       const avatarImgHtml = `<img src="${avatarUrl}" class="custom-dropdown-avatar" onerror="this.src='/logo.png'">`;
       
-      if (isSel) {
-        activeTriggerHtml = `${avatarImgHtml}<span>${escapeHtml(channel.name)}</span>`;
+      if (type === 'downloaded') {
+        const isChanSel = state.channels.includes(channel.id);
+        const isExc = state.mode === 'exclude';
+        selectOptionsHtml += `<option value="${channel.id}">${escapeHtml(channel.name)}</option>`;
+        html += `
+          <div class="custom-dropdown-item ${isChanSel ? 'active' : ''} ${isExc && isChanSel ? 'is-excluded' : ''}" onclick="toggleDownloadedFilterChannelOption('${channel.id}', event)">
+            <span class="custom-dropdown-checkbox ${isChanSel ? 'checked' : ''}"></span>
+            ${avatarImgHtml}
+            <span>${escapeHtml(channel.name)}</span>
+          </div>
+        `;
+      } else {
+        const isSel = currentValue === channel.id;
+        if (isSel) {
+          activeTriggerHtml = `${avatarImgHtml}<span>${escapeHtml(channel.name)}</span>`;
+        }
+        selectOptionsHtml += `<option value="${channel.id}">${escapeHtml(channel.name)}</option>`;
+        html += `
+          <div class="custom-dropdown-item ${isSel ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', '${channel.id}', event)">
+            ${avatarImgHtml}
+            <span>${escapeHtml(channel.name)}</span>
+          </div>
+        `;
       }
-      selectOptionsHtml += `<option value="${channel.id}">${escapeHtml(channel.name)}</option>`;
-
-      html += `
-        <div class="custom-dropdown-item ${isSel ? 'active' : ''}" onclick="selectCustomChannelOption('${type}', '${channel.id}', event)">
-          ${avatarImgHtml}
-          <span>${escapeHtml(channel.name)}</span>
-        </div>
-      `;
     });
 
     panel.innerHTML = headerHtml + html + '</div>';
@@ -8241,7 +8648,9 @@ function renderDownloadedCategoryQuickPills(activeVal, dbParam) {
     const lang = targetDb.settings?.lang || window.localDb?.settings?.lang || currentLang || 'tr';
     const t = translations[lang] || translations.tr || {};
 
-    const currentFilter = activeVal || window.downloadedFilterChannel || 'all';
+    const state = (typeof getDownloadedFilterState === 'function')
+      ? getDownloadedFilterState()
+      : { mode: 'include', categories: [], channels: [], platform: 'all' };
 
     // 1. Kullanıcının pinlediği kategorileri al
     let pins = [];
@@ -8263,7 +8672,6 @@ function renderDownloadedCategoryQuickPills(activeVal, dbParam) {
 
     // Eğer kullanıcı henüz pinleme yapmamışsa: En popüler/kanalı olan ilk 5 kategoriyi otomatik seç
     if (selectedCats.length === 0 && categories.length > 0) {
-      // Podcast (17), Müzik (4), Teknoloji (5), Oyun (2), Eğitim (3) gibi öncelikli kategoriler
       const defaultPriority = [17, 4, 5, 2, 3, 10, 7, 8, 9, 1];
       const presentCats = [];
       for (const pid of defaultPriority) {
@@ -8273,7 +8681,6 @@ function renderDownloadedCategoryQuickPills(activeVal, dbParam) {
         }
         if (presentCats.length >= 3) break;
       }
-      // Hâlâ 5 olmadıysa mevcut diğer kategorilerden tamamla
       for (const cat of categories) {
         if (cat && !presentCats.some(c => c.id === cat.id)) {
           presentCats.push(cat);
@@ -8283,21 +8690,22 @@ function renderDownloadedCategoryQuickPills(activeVal, dbParam) {
       selectedCats = presentCats;
     }
 
-    // Maksimum 5 adetle sınırla ve geçersiz öğeleri temizle
+    // Maksimum 3 adetle sınırla ve geçersiz öğeleri temizle
     selectedCats = selectedCats.filter(c => c && typeof c.id !== 'undefined').slice(0, 3);
 
+    const isExc = state.mode === 'exclude';
     let pillsHtml = '';
     selectedCats.forEach(cat => {
       const catName = (typeof getCatTranslatedName === 'function') ? getCatTranslatedName(cat, t) : (cat.name || 'Kategori');
-      const catValue = `category:${cat.id}`;
-      const isActive = currentFilter === catValue;
+      const isCatActive = state.categories.includes(cat.id);
+      const activeClass = isCatActive ? (isExc ? 'active exclude-active' : 'active') : '';
       const catIcon = cat.id === 17 ? 'mic' : (cat.id === 4 ? 'music' : (cat.id === 2 ? 'gamepad-2' : (cat.id === 5 ? 'cpu' : 'folder')));
 
       pillsHtml += `
         <button type="button" 
-                class="downloaded-cat-pill-btn ${isActive ? 'active' : ''}" 
-                onclick="selectCustomChannelOption('downloaded', '${catValue}', event)" 
-                title="${escapeHtml(catName)}">
+                class="downloaded-cat-pill-btn ${activeClass}" 
+                onclick="toggleDownloadedCategoryPill(${cat.id}, event)" 
+                title="${escapeHtml(catName)}${isExc ? ' (Hariç Tut)' : ''}">
           <i data-lucide="${catIcon}" style="width:12px; height:12px;"></i>
           <span class="pill-label">${escapeHtml(catName)}</span>
         </button>
@@ -8541,6 +8949,32 @@ setTimeout(() => {
 
 
 // Tarayıcı Eklentisi Modalı Yönetimi
+window.openShortcutsModal = function(initialTab = 'iptv') {
+  const modal = document.getElementById('shortcuts-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  if (typeof window.switchShortcutsTab === 'function') window.switchShortcutsTab(initialTab);
+  if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+};
+
+window.closeShortcutsModal = function() {
+  const modal = document.getElementById('shortcuts-modal');
+  if (modal) modal.classList.add('hidden');
+};
+
+window.switchShortcutsTab = function(tab = 'iptv') {
+  const isIptv = tab === 'iptv';
+  const iptvBtn = document.getElementById('shortcuts-tab-iptv-btn');
+  const playerBtn = document.getElementById('shortcuts-tab-player-btn');
+  const iptvPanel = document.getElementById('shortcuts-panel-iptv');
+  const playerPanel = document.getElementById('shortcuts-panel-player');
+
+  if (iptvBtn) iptvBtn.classList.toggle('active', isIptv);
+  if (playerBtn) playerBtn.classList.toggle('active', !isIptv);
+  if (iptvPanel) iptvPanel.classList.toggle('hidden', !isIptv);
+  if (playerPanel) playerPanel.classList.toggle('hidden', isIptv);
+};
+
 window.openExtensionModal = function() {
   const modal = document.getElementById('extension-modal');
   if (modal) {

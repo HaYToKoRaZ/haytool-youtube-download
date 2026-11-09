@@ -248,18 +248,18 @@
                 <!-- Araç Çubuğu: motor önce, sonra model / biçim / dil kontrolleri -->
                 <div class="summary-toolbar">
                   <!-- AI Sağlayıcı Seçici (önce: hangi model menüsünün görüneceğini belirler) -->
-                  <div style="display: inline-flex; align-items: center; gap: 4px;">
+                  <div class="summary-toolbar-item" style="display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;">
                     <i data-lucide="cpu" style="width: 13px; height: 13px; color: #a855f7;"></i>
-                    <select id="summary-provider-select" onchange="onSummaryProviderChange(this.value)" class="form-select form-select-xs" style="padding: 2px 8px; font-size: 0.78rem; height: 26px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;" title="Özet Çıkarma Motoru / API" data-i18n-title="inline_summary_provider_title">
-                      <option value="auto" data-i18n="ai_provider_auto">⚡ Otomatik</option>
-                      <option value="lmstudio" data-i18n="ai_provider_lmstudio">🖥️ LM Studio (Yerel & Ücretsiz)</option>
-                      <option value="groq" data-i18n="ai_provider_groq">🚀 Groq (Llama 3.3 - Hızlı & Ücretsiz)</option>
-                      <option value="gemini" data-i18n="ai_provider_gemini">✨ Gemini Flash (Google - Ücretsiz)</option>
-                      <option value="deepseek" data-i18n="ai_provider_deepseek">🐋 DeepSeek (En Ucuz API)</option>
-                      <option value="ollama" data-i18n="ai_provider_ollama">🦙 Ollama (Yerel)</option>
-                      <option value="openai" data-i18n="ai_provider_openai">🤖 OpenAI (GPT-4o-mini)</option>
-                      <option value="gguf" data-i18n="ai_provider_gguf">📁 Yerel GGUF Modeli</option>
-                      <option value="local" data-i18n="ai_provider_local">🧠 Yerel NLP (Apisiz)</option>
+                    <select id="summary-provider-select" onchange="onSummaryProviderChange(this.value)" class="form-select form-select-xs" style="padding: 2px 8px; font-size: 0.78rem; height: 26px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer; max-width: 135px;" title="Özet Çıkarma Motoru / API" data-i18n-title="inline_summary_provider_title">
+                      <option value="auto" data-short="⚡ Otomatik" data-full="⚡ Otomatik (Önerilen)">⚡ Otomatik</option>
+                      <option value="lmstudio" data-short="🖥️ LM Studio" data-full="🖥️ LM Studio (Yerel & Ücretsiz)">🖥️ LM Studio</option>
+                      <option value="groq" data-short="🚀 Groq" data-full="🚀 Groq (Llama 3.3 - Hızlı)">🚀 Groq</option>
+                      <option value="gemini" data-short="✨ Gemini" data-full="✨ Gemini Flash (Google - Hızlı)">✨ Gemini</option>
+                      <option value="deepseek" data-short="🐋 DeepSeek" data-full="🐋 DeepSeek (En Ucuz API)">🐋 DeepSeek</option>
+                      <option value="ollama" data-short="🦙 Ollama" data-full="🦙 Ollama (Yerel)">🦙 Ollama</option>
+                      <option value="openai" data-short="🤖 OpenAI" data-full="🤖 OpenAI (GPT-4o-mini)">🤖 OpenAI</option>
+                      <option value="gguf" data-short="📁 GGUF" data-full="📁 Yerel GGUF Modeli">📁 GGUF</option>
+                      <option value="local" data-short="🧠 Yerel NLP" data-full="🧠 Yerel NLP (Apisiz - Kural Tabanlı)">🧠 Yerel NLP</option>
                     </select>
                   </div>
                   <!-- LM Studio Model Seçici (LM Studio aktif olduğunda görünür) -->
@@ -289,23 +289,45 @@
                       <option value="auto" data-i18n="summary_sub_lang_auto">🌐 Otomatik Altyazı</option>
                     </select>
                   </div>
-                  <!-- Özet Çıktı Dili Seçici -->
-                  <div id="summary-output-lang-wrap" style="display: inline-flex; align-items: center; gap: 4px;">
+                  <!-- Özet Çıktı Dili Seçici (Gerçek Bayraklı Kompakt Seçici) -->
+                  <div id="summary-output-lang-wrap" style="position: relative; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;">
                     <i data-lucide="languages" style="width: 13px; height: 13px; color: #a855f7;"></i>
-                    <select id="summary-output-lang-select" onchange="onSummaryOutputLangChange(this.value)" class="form-select form-select-xs" style="padding: 2px 8px; font-size: 0.78rem; height: 26px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;" title="Özet Çıktı Dili" data-i18n-title="summary_out_lang_title">
-                      <option value="app" data-i18n="summary_out_lang_app">🌐 Uygulama Dili</option>
-                      <option value="tr">🇹🇷 Türkçe</option>
-                      <option value="en">🇬🇧 English</option>
-                      <option value="de">🇩🇪 Deutsch</option>
-                      <option value="es">🇪🇸 Español</option>
-                      <option value="pt">🇵🇹 Português</option>
-                      <option value="ru">🇷🇺 Русский</option>
-                      <option value="ar">🇸🇦 العربية</option>
-                    </select>
+                    <input type="hidden" id="summary-output-lang-select" value="app">
+                    <button type="button" id="summary-output-lang-trigger" class="summary-flag-trigger" onclick="toggleSummaryFlagDropdown(event)" title="Özet Çıktı Dili" data-i18n-title="summary_out_lang_title">
+                      <span id="summary-output-lang-current" style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 12px;">
+                        <i data-lucide="globe" style="width: 13px; height: 13px; color: #a855f7;"></i>
+                      </span>
+                      <i data-lucide="chevron-down" style="width: 8px; height: 8px; opacity: 0.6; margin-left: 1px;"></i>
+                    </button>
+                    <div id="summary-flag-dropdown" class="summary-flag-dropdown" style="display: none;">
+                      <button type="button" class="summary-flag-item active" data-lang="app" title="Uygulama Dili / App Language" onclick="selectSummaryOutputLang('app')">
+                        <i data-lucide="globe" style="width: 14px; height: 14px; color: #a855f7;"></i>
+                      </button>
+                      <button type="button" class="summary-flag-item" data-lang="tr" title="Türkçe" onclick="selectSummaryOutputLang('tr')">
+                        <img src="flags/tr.png" alt="TR" class="summary-flag-img">
+                      </button>
+                      <button type="button" class="summary-flag-item" data-lang="en" title="English" onclick="selectSummaryOutputLang('en')">
+                        <img src="flags/gb.png" alt="EN" class="summary-flag-img">
+                      </button>
+                      <button type="button" class="summary-flag-item" data-lang="de" title="Deutsch" onclick="selectSummaryOutputLang('de')">
+                        <img src="flags/de.png" alt="DE" class="summary-flag-img">
+                      </button>
+                      <button type="button" class="summary-flag-item" data-lang="es" title="Español" onclick="selectSummaryOutputLang('es')">
+                        <img src="flags/es.png" alt="ES" class="summary-flag-img">
+                      </button>
+                      <button type="button" class="summary-flag-item" data-lang="pt" title="Português" onclick="selectSummaryOutputLang('pt')">
+                        <img src="flags/pt.png" alt="PT" class="summary-flag-img">
+                      </button>
+                      <button type="button" class="summary-flag-item" data-lang="ru" title="Русский" onclick="selectSummaryOutputLang('ru')">
+                        <img src="flags/ru.png" alt="RU" class="summary-flag-img">
+                      </button>
+                      <button type="button" class="summary-flag-item" data-lang="ar" title="العربية" onclick="selectSummaryOutputLang('ar')">
+                        <img src="flags/sa.png" alt="AR" class="summary-flag-img">
+                      </button>
+                    </div>
                   </div>
-                  <button type="button" class="btn btn-secondary btn-xs" id="summary-btn-regenerate" onclick="regenerateSummary()" style="padding: 4px 10px; font-size: 0.8rem; height: 26px; display: inline-flex; align-items: center; gap: 5px; margin-left: auto;" title="Yeniden Özetle" data-i18n-title="inline_summary_btn_regenerate">
+                  <button type="button" class="btn btn-secondary btn-xs summary-icon-btn" id="summary-btn-regenerate" onclick="regenerateSummary()" style="margin-left: auto;" title="Yeniden Özetle" data-i18n-title="inline_summary_btn_regenerate">
                     <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i>
-                    <span data-i18n="inline_summary_btn_regenerate">Yeniden Özetle</span>
                   </button>
                 </div>
                 <!-- İnce belirsiz ilerleme çubuğu (özet üretilirken görünür) -->
@@ -346,36 +368,132 @@
             </div>
 
             <!-- Yorumlar Paneli -->
-            <div id="inline-player-comments-container" class="inline-player-comments-container card hidden" style="margin-top: 15px; padding: 20px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-                <h4 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
-                  <i data-lucide="message-square" style="color: var(--accent-primary);"></i>
-                  <span id="comments-title-text">Yorumlar</span>
-                </h4>
+            <div id="inline-player-comments-container" class="inline-player-comments-container card hidden" style="margin-top: 15px; padding: 16px 18px; height: auto; max-height: none; overflow: visible;">
+              <div class="comments-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <h4 style="margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="message-square" style="color: var(--accent-primary); width: 17px; height: 17px;"></i>
+                    <span id="comments-title-text" data-i18n="comments_title">Yorumlar</span>
+                    <span id="comments-count-badge" class="comments-count-badge" style="display: none;">0</span>
+                  </h4>
+
+                  <!-- Model & Özet Seçenekleri (Yorumlar Başlığının Hemen Sağında) -->
+                  <div id="comments-ai-actions-group" style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <select id="comments-ai-provider-select" onchange="onCommentsProviderChange(this.value)" class="form-select form-select-xs" style="height: 28px; font-size: 0.75rem; border-radius: 6px; padding: 2px 8px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer; max-width: 125px;" title="Özet Motoru" data-i18n-title="inline_summary_provider_title">
+                      <option value="auto">⚡ Otomatik</option>
+                      <option value="lmstudio">🖥️ LM Studio</option>
+                      <option value="groq">🚀 Groq</option>
+                      <option value="gemini">✨ Gemini</option>
+                      <option value="deepseek">🐋 DeepSeek</option>
+                      <option value="ollama">🦙 Ollama</option>
+                      <option value="openai">🤖 OpenAI</option>
+                      <option value="gguf">📁 GGUF</option>
+                      <option value="local">🧠 Yerel NLP</option>
+                    </select>
+                    <!-- GGUF Model Seçici (GGUF seçildiğinde görünür) -->
+                    <div id="comments-gguf-model-wrap" style="display: none; align-items: center; gap: 4px;">
+                      <i data-lucide="file-box" style="width: 13px; height: 13px; color: #60a5fa;"></i>
+                      <select id="comments-gguf-model-select" onchange="onCommentsModelChange(this.value)" class="form-select form-select-xs" style="padding: 2px 8px; font-size: 0.75rem; height: 28px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer; max-width: 170px;" title="GGUF Modeli" data-i18n-title="summary_gguf_model_title"></select>
+                    </div>
+                    <!-- Özet Çıktı Dili Seçici (Bayraklı Kompakt Seçici) -->
+                    <div id="comments-output-lang-wrap" style="position: relative; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                      <input type="hidden" id="comments-ai-lang-select" value="app">
+                      <button type="button" id="comments-output-lang-trigger" class="summary-flag-trigger" onclick="toggleCommentsFlagDropdown(event)" title="Özet Çıktı Dili" data-i18n-title="summary_out_lang_title">
+                        <span id="comments-output-lang-current" style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 12px;">
+                          <i data-lucide="globe" style="width: 13px; height: 13px; color: #a855f7;"></i>
+                        </span>
+                        <i data-lucide="chevron-down" style="width: 8px; height: 8px; opacity: 0.6; margin-left: 1px;"></i>
+                      </button>
+                      <div id="comments-flag-dropdown" class="summary-flag-dropdown" style="display: none;">
+                        <button type="button" class="summary-flag-item active" data-lang="app" title="Uygulama Dili / App Language" onclick="selectCommentsOutputLang('app')">
+                          <i data-lucide="globe" style="width: 14px; height: 14px; color: #a855f7;"></i>
+                        </button>
+                        <button type="button" class="summary-flag-item" data-lang="tr" title="Türkçe" onclick="selectCommentsOutputLang('tr')">
+                          <img src="flags/tr.png" alt="TR" class="summary-flag-img">
+                        </button>
+                        <button type="button" class="summary-flag-item" data-lang="en" title="English" onclick="selectCommentsOutputLang('en')">
+                          <img src="flags/gb.png" alt="EN" class="summary-flag-img">
+                        </button>
+                        <button type="button" class="summary-flag-item" data-lang="de" title="Deutsch" onclick="selectCommentsOutputLang('de')">
+                          <img src="flags/de.png" alt="DE" class="summary-flag-img">
+                        </button>
+                        <button type="button" class="summary-flag-item" data-lang="es" title="Español" onclick="selectCommentsOutputLang('es')">
+                          <img src="flags/es.png" alt="ES" class="summary-flag-img">
+                        </button>
+                        <button type="button" class="summary-flag-item" data-lang="pt" title="Português" onclick="selectCommentsOutputLang('pt')">
+                          <img src="flags/pt.png" alt="PT" class="summary-flag-img">
+                        </button>
+                        <button type="button" class="summary-flag-item" data-lang="ru" title="Русский" onclick="selectCommentsOutputLang('ru')">
+                          <img src="flags/ru.png" alt="RU" class="summary-flag-img">
+                        </button>
+                        <button type="button" class="summary-flag-item" data-lang="ar" title="العربية" onclick="selectCommentsOutputLang('ar')">
+                          <img src="flags/sa.png" alt="AR" class="summary-flag-img">
+                        </button>
+                      </div>
+                    </div>
+                    <!-- Yorumları Özetle Butonu -->
+                    <button type="button" class="btn btn-secondary btn-xs" id="btn-summarize-comments" onclick="summarizeComments()" style="height: 28px; padding: 2px 10px; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; border-radius: 6px; background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.35); color: #c084fc; font-weight: 600;">
+                      <i data-lucide="sparkles" style="width: 13px; height: 13px; color: #a855f7;"></i>
+                      <span id="btn-summarize-comments-text" data-i18n="comments_btn_summarize">Yorumları Özetle</span>
+                    </button>
+                  </div>
+                </div>
+
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <select id="comments-sort" onchange="sortAndRenderComments()" style="font-size: 0.75rem; padding: 4px 8px; background-color: var(--bg-sidebar); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 6px; outline: none; cursor: pointer; transition: border-color 0.2s;">
+                  <select id="comments-sort" onchange="sortAndRenderComments()" class="form-select form-select-xs" style="font-size: 0.77rem; height: 26px; padding: 2px 8px; border-radius: 6px; background-color: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer; outline: none;">
                     <option value="default">Varsayılan</option>
                     <option value="likes-desc">Beğeni (Çoktan Aza)</option>
                     <option value="date-new">En Yeni</option>
                     <option value="date-old">En Eski</option>
                   </select>
-                  <button class="btn btn-secondary btn-xs" onclick="toggleCommentsPanel()" style="padding: 4px 10px; font-size: 0.8rem; height: 26px;">Kapat</button>
+                  <button type="button" class="btn btn-secondary btn-xs" onclick="toggleCommentsPanel()" style="padding: 4px 10px; font-size: 0.8rem; height: 26px;" data-i18n="inline_summary_btn_close">Kapat</button>
                 </div>
               </div>
-              <div id="comments-loading" class="text-center text-muted" style="padding: 20px; display: none;">
-                <i data-lucide="loader" class="spin-animation" style="width: 20px; height: 20px; margin-bottom: 8px; display: inline-block;"></i>
-                <div>Yorumlar yükleniyor...</div>
+              <!-- AI Yorum Özeti Kartı (Kullanıcı istediğinde açılır / kapanır) -->
+              <div id="comments-ai-summary-card" class="card" style="display: none; margin-bottom: 12px; padding: 14px 16px; border-radius: 12px; background: linear-gradient(145deg, rgba(35, 20, 60, 0.95) 0%, rgba(18, 14, 36, 0.98) 100%); border: 1px solid rgba(168, 85, 247, 0.3); box-shadow: 0 4px 16px rgba(0,0,0,0.3); flex-shrink: 0;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid rgba(168, 85, 247, 0.2); padding-bottom: 8px; margin-bottom: 10px;">
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <i data-lucide="sparkles" style="width: 15px; height: 15px; color: #a855f7;"></i>
+                    <span style="font-weight: 700; font-size: 0.88rem; color: #e9d5ff;" data-i18n="comments_summary_title">Yorum Özeti (AI)</span>
+                    <span id="comments-summary-engine-badge" class="summary-chip" style="display: none; font-size: 0.68rem; padding: 1px 6px;"></span>
+                    <span id="comments-summary-meta" style="font-size: 0.72rem; color: var(--text-muted); margin-left: 4px;"></span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <button type="button" class="btn btn-secondary btn-xs summary-icon-btn" onclick="copyCommentsSummary()" title="Özeti Kopyala" data-i18n-title="inline_summary_btn_copy">
+                      <i data-lucide="copy" style="width: 12px; height: 12px;"></i>
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-xs summary-icon-btn" onclick="closeCommentsSummary()" title="Kapat" data-i18n-title="inline_summary_btn_close">
+                      <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+                    </button>
+                  </div>
+                </div>
+                <div id="comments-summary-loading" style="display: none; padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.82rem;">
+                  <i data-lucide="loader" class="spin-animation" style="width: 18px; height: 18px; color: #a855f7; margin-bottom: 6px; display: inline-block;"></i>
+                  <div data-i18n="comments_btn_summarizing">Yorumlar inceleniyor ve özet oluşturuluyor...</div>
+                </div>
+                <div id="comments-summary-body" style="font-size: 0.84rem; line-height: 1.55; color: var(--text-main); max-height: 480px; overflow-y: auto; padding-right: 4px;"></div>
               </div>
-              <div id="comments-list-empty" class="text-center text-muted" style="padding: 20px; display: none;">
-                Yorum bulunamadı veya yüklenirken bir sorun oluştu.
+
+              <div id="comments-loading" class="text-center text-muted" style="padding: 28px 20px; display: none; flex-shrink: 0;">
+                <i data-lucide="loader" class="spin-animation" style="width: 22px; height: 22px; margin-bottom: 8px; display: inline-block; color: var(--accent-primary);"></i>
+                <div style="font-size: 0.85rem; font-weight: 500;">Yorumlar yükleniyor...</div>
               </div>
-              <div id="comments-list" style="display: flex; flex-direction: column; gap: 15px; max-height: 1300px; overflow-y: auto; padding-right: 5px;">
+              <div id="comments-list-empty" class="text-center text-muted" style="padding: 28px 20px; display: none; flex-shrink: 0;">
+                <i data-lucide="message-circle-off" style="width: 26px; height: 26px; margin-bottom: 8px; opacity: 0.45; display: inline-block;"></i>
+                <div style="font-size: 0.85rem;">Yorum bulunamadı veya yüklenirken bir sorun oluştu.</div>
+              </div>
+              <div id="comments-list" class="comments-list-scrollable" style="display: flex; flex-direction: column; gap: 10px; height: auto; overflow: visible; padding-right: 2px;">
                 <!-- Yorumlar buraya eklenecek -->
               </div>
-              <div id="comments-more-container" style="display: none; text-align: center; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 12px;">
-                <button class="btn btn-secondary btn-sm" id="btn-load-more-comments" onclick="loadMoreComments()" style="padding: 6px 20px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 8px;">
-                  <i data-lucide="plus"></i>
-                  <span id="btn-load-more-comments-text">Daha Fazla Göster</span>
+              <!-- Alt Araç Çubuğu: Daha Fazla Göster + Hepsini Göster -->
+              <div id="comments-more-container" style="display: none; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; border-top: 1px solid var(--border-color); padding-top: 12px; flex-shrink: 0;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-load-more-comments" onclick="loadMoreComments()" style="padding: 5px 14px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;">
+                  <i data-lucide="plus" style="width: 13px; height: 13px;"></i>
+                  <span id="btn-load-more-comments-text" data-i18n="comments_btn_load_more">Daha Fazla Göster</span>
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-load-all-comments" onclick="loadAllComments()" style="padding: 5px 14px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25); color: #38bdf8;">
+                  <i data-lucide="chevrons-down" style="width: 13px; height: 13px;"></i>
+                  <span id="btn-load-all-comments-text" data-i18n="comments_btn_load_all">Hepsini Göster</span>
                 </button>
               </div>
             </div>

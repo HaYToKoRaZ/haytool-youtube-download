@@ -12,7 +12,7 @@ import { writeDb } from '../database.js';
 import { broadcast } from '../services/sse.js';
 import { readDb, findVideoFileInDownloadDir } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
-import { generateVideoSummary, getLmStudioModels, checkLlamaEngineStatus, downloadAndInstallLlamaEngine, scanGgufModels, stopLlamaEngine, startRecommendedModelDownload, getRecommendedModelDownloadStatus, cancelRecommendedModelDownload } from '../services/aiSummary.js';
+import { generateVideoSummary, generateCommentsSummary, getLmStudioModels, checkLlamaEngineStatus, downloadAndInstallLlamaEngine, scanGgufModels, stopLlamaEngine, startRecommendedModelDownload, getRecommendedModelDownloadStatus, cancelRecommendedModelDownload } from '../services/aiSummary.js';
 import { getTtsStatus, downloadPiperEngine, downloadPiperVoice, speakText, stopTtsEngine, VOICE_CATALOG, getTtsCacheDir } from '../services/tts.js';
 
 export const router = express.Router();
@@ -135,7 +135,8 @@ const PLATFORM_SVG_BANNERS = {
   tiktok: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="#010101"/><g transform="translate(136, 66) scale(2)" fill="#ffffff"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.86 4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-.04-4.52z"/></g></svg>`,
   x: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="#0b0e14"/><g transform="translate(136, 66) scale(2)" fill="#ffffff"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></g></svg>`,
   instagram: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="ig" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#f09433"/><stop offset="25%" stop-color="#e6683c"/><stop offset="50%" stop-color="#dc2743"/><stop offset="75%" stop-color="#cc2366"/><stop offset="100%" stop-color="#bc1888"/></linearGradient></defs><rect width="320" height="180" fill="url(#ig)"/><g transform="translate(136, 66) scale(2)" fill="#ffffff"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></g></svg>`,
-  youtube: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="#0f0f13"/><g transform="translate(136, 66) scale(2)" fill="#ff0000"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></g></svg>`
+  youtube: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="#0f0f13"/><g transform="translate(136, 66) scale(2)" fill="#ff0000"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></g></svg>`,
+  iptv: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="iptvgrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0284c7"/><stop offset="100%" stop-color="#4f46e5"/></linearGradient></defs><rect width="320" height="180" fill="url(#iptvgrad)"/><g transform="translate(136, 66) scale(2)" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></g></svg>`
 };
 
 router.get('/video/:videoId/thumbnail', localhostOnly, (req, res) => {
@@ -1025,6 +1026,8 @@ router.get('/video/:videoId/comments', localhostOnly, async (req, res) => {
   try {
     let apiKey = cachedYoutubeApiKey;
     let continuationToken = token;
+    let totalComments = null;
+    let watchHtml = '';
 
     if (!apiKey || !continuationToken) {
       const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -1034,6 +1037,7 @@ router.get('/video/:videoId/comments', localhostOnly, async (req, res) => {
         }
       });
       const html = await watchRes.text();
+      watchHtml = html;
       
       const keyRegex = /"INNERTUBE_API_KEY":"([^"]+)"/;
       const keyMatch = html.match(keyRegex);
@@ -1050,6 +1054,11 @@ router.get('/video/:videoId/comments', localhostOnly, async (req, res) => {
           const contents = ytInitialData.contents?.twoColumnWatchNextResults?.results?.results?.contents || [];
           for (const item of contents) {
             if (item.itemSectionRenderer && item.itemSectionRenderer.sectionIdentifier === 'comment-item-section') {
+              const header = item.itemSectionRenderer.header?.commentsHeaderRenderer;
+              const countRuns = header?.commentsCount?.runs || header?.countText?.runs;
+              if (countRuns && countRuns[0]?.text) {
+                totalComments = countRuns[0].text;
+              }
               const continuation = item.itemSectionRenderer.contents?.[0]?.continuationItemRenderer;
               continuationToken = continuation?.continuationEndpoint?.continuationCommand?.token;
               break;
@@ -1075,7 +1084,7 @@ router.get('/video/:videoId/comments', localhostOnly, async (req, res) => {
     }
 
     if (!apiKey || !continuationToken) {
-      return res.json({ success: true, comments: [], nextPageToken: null });
+      return res.json({ success: true, comments: [], nextPageToken: null, totalCount: totalComments });
     }
 
     const apiEndpoint = `https://www.youtube.com/youtubei/v1/next?key=${apiKey}`;
@@ -1126,6 +1135,12 @@ router.get('/video/:videoId/comments', localhostOnly, async (req, res) => {
                       (endpoint.appendContinuationItemsAction?.continuationItems) || [];
         
         for (const item of items) {
+          if (item.commentsHeaderRenderer) {
+            const countRuns = item.commentsHeaderRenderer.commentsCount?.runs || item.commentsHeaderRenderer.countText?.runs;
+            if (countRuns && countRuns[0]?.text) {
+              totalComments = countRuns[0].text;
+            }
+          }
           if (item.continuationItemRenderer) {
             nextToken = item.continuationItemRenderer.continuationEndpoint?.continuationCommand?.token ||
                         item.continuationItemRenderer.button?.buttonRenderer?.command?.continuationCommand?.token;
@@ -1133,11 +1148,56 @@ router.get('/video/:videoId/comments', localhostOnly, async (req, res) => {
         }
       });
     }
+
+    if (!totalComments && watchHtml) {
+      const countMatch = watchHtml.match(/"commentsCount":\{"runs":\[\{"text":"([^"]+)"\}\]\}/) ||
+                         watchHtml.match(/"totalComments":"?([0-9,.]+)"?/);
+      if (countMatch) totalComments = countMatch[1];
+    }
     
-    return res.json({ success: true, comments: commentsList, nextPageToken: nextToken });
+    return res.json({ success: true, comments: commentsList, nextPageToken: nextToken, totalCount: totalComments });
   } catch (err) {
     console.error('[Get Comments Error]:', err.message);
     res.json({ success: false, error: err.message, comments: [], nextPageToken: null });
+  }
+});
+
+/**
+ * Kullanıcı yorumlarını yapay zekâ veya kural tabanlı NLP ile analiz ederek kitle duygu ve konu özetini üretir.
+ * 
+ * @name POST /api/video/:videoId/comments/ai-summary
+ * @param {string} req.params.videoId - Video YouTube ID'si
+ * @param {object} req.body - İstek gövdesi ({ provider, lang, outputLang, comments })
+ * @returns {Promise<void>}
+ */
+router.post('/video/:videoId/comments/ai-summary', localhostOnly, async (req, res) => {
+  const { videoId } = req.params;
+  const {
+    provider = 'auto',
+    lang = 'tr',
+    outputLang = 'app',
+    model,
+    comments = []
+  } = req.body;
+
+  try {
+    const summaryResult = await generateCommentsSummary(videoId, comments, {
+      provider,
+      lang,
+      outputLang,
+      model
+    });
+
+    return res.json({
+      success: true,
+      ...summaryResult
+    });
+  } catch (err) {
+    console.error('[AI Comments Summary Route Error]:', err.message);
+    return res.status(500).json({
+      success: false,
+      error: err.message || 'Yorumlar özetlenirken bir hata meydana geldi.'
+    });
   }
 });
 

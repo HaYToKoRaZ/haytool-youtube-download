@@ -3,154 +3,505 @@
         <div class="iptv-layout">
           <!-- Sol Kısım: Video Slotları Grid Arayüzü -->
           <div class="iptv-player-container">
+            <!-- Üst Araç Çubuğu -->
             <div class="iptv-view-toolbar">
-              <div class="view-mode-buttons" style="display: flex; gap: 8px; align-items: center;">
-                <button id="iptv-single-view-btn" class="btn btn-secondary btn-sm active">
+              <div class="view-mode-buttons">
+                <button id="iptv-single-view-btn" class="btn btn-secondary btn-sm active" title="Tekli Ekran">
                   <i data-lucide="monitor"></i>
                   <span id="lbl-single-view">Tekli Ekran</span>
                 </button>
-                <button id="iptv-dual-view-btn" class="btn btn-secondary btn-sm">
+                <button id="iptv-dual-view-btn" class="btn btn-secondary btn-sm" title="İkili Ekran (Yan Yana)">
                   <i data-lucide="columns"></i>
                   <span id="lbl-dual-view">İkili Ekran</span>
                 </button>
-                <button id="iptv-quad-view-btn" class="btn btn-secondary btn-sm">
+                <button id="iptv-quad-view-btn" class="btn btn-secondary btn-sm" title="Çoklu Ekran (4 Kanal)">
                   <i data-lucide="layout-grid"></i>
-                  <span id="lbl-quad-view">Çoklu Ekran (4 Kanal)</span>
+                  <span id="lbl-quad-view">4'lü Matris</span>
                 </button>
-                <button id="iptv-sport-view-btn" class="btn btn-secondary btn-sm">
+                <button id="iptv-sport-view-btn" class="btn btn-secondary btn-sm" title="Spor Modu (PIP)">
                   <i data-lucide="layers"></i>
                   <span id="lbl-sport-view">Spor Modu</span>
                 </button>
-                <button id="iptv-swap-btn" class="btn btn-secondary btn-sm hidden" title="Ekranları Yer Değiştir" style="margin-left: 4px;">
+                <button id="iptv-swap-btn" class="btn btn-secondary btn-sm hidden" title="Ekranları Yer Değiştir">
                   <i data-lucide="refresh-cw"></i>
                   <span id="lbl-swap-screens">Yer Değiştir</span>
                 </button>
-                <button id="iptv-grid-fullscreen-btn" class="btn btn-secondary btn-sm" title="Tüm Ekranları Tam Ekran Yap" style="padding: 0 8px; height: 28px; width: 28px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; margin-left: 4px;">
-                  <i data-lucide="maximize" style="width: 14px; height: 14px;"></i>
+                <button id="iptv-grid-fullscreen-btn" class="btn btn-secondary btn-sm btn-icon" title="Tüm Ekranları Tam Ekran Yap">
+                  <i data-lucide="maximize"></i>
+                </button>
+                <button id="iptv-shortcuts-btn" class="btn btn-secondary btn-sm btn-icon" title="Klavye Kısayolları (?)" aria-label="Kısayollar">
+                  <i data-lucide="keyboard"></i>
                 </button>
               </div>
               <div class="active-slot-indicator">
-                <span id="active-slot-label">Aktif Slot: Slot 1</span>
+                <span id="active-slot-label" class="slot-badge">Aktif Slot: Slot 1</span>
               </div>
             </div>
 
             <!-- 2x2 Grid Video Slotları -->
             <div id="iptv-players-grid" class="iptv-grid single-mode">
-              <!-- Slot 1 -->
+              <!-- Slot 1 (data-slot="0") -->
               <div class="iptv-slot active" data-slot="0">
                 <div class="slot-resize-handle"></div>
-                <div class="slot-header">
-                  <span class="slot-title">Slot 1: Boş</span>
-                  <div class="slot-controls">
-                    <button class="slot-btn mute-btn" title="Sesi Aç/Kapa" aria-label="Sesi Aç/Kapa"><i data-lucide="volume-2"></i></button>
-                    <button class="slot-btn swap-slot-btn" title="Ekranları Yer Değiştir" aria-label="Ekranları Yer Değiştir"><i data-lucide="refresh-cw"></i></button>
-                    <button class="slot-btn clear-btn" title="Yayını Durdur" aria-label="Yayını Durdur"><i data-lucide="square"></i></button>
-                  </div>
-                </div>
                 <div class="slot-body">
+                  <!-- Boşken Görünen Placeholder -->
                   <div class="slot-placeholder">
-                    <i data-lucide="tv-2"></i>
-                    <span class="lbl-select-channel">Kanal Seçin</span>
+                    <div class="placeholder-icon-ring">
+                      <i data-lucide="tv-2"></i>
+                    </div>
+                    <span class="placeholder-title">Slot 1 Boş</span>
+                    <span class="placeholder-desc lbl-select-channel">Listeden bir kanal seçerek yayını başlatın</span>
                   </div>
-                  <div class="slot-player-instance"></div>
+
+                  <!-- Yayın Yok / Çevrimdışı Durum Katmanı -->
+                  <div class="slot-error-overlay hidden">
+                    <div class="slot-error-icon-ring">
+                      <i data-lucide="wifi-off"></i>
+                    </div>
+                    <span class="slot-error-title" data-i18n="iptv_stream_offline">Yayın Şu Anda Çevrimdışı</span>
+                    <span class="slot-error-channel"></span>
+                    <span class="slot-error-desc" data-i18n="iptv_stream_offline_desc">Kaynak sunucudan veri akışı gelmiyor veya yayın sonlandırılmış.</span>
+                    <div class="slot-error-actions">
+                      <button type="button" class="slot-error-retry-btn" title="Yeniden Bağlanmayı Dene">
+                        <i data-lucide="refresh-cw"></i>
+                        <span data-i18n="iptv_retry">Tekrar Dene</span>
+                      </button>
+                      <button type="button" class="slot-error-random-btn" title="Farklı Bir Kanal Aç">
+                        <i data-lucide="shuffle"></i>
+                        <span data-i18n="iptv_try_another_random">Rastgele Başka Kanal</span>
+                      </button>
+                      <button type="button" class="slot-error-close-btn" title="Kapat">
+                        <i data-lucide="x"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Video & Özel OSD Sarmalayıcısı -->
+                  <div class="slot-video-wrapper hidden">
+                    <video id="iptv-video-0" class="iptv-native-video" playsinline></video>
+
+                    <!-- Canlı TV OSD (On-Screen Display) -->
+                    <div class="iptv-osd-overlay">
+                      <!-- OSD Üst Başlık -->
+                      <div class="iptv-osd-top">
+                        <div class="osd-channel-meta">
+                          <span class="osd-slot-pill">Slot 1</span>
+                          <span class="osd-channel-title">Kanal Adı</span>
+                          <span class="osd-live-tag">CANLI</span>
+                          <span class="osd-dvr-pill hidden"></span>
+                        </div>
+                        <div class="osd-top-actions">
+                          <button class="osd-top-btn pvr-rec-btn" title="Kayıt / PVR Başlat" aria-label="PVR">
+                            <i data-lucide="circle-dot"></i>
+                            <span class="pvr-status-text">REC</span>
+                            <span class="pvr-timer-text">00:00:00</span>
+                          </button>
+                          <button class="osd-top-btn swap-slot-btn" title="Ekranları Yer Değiştir" aria-label="Yer Değiştir">
+                            <i data-lucide="refresh-cw"></i>
+                          </button>
+                          <button class="osd-top-btn clear-btn" title="Yayını Durdur" aria-label="Durdur">
+                            <i data-lucide="x"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- OSD Orta Play/Pause Parıltısı -->
+                      <div class="iptv-osd-center">
+                        <div class="osd-pulse-icon"><i data-lucide="play"></i></div>
+                      </div>
+
+                      <!-- OSD Alt Kumanda Paneli -->
+                      <div class="iptv-osd-bottom">
+                        <!-- DVR Zaman Çizelgesi -->
+                        <div class="osd-dvr-bar">
+                          <span class="osd-time-display">-00:00</span>
+                          <div class="osd-timeline-track">
+                            <div class="osd-timeline-buffer"></div>
+                            <div class="osd-timeline-progress"></div>
+                            <div class="osd-timeline-handle"></div>
+                          </div>
+                          <button class="osd-live-btn at-live" title="Canlı Kenara Dön">
+                            <span class="live-dot"></span>
+                            <span class="live-label" data-i18n="iptv_pvr_live">CANLI</span>
+                          </button>
+                        </div>
+
+                        <!-- Alt Butonlar Satırı -->
+                        <div class="osd-controls-row">
+                          <div class="osd-left-group">
+                            <button class="osd-ctrl-btn osd-play-btn" title="Oynat / Duraklat"><i data-lucide="pause"></i></button>
+                            <button class="osd-ctrl-btn osd-rewind-btn" title="10 Saniye Geri Sar"><i data-lucide="rotate-ccw"></i> <span>10s</span></button>
+                            <button class="osd-ctrl-btn osd-forward-btn" title="10 Saniye İleri Sar"><i data-lucide="rotate-cw"></i> <span>10s</span></button>
+                            
+                            <div class="osd-volume-group">
+                              <button class="osd-ctrl-btn osd-mute-btn" title="Sesi Aç/Kapat"><i data-lucide="volume-2"></i></button>
+                              <input type="range" class="osd-volume-slider" min="0" max="1" step="0.05" value="1" title="Ses">
+                            </div>
+                          </div>
+
+                          <div class="osd-right-group">
+                            <button class="osd-ctrl-btn osd-pip-btn" title="Resim İçinde Resim"><i data-lucide="picture-in-picture-2"></i></button>
+                            <button class="osd-ctrl-btn osd-fullscreen-btn" title="Tam Ekran"><i data-lucide="maximize"></i></button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <!-- Slot 2 -->
+              <!-- Slot 2 (data-slot="1") -->
               <div class="iptv-slot" data-slot="1">
                 <div class="slot-resize-handle"></div>
-                <div class="slot-header">
-                  <span class="slot-title">Slot 2: Boş</span>
-                  <div class="slot-controls">
-                    <button class="slot-btn mute-btn" title="Sesi Aç/Kapa" aria-label="Sesi Aç/Kapa"><i data-lucide="volume-2"></i></button>
-                    <button class="slot-btn swap-slot-btn" title="Ekranları Yer Değiştir" aria-label="Ekranları Yer Değiştir"><i data-lucide="refresh-cw"></i></button>
-                    <button class="slot-btn clear-btn" title="Yayını Durdur" aria-label="Yayını Durdur"><i data-lucide="square"></i></button>
-                  </div>
-                </div>
                 <div class="slot-body">
                   <div class="slot-placeholder">
-                    <i data-lucide="tv-2"></i>
-                    <span class="lbl-select-channel">Kanal Seçin</span>
+                    <div class="placeholder-icon-ring">
+                      <i data-lucide="tv-2"></i>
+                    </div>
+                    <span class="placeholder-title">Slot 2 Boş</span>
+                    <span class="placeholder-desc lbl-select-channel">Listeden bir kanal seçerek yayını başlatın</span>
                   </div>
-                  <div class="slot-player-instance"></div>
+
+                  <!-- Yayın Yok / Çevrimdışı Durum Katmanı -->
+                  <div class="slot-error-overlay hidden">
+                    <div class="slot-error-icon-ring">
+                      <i data-lucide="wifi-off"></i>
+                    </div>
+                    <span class="slot-error-title" data-i18n="iptv_stream_offline">Yayın Şu Anda Çevrimdışı</span>
+                    <span class="slot-error-channel"></span>
+                    <span class="slot-error-desc" data-i18n="iptv_stream_offline_desc">Kaynak sunucudan veri akışı gelmiyor veya yayın sonlandırılmış.</span>
+                    <div class="slot-error-actions">
+                      <button type="button" class="slot-error-retry-btn" title="Yeniden Bağlanmayı Dene">
+                        <i data-lucide="refresh-cw"></i>
+                        <span data-i18n="iptv_retry">Tekrar Dene</span>
+                      </button>
+                      <button type="button" class="slot-error-random-btn" title="Farklı Bir Kanal Aç">
+                        <i data-lucide="shuffle"></i>
+                        <span data-i18n="iptv_try_another_random">Rastgele Başka Kanal</span>
+                      </button>
+                      <button type="button" class="slot-error-close-btn" title="Kapat">
+                        <i data-lucide="x"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="slot-video-wrapper hidden">
+                    <video id="iptv-video-1" class="iptv-native-video" playsinline></video>
+
+                    <div class="iptv-osd-overlay">
+                      <div class="iptv-osd-top">
+                        <div class="osd-channel-meta">
+                          <span class="osd-slot-pill">Slot 2</span>
+                          <span class="osd-channel-title">Kanal Adı</span>
+                          <span class="osd-live-tag">CANLI</span>
+                          <span class="osd-dvr-pill hidden"></span>
+                        </div>
+                        <div class="osd-top-actions">
+                          <button class="osd-top-btn pvr-rec-btn" title="Kayıt / PVR Başlat" aria-label="PVR">
+                            <i data-lucide="circle-dot"></i>
+                            <span class="pvr-status-text">REC</span>
+                            <span class="pvr-timer-text">00:00:00</span>
+                          </button>
+                          <button class="osd-top-btn swap-slot-btn" title="Ekranları Yer Değiştir" aria-label="Yer Değiştir">
+                            <i data-lucide="refresh-cw"></i>
+                          </button>
+                          <button class="osd-top-btn clear-btn" title="Yayını Durdur" aria-label="Durdur">
+                            <i data-lucide="x"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="iptv-osd-center">
+                        <div class="osd-pulse-icon"><i data-lucide="play"></i></div>
+                      </div>
+
+                      <div class="iptv-osd-bottom">
+                        <div class="osd-dvr-bar">
+                          <span class="osd-time-display">-00:00</span>
+                          <div class="osd-timeline-track">
+                            <div class="osd-timeline-buffer"></div>
+                            <div class="osd-timeline-progress"></div>
+                            <div class="osd-timeline-handle"></div>
+                          </div>
+                          <button class="osd-live-btn at-live" title="Canlı Kenara Dön">
+                            <span class="live-dot"></span>
+                            <span class="live-label" data-i18n="iptv_pvr_live">CANLI</span>
+                          </button>
+                        </div>
+
+                        <div class="osd-controls-row">
+                          <div class="osd-left-group">
+                            <button class="osd-ctrl-btn osd-play-btn" title="Oynat / Duraklat"><i data-lucide="pause"></i></button>
+                            <button class="osd-ctrl-btn osd-rewind-btn" title="10 Saniye Geri Sar"><i data-lucide="rotate-ccw"></i> <span>10s</span></button>
+                            <button class="osd-ctrl-btn osd-forward-btn" title="10 Saniye İleri Sar"><i data-lucide="rotate-cw"></i> <span>10s</span></button>
+                            
+                            <div class="osd-volume-group">
+                              <button class="osd-ctrl-btn osd-mute-btn" title="Sesi Aç/Kapat"><i data-lucide="volume-2"></i></button>
+                              <input type="range" class="osd-volume-slider" min="0" max="1" step="0.05" value="1" title="Ses">
+                            </div>
+                          </div>
+
+                          <div class="osd-right-group">
+                            <button class="osd-ctrl-btn osd-pip-btn" title="Resim İçinde Resim"><i data-lucide="picture-in-picture-2"></i></button>
+                            <button class="osd-ctrl-btn osd-fullscreen-btn" title="Tam Ekran"><i data-lucide="maximize"></i></button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <!-- Slot 3 -->
+              <!-- Slot 3 (data-slot="2") -->
               <div class="iptv-slot" data-slot="2">
-                <div class="slot-header">
-                  <span class="slot-title">Slot 3: Boş</span>
-                  <div class="slot-controls">
-                    <button class="slot-btn mute-btn" title="Sesi Aç/Kapa" aria-label="Sesi Aç/Kapa"><i data-lucide="volume-2"></i></button>
-                    <button class="slot-btn swap-slot-btn" title="Ekranları Yer Değiştir" aria-label="Ekranları Yer Değiştir"><i data-lucide="refresh-cw"></i></button>
-                    <button class="slot-btn clear-btn" title="Yayını Durdur" aria-label="Yayını Durdur"><i data-lucide="square"></i></button>
-                  </div>
-                </div>
                 <div class="slot-body">
                   <div class="slot-placeholder">
-                    <i data-lucide="tv-2"></i>
-                    <span class="lbl-select-channel">Kanal Seçin</span>
+                    <div class="placeholder-icon-ring">
+                      <i data-lucide="tv-2"></i>
+                    </div>
+                    <span class="placeholder-title">Slot 3 Boş</span>
+                    <span class="placeholder-desc lbl-select-channel">Listeden bir kanal seçerek yayını başlatın</span>
                   </div>
-                  <div class="slot-player-instance"></div>
+
+                  <!-- Yayın Yok / Çevrimdışı Durum Katmanı -->
+                  <div class="slot-error-overlay hidden">
+                    <div class="slot-error-icon-ring">
+                      <i data-lucide="wifi-off"></i>
+                    </div>
+                    <span class="slot-error-title" data-i18n="iptv_stream_offline">Yayın Şu Anda Çevrimdışı</span>
+                    <span class="slot-error-channel"></span>
+                    <span class="slot-error-desc" data-i18n="iptv_stream_offline_desc">Kaynak sunucudan veri akışı gelmiyor veya yayın sonlandırılmış.</span>
+                    <div class="slot-error-actions">
+                      <button type="button" class="slot-error-retry-btn" title="Yeniden Bağlanmayı Dene">
+                        <i data-lucide="refresh-cw"></i>
+                        <span data-i18n="iptv_retry">Tekrar Dene</span>
+                      </button>
+                      <button type="button" class="slot-error-random-btn" title="Farklı Bir Kanal Aç">
+                        <i data-lucide="shuffle"></i>
+                        <span data-i18n="iptv_try_another_random">Rastgele Başka Kanal</span>
+                      </button>
+                      <button type="button" class="slot-error-close-btn" title="Kapat">
+                        <i data-lucide="x"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="slot-video-wrapper hidden">
+                    <video id="iptv-video-2" class="iptv-native-video" playsinline></video>
+
+                    <div class="iptv-osd-overlay">
+                      <div class="iptv-osd-top">
+                        <div class="osd-channel-meta">
+                          <span class="osd-slot-pill">Slot 3</span>
+                          <span class="osd-channel-title">Kanal Adı</span>
+                          <span class="osd-live-tag">CANLI</span>
+                          <span class="osd-dvr-pill hidden"></span>
+                        </div>
+                        <div class="osd-top-actions">
+                          <button class="osd-top-btn pvr-rec-btn" title="Kayıt / PVR Başlat" aria-label="PVR">
+                            <i data-lucide="circle-dot"></i>
+                            <span class="pvr-status-text">REC</span>
+                            <span class="pvr-timer-text">00:00:00</span>
+                          </button>
+                          <button class="osd-top-btn swap-slot-btn" title="Ekranları Yer Değiştir" aria-label="Yer Değiştir">
+                            <i data-lucide="refresh-cw"></i>
+                          </button>
+                          <button class="osd-top-btn clear-btn" title="Yayını Durdur" aria-label="Durdur">
+                            <i data-lucide="x"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="iptv-osd-center">
+                        <div class="osd-pulse-icon"><i data-lucide="play"></i></div>
+                      </div>
+
+                      <div class="iptv-osd-bottom">
+                        <div class="osd-dvr-bar">
+                          <span class="osd-time-display">-00:00</span>
+                          <div class="osd-timeline-track">
+                            <div class="osd-timeline-buffer"></div>
+                            <div class="osd-timeline-progress"></div>
+                            <div class="osd-timeline-handle"></div>
+                          </div>
+                          <button class="osd-live-btn at-live" title="Canlı Kenara Dön">
+                            <span class="live-dot"></span>
+                            <span class="live-label" data-i18n="iptv_pvr_live">CANLI</span>
+                          </button>
+                        </div>
+
+                        <div class="osd-controls-row">
+                          <div class="osd-left-group">
+                            <button class="osd-ctrl-btn osd-play-btn" title="Oynat / Duraklat"><i data-lucide="pause"></i></button>
+                            <button class="osd-ctrl-btn osd-rewind-btn" title="10 Saniye Geri Sar"><i data-lucide="rotate-ccw"></i> <span>10s</span></button>
+                            <button class="osd-ctrl-btn osd-forward-btn" title="10 Saniye İleri Sar"><i data-lucide="rotate-cw"></i> <span>10s</span></button>
+                            
+                            <div class="osd-volume-group">
+                              <button class="osd-ctrl-btn osd-mute-btn" title="Sesi Aç/Kapat"><i data-lucide="volume-2"></i></button>
+                              <input type="range" class="osd-volume-slider" min="0" max="1" step="0.05" value="1" title="Ses">
+                            </div>
+                          </div>
+
+                          <div class="osd-right-group">
+                            <button class="osd-ctrl-btn osd-pip-btn" title="Resim İçinde Resim"><i data-lucide="picture-in-picture-2"></i></button>
+                            <button class="osd-ctrl-btn osd-fullscreen-btn" title="Tam Ekran"><i data-lucide="maximize"></i></button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <!-- Slot 4 -->
+              <!-- Slot 4 (data-slot="3") -->
               <div class="iptv-slot" data-slot="3">
-                <div class="slot-header">
-                  <span class="slot-title">Slot 4: Boş</span>
-                  <div class="slot-controls">
-                    <button class="slot-btn mute-btn" title="Sesi Aç/Kapa" aria-label="Sesi Aç/Kapa"><i data-lucide="volume-2"></i></button>
-                    <button class="slot-btn swap-slot-btn" title="Ekranları Yer Değiştir" aria-label="Ekranları Yer Değiştir"><i data-lucide="refresh-cw"></i></button>
-                    <button class="slot-btn clear-btn" title="Yayını Durdur" aria-label="Yayını Durdur"><i data-lucide="square"></i></button>
-                  </div>
-                </div>
                 <div class="slot-body">
                   <div class="slot-placeholder">
-                    <i data-lucide="tv-2"></i>
-                    <span class="lbl-select-channel">Kanal Seçin</span>
+                    <div class="placeholder-icon-ring">
+                      <i data-lucide="tv-2"></i>
+                    </div>
+                    <span class="placeholder-title">Slot 4 Boş</span>
+                    <span class="placeholder-desc lbl-select-channel">Listeden bir kanal seçerek yayını başlatın</span>
                   </div>
-                  <div class="slot-player-instance"></div>
+
+                  <!-- Yayın Yok / Çevrimdışı Durum Katmanı -->
+                  <div class="slot-error-overlay hidden">
+                    <div class="slot-error-icon-ring">
+                      <i data-lucide="wifi-off"></i>
+                    </div>
+                    <span class="slot-error-title" data-i18n="iptv_stream_offline">Yayın Şu Anda Çevrimdışı</span>
+                    <span class="slot-error-channel"></span>
+                    <span class="slot-error-desc" data-i18n="iptv_stream_offline_desc">Kaynak sunucudan veri akışı gelmiyor veya yayın sonlandırılmış.</span>
+                    <div class="slot-error-actions">
+                      <button type="button" class="slot-error-retry-btn" title="Yeniden Bağlanmayı Dene">
+                        <i data-lucide="refresh-cw"></i>
+                        <span data-i18n="iptv_retry">Tekrar Dene</span>
+                      </button>
+                      <button type="button" class="slot-error-random-btn" title="Farklı Bir Kanal Aç">
+                        <i data-lucide="shuffle"></i>
+                        <span data-i18n="iptv_try_another_random">Rastgele Başka Kanal</span>
+                      </button>
+                      <button type="button" class="slot-error-close-btn" title="Kapat">
+                        <i data-lucide="x"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="slot-video-wrapper hidden">
+                    <video id="iptv-video-3" class="iptv-native-video" playsinline></video>
+
+                    <div class="iptv-osd-overlay">
+                      <div class="iptv-osd-top">
+                        <div class="osd-channel-meta">
+                          <span class="osd-slot-pill">Slot 4</span>
+                          <span class="osd-channel-title">Kanal Adı</span>
+                          <span class="osd-live-tag">CANLI</span>
+                          <span class="osd-dvr-pill hidden"></span>
+                        </div>
+                        <div class="osd-top-actions">
+                          <button class="osd-top-btn pvr-rec-btn" title="Kayıt / PVR Başlat" aria-label="PVR">
+                            <i data-lucide="circle-dot"></i>
+                            <span class="pvr-status-text">REC</span>
+                            <span class="pvr-timer-text">00:00:00</span>
+                          </button>
+                          <button class="osd-top-btn swap-slot-btn" title="Ekranları Yer Değiştir" aria-label="Yer Değiştir">
+                            <i data-lucide="refresh-cw"></i>
+                          </button>
+                          <button class="osd-top-btn clear-btn" title="Yayını Durdur" aria-label="Durdur">
+                            <i data-lucide="x"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="iptv-osd-center">
+                        <div class="osd-pulse-icon"><i data-lucide="play"></i></div>
+                      </div>
+
+                      <div class="iptv-osd-bottom">
+                        <div class="osd-dvr-bar">
+                          <span class="osd-time-display">-00:00</span>
+                          <div class="osd-timeline-track">
+                            <div class="osd-timeline-buffer"></div>
+                            <div class="osd-timeline-progress"></div>
+                            <div class="osd-timeline-handle"></div>
+                          </div>
+                          <button class="osd-live-btn at-live" title="Canlı Kenara Dön">
+                            <span class="live-dot"></span>
+                            <span class="live-label" data-i18n="iptv_pvr_live">CANLI</span>
+                          </button>
+                        </div>
+
+                        <div class="osd-controls-row">
+                          <div class="osd-left-group">
+                            <button class="osd-ctrl-btn osd-play-btn" title="Oynat / Duraklat"><i data-lucide="pause"></i></button>
+                            <button class="osd-ctrl-btn osd-rewind-btn" title="10 Saniye Geri Sar"><i data-lucide="rotate-ccw"></i> <span>10s</span></button>
+                            <button class="osd-ctrl-btn osd-forward-btn" title="10 Saniye İleri Sar"><i data-lucide="rotate-cw"></i> <span>10s</span></button>
+                            
+                            <div class="osd-volume-group">
+                              <button class="osd-ctrl-btn osd-mute-btn" title="Sesi Aç/Kapat"><i data-lucide="volume-2"></i></button>
+                              <input type="range" class="osd-volume-slider" min="0" max="1" step="0.05" value="1" title="Ses">
+                            </div>
+                          </div>
+
+                          <div class="osd-right-group">
+                            <button class="osd-ctrl-btn osd-pip-btn" title="Resim İçinde Resim"><i data-lucide="picture-in-picture-2"></i></button>
+                            <button class="osd-ctrl-btn osd-fullscreen-btn" title="Tam Ekran"><i data-lucide="maximize"></i></button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Sağ Kısım: Kanal Listesi & Arama/Filtre Paneli -->
+          <!-- Sağ Kısım: Modern TV Rehberi & Kanal Listesi -->
           <div class="iptv-sidebar card">
             <div class="iptv-sidebar-header">
-              <div class="iptv-update-row">
-                <button id="iptv-update-btn" class="btn btn-secondary btn-sm">
-                  <i data-lucide="refresh-cw"></i>
-                  <span id="lbl-update-channels">Kanalları Güncelle</span>
-                </button>
-                <div id="iptv-status-info" class="iptv-status-text">Yükleniyor...</div>
+              <div class="iptv-header-title-row">
+                <div class="iptv-header-title">
+                  <i data-lucide="tv" class="iptv-header-icon"></i>
+                  <span id="lbl-iptv-guide-title">Kanal Rehberi</span>
+                  <span id="iptv-status-info" class="iptv-count-badge">...</span>
+                </div>
+                <div class="iptv-header-actions">
+                  <div class="iptv-random-group">
+                    <button type="button" id="iptv-random-btn" class="iptv-icon-action-btn" title="Rastgele Kanal Aç" aria-label="Rastgele Kanal">
+                      <i data-lucide="dices"></i>
+                    </button>
+                    <div class="iptv-timeout-badge" id="iptv-timeout-badge" data-i18n-title="iptv_timeout_tooltip" title="Kanal Bağlantı Zaman Aşımı: Canlı yayın sunucusundan ilk video paketinin gelmesi beklenir. Süre çok kısa (ör. 3 sn) olursa yavaş açılan sağlam kanallar haksız yere çevrimdışı sayılabilir. (Varsayılan: 8 sn)">
+                      <select id="iptv-timeout-select" class="iptv-timeout-select" aria-label="Bağlantı Zaman Aşımı">
+                        <option value="3">3s</option>
+                        <option value="5">5s</option>
+                        <option value="8" selected>8s</option>
+                        <option value="10">10s</option>
+                        <option value="15">15s</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="button" id="iptv-load-all-toggle-btn" class="iptv-icon-action-btn" title="Tüm Kanalları Tek Seferde Yükle (Aç/Kapat)" aria-label="Tümünü Yükle">
+                    <i data-lucide="layers"></i>
+                  </button>
+                  <button type="button" id="iptv-update-btn" class="iptv-icon-action-btn" title="Çalma listesini sunucudan yenile" aria-label="Yenile">
+                    <i data-lucide="refresh-cw"></i>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <!-- Filtreler -->
+            <!-- Filtreler & Arama -->
             <div class="iptv-filters">
-              <!-- Satır 1: Kanal Arama -->
               <div class="iptv-search-box">
-                <i data-lucide="search"></i>
-                <input type="text" id="iptv-search-input" placeholder="Kanal Ara...">
+                <i data-lucide="search" class="iptv-search-icon"></i>
+                <input type="text" id="iptv-search-input" placeholder="Kanal ara... (Örn: TRT, CNN, Spor)" autocomplete="off">
+                <button type="button" id="iptv-search-clear-btn" class="iptv-search-clear hidden" title="Aramayı Temizle" aria-label="Temizle">
+                  <i data-lucide="x"></i>
+                </button>
               </div>
 
-              <!-- Satır 2: Hızlı Bayraklar -->
-              <div class="iptv-quick-flags-row">
-                <div class="iptv-quick-flags" id="iptv-quick-flags">
-                  <button type="button" class="iptv-quick-flag-btn" data-country="TR" title="Türkiye"><img class="iptv-flag-img" src="https://flagcdn.com/w40/tr.png" alt="TR"> <span>TR</span></button>
-                  <button type="button" class="iptv-quick-flag-btn" data-country="AZ" title="Azerbaycan"><img class="iptv-flag-img" src="https://flagcdn.com/w40/az.png" alt="AZ"> <span>AZ</span></button>
-                  <button type="button" class="iptv-quick-flag-btn" data-country="DE" title="Almanya"><img class="iptv-flag-img" src="https://flagcdn.com/w40/de.png" alt="DE"> <span>DE</span></button>
-                  <button type="button" class="iptv-quick-flag-btn" data-country="GB" title="Birleşik Krallık"><img class="iptv-flag-img" src="https://flagcdn.com/w40/gb.png" alt="GB"> <span>GB</span></button>
-                  <button type="button" class="iptv-quick-flag-btn" data-country="US" title="Amerika Birleşik Devletleri"><img class="iptv-flag-img" src="https://flagcdn.com/w40/us.png" alt="US"> <span>US</span></button>
-                  <button type="button" class="iptv-quick-flag-btn" data-country="FR" title="Fransa"><img class="iptv-flag-img" src="https://flagcdn.com/w40/fr.png" alt="FR"> <span>FR</span></button>
-                </div>
-              </div>
-
-              <!-- Satır 3: Ülke ve Kategori Seçiciler -->
+              <!-- Ülke & Kategori Seçici Açılır Kutuları -->
               <div class="iptv-selects">
-                <!-- Özel Ülke Seçici (Custom Country Dropdown) -->
                 <div class="iptv-custom-select-wrapper" id="iptv-country-dropdown-wrapper">
                   <button type="button" class="iptv-custom-select-trigger" id="iptv-country-trigger">
                     <span class="iptv-trigger-flag">🌐</span>
@@ -162,17 +513,13 @@
                       <i data-lucide="search"></i>
                       <input type="text" id="iptv-country-search" placeholder="Ülke ara...">
                     </div>
-                    <div class="iptv-menu-list" id="iptv-country-list">
-                      <!-- Dinamik ülke listesi -->
-                    </div>
+                    <div class="iptv-menu-list" id="iptv-country-list"></div>
                   </div>
-                  <!-- Gerçek seçimi saklayan gizli select (geriye dönük ve form uyumluluğu için) -->
                   <select id="iptv-country-filter" style="display: none;">
                     <option value="" id="opt-all-countries">Tüm Ülkeler</option>
                   </select>
                 </div>
 
-                <!-- Özel Kategori Seçici (Custom Category Dropdown) -->
                 <div class="iptv-custom-select-wrapper" id="iptv-category-dropdown-wrapper">
                   <button type="button" class="iptv-custom-select-trigger" id="iptv-category-trigger">
                     <span class="iptv-trigger-flag">📁</span>
@@ -184,29 +531,49 @@
                       <i data-lucide="search"></i>
                       <input type="text" id="iptv-category-search" placeholder="Kategori ara...">
                     </div>
-                    <div class="iptv-menu-list" id="iptv-category-list">
-                      <!-- Dinamik kategori listesi -->
-                    </div>
+                    <div class="iptv-menu-list" id="iptv-category-list"></div>
                   </div>
-                  <!-- Gerçek seçimi saklayan gizli select (geriye dönük ve form uyumluluğu için) -->
                   <select id="iptv-category-filter" style="display: none;">
                     <option value="" id="opt-all-categories">Tüm Kategoriler</option>
                   </select>
                 </div>
               </div>
+
+              <!-- Hızlı Kategori Hapları (Pills) -->
+              <div class="iptv-category-pills" id="iptv-category-pills">
+                <button type="button" class="iptv-pill active" data-category="">Tümü</button>
+                <button type="button" class="iptv-pill" data-category="favorites"><i data-lucide="star"></i> Favoriler</button>
+                <button type="button" class="iptv-pill" data-country="TR"><img class="iptv-flag-img" src="https://flagcdn.com/w40/tr.png" alt="TR"> Türkiye</button>
+                <button type="button" class="iptv-pill" data-category="News">Haber</button>
+                <button type="button" class="iptv-pill" data-category="Sports">Spor</button>
+                <button type="button" class="iptv-pill" data-category="Movies">Sinema</button>
+                <button type="button" class="iptv-pill" data-category="Music">Müzik</button>
+                <button type="button" class="iptv-pill" data-category="Documentary">Belgesel</button>
+              </div>
+            </div>
+
+            <!-- Yükleme İlerleme Çubuğu (Sabit Başlık Altı) -->
+            <div id="iptv-progress-container" class="iptv-progress-container hidden">
+              <div class="iptv-progress-info">
+                <span id="iptv-progress-text" class="iptv-progress-text">Kanallar yükleniyor...</span>
+                <span id="iptv-progress-percent" class="iptv-progress-percent">%0</span>
+              </div>
+              <div class="iptv-progress-track">
+                <div id="iptv-progress-bar" class="iptv-progress-bar" style="width: 0%;"></div>
+              </div>
             </div>
 
             <!-- Kanal Kartları Listesi -->
-            <div class="iptv-list-wrapper">
-              <div id="iptv-channel-list" class="iptv-channel-list">
-                <!-- Kanallar dinamik eklenecektir -->
+            <div id="iptv-list-wrapper" class="iptv-list-wrapper">
+              <div id="iptv-virtual-phantom" class="iptv-virtual-phantom">
+                <div id="iptv-channel-list" class="iptv-channel-list"></div>
               </div>
               <div id="iptv-list-loading" class="iptv-loading hidden">
                 <i data-lucide="loader" class="spin-animation"></i>
                 <span id="lbl-loading-more">Daha fazla kanal yükleniyor...</span>
               </div>
-              <div style="text-align: center; padding: 8px 0;">
-                <button id="iptv-load-more-btn" class="btn btn-secondary btn-sm hidden" style="width: 100%; font-size: 0.8rem;">
+              <div style="text-align: center; padding: 6px 10px;">
+                <button id="iptv-load-more-btn" class="btn btn-secondary btn-sm hidden" style="width: 100%; font-size: 0.78rem;">
                   Daha Fazla Yükle
                 </button>
               </div>

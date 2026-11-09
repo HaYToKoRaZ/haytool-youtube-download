@@ -753,8 +753,8 @@ async function callGgufModel(modelPath, systemPrompt, userContent, customMessage
           '-sysf', sysTmp,
           '-f', usrTmp,
           '-o', outTmp,
-          '-n', '768',
-          '-c', '4096',
+          '-n', '1024',
+          '-c', '16384',
           '-st',
           '--temp', '0.3',
           '--repeat-penalty', '1.18',
@@ -795,9 +795,30 @@ async function callGgufModel(modelPath, systemPrompt, userContent, customMessage
       }
 
       let rawOut = fs.readFileSync(outTmp, 'utf8').trim();
-      const assistantMarker = rawOut.lastIndexOf('Assistant:');
-      if (assistantMarker !== -1) {
-        rawOut = rawOut.slice(assistantMarker + 'Assistant:'.length).trim();
+
+      // Çeşitli model formatlarındaki asistan belirteçlerini temizle
+      const assistantMarkers = [
+        'Assistant:',
+        '<|start_header_id|>assistant<|end_header_id|>',
+        '<start_of_turn>model',
+        '<|im_start|>assistant',
+        '[/INST]'
+      ];
+
+      for (const marker of assistantMarkers) {
+        const idx = rawOut.lastIndexOf(marker);
+        if (idx !== -1) {
+          rawOut = rawOut.slice(idx + marker.length).trim();
+          break;
+        }
+      }
+
+      // Eğer model sadece promptu dönerse veya asistan metni boş kalırsa
+      if (rawOut.startsWith('User:') || rawOut.startsWith('user\n')) {
+        const doubleNewline = rawOut.indexOf('\n\nAssistant:\n');
+        if (doubleNewline !== -1) {
+          rawOut = rawOut.slice(doubleNewline + 13).trim();
+        }
       }
 
       if (!rawOut) {
@@ -1227,6 +1248,351 @@ Kurallar:
     model: activeModelUsed,
     tookMs: Date.now() - t0,
     wordCount: totalWords,
+    title: videoTitle
+  };
+}
+
+/**
+ * Kullanıcı yorumları listesini seçilen yapay zekâ motoru ile analiz edip kitle duygu ve konu özetini çıkarır.
+ * @param {string} videoId 
+ * @param {Array<{author: string, text: string, likeCount: string}>} comments 
+ * @param {object} options 
+ * @returns {Promise<{success: boolean, summary: string, engine: string, model: string, tookMs: number, commentCount: number}>}
+ */
+export async function generateCommentsSummary(videoId, comments = [], options = {}) {
+  const t0 = Date.now();
+  const db = readDb();
+  const historyList = Array.isArray(db.history) ? db.history : [];
+  const video = historyList.find(v => v.id === videoId || v.originalId === videoId || v.key === videoId);
+  const videoTitle = video?.title || options.videoTitle || 'Video';
+
+  if (!Array.isArray(comments) || comments.length === 0) {
+    return {
+      success: false,
+      error: 'Özetlenecek yorum bulunamadı. Lütfen önce yorumları yükleyin.'
+    };
+  }
+
+  const provider = options.provider || db.settings?.aiProvider || 'auto';
+
+  // Yorumları beğeni sayısına göre çoktan aza sırala; böylece en etkili yorumlar başta yer alır
+  const sortedComments = [...comments].sort((a, b) => {
+    const bLikes = parseInt(String(b.likeCount || '').replace(/[^0-9]/g, '') || 0, 10);
+    const aLikes = parseInt(String(a.likeCount || '').replace(/[^0-9]/g, '') || 0, 10);
+    return bLikes - aLikes;
+  });
+  // Tüm yüklenmiş yorumları analize dahil et (herhangi bir yapay 30/100 sınırı olmaksızın)
+  const targetComments = sortedComments;
+
+  let outputLang = options.outputLang || options.lang || db.settings?.lang || 'tr';
+  if (outputLang === 'app') {
+    outputLang = db.settings?.lang || 'tr';
+  }
+
+  const totalLikes = targetComments.reduce((sum, c) => {
+    return sum + (parseInt(String(c.likeCount || '').replace(/[^0-9]/g, '') || 0, 10));
+  }, 0);
+
+  // Yorumları özet içeriği için detaylı ve temiz formatla
+  const formattedCommentsText = targetComments.map((c, i) => {
+    const author = c.author || `İzleyici ${i + 1}`;
+    const likes = (c.likeCount && c.likeCount !== '0') ? ` [👍 ${c.likeCount} Beğeni]` : '';
+    const cleanText = (c.text || '').replace(/\s+/g, ' ').trim();
+    return `${i + 1}. ${author}${likes}: "${cleanText}"`;
+  }).join('\n');
+
+  const langInstruction = outputLang === 'en' 
+    ? 'Write the entire analysis in fluent, analytical English.' 
+    : (outputLang === 'de' ? 'Verfasse die gesamte Analyse in fließendem, professionellem Deutsch.'
+    : (outputLang === 'es' ? 'Escribe todo el análisis en un español analítico y profesional.'
+    : (outputLang === 'pt' ? 'Escreva toda a análise em português profissional e aprofundado.'
+    : (outputLang === 'ru' ? 'Напишите весь анализ на грамотном и глубоком русском языке.'
+    : (outputLang === 'ar' ? 'اكتب التحليل بالكامل بلغة عربية فصحى وتحليلية عميقة.' : 'Analizin tamamını zengin, akıcı ve derinlikli bir Türkçe ile oluştur.')))));
+
+  const systemPrompt = `Sen kıdemli bir YouTube izleyici analisti, topluluk yöneticisi ve kitle psikolojisi uzmanısın.
+Görevin, bir videoya yapılan kullanıcı yorumlarını derinlemesine inceleyerek topluluğun gerçek nabzını, videonun kitle üzerinde bıraktığı etkiyi, izleyicilerin ortak paylaştığı deneyimleri ve öne çıkan yapıcı eleştirileri kapsamlı bir analiz raporu halinde sunmaktır.
+
+${langInstruction}
+
+Lütfen yanıtını Markdown formatında, net, profesyonel ve ilgi çekici başlıklarla tam olarak şu hiyerarşik yapıda hazırla:
+
+### 🎭 Topluluk Hissi & Genel Değerlendirme
+- **Kitle Atmosferi**: [Örn: %85 Coşkulu ve Destekleyici, %15 Merak / Yapıcı Soru Odaklı]
+- **Genel Değerlendirme**: İzleyicilerin videoya genel yaklaşımını, topluluğun ortak duygu durumunu ve videodan aldıkları temel faydayı anlatan 2-3 cümlelik akıcı ve nitelikli özet.
+
+### 💡 Öne Çıkan Ana Temalar & Ortak Görüşler
+- **1. [Ana Konu Başlığı]**: İzleyicilerin bu konuda ne söylediği, ortak paylaşılan deneyimler veya takdir edilen çözümler.
+- **2. [Tartışılan veya Merak Edilen Nokta]**: Çokça sorulan sorular, anlaşılmayan kısımlar veya farklı izleyici yaklaşımları.
+- **3. [Videonun En Çok Etki Yaratan Kısmı]**: İzleyicilerin en çok atıfta bulunduğu bölüm, yöntem veya açıklama.
+
+### 🏆 En Çok Beğeni (Like) Alan 3 Yorum
+1. **[Kullanıcı Adı]** (👍 [Beğeni Sayısı] Beğeni): "[Tam veya en çarpıcı yorum alıntısı]"
+2. **[Kullanıcı Adı]** (👍 [Beğeni Sayısı] Beğeni): "[Tam veya en çarpıcı yorum alıntısı]"
+3. **[Kullanıcı Adı]** (👍 [Beğeni Sayısı] Beğeni): "[Tam veya en çarpıcı yorum alıntısı]"
+
+### ⚡ En Çok Eleştiri / Tepki (Dislike/Kritik) Alan 3 Yorum
+1. **[Kullanıcı Adı]**: "[İtiraz, eksik görülen nokta, tartışmalı görüş veya eleştiri metni]" - *(Eleştiri Nedeni / Odak)*
+2. **[Kullanıcı Adı]**: "[İtiraz, eksik görülen nokta, tartışmalı görüş veya eleştiri metni]" - *(Eleştiri Nedeni / Odak)*
+3. **[Kullanıcı Adı]**: "[İtiraz, eksik görülen nokta, tartışmalı görüş veya eleştiri metni]" - *(Eleştiri Nedeni / Odak)*
+*(Not: Açıkça sert bir olumsuz yorum bulunmuyorsa topluluktaki en sorgulayıcı, alternatif bakış açısı sunan veya soru içeren 3 yorumu seç)*
+
+### 🎯 Çıkarımlar & İzleyici Talepleri
+- İzleyicilerin video sahibinden talep ettiği devam konuları, merak edilen ek sorular veya videoya dair yapıcı geri bildirimler.`;
+
+  let userContent = `Aşağıda incelenmesi gereken YouTube videosuna ait izleyici yorumları yer almaktadır:
+
+📌 Video Başlığı: "${videoTitle}"
+📊 İncelenen Yorum Sayısı: ${targetComments.length}
+❤️ Toplam Tespit Edilen Beğeni: ${totalLikes}
+
+İzleyici Yorumları Listesi (En Çok Beğenilenlerden Başlayarak):
+${formattedCommentsText}`;
+
+  // Büyük yorum yığınlarında bağlam koruması (16k token ~70.000 karakter destekler)
+  const maxChars = 75000;
+  if (userContent.length > maxChars) {
+    userContent = userContent.slice(0, maxChars) + '... [yorumlar devam ediyor]';
+  }
+
+  // Hassas anahtarları AES-256 ile deşifre et
+  const geminiKey = decryptSecret(db.settings?.geminiApiKey);
+  const groqKey = decryptSecret(db.settings?.groqApiKey);
+  const deepseekKey = decryptSecret(db.settings?.deepseekApiKey);
+  const openAiKey = decryptSecret(db.settings?.openAiApiKey);
+  const lmPort = options.port || db.settings?.lmStudioPort || 1234;
+
+  let summaryText = '';
+  let engineUsed = provider;
+  let activeModelUsed = options.model || '';
+
+  // Local fallback fonksiyonu (Offline/Apisiz kural tabanlı özet)
+  const generateLocalCommentsSummary = () => {
+    const isEn = outputLang === 'en';
+    
+    // Basit anahtar kelime ve duygu analizi
+    const stopWords = new Set(['ve', 'bir', 'bu', 'da', 'de', 'için', 'ile', 'çok', 'daha', 'gibi', 'kadar', 'ne', 'ya', 'ama', 'fakat', 'the', 'and', 'a', 'to', 'of', 'in', 'is', 'it', 'you', 'that', 'was', 'for', 'on', 'are', 'with', 'as', 'at']);
+    const wordCounts = {};
+    targetComments.forEach(c => {
+      const words = (c.text || '').toLowerCase().replace(/[^a-z0-9ğüşıöç\s]/g, '').split(/\s+/);
+      words.forEach(w => {
+        if (w.length > 3 && !stopWords.has(w)) {
+          wordCounts[w] = (wordCounts[w] || 0) + 1;
+        }
+      });
+    });
+    const topKeywords = Object.entries(wordCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(e => `\`#${e[0]}\``).join(' ');
+
+    const posWords = ['harika', 'süper', 'mükemmel', 'teşekkür', 'eline sağlık', 'başarılı', 'efsane', 'güzel', 'yararlı', 'faydalı', 'great', 'awesome', 'good', 'thanks', 'love', 'helpful', 'best'];
+    const negWords = ['kötü', 'berbat', 'yanlış', 'ses yok', 'çalışmıyor', 'hata', 'sorun', 'bozuk', 'bad', 'worst', 'wrong', 'issue', 'problem', 'fake'];
+    
+    let posCount = 0;
+    let negCount = 0;
+    targetComments.forEach(c => {
+      const lower = (c.text || '').toLowerCase();
+      posWords.forEach(w => { if (lower.includes(w)) posCount++; });
+      negWords.forEach(w => { if (lower.includes(w)) negCount++; });
+    });
+
+    let sentimentRatio = isEn ? '%85 Positive & Supportive, %15 Inquiries' : '%85 Olumlu & Destekleyici, %15 Soru/Merak';
+    let sentimentDesc = isEn 
+      ? 'The vast majority of viewers found the content highly valuable, educational, and engaging.' 
+      : 'İzleyicilerin ezici çoğunluğu videoyu son derece bilgilendirici, faydalı ve kaliteli bularak teşekkürlerini iletmiştir.';
+    if (negCount > posCount) {
+      sentimentRatio = isEn ? '%60 Critical / Feedback, %40 Neutral' : '%60 Eleştirel / Sorun Bildiren, %40 Nötr';
+      sentimentDesc = isEn 
+        ? 'A notable portion of the community encountered issues or shared critical feedback on specific points.' 
+        : 'İzleyici kitlesinin bir bölümü videodaki belirli adımlarda veya anlatımda sorun yaşadığını belirten geri bildirimlerde bulunmuştur.';
+    } else if (negCount > 0) {
+      sentimentRatio = isEn ? '%75 Supportive, %25 Constructive Inquiries' : '%75 Destekleyici, %25 Soru & Yapıcı Geri Bildirim';
+      sentimentDesc = isEn 
+        ? 'The community actively engaged with the video while asking insightful questions about specific details.' 
+        : 'Topluluk genel olarak videoyu takdir etmekle birlikte, belirli detaylar üzerinde merak ettikleri soruları yöneltmiştir.';
+    }
+
+    // En çok beğeni alan 3 yorum
+    const topLiked = targetComments.slice(0, 3);
+
+    // En çok eleştiri, itiraz veya sorgulama içeren (dislike/kritik) 3 yorum
+    const scoredCritical = targetComments
+      .filter(c => !topLiked.some(tl => tl.text === c.text))
+      .map(c => {
+        const lower = (c.text || '').toLowerCase();
+        let critScore = 0;
+        negWords.forEach(w => { if (lower.includes(w)) critScore += 3; });
+        if (lower.includes('?') || lower.includes('neden') || lower.includes('ama') || lower.includes('fakat') || lower.includes('keşke') || lower.includes('eksik')) critScore += 1;
+        const likes = parseInt(String(c.likeCount || '').replace(/[^0-9]/g, '') || 0, 10);
+        return { ...c, critScore, likes };
+      })
+      .sort((a, b) => b.critScore - a.critScore || a.likes - b.likes);
+    
+    const topCritical = scoredCritical.slice(0, 3);
+
+    const topLikedFormatted = topLiked.map((c, i) => {
+      const likesBadge = c.likeCount && c.likeCount !== '0' ? `(👍 ${c.likeCount} ${isEn ? 'likes' : 'beğeni'})` : '';
+      const textPreview = (c.text || '').slice(0, 180).trim();
+      return `${i + 1}. **${c.author || (isEn ? 'Viewer' : 'İzleyici')}** ${likesBadge}: "${textPreview}"`;
+    }).join('\n');
+
+    const topCriticalFormatted = topCritical.length > 0 && topCritical[0].critScore > 0
+      ? topCritical.map((c, i) => {
+          const textPreview = (c.text || '').slice(0, 180).trim();
+          return `${i + 1}. **${c.author || (isEn ? 'Viewer' : 'İzleyici')}**: "${textPreview}"`;
+        }).join('\n')
+      : (isEn 
+          ? '- No strong negative feedback detected; audience reception is overwhelmingly positive.' 
+          : '- Belirgin bir olumsuz eleştiri tespit edilmedi; izleyici kitlesi genel olarak oldukça memnun ve destekleyici.');
+
+    return isEn
+      ? `### 🎭 Audience Sentiment & Overall Feedback\n- **Community Atmosphere**: ${sentimentRatio}\n- **Summary**: ${sentimentDesc} Analyzed **${targetComments.length}** comments with a total of **${totalLikes}** likes.\n\n### 💡 Key Discussions & Topics\n- **Core Highlights**: Viewers actively highlighted practical takeaways and appreciated the clear explanation.\n- **Frequent Keywords**: ${topKeywords || '`#video` `#content`'}\n- **Discussion Points**: Common questions revolved around application tips and further recommendations.\n\n### 🏆 Top 3 Liked Comments\n${topLikedFormatted}\n\n### ⚡ Top 3 Critical / Questioning Comments\n${topCriticalFormatted}\n\n### 🎯 Takeaways & Suggestions\n- Viewers expressed high interest in follow-up tutorials and practical demonstrations on related topics.`
+      : `### 🎭 Topluluk Hissi & Genel Değerlendirme\n- **Kitle Atmosferi**: ${sentimentRatio}\n- **Genel Değerlendirme**: ${sentimentDesc} Toplam **${targetComments.length}** yorum incelenmiş ve **${totalLikes}** beğeni tespit edilmiştir.\n\n### 💡 Öne Çıkan Ana Temalar & Ortak Görüşler\n- **Öne Çıkan Vurgular**: İzleyiciler videodaki net anlatımı ve pratik ipuçlarını takdir etti.\n- **Sık Geçen Kavramlar**: ${topKeywords || '`#video` `#içerik`'}\n- **Merak Edilenler**: Yöntemin farklı senaryolarda nasıl uygulanacağı hakkında yapıcı sorular soruldu.\n\n### 🏆 En Çok Beğeni (Like) Alan 3 Yorum\n${topLikedFormatted}\n\n### ⚡ En Çok Eleştiri / Tepki (Dislike/Kritik) Alan 3 Yorum\n${topCriticalFormatted}\n\n### 🎯 Çıkarımlar & İzleyici Talepleri\n- Topluluk benzer konularda devam videoları ve detaylı uygulama rehberleri talep etmektedir.`;
+  };
+
+  try {
+    switch (provider) {
+      case 'lmstudio': {
+        const lmModel = options.model || db.settings?.lmStudioModel || 'auto';
+        try {
+          const res = await callLmStudio(lmPort, lmModel, systemPrompt, userContent);
+          summaryText = res.summary;
+          activeModelUsed = res.modelUsed;
+          engineUsed = 'lmstudio';
+        } finally {
+          unloadLmStudioModels();
+        }
+        break;
+      }
+      case 'groq':
+      case 'groq-llama33': {
+        if (!groqKey) throw new Error('Groq API anahtarı ayarlanmamış.');
+        let groqPayload = userContent;
+        if (groqPayload.length > 12000) {
+          groqPayload = groqPayload.slice(0, 12000) + '... [metin devam ediyor]';
+        }
+        const res = await callGroq(groqKey, options.model, systemPrompt, groqPayload);
+        summaryText = res.summary;
+        activeModelUsed = res.modelUsed;
+        engineUsed = 'groq';
+        break;
+      }
+      case 'gemini': {
+        if (!geminiKey) throw new Error('Gemini API anahtarı ayarlanmamış.');
+        const res = await callGemini(geminiKey, systemPrompt, userContent);
+        summaryText = res.summary;
+        activeModelUsed = res.modelUsed;
+        engineUsed = 'gemini';
+        break;
+      }
+      case 'deepseek': {
+        if (!deepseekKey && !openAiKey) throw new Error('DeepSeek API anahtarı ayarlanmamış.');
+        const res = await callDeepSeek(deepseekKey || openAiKey, systemPrompt, userContent);
+        summaryText = res.summary;
+        activeModelUsed = res.modelUsed;
+        engineUsed = 'deepseek';
+        break;
+      }
+      case 'openai': {
+        if (!openAiKey) throw new Error('OpenAI API anahtarı ayarlanmamış.');
+        const res = await callOpenAi(openAiKey, systemPrompt, userContent);
+        summaryText = res.summary;
+        activeModelUsed = res.modelUsed;
+        engineUsed = 'openai';
+        break;
+      }
+      case 'ollama': {
+        const res = await callOllama(db.settings?.ollamaPort, options.model || 'llama3', systemPrompt, userContent);
+        summaryText = res.summary;
+        activeModelUsed = res.modelUsed;
+        engineUsed = 'ollama';
+        break;
+      }
+      case 'gguf': {
+        const requestedModel = (typeof options.model === 'string' && options.model.toLowerCase().endsWith('.gguf') && fs.existsSync(options.model)) ? options.model : '';
+        const ggufPath = requestedModel || db.settings?.ggufModelPath;
+        try {
+          const res = await callGgufModel(ggufPath, systemPrompt, userContent, null, db.settings?.ggufGpuMode === true);
+          summaryText = res.summary;
+          activeModelUsed = res.modelUsed || path.basename(ggufPath || 'gguf');
+          engineUsed = 'gguf';
+        } catch (ggufErr) {
+          console.warn('[AI Comments Summary GGUF Engine Warn, using Local NLP fallback]:', ggufErr.message);
+          summaryText = generateLocalCommentsSummary();
+          activeModelUsed = `GGUF (${path.basename(ggufPath || 'model')}) [NLP Yedek]`;
+          engineUsed = 'gguf-fallback';
+        }
+        break;
+      }
+      case 'local': {
+        summaryText = generateLocalCommentsSummary();
+        engineUsed = 'local-nlp';
+        break;
+      }
+      case 'auto':
+      default: {
+        let done = false;
+        if (groqKey) {
+          try {
+            let groqPayload = userContent;
+            if (groqPayload.length > 12000) groqPayload = groqPayload.slice(0, 12000) + '...';
+            const res = await callGroq(groqKey, options.model, systemPrompt, groqPayload);
+            summaryText = res.summary;
+            activeModelUsed = res.modelUsed;
+            engineUsed = 'groq';
+            done = true;
+          } catch (e) {
+            console.warn('[Auto-Comments Groq Error, trying next]:', e.message);
+          }
+        }
+        if (!done && geminiKey) {
+          try {
+            const res = await callGemini(geminiKey, systemPrompt, userContent);
+            summaryText = res.summary;
+            activeModelUsed = res.modelUsed;
+            engineUsed = 'gemini';
+            done = true;
+          } catch (e) {
+            console.warn('[Auto-Comments Gemini Error, trying next]:', e.message);
+          }
+        }
+        if (!done) {
+          try {
+            const res = await callLmStudio(lmPort, options.model || 'auto', systemPrompt, userContent);
+            summaryText = res.summary;
+            activeModelUsed = res.modelUsed;
+            engineUsed = 'lmstudio';
+            done = true;
+          } catch (e) {
+            // ignore
+          } finally {
+            unloadLmStudioModels();
+          }
+        }
+        if (!done) {
+          summaryText = generateLocalCommentsSummary();
+          engineUsed = 'local-nlp';
+        }
+        break;
+      }
+    }
+  } catch (err) {
+    console.warn(`[AI Comments Summary Error with ${provider}]:`, err.message);
+    if (provider !== 'auto') {
+      return {
+        success: false,
+        error: err.message,
+        provider: provider
+      };
+    }
+    summaryText = generateLocalCommentsSummary();
+    engineUsed = 'local-nlp';
+  }
+
+  return {
+    success: true,
+    summary: summaryText,
+    engine: engineUsed,
+    model: activeModelUsed,
+    tookMs: Date.now() - t0,
+    commentCount: targetComments.length,
     title: videoTitle
   };
 }

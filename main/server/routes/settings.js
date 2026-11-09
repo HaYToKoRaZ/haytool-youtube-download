@@ -1526,13 +1526,16 @@ router.get('/disk-space', (req, res) => {
     const absPath = path.resolve(folder);
     const driveLetterMatch = absPath.match(/^([a-zA-Z]):/);
     const driveLetter = driveLetterMatch ? driveLetterMatch[1].toUpperCase() : '';
+    const mediaCount = Array.isArray(db.history) ? db.history.length : 0;
 
     return res.json({
       success: true,
       freeBytes,
       totalBytes,
       folderSizeBytes,
-      driveLetter
+      driveLetter,
+      downloadPath: absPath,
+      mediaCount
     });
   } catch (e) {
     console.error('[Disk Space Error]:', e.message);

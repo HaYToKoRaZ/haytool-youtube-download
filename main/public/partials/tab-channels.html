@@ -75,6 +75,16 @@
                 <option value="uncategorized" id="opt-filter-category-none">Atanmamış / Kategorisiz</option>
               </select>
             </div>
+
+            <div class="channel-filter-group">
+              <label for="filter-channel-sort" id="label-filter-channel-sort" style="display:inline-flex; align-items:center; gap:4px; font-weight:600;"><i data-lucide="arrow-up-down" style="width:13px;height:13px;color:var(--accent-primary);"></i> <span id="text-filter-sort-title">Sıralama:</span></label>
+              <select id="filter-channel-sort" class="channel-filter-select" onchange="handleChannelFilterChange()">
+                <option value="name_asc" id="opt-filter-sort-name-asc">İsim (A → Z)</option>
+                <option value="name_desc" id="opt-filter-sort-name-desc">İsim (Z → A)</option>
+                <option value="size_desc" id="opt-filter-sort-size-desc">Boyut (Büyük → Küçük)</option>
+                <option value="size_asc" id="opt-filter-sort-size-asc">Boyut (Küçük → Büyük)</option>
+              </select>
+            </div>
           </div>
 
           <div class="channel-filters-right">

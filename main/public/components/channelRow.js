@@ -18,10 +18,10 @@ const ALPHABET = 'A B C Ç D E F G H I İ J K L M N O Ö P R S Ş T U Ü V Y Z'.
 export function getChannelsRenderSignature(channels, categories, filters = {}, lang = 'tr') {
   if (!channels || !Array.isArray(channels)) return 'empty';
   const chPart = channels.map(c => 
-    `${c.id}:${c.name || ''}:${c.autoDownload !== false}:${c.downloadShorts !== false}:${c.shortsDurationLimit || 180}:${c.quality || 'default'}:${(c.categoryIds || [c.categoryId || 1]).join(',')}:${c.subscriberCount || ''}:fk${((typeof window !== 'undefined' && window.localDb && window.localDb.fakap && window.localDb.fakap.channelIds) || []).includes(c.id)}`
+    `${c.id}:${c.name || ''}:${c.autoDownload !== false}:${c.downloadShorts !== false}:${c.shortsDurationLimit || 180}:${c.quality || 'default'}:${(c.categoryIds || [c.categoryId || 1]).join(',')}:${c.subscriberCount || ''}:${c.folderSizeBytes || 0}:fk${((typeof window !== 'undefined' && window.localDb && window.localDb.fakap && window.localDb.fakap.channelIds) || []).includes(c.id)}`
   ).join(';');
   const catPart = (categories || []).map(cat => `${cat.id}:${cat.name}`).join(';');
-  const filterPart = `${filters?.searchQuery || ''}|${filters?.autoDownload || ''}|${filters?.shortsDownload || ''}|${filters?.categoryId || ''}|${filters?.fakap || ''}`;
+  const filterPart = `${filters?.searchQuery || ''}|${filters?.autoDownload || ''}|${filters?.shortsDownload || ''}|${filters?.categoryId || ''}|${filters?.fakap || ''}|${filters?.sortBy || ''}`;
   return `${lang}##${channels.length}##${chPart}##${catPart}##${filterPart}`;
 }
 if (typeof window !== 'undefined') {
@@ -124,12 +124,62 @@ export function renderChannelsList(channelsList, channels, translations, categor
     return;
   }
 
-  // Kanalları alfabetik olarak sırala
-  const sortedChannels = [...filteredChannels].sort((a, b) => 
-    (a.name || '').localeCompare(b.name || '', 'tr', { sensitivity: 'base' })
-  );
+  // Sıralama kriterini uygula
+  const sortBy = filters.sortBy || 'name_asc';
+  let sortedChannels = [...filteredChannels];
 
-  // Harf grupları oluştur
+  if (sortBy === 'size_desc') {
+    sortedChannels.sort((a, b) => (Number(b.folderSizeBytes) || 0) - (Number(a.folderSizeBytes) || 0));
+  } else if (sortBy === 'size_asc') {
+    sortedChannels.sort((a, b) => (Number(a.folderSizeBytes) || 0) - (Number(b.folderSizeBytes) || 0));
+  } else if (sortBy === 'name_desc') {
+    sortedChannels.sort((a, b) => (b.name || '').localeCompare(a.name || '', 'tr', { sensitivity: 'base' }));
+  } else {
+    // name_asc (varsayılan)
+    sortedChannels.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'tr', { sensitivity: 'base' }));
+  }
+
+  // Boyuta göre sıralama seçilmişse harf gruplarına bölmeden tekil akıcı grid olarak render et
+  if (sortBy.startsWith('size')) {
+    const layout = document.createElement('div');
+    layout.className = 'channels-layout-container channels-size-sorted-layout';
+
+    const mainContent = document.createElement('div');
+    mainContent.className = 'channels-main-content';
+    mainContent.style.width = '100%';
+    mainContent.style.maxWidth = '100%';
+    layout.appendChild(mainContent);
+
+    const groupSection = document.createElement('div');
+    groupSection.className = 'channel-group-section';
+
+    const header = document.createElement('h3');
+    header.className = 'channel-group-header';
+    const headerTitle = sortBy === 'size_desc'
+      ? (t.channel_sort_header_size_desc || 'Disk Boyutuna Göre (Büyükten Küçüğe)')
+      : (t.channel_sort_header_size_asc || 'Disk Boyutuna Göre (Küçükten Büyüğe)');
+    header.innerHTML = `<span><i data-lucide="hard-drive" style="width:16px;height:16px;margin-right:6px;vertical-align:middle;display:inline-block;"></i>${headerTitle} • <span style="opacity:0.8;font-size:0.85em;">${sortedChannels.length} ${t.badge_channels_count_suffix || 'Kanal'}</span></span>`;
+    groupSection.appendChild(header);
+
+    const grid = document.createElement('div');
+    grid.className = 'channels-grid-container';
+
+    sortedChannels.forEach(channel => {
+      const card = buildChannelCardElement(channel, categories, t);
+      grid.appendChild(card);
+    });
+
+    groupSection.appendChild(grid);
+    mainContent.appendChild(groupSection);
+    channelsList.appendChild(layout);
+
+    try {
+      if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    } catch (e) {}
+    return;
+  }
+
+  // Harf grupları oluştur (Alfabetik mod)
   const groups = {};
   sortedChannels.forEach(channel => {
     const firstChar = (channel.name || 'Y').charAt(0).toUpperCase('tr');

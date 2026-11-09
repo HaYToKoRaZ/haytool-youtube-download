@@ -1,6 +1,7 @@
 // Türkçe Açıklama: IPTV durumunu sorgulayan, M3U çalma listesini güncelleyip diske kaydeden ve IPTV kanallarını filtreleme/sayfalama özellikleri ile sunan API rotaları modülü.
 import express from 'express';
 import fs from 'fs';
+import path from 'path';
 import https from 'https';
 import http from 'http';
 import { localhostOnly } from '../middleware/security.js';
@@ -13,6 +14,11 @@ import {
   iptvCachePath 
 } from '../services/iptv.js';
 import { broadcast } from '../services/sse.js';
+import {
+  startPvr,
+  stopPvr,
+  getPvrStatus
+} from '../services/iptvPvr.js';
 
 export const router = express.Router();
 
@@ -183,10 +189,11 @@ router.post('/update', localhostOnly, async (req, res) => {
  * @returns {void}
  */
 router.get('/channels', (req, res) => {
-  let { page = 1, limit = 200, search = '', country = '', category = '' } = req.query;
+  let { page = 1, limit = 200, search = '', country = '', category = '', forceAll = '' } = req.query;
   page = parseInt(page, 10) || 1;
   limit = parseInt(limit, 10);
-  const requestedAll = limit <= 0;
+  const isForceAll = forceAll === '1' || forceAll === 'true';
+  const requestedAll = limit <= 0 || isForceAll;
 
   let filtered = iptvChannelsMemory;
 
@@ -216,7 +223,7 @@ router.get('/channels', (req, res) => {
 
   if (requestedAll) {
     const hasFilter = (country || search || category);
-    if (hasFilter) {
+    if (hasFilter || isForceAll) {
       resultChannels = filtered;
       effectiveLimit = totalCount;
       totalPages = 1;
@@ -244,4 +251,93 @@ router.get('/channels', (req, res) => {
       categories: iptvCategoriesList
     }
   });
+});
+
+/**
+ * Aktif filtre kriterlerine uyan kanallar arasından rastgele bir kanal döndürür.
+ * 
+ * @name GET /api/iptv/random
+ */
+router.get('/random', (req, res) => {
+  const { search = '', country = '', category = '' } = req.query;
+  let filtered = iptvChannelsMemory;
+
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(ch => 
+      (ch.displayName && ch.displayName.toLowerCase().includes(q)) ||
+      (ch.name && ch.name.toLowerCase().includes(q))
+    );
+  }
+
+  if (country) {
+    const c = country.toUpperCase();
+    filtered = filtered.filter(ch => ch.country && ch.country.toUpperCase() === c);
+  }
+
+  if (category) {
+    const cat = category.toLowerCase();
+    filtered = filtered.filter(ch => ch.category && ch.category.toLowerCase() === cat);
+  }
+
+  if (!filtered || filtered.length === 0) {
+    return res.json({ success: false, error: 'Kanal bulunamadı' });
+  }
+
+  const randomIndex = Math.floor(Math.random() * filtered.length);
+  const randomChannel = filtered[randomIndex];
+
+  res.json({
+    success: true,
+    channel: randomChannel,
+    totalMatching: filtered.length
+  });
+});
+
+// ─── IPTV PVR / Timeshift Endpoints ───
+
+/**
+ * Belirtilen IPTV slotu için PVR kaydı ve Timeshift başlatır.
+ * 
+ * @name POST /api/iptv/pvr/start
+ */
+router.post('/pvr/start', localhostOnly, async (req, res) => {
+  try {
+    const { slotIndex = 0, streamUrl, channelName } = req.body;
+    if (!streamUrl) {
+      return res.status(400).json({ success: false, error: 'Yayın URLsi gereklidir' });
+    }
+    const result = await startPvr(slotIndex, streamUrl, channelName);
+    res.json(result);
+  } catch (err) {
+    console.error('[IPTV PVR Hatası]:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Belirtilen IPTV slotu için PVR kaydını durdurur.
+ * 
+ * @name POST /api/iptv/pvr/stop
+ */
+router.post('/pvr/stop', localhostOnly, async (req, res) => {
+  try {
+    const { slotIndex = 0 } = req.body;
+    const result = await stopPvr(slotIndex);
+    res.json(result);
+  } catch (err) {
+    console.error('[IPTV PVR Durdurma Hatası]:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Aktif PVR oturumlarının durumunu döner.
+ * 
+ * @name GET /api/iptv/pvr/status
+ */
+router.get('/pvr/status', (req, res) => {
+  const { slotIndex } = req.query;
+  const status = getPvrStatus(slotIndex);
+  res.json(status);
 });

@@ -189,6 +189,9 @@
           <span id="player-sponsorblock-status" style="font-size: 0.7rem; color: #ff0055; margin-left: 30px; margin-top: 1px; font-weight: 600; display: none;"></span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <button class="modal-close-btn" id="shortcuts-player-modal-btn" onclick="openShortcutsModal('player')" aria-label="Kısayollar" title="Klavye Kısayolları (?)" style="width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
+            <i data-lucide="keyboard"></i>
+          </button>
           <button class="modal-close-btn" id="fullscreen-player-modal-btn" onclick="togglePlayerModalFullscreen()" aria-label="Tam Ekran" title="Tam Ekran (F)" style="width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
             <i data-lucide="maximize"></i>
           </button>
@@ -396,6 +399,140 @@
       </button>
       <div id="channel-quick-card-container" style="width: 100%;">
         <!-- Kanallar sekmesindeki .channel-card bileşeni BİREBİR buraya yerleştirilir -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Klavye Kısayolları Rehberi Modalı (Cheatsheet) -->
+  <div id="shortcuts-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="shortcuts-modal-title" style="z-index: 10050;" onclick="if(event.target === this) closeShortcutsModal()">
+    <div class="modal-content card shortcuts-modal-card" style="max-width: 640px; width: 95%; max-height: 88vh; display: flex; flex-direction: column; padding: 20px; border-radius: 18px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.12); backdrop-filter: blur(24px); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);">
+      <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+        <h3 id="shortcuts-modal-title" style="margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--accent-color);">
+          <i data-lucide="keyboard" style="width: 20px; height: 20px;"></i>
+          <span data-i18n="shortcuts_modal_title">Klavye Kısayolları Rehberi</span>
+        </h3>
+        <button type="button" class="modal-close-btn" onclick="closeShortcutsModal()" aria-label="Kapat" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px;">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <!-- Kategori Sekmeleri (IPTV / Normal Video) -->
+      <div class="shortcuts-tabs-row" style="display: flex; gap: 8px; margin-bottom: 14px;">
+        <button type="button" class="btn btn-secondary btn-sm shortcuts-tab-btn active" id="shortcuts-tab-iptv-btn" onclick="switchShortcutsTab('iptv')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+          <i data-lucide="monitor-play" style="width: 14px; height: 14px;"></i>
+          <span data-i18n="shortcuts_tab_iptv">IPTV & Canlı TV</span>
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm shortcuts-tab-btn" id="shortcuts-tab-player-btn" onclick="switchShortcutsTab('player')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+          <i data-lucide="play-square" style="width: 14px; height: 14px;"></i>
+          <span data-i18n="shortcuts_tab_player">Video Oynatıcı</span>
+        </button>
+      </div>
+
+      <!-- Kısayol Listeleri Gövdesi -->
+      <div class="modal-body shortcuts-modal-body" style="overflow-y: auto; flex: 1; padding-right: 4px;">
+        <!-- IPTV Kısayolları Paneli -->
+        <div id="shortcuts-panel-iptv" class="shortcuts-panel">
+          <div class="shortcuts-grid">
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_play_pause">Oynat / Duraklat</span>
+              <div class="shortcut-keys"><kbd>Boşluk</kbd> <span class="shortcut-or">veya</span> <kbd>K</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_next_channel">Sıradaki Kanal</span>
+              <div class="shortcut-keys"><kbd>PageDown</kbd> <kbd>]</kbd> <kbd>N</kbd> <kbd>Shift + ↓</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_prev_channel">Önceki Kanal</span>
+              <div class="shortcut-keys"><kbd>PageUp</kbd> <kbd>[</kbd> <kbd>B</kbd> <kbd>Shift + ↑</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_fullscreen">Tam Ekran Aç / Kapat</span>
+              <div class="shortcut-keys"><kbd>F</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_mute">Sesi Kapat / Aç</span>
+              <div class="shortcut-keys"><kbd>M</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_volume_up_down">Sesi %5 Artır / Azalt</span>
+              <div class="shortcut-keys"><kbd>↑</kbd> <kbd>↓</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_timeshift_seek">Canlı DVR Geri / İleri (10s)</span>
+              <div class="shortcut-keys"><kbd>← / J</kbd> <kbd>→ / L</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_live_edge">Canlı Yayına Dön</span>
+              <div class="shortcut-keys"><kbd>0</kbd> <span class="shortcut-or">veya</span> <kbd>Home</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_random_channel">Rastgele Kanal Aç</span>
+              <div class="shortcut-keys"><kbd>R</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_pip">Resim İçinde Resim (PiP)</span>
+              <div class="shortcut-keys"><kbd>P</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_slot_select">Çoklu Ekranda Slot Seç</span>
+              <div class="shortcut-keys"><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Normal Video Oynatıcı Kısayolları Paneli -->
+        <div id="shortcuts-panel-player" class="shortcuts-panel hidden">
+          <div class="shortcuts-grid">
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_play_pause">Oynat / Duraklat</span>
+              <div class="shortcut-keys"><kbd>Boşluk</kbd> <span class="shortcut-or">veya</span> <kbd>K</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_fullscreen">Tam Ekran Aç / Kapat</span>
+              <div class="shortcut-keys"><kbd>F</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_mute">Sesi Kapat / Aç</span>
+              <div class="shortcut-keys"><kbd>M</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_captions">Altyazıları Aç / Kapat</span>
+              <div class="shortcut-keys"><kbd>C</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_volume_up_down">Sesi %5 Artır / Azalt</span>
+              <div class="shortcut-keys"><kbd>↑</kbd> <kbd>↓</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_seek_5s">5 Saniye Geri / İleri</span>
+              <div class="shortcut-keys"><kbd>←</kbd> <kbd>→</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_seek_10s">10 Saniye Geri / İleri</span>
+              <div class="shortcut-keys"><kbd>J</kbd> <kbd>L</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_speed">Oynatma Hızı Değiştir</span>
+              <div class="shortcut-keys"><kbd>&lt;</kbd> <kbd>&gt;</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_jump_percent">Videonun %0 - %90'ına Atla</span>
+              <div class="shortcut-keys"><kbd>0</kbd> ... <kbd>9</kbd></div>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc" data-i18n="shortcut_home_end">Başa / Sona Git</span>
+              <div class="shortcut-keys"><kbd>Home</kbd> <kbd>End</kbd></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alt İpucu Çubuğu -->
+      <div class="modal-footer" style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 0.74rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+          <span>💡</span> <span data-i18n="shortcuts_hint">Herhangi bir ekranda klavyeden <strong>?</strong> (Shift + /) tuşuna basarak bu rehberi açabilirsiniz.</span>
+        </span>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeShortcutsModal()" data-i18n="modal_close_btn">Kapat</button>
       </div>
     </div>
   </div>

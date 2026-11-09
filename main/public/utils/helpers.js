@@ -550,6 +550,7 @@ export function detectVideoPlatform(item) {
   if (url.includes('tiktok.com') || ch.includes('tiktok') || fp.includes('0-tiktok') || cid.startsWith('MS4wLjAB')) return 'tiktok';
   if (url.includes('twitter.com') || url.includes('x.com') || ch.includes('twitter') || fp.includes('0-x') || (id.startsWith('ext_') && /^\d{7,22}$/.test(cid))) return 'x';
   if (url.includes('instagram.com') || ch.includes('instagram') || fp.includes('0-instagram') || title.startsWith('video by ') || title.startsWith('post by ')) return 'instagram';
+  if (id.startsWith('iptv_') || fp.includes('0-iptv') || fp.includes('\\iptv\\') || fp.includes('/iptv/') || item.platform === 'iptv' || cid === 'iptv_record') return 'iptv';
   if (id.startsWith('ext_')) return 'other';
   return 'youtube';
 }
@@ -565,6 +566,8 @@ export function getPlatformSvgIcon(platform, size = 16) {
       return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`;
     case 'instagram':
       return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>`;
+    case 'iptv':
+      return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>`;
     case 'other':
       return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
     default:
@@ -599,6 +602,9 @@ export function getSiteFaviconFallbackDataUri(platform = 'other') {
   }
   if (platform === 'youtube') {
     return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23ef4444'/%3E%3Cpolygon points='9.8,7.5 16.8,12 9.8,16.5' fill='%23ffffff'/%3E%3C/svg%3E";
+  }
+  if (platform === 'iptv') {
+    return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%230284c7'/%3E%3Crect x='4' y='7' width='16' height='12' rx='2' fill='none' stroke='%23fff' stroke-width='1.8'/%3E%3Cpolyline points='15 3 12 7 9 3' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E";
   }
   return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23334155'/%3E%3Ccircle cx='12' cy='12' r='6.8' fill='none' stroke='%23e2e8f0' stroke-width='1.6'/%3E%3Cline x1='5.2' y1='12' x2='18.8' y2='12' stroke='%23e2e8f0' stroke-width='1.5'/%3E%3Cellipse cx='12' cy='12' rx='3.2' ry='6.8' fill='none' stroke='%23e2e8f0' stroke-width='1.5'/%3E%3C/svg%3E";
 }
@@ -665,6 +671,9 @@ export function getPlatformBadgeHtml(item) {
   } else if (platform === 'instagram') {
     bg = 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)';
     label = 'Instagram';
+  } else if (platform === 'iptv') {
+    bg = 'linear-gradient(135deg, #0284c7, #4f46e5)';
+    label = 'IPTV';
   }
 
   const iconSvg = getPlatformSvgIcon(platform, 13);

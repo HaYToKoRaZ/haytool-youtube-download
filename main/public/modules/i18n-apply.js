@@ -35,6 +35,13 @@ export function applyLanguage(lang) {
   // HTML lang attribute
   document.documentElement.lang = currentLang;
 
+  // Tüm [data-i18n] öğelerini otomatik yerelleştir
+  document.querySelectorAll('[data-i18n]').forEach(elem => {
+    const key = elem.getAttribute('data-i18n');
+    const val = t[key] || (translations.tr && translations.tr[key]);
+    if (val) elem.textContent = val;
+  });
+
   // Header Navigasyon ve Başlıklar
   // elQuery('.brand-text span', 'premium_automation');
   elQuery('button[data-tab="history"] span', 'tab_library');
@@ -259,6 +266,11 @@ export function applyLanguage(lang) {
   el('text-filter-category-title', 'filter_category_title');
   el('opt-filter-category-all', 'opt_filter_category_all');
   el('opt-filter-category-none', 'opt_filter_category_none');
+  el('text-filter-sort-title', 'label_filter_channel_sort');
+  el('opt-filter-sort-name-asc', 'opt_filter_sort_name_asc');
+  el('opt-filter-sort-name-desc', 'opt_filter_sort_name_desc');
+  el('opt-filter-sort-size-desc', 'opt_filter_sort_size_desc');
+  el('opt-filter-sort-size-asc', 'opt_filter_sort_size_asc');
   if (typeof updateChannelCategoryFilterOptions === 'function' && window.localDb) {
     updateChannelCategoryFilterOptions(window.localDb.categories, window.localDb.channels, lang);
   }
@@ -267,6 +279,8 @@ export function applyLanguage(lang) {
     searchInputEl.placeholder = t.filter_channels_search_placeholder || 'Kanal listesinde ara...';
   }
   elQuery('label[for="settings-lang"]', 'label_lang');
+  el('label-custom-titlebar-container', 'label_custom_titlebar');
+  el('desc-custom-titlebar', 'desc_custom_titlebar');
   el('label-temp-dir-type', 'label_temp_dir_type');
   el('desc-temp-dir-info', 'desc_temp_dir_info', 'innerHTML');
   el('opt-temp-local', 'opt_temp_local');
@@ -361,6 +375,8 @@ export function applyLanguage(lang) {
   elQuery('#btn-search-channel-text', 'btn_search_channel');
   elQuery('#btn-add-channel-text', 'btn_add_channel');
   elQuery('label[for="settings-lang"]', 'label_lang');
+  el('label-custom-titlebar-container', 'label_custom_titlebar');
+  el('desc-custom-titlebar', 'desc_custom_titlebar');
   el('label-temp-dir-type', 'label_temp_dir_type');
   el('desc-temp-dir-info', 'desc_temp_dir_info', 'innerHTML');
   el('opt-temp-local', 'opt_temp_local');

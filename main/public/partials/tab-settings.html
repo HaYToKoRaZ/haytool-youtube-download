@@ -125,6 +125,14 @@
                       <small class="form-text" id="desc-theme">Arayüzün renk temasını seçin.</small>
                     </div>
                     <div class="form-group">
+                      <label for="settings-custom-titlebar" id="label-custom-titlebar-container">Özel Pencere Çerçevesi (Modern / Çerçevesiz)</label>
+                      <div class="toggle-container" style="margin-top: 12px;">
+                        <input type="checkbox" id="settings-custom-titlebar" class="toggle-input">
+                        <label for="settings-custom-titlebar" class="toggle-label"></label>
+                        <span id="desc-custom-titlebar">Klasik Windows başlığı yerine modern çerçeve ve pencere butonlarını kullan</span>
+                      </div>
+                    </div>
+                    <div class="form-group">
                       <label for="settings-autoopenbrowser" id="label-auto-open-browser-container">Tarayıcıyı Otomatik Aç</label>
                       <div class="toggle-container" style="margin-top: 12px;">
                         <input type="checkbox" id="settings-autoopenbrowser" class="toggle-input" checked>
@@ -1194,27 +1202,41 @@
                         <small id="lmstudio-status-hint" style="font-size: 0.74rem; color: var(--text-muted); display: block;">Yerel API: http://localhost:[port]/v1 (LM Studio > Local Server sekmesinden bir model seçip sunucuyu başlatın)</small>
                       </div>
 
-                      <!-- 0.1 Yerel GGUF Model Dosyası Yolu (LM Studio olmadan bağımsız) -->
-                      <div id="ai-key-group-gguf" style="margin-bottom: 12px; padding: 10px; border-radius: 6px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
-                        <label id="label-gguf-model-path" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
-                          <span style="font-weight: 600; color: #60a5fa;" data-i18n="settings_gguf_title">📁 Yerel GGUF Model Dosyası (.gguf)</span>
-                          <span style="font-size: 0.74rem; color: var(--text-muted);" data-i18n="settings_gguf_hint">LM Studio olmadan bağımsız</span>
-                        </label>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                          <input type="text" id="settings-gguf-model-path" placeholder="C:\Models\qwen2.5-1.5b-instruct-q4_k_m.gguf" style="flex: 1; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 30px;">
-                          <button type="button" class="btn btn-secondary btn-xs" id="btn-select-gguf-dir" style="height: 30px; padding: 0 10px; font-size: 0.76rem; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;">
-                            <i data-lucide="folder-open" style="width: 12px; height: 12px;"></i> <span data-i18n="settings_gguf_browse">Klasör Seç</span>
-                          </button>
-                          <button type="button" class="btn btn-secondary btn-xs" id="btn-rescan-gguf" style="height: 30px; padding: 0 10px; font-size: 0.76rem; white-space: nowrap; display: inline-flex; align-items: center;" title="Model Klasörünü Yeniden Tara" data-i18n-title="settings_gguf_rescan">
-                            <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i>
-                          </button>
+                      <!-- 0.1 Yerel GGUF Model Klasörü ve Model Seçimi (LM Studio olmadan bağımsız) -->
+                      <div id="ai-key-group-gguf" style="margin-bottom: 12px; padding: 12px; border-radius: 8px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
+                        <!-- 1. Model Klasörü -->
+                        <div style="margin-bottom: 8px;">
+                          <label id="label-gguf-models-dir" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600; color: #60a5fa;" data-i18n="settings_gguf_dir_title">📁 Yerel GGUF Model Klasörü</span>
+                            <span style="font-size: 0.74rem; color: var(--text-muted);" data-i18n="settings_gguf_hint">LM Studio olmadan bağımsız</span>
+                          </label>
+                          <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="settings-gguf-models-dir" placeholder="Örn: D:\Ai-model" style="flex: 1; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 30px;">
+                            <button type="button" class="btn btn-secondary btn-xs" id="btn-select-gguf-dir" style="height: 30px; padding: 0 10px; font-size: 0.76rem; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;">
+                              <i data-lucide="folder-open" style="width: 12px; height: 12px;"></i> <span data-i18n="settings_gguf_browse">Klasör Seç</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-xs" id="btn-rescan-gguf" style="height: 30px; padding: 0 10px; font-size: 0.76rem; white-space: nowrap; display: inline-flex; align-items: center;" title="Model Klasörünü Yeniden Tara" data-i18n-title="settings_gguf_rescan">
+                              <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i>
+                            </button>
+                          </div>
                         </div>
-                        <!-- Seçilen klasörde otomatik algılanan .gguf model listesi -->
-                        <div id="settings-gguf-model-list-wrap" style="display: none; margin-top: 8px;">
-                          <label style="font-size: 0.74rem; color: var(--text-muted); display: block; margin-bottom: 3px;"><span id="gguf-detected-label-text" data-i18n="settings_gguf_detected_label">Klasörde Algılanan Modeller</span>: <span id="gguf-model-scan-hint" style="color: #60a5fa; font-weight: 600;"></span></label>
+
+                        <!-- 2. Klasörde Algılanan Modeller Dropdown Listesi -->
+                        <div id="settings-gguf-model-list-wrap" style="display: none; margin-bottom: 8px;">
+                          <label style="font-size: 0.74rem; color: var(--text-muted); display: block; margin-bottom: 3px;">
+                            <span id="gguf-detected-label-text" data-i18n="settings_gguf_detected_label">Klasörde Algılanan Modeller</span>: <span id="gguf-model-scan-hint" style="color: #60a5fa; font-weight: 600;"></span>
+                          </label>
                           <select id="settings-gguf-model-select" class="form-select" style="width: 100%; padding: 4px 8px; font-size: 0.78rem; height: 30px; border-radius: 6px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer;"></select>
                         </div>
-                        <small style="font-size: 0.74rem; color: var(--text-muted); display: block; margin-top: 4px;" data-i18n="settings_gguf_desc">Bilgisayarınızda indirilmiş herhangi bir .gguf model dosyasının tam yolunu girin.</small>
+
+                        <!-- 3. Aktif Seçili Model Dosyası Yolu (.gguf) -->
+                        <div style="margin-bottom: 6px;">
+                          <label id="label-gguf-model-path" style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 3px; display: block;">
+                            <span style="font-weight: 600; color: var(--text-main);" data-i18n="settings_gguf_active_model">⚡ Aktif Seçili Model (.gguf dosyası)</span>
+                          </label>
+                          <input type="text" id="settings-gguf-model-path" placeholder="C:\Models\qwen2.5-1.5b-instruct-q4_k_m.gguf" style="width: 100%; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.8rem; height: 30px;" title="Seçilen modelin tam yolu">
+                        </div>
+                        <small style="font-size: 0.72rem; color: var(--text-muted); display: block;" data-i18n="settings_gguf_desc">Model klasörünü seçtiğinizde içindeki .gguf dosyaları otomatik listelenir ve seçilir.</small>
                         <!-- CPU / GPU (Vulkan) çalıştırma tercihi -->
                         <label style="display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 0.78rem; color: var(--text-main); cursor: pointer;">
                           <input type="checkbox" id="settings-gguf-gpu-mode" style="accent-color: #a855f7; width: 14px; height: 14px; cursor: pointer;">

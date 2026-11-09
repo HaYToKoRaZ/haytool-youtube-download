@@ -30,6 +30,67 @@ let speakBusy = false;     // sentez sürüyor mu
 let speakAbortController = null;
 let summaryAudioHooksInit = false;
 
+// ── AI Sağlayıcı Seçici UI Yönetimi (Kapalıyken kısa & ferah, açıldığında detaylı) ──
+const SUMMARY_PROVIDER_LABELS = {
+  tr: {
+    auto: { short: '⚡ Otomatik', full: '⚡ Otomatik (Önerilen)' },
+    lmstudio: { short: '🖥️ LM Studio', full: '🖥️ LM Studio (Yerel & Ücretsiz)' },
+    groq: { short: '🚀 Groq', full: '🚀 Groq (Llama 3.3 - Hızlı)' },
+    gemini: { short: '✨ Gemini', full: '✨ Gemini Flash (Google - Hızlı)' },
+    deepseek: { short: '🐋 DeepSeek', full: '🐋 DeepSeek (En Ucuz API)' },
+    ollama: { short: '🦙 Ollama', full: '🦙 Ollama (Yerel)' },
+    openai: { short: '🤖 OpenAI', full: '🤖 OpenAI (GPT-4o-mini)' },
+    gguf: { short: '📁 GGUF', full: '📁 Yerel GGUF Modeli' },
+    local: { short: '🧠 Yerel NLP', full: '🧠 Yerel NLP (Apisiz - Kural Tabanlı)' }
+  },
+  en: {
+    auto: { short: '⚡ Auto', full: '⚡ Auto (Recommended)' },
+    lmstudio: { short: '🖥️ LM Studio', full: '🖥️ LM Studio (Local & Free)' },
+    groq: { short: '🚀 Groq', full: '🚀 Groq (Llama 3.3 - Fast)' },
+    gemini: { short: '✨ Gemini', full: '✨ Gemini Flash (Google - Fast)' },
+    deepseek: { short: '🐋 DeepSeek', full: '🐋 DeepSeek (Lowest Cost API)' },
+    ollama: { short: '🦙 Ollama', full: '🦙 Ollama (Local)' },
+    openai: { short: '🤖 OpenAI', full: '🤖 OpenAI (GPT-4o-mini)' },
+    gguf: { short: '📁 GGUF', full: '📁 Local GGUF Model' },
+    local: { short: '🧠 Local NLP', full: '🧠 Local NLP (Offline - Rule Based)' }
+  }
+};
+
+let summaryProviderSelectInit = false;
+
+export function initSummaryProviderSelect() {
+  const select = document.getElementById('summary-provider-select');
+  if (!select) return;
+
+  const getLang = () => (window.localDb?.settings?.lang === 'en' ? 'en' : 'tr');
+
+  const setLabels = (mode = 'short') => {
+    const lang = getLang();
+    const map = SUMMARY_PROVIDER_LABELS[lang] || SUMMARY_PROVIDER_LABELS.tr;
+    Array.from(select.options).forEach(opt => {
+      const item = map[opt.value];
+      if (item) {
+        opt.textContent = mode === 'full' ? item.full : item.short;
+      }
+    });
+  };
+
+  setLabels('short');
+
+  if (!summaryProviderSelectInit) {
+    summaryProviderSelectInit = true;
+
+    // Tıklanıp liste açıldığında detaylı tercihleri göster
+    select.addEventListener('focus', () => setLabels('full'));
+    select.addEventListener('mousedown', () => setLabels('full'));
+    select.addEventListener('pointerdown', () => setLabels('full'));
+
+    // Liste kapandığında veya seçim yapıldığında kompakt başlığa dön
+    select.addEventListener('change', () => setLabels('short'));
+    select.addEventListener('blur', () => setLabels('short'));
+  }
+}
+
 /**
  * AI Özet panelini açar veya kapatır.
  */
@@ -74,6 +135,74 @@ export async function onSummarySubtitleLangChange(newSubLang) {
   await regenerateSummary();
 }
 
+const LANG_FLAG_SRC = {
+  tr: 'flags/tr.png',
+  en: 'flags/gb.png',
+  de: 'flags/de.png',
+  es: 'flags/es.png',
+  pt: 'flags/pt.png',
+  ru: 'flags/ru.png',
+  ar: 'flags/sa.png'
+};
+
+let summaryFlagClickOutsideInit = false;
+
+export function updateSummaryOutputLangUI(lang) {
+  const currentSpan = document.getElementById('summary-output-lang-current');
+  const hiddenInput = document.getElementById('summary-output-lang-select');
+  const dropdown = document.getElementById('summary-flag-dropdown');
+  const effectiveLang = lang || (hiddenInput && hiddenInput.value) || localStorage.getItem('haytool_summary_out_lang') || 'app';
+
+  if (hiddenInput) hiddenInput.value = effectiveLang;
+
+  if (currentSpan) {
+    if (effectiveLang === 'app' || !LANG_FLAG_SRC[effectiveLang]) {
+      currentSpan.innerHTML = '<i data-lucide="globe" style="width: 13px; height: 13px; color: #a855f7;"></i>';
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons({ root: currentSpan });
+      }
+    } else {
+      currentSpan.innerHTML = `<img src="${LANG_FLAG_SRC[effectiveLang]}" alt="${effectiveLang.toUpperCase()}" class="summary-flag-img">`;
+    }
+  }
+
+  if (dropdown) {
+    dropdown.querySelectorAll('.summary-flag-item').forEach(btn => {
+      if (btn.getAttribute('data-lang') === effectiveLang) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+}
+
+export function toggleSummaryFlagDropdown(e) {
+  if (e) e.stopPropagation();
+  const dropdown = document.getElementById('summary-flag-dropdown');
+  if (!dropdown) return;
+  const isShown = dropdown.style.display !== 'none';
+  dropdown.style.display = isShown ? 'none' : 'grid';
+
+  if (!summaryFlagClickOutsideInit) {
+    summaryFlagClickOutsideInit = true;
+    document.addEventListener('click', (ev) => {
+      const wrap = document.getElementById('summary-output-lang-wrap');
+      if (wrap && !wrap.contains(ev.target)) {
+        const dd = document.getElementById('summary-flag-dropdown');
+        if (dd) dd.style.display = 'none';
+      }
+    });
+  }
+}
+
+export async function selectSummaryOutputLang(lang) {
+  const dropdown = document.getElementById('summary-flag-dropdown');
+  if (dropdown) dropdown.style.display = 'none';
+  updateSummaryOutputLangUI(lang);
+  await onSummaryOutputLangChange(lang);
+}
+
 /**
  * Özet çıktı dili değiştiğinde çalışır.
  */
@@ -96,6 +225,7 @@ export async function toggleSummaryPanel() {
   if (providerSelect) {
     providerSelect.value = currentProvider;
   }
+  initSummaryProviderSelect();
   updateLmStudioModelWrapVisibility(currentProvider);
 
   // Hafızadaki özet modunu seç (narrative | timestamped)
@@ -126,6 +256,7 @@ export async function toggleSummaryPanel() {
     if (outSelect) {
       outSelect.value = localStorage.getItem('haytool_summary_out_lang') || 'app';
     }
+    updateSummaryOutputLangUI(outSelect ? outSelect.value : 'app');
 
     if (window.lucide && typeof window.lucide.createIcons === 'function') {
       window.lucide.createIcons({ root: container });
@@ -205,7 +336,11 @@ export async function refreshGgufModelsInSummary() {
       let opts = '';
       data.models.forEach(m => {
         const isSelected = m.path === savedPath ? ' selected' : '';
-        opts += `<option value="${escapeHtml(m.path)}"${isSelected}>${escapeHtml(m.name)}</option>`;
+        const sizeStr = m.sizeMB >= 1024
+          ? (m.sizeMB / 1024).toFixed(1) + ' GB'
+          : (m.sizeMB > 0 ? m.sizeMB + ' MB' : '');
+        const label = sizeStr ? `[${sizeStr}] ${m.name}` : m.name;
+        opts += `<option value="${escapeHtml(m.path)}"${isSelected} title="${escapeHtml(m.path)}">${escapeHtml(label)}</option>`;
       });
       select.innerHTML = opts;
     } else {
@@ -1066,6 +1201,7 @@ export function seekSummaryVideo(timeStr) {
 
 // Global window erişim köprüleri
 window.toggleSummaryPanel = toggleSummaryPanel;
+window.initSummaryProviderSelect = initSummaryProviderSelect;
 window.fetchAndRenderSummary = fetchAndRenderSummary;
 window.renderSummaryUI = renderSummaryUI;
 window.onSummaryModeChange = onSummaryModeChange;
@@ -1086,6 +1222,9 @@ window.seekSummaryVideo = seekSummaryVideo;
 window.loadAvailableSubtitlesForSummary = loadAvailableSubtitlesForSummary;
 window.onSummarySubtitleLangChange = onSummarySubtitleLangChange;
 window.onSummaryOutputLangChange = onSummaryOutputLangChange;
+window.toggleSummaryFlagDropdown = toggleSummaryFlagDropdown;
+window.selectSummaryOutputLang = selectSummaryOutputLang;
+window.updateSummaryOutputLangUI = updateSummaryOutputLangUI;
 
 // CSS Stilleri
 if (typeof document !== 'undefined' && document.head && !document.getElementById('summary-time-pill-style')) {

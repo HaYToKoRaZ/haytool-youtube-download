@@ -612,13 +612,15 @@ export function getChannelActiveFilters() {
   const shortsSelect = document.getElementById('filter-channel-shorts-download');
   const catSelect = document.getElementById('filter-channel-category');
   const fakapSelect = document.getElementById('filter-channel-fakap');
+  const sortSelect = document.getElementById('filter-channel-sort');
 
   return {
     searchQuery: searchInput ? searchInput.value.trim() : '',
     autoDownload: autoSelect ? autoSelect.value : 'all',
     shortsDownload: shortsSelect ? shortsSelect.value : 'all',
     categoryId: catSelect ? catSelect.value : 'all',
-    fakap: fakapSelect ? fakapSelect.value : 'all'
+    fakap: fakapSelect ? fakapSelect.value : 'all',
+    sortBy: sortSelect ? sortSelect.value : 'name_asc'
   };
 }
 window.getChannelActiveFilters = getChannelActiveFilters;
@@ -747,9 +749,14 @@ async function calculateChannelFolderSizes() {
       }
     });
 
+    const sortSelect = document.getElementById('filter-channel-sort');
+    if (sortSelect) {
+      sortSelect.value = 'size_desc';
+    }
+
     handleChannelFilterChange();
     if (typeof showToast === 'function') {
-      showToast(t.channel_folder_sizes_calculated || 'Kanal klasör boyutları güncellendi.', 'success');
+      showToast(t.channel_folder_sizes_calculated || 'Kanal klasör boyutları güncellendi ve boyuta göre sıralandı.', 'success');
     }
   } catch (error) {
     console.error('calculateChannelFolderSizes error:', error);

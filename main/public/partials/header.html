@@ -4,7 +4,7 @@
         <div class="brand-icon" style="cursor: pointer;" title="Multimedia HaYTooL Web Sitesi" onclick="window.open('https://haytokoraz.github.io/haytool-youtube-download/', '_blank')">
           <img src="/logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
-        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYTooL-YT-Downloader/releases" target="_blank" style="color: inherit; text-decoration: none;">v12.3.7</a></span>
+        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYTooL-YT-Downloader/releases" target="_blank" style="color: inherit; text-decoration: none;">v12.3.8</a></span>
       </div>
 
       <nav class="nav-menu">
@@ -170,16 +170,70 @@
           <i data-lucide="sliders"></i>
           <span id="topbar-quality-label"><span id="topbar-quality-title">Kalite</span><span id="topbar-quality-sep">:&nbsp;</span><span id="quality-status">En Yüksek</span></span>
         </div>
-        <div class="status-badge" id="badge-disk" title="İndirme Sürücüsü Boş Alanı ve Klasör Boyutu">
-          <i data-lucide="hard-drive"></i>
+        <div class="status-badge disk-badge-wrapper" id="badge-disk" title="Depolama & Disk Yönetimi" onclick="toggleDiskPopover(event)">
+          <i data-lucide="hard-drive" id="disk-icon"></i>
           <span id="topbar-disk-label"><span id="topbar-disk-title-free">Boş</span>: <span id="disk-status-free">--</span> | <span id="topbar-disk-title-folder">Alan</span>: <span id="disk-status-folder">--</span></span>
+
+          <!-- Kompakt Depolama & Disk Yönetim Popover Kartı -->
+          <div id="disk-popover" class="disk-popover" onclick="event.stopPropagation()">
+            <div class="disk-popover-header">
+              <div class="disk-popover-title-wrap">
+                <i data-lucide="hard-drive" style="width: 15px; height: 15px; color: #a855f7;"></i>
+                <span class="disk-popover-title" data-i18n="disk_popover_title">Depolama & Disk Durumu</span>
+              </div>
+              <span id="disk-popover-drive-badge" class="disk-chip">--</span>
+            </div>
+
+            <div class="disk-popover-body">
+              <!-- Sürücü Doluluk Çubuğu -->
+              <div class="disk-usage-header">
+                <span class="disk-usage-label" data-i18n="disk_popover_usage">Sürücü Doluluk Oranı</span>
+                <span id="disk-popover-percent" class="disk-usage-percent">--%</span>
+              </div>
+              <div class="disk-progress-track">
+                <div id="disk-popover-progress-bar" class="disk-progress-fill" style="width: 0%;"></div>
+              </div>
+
+              <!-- 4'lü İstatistik Izgarası -->
+              <div class="disk-details-grid">
+                <div class="disk-detail-card">
+                  <span class="disk-detail-muted" data-i18n="disk_popover_free">Boş Alan</span>
+                  <span id="disk-popover-free" class="disk-detail-val">--</span>
+                </div>
+                <div class="disk-detail-card">
+                  <span class="disk-detail-muted" data-i18n="disk_popover_total">Toplam Alan</span>
+                  <span id="disk-popover-total" class="disk-detail-val">--</span>
+                </div>
+                <div class="disk-detail-card">
+                  <span class="disk-detail-muted" data-i18n="disk_popover_folder_size">İndirme Klasörü</span>
+                  <span id="disk-popover-folder-size" class="disk-detail-val" style="color: #38bdf8;">--</span>
+                </div>
+                <div class="disk-detail-card">
+                  <span class="disk-detail-muted" data-i18n="disk_popover_media_count">Kayıtlı Medya</span>
+                  <span id="disk-popover-media-count" class="disk-detail-val" style="color: #c084fc;">--</span>
+                </div>
+              </div>
+
+              <!-- İndirme Yolu Kutusu -->
+              <div class="disk-path-box" id="disk-popover-path" title="İndirme Konumu">--</div>
+            </div>
+
+            <!-- Eylem Butonları -->
+            <div class="disk-popover-actions">
+              <button type="button" class="btn btn-primary btn-xs disk-action-btn" onclick="openFolder(); closeDiskPopover();" title="İndirme Klasörünü Aç">
+                <i data-lucide="folder-open" style="width: 13px; height: 13px;"></i>
+                <span data-i18n="disk_popover_btn_open">Klasörü Aç</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn-xs disk-action-btn" id="disk-popover-sync-btn" onclick="triggerDiskSyncFromPopover();" title="Diskteki Yeni/Silinen Dosyaları Tara">
+                <i data-lucide="refresh-cw" id="disk-sync-btn-icon" style="width: 13px; height: 13px;"></i>
+                <span data-i18n="disk_popover_btn_sync">Diski Eşitle</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="topbar-actions">
-        <button id="open-downloads-folder-btn" onclick="openFolder()" class="btn btn-secondary btn-icon-only" title="İndirilenler Klasörünü Aç" aria-label="İndirilenler Klasörünü Aç">
-          <i data-lucide="folder-open"></i>
-        </button>
         <button id="quick-theme-toggle-btn" onclick="toggleQuickTheme()" class="btn btn-secondary btn-icon-only theme-toggle-btn" data-theme-current="dark" title="Tema: Koyu • Sonraki: Açık (tıkla)" aria-label="Tema: Koyu • Sonraki: Açık (tıkla)">
           <i data-lucide="moon" id="quick-theme-icon"></i>
         </button>
@@ -188,6 +242,20 @@
         </button>
         <button id="sync-now-btn" class="btn btn-secondary btn-icon-only" title="Kanalları Şimdi Denetle" aria-label="Kanalları Şimdi Denetle">
           <i data-lucide="refresh-cw"></i>
+        </button>
+      </div>
+
+      <!-- Özel Pencere Kontrolleri (Simge Durumu, Büyüt/Geri Yükle, Kapat) -->
+      <div class="window-controls" id="window-controls" style="display: none;">
+        <button type="button" class="window-control-btn btn-min" id="win-btn-min" title="Simge Durumuna Küçült" aria-label="Küçült" onclick="windowControlAction('minimize')">
+          <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
+        </button>
+        <button type="button" class="window-control-btn btn-max" id="win-btn-max" title="Ekranı Kapla" aria-label="Büyüt" onclick="windowControlAction('maximize')">
+          <svg id="win-icon-max" width="10" height="10" viewBox="0 0 10 10"><rect width="9" height="9" x="0.5" y="0.5" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+          <svg id="win-icon-restore" width="10" height="10" viewBox="0 0 10 10" style="display: none;"><rect width="7" height="7" x="2.5" y="0.5" fill="none" stroke="currentColor" stroke-width="1"/><polyline points="0.5,2.5 0.5,9.5 7.5,9.5" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+        </button>
+        <button type="button" class="window-control-btn btn-close" id="win-btn-close" title="Kapat" aria-label="Kapat" onclick="windowControlAction('close')">
+          <svg width="10" height="10" viewBox="0 0 10 10"><line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" stroke-width="1.2"/><line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" stroke-width="1.2"/></svg>
         </button>
       </div>
     </header>

@@ -1676,7 +1676,7 @@ export async function syncDbWithDisk(forceManual = false, syncMode = 'fast') {
       if (forceManual) {
         addTerminalLog('[Disk Sync] Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.', 'warn');
       }
-      return { success: false, busy: true, message: 'Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.' };
+      return { success: false, busy: true, error: 'Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.', message: 'Aktif indirme/birleştirme işlemi olduğu için disk senkronizasyonu ertelendi.' };
     }
 
     return performDiskSync(forceManual, mode);

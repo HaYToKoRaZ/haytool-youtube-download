@@ -20,10 +20,36 @@ namespace HaYTooLPlayer
         private string? _unloadedUrl = null;
         private bool _uiUnloaded = false;
         private string? _pendingPlayVideoId = null;
+        private bool _isCustomTitlebarActive = false;
 
         public MainWindow()
         {
             InitializeComponent();
+
+            this.StateChanged += (s, e) =>
+            {
+                UpdateWindowPaddingForMaximized();
+                bool isMax = (this.WindowState == WindowState.Maximized);
+                try
+                {
+                    webView?.CoreWebView2?.ExecuteScriptAsync($"window.onWindowStateChanged && window.onWindowStateChanged({isMax.ToString().ToLower()});");
+                }
+                catch {}
+            };
+
+            try
+            {
+                string dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "db.json");
+                if (File.Exists(dbPath))
+                {
+                    string text = File.ReadAllText(dbPath);
+                    if (text.Contains("\"customTitlebar\": true") || text.Contains("\"customTitlebar\":true"))
+                    {
+                        ApplyCustomTitlebar(true);
+                    }
+                }
+            }
+            catch {}
 
             string debugLogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wv2_debug.log");
             this.Closed += (s, e) => { try { File.AppendAllText(debugLogFile, $"[{DateTime.Now}] Window.Closed fired!\n"); } catch {} };
@@ -109,6 +135,55 @@ namespace HaYTooLPlayer
             catch {}
 
             InitializeAsync();
+        }
+
+        public void ApplyCustomTitlebar(bool enable)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _isCustomTitlebarActive = enable;
+                if (enable)
+                {
+                    var chrome = new System.Windows.Shell.WindowChrome
+                    {
+                        CaptionHeight = 0,
+                        CornerRadius = new CornerRadius(0),
+                        GlassFrameThickness = new Thickness(0),
+                        ResizeBorderThickness = new Thickness(6),
+                        UseAeroCaptionButtons = false
+                    };
+                    System.Windows.Shell.WindowChrome.SetWindowChrome(this, chrome);
+                }
+                else
+                {
+                    System.Windows.Shell.WindowChrome.SetWindowChrome(this, null);
+                }
+                UpdateWindowPaddingForMaximized();
+            });
+        }
+
+        private void UpdateWindowPaddingForMaximized()
+        {
+            if (_isCustomTitlebarActive && System.Windows.Shell.WindowChrome.GetWindowChrome(this) != null)
+            {
+                if (this.WindowState == WindowState.Maximized)
+                {
+                    this.BorderThickness = new Thickness(
+                        SystemParameters.WindowResizeBorderThickness.Left + 2,
+                        SystemParameters.WindowResizeBorderThickness.Top + 2,
+                        SystemParameters.WindowResizeBorderThickness.Right + 2,
+                        SystemParameters.WindowResizeBorderThickness.Bottom + 2
+                    );
+                }
+                else
+                {
+                    this.BorderThickness = new Thickness(0);
+                }
+            }
+            else
+            {
+                this.BorderThickness = new Thickness(0);
+            }
         }
 
         public TrayManager? Tray => _trayManager;

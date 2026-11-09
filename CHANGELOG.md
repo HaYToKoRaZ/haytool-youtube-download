@@ -3,6 +3,14 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.3.8] - 2026-11-09
+- **feat(window/frame):** Modern özel pencere çerçevesi (Custom Window Chrome) desteği eklendi; Ayarlar sekmesinde Windows yerel çerçevesi ile özel başlık çubuğu arasında dinamik geçiş anahtarı sağlandı; simge durumuna küçültme, ekranı kaplama/geri yükleme ve kapatma işlevleri C# WPF & WebView2 köprüsüyle tam entegre edildi.
+- **feat(channels/sort):** Kanallar sekmesinde "Kanal Boyutlarını Hesapla" tıklandıktan sonra kanalları klasör boyutuna göre (Büyükten Küçüğe / Küçükten Büyüğe) sıralama desteği eklendi.
+- **feat(ui/disk-sync):** Üst bilgi çubuğundaki disk rozetine tıklama popover'ı ile "Tek Tıkla Senkronize Et" entegre edildi; indirme klasörü dosya eşitlemesi anında tetiklenebilir hale getirildi.
+- **feat(ai/comments):** Yorum AI özetleme tercihleri (model, dil vb.) hafızada tutulacak şekilde otomatik hatırlanır kılındı; yerel modellerde dengeli ve kapsamlı yorum analizi optimize edildi.
+- **feat(iptv/pvr):** IPTV canlı yayın PVR kayıt servisi ve arayüz geliştirmeleri tamamlandı.
+- **chore(release):** Uygulama ve tarayıcı eklentisi (Chrome extension manifest v12.3.8) yeni sürüme eşitlendi.
+
 ## [12.3.6] - 2026-11-06
 - **feat(notifications/click-to-play):** Windows bildirim kartında yerel kapak görseli (hero image) ve sol üst uygulama logosu desteği sağlandı; "▶️ Hemen Oynat" butonu ile indirilen videonun Multimedia HaYTooL dahili oynatıcısında anında başlatılması entegre edildi.
 - **feat(protocol/settings):** `haytool://play/{videoId}` özel protokolü için Ayarlar sekmesinde şeffaf, kullanıcı kontrollü protokol kaydı/kaldırması eklendi; taşınabilir (portable) kullanımda dizin değişiklikleri ve güncelleme yönergeleri 7 dilde desteklendi.

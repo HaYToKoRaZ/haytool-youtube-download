@@ -37,6 +37,7 @@ yt-dlp
 yt-dlp.exe
 *.new
 *.bozuk
+bin/
 bin/win-x64/
 bin/*.pdb
 main/bin/llama/

@@ -308,6 +308,7 @@ export async function performAutoSave() {
     cookieRefreshInterval: document.getElementById('settings-cookie-refresh-interval') ? (parseInt(document.getElementById('settings-cookie-refresh-interval').value, 10) || 30) : (localDb.settings?.cookieRefreshInterval !== undefined ? localDb.settings.cookieRefreshInterval : 30),
     showNotifications: document.getElementById('settings-shownotifications') ? document.getElementById('settings-shownotifications').checked : true,
     autoOpenBrowser: document.getElementById('settings-autoopenbrowser') ? document.getElementById('settings-autoopenbrowser').checked : true,
+    customTitlebar: document.getElementById('settings-custom-titlebar') ? document.getElementById('settings-custom-titlebar').checked : !!localDb.settings?.customTitlebar,
     unloadUiOnHide: document.getElementById('settings-unload-ui-on-hide') ? document.getElementById('settings-unload-ui-on-hide').checked : (localDb.settings?.unloadUiOnHide !== false),
     playerGpuMode: document.getElementById('settings-player-gpu-mode') ? document.getElementById('settings-player-gpu-mode').value : (localDb.settings?.playerGpuMode || 'gpu'),
     checkChannelsOnStartup: document.getElementById('settings-checkonstartup') ? document.getElementById('settings-checkonstartup').checked : false,
@@ -328,7 +329,7 @@ export async function performAutoSave() {
       lmStudioPort: (document.getElementById('settings-lmstudio-port') && parseInt(document.getElementById('settings-lmstudio-port').value, 10)) || (localDb.settings && localDb.settings.lmStudioPort) || 1234,
       lmStudioModel: (document.getElementById('settings-lmstudio-model') && document.getElementById('settings-lmstudio-model').value.trim()) || (localDb.settings && localDb.settings.lmStudioModel) || '',
       ggufModelPath: (document.getElementById('settings-gguf-model-path') && document.getElementById('settings-gguf-model-path').value.trim()) || (localDb.settings && localDb.settings.ggufModelPath) || '',
-      ggufModelsDir: (localDb.settings && localDb.settings.ggufModelsDir) || '',
+      ggufModelsDir: (document.getElementById('settings-gguf-models-dir') && document.getElementById('settings-gguf-models-dir').value.trim()) || (localDb.settings && localDb.settings.ggufModelsDir) || '',
       ggufGpuMode: !!(document.getElementById('settings-gguf-gpu-mode') && document.getElementById('settings-gguf-gpu-mode').checked),
       ttsVoiceId: (localDb.settings && localDb.settings.ttsVoiceId) || '',
       ttsSpeed: parseFloat((document.getElementById('settings-tts-speed') && document.getElementById('settings-tts-speed').value) || '1') || 1,
@@ -433,10 +434,18 @@ export async function refreshGgufModelList(dir, silent = false) {
   const wrap = document.getElementById('settings-gguf-model-list-wrap');
   const select = document.getElementById('settings-gguf-model-select');
   const hint = document.getElementById('gguf-model-scan-hint');
+  const dirInput = document.getElementById('settings-gguf-models-dir');
+  const pathInput = document.getElementById('settings-gguf-model-path');
   if (!wrap || !select) return;
 
   const t = translations[localDb.settings?.lang || 'tr'] || translations.tr;
-  const targetDir = (typeof dir === 'string' && dir.trim()) ? dir.trim() : (localDb.settings?.ggufModelsDir || '');
+  let targetDir = (typeof dir === 'string' && dir.trim()) ? dir.trim() : ((dirInput && dirInput.value.trim()) || (localDb.settings?.ggufModelsDir || ''));
+  if (!targetDir && localDb.settings?.ggufModelPath) {
+    targetDir = localDb.settings.ggufModelPath.replace(/[\\/][^\\/]*$/, '');
+  }
+  if (dirInput && targetDir && !dirInput.value) {
+    dirInput.value = targetDir;
+  }
 
   try {
     const res = await fetch(`/api/gguf/models?dir=${encodeURIComponent(targetDir)}`);
@@ -447,13 +456,16 @@ export async function refreshGgufModelList(dir, silent = false) {
       return;
     }
 
-    const savedPath = localDb.settings?.ggufModelPath || '';
+    const savedPath = (pathInput && pathInput.value.trim()) || localDb.settings?.ggufModelPath || '';
     select.innerHTML = '';
     let savedFound = false;
     (data.models || []).forEach(m => {
       const opt = document.createElement('option');
       opt.value = m.path;
-      opt.textContent = `${m.name} (${m.sizeMB} MB)`;
+      const sizeStr = m.sizeMB >= 1024
+        ? (m.sizeMB / 1024).toFixed(1) + ' GB'
+        : (m.sizeMB > 0 ? m.sizeMB + ' MB' : '');
+      opt.textContent = sizeStr ? `[${sizeStr}] ${m.name}` : m.name;
       opt.title = m.path;
       if (m.path === savedPath) { opt.selected = true; savedFound = true; }
       select.appendChild(opt);
@@ -465,14 +477,22 @@ export async function refreshGgufModelList(dir, silent = false) {
         hint.textContent = t.settings_gguf_no_models || 'Bu klasörde .gguf model bulunamadı.';
         hint.style.color = 'var(--text-muted)';
       } else if (savedPath && !savedFound) {
-        hint.textContent = `${data.models.length} ${t.settings_gguf_models_found || 'model bulundu'} — ${t.settings_gguf_current_missing || ''}`.trim();
+        hint.textContent = `${data.models.length} ${t.settings_gguf_models_found || 'model bulundu'}`;
         hint.style.color = '#f59e0b';
       } else {
         hint.textContent = `${data.models.length} ${t.settings_gguf_models_found || 'model bulundu'}`;
         hint.style.color = '#60a5fa';
       }
     }
-    if ((data.models || []).length === 0) select.innerHTML = '<option value="">—</option>';
+
+    if ((data.models || []).length > 0) {
+      if (!savedFound || !savedPath) {
+        select.selectedIndex = 0;
+        onSettingsGgufModelSelect(data.models[0].path);
+      }
+    } else {
+      select.innerHTML = '<option value="">—</option>';
+    }
   } catch (err) {
     console.warn('[GGUF Model Scan Warn]:', err);
     if (!silent) showToast('Model taraması sırasında bağlantı hatası.', 'error');
@@ -486,8 +506,9 @@ window.refreshGgufModelList = refreshGgufModelList;
 export async function selectGgufFolder() {
   const isEn = localDb.settings?.lang === 'en';
   showToast(isEn ? 'Opening folder selection window, please wait...' : 'Klasör seçim penceresi açılıyor, lütfen bekleyin...', 'info');
+  const dirInput = document.getElementById('settings-gguf-models-dir');
   const savedModelPath = localDb.settings?.ggufModelPath || '';
-  const startPath = (localDb.settings?.ggufModelsDir || '').trim() || (savedModelPath ? savedModelPath.replace(/[\\/][^\\/]*$/, '') : '');
+  const startPath = (dirInput && dirInput.value.trim()) || (localDb.settings?.ggufModelsDir || '').trim() || (savedModelPath ? savedModelPath.replace(/[\\/][^\\/]*$/, '') : '');
 
   try {
     const res = await fetch('/api/select-folder', {
@@ -497,9 +518,11 @@ export async function selectGgufFolder() {
     });
     const data = await res.json();
     if (data.success && data.path) {
+      if (dirInput) dirInput.value = data.path;
       if (localDb.settings) localDb.settings.ggufModelsDir = data.path;
       await refreshGgufModelList(data.path);
       triggerAutoSave(true);
+      showToast(isEn ? `Model folder selected: ${data.path}` : `Model klasörü seçildi: ${data.path}`, 'success');
     } else if (data.message) {
       showToast(data.message, 'warning');
     }
@@ -638,6 +661,37 @@ export function initSettingsFormListeners() {
   }
 
   // GGUF model klasörü butonları ve model listesi
+  const ggufDirInput = document.getElementById('settings-gguf-models-dir');
+  if (ggufDirInput && !ggufDirInput.dataset.settingsInit) {
+    ggufDirInput.dataset.settingsInit = 'true';
+    let dirTimer = null;
+    ggufDirInput.addEventListener('input', (e) => {
+      const val = e.target.value.trim();
+      clearTimeout(dirTimer);
+      dirTimer = setTimeout(() => {
+        if (val) {
+          if (localDb.settings) localDb.settings.ggufModelsDir = val;
+          refreshGgufModelList(val);
+        }
+      }, 400);
+    });
+  }
+
+  const ggufPathInput = document.getElementById('settings-gguf-model-path');
+  if (ggufPathInput && !ggufPathInput.dataset.guardInit) {
+    ggufPathInput.dataset.guardInit = 'true';
+    ggufPathInput.addEventListener('change', (e) => {
+      const val = e.target.value.trim();
+      // Eğer kullanıcı sonu .gguf olmayan bir klasör yapıştırdıysa otomatik klasör alanına taşı:
+      if (val && !val.toLowerCase().endsWith('.gguf')) {
+        const dirEl = document.getElementById('settings-gguf-models-dir');
+        if (dirEl) dirEl.value = val;
+        if (localDb.settings) localDb.settings.ggufModelsDir = val;
+        refreshGgufModelList(val);
+      }
+    });
+  }
+
   const ggufBrowseBtn = document.getElementById('btn-select-gguf-dir');
   if (ggufBrowseBtn && !ggufBrowseBtn.dataset.settingsInit) {
     ggufBrowseBtn.dataset.settingsInit = 'true';
@@ -647,7 +701,10 @@ export function initSettingsFormListeners() {
   const ggufRescanBtn = document.getElementById('btn-rescan-gguf');
   if (ggufRescanBtn && !ggufRescanBtn.dataset.settingsInit) {
     ggufRescanBtn.dataset.settingsInit = 'true';
-    ggufRescanBtn.addEventListener('click', () => refreshGgufModelList(localDb.settings?.ggufModelsDir || ''));
+    ggufRescanBtn.addEventListener('click', () => {
+      const dirVal = (document.getElementById('settings-gguf-models-dir')?.value.trim()) || localDb.settings?.ggufModelsDir || '';
+      refreshGgufModelList(dirVal);
+    });
   }
 
   // CPU / GPU (Vulkan) tercihi değişince motor durum çubuğu ve indirme butonu tercih güncellenir
@@ -978,12 +1035,16 @@ export function populateGistFields() {
   if (lmModelInput && localDb.settings?.lmStudioModel) {
     lmModelInput.value = localDb.settings.lmStudioModel;
   }
+  const ggufDirInput = document.getElementById('settings-gguf-models-dir');
+  if (ggufDirInput && localDb.settings?.ggufModelsDir) {
+    ggufDirInput.value = localDb.settings.ggufModelsDir;
+  }
   const ggufPathInput = document.getElementById('settings-gguf-model-path');
   if (ggufPathInput && localDb.settings?.ggufModelPath) {
     ggufPathInput.value = localDb.settings.ggufModelPath;
   }
-  if (localDb.settings?.ggufModelsDir) {
-    refreshGgufModelList(localDb.settings.ggufModelsDir, true);
+  if (localDb.settings?.ggufModelsDir || localDb.settings?.ggufModelPath) {
+    refreshGgufModelList(localDb.settings.ggufModelsDir || '', true);
   }
   const ggufGpuModeInput = document.getElementById('settings-gguf-gpu-mode');
   if (ggufGpuModeInput) {
@@ -1565,6 +1626,8 @@ function applyRecommendedModelSettings(filePath) {
   const dir = filePath.replace(/[\\/][^\\/]*$/, '');
   const t = window.translations?.[window.localDb?.settings?.lang || 'tr'] || window.translations?.tr || {};
 
+  const dirInput = document.getElementById('settings-gguf-models-dir');
+  if (dirInput) dirInput.value = dir;
   const pathInput = document.getElementById('settings-gguf-model-path');
   if (pathInput) pathInput.value = filePath;
   if (localDb.settings) {
@@ -2025,3 +2088,106 @@ export async function checkCliPathStatus() {
   } catch (_) {}
 }
 window.checkCliPathStatus = checkCliPathStatus;
+
+/**
+ * Özel pencere başlığı modunu uygular.
+ * @param {boolean} enabled 
+ */
+export function applyCustomTitlebarMode(enabled) {
+  const winControls = document.getElementById('window-controls');
+  if (winControls) {
+    winControls.style.display = enabled ? 'inline-flex' : 'none';
+  }
+  document.body.classList.toggle('custom-titlebar-active', !!enabled);
+
+  try {
+    if (window.chrome?.webview?.hostObjects?.playerBridge?.setCustomTitlebar) {
+      window.chrome.webview.hostObjects.playerBridge.setCustomTitlebar(!!enabled);
+    }
+  } catch (e) {
+    console.warn('[CustomTitlebar] Bridge call failed:', e);
+  }
+}
+window.applyCustomTitlebarMode = applyCustomTitlebarMode;
+
+/**
+ * Pencere kontrolleri ve başlık çubuğu dinleyicilerini başlatır.
+ */
+export function initCustomTitlebar() {
+  const customTitlebarEnabled = !!(window.localDb?.settings?.customTitlebar);
+  const chk = document.getElementById('settings-custom-titlebar');
+  if (chk) {
+    chk.checked = customTitlebarEnabled;
+    if (!chk.dataset.titlebarBound) {
+      chk.dataset.titlebarBound = 'true';
+      chk.addEventListener('change', () => {
+        applyCustomTitlebarMode(chk.checked);
+        triggerAutoSave(true);
+      });
+    }
+  }
+  applyCustomTitlebarMode(customTitlebarEnabled);
+
+  // Topbar sürükleme ve çift tıklama ile büyütme dinleyicisi
+  const topbar = document.getElementById('topbar');
+  if (topbar && !topbar.dataset.dragInit) {
+    topbar.dataset.dragInit = 'true';
+
+    topbar.addEventListener('mousedown', (e) => {
+      // Etkileşimli öğelere tıklanmışsa pencere sürüklemesi tetikleme
+      if (e.target.closest('button, a, input, select, .status-badge, .nav-item, .window-controls, .theme-toggle-btn')) {
+        return;
+      }
+      if (e.button === 0 && document.body.classList.contains('custom-titlebar-active')) {
+        try {
+          window.chrome?.webview?.hostObjects?.playerBridge?.dragWindow();
+        } catch (_) {}
+      }
+    });
+
+    topbar.addEventListener('dblclick', (e) => {
+      if (e.target.closest('button, a, input, select, .status-badge, .nav-item, .window-controls, .theme-toggle-btn')) {
+        return;
+      }
+      if (document.body.classList.contains('custom-titlebar-active')) {
+        try {
+          window.chrome?.webview?.hostObjects?.playerBridge?.toggleMaximizeWindow();
+        } catch (_) {}
+      }
+    });
+  }
+}
+window.initCustomTitlebar = initCustomTitlebar;
+
+window.windowControlAction = function(action) {
+  try {
+    const bridge = window.chrome?.webview?.hostObjects?.playerBridge;
+    if (!bridge) return;
+    if (action === 'minimize') {
+      bridge.minimizeWindow();
+    } else if (action === 'maximize') {
+      bridge.toggleMaximizeWindow();
+    } else if (action === 'close') {
+      bridge.closeWindow();
+    }
+  } catch (err) {
+    console.error('[WindowControls] Error:', err);
+  }
+};
+
+window.onWindowStateChanged = function(isMaximized) {
+  const maxIcon = document.getElementById('win-icon-max');
+  const restoreIcon = document.getElementById('win-icon-restore');
+  const maxBtn = document.getElementById('win-btn-max');
+  if (maxIcon && restoreIcon) {
+    if (isMaximized) {
+      maxIcon.style.display = 'none';
+      restoreIcon.style.display = 'inline-block';
+      if (maxBtn) maxBtn.title = (window.localDb?.settings?.lang === 'en') ? 'Restore' : 'Aşağı Getir';
+    } else {
+      maxIcon.style.display = 'inline-block';
+      restoreIcon.style.display = 'none';
+      if (maxBtn) maxBtn.title = (window.localDb?.settings?.lang === 'en') ? 'Maximize' : 'Ekranı Kapla';
+    }
+  }
+};
