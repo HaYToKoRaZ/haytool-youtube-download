@@ -15759,3 +15759,187 @@ body.light-theme .shortcut-keys kbd {
   border-bottom-color: #94a3b8;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
 }
+
+/* ==========================================================================
+   Özel Sağ Tık Bağlam Menüsü (Custom Modern Context Menu)
+   ========================================================================== */
+.custom-context-menu {
+  position: fixed;
+  z-index: 999999;
+  min-width: 230px;
+  max-width: 320px;
+  background: rgba(22, 27, 34, 0.88);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 6px;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-family: inherit;
+  user-select: none;
+  animation: contextMenuPopIn 140ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top left;
+}
+
+@keyframes contextMenuPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.08s ease, color 0.12s ease;
+  gap: 12px;
+}
+
+.context-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.context-menu-item:active {
+  transform: scale(0.98);
+}
+
+.context-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.context-item-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.context-item-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.context-menu-kbd {
+  font-size: 10.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.context-menu-divider {
+  height: 1px;
+  margin: 5px 4px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Tema Uyarlamaları */
+body.light-theme .custom-context-menu {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  color: #1e293b;
+}
+
+body.light-theme .context-menu-item:hover {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0284c7;
+}
+
+body.light-theme .context-menu-kbd {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+body.light-theme .context-menu-divider {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+body.matrix-theme .custom-context-menu {
+  background: rgba(5, 20, 8, 0.95);
+  border-color: rgba(0, 255, 65, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 255, 65, 0.2), 0 0 0 1px rgba(0, 255, 65, 0.15);
+  color: #00ff41;
+}
+
+body.matrix-theme .context-menu-item:hover {
+  background: rgba(0, 255, 65, 0.18);
+  color: #33ff77;
+}
+
+body.matrix-theme .context-menu-kbd {
+  background: rgba(0, 255, 65, 0.1);
+  border-color: rgba(0, 255, 65, 0.3);
+  color: #00ff41;
+}
+
+body.matrix-theme .context-menu-divider {
+  background: rgba(0, 255, 65, 0.2);
+}
+
+body.discord-theme .custom-context-menu {
+  background: rgba(30, 31, 35, 0.95);
+  border-color: rgba(88, 101, 242, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(88, 101, 242, 0.15);
+  color: #dcddde;
+}
+
+body.discord-theme .context-menu-item:hover {
+  background: rgba(88, 101, 242, 0.2);
+  color: #ffffff;
+}
+
+body.discord-theme .context-menu-kbd {
+  background: rgba(88, 101, 242, 0.12);
+  border-color: rgba(88, 101, 242, 0.25);
+  color: #5865f2;
+}
+
+body.discord-theme .context-menu-divider {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+body.youtube-theme .custom-context-menu {
+  background: rgba(24, 24, 24, 0.95);
+  border-color: rgba(255, 0, 0, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 0, 0, 0.15);
+  color: #f1f1f1;
+}
+
+body.youtube-theme .context-menu-item:hover {
+  background: rgba(255, 0, 0, 0.2);
+  color: #ffffff;
+}
+
+body.youtube-theme .context-menu-kbd {
+  background: rgba(255, 0, 0, 0.12);
+  border-color: rgba(255, 0, 0, 0.25);
+  color: #ff4e45;
+}
+
+body.youtube-theme .context-menu-divider {
+  background: rgba(255, 255, 255, 0.08);
+}

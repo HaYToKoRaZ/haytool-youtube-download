@@ -124,7 +124,7 @@ export function showUpdateNotification(update) {
     window.lucide.createIcons();
   }
 
-  document.getElementById('github-update-close-btn').addEventListener('click', () => {
+  card.querySelector('#github-update-close-btn')?.addEventListener('click', () => {
     card.classList.add('fade-out');
     sessionStorage.setItem('hide_update_notification', 'true');
     setTimeout(() => card.remove(), 400);

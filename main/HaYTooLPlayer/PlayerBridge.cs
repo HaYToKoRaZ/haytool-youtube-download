@@ -122,5 +122,17 @@ namespace HaYTooLPlayer
                 await _mainWindow.SyncYouTubeCookiesToFileAsync();
             });
         }
+
+        public void openDevTools()
+        {
+            _mainWindow.Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    _mainWindow.webView?.CoreWebView2?.OpenDevToolsWindow();
+                }
+                catch {}
+            });
+        }
     }
 }

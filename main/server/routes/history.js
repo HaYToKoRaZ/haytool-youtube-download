@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import open from 'open';
-import { exec, spawn } from 'child_process';
+import { exec, spawn, execFile } from 'child_process';
 import { 
   readDb, 
   writeDb, 
@@ -1787,10 +1787,21 @@ router.post('/open-folder', localhostOnly, (req, res) => {
     const resolvedFolder = path.resolve(folder);
     exec(`explorer.exe "${resolvedFolder}"`);
     const folderName = path.basename(resolvedFolder);
-    const folderNameSafe = folderName.replace(/'/g, "''");
+    const escapedFolder = folderName.replace(/'/g, "''");
     setTimeout(() => {
-      exec(`powershell -Command "(New-Object -ComObject wscript.shell).AppActivate('${folderNameSafe}')"`, (err) => {});
-    }, 500);
+      try {
+        const actScript = `(New-Object -ComObject wscript.shell).AppActivate('${escapedFolder}') | Out-Null`;
+        const encAct = Buffer.from(actScript, 'utf16le').toString('base64');
+        execFile('powershell.exe', [
+          '-NoProfile',
+          '-NonInteractive',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-EncodedCommand',
+          encAct
+        ], { windowsHide: true }, () => {});
+      } catch (e) {}
+    }, 450);
   } else if (process.platform === 'darwin') {
     open(folder);
   } else {

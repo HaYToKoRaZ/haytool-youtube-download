@@ -1046,7 +1046,7 @@ function switchIptvChannel(direction = 1) {
 
       if (typeof showToast === 'function') {
         const prefix = direction > 0 ? '⏭️ ' : '⏮️ ';
-        showToast(`${prefix}${chName}`, 'info', 1500);
+        showToast(`${prefix}${chName}`, 'info');
       }
       return;
     }
@@ -1070,7 +1070,7 @@ function switchIptvChannel(direction = 1) {
       const chName = targetEl.querySelector('.iptv-ch-name')?.textContent || 'Kanal';
       if (typeof showToast === 'function') {
         const prefix = direction > 0 ? '⏭️ ' : '⏮️ ';
-        showToast(`${prefix}${chName}`, 'info', 1500);
+        showToast(`${prefix}${chName}`, 'info');
       }
     }
   }

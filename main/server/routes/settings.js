@@ -7,7 +7,7 @@ import https from 'https';
 import http from 'http';
 import zlib from 'zlib';
 import { fileURLToPath } from 'url';
-import { spawn, spawnSync, exec, execSync, execFileSync } from 'child_process';
+import { spawn, spawnSync, exec, execSync, execFileSync, execFile } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2165,10 +2165,21 @@ router.post('/settings/open-temp', localhostOnly, (req, res) => {
       const resolvedFolder = path.resolve(tempDir);
       exec(`explorer.exe "${resolvedFolder}"`);
       const folderName = path.basename(resolvedFolder);
-      const folderNameSafe = folderName.replace(/'/g, "''");
+      const escapedFolder = folderName.replace(/'/g, "''");
       setTimeout(() => {
-        exec(`powershell -Command "(New-Object -ComObject wscript.shell).AppActivate('${folderNameSafe}')"`, (err) => {});
-      }, 500);
+        try {
+          const actScript = `(New-Object -ComObject wscript.shell).AppActivate('${escapedFolder}') | Out-Null`;
+          const encAct = Buffer.from(actScript, 'utf16le').toString('base64');
+          execFile('powershell.exe', [
+            '-NoProfile',
+            '-NonInteractive',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-EncodedCommand',
+            encAct
+          ], { windowsHide: true }, () => {});
+        } catch (e) {}
+      }, 450);
     } else if (process.platform === 'darwin') {
       open(tempDir);
     } else {

@@ -271,6 +271,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 const isDev = process.env.NODE_ENV === 'development';
 
 // API Rota Grupları
+app.use('/api', localhostOnly);
 app.use('/api', queueRouter);
 app.use('/api', settingsRouter);
 app.use('/api/channels', channelsRouter);

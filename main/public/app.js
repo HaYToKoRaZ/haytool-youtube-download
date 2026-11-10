@@ -130,6 +130,12 @@ window.toggleTheaterMode = toggleTheaterMode;
 window.injectTheaterModeButtonToPlyr = injectTheaterModeButtonToPlyr;
 window.isTheaterMode = isTheaterMode;
 
+// Özel Sağ Tık Bağlam Menüsü ve Fare Orta Tuşu Modülü
+import { initContextMenu, closeContextMenu, toggleAppFullscreen } from './modules/contextMenu.js';
+window.initContextMenu = initContextMenu;
+window.closeContextMenu = closeContextMenu;
+window.toggleAppFullscreen = toggleAppFullscreen;
+
 window.handleInlineTranslateSubClick = async function() {
   const videoId = window.currentPlayingVideoId;
   if (!videoId) {
@@ -3048,8 +3054,12 @@ document.addEventListener('keydown', (e) => {
         }
       },
       toggleFullscreen() {
-        if (videoPlayerInstance && videoPlayerInstance.fullscreen && typeof videoPlayerInstance.fullscreen.toggle === 'function') {
-          videoPlayerInstance.fullscreen.toggle();
+        if (typeof window.toggleActiveVideoFullscreen === 'function') {
+          window.toggleActiveVideoFullscreen();
+        } else if (videoPlayerInstance && videoPlayerInstance.fullscreen && typeof videoPlayerInstance.fullscreen.toggle === 'function') {
+          try {
+            videoPlayerInstance.fullscreen.toggle()?.catch?.(() => {});
+          } catch (e) {}
         } else if (typeof window.togglePlayerModalFullscreen === 'function') {
           window.togglePlayerModalFullscreen();
         }
@@ -3640,24 +3650,65 @@ window.sendPlayerActivity = sendPlayerActivity;
 
 let activePlayRequestId = 0;
 
-window.togglePlayerModalFullscreen = function() {
+window.toggleActiveVideoFullscreen = function() {
+  const modal = document.getElementById('player-modal');
+  const inlineContainer = document.getElementById('downloaded-inline-player-container');
+  const isModalOpen = modal && !modal.classList.contains('hidden') && modal.style.display !== 'none';
+  const isInlineOpen = inlineContainer && !inlineContainer.classList.contains('hidden') && inlineContainer.style.display !== 'none';
+
+  function fallbackTargetFullscreen() {
+    const target = isInlineOpen
+      ? (document.getElementById('inline-player-body') || inlineContainer)
+      : (modal?.querySelector('.player-modal-body') || modal || document.querySelector('.plyr, #embedded-video-player') || document.documentElement);
+    if (!target) return;
+    if (!document.fullscreenElement) {
+      target.requestFullscreen().catch(() => {
+        if (typeof window.toggleAppFullscreen === 'function') window.toggleAppFullscreen();
+      });
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+
+  // 1. Eğer Plyr nesnesi varsa önce Plyr üzerinden dene
   if (videoPlayerInstance && videoPlayerInstance.fullscreen && typeof videoPlayerInstance.fullscreen.toggle === 'function') {
-    videoPlayerInstance.fullscreen.toggle();
+    try {
+      const p = videoPlayerInstance.fullscreen.toggle();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {
+          fallbackTargetFullscreen();
+        });
+      }
+      return;
+    } catch {
+      fallbackTargetFullscreen();
+      return;
+    }
+  }
+
+  // 2. Eğer IPTV sekmesinde aktif bir slot varsa
+  const activeIptvSlot = document.querySelector('.iptv-slot.active-slot') || document.querySelector('.iptv-slot');
+  if (activeIptvSlot && document.getElementById('tab-iptv')?.classList.contains('active')) {
+    if (!document.fullscreenElement) {
+      activeIptvSlot.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
     return;
   }
-  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
-  const isInline = (activeTab === 'downloaded');
-  const modal = document.getElementById('player-modal');
-  const target = isInline
-    ? (document.getElementById('inline-player-body') || document.getElementById('downloaded-inline-player-container'))
-    : (modal?.querySelector('.player-modal-body') || modal);
-  if (!target) return;
-  if (!document.fullscreenElement) {
-    target.requestFullscreen().catch(() => {});
-  } else {
-    document.exitFullscreen().catch(() => {});
+
+  // 3. Modal veya inline oynatıcı açıksa konteyneri tam ekran yap
+  if (isModalOpen || isInlineOpen) {
+    fallbackTargetFullscreen();
+    return;
+  }
+
+  // 4. Video açık değilse pencere tam ekranını aç/kapa
+  if (typeof window.toggleAppFullscreen === 'function') {
+    window.toggleAppFullscreen();
   }
 };
+window.togglePlayerModalFullscreen = window.toggleActiveVideoFullscreen;
 
 // Türkçe Açıklama: İndirilenler tabındaki inline oynatıcıyı, diğer tablarda olduğu gibi sağ alttaki yüzen mini modal'a taşır.
 /**
@@ -4994,8 +5045,12 @@ window.updateInlinePlayerMetadata = function(videoObj) {
                 // Buton veya kontroller tıklandıysa yoksay
                 if (e.target.closest('.plyr__controls') || e.target.closest('button') || e.target.closest('input')) return;
                 e.preventDefault();
-                if (videoPlayerInstance && typeof videoPlayerInstance.fullscreen?.toggle === 'function') {
-                  videoPlayerInstance.fullscreen.toggle();
+                if (typeof window.toggleActiveVideoFullscreen === 'function') {
+                  window.toggleActiveVideoFullscreen();
+                } else if (videoPlayerInstance && typeof videoPlayerInstance.fullscreen?.toggle === 'function') {
+                  try {
+                    videoPlayerInstance.fullscreen.toggle()?.catch?.(() => {});
+                  } catch (e) {}
                 }
               });
             }
@@ -5493,7 +5548,7 @@ window.handleThumbMouseEnter = function(targetEl) {
   if (!wrapperEl) return;
 
   const videoId = wrapperEl.getAttribute('data-video-id') || targetEl.getAttribute('data-id');
-  if (!videoId) return;
+  if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return;
 
   // Harici platformlar (TikTok, X, Instagram) için resim döndürme döngüsü çalıştırılmaz, orijinal kapak sabit kalır
   const vPlatform = wrapperEl.getAttribute('data-platform');
@@ -7926,6 +7981,7 @@ window.executeRefreshMetadata = executeRefreshMetadata;
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof initDownloaderUI === 'function') initDownloaderUI();
   if (typeof initTheaterMode === 'function') initTheaterMode();
+  if (typeof initContextMenu === 'function') initContextMenu();
   if (typeof restoreHistoryFilterState === 'function') restoreHistoryFilterState();
   if (typeof restoreDownloadedFilterState === 'function') restoreDownloadedFilterState();
 
@@ -8733,7 +8789,7 @@ function renderDownloadedCategoryQuickPills(activeVal, dbParam) {
     });
 
     container.innerHTML = pillsHtml;
-    try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
+    try { if (typeof lucide !== 'undefined') lucide.createIcons({ root: container }); } catch (e) {}
   } catch (err) {
     console.warn('[renderDownloadedCategoryQuickPills] Hata yakalandı:', err);
   }

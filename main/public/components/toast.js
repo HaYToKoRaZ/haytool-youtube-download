@@ -23,7 +23,7 @@ export function showToast(message, type = 'info', thumbnail = null, action = nul
   if (type === 'warning') iconName = 'alert-circle';
 
   let thumbnailHtml = '';
-  if (thumbnail) {
+  if (thumbnail && typeof thumbnail === 'string' && (thumbnail.includes('/') || thumbnail.startsWith('data:'))) {
     thumbnailHtml = `<img src="${thumbnail}" class="toast-thumbnail" alt="thumbnail">`;
   }
 

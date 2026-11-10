@@ -37,7 +37,9 @@
       }, true);
       window.addEventListener('unhandledrejection', function (e) {
         var r = e && e.reason;
-        window.__htErr('Yakalanmamış promise: ' + (r && r.message ? r.message : String(r)), r && r.stack);
+        var msg = r && r.message ? r.message : String(r);
+        if (msg && msg.includes('Permissions check failed')) return;
+        window.__htErr('Yakalanmamış promise: ' + msg, r && r.stack);
       });
     })();
   </script>
