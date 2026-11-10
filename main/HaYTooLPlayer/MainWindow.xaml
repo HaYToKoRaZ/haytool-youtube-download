@@ -6,8 +6,10 @@
         Height="768" Width="1366"
         WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
-        Background="#18181b">
-    <Grid>
-        <wv2:WebView2 Name="webView" />
+        Background="#0d0b1a">
+    <Grid Name="mainContainer" Background="#0d0b1a">
+        <Border Name="webViewBorder" Background="#0d0b1a" BorderThickness="0">
+            <wv2:WebView2 Name="webView" />
+        </Border>
     </Grid>
 </Window>

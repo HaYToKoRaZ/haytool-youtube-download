@@ -182,6 +182,8 @@ namespace HaYTooLPlayer
             public WindowStyle WpfWindowStyle = WindowStyle.SingleBorderWindow;
             public ResizeMode WpfResizeMode = ResizeMode.CanResize;
             public WindowState WpfWindowState = WindowState.Maximized;
+            public System.Windows.Shell.WindowChrome? SavedWindowChrome = null;
+            public Thickness SavedBorderThickness = new Thickness(0);
         }
 
         /// <summary>
@@ -203,6 +205,15 @@ namespace HaYTooLPlayer
                 state.WpfWindowStyle = window.WindowStyle;
                 state.WpfResizeMode = window.ResizeMode;
                 state.WpfWindowState = window.WindowState;
+                state.SavedBorderThickness = window.BorderThickness;
+
+                // WindowChrome aktifse, WPF WM_GETMINMAXINFO çalışma alanı (taskbar) kısıtlamasını engellemek için geçici olarak kaldır
+                state.SavedWindowChrome = System.Windows.Shell.WindowChrome.GetWindowChrome(window);
+                if (state.SavedWindowChrome != null)
+                {
+                    System.Windows.Shell.WindowChrome.SetWindowChrome(window, null);
+                }
+                window.BorderThickness = new Thickness(0);
 
                 state.WindowPlacement = new WINDOWPLACEMENT();
                 state.WindowPlacement.length = Marshal.SizeOf<WINDOWPLACEMENT>();
@@ -269,6 +280,19 @@ namespace HaYTooLPlayer
                 window.ResizeMode = state.WpfResizeMode;
                 window.WindowStyle = state.WpfWindowStyle;
                 window.WindowState = state.WpfWindowState;
+
+                // 5. Kaydedilen WindowChrome ve kenarlık kalınlığını geri yükle
+                if (state.SavedWindowChrome != null)
+                {
+                    System.Windows.Shell.WindowChrome.SetWindowChrome(window, state.SavedWindowChrome);
+                    state.SavedWindowChrome = null;
+                }
+                window.BorderThickness = state.SavedBorderThickness;
+
+                if (window is MainWindow mainWin)
+                {
+                    mainWin.Dispatcher.Invoke(() => mainWin.UpdateWindowPaddingForMaximized());
+                }
 
                 state.IsFullScreen = false;
             }

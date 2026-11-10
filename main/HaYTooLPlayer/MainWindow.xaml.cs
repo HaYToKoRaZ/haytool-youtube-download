@@ -162,7 +162,7 @@ namespace HaYTooLPlayer
             });
         }
 
-        private void UpdateWindowPaddingForMaximized()
+        public void UpdateWindowPaddingForMaximized()
         {
             if (_isCustomTitlebarActive && System.Windows.Shell.WindowChrome.GetWindowChrome(this) != null)
             {
@@ -174,15 +174,33 @@ namespace HaYTooLPlayer
                         SystemParameters.WindowResizeBorderThickness.Right + 2,
                         SystemParameters.WindowResizeBorderThickness.Bottom + 2
                     );
+                    if (webViewBorder != null)
+                    {
+                        webViewBorder.Margin = new Thickness(0);
+                        webViewBorder.BorderThickness = new Thickness(0);
+                    }
                 }
                 else
                 {
                     this.BorderThickness = new Thickness(0);
+                    if (webViewBorder != null)
+                    {
+                        webViewBorder.Margin = new Thickness(6);
+                        webViewBorder.BorderThickness = new Thickness(1);
+                        webViewBorder.BorderBrush = new System.Windows.Media.SolidColorBrush(
+                            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#3a355a")
+                        );
+                    }
                 }
             }
             else
             {
                 this.BorderThickness = new Thickness(0);
+                if (webViewBorder != null)
+                {
+                    webViewBorder.Margin = new Thickness(0);
+                    webViewBorder.BorderThickness = new Thickness(0);
+                }
             }
         }
 
@@ -649,6 +667,7 @@ namespace HaYTooLPlayer
                 // JavaScript Konsol Logları ve Sayfa Hatalarını Yakala
                 await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(@"
                     (function() {
+                        window.__IS_HAYTOOL_DESKTOP__ = true;
                         const sendLog = (type, msg) => {
                             try {
                                 if (window.chrome && window.chrome.webview) {
@@ -725,6 +744,8 @@ namespace HaYTooLPlayer
                     try
                     {
                         File.AppendAllText(debugLogFile, $"[{DateTime.Now}] NavCompleted: Success={e.IsSuccess}\n");
+                        bool isMax = (this.WindowState == WindowState.Maximized);
+                        webView?.CoreWebView2?.ExecuteScriptAsync($"window.onWindowStateChanged && window.onWindowStateChanged({isMax.ToString().ToLower()});");
                     }
                     catch {}
 

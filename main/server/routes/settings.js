@@ -398,6 +398,12 @@ router.post('/save-cookies-txt', localhostOnly, (req, res) => {
  */
 router.get('/test-cookies', localhostOnly, async (req, res) => {
   const result = await testCookiesValidity();
+  if (result.success) {
+    try {
+      const { publishCookieHealth } = await import('../services/cookieHealth.js');
+      publishCookieHealth(true);
+    } catch (e) {}
+  }
   res.json(result);
 });
 

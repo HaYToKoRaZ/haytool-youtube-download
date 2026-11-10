@@ -3,6 +3,13 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.3.9] - 2026-11-10
+- **feat(window/drag):** Üst bardaki boş alanlara basılı tutarak pencereyi taşıma (drag & drop) ve çift tıklayarak ekranı kaplama/geri yükleme (maximize/restore) tam çalışır hale getirildi.
+- **feat(window/responsive):** Pencere modundayken genişlik sınırı aranmaksızın sekme metinlerinin otomatik ikon moduna geçmesi sağlandı; 1420px akıllı eşik sistemiyle üst bar sıkışması önlendi.
+- **fix(window/resize):** Özel pencere çerçevesinde kenarlardan ve köşelerden boyutlandırmayı engelleyen WebView2 airspace engeli 6px iç konteyner kenarlığı ile tamamen çözüldü.
+- **fix(auth/cookie-test):** Çerez rozetine tıklandığında uygulamanın yeniden başlatılması zorunluluğu kaldırıldı; `syncCookies()` köprüsü ve önbellek geçersiz kılma ile anında yeşile dönmesi sağlandı.
+- **chore(release):** Sürüm v12.3.9'a yükseltildi, tarayıcı eklentisi eşitlendi.
+
 ## [12.3.8] - 2026-11-09
 - **feat(window/frame):** Modern özel pencere çerçevesi (Custom Window Chrome) desteği eklendi; Ayarlar sekmesinde Windows yerel çerçevesi ile özel başlık çubuğu arasında dinamik geçiş anahtarı sağlandı; simge durumuna küçültme, ekranı kaplama/geri yükleme ve kapatma işlevleri C# WPF & WebView2 köprüsüyle tam entegre edildi.
 - **feat(channels/sort):** Kanallar sekmesinde "Kanal Boyutlarını Hesapla" tıklandıktan sonra kanalları klasör boyutuna göre (Büyükten Küçüğe / Küçükten Büyüğe) sıralama desteği eklendi.

@@ -90,7 +90,10 @@ namespace HaYTooLPlayer
                     ReleaseCapture();
                     SendMessage(helper.Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
                 }
-                catch {}
+                catch
+                {
+                    try { _mainWindow.DragMove(); } catch {}
+                }
             });
         }
 
@@ -110,6 +113,14 @@ namespace HaYTooLPlayer
                 isMax = (_mainWindow.WindowState == WindowState.Maximized);
             });
             return isMax;
+        }
+
+        public void syncCookies()
+        {
+            _mainWindow.Dispatcher.Invoke(async () =>
+            {
+                await _mainWindow.SyncYouTubeCookiesToFileAsync();
+            });
         }
     }
 }

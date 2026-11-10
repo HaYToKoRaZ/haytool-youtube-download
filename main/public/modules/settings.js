@@ -1244,6 +1244,14 @@ export async function testCookies() {
   showToast(currentLang === 'en' ? 'Verifying YouTube cookies...' : 'YouTube çerezleri doğrulanıyor...', 'info');
 
   try {
+    // Masaüstü uygulamasındaysak WebView2 bellek çerezlerini anında diske senkronize et
+    if (window.chrome?.webview?.hostObjects?.playerBridge?.syncCookies) {
+      try {
+        window.chrome.webview.hostObjects.playerBridge.syncCookies();
+        await new Promise(r => setTimeout(r, 600));
+      } catch (err) {}
+    }
+
     const res = await fetch('/api/test-cookies');
     const data = await res.json();
     if (data.success) {
@@ -1251,7 +1259,7 @@ export async function testCookies() {
     } else {
       showToast(data.error || 'Çerez doğrulama başarısız.', 'warning');
     }
-    checkYouTubeAuthStatus();
+    await checkYouTubeAuthStatus();
   } catch (e) {
     showToast('Sunucu ile iletişim hatası.', 'error');
   }
@@ -2089,23 +2097,33 @@ export async function checkCliPathStatus() {
 }
 window.checkCliPathStatus = checkCliPathStatus;
 
+export function isDesktopApp() {
+  return !!(window.__IS_HAYTOOL_DESKTOP__ || (typeof window.chrome !== 'undefined' && typeof window.chrome.webview !== 'undefined'));
+}
+window.isDesktopApp = isDesktopApp;
+
 /**
  * Özel pencere başlığı modunu uygular.
  * @param {boolean} enabled 
  */
 export function applyCustomTitlebarMode(enabled) {
+  const isDesktop = isDesktopApp();
+  const shouldActivate = !!(enabled && isDesktop);
+
   const winControls = document.getElementById('window-controls');
   if (winControls) {
-    winControls.style.display = enabled ? 'inline-flex' : 'none';
+    winControls.style.display = shouldActivate ? 'inline-flex' : 'none';
   }
-  document.body.classList.toggle('custom-titlebar-active', !!enabled);
+  document.body.classList.toggle('custom-titlebar-active', shouldActivate);
 
-  try {
-    if (window.chrome?.webview?.hostObjects?.playerBridge?.setCustomTitlebar) {
-      window.chrome.webview.hostObjects.playerBridge.setCustomTitlebar(!!enabled);
+  if (isDesktop) {
+    try {
+      if (window.chrome?.webview?.hostObjects?.playerBridge?.setCustomTitlebar) {
+        window.chrome.webview.hostObjects.playerBridge.setCustomTitlebar(!!enabled);
+      }
+    } catch (e) {
+      console.warn('[CustomTitlebar] Bridge call failed:', e);
     }
-  } catch (e) {
-    console.warn('[CustomTitlebar] Bridge call failed:', e);
   }
 }
 window.applyCustomTitlebarMode = applyCustomTitlebarMode;
@@ -2114,8 +2132,24 @@ window.applyCustomTitlebarMode = applyCustomTitlebarMode;
  * Pencere kontrolleri ve başlık çubuğu dinleyicilerini başlatır.
  */
 export function initCustomTitlebar() {
+  const isDesktop = isDesktopApp();
   const customTitlebarEnabled = !!(window.localDb?.settings?.customTitlebar);
   const chk = document.getElementById('settings-custom-titlebar');
+  const row = chk ? chk.closest('.settings-row, .setting-item') : null;
+
+  if (!isDesktop) {
+    if (chk) chk.disabled = true;
+    if (row) {
+      const desc = row.querySelector('.setting-description');
+      if (desc && !desc.dataset.desktopOnly) {
+        desc.dataset.desktopOnly = 'true';
+        desc.textContent += ' (Yalnızca Masaüstü Uygulamasında Etkindir)';
+      }
+    }
+    applyCustomTitlebarMode(false);
+    return;
+  }
+
   if (chk) {
     chk.checked = customTitlebarEnabled;
     if (!chk.dataset.titlebarBound) {
@@ -2128,8 +2162,18 @@ export function initCustomTitlebar() {
   }
   applyCustomTitlebarMode(customTitlebarEnabled);
 
+  // Mevcut pencere durumunu (büyütülmüş / pencere modu) kontrol et ve uygula
+  if (window.chrome?.webview?.hostObjects?.playerBridge?.isWindowMaximized) {
+    try {
+      const isMax = window.chrome.webview.hostObjects.playerBridge.isWindowMaximized();
+      if (typeof window.onWindowStateChanged === 'function') {
+        window.onWindowStateChanged(isMax);
+      }
+    } catch (_) {}
+  }
+
   // Topbar sürükleme ve çift tıklama ile büyütme dinleyicisi
-  const topbar = document.getElementById('topbar');
+  const topbar = document.getElementById('topbar') || document.querySelector('.topbar');
   if (topbar && !topbar.dataset.dragInit) {
     topbar.dataset.dragInit = 'true';
 
@@ -2190,4 +2234,8 @@ window.onWindowStateChanged = function(isMaximized) {
       if (maxBtn) maxBtn.title = (window.localDb?.settings?.lang === 'en') ? 'Maximize' : 'Ekranı Kapla';
     }
   }
+
+  // Pencere modunda (ekranı kaplamamışken) sekmelerin otomatik ikon moduna geçmesi için sınıf
+  document.body.classList.toggle('window-mode-restored', !isMaximized);
+  document.body.classList.toggle('window-mode-maximized', !!isMaximized);
 };

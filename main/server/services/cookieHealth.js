@@ -35,7 +35,7 @@ export function getLastCookieHealth() {
  * Türkçe Açıklama: Sağlık sonucunu saklar ve arayüzdeki topbar çerez rozetinin güncellenmesi için SSE ile yayınlar.
  * @param {boolean} healthy
  */
-function publishCookieHealth(healthy) {
+export function publishCookieHealth(healthy) {
   lastCookieHealth = { healthy, checkedAt: Date.now() };
   try { broadcast('cookie_status', lastCookieHealth); } catch (e) {}
 }
