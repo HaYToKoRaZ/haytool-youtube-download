@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "description": "__MSG_extDesc__",
-  "version": "12.3.9",
+  "version": "12.4.0",
   "default_locale": "tr",
   "icons": {
     "16": "icons/icon16.png",
@@ -18,7 +18,7 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "Multimedia HaYTooL (v12.3.9)"
+    "default_title": "Multimedia HaYTooL (v12.4.0)"
   },
   "background": {
     "service_worker": "background.js"

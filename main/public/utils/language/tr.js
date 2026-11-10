@@ -1133,4 +1133,9 @@ export const tr = {
   channel_sort_header_size_asc: "Disk Boyutuna Göre (Küçükten Büyüğe)",
   label_custom_titlebar: "Özel Pencere Çerçevesi (Modern / Çerçevesiz)",
   desc_custom_titlebar: "Klasik Windows başlığı yerine modern çerçeve ve pencere butonlarını kullan",
+  inline_btn_theater: "Sinema Modu",
+  inline_btn_theater_default: "Varsayılan Görünüm",
+  inline_btn_theater_title: "Sinema Modu (t)",
+  inline_btn_theater_default_title: "Varsayılan Görünüm (t)",
+  shortcut_theater: "Sinema Modu (Geniş Ekran)",
 };

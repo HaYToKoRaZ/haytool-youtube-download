@@ -1127,4 +1127,9 @@ export const es = {
   channel_sort_header_size_asc: "Por Tamaño en Disco (Menor a Mayor)",
   label_custom_titlebar: "Marco de Ventana Personalizado (Moderno / Sin marco)",
   desc_custom_titlebar: "Usar marco moderno integrado y controles de ventana en lugar de la barra de título clásica de Windows",
+  inline_btn_theater: "Modo Cine",
+  inline_btn_theater_default: "Vista Predeterminada",
+  inline_btn_theater_title: "Modo Cine (t)",
+  inline_btn_theater_default_title: "Vista Predeterminada (t)",
+  shortcut_theater: "Modo Cine (Pantalla Ancha)",
 };

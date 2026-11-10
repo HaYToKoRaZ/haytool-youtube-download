@@ -1127,4 +1127,9 @@ export const ar = {
   channel_sort_header_size_asc: "حسب الحجم على القرص (الأصغر أولاً)",
   label_custom_titlebar: "إطار نافذة مخصص (حديث / بدون إطار)",
   desc_custom_titlebar: "استخدم إطارًا حديثًا مدمجًا وعناصر تحكم في النوافذ بدلاً من شريط عنوان Windows الكلاسيكي",
+  inline_btn_theater: "وضع السينما",
+  inline_btn_theater_default: "العرض الافتراضي",
+  inline_btn_theater_title: "وضع السينما (t)",
+  inline_btn_theater_default_title: "العرض الافتراضي (t)",
+  shortcut_theater: "وضع السينما (شاشة عريضة)",
 };

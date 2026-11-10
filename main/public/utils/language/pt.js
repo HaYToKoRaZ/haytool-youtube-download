@@ -1127,4 +1127,9 @@ export const pt = {
   channel_sort_header_size_asc: "Por Tamanho em Disco (Menor primeiro)",
   label_custom_titlebar: "Moldura de Janela Personalizada (Moderna / Sem bordas)",
   desc_custom_titlebar: "Usar moldura moderna integrada e controles de janela em vez da barra de título clássica do Windows",
+  inline_btn_theater: "Modo Cinema",
+  inline_btn_theater_default: "Visualização Padrão",
+  inline_btn_theater_title: "Modo Cinema (t)",
+  inline_btn_theater_default_title: "Visualização Padrão (t)",
+  shortcut_theater: "Modo Cinema (Widescreen)",
 };

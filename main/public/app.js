@@ -123,6 +123,13 @@ window.applySubtitlesToPlayer = applySubtitlesToPlayer;
 window.fetchVideoSubtitles = fetchVideoSubtitles;
 window.openSubtitleTranslateModal = openSubtitleTranslateModal;
 
+// Sinema Modu (Theater Mode) alt modülü
+import { initTheaterMode, toggleTheaterMode, injectTheaterModeButtonToPlyr, isTheaterMode } from './modules/theaterMode.js';
+window.initTheaterMode = initTheaterMode;
+window.toggleTheaterMode = toggleTheaterMode;
+window.injectTheaterModeButtonToPlyr = injectTheaterModeButtonToPlyr;
+window.isTheaterMode = isTheaterMode;
+
 window.handleInlineTranslateSubClick = async function() {
   const videoId = window.currentPlayingVideoId;
   if (!videoId) {
@@ -3091,6 +3098,14 @@ document.addEventListener('keydown', (e) => {
         activePlayer.toggleFullscreen();
         break;
 
+      case 't':
+      case 'T':
+        e.preventDefault();
+        if (typeof window.toggleTheaterMode === 'function') {
+          window.toggleTheaterMode();
+        }
+        break;
+
       case 'm':
       case 'M':
         e.preventDefault();
@@ -4768,6 +4783,7 @@ window.updateInlinePlayerMetadata = function(videoObj) {
     const listContainer = document.getElementById('downloaded-list-container');
     if (inlineContainer) inlineContainer.classList.remove('hidden');
     if (listContainer) listContainer.classList.add('hidden');
+    if (typeof window.initTheaterMode === 'function') window.initTheaterMode();
 
     // Video oynatılmaya başladığında sayfayı en yukarı kaydır (böylece oynatıcı tam olarak görünür olur)
     const mainContent = document.querySelector('.main-content');
@@ -4994,6 +5010,9 @@ window.updateInlinePlayerMetadata = function(videoObj) {
               ytIframe.setAttribute('allowfullscreen', '');
             }
             bindPlyrInteractions();
+            if (isInline && typeof window.injectTheaterModeButtonToPlyr === 'function') {
+              window.injectTheaterModeButtonToPlyr();
+            }
             adjustPlayerOrientation(videoPlayerInstance.media);
             if (videoPlayerInstance.duration) {
               drawSponsorSegmentsOnTimeline(videoPlayerInstance.duration, 'plyr');
@@ -7906,6 +7925,7 @@ window.executeRefreshMetadata = executeRefreshMetadata;
 
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof initDownloaderUI === 'function') initDownloaderUI();
+  if (typeof initTheaterMode === 'function') initTheaterMode();
   if (typeof restoreHistoryFilterState === 'function') restoreHistoryFilterState();
   if (typeof restoreDownloadedFilterState === 'function') restoreDownloadedFilterState();
 

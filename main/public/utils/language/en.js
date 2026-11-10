@@ -1133,4 +1133,9 @@ export const en = {
   channel_sort_header_size_asc: "By Disk Size (Smallest First)",
   label_custom_titlebar: "Custom Window Frame (Modern / Frameless)",
   desc_custom_titlebar: "Use integrated modern frame and window controls instead of classic Windows titlebar",
+  inline_btn_theater: "Theater Mode",
+  inline_btn_theater_default: "Default View",
+  inline_btn_theater_title: "Theater Mode (t)",
+  inline_btn_theater_default_title: "Default View (t)",
+  shortcut_theater: "Theater Mode (Widescreen)",
 };

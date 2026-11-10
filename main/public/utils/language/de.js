@@ -1127,4 +1127,9 @@ export const de = {
   channel_sort_header_size_asc: "Nach Speichergröße (Kleinste zuerst)",
   label_custom_titlebar: "Benutzerdefinierter Fensterrahmen (Modern / Rahmenlos)",
   desc_custom_titlebar: "Integrierten modernen Rahmen und Fenstersteuerelemente anstelle der klassischen Windows-Titelleiste verwenden",
+  inline_btn_theater: "Kinomodus",
+  inline_btn_theater_default: "Standardansicht",
+  inline_btn_theater_title: "Kinomodus (t)",
+  inline_btn_theater_default_title: "Standardansicht (t)",
+  shortcut_theater: "Kinomodus (Breitbild)",
 };

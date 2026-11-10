@@ -472,6 +472,10 @@ export function applyLanguage(lang) {
     updateSBToggleButtonUI();
   }
 
+  if (typeof window.updateTheaterUI === 'function' && typeof window.isTheaterMode === 'function') {
+    window.updateTheaterUI(window.isTheaterMode());
+  }
+
   // Altyazı Rengi Option Çevirileri
   const inlineSubColor = document.getElementById('inline-subtitle-color');
   if (inlineSubColor && inlineSubColor.options && inlineSubColor.options.length >= 12) {

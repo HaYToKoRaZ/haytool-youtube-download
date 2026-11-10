@@ -2177,20 +2177,41 @@ export function initCustomTitlebar() {
   if (topbar && !topbar.dataset.dragInit) {
     topbar.dataset.dragInit = 'true';
 
+    let lastTitleClickTime = 0;
+    let lastTitleClickPos = { x: 0, y: 0 };
+
     topbar.addEventListener('mousedown', (e) => {
       // Etkileşimli öğelere tıklanmışsa pencere sürüklemesi tetikleme
-      if (e.target.closest('button, a, input, select, .status-badge, .nav-item, .window-controls, .theme-toggle-btn')) {
+      if (e.target.closest('button, a, input, select, .status-badge, .nav-item, .window-controls, .theme-toggle-btn, .weather-popover, .disk-popover, .nav-dropdown-menu')) {
         return;
       }
-      if (e.button === 0 && document.body.classList.contains('custom-titlebar-active')) {
-        try {
-          window.chrome?.webview?.hostObjects?.playerBridge?.dragWindow();
-        } catch (_) {}
+      if (e.button !== 0 || !document.body.classList.contains('custom-titlebar-active')) {
+        return;
       }
+
+      const now = Date.now();
+      const timeDiff = now - lastTitleClickTime;
+      const dist = Math.hypot(e.clientX - lastTitleClickPos.x, e.clientY - lastTitleClickPos.y);
+
+      // Çift tıklama algılama: 350 ms içinde ve 12px mesafe içinde veya e.detail === 2
+      if ((timeDiff < 350 && dist < 12) || e.detail === 2) {
+        lastTitleClickTime = 0;
+        try {
+          window.chrome?.webview?.hostObjects?.playerBridge?.toggleMaximizeWindow();
+        } catch (_) {}
+        return;
+      }
+
+      lastTitleClickTime = now;
+      lastTitleClickPos = { x: e.clientX, y: e.clientY };
+
+      try {
+        window.chrome?.webview?.hostObjects?.playerBridge?.dragWindow();
+      } catch (_) {}
     });
 
     topbar.addEventListener('dblclick', (e) => {
-      if (e.target.closest('button, a, input, select, .status-badge, .nav-item, .window-controls, .theme-toggle-btn')) {
+      if (e.target.closest('button, a, input, select, .status-badge, .nav-item, .window-controls, .theme-toggle-btn, .weather-popover, .disk-popover, .nav-dropdown-menu')) {
         return;
       }
       if (document.body.classList.contains('custom-titlebar-active')) {

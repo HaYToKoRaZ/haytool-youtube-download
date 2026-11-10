@@ -456,7 +456,7 @@ body {
   flex-shrink: 0;
   width: 100%;
   gap: 8px;
-  overflow: hidden;
+  overflow: visible !important;
   position: relative;
   z-index: 1000000; /* history-toolbar'un (999999) ustunde kalmasi ve dropdown'larin gorunmesi icin yukseltilmiştir */
   transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
@@ -752,7 +752,7 @@ body.light-theme .sort-btn.active {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 10000;
+  z-index: 1000005 !important;
   opacity: 0;
   visibility: hidden;
   transform: translateY(-12px) scale(0.94);
@@ -775,11 +775,13 @@ body.light-theme .sort-btn.active {
 /* Opening Trigger States */
 .nav-dropdown:hover .nav-dropdown-menu,
 .nav-dropdown:focus-within .nav-dropdown-menu,
+.nav-dropdown.open .nav-dropdown-menu,
 .nav-dropdown-menu.show {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) scale(1) !important;
+  pointer-events: auto !important;
+  display: flex !important;
 }
 
 /* Panel Header Title Bar */
@@ -1524,7 +1526,7 @@ body.light-theme .weather-city-label {
   border: 1px solid rgba(0, 242, 254, 0.3);
   border-radius: 16px;
   padding: 0;
-  z-index: 1000001;
+  z-index: 1000005 !important;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 242, 254, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.1);
   opacity: 0;
   visibility: hidden;
@@ -1999,7 +2001,7 @@ body.youtube-theme .weather-popover-footer {
   border: 1px solid rgba(168, 85, 247, 0.35);
   border-radius: 16px;
   padding: 0;
-  z-index: 1000001;
+  z-index: 1000005 !important;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.75), 0 0 25px rgba(168, 85, 247, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.1);
   opacity: 0;
   visibility: hidden;
@@ -7397,21 +7399,24 @@ body.light-theme .cli-expand-btn:hover {
 
 /* ==========================================
    Yerleşik Oynatıcı Split Layout (YouTube Tarzı)
+   CSS Grid ile Normal ve Sinema Modu desteği
    ========================================== */
 .downloaded-inline-player-container {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 440px;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "video sidebar"
+    "main  sidebar";
+  column-gap: 16px;
+  row-gap: 16px;
+  align-items: start;
   margin-top: 5px;
   width: 100%;
 }
 
-.inline-player-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.inline-player-wrapper {
+.downloaded-inline-player-container .inline-player-wrapper {
+  grid-area: video;
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -7419,6 +7424,80 @@ body.light-theme .cli-expand-btn:hover {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.downloaded-inline-player-container .inline-player-main {
+  grid-area: main;
+  min-width: 0;
+  width: 100%;
+}
+
+.downloaded-inline-player-container .inline-player-info {
+  margin-top: 0 !important;
+}
+
+.downloaded-inline-player-container .inline-player-sidebar {
+  grid-area: sidebar;
+  width: 100%;
+}
+
+/* Plyr Kontrol Çubuğu Sinema Modu Butonu */
+.plyr__control--theater {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.plyr__control--theater:hover {
+  background: rgba(138, 43, 226, 0.35) !important;
+  color: #c084fc !important;
+}
+
+.downloaded-inline-player-container.theater-mode .plyr__control--theater svg {
+  color: #c084fc !important;
+}
+
+/* ==========================================================================
+   Yerleşik Oynatıcı Sinema Modu (Theater Mode - Geniş Ekran)
+   Tepede video tam genişlikte; altta SOLDA yorumlar ve detaylar, SAĞDA indirme listesi
+   ========================================================================== */
+.downloaded-inline-player-container.theater-mode {
+  grid-template-columns: minmax(0, 1fr) 440px !important;
+  grid-template-rows: auto auto !important;
+  grid-template-areas:
+    "video video"
+    "main  sidebar" !important;
+  column-gap: 16px;
+  row-gap: 16px;
+}
+
+.downloaded-inline-player-container.theater-mode .inline-player-wrapper:not(.is-short-player) {
+  grid-area: video !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: min(calc(100vh - 120px), calc(100vw * 9 / 16)) !important;
+  max-height: calc(100vh - 120px) !important;
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(138, 43, 226, 0.25);
+}
+
+.downloaded-inline-player-container.theater-mode .inline-player-sidebar {
+  grid-area: sidebar !important;
+  width: 100% !important;
+  max-height: calc(100vh - 120px);
+  min-height: 480px;
+  position: sticky !important;
+  top: 15px;
+  margin-top: 0 !important;
+}
+
+.downloaded-inline-player-container.theater-mode .inline-player-main {
+  grid-area: main !important;
+  width: 100% !important;
+  min-width: 0;
 }
 
 /* Shorts Video Layout for Embedded Inline Player (Dikey 9:16 Aspect Ratio) */
@@ -8572,13 +8651,17 @@ body.light-theme .playlist-item-delete-btn {
   margin-bottom: 12px;
 }
 
-@media (max-width: 1024px) {
-  .downloaded-inline-player-container {
-    flex-direction: column;
+@media (max-width: 1100px) {
+  .downloaded-inline-player-container,
+  .downloaded-inline-player-container.theater-mode {
+    display: flex !important;
+    flex-direction: column !important;
   }
-  .inline-player-sidebar {
-    width: 100%;
-    max-height: 400px;
+  .downloaded-inline-player-container .inline-player-sidebar,
+  .downloaded-inline-player-container.theater-mode .inline-player-sidebar {
+    width: 100% !important;
+    max-height: 420px;
+    position: static !important;
   }
 }
 
@@ -11654,53 +11737,6 @@ body.youtube-theme .toast-warning .toast-icon { color: #fbc02d; background: rgba
 
 .nav-dropdown.open .dropdown-arrow {
   transform: rotate(180deg);
-}
-
-.nav-dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  display: none;
-  flex-direction: column;
-  background: rgba(18, 18, 28, 0.95);
-  border: 1px solid var(--border-color);
-  border-radius: 0 8px 8px 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  z-index: 999;
-  min-width: 200px;
-  backdrop-filter: blur(15px);
-  padding: 6px;
-  margin-top: -1px;
-}
-
-.nav-dropdown.open .nav-dropdown-menu {
-  display: flex;
-}
-
-.nav-dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  padding: 10px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  text-align: left;
-  width: 100%;
-  transition: all 0.2s ease;
-}
-
-.nav-dropdown-item:hover {
-  background: rgba(138, 43, 226, 0.12);
-  color: #fff;
-}
-
-.nav-dropdown-item i {
-  width: 16px;
-  height: 16px;
 }
 
 /* --- Downloader Sayfası --- */

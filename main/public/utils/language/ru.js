@@ -1127,4 +1127,9 @@ export const ru = {
   channel_sort_header_size_asc: "По размеру на диске (Сначала меньшие)",
   label_custom_titlebar: "Пользовательская рамка окна (Современная / Безрамочная)",
   desc_custom_titlebar: "Использовать встроенную современную рамку и элементы управления окном вместо классического заголовка Windows",
+  inline_btn_theater: "Режим кинотеатра",
+  inline_btn_theater_default: "Стандартный вид",
+  inline_btn_theater_title: "Режим кинотеатра (t)",
+  inline_btn_theater_default_title: "Стандартный вид (t)",
+  shortcut_theater: "Режим кинотеатра (широкий экран)",
 };
