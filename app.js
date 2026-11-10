@@ -66,7 +66,11 @@ const i18n = {
     feat_ryd_title: "Return YouTube Dislike",
     feat_ryd_desc: "YouTube'un gizlediği dislike istatistiklerini RYD API ile anında görün, topluluk beğeni oranlarını doğrudan takip edin.",
     feat_themes_title: "5 Farklı Dinamik Tema",
-    feat_themes_desc: "Matrix, Discord, YouTube Koyu, Aydınlık ve Koyu temalar arasında tek tıkla geçiş yapın, tam kontrast konforunu yaşayın."
+    feat_themes_desc: "Matrix, Discord, YouTube Koyu, Aydınlık ve Koyu temalar arasında tek tıkla geçiş yapın, tam kontrast konforunu yaşayın.",
+    feat_webstream_title: "Web Video & Dizi Çözücü",
+    feat_webstream_desc: "Dizipal ve popüler dizi/film sitelerindeki şifreli video akışlarını otomatik tespit edin; reklamsız doğrudan yerleşik oynatıcıda izleyin.",
+    feat_ext_title: "Akıllı Tarayıcı Eklentisi",
+    feat_ext_desc: "Web'de gezinirken tek tıkla veya sağ tık menüsünden herhangi bir sayfayı/linki masaüstü HaYTooL uygulamasına gönderin, anında oynatın."
   },
   en: {
     nav_features: "Features",
@@ -129,7 +133,11 @@ const i18n = {
     feat_ryd_title: "Return YouTube Dislike",
     feat_ryd_desc: "Reveal hidden YouTube dislike metrics via RYD API integration and monitor community sentiment directly.",
     feat_themes_title: "5 Dynamic Interface Themes",
-    feat_themes_desc: "Seamlessly switch between Matrix, Discord, YouTube Dark, Light, and Dark themes with full high-contrast readability."
+    feat_themes_desc: "Seamlessly switch between Matrix, Discord, YouTube Dark, Light, and Dark themes with full high-contrast readability.",
+    feat_webstream_title: "Web Video & Series Streamer",
+    feat_webstream_desc: "Extract encrypted video streams from Dizipal and external movie sites; watch ad-free right inside the embedded player.",
+    feat_ext_title: "Smart Browser Extension",
+    feat_ext_desc: "Send any webpage or video stream to the HaYTooL desktop app with a single click or right-click context menu."
   }
 };
 
