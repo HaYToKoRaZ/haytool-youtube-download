@@ -3,6 +3,22 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.4.2] - 2026-11-10
+- **feat(extension/turtle-mode):** Tarayıcı eklentisi açılır menüsüne (popup) tek tıkla Kaplumbağa Hız Modu (Turtle Speed / Alternatif Hız Sınırı) açma-kapatma anahtarı ve anlık hız limiti göstergesi eklendi; `/api/settings/toggle-alt-speed` uç noktasıyla senkronize edildi.
+- **feat(extension/context-menu):** Eklenti simgesi sağ tık menüsüne YouTube Ana Sayfası (`▶️`), Resmi Web Sitesi (`🌐`) ve Eklenti Ayarları (`⚙️`) ikonlu seçenekleri eklendi; `chrome.contextMenus.removeAll()` ile mükerrer kimlik kayıt hataları önlendi.
+- **fix(async/wpf):** C# `MainWindow.xaml.cs` içerisindeki `ClearYouTubeSessionAsync` metodu `Task` dönüş tipine dönüştürüldü; `cookieKeepaliveTimer` ve `cookieWin.Closed` lambdalarındaki `CS4014` asenkron çağrı uyarıları `await` ile düzeltildi.
+- **chore(powershell/utf8):** `.agents/scripts/` altındaki `build_all.ps1` ve `push.ps1` betiklerine `chcp 65001` UTF-8 konsol kodlama koruması ve `CmdletBinding` yönergeleri eklendi.
+- **chore(skills):** Projeye `chrome-extensions`, `csharp-async`, `powershell-master` ve `writing-changelogs` uzmanlık yetenekleri yüklendi.
+
+## [12.4.1] - 2026-11-10
+- **feat(ui/context-menu):** Uygulama genelinde boş alanlarda ve metin seçimlerinde cam efektli (glassmorphism) özel sağ tık menüsü geliştirildi; seçili metinlerde "Google'da Ara" arama köprüsü eklendi.
+- **feat(player/middle-click):** Video oynatıcıda ve video kartlarında farenin orta tuşu ile tam ekran (F tuşu eşdeğeri) geçişi sağlandı.
+- **fix(ui/icons):** İndirilenler sekmesinde oluşan Lucide `chrome` ikonu konsol uyarısı giderildi.
+
+## [12.4.0] - 2026-11-09
+- **feat(iptv/ui):** IPTV sekmesi modern kart tasarımı, kanal filtreleme, EPG önizleme ve PVR zaman ayarlı kayıt motoru ile baştan aşağı yenilendi.
+- **feat(settings/shortcuts):** Kısayol tuşları ve yerel GGUF yapay zeka model ayarları paneli entegre edildi.
+
 ## [12.3.9] - 2026-11-10
 - **feat(window/drag):** Üst bardaki boş alanlara basılı tutarak pencereyi taşıma (drag & drop) ve çift tıklayarak ekranı kaplama/geri yükleme (maximize/restore) tam çalışır hale getirildi.
 - **feat(window/responsive):** Pencere modundayken genişlik sınırı aranmaksızın sekme metinlerinin otomatik ikon moduna geçmesi sağlandı; 1420px akıllı eşik sistemiyle üst bar sıkışması önlendi.

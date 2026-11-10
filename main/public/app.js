@@ -598,7 +598,8 @@ const tabPathMap = {
   settings: '/settings',
   iptv: '/iptv',
   tools: '/tools',
-  downloader: '/downloader'
+  downloader: '/downloader',
+  webstream: '/webstream'
 };
 
 const pathTabMap = {
@@ -609,7 +610,9 @@ const pathTabMap = {
   '/settings': 'settings',
   '/iptv': 'iptv',
   '/tools': 'tools',
-  '/downloader': 'downloader'
+  '/downloader': 'downloader',
+  '/webstream': 'webstream',
+  '/watch': 'webstream'
 };
 
 const validToolsSubSections = ['compare', 'categories', 'ape', 'subscriptions', 'deleted', 'bulk-delete'];
@@ -683,6 +686,10 @@ function performTabSwitchUI(targetTab) {
 
   if (targetTab === 'settings' && typeof window.initSettingsSubtabs === 'function') {
     window.initSettingsSubtabs();
+  }
+
+  if (targetTab === 'webstream' && typeof window.initWebStreamTab === 'function') {
+    window.initWebStreamTab();
   }
 
   // Sekme değiştirildiğinde ana içerik alanını en yukarı kaydır
@@ -862,6 +869,30 @@ function connectSSE() {
       }
     } catch (err) {
       console.error('Video oynatma hatası:', err);
+    }
+  });
+
+  // Sunucudan gelen web video / dizi oynatma bildirimini dinler (eklenti / harici gönderim)
+  eventSource.addEventListener('open_webstream', (e) => {
+    try {
+      const data = JSON.parse(e.data || '{}');
+      if (data && data.url) {
+        // C# WebView2 Masaüstü Penceresini Öne Getir (BringToFront)
+        try {
+          if (window.chrome && window.chrome.webview && window.chrome.webview.hostObjects && window.chrome.webview.hostObjects.playerBridge) {
+            window.chrome.webview.hostObjects.playerBridge.bringToFront();
+          }
+        } catch (err) {}
+
+        if (typeof window.switchTab === 'function') window.switchTab('webstream');
+        setTimeout(() => {
+          if (typeof window.playWebStreamUrl === 'function') {
+            window.playWebStreamUrl(encodeURIComponent(data.url));
+          }
+        }, 100);
+      }
+    } catch (err) {
+      console.error('Web stream açma hatası:', err);
     }
   });
 
@@ -2732,6 +2763,15 @@ function updateUI(db) {
       setTimeout(() => {
         playVideoEmbedded(playVideoId);
       }, 150);
+    }
+    const webstreamUrl = urlParams.get('webstream') || urlParams.get('stream_url');
+    if (webstreamUrl) {
+      switchTab('webstream', true);
+      setTimeout(() => {
+        if (typeof window.playWebStreamUrl === 'function') {
+          window.playWebStreamUrl(encodeURIComponent(webstreamUrl));
+        }
+      }, 200);
     }
   }
 
@@ -5567,13 +5607,13 @@ window.handleThumbMouseEnter = function(targetEl) {
     wrapperEl.dataset.origSrc = imgEl.src;
   }
 
-  // 4 Yüksek Çözünürlüklü (HQ/HD) kapak ve frame döngü listesi
-  // Sıralama: Orijinal Kapak -> HQ Kare 1 -> HQ Kare 2 -> HQ Kare 3 -> Tekrar Başa (Orijinal Kapak)
+  // YouTube video storyboard kareleri (1.jpg, 2.jpg, 3.jpg her videoda garanti mevcuttur)
+  // Sıralama: Orijinal Kapak -> Kare 1 -> Kare 2 -> Kare 3 -> Tekrar Başa (Orijinal Kapak)
   const altUrls = [
     wrapperEl.dataset.origSrc,
-    `https://img.youtube.com/vi/${videoId}/hq1.jpg`,
-    `https://img.youtube.com/vi/${videoId}/hq2.jpg`,
-    `https://img.youtube.com/vi/${videoId}/hq3.jpg`
+    `https://img.youtube.com/vi/${videoId}/1.jpg`,
+    `https://img.youtube.com/vi/${videoId}/2.jpg`,
+    `https://img.youtube.com/vi/${videoId}/3.jpg`
   ];
 
   // HD görselleri önceden yükle (Belirli bir kare açılmazsa otomatik orijinal resme düşer)

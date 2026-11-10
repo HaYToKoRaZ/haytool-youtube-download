@@ -1151,4 +1151,12 @@ export const tr = {
   ctx_copy: "Kopyala",
   ctx_paste: "Yapıştır",
   ctx_select_all: "Tümünü Seç",
+  nav_tools_web_stream_text: "Web Video & Dizi Çözücü",
+  web_stream_title: "Web Video & Dizi Çözücü",
+  web_stream_desc: "Dizipal ve harici video sitelerindeki akışları reklamsız ve doğrudan oynatır.",
+  web_stream_placeholder: "Dizi veya video izleme linkini yapıştırın (örn: https://dizipal...)",
+  web_stream_btn_analyze: "Videoyu Tespit Et & Başlat",
+  web_stream_btn_analyzing: "Video Akışı Çözümleniyor...",
+  web_stream_btn_external: "Ayrı Masaüstü Oynatıcısında Aç",
+  tab_webstream: "Web İzle",
 };

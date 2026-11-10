@@ -1,22 +1,20 @@
 // Multimedia HaYTooL Chromium Extension Popup Script
 let BACKEND_PORT = 4141;
 let BACKEND_URL = 'http://127.0.0.1:4141';
-const CURRENT_EXT_VERSION = (chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '12.3.5';
+const CURRENT_EXT_VERSION = (chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '12.4.2';
 
 async function loadSettings() {
-  return new Promise((resolve) => {
+  try {
     if (chrome.storage && chrome.storage.sync) {
-      chrome.storage.sync.get(['haytoolPort', 'haytoolLang'], (data) => {
-        if (data.haytoolPort) {
-          BACKEND_PORT = parseInt(data.haytoolPort, 10) || 4141;
-          BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
-        }
-        resolve(data);
-      });
-    } else {
-      resolve({});
+      const data = await chrome.storage.sync.get(['haytoolPort', 'haytoolLang']);
+      if (data && data.haytoolPort) {
+        BACKEND_PORT = parseInt(data.haytoolPort, 10) || 4141;
+        BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
+      }
+      return data || {};
     }
-  });
+  } catch (e) {}
+  return {};
 }
 
 function getMessage(key, fallback) {
@@ -30,12 +28,121 @@ const targetTitleEl = document.getElementById('target-title');
 const targetUrlEl = document.getElementById('target-url');
 const btnAction = document.getElementById('btn-action');
 const btnActionText = document.getElementById('btn-action-text');
+const btnWebstream = document.getElementById('btn-webstream');
 const feedbackBox = document.getElementById('feedback-box');
 const versionWarningBox = document.getElementById('version-warning-box');
 const btnOpenInstallGuide = document.getElementById('btn-open-install-guide');
 const extVersionBadge = document.getElementById('ext-version-badge');
 if (extVersionBadge) {
   extVersionBadge.textContent = `v${CURRENT_EXT_VERSION}`;
+}
+
+// Kaplumbağa Hız Modu (Turtle Speed)
+const cbTurtleMode = document.getElementById('cb-turtle-mode');
+const turtleStatusText = document.getElementById('turtle-status-text');
+const turtleToolbar = document.getElementById('turtle-toolbar');
+const inpAltSpeed = document.getElementById('inp-alt-speed');
+
+let isTogglingTurtle = false;
+
+async function updateTurtleModeState(preloadedSettings) {
+  if (!cbTurtleMode || !turtleStatusText) return;
+  try {
+    let settings = preloadedSettings;
+    if (!settings) {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/settings`, { method: 'GET' });
+        if (res.ok) {
+          const json = await res.json();
+          settings = json.settings || json;
+        }
+      } catch {}
+
+      if (!settings) {
+        try {
+          const resDb = await fetch(`${BACKEND_URL}/api/db`, { method: 'GET' });
+          if (resDb.ok) {
+            const jsonDb = await resDb.json();
+            settings = jsonDb.settings;
+          }
+        } catch {}
+      }
+    }
+
+    if (settings) {
+      const isActive = !!settings.useAlternativeSpeed;
+      const limit = settings.alternativeSpeedLimit || 500;
+      cbTurtleMode.checked = isActive;
+      cbTurtleMode.disabled = false;
+      if (inpAltSpeed && document.activeElement !== inpAltSpeed) {
+        inpAltSpeed.value = limit;
+      }
+      turtleStatusText.textContent = isActive ? '(Açık)' : '(Kapalı)';
+      turtleStatusText.style.color = isActive ? 'var(--warning)' : 'var(--muted)';
+      return;
+    }
+  } catch (e) {}
+  turtleStatusText.textContent = '(Belirlenemedi)';
+}
+
+async function handleTurtleToggle() {
+  if (isTogglingTurtle) return;
+  isTogglingTurtle = true;
+  try {
+    if (turtleStatusText) turtleStatusText.textContent = '(Güncelleniyor...)';
+    const res = await fetch(`${BACKEND_URL}/api/settings/toggle-alt-speed`, { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      await updateTurtleModeState(data.settings);
+    } else {
+      await updateTurtleModeState();
+    }
+  } catch (e) {
+    if (turtleStatusText) turtleStatusText.textContent = '(Hata)';
+  } finally {
+    isTogglingTurtle = false;
+  }
+}
+
+if (cbTurtleMode) {
+  cbTurtleMode.addEventListener('change', handleTurtleToggle);
+}
+
+if (inpAltSpeed) {
+  inpAltSpeed.addEventListener('click', (e) => e.stopPropagation());
+  inpAltSpeed.addEventListener('change', async (e) => {
+    e.stopPropagation();
+    const val = parseInt(inpAltSpeed.value, 10);
+    if (!val || val < 10) return;
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alternativeSpeedLimit: val })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        await updateTurtleModeState(data.settings);
+      }
+    } catch (err) {
+      console.error('Speed update error:', err);
+    }
+  });
+  inpAltSpeed.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      inpAltSpeed.blur();
+    }
+  });
+}
+
+if (turtleToolbar) {
+  turtleToolbar.addEventListener('click', (e) => {
+    if (e.target.closest('#inp-alt-speed') || e.target.closest('.switch')) {
+      return;
+    }
+    cbTurtleMode.checked = !cbTurtleMode.checked;
+    handleTurtleToggle();
+  });
 }
 
 // Seçenek Panelleri
@@ -144,9 +251,9 @@ function analyzeUrl(url) {
       }
     }
 
-    return { type: 'none', platform: 'other' };
+    return { type: 'none', platform: 'other', url };
   } catch (e) {
-    return { type: 'none', platform: 'other' };
+    return { type: 'none', platform: 'other', url };
   }
 }
 
@@ -154,11 +261,19 @@ function analyzeUrl(url) {
 async function init() {
   await loadSettings();
   const isServerOnline = await checkBackendAndVersion();
+  if (isServerOnline) {
+    await updateTurtleModeState();
+  } else {
+    if (cbTurtleMode) cbTurtleMode.disabled = true;
+    if (turtleStatusText) turtleStatusText.textContent = '(Bağlantı Yok)';
+  }
 
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tabs || !tabs[0]) return;
     const tab = tabs[0];
     const detected = analyzeUrl(tab.url);
+    detected.url = tab.url;
     currentDetected = detected;
 
     targetTitleEl.textContent = tab.title || detected.platform;
@@ -167,25 +282,37 @@ async function init() {
     videoOptionsPanel.classList.add('hidden');
     channelOptionsPanel.classList.add('hidden');
 
+    if (btnWebstream) btnWebstream.classList.add('hidden');
+
     if (detected.type === 'video') {
       detectTypeLabel.textContent = `${detected.platform} Videosu Algılandı`;
       btnActionText.textContent = getMessage('btnDownloadVideo', 'Videoyu İndir');
       btnAction.disabled = !isServerOnline;
       btnAction.className = 'btn btn-primary';
+      btnAction.style.background = '';
+      btnAction.style.color = '';
       videoOptionsPanel.classList.remove('hidden');
+      if (btnWebstream) btnWebstream.classList.remove('hidden');
     } else if (detected.type === 'channel') {
       detectTypeLabel.textContent = `${detected.platform} Kanalı Algılandı`;
       btnActionText.textContent = getMessage('btnAddChannel', 'Ayarlarla Takibe Al');
       btnAction.disabled = !isServerOnline;
       btnAction.className = 'btn btn-primary';
+      btnAction.style.background = '';
+      btnAction.style.color = '';
       channelOptionsPanel.classList.remove('hidden');
     } else {
-      detectTypeLabel.textContent = 'Desteklenen Video/Kanal Yok';
-      btnActionText.textContent = getMessage('btnOpenApp', "HaYTooL'u Aç");
-      btnAction.disabled = false;
-      btnAction.className = 'btn btn-secondary';
+      // Dizi / Web video izleme siteleri (Dizipal, genel web siteleri)
+      detectTypeLabel.textContent = 'Web Sayfası / Video Akışı';
+      btnActionText.textContent = '📺 Web İzle\'de Aç (HaYTooL)';
+      btnAction.disabled = !isServerOnline;
+      btnAction.className = 'btn btn-primary';
+      btnAction.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      btnAction.style.color = '#ffffff';
     }
-  });
+  } catch (e) {
+    console.error('Tab query error:', e);
+  }
 }
 
 // Eylem Butonu
@@ -281,9 +408,47 @@ btnAction.addEventListener('click', async () => {
     }
 
   } else {
-    chrome.tabs.create({ url: BACKEND_URL });
+    // Web sitesi / Dizi izleme sayfası: Doğrudan HaYTooL Web İzle'ye gönder
+    const targetUrl = (currentDetected && currentDetected.url) || (targetUrlEl && targetUrlEl.textContent);
+    if (targetUrl && targetUrl.startsWith('http')) {
+      await sendToWebStream(targetUrl);
+    } else {
+      showFeedback('Geçerli bir sayfa bağlantısı bulunamadı.', 'error');
+    }
   }
 });
+
+async function sendToWebStream(url) {
+  if (!url) return;
+  showFeedback('Masaüstü uygulamasına aktarılıyor...', 'warning');
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/tools/open-web-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success) {
+      showFeedback('HaYTooL uygulamasında açıldı!', 'success');
+      setTimeout(() => {
+        window.close();
+      }, 500);
+    } else {
+      showFeedback(data.error || 'Uygulamaya iletilemedi.', 'error');
+    }
+  } catch (err) {
+    showFeedback('HaYTooL uygulaması kapalı! Lütfen uygulamayı başlatın.', 'error');
+  }
+}
+
+if (btnWebstream) {
+  btnWebstream.addEventListener('click', async () => {
+    const targetUrl = (currentDetected && currentDetected.url) || (targetUrlEl && targetUrlEl.textContent);
+    if (targetUrl && targetUrl.startsWith('http')) {
+      await sendToWebStream(targetUrl);
+    }
+  });
+}
 
 // Kurulum modalını masaüstü arayüzünde açma köprüsü
 if (btnOpenInstallGuide) {

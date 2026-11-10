@@ -52,6 +52,7 @@
   <script src="/lucide.min.js" defer></script>
   <!-- Plyr Video Player (Yerel) -->
   <link rel="stylesheet" href="/plyr.css" />
+  <script src="/hls.min.js" defer></script>
   <script src="/plyr.min.js" defer></script>
   <link rel="stylesheet" href="/style.css?v=12.3.3.1">
   <style>
@@ -98,10 +99,13 @@
       <!--PARTIAL:tab-tools-->
       <!--PARTIAL:tab-downloader-->
       <!--PARTIAL:tab-iptv-->
+      <!--PARTIAL:tab-webstream-->
     </main>
   </div>
 
   <!--PARTIAL:modals-->
+  <!-- Web Video & Dizi Akış Çözücü -->
+  <script src="/modules/webStreamExtractor.js"></script>
   <!-- Önyüz Hata Köprüsü: app.js'den önce yüklenir, hataları sunucu oturum loguna aktarır -->
   <script type="module" src="/modules/error-bridge.js?v=12.3.5.1"></script>
   <script type="module" src="/app.js?v=12.3.5.1"></script>

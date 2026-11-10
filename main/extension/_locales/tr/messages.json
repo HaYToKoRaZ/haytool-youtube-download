@@ -13,5 +13,7 @@
   "btnOpenApp": { "message": "HaYTooL'u Aç" },
   "msgSuccessDownload": { "message": "İndirme kuyruğuna eklendi!" },
   "msgSuccessChannel": { "message": "Kanal takibe alındı!" },
+  "btnOpenWebStream": { "message": "Web İzle'de Aç (HaYTooL)" },
+  "msgSuccessWebStream": { "message": "Web İzle sekmesine iletildi!" },
   "msgError": { "message": "İşlem başarısız veya bağlantı yok." }
 }

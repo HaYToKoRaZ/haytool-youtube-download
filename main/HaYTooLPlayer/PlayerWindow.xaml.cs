@@ -170,13 +170,17 @@ namespace HaYTooLPlayer
                 playerWebView.CoreWebView2.AddHostObjectToScript("windowBridge", new PlayerWindowBridge(this));
 
                 // Video dizinindeki VTT ve SRT altyazı dosyalarını tara ve Data URI formatında yükle (CORS kısıtlamalarını aşmak için)
-                string videoDir = Path.GetDirectoryName(_filePath) ?? "";
-                string filenameWithoutExt = Path.GetFileNameWithoutExtension(_filePath);
+                bool isRemoteStream = _filePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || _filePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
                 string trackTags = "";
 
-                if (Directory.Exists(videoDir))
+                if (!isRemoteStream)
                 {
-                    string[] files = Directory.GetFiles(videoDir, filenameWithoutExt + ".*");
+                    string videoDir = Path.GetDirectoryName(_filePath) ?? "";
+                    string filenameWithoutExt = Path.GetFileNameWithoutExtension(_filePath);
+
+                    if (Directory.Exists(videoDir))
+                    {
+                        string[] files = Directory.GetFiles(videoDir, filenameWithoutExt + ".*");
                     foreach (string file in files)
                     {
                         string ext = Path.GetExtension(file).ToLower();
@@ -222,6 +226,7 @@ namespace HaYTooLPlayer
                         }
                     }
                 }
+                }
 
                 // C# local disk okuması (Çevrimdışı/Yerel desteği için)
                 string localDesc = "";
@@ -241,7 +246,9 @@ namespace HaYTooLPlayer
                 string appRootDir = Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar)) ?? "";
                 string plyrCssUri = new Uri(Path.Combine(appRootDir, "public", "plyr.css")).AbsoluteUri;
                 string plyrJsUri = new Uri(Path.Combine(appRootDir, "public", "plyr.min.js")).AbsoluteUri;
-                string videoUri = new Uri(_filePath).AbsoluteUri;
+                string hlsJsUri = new Uri(Path.Combine(appRootDir, "public", "hls.min.js")).AbsoluteUri;
+                string videoUri = isRemoteStream ? _filePath : new Uri(_filePath).AbsoluteUri;
+                string sourceTag = _filePath.ToLower().Contains(".m3u8") ? "" : $"<source src=\"{videoUri}\" type=\"video/mp4\">";
 
                 // Plyr player şablonu oluştur
                 string htmlContent = $@"
@@ -250,6 +257,7 @@ namespace HaYTooLPlayer
 <head>
     <meta charset=""utf-8"">
     <link rel=""stylesheet"" href=""{plyrCssUri}"">
+    <script src=""{hlsJsUri}""></script>
     <style>
         body, html {{
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -509,7 +517,7 @@ namespace HaYTooLPlayer
             </div>
 
             <video id=""player"" playsinline controls autoplay style=""width: 100%; height: 100%;"">
-                <source src=""{videoUri}"" type=""video/mp4"">
+                {sourceTag}
                 {trackTags}
             </video>
         </div>
@@ -798,6 +806,16 @@ namespace HaYTooLPlayer
         }}
 
         const element = document.getElementById('player');
+        const streamSrc = '{videoUri}';
+        const isM3u8 = streamSrc.toLowerCase().includes('.m3u8');
+        let hlsInstance = null;
+
+        if (isM3u8 && typeof Hls !== 'undefined' && Hls.isSupported()) {{
+            hlsInstance = new Hls({{ enableWorker: true }});
+            hlsInstance.loadSource(streamSrc);
+            hlsInstance.attachMedia(element);
+        }}
+
         element.addEventListener('ready', onPlayerReady);
 
         player = new Plyr(element, {{

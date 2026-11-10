@@ -1,11 +1,23 @@
 {
   "version": 1,
   "skills": {
+    "chrome-extensions": {
+      "source": "googlechrome/modern-web-guidance",
+      "sourceType": "github",
+      "skillPath": "skills/chrome-extensions/SKILL.md",
+      "computedHash": "4b7e7beb7711c75ba267dcd5e3483d56aaa49d4670db88fd8619afea970cbccc"
+    },
     "code-review": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/code-review/SKILL.md",
       "computedHash": "c2e0695f4d6bb9e1cc0b4c68d9965d062271cff387000fa59c1c2d31a18c25b8"
+    },
+    "csharp-async": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/csharp-async/SKILL.md",
+      "computedHash": "e889958419757528e43fb674607d13fffe331a6673cfcef2b0ab8ff9fb569bb8"
     },
     "ffmpeg": {
       "source": "digitalsamba/claude-code-video-toolkit",
@@ -31,11 +43,23 @@
       "skillPath": "playwright-best-practices/SKILL.md",
       "computedHash": "88623575c97314e115f0e361a7d942e31d3b7a4e8925832257e1ad33f52096e4"
     },
+    "powershell-master": {
+      "source": "josiahsiegel/claude-plugin-marketplace",
+      "sourceType": "github",
+      "skillPath": "plugins/powershell-master/skills/powershell-master/SKILL.md",
+      "computedHash": "55e434d4b5b51ddadffda32cc474fad193d90c36c1a98f7a4dbb14cf1ded6a28"
+    },
     "security-review": {
       "source": "getsentry/skills",
       "sourceType": "github",
       "skillPath": "skills/security-review/SKILL.md",
       "computedHash": "50b86d2020a367c207ee902881321d4491ea516bb48622724a06d097aaa26e66"
+    },
+    "writing-changelogs": {
+      "source": "riekelt/technical-writer",
+      "sourceType": "github",
+      "skillPath": "plugins/technical-writer/skills/writing-changelogs/SKILL.md",
+      "computedHash": "e80159ea5bd76dbfa3b5f74d989b3634e836ebfc7318237757510f61c9687bc3"
     }
   }
 }

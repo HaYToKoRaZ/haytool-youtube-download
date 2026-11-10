@@ -1151,4 +1151,12 @@ export const en = {
   ctx_copy: "Copy",
   ctx_paste: "Paste",
   ctx_select_all: "Select All",
+  nav_tools_web_stream_text: "Web Video & Series Streamer",
+  web_stream_title: "Web Video & Series Streamer",
+  web_stream_desc: "Extracts and plays streams from Dizipal and external video sites ad-free.",
+  web_stream_placeholder: "Paste series or video streaming URL (e.g. https://...)",
+  web_stream_btn_analyze: "Extract & Play Video",
+  web_stream_btn_analyzing: "Extracting Video Stream...",
+  web_stream_btn_external: "Open in Standalone Desktop Player",
+  tab_webstream: "Web Watch",
 };

@@ -233,9 +233,13 @@ namespace HaYTooLPlayer
             {
                 cookieKeepaliveTimer = new System.Windows.Threading.DispatcherTimer();
                 cookieKeepaliveTimer.Interval = TimeSpan.FromMinutes(15);
-                cookieKeepaliveTimer.Tick += (s, e) =>
+                cookieKeepaliveTimer.Tick += async (s, e) =>
                 {
-                    SyncYouTubeCookiesToFileAsync();
+                    try
+                    {
+                        await SyncYouTubeCookiesToFileAsync();
+                    }
+                    catch {}
                 };
                 cookieKeepaliveTimer.Start();
             }
@@ -498,7 +502,7 @@ namespace HaYTooLPlayer
                             {
                                 if (path == "LOGOUT" || path == "/logout" || path == "/logout-youtube")
                                 {
-                                    ClearYouTubeSessionAsync();
+                                    _ = ClearYouTubeSessionAsync();
                                     return;
                                 }
 
@@ -552,6 +556,7 @@ namespace HaYTooLPlayer
                                 else if (path == "/downloader") tabName = "downloader";
                                 else if (path == "/iptv") tabName = "iptv";
                                 else if (path == "/tools") tabName = "tools";
+                                else if (path == "/webstream" || path == "/watch") tabName = "webstream";
 
                                 if (tabName != null)
                                 {
@@ -618,6 +623,7 @@ namespace HaYTooLPlayer
                 else if (path == "/downloader") tabName = "downloader";
                 else if (path == "/iptv") tabName = "iptv";
                 else if (path == "/tools") tabName = "tools";
+                else if (path == "/webstream" || path == "/watch") tabName = "webstream";
 
                 if (tabName != null)
                 {
@@ -969,6 +975,15 @@ namespace HaYTooLPlayer
         {
             try
             {
+                // Uzak HTTP / HTTPS akışları (m3u8 veya doğrudan video linkleri)
+                if (filePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || filePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    string sUrl = GetAppUrl();
+                    PlayerWindow streamPlayer = new PlayerWindow(filePath, title, channelName, publishDate, videoId, sUrl);
+                    streamPlayer.Show();
+                    return;
+                }
+
                 // Slash işaretlerini Windows uyumlu yap
                 string normalizedPath = filePath.Replace('/', Path.DirectorySeparatorChar);
 
@@ -1176,7 +1191,7 @@ namespace HaYTooLPlayer
                 {
                     var utf8NoBom = new System.Text.UTF8Encoding(false);
                     string cookieText = sb.ToString();
-                    System.Threading.Tasks.Task.Run(() =>
+                    _ = System.Threading.Tasks.Task.Run(() =>
                     {
                         try { File.WriteAllText(Path.Combine(rootDir, "cookies.txt"), cookieText, utf8NoBom); } catch {}
                         try { File.WriteAllText(Path.Combine(baseDir, "cookies.txt"), cookieText, utf8NoBom); } catch {}
@@ -1187,7 +1202,7 @@ namespace HaYTooLPlayer
         }
 
         // Türkçe Açıklama: WebView2 içindeki tüm Google ve YouTube çerezlerini siler, oturumu sıfırlar.
-        public async void ClearYouTubeSessionAsync()
+        public async Task ClearYouTubeSessionAsync()
         {
             try
             {
@@ -1360,12 +1375,12 @@ namespace HaYTooLPlayer
                 }
 
                 // Pencere kapandığında taze çerezleri cookies.txt dosyasına yaz
-                cookieWin.Closed += (s, e) =>
+                cookieWin.Closed += async (s, e) =>
                 {
                     _cookieWindowInstance = null;
                     try
                     {
-                        SyncYouTubeCookiesToFileAsync();
+                        await SyncYouTubeCookiesToFileAsync();
                     }
                     catch {}
                 };

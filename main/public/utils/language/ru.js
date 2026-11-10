@@ -1145,4 +1145,12 @@ export const ru = {
   ctx_copy: "Копировать",
   ctx_paste: "Вставить",
   ctx_select_all: "Выбрать все",
+  nav_tools_web_stream_text: "Веб-видео и потоковый плеер",
+  web_stream_title: "Веб-видео и потоковый плеер",
+  web_stream_desc: "Обнаруживает и воспроизводит видео с внешних сайтов без рекламы.",
+  web_stream_placeholder: "Вставьте ссылку на сериал или видео (напр. https://...)",
+  web_stream_btn_analyze: "Найти и воспроизвести видео",
+  web_stream_btn_analyzing: "Извлечение видеопотока...",
+  web_stream_btn_external: "Открыть в отдельном плеере",
+  tab_webstream: "Веб-просмотр",
 };

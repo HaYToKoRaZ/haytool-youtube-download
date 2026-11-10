@@ -13,5 +13,7 @@
   "btnOpenApp": { "message": "Abrir HaYTooL" },
   "msgSuccessDownload": { "message": "Adicionado à fila de download!" },
   "msgSuccessChannel": { "message": "Canal adicionado para seguir!" },
+  "btnOpenWebStream": { "message": "Abrir no Assistir Web (HaYTooL)" },
+  "msgSuccessWebStream": { "message": "Enviado para Assistir Web!" },
   "msgError": { "message": "Falha na ação." }
 }

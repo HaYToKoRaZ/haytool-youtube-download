@@ -13,5 +13,7 @@
   "btnOpenApp": { "message": "Open HaYTooL" },
   "msgSuccessDownload": { "message": "Added to download queue!" },
   "msgSuccessChannel": { "message": "Channel added to follow list!" },
+  "btnOpenWebStream": { "message": "Open in Web Watch (HaYTooL)" },
+  "msgSuccessWebStream": { "message": "Sent to Web Watch tab!" },
   "msgError": { "message": "Action failed or connection lost." }
 }

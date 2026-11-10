@@ -50,6 +50,7 @@ export function applyLanguage(lang) {
   elQuery('button[data-tab="channels"] span', 'tab_channels');
   elQuery('button[data-tab="settings"] span', 'tab_settings');
   elQuery('#nav-iptv-btn span', 'tab_iptv');
+  elQuery('button[data-tab="webstream"] span', 'tab_webstream');
 
   // Kanallar Sekmesi
   elQuery('#tab-channels .content-header h2', 'channels_title');

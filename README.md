@@ -71,6 +71,8 @@
 * **APE Tool (Mark as Watched):** Paste any video or channel link to instantly mark videos as watched/hidden in your library and sync them to your real YouTube watch history. Works for followed channels, previously downloaded channels, and even completely foreign channels (fetches the last N videos and marks them in the background, 1-200 adjustable).
 * **YouTube Watch History Sync:** While watching locally, your playback position is periodically synced to your actual YouTube watch history (30s interval + on pause/close). Deleting a video with "also mark as watched" uses the real video duration, so YouTube shows it as fully watched — not just appended to history.
 * **WebView2 Built-in Cookie System:** Session cookies are captured from the built-in WebView2 player window — no browser extensions or third-party cookie files needed. Use "Sign in to YouTube" from the tray or Settings to log in securely inside the app; cookies are kept alive with automatic background refresh.
+* **Web Video & Series Streamer ("Web Watch" Tab):** Dedicated tab with embedded YouTube-style split player layout to watch external video streams directly. Automatically unpacks Dean Edwards packed JavaScript, bypasses betting/ad banners, resolves iframes, and plays HLS (.m3u8) / MP4 streams ad-free with history tracking.
+* **Smart Browser Extension Integration:** Chrome/Chromium extension with one-click URL transmission. Right-click any link or page to send it straight to the desktop Multimedia HaYTooL app via Windows foreground IPC bridge, along with instant Turtle speed toggling.
 
 ---
 
@@ -249,6 +251,8 @@ You can manage download queues, Game Mode (deferred FFmpeg merge), speeds, launc
 * **APE Aracı (İzlendi Olarak İşaretleme):** Herhangi bir video veya kanal linkini yapıştırarak videoları kütüphanenizde izlendi/gizlendi olarak anında işaretleyin ve gerçek YouTube izleme geçmişinizle eşitleyin. Takip ettiğiniz kanallar, daha önce indirdiğiniz kanallar ve hatta tamamen yabancı kanallar için çalışır (kanalın son N videosu arka planda çekilip işaretlenir, 1-200 arası ayarlanabilir).
 * **YouTube İzleme Geçmişi Senkronu:** Videoları yerel oynatıcıda izlerken oynatma konumunuz gerçek YouTube izleme geçmişinize periyodik olarak eşitlenir (30 sn'de bir + durdurma/kapatmada). "YouTube'da da izlendi olarak işaretle" ile silinen videolar gerçek süreleri kullanılarak YouTube'da tamamen izlenmiş olarak gösterilir — yalnızca geçmişe eklenmez.
 * **WebView2 Yerleşik Çerez Sistemi:** Oturum çerezleri yerleşik WebView2 oynatıcı penceresinden alınır — tarayıcı eklentisi veya harici çerez dosyası gerekmez. Tepsi veya Ayarlar'daki "YouTube'da Oturum Aç" ile uygulama içinde güvenle oturum açabilirsiniz; çerezler arka planda otomatik yenilemeyle canlı tutulur.
+* **Web Video & Dizi Çözücü ("Web İzle" Sekmesi):** Ayrı bir sekme ve yerleşik YouTube tarzı bölünmüş oynatıcı düzeniyle Dizipal, Vidmoly ve popüler dizi/film sitelerindeki şifreli (packed) JS kodlarını ve iframe kaynaklarını çözer; bahis reklam videolarını filtreleyerek akışı doğrudan masaüstü uygulamasında reklamsız oynatır.
+* **Akıllı Tarayıcı Eklentisi Entegrasyonu:** Chrome/Chromium tarayıcı eklentisiyle web'de gezinirken tek tıkla veya sağ tık menüsünden herhangi bir sayfayı/linki doğrudan masaüstü Multimedia HaYTooL uygulamasına gönderin; Windows API köprüsüyle uygulama otomatik öne gelerek oynatmayı başlatır. Ayrıca tek tıkla Kaplumbağa hız sınırı yönetimi sunar.
 
 ---
 

@@ -1145,4 +1145,12 @@ export const pt = {
   ctx_copy: "Copiar",
   ctx_paste: "Colar",
   ctx_select_all: "Selecionar tudo",
+  nav_tools_web_stream_text: "Extrator de Séries e Vídeo Web",
+  web_stream_title: "Extrator de Séries e Vídeo Web",
+  web_stream_desc: "Detecta e reproduz transmissões de sites externos sem anúncios.",
+  web_stream_placeholder: "Cole o link da série ou vídeo (ex: https://...)",
+  web_stream_btn_analyze: "Detectar e Reproduzir Vídeo",
+  web_stream_btn_analyzing: "Extraindo Transmissão de Vídeo...",
+  web_stream_btn_external: "Abrir no Reprodutor Desktop",
+  tab_webstream: "Assistir Web",
 };

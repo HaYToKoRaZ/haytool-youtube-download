@@ -619,6 +619,11 @@ router.get('/logs', localhostOnly, (req, res) => {
  * @param {object} res - Express yanıt nesnesi
  * @returns {void}
  */
+router.get('/settings', localhostOnly, (req, res) => {
+  const db = readDb();
+  res.json({ success: true, settings: db.settings });
+});
+
 router.post('/settings', localhostOnly, async (req, res) => {
   const db = readDb();
   const oldSpeedLimit = getEffectiveSpeedLimit(db.settings);

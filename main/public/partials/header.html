@@ -4,7 +4,7 @@
         <div class="brand-icon" style="cursor: pointer;" title="Multimedia HaYTooL Web Sitesi" onclick="window.open('https://haytokoraz.github.io/haytool-youtube-download/', '_blank')">
           <img src="/logo.png" alt="HaYTo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
         </div>
-        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYTooL-YT-Downloader/releases" target="_blank" style="color: inherit; text-decoration: none;">v12.4.1</a></span>
+        <span class="version-badge" id="topbar-version" style="font-size: 0.75rem; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; padding: 2px 8px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4); margin-left: 4px;"><a href="https://github.com/HaYTooL-YT-Downloader/releases" target="_blank" style="color: inherit; text-decoration: none;">v12.4.2</a></span>
       </div>
 
       <nav class="nav-menu">
@@ -29,6 +29,10 @@
           <i data-lucide="tv" class="nav-tab-icon"></i>
           <span id="lbl-nav-channels">Kanallar</span>
         </button>
+        <button class="nav-item" data-tab="webstream" id="nav-webstream-btn" data-testid="nav-tab-webstream">
+          <i data-lucide="play-square" class="nav-tab-icon" style="color: #ef4444;"></i>
+          <span id="lbl-nav-webstream">Web İzle</span>
+        </button>
         <div class="nav-dropdown" id="tools-dropdown">
           <button class="tools-btn" id="tools-btn" title="Araçlar Menüsü" aria-label="Araçlar Menüsü">
             <i data-lucide="wrench" class="nav-tab-icon"></i>
@@ -49,6 +53,11 @@
               <div class="nav-item-icon-box"><i data-lucide="list-video"></i></div>
               <span id="nav-hdown-downloader-text">Downloader</span>
               <div class="nav-dropdown-badge"><i data-lucide="play"></i></div>
+            </button>
+            <button class="nav-dropdown-item" data-tab="webstream" id="nav-tools-web-stream-btn" onclick="switchTab('webstream')">
+              <div class="nav-item-icon-box" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;"><i data-lucide="play-square"></i></div>
+              <span id="nav-tools-web-stream-text">Web Video & Dizi Çözücü</span>
+              <div class="nav-dropdown-badge"><i data-lucide="tv"></i></div>
             </button>
             <button class="nav-dropdown-item" id="nav-tools-compare-btn">
               <div class="nav-item-icon-box"><i data-lucide="folder-sync"></i></div>

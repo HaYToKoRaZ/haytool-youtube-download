@@ -13,5 +13,7 @@
   "btnOpenApp": { "message": "Открыть HaYTooL" },
   "msgSuccessDownload": { "message": "Добавлено в очередь загрузки!" },
   "msgSuccessChannel": { "message": "Канал добавлен в отслеживаемые!" },
+  "btnOpenWebStream": { "message": "Открыть в Веб-просмотре (HaYTooL)" },
+  "msgSuccessWebStream": { "message": "Отправлено в Веб-просмотр!" },
   "msgError": { "message": "Ошибка операции." }
 }

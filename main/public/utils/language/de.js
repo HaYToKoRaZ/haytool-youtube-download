@@ -1145,4 +1145,12 @@ export const de = {
   ctx_copy: "Kopieren",
   ctx_paste: "Einfügen",
   ctx_select_all: "Alles auswählen",
+  nav_tools_web_stream_text: "Web-Video & Serien-Streamer",
+  web_stream_title: "Web-Video & Serien-Streamer",
+  web_stream_desc: "Erkennt und spielt Streams von externen Videoseiten werbefrei ab.",
+  web_stream_placeholder: "Serien- oder Video-URL einfügen (z.B. https://...)",
+  web_stream_btn_analyze: "Video erkennen & abspielen",
+  web_stream_btn_analyzing: "Video-Stream wird extrahiert...",
+  web_stream_btn_external: "Im separaten Desktop-Player öffnen",
+  tab_webstream: "Web-Wiedergabe",
 };

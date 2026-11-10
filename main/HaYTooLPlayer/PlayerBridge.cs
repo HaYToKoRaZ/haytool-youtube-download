@@ -134,5 +134,13 @@ namespace HaYTooLPlayer
                 catch {}
             });
         }
+
+        public void bringToFront()
+        {
+            _mainWindow.Dispatcher.Invoke(() =>
+            {
+                _mainWindow.BringWindowToFront();
+            });
+        }
     }
 }

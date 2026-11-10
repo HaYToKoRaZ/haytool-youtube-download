@@ -13,5 +13,7 @@
   "btnOpenApp": { "message": "HaYTooL öffnen" },
   "msgSuccessDownload": { "message": "Zur Warteschlange hinzugefügt!" },
   "msgSuccessChannel": { "message": "Kanal zur Liste hinzugefügt!" },
+  "btnOpenWebStream": { "message": "In Web-Wiedergabe öffnen (HaYTooL)" },
+  "msgSuccessWebStream": { "message": "An Web-Wiedergabe gesendet!" },
   "msgError": { "message": "Fehler aufgetreten." }
 }

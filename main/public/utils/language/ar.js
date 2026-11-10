@@ -1145,4 +1145,12 @@ export const ar = {
   ctx_copy: "نسخ",
   ctx_paste: "لصق",
   ctx_select_all: "تحديد الكل",
+  nav_tools_web_stream_text: "مستخرج ومشغل فيديو الويب",
+  web_stream_title: "مستخرج ومشغل فيديو الويب",
+  web_stream_desc: "يكتشف ويشغل مقاطع الفيديو من المواقع الخارجية بدون إعلانات.",
+  web_stream_placeholder: "الصق رابط المسلسل أو الفيديو (مثل https://...)",
+  web_stream_btn_analyze: "كشف وتشغيل الفيديو",
+  web_stream_btn_analyzing: "جارٍ استخراج بث الفيديو...",
+  web_stream_btn_external: "فتح في مشغل سطح المكتب",
+  tab_webstream: "مشاهدة الويب",
 };

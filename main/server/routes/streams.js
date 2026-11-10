@@ -2,6 +2,7 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import open from 'open';
 import dns from 'dns';
 import { spawn, execFile, exec } from 'child_process';
@@ -14,6 +15,7 @@ import { readDb, findVideoFileInDownloadDir } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
 import { generateVideoSummary, generateCommentsSummary, getLmStudioModels, checkLlamaEngineStatus, downloadAndInstallLlamaEngine, scanGgufModels, stopLlamaEngine, startRecommendedModelDownload, getRecommendedModelDownloadStatus, cancelRecommendedModelDownload } from '../services/aiSummary.js';
 import { getTtsStatus, downloadPiperEngine, downloadPiperVoice, speakText, stopTtsEngine, VOICE_CATALOG, getTtsCacheDir } from '../services/tts.js';
+import { extractStreamFromUrl } from '../services/streamExtractor.js';
 
 export const router = express.Router();
 
@@ -1617,5 +1619,95 @@ router.post('/video/:videoId/vote', localhostOnly, async (req, res) => {
   } catch (err) {
     console.error('[RYD Vote Error]:', err);
     res.status(500).json({ error: 'Oy iletilemedi: ' + err.message });
+  }
+});
+
+// Türkçe Açıklama: Harici web sitelerindeki (Dizipal, dizi/film siteleri) video akışını (.m3u8, .mp4, embed) çözümler.
+router.post('/tools/extract-web-stream', localhostOnly, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'Lütfen geçerli bir web sitesi veya dizi bağlantısı girin.' });
+    }
+    const result = await extractStreamFromUrl(url);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Türkçe Açıklama: Referer veya CORS korumalı video akış parçalarını ve m3u8 bildirimlerini tarayıcıya güvenle ileten proxy köprüsü.
+router.get('/tools/web-stream-proxy', async (req, res) => {
+  try {
+    const targetUrl = req.query.url;
+    const referer = req.query.referer || targetUrl;
+    if (!targetUrl) return res.status(400).send('URL parametresi zorunludur.');
+
+    const fetchHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
+    };
+    if (referer) fetchHeaders['Referer'] = referer;
+    if (req.headers.range) fetchHeaders['Range'] = req.headers.range;
+
+    const response = await fetch(targetUrl, { headers: fetchHeaders });
+    res.status(response.status);
+
+    const contentType = response.headers.get('content-type');
+    if (contentType) res.setHeader('Content-Type', contentType);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    // Eğer m3u8 manifest ise içerisindeki göreceli URI linklerini proxy formatına dönüştür
+    if (targetUrl.includes('.m3u8') || (contentType && contentType.includes('mpegurl'))) {
+      const text = await response.text();
+      const baseUrl = targetUrl.substring(0, targetUrl.lastIndexOf('/') + 1);
+      const rewritten = text.replace(/^(?!#)(?!\s*$)(.+)$/gm, (line) => {
+        let fullLine = line.trim();
+        if (!fullLine.startsWith('http')) {
+          fullLine = baseUrl + fullLine;
+        }
+        return `/api/tools/web-stream-proxy?url=${encodeURIComponent(fullLine)}&referer=${encodeURIComponent(referer)}`;
+      });
+      return res.send(rewritten);
+    }
+
+    // Video segmentleri / ts dosyaları için binary pipe
+    const arrayBuffer = await response.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err) {
+    res.status(500).send('Proxy hatası: ' + err.message);
+  }
+});
+
+// Türkçe Açıklama: Tarayıcı eklentisinden veya harici istemcilerden gelen video bağlantısını HaYTooL Web İzle sekmesine iletir.
+router.post('/tools/open-web-stream', localhostOnly, (req, res) => {
+  try {
+    const { url } = req.body || {};
+    const cleanUrl = typeof url === 'string' ? url.trim() : '';
+
+    if (cleanUrl) {
+      broadcast('open_webstream', { url: cleanUrl });
+    } else {
+      broadcast('switch_tab', 'webstream');
+    }
+
+    // Windows üzerinde masaüstü uygulamasını (Multimedia HaYTooL.exe) öne getir
+    try {
+      const dir = path.dirname(fileURLToPath(import.meta.url));
+      const candidates = [
+        path.resolve(dir, '..', '..', 'Multimedia HaYTooL.exe'),
+        path.resolve(process.cwd(), 'main', 'Multimedia HaYTooL.exe'),
+        path.resolve(process.cwd(), 'Multimedia HaYTooL.exe')
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          execFile(p, ['show'], { windowsHide: true }, () => {});
+          break;
+        }
+      }
+    } catch {}
+
+    res.json({ success: true, message: 'Web İzle sekmesine iletildi.', url: cleanUrl });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });

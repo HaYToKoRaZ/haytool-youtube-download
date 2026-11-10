@@ -325,6 +325,7 @@ export function getCompositeIndexHtml() {
     '<!--PARTIAL:tab-tools-->': 'tab-tools.html',
     '<!--PARTIAL:tab-downloader-->': 'tab-downloader.html',
     '<!--PARTIAL:tab-iptv-->': 'tab-iptv.html',
+    '<!--PARTIAL:tab-webstream-->': 'tab-webstream.html',
     '<!--PARTIAL:modals-->': 'modals.html',
   };
 
@@ -354,6 +355,7 @@ export function getCompositeIndexHtml() {
 // Ana Sayfa ve SPA Yönlendirmeleri (Modüler Partial Birleştirmeli)
 app.get([
   '/', '/index.html', '/home', '/download', '/downlist', '/channels', '/settings', '/iptv', '/downloader', '/tools',
+  '/webstream', '/watch',
   '/tools/compare', '/tools/deleted', '/tools/categories', '/tools/ape', '/tools/subscriptions', '/tools/bulk-delete'
 ], (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
