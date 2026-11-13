@@ -23,7 +23,7 @@ import {
   saveCategoriesToIni
 } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
-import { ytdlpPath, getFfmpegPath, detectHwaccel, testFfmpegSync, setFfmpegWorkingCached, getLocalTempDir, spawnYtdlp } from '../services/paths.js';
+import { rootDir, ytdlpPath, getFfmpegPath, getAppFfmpegPath, getSystemBinaryPath, detectHwaccel, testFfmpegSync, setFfmpegWorkingCached, getLocalTempDir, spawnYtdlp } from '../services/paths.js';
 import { downloadQueue, getEffectiveSpeedLimit, getCookieArgs, resolveItemDownloadUrl, showWindowsNotification } from '../services/downloader.js';
 import { playWavSound, AVAILABLE_SOUNDS } from '../services/soundService.js';
 import { mergeQueue } from '../services/mergeQueue.js';
@@ -1021,6 +1021,23 @@ export let ffmpegDownloadState = { status: 'idle', progress: 0, error: null };
  *
  * @returns {Promise<void>}
  */
+function findBinaryRecursive(dir, name) {
+  if (!fs.existsSync(dir)) return null;
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        const found = findBinaryRecursive(fullPath, name);
+        if (found) return found;
+      } else if (entry.isFile() && entry.name.toLowerCase() === name.toLowerCase()) {
+        return fullPath;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
 export async function downloadFfmpegAsync() {
   if (ffmpegDownloadState.status === 'downloading' || ffmpegDownloadState.status === 'extracting') {
     return;
@@ -1029,64 +1046,14 @@ export async function downloadFfmpegAsync() {
   ffmpegDownloadState = { status: 'downloading', progress: 0, error: null };
   broadcast('ffmpeg_download', ffmpegDownloadState);
   
-  const rootDir = process.env.APPIMAGE && process.platform === 'linux' ? dataRootDir : path.resolve(process.cwd());
-  const ffmpegDir = path.join(rootDir, 'ffmpeg');
+  const targetRootDir = process.env.APPIMAGE && process.platform === 'linux' ? dataRootDir : rootDir;
+  const ffmpegDir = path.join(targetRootDir, 'ffmpeg');
   if (!fs.existsSync(ffmpegDir)) {
     fs.mkdirSync(ffmpegDir, { recursive: true });
   }
   
   const platform = os.platform();
-  let platformKey = '';
-  if (platform === 'win32') platformKey = 'windows-64';
-  else if (platform === 'linux') platformKey = 'linux-64';
-  else if (platform === 'darwin') platformKey = 'osx-64';
-  else {
-    ffmpegDownloadState = { status: 'failed', progress: 0, error: 'Unsupported operating system: ' + platform };
-    broadcast('ffmpeg_download', ffmpegDownloadState);
-    return;
-  }
-  
-  let urls = {
-    'windows-64': {
-      ffmpeg: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffmpeg-6.1-win-64.zip',
-      ffprobe: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffprobe-6.1-win-64.zip'
-    },
-    'linux-64': {
-      ffmpeg: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffmpeg-6.1-linux-64.zip',
-      ffprobe: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffprobe-6.1-linux-64.zip'
-    },
-    'osx-64': {
-      ffmpeg: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffmpeg-6.1-macos-64.zip',
-      ffprobe: 'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffprobe-6.1-macos-64.zip'
-    }
-  }[platformKey];
-  
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    const apiRes = await fetch('https://ffbinaries.com/api/v1/version/latest', { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (apiRes.ok) {
-      const apiData = await apiRes.json();
-      if (apiData && apiData.bin && apiData.bin[platformKey]) {
-        urls = apiData.bin[platformKey];
-      }
-    }
-  } catch (apiErr) {
-    console.warn('[FFmpeg] ffbinaries API dynamic URLs could not be fetched, using fallbacks:', apiErr.message);
-  }
-  
-  const ffmpegZip = path.join(ffmpegDir, 'ffmpeg_temp.zip');
-  const ffprobeZip = path.join(ffmpegDir, 'ffprobe_temp.zip');
-
-  const ffmpegMirrors = [
-    urls.ffmpeg,
-    `https://ffbinaries.com/downloads/ffmpeg-6.1-${platformKey === 'windows-64' ? 'win' : platformKey === 'linux-64' ? 'linux' : 'macos'}-64.zip`
-  ];
-  const ffprobeMirrors = [
-    urls.ffprobe,
-    `https://ffbinaries.com/downloads/ffprobe-6.1-${platformKey === 'windows-64' ? 'win' : platformKey === 'linux-64' ? 'linux' : 'macos'}-64.zip`
-  ];
+  const isWin = platform === 'win32';
   
   const downloadHelper = async (urlCandidates, dest, startPercent, endPercent) => {
     const list = Array.isArray(urlCandidates) ? urlCandidates : [urlCandidates];
@@ -1154,7 +1121,7 @@ export async function downloadFfmpegAsync() {
               reject(err);
             });
 
-            req.setTimeout(30000, () => {
+            req.setTimeout(60000, () => {
               req.destroy(new Error('Download request timeout'));
             });
           };
@@ -1173,43 +1140,46 @@ export async function downloadFfmpegAsync() {
 
     throw lastError || new Error('FFmpeg download failed from all mirrors');
   };
-  
+
+  const archiveTemp = path.join(ffmpegDir, 'ffmpeg_download_temp.zip');
+  const extractTempDir = path.join(ffmpegDir, 'temp_extract');
+
   try {
-    console.log(`[FFmpeg] Downloading FFmpeg...`);
-    await downloadHelper(ffmpegMirrors, ffmpegZip, 0, 45);
-    
-    console.log(`[FFmpeg] Downloading FFprobe...`);
-    await downloadHelper(ffprobeMirrors, ffprobeZip, 45, 90);
-    
+    if (isWin) {
+      const gyanMirrors = [
+        'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip',
+        'https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip'
+      ];
+      console.log('[FFmpeg] Downloading modern FFmpeg Essentials (Gyan.dev)...');
+      await downloadHelper(gyanMirrors, archiveTemp, 0, 80);
+    } else {
+      const unixMirrors = [
+        'https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v6.1/ffmpeg-6.1-' + (platform === 'linux' ? 'linux-64' : 'macos-64') + '.zip'
+      ];
+      console.log('[FFmpeg] Downloading FFmpeg binary...');
+      await downloadHelper(unixMirrors, archiveTemp, 0, 80);
+    }
+
     ffmpegDownloadState.status = 'extracting';
-    ffmpegDownloadState.progress = 90;
+    ffmpegDownloadState.progress = 85;
     broadcast('ffmpeg_download', ffmpegDownloadState);
-    
-    const checkZipSize = (filePath) => {
-      if (!fs.existsSync(filePath)) {
-        throw new Error(`Downloaded file not found: ${filePath}`);
-      }
-      const stats = fs.statSync(filePath);
-      if (stats.size < 1024 * 1024) {
-        throw new Error(`Downloaded file is corrupt or too small (${stats.size} bytes): ${filePath}`);
-      }
-    };
-    checkZipSize(ffmpegZip);
-    checkZipSize(ffprobeZip);
-    
-    console.log('[FFmpeg] Extracting zip files...');
-    
+
+    if (fs.existsSync(extractTempDir)) {
+      try { fs.rmSync(extractTempDir, { recursive: true, force: true }); } catch (e) {}
+    }
+    fs.mkdirSync(extractTempDir, { recursive: true });
+
     const extractHelper = (zipPath, destDir) => {
       return new Promise((resolve, reject) => {
         let completed = false;
         let fallbackTriggered = false;
-        
+
         const triggerFallback = (reasonErr) => {
           if (fallbackTriggered || completed) return;
           fallbackTriggered = true;
-          console.log(`[FFmpeg] Tar extraction not available or failed for ${path.basename(zipPath)}. Running fallback. Reason: ${reasonErr.message}`);
-          
-          if (platform === 'win32') {
+          console.log(`[FFmpeg] Tar extraction failed, running fallback. Reason: ${reasonErr.message}`);
+
+          if (isWin) {
             const ps = spawn('powershell', [
               '-NoProfile',
               '-NonInteractive',
@@ -1242,9 +1212,8 @@ export async function downloadFfmpegAsync() {
             });
           }
         };
-        
+
         const tar = spawn('tar', ['-xf', zipPath, '-C', destDir]);
-        
         tar.on('close', (code) => {
           if (completed || fallbackTriggered) return;
           if (code === 0) {
@@ -1254,56 +1223,65 @@ export async function downloadFfmpegAsync() {
             triggerFallback(new Error(`tar exited with code ${code}`));
           }
         });
-        
         tar.on('error', (err) => {
           triggerFallback(err);
         });
       });
     };
-    
-    await extractHelper(ffmpegZip, ffmpegDir);
-    await extractHelper(ffprobeZip, ffmpegDir);
-    
-    if (platform !== 'win32') {
+
+    await extractHelper(archiveTemp, extractTempDir);
+    ffmpegDownloadState.progress = 92;
+    broadcast('ffmpeg_download', ffmpegDownloadState);
+
+    const binExt = isWin ? '.exe' : '';
+    const ffmpegFound = findBinaryRecursive(extractTempDir, `ffmpeg${binExt}`);
+    const ffprobeFound = findBinaryRecursive(extractTempDir, `ffprobe${binExt}`);
+
+    if (!ffmpegFound) {
+      throw new Error(`Arşiv içinde ffmpeg${binExt} bulunamadı.`);
+    }
+
+    fs.copyFileSync(ffmpegFound, path.join(ffmpegDir, `ffmpeg${binExt}`));
+    if (ffprobeFound) {
+      fs.copyFileSync(ffprobeFound, path.join(ffmpegDir, `ffprobe${binExt}`));
+    }
+
+    if (!isWin) {
       try {
         fs.chmodSync(path.join(ffmpegDir, 'ffmpeg'), 0o755);
-        fs.chmodSync(path.join(ffmpegDir, 'ffprobe'), 0o755);
+        if (ffprobeFound) fs.chmodSync(path.join(ffmpegDir, 'ffprobe'), 0o755);
       } catch (chmodErr) {
         console.warn('[FFmpeg] Failed to set execute permissions on binaries:', chmodErr.message);
       }
     }
-    
+
     try {
-      if (fs.existsSync(ffmpegZip)) fs.unlinkSync(ffmpegZip);
-      if (fs.existsSync(ffprobeZip)) fs.unlinkSync(ffprobeZip);
-    } catch (e) {
-      // Kasıtlı sessiz: Geçici ZIP dosyaları silinmese bile FFmpeg kurulumu başarılı sayılabilir.
-    }
-    
+      if (fs.existsSync(archiveTemp)) fs.unlinkSync(archiveTemp);
+      if (fs.existsSync(extractTempDir)) fs.rmSync(extractTempDir, { recursive: true, force: true });
+    } catch (e) {}
+
     setFfmpegWorkingCached(null);
-    const testResult = testFfmpegSync();
-    
+    const testResult = testFfmpegSync(true);
+
     if (testResult) {
       ffmpegDownloadState.status = 'completed';
       ffmpegDownloadState.progress = 100;
       ffmpegDownloadState.error = null;
       console.log('[FFmpeg] Installation completed successfully.');
       broadcast('ffmpeg_download', ffmpegDownloadState);
-      broadcast('status_log', { message: 'FFmpeg automatically installed and activated.', type: 'success' });
+      broadcast('status_log', { message: 'FFmpeg en son sürüm başarıyla kuruldu ve etkinleştirildi.', type: 'success' });
     } else {
-      throw new Error('FFmpeg check test failed after extraction.');
+      throw new Error('FFmpeg doğrulama testi başarısız oldu.');
     }
   } catch (err) {
     console.error('[FFmpeg] Installation process failed:', err);
     try {
-      if (fs.existsSync(ffmpegZip)) fs.unlinkSync(ffmpegZip);
-      if (fs.existsSync(ffprobeZip)) fs.unlinkSync(ffprobeZip);
-    } catch (e) {
-      // Kasıtlı sessiz: Hata durumunda geçici ZIP dosyaları silinmese de asıl hata zaten loglandı.
-    }
-    
+      if (fs.existsSync(archiveTemp)) fs.unlinkSync(archiveTemp);
+      if (fs.existsSync(extractTempDir)) fs.rmSync(extractTempDir, { recursive: true, force: true });
+    } catch (e) {}
+
     ffmpegDownloadState.status = 'failed';
-    ffmpegDownloadState.error = err.message || 'Extraction failed';
+    ffmpegDownloadState.error = err.message || 'Kurulum başarısız oldu';
     broadcast('ffmpeg_download', ffmpegDownloadState);
   }
 }
@@ -1365,20 +1343,52 @@ export function testCookiesValidity() {
 }
 
 function getLocalFfmpegInfo() {
-  const targetPath = getFfmpegPath();
+  const appFfmpegPath = getAppFfmpegPath();
+  const sysFfmpegPath = getSystemBinaryPath('ffmpeg');
 
-  if (!targetPath) {
-    return { installed: false, version: null };
+  let appInfo = { exists: false, path: appFfmpegPath, version: null };
+  if (fs.existsSync(appFfmpegPath)) {
+    try {
+      const out = execFileSync(appFfmpegPath, ['-version'], { encoding: 'utf-8', timeout: 5000 });
+      const m = out.match(/ffmpeg version ([^\s]+)/i);
+      appInfo.exists = true;
+      appInfo.version = m ? m[1] : 'Bilinmiyor';
+    } catch (e) {}
   }
 
-  try {
-    const output = execFileSync(targetPath, ['-version'], { encoding: 'utf-8', timeout: 5000 });
-    const match = output.match(/ffmpeg version ([^\s]+)/i);
-    const ver = match ? match[1] : '6.1';
-    return { installed: true, version: ver };
-  } catch (e) {
-    return { installed: false, version: null };
+  let sysInfo = { exists: false, path: sysFfmpegPath, version: null };
+  if (sysFfmpegPath && fs.existsSync(sysFfmpegPath)) {
+    try {
+      const out = execFileSync(sysFfmpegPath, ['-version'], { encoding: 'utf-8', timeout: 5000 });
+      const m = out.match(/ffmpeg version ([^\s]+)/i);
+      sysInfo.exists = true;
+      sysInfo.version = m ? m[1] : 'Bilinmiyor';
+    } catch (e) {}
   }
+
+  const activePath = getFfmpegPath();
+  let activeSource = 'none';
+  let activeVersion = null;
+  let installed = false;
+
+  if (appInfo.exists) {
+    activeSource = 'app';
+    activeVersion = appInfo.version;
+    installed = true;
+  } else if (sysInfo.exists) {
+    activeSource = 'system';
+    activeVersion = sysInfo.version;
+    installed = true;
+  }
+
+  return {
+    installed,
+    version: activeVersion,
+    activeSource,
+    activePath: activePath || null,
+    appFfmpeg: appInfo,
+    systemFfmpeg: sysInfo
+  };
 }
 
 router.get('/ffmpeg/status', (req, res) => {
@@ -1386,7 +1396,11 @@ router.get('/ffmpeg/status', (req, res) => {
   res.json({
     installed: info.installed,
     localVersion: info.version,
-    remoteVersion: 'v6.1',
+    remoteVersion: 'v9.0.2',
+    activeSource: info.activeSource,
+    activePath: info.activePath,
+    appFfmpeg: info.appFfmpeg,
+    systemFfmpeg: info.systemFfmpeg,
     hwaccel: detectHwaccel(),
     status: ffmpegDownloadState.status,
     progress: ffmpegDownloadState.progress,
@@ -1397,6 +1411,39 @@ router.get('/ffmpeg/status', (req, res) => {
 router.post('/ffmpeg/download', localhostOnly, (req, res) => {
   downloadFfmpegAsync();
   res.json({ success: true });
+});
+
+router.post('/ffmpeg/sync-from-system', localhostOnly, (req, res) => {
+  try {
+    const sysFfmpeg = getSystemBinaryPath('ffmpeg');
+    const sysFfprobe = getSystemBinaryPath('ffprobe');
+    if (!sysFfmpeg || !fs.existsSync(sysFfmpeg)) {
+      return res.status(404).json({ success: false, error: 'Sistem genelinde (PATH / WinGet) FFmpeg bulunamadı.' });
+    }
+    const targetRootDir = process.env.APPIMAGE && process.platform === 'linux' ? dataRootDir : rootDir;
+    const ffmpegDir = path.join(targetRootDir, 'ffmpeg');
+    if (!fs.existsSync(ffmpegDir)) {
+      fs.mkdirSync(ffmpegDir, { recursive: true });
+    }
+    const ext = os.platform() === 'win32' ? '.exe' : '';
+    const targetFfmpeg = path.join(ffmpegDir, `ffmpeg${ext}`);
+    const targetFfprobe = path.join(ffmpegDir, `ffprobe${ext}`);
+
+    fs.copyFileSync(sysFfmpeg, targetFfmpeg);
+    if (sysFfprobe && fs.existsSync(sysFfprobe)) {
+      fs.copyFileSync(sysFfprobe, targetFfprobe);
+    }
+    setFfmpegWorkingCached(null);
+    const ok = testFfmpegSync(true);
+    if (!ok) {
+      return res.status(500).json({ success: false, error: 'Kopyalanan FFmpeg çalıştırılamadı.' });
+    }
+    const info = getLocalFfmpegInfo();
+    broadcast('status_log', { message: `Sistem FFmpeg başarıyla uygulama klasörüne kopyalandı ve etkinleştirildi (${info.version}).`, type: 'success' });
+    res.json({ success: true, info });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 router.post('/settings/toggle-alt-speed', localhostOnly, async (req, res) => {

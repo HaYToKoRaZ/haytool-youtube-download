@@ -117,11 +117,15 @@ import {
   openSubtitleTranslateModal,
   initSubtitleStyleControls,
   getCurrentSubtitles,
-  setCurrentSubtitles
+  setCurrentSubtitles,
+  isSubtitlesEnabled,
+  setSubtitlesEnabled
 } from './modules/player/subtitles.js';
 window.applySubtitlesToPlayer = applySubtitlesToPlayer;
 window.fetchVideoSubtitles = fetchVideoSubtitles;
 window.openSubtitleTranslateModal = openSubtitleTranslateModal;
+window.isSubtitlesEnabled = isSubtitlesEnabled;
+window.setSubtitlesEnabled = setSubtitlesEnabled;
 
 // Sinema Modu (Theater Mode) alt modülü
 import { initTheaterMode, toggleTheaterMode, injectTheaterModeButtonToPlyr, isTheaterMode } from './modules/theaterMode.js';
@@ -1276,7 +1280,7 @@ function updateUI(db) {
     document.documentElement.style.setProperty('--subtitle-font-size', db.settings.subtitleSize);
   }
 
-  if (typeof window.initCustomTitlebar === 'function') {
+  if (!document.fullscreenElement && typeof window.initCustomTitlebar === 'function') {
     window.initCustomTitlebar();
   }
 
@@ -3110,18 +3114,17 @@ document.addEventListener('keydown', (e) => {
             videoPlayerInstance.toggleCaptions();
           } else if (videoPlayerInstance.captions) {
             videoPlayerInstance.captions.active = !videoPlayerInstance.captions.active;
+            localStorage.setItem('haytool_subtitles_enabled', videoPlayerInstance.captions.active ? 'true' : 'false');
           }
         } else if (player) {
           const tracks = player.textTracks;
           if (tracks && tracks.length > 0) {
             const isShowing = Array.from(tracks).some(t => t.mode === 'showing');
+            const newMode = !isShowing;
             for (let i = 0; i < tracks.length; i++) {
-              if (isShowing) {
-                tracks[i].mode = 'disabled';
-              } else {
-                tracks[i].mode = i === 0 ? 'showing' : 'disabled';
-              }
+              tracks[i].mode = (i === 0 && newMode) ? 'showing' : 'disabled';
             }
+            localStorage.setItem('haytool_subtitles_enabled', newMode ? 'true' : 'false');
           }
         }
       }
@@ -5046,7 +5049,7 @@ window.updateInlinePlayerMetadata = function(videoObj) {
           'captions', 'settings', 'pip', 'fullscreen'
         ],
         settings: ['captions', 'speed', 'loop'],
-        captions: { active: true, update: true },
+        captions: { active: (localStorage.getItem('haytool_subtitles_enabled') === 'true'), update: true },
         speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] },
         youtube: {
           noCookie: false,
@@ -5059,6 +5062,14 @@ window.updateInlinePlayerMetadata = function(videoObj) {
         }
       });
       window.videoPlayerInstance = videoPlayerInstance;
+
+      // Kullanıcının altyazı açık/kapalı tercihini hafızaya al
+      videoPlayerInstance.on('captionsenabled', () => {
+        localStorage.setItem('haytool_subtitles_enabled', 'true');
+      });
+      videoPlayerInstance.on('captionsdisabled', () => {
+        localStorage.setItem('haytool_subtitles_enabled', 'false');
+      });
 
           const bindPlyrInteractions = () => {
             const containerSelector = isInline ? '#downloaded-inline-player-container' : '#player-modal';
@@ -5824,7 +5835,7 @@ function showDeleteModal(id) {
   if (fileCb) fileCb.checked = true;
 
   const isIptv = (item.platform === 'iptv') || (typeof item.id === 'string' && item.id.startsWith('iptv_')) || (typeof detectVideoPlatform === 'function' && detectVideoPlatform(item) === 'iptv');
-  const isExternalPlatform = isIptv || (item.platform && item.platform !== 'youtube') || (typeof item.id === 'string' && item.id.startsWith('ext_'));
+  const isExternalPlatform = isIptv || (item.platform && item.platform !== 'youtube') || (typeof item.id === 'string' && (item.id.startsWith('ext_') || item.id.startsWith('ws_')));
   const markWatchedContainer = document.getElementById('mark-watched-container');
   const hideLibraryContainer = document.getElementById('hide-library-container');
 

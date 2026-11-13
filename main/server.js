@@ -1175,10 +1175,17 @@ if (process.argv.length <= 2) {
       let healedMergeCount = 0;
       currentDb.history.forEach(item => {
         if (item.status === 'downloading' || item.status === 'merging') {
-          item.status = 'waiting';
-          item.speed = '';
-          item.eta = '';
-          healedCount++;
+          if (String(item.id).startsWith('ws_') || item.platform === 'webstream') {
+            item.status = 'failed';
+            item.error = 'Uygulama kapandığı için web akış indirmesi durduruldu.';
+            item.speed = '';
+            item.eta = '';
+          } else {
+            item.status = 'waiting';
+            item.speed = '';
+            item.eta = '';
+            healedCount++;
+          }
         } else if (item.status === 'merging_deferred') {
           item.status = 'pending_merge';
           item.speed = '';

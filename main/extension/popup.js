@@ -11,7 +11,25 @@ async function loadSettings() {
         BACKEND_PORT = parseInt(data.haytoolPort, 10) || 4141;
         BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
       }
-      return data || {};
+    }
+    if (chrome.storage && chrome.storage.local) {
+      const localData = await chrome.storage.local.get(['lastDownloadFormat', 'lastAudioBitrate']);
+      if (localData && localData.lastDownloadFormat) {
+        const fmtSelect = document.getElementById('sel-format');
+        const vRow = document.getElementById('row-video-quality');
+        const aRow = document.getElementById('row-audio-quality');
+        if (fmtSelect) {
+          fmtSelect.value = localData.lastDownloadFormat;
+          if (localData.lastDownloadFormat === 'audio') {
+            if (vRow) vRow.classList.add('hidden');
+            if (aRow) aRow.classList.remove('hidden');
+          }
+        }
+      }
+      if (localData && localData.lastAudioBitrate) {
+        const aSelect = document.getElementById('sel-audio-quality');
+        if (aSelect) aSelect.value = localData.lastAudioBitrate;
+      }
     }
   } catch (e) {}
   return {};
@@ -170,6 +188,19 @@ selFormat.addEventListener('change', () => {
     rowVideoQuality.classList.remove('hidden');
     rowAudioQuality.classList.add('hidden');
   }
+  try {
+    if (chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ lastDownloadFormat: selFormat.value });
+    }
+  } catch (e) {}
+});
+
+selAudioQuality.addEventListener('change', () => {
+  try {
+    if (chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ lastAudioBitrate: selAudioQuality.value });
+    }
+  } catch (e) {}
 });
 
 // Sürüm kontrolü (yalnızca popup açıldığında tek seferlik kontrol)

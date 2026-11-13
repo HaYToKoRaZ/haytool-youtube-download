@@ -281,11 +281,18 @@ namespace HaYTooLPlayer
                 window.WindowStyle = state.WpfWindowStyle;
                 window.WindowState = state.WpfWindowState;
 
-                // 5. Kaydedilen WindowChrome ve kenarlık kalınlığını geri yükle
+                // 5. Tam ekran durum bayrağını kapat
+                state.IsFullScreen = false;
+
+                // 6. Kaydedilen WindowChrome ve kenarlık kalınlığını geri yükle
                 if (state.SavedWindowChrome != null)
                 {
                     System.Windows.Shell.WindowChrome.SetWindowChrome(window, state.SavedWindowChrome);
                     state.SavedWindowChrome = null;
+                }
+                else if (window is MainWindow mainW && mainW._isCustomTitlebarActive)
+                {
+                    mainW.ApplyCustomTitlebar(true);
                 }
                 window.BorderThickness = state.SavedBorderThickness;
 
@@ -293,8 +300,6 @@ namespace HaYTooLPlayer
                 {
                     mainWin.Dispatcher.Invoke(() => mainWin.UpdateWindowPaddingForMaximized());
                 }
-
-                state.IsFullScreen = false;
             }
             catch (Exception ex)
             {

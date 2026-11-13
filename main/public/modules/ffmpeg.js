@@ -13,33 +13,57 @@ export async function checkFfmpegStatus() {
     const banner = document.getElementById('ffmpeg-info-banner');
     const statusIndicator = document.getElementById('settings-ffmpeg-status');
     const settingsBtn = document.getElementById('settings-ffmpeg-btn');
+    const syncBtn = document.getElementById('settings-ffmpeg-sync-btn');
+    const sourceBadge = document.getElementById('settings-ffmpeg-source-badge');
     const versionBadge = document.getElementById('settings-ffmpeg-version-info');
+    const detailBox = document.getElementById('settings-ffmpeg-detail-box');
     
     const isEn = langKey === 'en';
-    const isAr = langKey === 'ar';
-    const isEs = langKey === 'es';
-    const isDe = langKey === 'de';
-    const isPt = langKey === 'pt';
-    const isRu = langKey === 'ru';
 
-    let localPrefix = 'Yerel:';
-    let remotePrefix = 'Uzak:';
-    if (isEn) { localPrefix = 'Local:'; remotePrefix = 'Remote:'; }
-    else if (isEs) { localPrefix = 'Local:'; remotePrefix = 'Remoto:'; }
-    else if (isDe) { localPrefix = 'Lokal:'; remotePrefix = 'Remote:'; }
-    else if (isPt) { localPrefix = 'Local:'; remotePrefix = 'Remoto:'; }
-    else if (isAr) { localPrefix = 'المحلي:'; remotePrefix = 'البعيد:'; }
-    else if (isRu) { localPrefix = 'Локально:'; remotePrefix = 'Удаленно:'; }
+    if (sourceBadge) {
+      if (data.activeSource === 'app') {
+        sourceBadge.style.display = 'inline-block';
+        sourceBadge.innerText = t.ffmpeg_source_app || 'Uygulama İçi (Aktif)';
+        sourceBadge.style.color = '#10b981';
+        sourceBadge.style.background = 'rgba(16, 185, 129, 0.12)';
+        sourceBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+      } else if (data.activeSource === 'system') {
+        sourceBadge.style.display = 'inline-block';
+        sourceBadge.innerText = t.ffmpeg_source_system || 'Sistem Geneli (WinGet / PATH)';
+        sourceBadge.style.color = '#38bdf8';
+        sourceBadge.style.background = 'rgba(56, 189, 248, 0.12)';
+        sourceBadge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+      } else {
+        sourceBadge.style.display = 'none';
+      }
+    }
 
     if (versionBadge) {
       if (data.installed && data.localVersion) {
         versionBadge.style.display = 'inline-block';
-        versionBadge.innerText = `${localPrefix} ${data.localVersion} | ${remotePrefix} ${data.remoteVersion || 'v6.1'}`;
-      } else if (data.remoteVersion) {
-        versionBadge.style.display = 'inline-block';
-        versionBadge.innerText = `${remotePrefix} ${data.remoteVersion}`;
+        versionBadge.innerText = `v${data.localVersion.replace(/^v/i, '')}`;
       } else {
         versionBadge.style.display = 'none';
+      }
+    }
+
+    if (detailBox) {
+      const appText = data.appFfmpeg?.exists 
+        ? `<span style="color:#10b981;">📁 ${isEn ? 'App Dir' : 'Uygulama İçi'}: v${(data.appFfmpeg.version || '').replace(/^v/i, '')} (${data.appFfmpeg.path})</span>` 
+        : `<span style="color:var(--text-muted);">📁 ${isEn ? 'App Dir' : 'Uygulama İçi'}: ${isEn ? 'Not found' : 'Klasörde yok'}</span>`;
+      const sysText = data.systemFfmpeg?.exists 
+        ? `<span style="color:#38bdf8;">💻 ${isEn ? 'System (WinGet)' : 'Sistem (WinGet)'}: v${(data.systemFfmpeg.version || '').replace(/^v/i, '')} (${data.systemFfmpeg.path})</span>` 
+        : `<span style="color:var(--text-muted);">💻 ${isEn ? 'System' : 'Sistem'}: ${isEn ? 'Not in PATH' : 'PATH üzerinde yok'}</span>`;
+      detailBox.innerHTML = `${appText} &nbsp;|&nbsp; ${sysText}`;
+      detailBox.style.display = 'block';
+    }
+
+    if (syncBtn) {
+      if (data.systemFfmpeg?.exists && data.activeSource !== 'app') {
+        syncBtn.style.display = 'inline-block';
+        syncBtn.innerText = t.ffmpeg_btn_sync || 'Sistemdekini Eşitle';
+      } else {
+        syncBtn.style.display = 'none';
       }
     }
 
@@ -50,7 +74,7 @@ export async function checkFfmpegStatus() {
         statusIndicator.className = 'ffmpeg-status-indicator installed';
       }
       if (settingsBtn) {
-        settingsBtn.innerText = t.ffmpeg_btn_reinstall || 'Yeniden Kur';
+        settingsBtn.innerText = t.ffmpeg_btn_update || 'En Son Sürümü İndir';
       }
     } else {
       if (banner && localStorage.getItem('ffmpeg_banner_dismissed') !== 'true') {
@@ -84,6 +108,39 @@ export async function checkFfmpegStatus() {
     }
   } catch (err) {
     console.error('Error checking FFmpeg status:', err);
+  }
+}
+
+export async function syncFfmpegFromSystem() {
+  const syncBtn = document.getElementById('settings-ffmpeg-sync-btn');
+  const originalText = syncBtn ? syncBtn.innerText : '';
+  if (syncBtn) {
+    syncBtn.disabled = true;
+    syncBtn.innerText = 'Kopyalanıyor...';
+  }
+  try {
+    const res = await fetch('/api/ffmpeg/sync-from-system', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      if (typeof window.showToast === 'function') {
+        window.showToast('Sistem FFmpeg başarıyla uygulama klasörüne kopyalandı ve aktif edildi.', 'success');
+      }
+      await checkFfmpegStatus();
+    } else {
+      if (typeof window.showToast === 'function') {
+        window.showToast(data.error || 'FFmpeg kopyalanamadı.', 'error');
+      }
+    }
+  } catch (err) {
+    console.error('Error syncing FFmpeg:', err);
+    if (typeof window.showToast === 'function') {
+      window.showToast(err.message, 'error');
+    }
+  } finally {
+    if (syncBtn) {
+      syncBtn.disabled = false;
+      syncBtn.innerText = originalText;
+    }
   }
 }
 
@@ -169,6 +226,7 @@ export function initFfmpegEvents() {
   const bannerInstallBtn = document.getElementById('ffmpeg-banner-install-btn');
   const bannerCloseBtn = document.getElementById('ffmpeg-banner-close-btn');
   const settingsFfmpegBtn = document.getElementById('settings-ffmpeg-btn');
+  const settingsFfmpegSyncBtn = document.getElementById('settings-ffmpeg-sync-btn');
   const closeFfmpegModalBtn = document.getElementById('close-ffmpeg-modal-btn');
   const ffmpegModalCloseActionBtn = document.getElementById('ffmpeg-modal-close-action-btn');
   const banner = document.getElementById('ffmpeg-info-banner');
@@ -188,6 +246,10 @@ export function initFfmpegEvents() {
     settingsFfmpegBtn.addEventListener('click', startFfmpegDownload);
   }
 
+  if (settingsFfmpegSyncBtn) {
+    settingsFfmpegSyncBtn.addEventListener('click', syncFfmpegFromSystem);
+  }
+
   if (closeFfmpegModalBtn) {
     closeFfmpegModalBtn.addEventListener('click', closeFfmpegModal);
   }
@@ -199,6 +261,7 @@ export function initFfmpegEvents() {
 
 // Global window bindings for inline HTML or SSE handlers
 window.checkFfmpegStatus = checkFfmpegStatus;
+window.syncFfmpegFromSystem = syncFfmpegFromSystem;
 window.openFfmpegModal = openFfmpegModal;
 window.closeFfmpegModal = closeFfmpegModal;
 window.updateFfmpegInstallUI = updateFfmpegInstallUI;

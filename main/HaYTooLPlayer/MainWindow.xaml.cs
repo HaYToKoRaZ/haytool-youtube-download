@@ -20,7 +20,7 @@ namespace HaYTooLPlayer
         private string? _unloadedUrl = null;
         private bool _uiUnloaded = false;
         private string? _pendingPlayVideoId = null;
-        private bool _isCustomTitlebarActive = false;
+        internal bool _isCustomTitlebarActive = false;
 
         public MainWindow()
         {
@@ -142,21 +142,35 @@ namespace HaYTooLPlayer
             Dispatcher.Invoke(() =>
             {
                 _isCustomTitlebarActive = enable;
+
+                // Tam ekrandayken WindowChrome ve kenarlık manipülasyonu yapılamaz (video tam ekranının bozulmasını önler)
+                if (_webFullScreenState.IsFullScreen)
+                {
+                    return;
+                }
+
+                bool hasChrome = System.Windows.Shell.WindowChrome.GetWindowChrome(this) != null;
                 if (enable)
                 {
-                    var chrome = new System.Windows.Shell.WindowChrome
+                    if (!hasChrome)
                     {
-                        CaptionHeight = 0,
-                        CornerRadius = new CornerRadius(0),
-                        GlassFrameThickness = new Thickness(0),
-                        ResizeBorderThickness = new Thickness(6),
-                        UseAeroCaptionButtons = false
-                    };
-                    System.Windows.Shell.WindowChrome.SetWindowChrome(this, chrome);
+                        var chrome = new System.Windows.Shell.WindowChrome
+                        {
+                            CaptionHeight = 0,
+                            CornerRadius = new CornerRadius(0),
+                            GlassFrameThickness = new Thickness(0),
+                            ResizeBorderThickness = new Thickness(6),
+                            UseAeroCaptionButtons = false
+                        };
+                        System.Windows.Shell.WindowChrome.SetWindowChrome(this, chrome);
+                    }
                 }
                 else
                 {
-                    System.Windows.Shell.WindowChrome.SetWindowChrome(this, null);
+                    if (hasChrome)
+                    {
+                        System.Windows.Shell.WindowChrome.SetWindowChrome(this, null);
+                    }
                 }
                 UpdateWindowPaddingForMaximized();
             });
@@ -164,6 +178,17 @@ namespace HaYTooLPlayer
 
         public void UpdateWindowPaddingForMaximized()
         {
+            if (_webFullScreenState.IsFullScreen)
+            {
+                this.BorderThickness = new Thickness(0);
+                if (webViewBorder != null)
+                {
+                    webViewBorder.Margin = new Thickness(0);
+                    webViewBorder.BorderThickness = new Thickness(0);
+                }
+                return;
+            }
+
             if (_isCustomTitlebarActive && System.Windows.Shell.WindowChrome.GetWindowChrome(this) != null)
             {
                 if (this.WindowState == WindowState.Maximized)

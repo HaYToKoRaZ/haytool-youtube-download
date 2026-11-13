@@ -348,7 +348,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         `;
       }
 
-      if (item.status === 'completed' && item.duration !== 'live') {
+      if (['completed', 'failed', 'ignored', 'pending_merge'].includes(item.status) && item.duration !== 'live') {
         actionsHtml += `
           <button class="btn-icon video-action-delete" onclick="event.stopPropagation(); (window.showDeleteModal || showDeleteModal)('${item.id}')" title="${t.btn_delete_history || 'Geçmişten/Diskten Sil'}" aria-label="${t.btn_delete_history || 'Geçmişten/Diskten Sil'}">
             <i data-lucide="trash-2"></i>
@@ -570,7 +570,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
             <input type="checkbox" class="history-bulk-hide-cb" data-id="${item.id}" ${isHistorySelected ? 'checked' : ''} onchange="updateHistoryBulkHideCount(event)" onclick="event.stopPropagation()">
           </label>
           ` : ''}
-          ${(item.status === 'completed' && item.duration !== 'live') ? `
+          ${(['completed', 'failed', 'ignored', 'pending_merge'].includes(item.status) && item.duration !== 'live') ? `
             <button class="thumb-hover-action-btn thumb-action-delete" onclick="event.stopPropagation(); (window.showDeleteModal || showDeleteModal)('${item.id}')" title="${t.btn_delete_history || 'Geçmişten/Diskten Sil'}" aria-label="Sil">
               <i data-lucide="trash-2"></i>
             </button>

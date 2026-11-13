@@ -42,6 +42,13 @@ export function applyLanguage(lang) {
     if (val) elem.textContent = val;
   });
 
+  // Tüm [data-i18n-placeholder] öğelerini otomatik yerelleştir
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(elem => {
+    const key = elem.getAttribute('data-i18n-placeholder');
+    const val = t[key] || (translations.tr && translations.tr[key]);
+    if (val) elem.placeholder = val;
+  });
+
   // Header Navigasyon ve Başlıklar
   // elQuery('.brand-text span', 'premium_automation');
   elQuery('button[data-tab="history"] span', 'tab_library');

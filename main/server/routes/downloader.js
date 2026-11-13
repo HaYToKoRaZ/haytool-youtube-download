@@ -10,6 +10,7 @@ import { fetchVideoDuration, resolveMissingDurations } from '../services/rss.js'
 import { addTerminalLog } from '../services/sse.js';
 import { localhostOnly } from '../middleware/security.js';
 import { getTempSpaceInfo, isTempExtractionError } from '../services/diskGuard.js';
+import { extractStreamFromUrl } from '../services/streamExtractor.js';
 
 export const router = express.Router();
 
@@ -173,12 +174,38 @@ router.post('/download', localhostOnly, async (req, res) => {
   let { title, channelName, channelId } = req.body;
   let duration = req.body.duration || '';
   let thumbnail = req.body.thumbnail || '';
+  const incomingPlatform = req.body.platform || '';
+  const incomingReferer = req.body.referer || '';
 
   let targetVideoId = extractVideoId(url);
   let isDirectUrl = false;
   let finalDownloadUrl = '';
+  let effectiveReferer = incomingReferer;
 
-  if (!targetVideoId) {
+  const isWebStreamRequest = incomingPlatform === 'webstream' || (url && (url.includes('.m3u8') || url.includes('.mpd')));
+
+  if (isWebStreamRequest) {
+    isDirectUrl = true;
+    finalDownloadUrl = url;
+
+    // Eğer gönderilen bağlantı doğrudan bir akış değil de embed veya web sayfası ise çözümle
+    if (!finalDownloadUrl.includes('.m3u8') && !finalDownloadUrl.includes('.mp4')) {
+      try {
+        const extracted = await extractStreamFromUrl(finalDownloadUrl);
+        const resolvedDirect = extracted?.directStreamUrl || (extracted?.streamType !== 'embed' ? extracted?.streamUrl : null);
+        if (extracted && extracted.success && resolvedDirect) {
+          finalDownloadUrl = resolvedDirect;
+          effectiveReferer = extracted.streamReferer || extracted.referer || effectiveReferer;
+          if (!title || title === 'Web Video' || title.startsWith('http')) {
+            title = extracted.title;
+          }
+        }
+      } catch (_) {}
+    }
+
+    const hashId = crypto.createHash('md5').update(finalDownloadUrl).digest('hex').slice(0, 11);
+    targetVideoId = 'ws_' + hashId;
+  } else if (!targetVideoId) {
     // 11 haneli salt ID mi?
     if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
       targetVideoId = url;
@@ -203,7 +230,10 @@ router.post('/download', localhostOnly, async (req, res) => {
   let defaultChannelName = 'Manuel İndirme';
   let detectedPlatform = 'youtube';
   const lowerUrl = (url || '').toLowerCase();
-  if (lowerUrl.includes('tiktok.com')) {
+  if (isWebStreamRequest) {
+    defaultChannelName = 'Web Dizi & Film';
+    detectedPlatform = 'webstream';
+  } else if (lowerUrl.includes('tiktok.com')) {
     defaultChannelName = 'TikTok';
     detectedPlatform = 'tiktok';
   } else if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) {
@@ -255,8 +285,8 @@ router.post('/download', localhostOnly, async (req, res) => {
         }
       }
       
-      // Eğer hâlâ başlık yoksa veya doğrudan URL ise yt-dlp ile çözmeyi dene
-      if (!title || !channelName || title.startsWith('http') || !duration) {
+      // Eğer hâlâ başlık yoksa veya doğrudan URL ise yt-dlp ile çözmeyi dene (webstream hariç)
+      if (!isWebStreamRequest && (!title || !channelName || title.startsWith('http') || !duration)) {
         metadata = await fetchMetadataViaYtdlp(isDirectUrl ? url : targetVideoId, isDirectUrl);
         if (metadata) {
           title = metadata.title || title;
@@ -320,9 +350,10 @@ router.post('/download', localhostOnly, async (req, res) => {
     channelName: channelName || defaultChannelName,
     url: finalDownloadUrl,
     webUrl: url || finalDownloadUrl,
+    referer: effectiveReferer || incomingReferer || url || '',
     platform: detectedPlatform,
     publishedAt: resolvedPublishedAt || new Date().toISOString(),
-    skipChannelFolder: false, // 0- klasörlerine düzgün dağıtılması için false
+    skipChannelFolder: (detectedPlatform === 'webstream'), // Web dizi ve filmleri tek temiz klasörde toplamak için
     customFormat: customFormat,
     audioBitrate: audioBitrate,
     isStandalone: true,

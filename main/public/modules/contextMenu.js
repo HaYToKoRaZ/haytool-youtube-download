@@ -450,27 +450,34 @@ export function initContextMenu() {
       }
     }
 
-    // Fare Orta Tuşu (Button 1 / Tekerlek Tıklaması) -> Oynatılan videoyu tam ekran yap (F tuşu gibi)
+    // Fare Orta Tuşu (Button 1 / Tekerlek Tıklaması) -> SADECE masaüstü uygulamasında (WPF / WebView2) tam ekran yap
+    // Normal web tarayıcılarında (Chrome/Edge vb.) varsayılan tarayıcı davranışını bozmamak için devre dışıdır
     if (e.button === 1) {
-      // Yazı alanları (input, textarea, select) veya context menu üzerinde değilse
-      const isInput = e.target.closest('input, textarea, select, .custom-context-menu');
-      if (!isInput) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (typeof window.toggleActiveVideoFullscreen === 'function') {
-          window.toggleActiveVideoFullscreen();
-        } else if (typeof toggleAppFullscreen === 'function') {
-          toggleAppFullscreen();
+      const isDesktop = !!(window.__IS_HAYTOOL_DESKTOP__ || (typeof window.chrome !== 'undefined' && typeof window.chrome.webview !== 'undefined'));
+      if (isDesktop) {
+        // Yazı alanları (input, textarea, select) veya context menu üzerinde değilse
+        const isInput = e.target.closest('input, textarea, select, .custom-context-menu');
+        if (!isInput) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof window.toggleActiveVideoFullscreen === 'function') {
+            window.toggleActiveVideoFullscreen();
+          } else if (typeof toggleAppFullscreen === 'function') {
+            toggleAppFullscreen();
+          }
         }
       }
     }
   }, true);
 
-  // 3. Tarayıcının otomatik kaydırma (autoscroll) dairesini engellemek için auxclick
+  // 3. Tarayıcının otomatik kaydırma (autoscroll) dairesini SADECE masaüstü uygulamasında engelle
   window.addEventListener('auxclick', (e) => {
     if (e.button === 1) {
-      e.preventDefault();
-      e.stopPropagation();
+      const isDesktop = !!(window.__IS_HAYTOOL_DESKTOP__ || (typeof window.chrome !== 'undefined' && typeof window.chrome.webview !== 'undefined'));
+      if (isDesktop) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     }
   }, true);
 

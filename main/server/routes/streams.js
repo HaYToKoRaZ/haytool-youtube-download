@@ -15,7 +15,7 @@ import { readDb, findVideoFileInDownloadDir } from '../database.js';
 import { localhostOnly } from '../middleware/security.js';
 import { generateVideoSummary, generateCommentsSummary, getLmStudioModels, checkLlamaEngineStatus, downloadAndInstallLlamaEngine, scanGgufModels, stopLlamaEngine, startRecommendedModelDownload, getRecommendedModelDownloadStatus, cancelRecommendedModelDownload } from '../services/aiSummary.js';
 import { getTtsStatus, downloadPiperEngine, downloadPiperVoice, speakText, stopTtsEngine, VOICE_CATALOG, getTtsCacheDir } from '../services/tts.js';
-import { extractStreamFromUrl } from '../services/streamExtractor.js';
+import { extractStreamFromUrl, searchWebStreams, dumpPageHtmlWithYtdlp } from '../services/streamExtractor.js';
 
 export const router = express.Router();
 
@@ -1625,16 +1625,65 @@ router.post('/video/:videoId/vote', localhostOnly, async (req, res) => {
 // Türkçe Açıklama: Harici web sitelerindeki (Dizipal, dizi/film siteleri) video akışını (.m3u8, .mp4, embed) çözümler.
 router.post('/tools/extract-web-stream', localhostOnly, async (req, res) => {
   try {
-    const { url } = req.body || {};
+    const { url, method } = req.body || {};
     if (!url) {
       return res.status(400).json({ success: false, error: 'Lütfen geçerli bir web sitesi veya dizi bağlantısı girin.' });
     }
-    const result = await extractStreamFromUrl(url);
+    const result = await extractStreamFromUrl(url, method);
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// Türkçe Açıklama: Desteklenen kaynak sitelerde (Dizipal, Jetfilmizle, vb.) film/dizi araması yapar.
+router.post('/tools/webstream-search', localhostOnly, async (req, res) => {
+  try {
+    const { query, source } = req.body || {};
+    if (!query || typeof query !== 'string' || query.trim().length < 2) {
+      return res.status(400).json({ success: false, error: 'Lütfen aramak için en az 2 karakter girin.' });
+    }
+    const results = await searchWebStreams(query.trim(), source || 'all');
+    res.json({ success: true, query: query.trim(), source: source || 'all', results });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+function resolveRelativeUrl(rawRel, base) {
+  try {
+    return new URL(rawRel.trim(), base).href;
+  } catch {
+    return rawRel.trim();
+  }
+}
+
+function dumpVttWithYtdlp(url, referer = null) {
+  return new Promise((resolve) => {
+    try {
+      const args = ['-o', '-', '--no-warnings', '--no-check-certificates'];
+      if (referer) args.push('--referer', referer);
+      args.push(url);
+      const proc = spawn(ytdlpPath, args);
+      let stdout = '';
+      const timer = setTimeout(() => {
+        try { proc.kill(); } catch {}
+        resolve(null);
+      }, 10000);
+      proc.stdout.on('data', (d) => { stdout += d.toString(); });
+      proc.on('close', (code) => {
+        clearTimeout(timer);
+        resolve(code === 0 && stdout.length > 0 ? stdout : null);
+      });
+      proc.on('error', () => {
+        clearTimeout(timer);
+        resolve(null);
+      });
+    } catch {
+      resolve(null);
+    }
+  });
+}
 
 // Türkçe Açıklama: Referer veya CORS korumalı video akış parçalarını ve m3u8 bildirimlerini tarayıcıya güvenle ileten proxy köprüsü.
 router.get('/tools/web-stream-proxy', async (req, res) => {
@@ -1649,25 +1698,69 @@ router.get('/tools/web-stream-proxy', async (req, res) => {
     if (referer) fetchHeaders['Referer'] = referer;
     if (req.headers.range) fetchHeaders['Range'] = req.headers.range;
 
-    const response = await fetch(targetUrl, { headers: fetchHeaders });
+    let response = null;
+    try {
+      response = await fetch(targetUrl, { headers: fetchHeaders });
+    } catch {}
+
+    // Cloudflare / 403 korumalı VTT altyazıları için yt-dlp ile doğrudan dump al
+    if ((!response || !response.ok) && (targetUrl.includes('.vtt') || targetUrl.includes('/subs.') || targetUrl.includes('subs.rapidvid.org'))) {
+      try {
+        const vttData = await dumpVttWithYtdlp(targetUrl, referer);
+        if (vttData) {
+          res.status(200);
+          res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          return res.send(vttData);
+        }
+      } catch {}
+    }
+
+    if (!response) {
+      return res.status(502).send('Kaynak sunucuya erişilemedi.');
+    }
+
     res.status(response.status);
 
     const contentType = response.headers.get('content-type');
     if (contentType) res.setHeader('Content-Type', contentType);
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // Eğer m3u8 manifest ise içerisindeki göreceli URI linklerini proxy formatına dönüştür
-    if (targetUrl.includes('.m3u8') || (contentType && contentType.includes('mpegurl'))) {
+    // Eğer m3u8 manifest, playlist veya master/sublist ise içerisindeki URI ve chunk linklerini proxy formatına dönüştür
+    const isManifestCandidate = targetUrl.includes('.m3u8') || targetUrl.includes('master.txt') || targetUrl.includes('sublist') || targetUrl.includes('.txt') || (contentType && (contentType.includes('mpegurl') || contentType.includes('application/x-mpegURL')));
+
+    if (isManifestCandidate) {
       const text = await response.text();
-      const baseUrl = targetUrl.substring(0, targetUrl.lastIndexOf('/') + 1);
-      const rewritten = text.replace(/^(?!#)(?!\s*$)(.+)$/gm, (line) => {
-        let fullLine = line.trim();
-        if (!fullLine.startsWith('http')) {
-          fullLine = baseUrl + fullLine;
-        }
-        return `/api/tools/web-stream-proxy?url=${encodeURIComponent(fullLine)}&referer=${encodeURIComponent(referer)}`;
-      });
-      return res.send(rewritten);
+      // Gerçek bir HLS manifest içeriği mi kontrol et
+      if (text.includes('#EXTM3U') || text.includes('#EXT-X-')) {
+        // 1. URI="..." etiketlerini rewrite et (#EXT-X-MEDIA ses/altyazı, #EXT-X-KEY, #EXT-X-MAP vb.)
+        let rewritten = text.replace(/URI=["']([^"']+)["']/g, (match, uri) => {
+          const fullUri = resolveRelativeUrl(uri, targetUrl);
+          return `URI="/api/tools/web-stream-proxy?url=${encodeURIComponent(fullUri)}&referer=${encodeURIComponent(referer)}"`;
+        });
+
+        // 2. Segment veya alt playlist satırlarını rewrite et (# ile başlamayan satırlar)
+        rewritten = rewritten.replace(/^(?!#)(?!\s*$)(.+)$/gm, (line) => {
+          const fullLine = resolveRelativeUrl(line, targetUrl);
+          return `/api/tools/web-stream-proxy?url=${encodeURIComponent(fullLine)}&referer=${encodeURIComponent(referer)}`;
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        return res.send(rewritten);
+      }
+
+      // VTT altyazı içeriği
+      if (text.includes('WEBVTT') || targetUrl.includes('.vtt') || (contentType && contentType.includes('vtt'))) {
+        res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
+        return res.send(text);
+      }
+    }
+
+    // Doğrudan .vtt istekleri için
+    if (targetUrl.includes('.vtt') || (contentType && contentType.includes('vtt'))) {
+      const vttText = await response.text();
+      res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
+      return res.send(vttText);
     }
 
     // Video segmentleri / ts dosyaları için binary pipe
@@ -1675,6 +1768,398 @@ router.get('/tools/web-stream-proxy', async (req, res) => {
     res.send(Buffer.from(arrayBuffer));
   } catch (err) {
     res.status(500).send('Proxy hatası: ' + err.message);
+  }
+});
+
+function escapeHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[m]);
+}
+
+/**
+ * Kaynak sitelerde (Dizipal vb.) uygulama içinde rahatça gezinmek, tıklanan sayfa URL'sini senkronize etmek
+ * ve target="_blank" veya X-Frame-Options kısıtlamalarını aşmak için web browsing proxy'si sunar.
+ * Cloudflare bot koruması (403 / Turnstile) tespit edilirse yt-dlp ile bypass dener veya bilgilendirme kartı sunar.
+ * 
+ * @name GET /api/tools/webstream-browse-proxy
+ */
+router.get('/tools/webstream-browse-proxy', localhostOnly, async (req, res) => {
+  const targetUrl = req.query.url;
+  if (!targetUrl || typeof targetUrl !== 'string') {
+    return res.status(400).send('URL parametresi gereklidir.');
+  }
+
+  try {
+    const u = new URL(targetUrl);
+    const origin = u.origin;
+    let html = null;
+    let finalUrl = targetUrl;
+    let isCloudflareBlocked = false;
+
+    // 1. Önce hızlı fetch ile sayfayı çekmeyi dene
+    try {
+      const response = await fetch(targetUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+          'Referer': origin,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
+        },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(8000)
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+
+      // Eğer HTML değilse (resim, css, js, font vb.) doğrudan ilet
+      if (!contentType.includes('text/html')) {
+        res.setHeader('Content-Type', contentType);
+        const buffer = await response.arrayBuffer();
+        return res.send(Buffer.from(buffer));
+      }
+
+      finalUrl = response.url || targetUrl;
+      const rawText = await response.text();
+
+      // Cloudflare bot/turnstile veya 403/503 engeli kontrolü
+      if (response.status === 403 || 
+          response.status === 503 ||
+          rawText.includes('<title>Just a moment...</title>') ||
+          rawText.includes('cf-turnstile') ||
+          rawText.includes('challenge-platform')) {
+        isCloudflareBlocked = true;
+      } else {
+        html = rawText;
+      }
+    } catch (fetchErr) {
+      isCloudflareBlocked = true;
+    }
+
+    // 2. Cloudflare bot koruması algılandıysa, yt-dlp motoru üzerinden bypass etmeyi dene
+    if (isCloudflareBlocked || !html) {
+      try {
+        const ytdlpHtml = await dumpPageHtmlWithYtdlp(targetUrl, origin);
+        if (ytdlpHtml && ytdlpHtml.length > 1000 && !ytdlpHtml.includes('<title>Just a moment...</title>')) {
+          html = ytdlpHtml;
+          finalUrl = targetUrl;
+          isCloudflareBlocked = false;
+        }
+      } catch (ytdlpErr) {}
+    }
+
+    // 3. Eğer her iki yöntem de Cloudflare tarafından kilitlendiyse, kullanıcıya şık ve açıklayıcı yönlendirme kartı sun
+    if (isCloudflareBlocked || !html) {
+      const cardHtml = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Cloudflare Koruması - HaYTooL</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+      padding: 24px;
+    }
+    .card {
+      background: #161b22;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      max-width: 540px;
+      width: 100%;
+      padding: 32px 28px;
+      text-align: center;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+    }
+    .icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px auto;
+      border-radius: 50%;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #f59e0b;
+      font-size: 26px;
+    }
+    h2 {
+      margin: 0 0 10px 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #f0f6fc;
+    }
+    p {
+      margin: 0 0 18px 0;
+      font-size: 0.9rem;
+      color: #8b949e;
+      line-height: 1.5;
+    }
+    .tip-box {
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 22px;
+      text-align: left;
+      font-size: 0.84rem;
+      color: #bae6fd;
+      line-height: 1.5;
+    }
+    .tip-box strong { color: #38bdf8; }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: #0284c7;
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #0369a1;
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #e6edf3;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+    .url-badge {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🛡️</div>
+    <h2>Cloudflare Koruması Algılandı</h2>
+    <div class="url-badge">${escapeHtml(targetUrl)}</div>
+    <p>Bu kaynak web sitesi, robot ve iframe engelleme (Turnstile / Bot Fight Mode) ile korunmaktadır. Doğrudan uygulama içi pencerede gezintiye izin vermemektedir.</p>
+    
+    <div class="tip-box">
+      <strong>💡 En Kararlı ve Hızlı Yöntem:</strong><br>
+      1. Aşağıdaki butona basarak siteyi <strong>normal tarayıcınızda</strong> açın.<br>
+      2. İzlemek istediğiniz filmi veya diziyi başlatın.<br>
+      3. <strong>HaYTooL Tarayıcı Eklentisi</strong> simgesine tıklayın; video anında HaYTooL'da açılacaktır.
+    </div>
+
+    <div class="btn-group">
+      <button type="button" class="btn btn-primary" onclick="openExternal()">
+        🌐 Tarayıcıda Aç
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="copyLink()">
+        📋 Adresi Kopyala
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="window.location.reload()">
+        🔄 Yeniden Dene
+      </button>
+    </div>
+  </div>
+
+  <script>
+    var currentUrl = ${JSON.stringify(targetUrl)};
+    try {
+      window.parent.postMessage({ type: 'HAYTOOL_BROWSE_NAVIGATED', url: currentUrl }, '*');
+    } catch(e) {}
+
+    function openExternal() {
+      try {
+        window.parent.postMessage({ type: 'HAYTOOL_OPEN_BROWSER', url: currentUrl }, '*');
+      } catch(e) {}
+    }
+
+    function copyLink() {
+      navigator.clipboard.writeText(currentUrl).then(function() {
+        alert('Bağlantı panoya kopyalandı!');
+      }).catch(function() {
+        prompt('Bağlantıyı kopyalayabilirsiniz:', currentUrl);
+      });
+    }
+  </script>
+</body>
+</html>
+      `;
+      res.removeHeader('X-Frame-Options');
+      res.removeHeader('Content-Security-Policy');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(cardHtml);
+    }
+
+    // 4. HTML temizleme ve enjeksiyon işlemleri
+    res.removeHeader('X-Frame-Options');
+    res.removeHeader('Content-Security-Policy');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
+    // Mevcut <base> etiketlerini ve güvenlik meta etiketlerini temizle
+    html = html.replace(/<base[^>]*>/gi, '');
+    html = html.replace(/<meta[^>]*http-equiv=["'](?:Content-Security-Policy|X-Frame-Options)["'][^>]*>/gi, '');
+
+    // Frame-buster betiklerini etkisiz hale getir
+    html = html.replace(/window\.top\s*!==?\s*window\.self/gi, 'false');
+    html = html.replace(/top\.location\s*=/gi, 'window.location =');
+
+    const baseHrefTag = `<base href="${finalUrl}">`;
+    const injectedScript = `
+<script>
+(function() {
+  var realParent = window.parent;
+  var currentUrl = ${JSON.stringify(finalUrl)};
+  var proxyOrigin = window.location.origin;
+
+  // İstenmeyen reklam popuplarını engelle
+  try {
+    window.open = function() { return null; };
+  } catch(e) {}
+
+  function reportNav(url) {
+    if (!url) return;
+    try {
+      realParent.postMessage({ type: 'HAYTOOL_BROWSE_NAVIGATED', url: url }, '*');
+    } catch(e) {}
+  }
+  reportNav(currentUrl);
+
+  function wrapProxyUrl(rawHref) {
+    if (!rawHref) return rawHref;
+    try {
+      var absolute = new URL(rawHref, currentUrl).href;
+      return proxyOrigin + '/api/tools/webstream-browse-proxy?url=' + encodeURIComponent(absolute);
+    } catch(e) {
+      return rawHref;
+    }
+  }
+
+  function sanitizeAllLinks() {
+    try {
+      document.querySelectorAll('a').forEach(function(a) {
+        a.removeAttribute('target');
+        var href = a.getAttribute('href');
+        if (href && !href.startsWith('#') && !href.startsWith('javascript:') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
+          if (!a.hasAttribute('data-haytool-orig-href')) {
+            var fullHref = a.href;
+            if (!fullHref.includes('webstream-browse-proxy?url=')) {
+              a.setAttribute('data-haytool-orig-href', fullHref);
+              a.href = wrapProxyUrl(fullHref);
+            }
+          }
+        }
+      });
+    } catch(e) {}
+  }
+
+  document.addEventListener('DOMContentLoaded', sanitizeAllLinks);
+
+  var observer = new MutationObserver(function() {
+    sanitizeAllLinks();
+  });
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true });
+  } else {
+    document.addEventListener('DOMContentLoaded', function() {
+      if (document.body) observer.observe(document.body, { childList: true, subtree: true });
+    });
+  }
+
+  // Tıklanan her linki anında yakala ve proxy içinde yönlendir
+  document.addEventListener('click', function(e) {
+    var a = e.target.closest('a');
+    if (!a) {
+      var card = e.target.closest('[data-href], [data-url]');
+      if (card) {
+        var dUrl = card.getAttribute('data-href') || card.getAttribute('data-url');
+        if (dUrl && !dUrl.startsWith('#') && !dUrl.startsWith('javascript:')) {
+          e.preventDefault();
+          e.stopPropagation();
+          var absUrl = new URL(dUrl, currentUrl).href;
+          reportNav(absUrl);
+          window.location.href = wrapProxyUrl(absUrl);
+        }
+      }
+      return;
+    }
+
+    a.removeAttribute('target');
+    var href = a.getAttribute('href');
+    if (!href || href === '#' || href.startsWith('javascript:')) return;
+
+    var orig = a.getAttribute('data-haytool-orig-href') || href;
+    if (orig.includes('/api/tools/webstream-browse-proxy?url=')) {
+      try {
+        var u = new URL(orig, proxyOrigin);
+        orig = u.searchParams.get('url') || orig;
+      } catch(err) {}
+    }
+
+    var absTarget;
+    try {
+      absTarget = new URL(orig, currentUrl).href;
+    } catch(err) {
+      return;
+    }
+
+    reportNav(absTarget);
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = wrapProxyUrl(absTarget);
+  }, true);
+})();
+</script>
+`;
+
+    // <head> etiketinin hemen ardına enjekte et, yoksa başına ekle
+    const headInjection = baseHrefTag + '\n' + injectedScript;
+    if (html.includes('<head>')) {
+      html = html.replace('<head>', '<head>' + headInjection);
+    } else if (html.includes('<html>')) {
+      html = html.replace('<html>', '<html><head>' + headInjection + '</head>');
+    } else {
+      html = headInjection + html;
+    }
+
+    res.send(html);
+  } catch (err) {
+    res.status(500).send(`<html><body style="background:#111;color:#f87171;font-family:sans-serif;padding:30px;"><h3>Gezinme Hatası</h3><p>${escapeHtml(err.message)}</p></body></html>`);
   }
 });
 

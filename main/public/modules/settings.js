@@ -2117,6 +2117,17 @@ export function applyCustomTitlebarMode(enabled) {
   document.body.classList.toggle('custom-titlebar-active', shouldActivate);
 
   if (isDesktop) {
+    // Tam ekranda video oynatılıyorsa native başlık çubuğu köprüsünü çağırma (tam ekranın bozulmasını önler)
+    if (document.fullscreenElement) {
+      return;
+    }
+
+    // Durum değişmediyse WPF köprüsünü gereksiz yere tekrar tekrar tetikleme
+    if (window._lastTitlebarBridgeState === !!enabled) {
+      return;
+    }
+    window._lastTitlebarBridgeState = !!enabled;
+
     try {
       if (window.chrome?.webview?.hostObjects?.playerBridge?.setCustomTitlebar) {
         window.chrome.webview.hostObjects.playerBridge.setCustomTitlebar(!!enabled);
@@ -2136,6 +2147,11 @@ export function initCustomTitlebar() {
   const customTitlebarEnabled = !!(window.localDb?.settings?.customTitlebar);
   const chk = document.getElementById('settings-custom-titlebar');
   const row = chk ? chk.closest('.settings-row, .setting-item') : null;
+
+  // Tam ekranda video oynatılıyorsa arayüz yeniden render edilirken başlık çubuğunu sıfırlama
+  if (document.fullscreenElement) {
+    return;
+  }
 
   if (!isDesktop) {
     if (chk) chk.disabled = true;
@@ -2223,6 +2239,18 @@ export function initCustomTitlebar() {
   }
 }
 window.initCustomTitlebar = initCustomTitlebar;
+
+if (typeof document !== 'undefined' && !document._hasTitlebarFullscreenListener) {
+  document._hasTitlebarFullscreenListener = true;
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+      window._lastTitlebarBridgeState = null;
+      setTimeout(() => {
+        initCustomTitlebar();
+      }, 150);
+    }
+  });
+}
 
 window.windowControlAction = function(action) {
   try {

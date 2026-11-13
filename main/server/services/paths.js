@@ -9,7 +9,7 @@ import { readDb } from '../database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '..', '..');
+export const rootDir = path.resolve(__dirname, '..', '..');
 const writableRootDir = process.env.APPIMAGE && process.platform === 'linux' ? dataRootDir : rootDir;
 
 /**
@@ -61,6 +61,32 @@ export const ytdlpPath = getYtdlpPath();
  * @param {string} binaryName Dosya adı ('ffmpeg' veya 'ffprobe')
  * @returns {string} İlgili binary dosya yolu
  */
+export function getSystemBinaryPath(binaryName) {
+  const isWin = os.platform() === 'win32';
+  try {
+    if (isWin) {
+      const out = execSync(`where.exe ${binaryName} 2>nul`, { encoding: 'utf-8', timeout: 3000 }).split(/\r?\n/)[0].trim();
+      if (out && fs.existsSync(out)) return out;
+    } else {
+      const out = execSync(`which ${binaryName} 2>/dev/null`, { encoding: 'utf-8', timeout: 3000 }).trim();
+      if (out && fs.existsSync(out)) return out;
+    }
+  } catch (e) {}
+  return null;
+}
+
+export function getAppFfmpegPath() {
+  const isWin = os.platform() === 'win32';
+  const ext = isWin ? '.exe' : '';
+  const writablePath = path.join(dataRootDir, 'ffmpeg', `ffmpeg${ext}`);
+  if (fs.existsSync(writablePath)) return writablePath;
+  const pathInSubfolder = path.join(rootDir, 'ffmpeg', `ffmpeg${ext}`);
+  if (fs.existsSync(pathInSubfolder)) return pathInSubfolder;
+  const pathInRoot = path.join(rootDir, `ffmpeg${ext}`);
+  if (fs.existsSync(pathInRoot)) return pathInRoot;
+  return pathInSubfolder;
+}
+
 export function getBinaryPath(binaryName) {
   const isWin = os.platform() === 'win32';
   const ext = isWin ? '.exe' : '';
@@ -86,12 +112,8 @@ export function getBinaryPath(binaryName) {
     return pathInRoot;
   }
   
-  if (!isWin) {
-    try {
-      const systemBin = execSync(`which ${binaryName} 2>/dev/null`, { encoding: 'utf-8' }).trim();
-      if (systemBin) return systemBin;
-    } catch (e) {}
-  }
+  const systemBin = getSystemBinaryPath(binaryName);
+  if (systemBin) return systemBin;
   
   return pathInSubfolder;
 }

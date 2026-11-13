@@ -217,7 +217,7 @@ namespace HaYTooLPlayer
                                 string base64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(vttContent));
                                 string subUri = "data:text/vtt;base64," + base64;
 
-                                trackTags += $"<track kind=\"subtitles\" label=\"{label}\" srclang=\"{langCode}\" src=\"{subUri}\"{(langCode == "tr" ? " default" : "")}>\n";
+                                trackTags += $"<track kind=\"subtitles\" label=\"{label}\" srclang=\"{langCode}\" src=\"{subUri}\">\n";
                             }
                             catch (Exception ex)
                             {
@@ -818,10 +818,18 @@ namespace HaYTooLPlayer
 
         element.addEventListener('ready', onPlayerReady);
 
+        const isSubEnabled = localStorage.getItem('haytool_subtitles_enabled') === 'true';
         player = new Plyr(element, {{
             autoplay: true,
-            captions: {{ active: true, update: true, language: 'auto' }},
+            captions: {{ active: isSubEnabled, update: true, language: 'auto' }},
             keyboard: {{ global: false }}
+        }});
+
+        player.on('captionsenabled', () => {{
+            localStorage.setItem('haytool_subtitles_enabled', 'true');
+        }});
+        player.on('captionsdisabled', () => {{
+            localStorage.setItem('haytool_subtitles_enabled', 'false');
         }});
         
         // Oynatma süresi değiştikçe kaldığı yeri kaydet
@@ -870,6 +878,7 @@ namespace HaYTooLPlayer
                 e.preventDefault();
                 const nextCaptions = !player.captions.active;
                 player.toggleCaptions();
+                localStorage.setItem('haytool_subtitles_enabled', nextCaptions ? 'true' : 'false');
                 showOSD(nextCaptions ? '💬 Altyazı: AÇIK' : '❌ Altyazı: KAPALI');
             }}
             else if (e.code === 'KeyM') {{

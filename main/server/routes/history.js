@@ -982,15 +982,15 @@ router.post('/download-video', localhostOnly, async (req, res) => {
     webUrl: existingItem?.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
     platform: existingItem?.platform || (targetUrl.includes('instagram.com') ? 'instagram' : (targetUrl.includes('tiktok.com') ? 'tiktok' : (targetUrl.includes('twitter.com') || targetUrl.includes('x.com') ? 'x' : 'youtube'))),
     publishedAt: existingItem?.publishedAt || '',
-    isStandalone: existingItem?.isStandalone || String(targetVideoId).startsWith('ext_'),
-    skipChannelFolder: existingItem?.skipChannelFolder === true,
+    isStandalone: existingItem?.isStandalone || String(targetVideoId).startsWith('ext_') || String(targetVideoId).startsWith('ws_'),
+    skipChannelFolder: existingItem?.skipChannelFolder === true || String(targetVideoId).startsWith('ws_'),
     customFormat: existingItem?.customFormat,
     audioBitrate: existingItem?.audioBitrate,
     duration: existingItem?.duration || '',
     thumbnail: existingItem?.thumbnail || ''
   });
 
-  if (!String(targetVideoId).startsWith('ext_')) {
+  if (!String(targetVideoId).startsWith('ext_') && !String(targetVideoId).startsWith('ws_')) {
     resolveMissingDurations();
   }
 
@@ -2019,23 +2019,27 @@ router.delete('/history/:id', localhostOnly, async (req, res) => {
     const latestDb = readDb();
     latestDb.history = (latestDb.history || []).filter(h => h.id !== id);
 
-    // RSS'in videoyu tekrar indirmemesi için kütüphanede 'ignored' olarak sakla
-    latestDb.history.push({
-      id: id,
-      title: videoTitle,
-      channelId: channelId,
-      channelName: channelName,
-      downloadedAt: new Date().toISOString(),
-      publishedAt: publishedAt,
-      status: 'ignored',
-      progress: 0,
-      fileSize: '',
-      filePath: '',
-      speed: '',
-      eta: '',
-      duration: duration,
-      hidden: hideOnDelete
-    });
+    // Web stream veya bağımsız tekil indirmeler RSS kanalına bağlı olmadığı için 'ignored' olarak saklanmaz, tamamen temizlenir.
+    const isWebStreamOrStandalone = String(id).startsWith('ws_') || existingItem?.platform === 'webstream';
+    if (!isWebStreamOrStandalone) {
+      // RSS'in videoyu tekrar indirmemesi için kütüphanede 'ignored' olarak sakla
+      latestDb.history.push({
+        id: id,
+        title: videoTitle,
+        channelId: channelId,
+        channelName: channelName,
+        downloadedAt: new Date().toISOString(),
+        publishedAt: publishedAt,
+        status: 'ignored',
+        progress: 0,
+        fileSize: '',
+        filePath: '',
+        speed: '',
+        eta: '',
+        duration: duration,
+        hidden: hideOnDelete
+      });
+    }
     // Silinen videolar listesine kaydet
     recordDeletedVideo(existingItem || {
       id: id,
@@ -2180,15 +2184,15 @@ router.post('/history/:id/redownload', localhostOnly, async (req, res) => {
     webUrl: item.webUrl || targetUrl,
     platform: item.platform || (targetUrl.includes('instagram.com') ? 'instagram' : (targetUrl.includes('tiktok.com') ? 'tiktok' : (targetUrl.includes('twitter.com') || targetUrl.includes('x.com') ? 'x' : 'youtube'))),
     publishedAt: item.publishedAt || '',
-    isStandalone: item.isStandalone || String(item.id).startsWith('ext_'),
-    skipChannelFolder: item.skipChannelFolder === true,
+    isStandalone: item.isStandalone || String(item.id).startsWith('ext_') || String(item.id).startsWith('ws_'),
+    skipChannelFolder: item.skipChannelFolder === true || String(item.id).startsWith('ws_'),
     customFormat: item.customFormat,
     audioBitrate: item.audioBitrate,
     duration: item.duration || '',
     thumbnail: item.thumbnail || ''
   });
 
-  if (!String(item.id).startsWith('ext_')) {
+  if (!String(item.id).startsWith('ext_') && !String(item.id).startsWith('ws_')) {
     resolveMissingDurations();
   }
 

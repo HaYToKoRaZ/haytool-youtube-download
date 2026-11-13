@@ -9,10 +9,12 @@
  * @returns {void}
  */
 export function localhostOnly(req, res, next) {
-  const ip = req.ip || req.connection.remoteAddress;
-  const isLocalIp = ip === '127.0.0.1' || 
+  const ip = req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress;
+  const isLocalIp = !ip || 
+                    ip === '127.0.0.1' || 
                     ip === '::1' || 
-                    ip === '::ffff:127.0.0.1';
+                    ip === '::ffff:127.0.0.1' ||
+                    (typeof ip === 'string' && (ip.endsWith('127.0.0.1') || ip === '::1'));
                     
   // Hostname kontrolü (DNS rebinding saldırılarını önlemek için katı kontrol)
   const host = (req.headers.host || '').split(':')[0].toLowerCase();

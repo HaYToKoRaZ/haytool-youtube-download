@@ -286,11 +286,14 @@
                         <option value="separate" id="opt-merge-separate">Ses ve Videoyu Ayrı İndir</option>
                       </select>
                       <div class="settings-ffmpeg-row" style="margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <span id="label-ffmpeg-status-text" style="font-size: 0.78rem; color: var(--text-muted);">Sistem FFmpeg Durumu:</span>
+                        <span id="label-ffmpeg-status-text" style="font-size: 0.78rem; color: var(--text-muted);">FFmpeg Durumu:</span>
                         <span id="settings-ffmpeg-status" class="ffmpeg-status-indicator not-installed">Kontrol ediliyor...</span>
+                        <span id="settings-ffmpeg-source-badge" style="font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; border: 1px solid transparent; display: none;"></span>
                         <span id="settings-ffmpeg-version-info" style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border-color); display: none;"></span>
                         <button type="button" class="btn btn-secondary btn-xs" id="settings-ffmpeg-btn" style="margin-left: 4px;">Kur</button>
+                        <button type="button" class="btn btn-outline btn-xs" id="settings-ffmpeg-sync-btn" style="margin-left: 4px; display: none;">Sistemdekini Eşitle</button>
                       </div>
+                      <div id="settings-ffmpeg-detail-box" style="margin-top: 5px; font-size: 0.72rem; color: var(--text-muted); display: none;"></div>
                     </div>
                   </div>
                   <div class="form-grid">

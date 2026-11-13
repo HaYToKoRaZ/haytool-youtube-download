@@ -7,18 +7,31 @@
                 <i data-lucide="tv" style="width: 22px; height: 22px;"></i>
               </div>
               <div>
-                <h2 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-color);" id="lbl-webstream-title">Web Video & Dizi İzle</h2>
-                <p style="margin: 2px 0 0; font-size: 0.78rem; color: var(--text-muted);" id="lbl-webstream-subtitle">Dizipal, Vidmoly ve harici sitelerdeki video akışlarını yerleşik oynatıcıda reklamsız izleyin.</p>
+                <h2 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-color);" id="lbl-webstream-title" data-i18n="web_stream_title">Web Video & Dizi İzle</h2>
+                <p style="margin: 2px 0 0; font-size: 0.78rem; color: var(--text-muted);" id="lbl-webstream-subtitle" data-i18n="web_stream_desc">Dizipal, Vidmoly ve harici sitelerdeki video akışlarını yerleşik oynatıcıda reklamsız izleyin.</p>
               </div>
             </div>
           </div>
 
           <!-- URL Giriş ve Aksiyon Çubuğu -->
-          <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
-            <div style="position: relative; flex: 1; display: flex; align-items: center;">
+          <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px; flex-wrap: wrap;">
+            <div style="position: relative; flex: 1; min-width: 240px; display: flex; align-items: center;">
               <i data-lucide="link" style="position: absolute; left: 14px; width: 16px; height: 16px; color: var(--text-muted); pointer-events: none;"></i>
               <input type="text" id="webstream-tab-input" placeholder="https://dizipal.../bolum/... veya doğrudan .m3u8/.mp4 video linki" style="width: 100%; padding: 10px 14px 10px 40px; background: var(--bg-input, #09090b); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-color); font-size: 0.88rem; outline: none; transition: border-color 0.2s;">
             </div>
+            
+            <!-- Çözümleme Yöntemi Seçici -->
+            <div style="display: flex; align-items: center; position: relative;">
+              <select id="webstream-method-select" title="Çözümleme Yöntemi" style="padding: 10px 12px; background: var(--bg-card, #18181b); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-color); font-size: 0.82rem; font-weight: 500; outline: none; cursor: pointer; transition: border-color 0.2s;">
+                <option value="auto" data-i18n="webstream_method_auto">⚡ Otomatik (Tavsiye Edilen)</option>
+                <option value="prompt" data-i18n="webstream_method_prompt">📋 Kaynakları Listele (Seçimli Başlat)</option>
+                <option value="sandbox" data-i18n="webstream_method_sandbox">🛡️ Akıllı Sandbox (CloseLoad / JWPlayer)</option>
+                <option value="ytdlp" data-i18n="webstream_method_ytdlp">🎬 yt-dlp Motoru</option>
+                <option value="direct" data-i18n="webstream_method_direct">⚡ Doğrudan / Regex Kazıyıcı</option>
+                <option value="embed" data-i18n="webstream_method_embed">🖼️ Gömülü Oynatıcı (Iframe)</option>
+              </select>
+            </div>
+
             <button type="button" class="btn btn-secondary" id="webstream-tab-paste-btn" title="Panodan Yapıştır" style="padding: 10px 14px; display: inline-flex; align-items: center; gap: 6px;">
               <i data-lucide="clipboard" style="width: 16px; height: 16px;"></i>
               <span id="lbl-webstream-paste">Yapıştır</span>
@@ -29,12 +42,114 @@
             </button>
           </div>
 
+          <!-- Hızlı Kaynak Siteler Barı (Anasayfa Gezintisi) -->
+          <div id="webstream-quick-sites-bar" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+            <span style="font-size: 0.74rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;">
+              <i data-lucide="compass" style="width: 14px; height: 14px; color: var(--accent-primary);"></i>
+              <span data-i18n="webstream_quick_sites">Kaynak Siteler:</span>
+            </span>
+            <div id="webstream-quick-sites-chips" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <!-- Dinamik site linkleri -->
+            </div>
+          </div>
+
+          <!-- Uygulama İçi Dahili Site Gezgini -->
+          <div id="webstream-browser-card" class="card" style="display: none; margin-top: 6px; padding: 12px; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); border-radius: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 240px;">
+                <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent-primary); display: inline-flex; align-items: center; gap: 5px;">
+                  <i data-lucide="globe" style="width: 15px; height: 15px;"></i>
+                  <span id="webstream-browser-title">Site Gezgini</span>
+                </span>
+                <input type="text" id="webstream-browser-url-input" readonly style="flex: 1; padding: 6px 12px; background: var(--bg-input, #09090b); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-muted); font-size: 0.78rem;">
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="webstream-browser-open-ext-btn" title="Harici Tarayıcıda Aç" style="padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;">
+                  <i data-lucide="external-link" style="width: 13px; height: 13px;"></i>
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="webstream-browser-close-btn" title="Gezgini Kapat" style="padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;">
+                  <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+                </button>
+              </div>
+            </div>
+            <div style="position: relative; width: 100%; height: 560px; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08);">
+              <iframe id="webstream-site-iframe" style="width: 100%; height: 100%; border: none;" allow="autoplay; fullscreen; encrypted-media"></iframe>
+            </div>
+          </div>
+
           <!-- Durum ve Bildirim Kutusu -->
           <div id="webstream-tab-status" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; margin-top: 2px;"></div>
         </div>
 
+        <!-- Kaynak Sitelerde Arama Çubuğu ve Sonuç Izgarası -->
+        <div class="webstream-search-card card" style="margin-bottom: 16px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; background: var(--bg-card, #18181b); border: 1px solid var(--border-color); border-radius: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="search" style="width: 18px; height: 18px; color: var(--accent-primary, #ef4444);"></i>
+              <span style="font-size: 0.92rem; font-weight: 700; color: var(--text-color);" data-i18n="webstream_search_title">Kaynak Sitelerde Ara</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted);">(Jetfilmizle, Dizipal, FullHDFilmizlesene, HDFilmcehennemi)</span>
+            </div>
+            <span id="webstream-search-stats" style="font-size: 0.74rem; color: var(--text-muted); display: none;"></span>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <!-- Hedef Kaynak Seçici -->
+            <div style="display: flex; align-items: center; position: relative;">
+              <select id="webstream-search-source-select" title="Arama Kaynağı" style="padding: 10px 12px; background: var(--bg-input, #09090b); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-color); font-size: 0.82rem; font-weight: 500; outline: none; cursor: pointer;">
+                <option value="all" data-i18n="webstream_search_all_sources">🌐 Tüm Kaynaklar (Hepsi)</option>
+                <option value="jetfilmizle">⚡ Jetfilmizle</option>
+                <option value="dizipal">🎬 Dizipal</option>
+                <option value="fullhdfilmizlesene">🍿 FullHDFilmizlesene</option>
+                <option value="hdfilmcehennemi">🔥 HDFilmcehennemi</option>
+                <option value="filmmakinesi">🎥 Filmmakinesi</option>
+              </select>
+            </div>
+
+            <!-- Arama Girdi Kutusu -->
+            <div style="position: relative; flex: 1; min-width: 240px; display: flex; align-items: center;">
+              <i data-lucide="search" style="position: absolute; left: 14px; width: 16px; height: 16px; color: var(--text-muted); pointer-events: none;"></i>
+              <input type="text" id="webstream-search-input" placeholder="Film veya dizi adı yazın (Örn: Siccin, Avatar, Gibi)..." data-i18n-placeholder="webstream_search_placeholder" style="width: 100%; padding: 10px 14px 10px 40px; background: var(--bg-input, #09090b); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-color); font-size: 0.88rem; outline: none; transition: border-color 0.2s;">
+            </div>
+
+            <!-- Ara Butonu -->
+            <button type="button" class="btn btn-primary" id="webstream-search-btn" style="padding: 10px 18px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+              <i data-lucide="search" id="webstream-search-btn-icon" style="width: 16px; height: 16px;"></i>
+              <span id="lbl-webstream-search-btn" data-i18n="webstream_search_btn">Ara</span>
+            </button>
+
+            <!-- Temizle Butonu -->
+            <button type="button" class="btn btn-secondary" id="webstream-search-clear-btn" style="display: none; padding: 10px 14px; align-items: center; gap: 6px;">
+              <i data-lucide="x" style="width: 15px; height: 15px;"></i>
+              <span data-i18n="webstream_search_clear">Temizle</span>
+            </button>
+          </div>
+
+          <!-- Arama Sonuçları Izgarası (Grid) -->
+          <div id="webstream-search-results-container" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
+            <div id="webstream-search-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px;">
+              <!-- Arama Sonuç Kartları Dinamik Olarak Buraya Eklenir -->
+            </div>
+          </div>
+        </div>
+
         <!-- Oynatıcı Alanı (Video Aktifken Görünür) -->
         <div id="webstream-view-player" class="downloaded-inline-player-container hidden" style="margin-top: 0;">
+          <!-- Üst Kaynak Seçim Barı (Sayfada Birden Fazla Video/Oynatıcı Varsa Belirgin Şekilde Gösterilir) -->
+          <div id="webstream-top-sources-bar" style="display: none; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding: 10px 16px; background: rgba(24, 24, 27, 0.95); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(239, 68, 68, 0.2); color: #ef4444; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i data-lucide="layers" style="width: 18px; height: 18px;"></i>
+              </div>
+              <div>
+                <span id="webstream-top-sources-count" style="font-size: 0.88rem; font-weight: 700; color: var(--text-color);" data-i18n="webstream_found_sources">Bulunan Videolar / Kaynaklar</span>
+                <span style="font-size: 0.72rem; color: var(--text-muted); display: block;" data-i18n="webstream_select_hint">İstediğiniz videoya tıklayarak anında geçiş yapabilirsiniz.</span>
+              </div>
+            </div>
+            <div id="webstream-top-sources-chips" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <!-- Büyük belirgin kaynak butonları -->
+            </div>
+          </div>
+
           <!-- Sol Taraf: Video Oynatıcı & Bilgiler -->
           <div class="inline-player-wrapper" style="position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);">
             <div id="webstream-player-mount" style="width: 100%; height: 100%;">
@@ -54,80 +169,141 @@
                 </div>
 
                 <!-- Aksiyon Butonları -->
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                  <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-reload" title="Akışı Yenile" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-favorite" title="Favorilere Ekle / Çıkar" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px;">
+                    <i data-lucide="star" id="webstream-fav-icon" style="width: 14px; height: 14px;"></i>
+                    <span id="lbl-webstream-fav" data-i18n="webstream_favorite">Favori</span>
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-download" title="HaYTooL ile İndir" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; color: #22c55e;">
+                    <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+                    <span id="lbl-webstream-download" data-i18n="webstream_download">İndir</span>
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-open-site" title="Kaynak Sayfayı / Siteyi Aç" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px;">
+                    <i data-lucide="globe" style="width: 14px; height: 14px;"></i>
+                    <span id="lbl-webstream-open-site" data-i18n="webstream_open_site">Siteyi Aç</span>
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-reload" title="Akışı Yenile" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px;">
                     <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
                     <span id="lbl-webstream-reload">Yenile</span>
                   </button>
-                  <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-copy-stream" title="Akış Bağlantısını Kopyala" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;">
+                  <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-copy-stream" title="Akış Bağlantısını Kopyala" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px;">
                     <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
                     <span id="lbl-webstream-copy">Akışı Kopyala</span>
                   </button>
-                  <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-open-native" title="Ayrı HaYTooL Penceresinde Aç" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;">
+                  <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-open-native" title="Ayrı HaYTooL Penceresinde Aç" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px;">
                     <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
                     <span id="lbl-webstream-popout">Ayrı Pencere</span>
                   </button>
-                  <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-close-player" title="Oynatıcıyı Kapat" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; color: #ef4444;">
+                  <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-close-player" title="Oynatıcıyı Kapat" style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; color: #ef4444;">
                     <i data-lucide="x" style="width: 14px; height: 14px;"></i>
                     <span id="lbl-webstream-close">Kapat</span>
                   </button>
                 </div>
               </div>
+
+              <!-- Bölüm Gezgini (Önceki / Sonraki Bölüm) -->
+              <div id="webstream-episode-nav" style="display: none; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-prev-ep" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 0.78rem;">
+                  <i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i>
+                  <span id="lbl-webstream-prev-ep" data-i18n="webstream_prev_ep">Önceki Bölüm</span>
+                </button>
+                <div id="webstream-current-ep-badge" style="font-size: 0.82rem; font-weight: 700; color: #ef4444; display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="film" style="width: 14px; height: 14px;"></i>
+                  <span id="webstream-current-ep-text">Sezon 1 Bölüm 4</span>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" id="webstream-btn-next-ep" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 0.78rem;">
+                  <span id="lbl-webstream-next-ep" data-i18n="webstream_next_ep">Sonraki Bölüm</span>
+                  <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+                </button>
+              </div>
+
+              <!-- Ses Dili / Dublaj Seçici (Audio Tracks) -->
+              <div id="webstream-audio-tracks-bar" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+                <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                  <i data-lucide="volume-2" style="width: 13px; height: 13px; color: #3b82f6;"></i>
+                  <span data-i18n="webstream_audio_lang">Ses / Dil:</span>
+                </span>
+                <div id="webstream-audio-tracks-chips" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <!-- Dinamik ses/dil butonları: 🇹🇷 Türkçe Dublaj | 🌐 Orijinal Ses -->
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Sağ Taraf: Son Çözümlenenler / İzleme Geçmişi -->
-          <div class="inline-player-sidebar card" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 200px); overflow-y: auto;">
-            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-              <h4 style="margin: 0; font-size: 0.92rem; font-weight: 700; display: flex; align-items: center; gap: 6px;" id="lbl-webstream-sidebar-title">
-                <i data-lucide="history" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
-                <span>Son İzlenenler</span>
-              </h4>
+          <!-- Sağ Taraf: Yan Panel (Geçmiş & Favoriler) -->
+          <div class="inline-player-sidebar card" style="padding: 14px; display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 200px); overflow-y: auto;">
+            <!-- Segment Sekme Seçici -->
+            <div style="display: flex; gap: 4px; padding: 3px; background: rgba(255, 255, 255, 0.04); border-radius: 8px; border: 1px solid var(--border-color);">
+              <button type="button" class="btn btn-sm webstream-side-tab-btn active" id="webstream-side-tab-history" style="flex: 1; font-size: 0.76rem; padding: 5px 8px; border-radius: 6px; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
+                <i data-lucide="history" style="width: 13px; height: 13px;"></i>
+                <span data-i18n="webstream_history">Son İzlenenler</span>
+              </button>
+              <button type="button" class="btn btn-sm webstream-side-tab-btn" id="webstream-side-tab-favs" style="flex: 1; font-size: 0.76rem; padding: 5px 8px; border-radius: 6px; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
+                <i data-lucide="star" style="width: 13px; height: 13px; color: #eab308;"></i>
+                <span data-i18n="webstream_favorites">Favorilerim</span>
+                <span id="webstream-fav-badge" style="font-size: 0.68rem; background: rgba(234, 179, 8, 0.2); color: #eab308; padding: 1px 5px; border-radius: 8px;">0</span>
+              </button>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 2px;">
+              <span id="webstream-sidebar-section-title" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Son İzlenenler</span>
               <button type="button" class="btn btn-sm" id="webstream-btn-clear-history" style="background: transparent; color: var(--text-muted); border: none; font-size: 0.72rem; cursor: pointer; padding: 2px 4px;">Temizle</button>
             </div>
-            <div id="webstream-sidebar-history-list" style="display: flex; flex-direction: column; gap: 8px;">
-              <!-- Geçmiş öğeleri buraya yazılır -->
+
+            <div id="webstream-sidebar-list" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dinamik öğeler buraya yazılır -->
             </div>
           </div>
         </div>
 
         <!-- Boş Durum / Karşılama Kartı (Video Oynatılmıyorken Görünür) -->
-        <div id="webstream-view-empty" class="card" style="padding: 32px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px;">
-          <div style="width: 64px; height: 64px; border-radius: 20px; background: rgba(239, 68, 68, 0.12); color: #ef4444; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(239, 68, 68, 0.2);">
-            <i data-lucide="play-circle" style="width: 36px; height: 36px;"></i>
+        <div id="webstream-view-empty" class="card" style="padding: 28px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 18px;">
+          <div style="width: 60px; height: 60px; border-radius: 18px; background: rgba(239, 68, 68, 0.12); color: #ef4444; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(239, 68, 68, 0.2);">
+            <i data-lucide="play-circle" style="width: 34px; height: 34px;"></i>
           </div>
 
           <div style="max-width: 540px;">
-            <h3 style="margin: 0 0 8px; font-size: 1.3rem; font-weight: 700; color: var(--text-color);" id="lbl-webstream-empty-heading">Doğrudan Web'den Dizi & Video İzle</h3>
-            <p style="margin: 0; font-size: 0.88rem; color: var(--text-muted); line-height: 1.6;" id="lbl-webstream-empty-text">Dizipal veya desteklenen video platformlarındaki dizi/film bağlantısını yukarıdaki alana yapıştırıp 'Çöz & İzle' butonuna tıklayın. Reklamsız akış doğrudan bu ekranda başlayacaktır.</p>
+            <h3 style="margin: 0 0 8px; font-size: 1.25rem; font-weight: 700; color: var(--text-color);" id="lbl-webstream-empty-heading">Doğrudan Web'den Dizi & Video İzle</h3>
+            <p style="margin: 0; font-size: 0.86rem; color: var(--text-muted); line-height: 1.6;" id="lbl-webstream-empty-text">Dizipal veya desteklenen video platformlarındaki dizi/film bağlantısını yukarıdaki alana yapıştırıp 'Çöz & İzle' butonuna tıklayın. Reklamsız akış doğrudan bu ekranda başlayacaktır.</p>
           </div>
 
           <!-- Desteklenen Platform Rozetleri -->
-          <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 20px; font-size: 0.78rem; font-weight: 600;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
+            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 20px; font-size: 0.76rem; font-weight: 600;">
               <i data-lucide="check" style="width: 14px; height: 14px; color: #22c55e;"></i> Dizipal
             </span>
-            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 20px; font-size: 0.78rem; font-weight: 600;">
+            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 20px; font-size: 0.76rem; font-weight: 600;">
               <i data-lucide="check" style="width: 14px; height: 14px; color: #22c55e;"></i> Vidmoly / Filemoon
             </span>
-            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 20px; font-size: 0.78rem; font-weight: 600;">
+            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 20px; font-size: 0.76rem; font-weight: 600;">
               <i data-lucide="check" style="width: 14px; height: 14px; color: #22c55e;"></i> HLS (.m3u8) Akışları
             </span>
-            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 20px; font-size: 0.78rem; font-weight: 600;">
+            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); border-radius: 20px; font-size: 0.76rem; font-weight: 600;">
               <i data-lucide="check" style="width: 14px; height: 14px; color: #22c55e;"></i> Doğrudan MP4 Videoları
             </span>
           </div>
 
-          <!-- Son İzlenenler Kartı (Boş durumda geniş görünüm) -->
-          <div style="width: 100%; max-width: 680px; margin-top: 10px; text-align: left;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-              <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-color); display: flex; align-items: center; gap: 8px;" id="lbl-webstream-recent-box">
-                <i data-lucide="history" style="width: 16px; height: 16px; color: var(--accent-primary);"></i>
-                <span>Son İzlenen Videolar</span>
-              </h4>
+          <!-- Geniş Görünüm: Geçmiş & Favoriler -->
+          <div style="width: 100%; max-width: 720px; margin-top: 6px; text-align: left;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <!-- Segment Butonları -->
+              <div style="display: inline-flex; gap: 4px; padding: 3px; background: rgba(255, 255, 255, 0.04); border-radius: 8px; border: 1px solid var(--border-color);">
+                <button type="button" class="btn btn-sm webstream-empty-tab-btn active" id="webstream-empty-tab-history" style="font-size: 0.78rem; padding: 6px 12px; border-radius: 6px; border: none; display: inline-flex; align-items: center; gap: 6px;">
+                  <i data-lucide="history" style="width: 14px; height: 14px;"></i>
+                  <span data-i18n="webstream_history">Son İzlenenler</span>
+                </button>
+                <button type="button" class="btn btn-sm webstream-empty-tab-btn" id="webstream-empty-tab-favs" style="font-size: 0.78rem; padding: 6px 12px; border-radius: 6px; border: none; display: inline-flex; align-items: center; gap: 6px;">
+                  <i data-lucide="star" style="width: 14px; height: 14px; color: #eab308;"></i>
+                  <span data-i18n="webstream_favorites">Favorilerim</span>
+                  <span id="webstream-empty-fav-badge" style="font-size: 0.68rem; background: rgba(234, 179, 8, 0.2); color: #eab308; padding: 1px 6px; border-radius: 8px;">0</span>
+                </button>
+              </div>
+
+              <span id="webstream-empty-filter-info" style="font-size: 0.76rem; color: var(--text-muted);">İzleme geçmişiniz otomatik kaydedilir</span>
             </div>
-            <div id="webstream-empty-history-list" style="display: flex; flex-direction: column; gap: 8px;">
-              <!-- Dinamik geçmiş listesi -->
+
+            <div id="webstream-empty-list" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dinamik geçmiş veya favoriler listesi -->
             </div>
           </div>
         </div>

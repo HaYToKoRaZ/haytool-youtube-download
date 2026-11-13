@@ -490,14 +490,14 @@ export function resolveItemDownloadUrl(item) {
 
   // 1. Doğrudan geçerli bir webUrl tanımlıysa (ve sahte youtube watch URL'si değilse)
   if (item.webUrl && typeof item.webUrl === 'string' && (item.webUrl.startsWith('http://') || item.webUrl.startsWith('https://'))) {
-    if (!item.webUrl.includes('youtube.com/watch?v=ext_')) {
+    if (!item.webUrl.includes('youtube.com/watch?v=ext_') && !item.webUrl.includes('youtube.com/watch?v=ws_')) {
       return item.webUrl;
     }
   }
 
   // 2. Doğrudan geçerli bir url tanımlıysa
   if (item.url && typeof item.url === 'string' && (item.url.startsWith('http://') || item.url.startsWith('https://'))) {
-    if (!item.url.includes('youtube.com/watch?v=ext_')) {
+    if (!item.url.includes('youtube.com/watch?v=ext_') && !item.url.includes('youtube.com/watch?v=ws_')) {
       return item.url;
     }
   }
@@ -506,7 +506,7 @@ export function resolveItemDownloadUrl(item) {
   const cleanId = String(item.originalId || rawId).replace(/^fakap_/, '');
 
   // 3. YouTube standart 11 karakter ID kontrolü
-  if (/^[a-zA-Z0-9_-]{11}$/.test(cleanId) && !rawId.startsWith('ext_')) {
+  if (/^[a-zA-Z0-9_-]{11}$/.test(cleanId) && !rawId.startsWith('ext_') && !rawId.startsWith('ws_')) {
     return `https://www.youtube.com/watch?v=${cleanId}`;
   }
 
@@ -642,6 +642,9 @@ export class DownloadQueue {
           duration: video.duration || '',
           platform: video.platform || (video.url && (video.url.includes('tiktok.com') ? 'tiktok' : (video.url.includes('twitter.com') || video.url.includes('x.com') ? 'x' : (video.url.includes('instagram.com') ? 'instagram' : 'youtube')))) || 'youtube',
           webUrl: video.webUrl || video.url || '',
+          referer: video.referer || '',
+          customFormat: video.customFormat || 'video-best',
+          audioBitrate: video.audioBitrate || '320',
           viewCount: video.viewCount || 0
         };
         db.history.push(historyItem);
@@ -651,6 +654,10 @@ export class DownloadQueue {
         historyItem.progress = 0;
         historyItem.speed = '';
         historyItem.eta = '';
+        if (video.customFormat) historyItem.customFormat = video.customFormat;
+        if (video.audioBitrate) historyItem.audioBitrate = video.audioBitrate;
+        if (video.referer) historyItem.referer = video.referer;
+        if (video.platform) historyItem.platform = video.platform;
         if (video.isFakap !== undefined) historyItem.isFakap = video.isFakap;
         if (video.originalId) historyItem.originalId = video.originalId;
         delete historyItem.error;
@@ -969,8 +976,11 @@ export class DownloadQueue {
     let folderSubName = video.channelName || '';
     const vUrl = (video.url || '').toLowerCase();
     const isFollowedChannel = video.channelId && db.channels && db.channels.some(c => c.id === video.channelId);
+    const isWebStream = (video.platform === 'webstream') || vUrl.includes('.m3u8') || vUrl.includes('master.txt') || (video.id && String(video.id).startsWith('ws_'));
 
-    if (!video.isFakap && !skipChannelFolder) {
+    if (isWebStream) {
+      folderSubName = '0-web';
+    } else if (!video.isFakap && !skipChannelFolder) {
       if (vUrl.includes('tiktok.com') || video.platform === 'tiktok') {
         folderSubName = '0-TikTok';
       } else if (vUrl.includes('twitter.com') || vUrl.includes('x.com') || video.platform === 'x' || video.platform === 'twitter') {
@@ -982,7 +992,7 @@ export class DownloadQueue {
       }
     }
 
-    const outputDir = skipChannelFolder
+    const outputDir = (skipChannelFolder && !isWebStream)
       ? targetBaseDir
       : path.join(targetBaseDir, folderSubName);
 
@@ -1006,12 +1016,27 @@ export class DownloadQueue {
       } catch (e) {}
     }
 
-    const outputFilename = skipChannelFolder
-      ? `%(title)s [${ytVideoId}].%(ext)s`
-      : `${video.channelName} - %(title)s [${ytVideoId}].%(ext)s`;
-    
     const isMp3 = (video.customFormat === 'audio-mp3');
 
+    let outputFilename = skipChannelFolder
+      ? `%(title)s [${ytVideoId}].%(ext)s`
+      : `${video.channelName} - %(title)s [${ytVideoId}].%(ext)s`;
+
+    let safeStreamTitle = '';
+    if (isWebStream) {
+      // Web dizi ve filmleri için temiz başlık ve güvenilir dosya adı
+      safeStreamTitle = (video.title || 'Web_Video')
+        .replace(/\s*[-–|•]\s*Dizipal.*$/i, '')
+        .replace(/\s*[-–|•]\s*Film\s*izle.*$/i, '')
+        .replace(/\s*[-–|•]\s*Dizi\s*izle.*$/i, '')
+        .replace(/\s*[-–|•]\s*Full\s*HD.*$/i, '')
+        .replace(/\s*[-–|•]\s*HD\s*izle.*$/i, '')
+        .replace(/[/\\:*?"<>|｜]/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim();
+      outputFilename = `${safeStreamTitle} [${ytVideoId}].%(ext)s`;
+    }
+    
     const userLang = settings.lang || 'tr';
     const subLangs = userLang === 'en'
       ? 'en,en-orig'
@@ -1027,18 +1052,31 @@ export class DownloadQueue {
       '--js-runtimes', `node:${process.execPath}`,
       '--replace-in-metadata', 'title', '[#?%]', '',
       '--replace-in-metadata', 'title', '[/\\\\:\\*\\?\"<>|｜|]', '-',
-            '--newline',
-      '--write-subs',
-      '--write-auto-subs',
-      '--sub-langs', subLangs,
-      '--sub-format', 'srt/vtt/best',
+      '--newline',
       '--encoding', 'utf-8'
     ];
+
+    if (!isWebStream) {
+      args.push(
+        '--write-subs',
+        '--write-auto-subs',
+        '--sub-langs', subLangs,
+        '--sub-format', 'srt/vtt/best'
+      );
+    } else {
+      // Web akışları için gerekli Referer ve modern User-Agent başlıkları
+      const webReferer = video.referer || video.webUrl || video.url;
+      if (webReferer) {
+        args.push('--referer', webReferer);
+      }
+      args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36');
+    }
 
     const hasWorkingFfmpegEarly = testFfmpegSync();
     const isLiveStreamNow = (video.duration === 'live' || video.status === 'live');
     const isYouTubeUrl = (vUrl.includes('youtube.com') || vUrl.includes('youtu.be')) && (!video.platform || video.platform === 'youtube');
-    const isDeferMerge = Boolean(settings.deferMerge) && isYouTubeUrl && hasWorkingFfmpegEarly && (settings.mergeType || 'single') !== 'separate' && !isLiveStreamNow;
+    // MP3 indirmeleri doğrudan dönüştürülür, DeferMerge gecikmesine sokulmaz
+    const isDeferMerge = Boolean(settings.deferMerge) && isYouTubeUrl && hasWorkingFfmpegEarly && (settings.mergeType || 'single') !== 'separate' && !isLiveStreamNow && !isMp3;
     if (Boolean(settings.deferMerge) && !isYouTubeUrl) {
       addTerminalLog(`[Oyun Modu] YouTube dışı kaynak (${video.platform || 'Harici'}) algılandı — Oyun Modu ertelemesi atlanarak doğrudan indiriliyor: "${video.title}"`, 'info');
     }
@@ -1110,8 +1148,8 @@ export class DownloadQueue {
       args.push('--limit-rate', `${effectiveSpeed}K`);
     }
 
-    // Çerez kaynağını ekle (cookies.txt -> Dahili WebView2 -> Harici Tarayıcı)
-    if (hasCookies) {
+    // Çerez kaynağını ekle (cookies.txt -> Dahili WebView2 -> Harici Tarayıcı) - Web akışlarında YouTube çerezleri gönderilmez
+    if (hasCookies && !isWebStream) {
       args.push(...cookieArgs);
     }
 
@@ -1162,6 +1200,17 @@ export class DownloadQueue {
         }
         fakapParts.push('worstvideo+worstaudio/worst');
         args.push('-f', fakapParts.join('/'));
+        if (hasWorkingFfmpeg) {
+          args.push('--merge-output-format', 'mp4');
+        }
+      }
+    } else if (isWebStream) {
+      // Web Video & Dizi Akışları (m3u8/mp4) için en temiz ve hızlı akış
+      if (isMp3) {
+        const bitrate = video.audioBitrate || '320';
+        args.push('-f', 'bestaudio/best', '--extract-audio', '--audio-format', 'mp3', '--audio-quality', `${bitrate}K`);
+      } else {
+        args.push('-f', 'bestvideo+bestaudio/best');
         if (hasWorkingFfmpeg) {
           args.push('--merge-output-format', 'mp4');
         }
@@ -1745,6 +1794,15 @@ export class DownloadQueue {
         let resolvedTitle = video.title;
         const skipChannelFolder = video.skipChannelFolder === true;
         const ytVideoId = video.originalId || (video.id ? video.id.replace(/^fakap_/, '') : '');
+        const safeStreamTitle = (video.title || 'Web_Video')
+          .replace(/\s*[-–|•]\s*Dizipal.*$/i, '')
+          .replace(/\s*[-–|•]\s*Film\s*izle.*$/i, '')
+          .replace(/\s*[-–|•]\s*Dizi\s*izle.*$/i, '')
+          .replace(/\s*[-–|•]\s*Full\s*HD.*$/i, '')
+          .replace(/\s*[-–|•]\s*HD\s*izle.*$/i, '')
+          .replace(/[/\\:*?"<>|｜]/g, '-')
+          .replace(/\s+/g, ' ')
+          .trim();
         try {
           const sanitizedChannelName = (video.channelName || '').replace(/[. ]+$/, '#');
           const candidateDirs = [];
@@ -1754,7 +1812,10 @@ export class DownloadQueue {
             targetBaseDir = (settings.fakapPath || '').trim() || path.join(settings.downloadPath, 'Fakap');
           }
 
-          if (skipChannelFolder) {
+          if (isWebStream) {
+            candidateDirs.push(path.join(targetBaseDir, '0-web'));
+            candidateDirs.push(targetBaseDir);
+          } else if (skipChannelFolder) {
             candidateDirs.push(targetBaseDir);
           } else {
             candidateDirs.push(path.join(targetBaseDir, folderSubName));
@@ -1830,18 +1891,24 @@ export class DownloadQueue {
               }
             }
           } else {
-            const primaryDir = candidateDirs[0] || targetBaseDir;
-            actualPath = skipChannelFolder
-              ? path.join(primaryDir, `${video.title} [${ytVideoId}].mp4`)
-              : path.join(primaryDir, `${video.channelName} - ${video.title} [${ytVideoId}].mp4`);
+            const primaryDir = candidateDirs[0] || (isWebStream ? path.join(targetBaseDir, '0-web') : targetBaseDir);
+            const fileExt = isMp3 ? 'mp3' : 'mp4';
+            actualPath = isWebStream
+              ? path.join(targetBaseDir, '0-web', `${safeStreamTitle} [${ytVideoId}].${fileExt}`)
+              : (skipChannelFolder
+                ? path.join(primaryDir, `${video.title} [${ytVideoId}].${fileExt}`)
+                : path.join(primaryDir, `${video.channelName} - ${video.title} [${ytVideoId}].${fileExt}`));
           }
         } catch (e) {
           const fallbackBaseDir = video.isFakap
             ? ((settings.fakapPath || '').trim() || path.join(settings.downloadPath, 'Fakap'))
             : settings.downloadPath;
-          actualPath = skipChannelFolder
-            ? path.join(fallbackBaseDir, `${video.title} [${ytVideoId}].mp4`)
-            : path.join(fallbackBaseDir, video.channelName, `${video.channelName} - ${video.title} [${ytVideoId}].mp4`);
+          const fileExt = isMp3 ? 'mp3' : 'mp4';
+          actualPath = isWebStream
+            ? path.join(fallbackBaseDir, '0-web', `${safeStreamTitle} [${ytVideoId}].${fileExt}`)
+            : (skipChannelFolder
+              ? path.join(fallbackBaseDir, `${video.title} [${ytVideoId}].${fileExt}`)
+              : path.join(fallbackBaseDir, video.channelName, `${video.channelName} - ${video.title} [${ytVideoId}].${fileExt}`));
         }
 
         let fileExists = false;

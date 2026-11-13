@@ -14,6 +14,21 @@ import { translations } from '../../utils/i18n.js';
 let currentSubtitles = [];
 
 /**
+ * Kullanıcının altyazıyı açık tutmak isteyip istemediğini döner.
+ * Varsayılan: false (kapalı).
+ */
+export function isSubtitlesEnabled() {
+  return localStorage.getItem('haytool_subtitles_enabled') === 'true';
+}
+
+/**
+ * Kullanıcının altyazı açık/kapalı tercihini saklar.
+ */
+export function setSubtitlesEnabled(enabled) {
+  localStorage.setItem('haytool_subtitles_enabled', enabled ? 'true' : 'false');
+}
+
+/**
  * Mevcut video için yüklü altyazı listesini döner.
  */
 export function getCurrentSubtitles() {
@@ -67,6 +82,7 @@ export function applySubtitlesToPlayer(subs, targetPlayerEl = null, playerInstan
   oldTracks.forEach(t => t.remove());
 
   const userPrefLang = (window.localDb?.settings && window.localDb.settings.lang) || 'tr';
+  const subEnabled = isSubtitlesEnabled();
 
   subs.forEach(sub => {
     const track = document.createElement('track');
@@ -75,9 +91,12 @@ export function applySubtitlesToPlayer(subs, targetPlayerEl = null, playerInstan
     track.srclang = sub.lang;
     track.src = sub.url;
 
-    const isDefault = (sub.lang.startsWith(userPrefLang)) ||
-                      (!subs.some(s => s.lang.startsWith(userPrefLang)) && sub.lang.startsWith('en')) ||
-                      (!subs.some(s => s.lang.startsWith(userPrefLang) || s.lang.startsWith('en')) && sub === subs[0]);
+    // Yalnızca kullanıcı altyazıyı açık tutmayı tercih ettiyse default ata
+    const isDefault = subEnabled && (
+      (sub.lang.startsWith(userPrefLang)) ||
+      (!subs.some(s => s.lang.startsWith(userPrefLang)) && sub.lang.startsWith('en')) ||
+      (!subs.some(s => s.lang.startsWith(userPrefLang) || s.lang.startsWith('en')) && sub === subs[0])
+    );
 
     if (isDefault) {
       track.default = true;
@@ -88,13 +107,9 @@ export function applySubtitlesToPlayer(subs, targetPlayerEl = null, playerInstan
   const pInst = playerInstance || window.videoPlayerInstance;
   if (pInst) {
     try {
-      if (pInst.elements?.container) {
-        // Plyr'ın altyazıları yeniden yapılandırmasını sağla
-        if (typeof pInst.toggleCaptions === 'function' && subs.length > 0) {
-          if (pInst.captions && !pInst.captions.active) {
-            pInst.captions.active = true;
-          }
-        }
+      if (pInst.elements?.container && pInst.captions) {
+        // Kullanıcının tercihine uy; asla kapalı olan altyazıyı zorla açma
+        pInst.captions.active = subEnabled;
       }
     } catch (e) {}
   }

@@ -15943,3 +15943,24 @@ body.youtube-theme .context-menu-kbd {
 body.youtube-theme .context-menu-divider {
   background: rgba(255, 255, 255, 0.08);
 }
+
+/* Web Video & Dizi İzle Sekme Butonları & Stil Geliştirmeleri */
+.webstream-side-tab-btn, .webstream-empty-tab-btn {
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.webstream-side-tab-btn:hover, .webstream-empty-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-color);
+}
+
+.webstream-side-tab-btn.active, .webstream-empty-tab-btn.active {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #fff !important;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+
