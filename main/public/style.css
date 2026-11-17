@@ -4582,6 +4582,29 @@ body.light-theme .video-card:hover {
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.video-thumbnail-wrapper.is-webstream-poster::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  background-image: var(--poster-bg);
+  background-size: cover;
+  background-position: center;
+  filter: blur(14px) brightness(0.42) saturate(1.25);
+  transform: scale(1.1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.video-thumbnail-wrapper.is-webstream-poster .video-thumbnail {
+  position: relative;
+  z-index: 1;
+  object-fit: contain;
+}
+
+.video-thumbnail-wrapper.is-webstream-poster.is-landscape-poster .video-thumbnail {
+  object-fit: cover;
+}
+
 .video-card:hover .video-thumbnail {
   transform: scale(1.05);
 }
@@ -13591,12 +13614,33 @@ body.light-theme .video-card-unlisted-tag {
   background: transparent;
 }
 
+/* İndirilenler Sekmesi: İkon + Üzerine Gelince Açılan Etiketli Filtre Butonları */
+.hover-expand-filter-btn {
+  gap: 0 !important;
+}
+
+.hover-expand-filter-btn .hover-expand-label {
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  margin-left: 0;
+  transition: max-width 0.25s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease, margin-left 0.2s ease;
+}
+
+.hover-expand-filter-btn:hover .hover-expand-label,
+.hover-expand-filter-btn:focus-visible .hover-expand-label {
+  max-width: 220px;
+  opacity: 1;
+  margin-left: 6px;
+}
+
 /* İndirilenler Sekmesi: Yarım Kalan Videolar Filtre Butonu */
 #downloaded-filter-resume-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   font-size: 0.8rem;
   border-radius: 8px;
   cursor: pointer;
@@ -13626,6 +13670,7 @@ body.light-theme .video-card-unlisted-tag {
 
 #badge-resume-count {
   font-size: 0.72rem;
+  margin-left: 6px;
   padding: 1px 7px;
   border-radius: 12px;
   background: rgba(168, 85, 247, 0.25);
@@ -13641,7 +13686,63 @@ body.light-theme .video-card-unlisted-tag {
   border-color: #c084fc;
 }
 
-/* Açık Tema: Yarım Kalanlar filtresi ve sayı rozeti okunabilirlik düzeltmesi */
+/* İndirilenler Sekmesi: Uzak Durumu Değişen (Yıldızlı) Videolar Filtre Butonu */
+#downloaded-filter-remote-changed-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+#downloaded-filter-remote-changed-btn .remote-filter-star-icon {
+  color: #f59e0b;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.45));
+}
+
+#downloaded-filter-remote-changed-btn:hover {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+#downloaded-filter-remote-changed-btn.active {
+  background: rgba(245, 158, 11, 0.22) !important;
+  border-color: #f59e0b !important;
+  color: #fef3c7 !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
+}
+
+#badge-remote-changed-count {
+  font-size: 0.72rem;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.25);
+  color: #fcd34d;
+  font-weight: 700;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  transition: all 0.2s ease;
+}
+
+#downloaded-filter-remote-changed-btn.active #badge-remote-changed-count {
+  background: #f59e0b;
+  color: #111827;
+  border-color: #fbbf24;
+}
+
+/* Açık Tema: Yarım Kalanlar ve Uzak Durumu Değişenler filtre butonları */
 body.light-theme #downloaded-filter-resume-btn {
   background: rgba(124, 58, 237, 0.06);
   border-color: rgba(124, 58, 237, 0.3);
@@ -13678,6 +13779,42 @@ body.light-theme #downloaded-filter-resume-btn.active #badge-resume-count {
   background: #4c1d95;
   color: #ffffff;
   border-color: #3b0764;
+}
+
+body.light-theme #downloaded-filter-remote-changed-btn {
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.35);
+  color: #78350f;
+}
+
+body.light-theme #downloaded-filter-remote-changed-btn .remote-filter-star-icon {
+  color: #d97706;
+  filter: none;
+}
+
+body.light-theme #downloaded-filter-remote-changed-btn:hover {
+  background: rgba(217, 119, 6, 0.16);
+  border-color: rgba(217, 119, 6, 0.55);
+  color: #92400e;
+}
+
+body.light-theme #downloaded-filter-remote-changed-btn.active {
+  background: rgba(217, 119, 6, 0.2) !important;
+  border-color: #d97706 !important;
+  color: #78350f !important;
+  box-shadow: 0 0 10px rgba(217, 119, 6, 0.25);
+}
+
+body.light-theme #badge-remote-changed-count {
+  background: #d97706;
+  color: #ffffff;
+  border-color: #b45309;
+}
+
+body.light-theme #downloaded-filter-remote-changed-btn.active #badge-remote-changed-count {
+  background: #92400e;
+  color: #ffffff;
+  border-color: #78350f;
 }
 
 /* ==========================================================================

@@ -1,9 +1,13 @@
 // Türkçe Açıklama: Harici web sitelerinden (Dizipal, Vidmoly, Filemoon vb.) video akışı (.m3u8, .mp4) ve gömülü oynatıcıları tespit eden akıllı çözümleme servisi.
 import { spawn } from 'child_process';
-import vm from 'vm';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { ytdlpPath } from './paths.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const SANDBOX_WORKER_PATH = path.join(__dirname, 'jwplayerSandboxWorker.js');
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
 
@@ -87,115 +91,96 @@ export function extractDirectVideoUrls(text) {
  * @param {string} embedUrl - Iframe veya sayfa URL'si
  * @returns {Array<{ url: string, type: string }>} Bulunan akış nesneleri
  */
-export function extractJwplayerFromSandbox(html, embedUrl) {
-  if (!html || typeof html !== 'string') return [];
+/**
+ * Inline embed scriptlerini ana Express sürecinden tamamen yalıtılmış (--permission) alt Node sürecinde çalıştırır.
+ *
+ * @param {string[]} scripts - Çalıştırılacak inline script içerikleri
+ * @param {string} embedUrl - Kaynak sayfa URL'i
+ * @returns {Promise<{ capturedSources: Array, capturedTracks: Array }>}
+ */
+function runIsolatedJwplayerWorker(scripts, embedUrl) {
+  return new Promise((resolve) => {
+    if (!Array.isArray(scripts) || scripts.length === 0 || !fs.existsSync(SANDBOX_WORKER_PATH)) {
+      return resolve({ capturedSources: [], capturedTracks: [] });
+    }
+
+    let settled = false;
+    const finish = (res) => {
+      if (settled) return;
+      settled = true;
+      resolve(res);
+    };
+
+    try {
+      const child = spawn(
+        process.execPath,
+        ['--permission', `--allow-fs-read=${SANDBOX_WORKER_PATH}`, SANDBOX_WORKER_PATH],
+        {
+          env: {},
+          windowsHide: true,
+          stdio: ['pipe', 'pipe', 'ignore']
+        }
+      );
+
+      let stdout = '';
+      const killTimer = setTimeout(() => {
+        try { child.kill('SIGKILL'); } catch {}
+        finish({ capturedSources: [], capturedTracks: [] });
+      }, 3500);
+
+      child.stdout.on('data', (chunk) => {
+        if (stdout.length < 2 * 1024 * 1024) {
+          stdout += chunk.toString('utf8');
+        }
+      });
+
+      child.on('error', () => {
+        clearTimeout(killTimer);
+        finish({ capturedSources: [], capturedTracks: [] });
+      });
+
+      child.on('close', () => {
+        clearTimeout(killTimer);
+        try {
+          const parsed = JSON.parse(stdout || '{}');
+          finish({
+            capturedSources: Array.isArray(parsed.capturedSources) ? parsed.capturedSources : [],
+            capturedTracks: Array.isArray(parsed.capturedTracks) ? parsed.capturedTracks : []
+          });
+        } catch {
+          finish({ capturedSources: [], capturedTracks: [] });
+        }
+      });
+
+      child.stdin.on('error', () => {});
+      child.stdin.end(JSON.stringify({ scripts, embedUrl, userAgent: USER_AGENT }));
+    } catch {
+      finish({ capturedSources: [], capturedTracks: [] });
+    }
+  });
+}
+
+export async function extractJwplayerFromSandbox(html, embedUrl) {
+  if (!html || typeof html !== 'string') return { streams: [], tracks: [] };
   const found = [];
 
-  let hostname = '';
-  let origin = '';
-  try {
-    const u = new URL(embedUrl);
-    hostname = u.hostname;
-    origin = u.origin;
-  } catch {}
-
-  const capturedSources = [];
-  const capturedTracks = [];
-
-  const loc = { hostname, href: embedUrl, origin };
-  const storageMock = new Proxy({}, {
-    get: (target, prop) => target[prop] || '',
-    set: (target, prop, val) => { target[prop] = val; return true; }
-  });
-
-  const dummyDomEl = {
-    addEventListener: () => {},
-    style: {},
-    classList: { add: () => {}, remove: () => {} },
-    dataset: {},
-    hidden: false
-  };
-
-  const noop = () => {};
-  const sandbox = {
-    location: loc,
-    window: { location: loc },
-    self: { location: loc },
-    top: { location: loc },
-    parent: { location: loc },
-    document: {
-      location: loc,
-      referrer: embedUrl,
-      cookie: '',
-      addEventListener: noop,
-      removeEventListener: noop,
-      getElementById: () => dummyDomEl,
-      querySelector: () => dummyDomEl,
-      querySelectorAll: () => [dummyDomEl],
-      getElementsByTagName: () => [dummyDomEl],
-      getElementsByClassName: () => [dummyDomEl],
-      documentElement: { setAttribute: noop, style: { setProperty: noop } },
-      body: dummyDomEl,
-      head: dummyDomEl,
-      createElement: () => dummyDomEl
-    },
-    navigator: { userAgent: USER_AGENT },
-    localStorage: storageMock,
-    sessionStorage: storageMock,
-    setTimeout: (fn) => { if (typeof fn === 'function') { try { fn(); } catch {} } return 1; },
-    clearTimeout: noop,
-    setInterval: noop,
-    clearInterval: noop,
-    requestAnimationFrame: noop,
-    cancelAnimationFrame: noop,
-    fetch: () => Promise.resolve({ ok: false, json: () => Promise.resolve({}), text: () => Promise.resolve('') }),
-    XMLHttpRequest: function() {
-      return {
-        open: noop,
-        send: noop,
-        setRequestHeader: noop,
-        addEventListener: noop
-      };
-    },
-    atob: (s) => Buffer.from(s, 'base64').toString('binary'),
-    btoa: (s) => Buffer.from(s, 'binary').toString('base64'),
-    jwplayer: function() {
-      return {
-        setup: function(cfg) {
-          if (cfg && Array.isArray(cfg.sources)) {
-            capturedSources.push(...cfg.sources);
-          } else if (cfg && cfg.file) {
-            capturedSources.push({ file: cfg.file, type: cfg.type || 'hls' });
-          }
-          if (cfg && Array.isArray(cfg.tracks)) {
-            capturedTracks.push(...cfg.tracks);
-          }
-          return this;
-        },
-        key: '',
-        on: noop,
-        once: noop
-      };
-    },
-    $: function() { return { ready: (fn) => { try { fn(); } catch {} }, on: noop, once: noop, ajax: noop }; },
-    jQuery: function() { return { ready: (fn) => { try { fn(); } catch {} }, on: noop, once: noop, ajax: noop }; },
-    console: { log: noop, error: noop, warn: noop },
-    String, Math, Number, parseInt, parseFloat, Date
-  };
-
-  const context = vm.createContext(sandbox);
-
-  // Harici kaynak olmayan tüm inline scriptleri sırayla sandbox içinde çalıştır
+  // Harici kaynak olmayan tüm inline scriptleri topla
   const scriptRegex = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
+  const scripts = [];
   let match;
   while ((match = scriptRegex.exec(html)) !== null) {
     const code = match[1];
     if (code && code.trim().length > 0) {
-      try {
-        vm.runInContext(code, context, { timeout: 2500 });
-      } catch {}
+      scripts.push(code);
     }
   }
+
+  const workerRes = scripts.length > 0
+    ? await runIsolatedJwplayerWorker(scripts, embedUrl)
+    : { capturedSources: [], capturedTracks: [] };
+
+  const capturedSources = [...workerRes.capturedSources];
+  const capturedTracks = [...workerRes.capturedTracks];
 
   // Rapidvid / Atom player window._p8 şifreli akış kontrolü
   const p8Match = html.match(/window\._p8\s*=\s*['"]([^'"]+)['"]/i);
@@ -357,13 +342,14 @@ export function cleanWebStreamTitle(raw) {
  * @param {string} html 
  * @returns {{ title: string, poster: string }}
  */
-export function extractPageMeta(html) {
+export function extractPageMeta(html, baseUrl = '') {
   let title = 'Web Video Akışı';
   let poster = '';
 
   if (!html) return { title, poster };
 
-  const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
+  const ogTitleMatch = html.match(/<meta[^>]+(?:property|name)=["'](?:og:title|twitter:title)["'][^>]+content=["']([^"']+)["']/i) ||
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:title|twitter:title)["']/i);
   if (ogTitleMatch && ogTitleMatch[1]) {
     title = cleanWebStreamTitle(ogTitleMatch[1]);
   } else {
@@ -373,9 +359,34 @@ export function extractPageMeta(html) {
     }
   }
 
-  const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
-  if (ogImageMatch && ogImageMatch[1]) {
-    poster = ogImageMatch[1].trim();
+  const isBadPosterUrl = (u) => !u || u.startsWith('data:') || /(?:logo|favicon|icon|placeholder|spinner|loading|avatar|blank)\./i.test(u);
+  const metaPosterPatterns = [
+    /<meta[^>]+(?:property|name)=["'](?:og:image|og:image:secure_url|twitter:image)["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|og:image:secure_url|twitter:image)["']/i,
+    /<meta[^>]+itemprop=["']image["'][^>]+content=["']([^"']+)["']/i
+  ];
+  for (const rx of metaPosterPatterns) {
+    const m = html.match(rx);
+    if (m && m[1] && !isBadPosterUrl(m[1].trim())) {
+      poster = m[1].trim();
+      break;
+    }
+  }
+
+  // Fallback for sites lacking og:image (e.g. hdfilmcehennemi cover/poster img tags)
+  if (!poster) {
+    const coverImgMatch = html.match(/<img[^>]+(?:data-src|src)=["']([^"']*\/(?:cover|poster|afis|covers|uploads\/covers)[^"']+)["'][^>]*>/i);
+    const attrPosterMatch = html.match(/<img[^>]+(?:class|id)=["'][^"']*(?:poster|cover|afis)[^"']*["'][^>]+(?:data-src|src)=["']([^"']+)["']/i);
+    const picked = (coverImgMatch && coverImgMatch[1]) || (attrPosterMatch && attrPosterMatch[1]) || '';
+    if (picked && !isBadPosterUrl(picked.trim())) {
+      poster = picked.trim();
+    }
+  }
+
+  if (poster && baseUrl && !/^https?:\/\//i.test(poster)) {
+    try {
+      poster = new URL(poster, baseUrl).href;
+    } catch {}
   }
 
   return { title, poster };
@@ -840,6 +851,445 @@ export async function resolveVideoparkSource(iframeUrl, referer) {
   return null;
 }
 
+function isHlsStreamUrl(u, streamTypeMap) {
+  if (!u) return false;
+  const mapped = streamTypeMap.get(u);
+  if (mapped === 'hls' || mapped === 'm3u8') return true;
+  if (mapped === 'mp4') return false;
+  return u.includes('.m3u8') || u.includes('master.txt') || u.includes('/m/') || u.includes('/mm/') || u.includes('/mx/') || u.includes('workers.dev') || u.includes('cdnimage') || /\/m[0-9a-z]\//i.test(u);
+}
+
+/**
+ * Bir HTML belgesi içindeki doğrudan medya linklerini, dinamik API sonuçlarını,
+ * izole JWPlayer sandbox çıktılarını ve packed JS bloklarını ortak boru hattıyla çözer.
+ */
+async function extractDirectAndDynamicStreams({ html, sourceUrl, directStreams, streamRefererMap, streamTypeMap, allTracks }) {
+  const pushDirect = (u, isHlsHint = false) => {
+    directStreams.push(u);
+    streamRefererMap.set(u, sourceUrl);
+    if (isHlsHint || isHlsStreamUrl(u, streamTypeMap)) {
+      streamTypeMap.set(u, 'm3u8');
+    }
+  };
+
+  for (const u of extractDirectVideoUrls(html)) {
+    streamRefererMap.set(u, sourceUrl);
+    directStreams.push(u);
+  }
+
+  const apiStreams = await resolveDynamicApiStreams(html, sourceUrl);
+  for (const item of apiStreams) {
+    const u = typeof item === 'string' ? item : item.url;
+    const t = typeof item === 'object' && item.type ? item.type : 'hls';
+    pushDirect(u, t === 'hls' || t === 'm3u8');
+  }
+
+  const sandboxResult = await extractJwplayerFromSandbox(html, sourceUrl);
+  if (sandboxResult && Array.isArray(sandboxResult.streams)) {
+    for (const s of sandboxResult.streams) {
+      pushDirect(s.url, s.type === 'hls');
+    }
+    if (Array.isArray(sandboxResult.tracks)) {
+      allTracks.push(...sandboxResult.tracks);
+    }
+  }
+
+  for (const code of unpackAllPackedJs(html)) {
+    for (const u of extractDirectVideoUrls(code)) {
+      streamRefererMap.set(u, sourceUrl);
+      directStreams.push(u);
+    }
+  }
+
+  return apiStreams;
+}
+
+/**
+ * Hedef web sayfasının HTML içeriğini fetch eder; 403/Cloudflare veya /dizi/ ana sayfası
+ * durumlarında yt-dlp HTML dump / ilk bölüm yönlendirmesi uygular.
+ */
+async function fetchPrimaryPageHtml(rawUrl, initialUrl) {
+  let targetUrl = initialUrl;
+  const pageRes = await fetch(targetUrl, {
+    headers: {
+      'User-Agent': USER_AGENT,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Referer': targetUrl
+    },
+    redirect: 'follow'
+  });
+
+  let html = '';
+  if (!pageRes.ok) {
+    const dumpedHtml = await dumpPageHtmlWithYtdlp(targetUrl);
+    if (dumpedHtml && dumpedHtml.length > 500) {
+      html = dumpedHtml;
+    } else {
+      const ytdlpResult = await tryExtractWithYtdlp(targetUrl);
+      if (ytdlpResult && ytdlpResult.streamUrl) {
+        return {
+          earlyReturn: {
+            success: true,
+            title: cleanWebStreamTitle(ytdlpResult.title) || 'Web Video Akışı',
+            sourceUrl: targetUrl,
+            streamUrl: ytdlpResult.streamUrl,
+            streamType: ytdlpResult.streamType,
+            embedUrl: null,
+            directStreamUrl: ytdlpResult.streamUrl,
+            allStreams: [{ label: `Çözümlenen Akış (${ytdlpResult.streamType.toUpperCase()})`, url: ytdlpResult.streamUrl, type: ytdlpResult.streamType, referer: targetUrl }],
+            poster: '',
+            referer: targetUrl,
+            streamReferer: targetUrl
+          }
+        };
+      }
+      const isCf = pageRes.status === 403;
+      return {
+        earlyReturn: {
+          success: false,
+          isCloudflare: isCf,
+          error: isCf
+            ? 'Bu site Cloudflare koruması (Turnstile / Bot Gate) kullanmaktadır. Akış koruma arkasında kaldığından dahili tarayıcı veya HaYTooL uzantısı ile sayfayı açıp oynatmayı deneyebilirsiniz.'
+            : `Sayfaya erişilemedi (HTTP ${pageRes.status}).`
+        }
+      };
+    }
+  } else {
+    html = await pageRes.text();
+  }
+
+  // Dizi ana sayfası verilmişse ilk bölümü otomatik takip et
+  if (html && targetUrl.includes('/dizi/') && !targetUrl.includes('/bolum/') && !targetUrl.includes('sezon-')) {
+    const firstEpMatch = html.match(/href=["']([^"'\s]*\/bolum\/[^"'\s]+)["']/i);
+    if (firstEpMatch && firstEpMatch[1]) {
+      try {
+        targetUrl = new URL(firstEpMatch[1], rawUrl).href;
+        const epRes = await fetch(targetUrl, {
+          headers: { 'User-Agent': USER_AGENT, 'Referer': rawUrl }
+        });
+        if (epRes.ok) {
+          html = await epRes.text();
+        }
+      } catch {}
+    }
+  }
+
+  return { targetUrl, html };
+}
+
+/**
+ * Jetfilmizle (/jetplayer AJAX), Filmmakinesi (video-parts) ve scx şifreli kaynakları toplar.
+ */
+async function collectSiteSpecificSources({ html, targetUrl, movieIframes, trailerIframes, directStreams, streamRefererMap, streamTypeMap, allTracks, namedStreams }) {
+  const filmIdMatch = html.match(/name=["']film_id["'][^>]*value=["']([^"']+)["']/i) ||
+                      html.match(/value=["']([^"']+)["'][^>]*name=["']film_id["']/i);
+  if (filmIdMatch && (html.includes('player-source-btn') || html.includes('jetplayer') || html.includes('film_id'))) {
+    const filmId = filmIdMatch[1];
+    try {
+      const targetOrigin = new URL(targetUrl).origin;
+      const endpoint = `${targetOrigin}/jetplayer`;
+      const rawBtns = [...html.matchAll(/<button[^>]*class="[^"]*player-source-btn[^"]*"[^>]*data-source-index="(\d+)"[^>]*data-player-type="([^"]+)"[^>]*>([\s\S]*?)<\/button>/gi)];
+      const buttons = rawBtns.map(b => ({
+        index: parseInt(b[1], 10),
+        type: b[2].trim(),
+        label: b[3].replace(/<[^>]+>/g, '').trim()
+      }));
+
+      if (buttons.length === 0) {
+        ['dublaj', 'altyazili', 'genel'].forEach(pt => {
+          for (let i = 0; i < 6; i++) {
+            buttons.push({ index: i, type: pt, label: `Kaynak ${i + 1}` });
+          }
+        });
+      }
+
+      for (const btn of buttons) {
+        try {
+          const jetRes = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-Requested-With': 'XMLHttpRequest',
+              'User-Agent': USER_AGENT,
+              'Referer': targetUrl
+            },
+            body: `film_id=${filmId}&source_index=${btn.index}&player_type=${btn.type}`,
+            signal: AbortSignal.timeout(6000)
+          });
+          if (!jetRes.ok) continue;
+          const jetHtml = await jetRes.text();
+          const iframeMatch = jetHtml.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+          if (!iframeMatch || !iframeMatch[1]) continue;
+
+          let iframeSrc = iframeMatch[1].trim();
+          if (iframeSrc.startsWith('//')) iframeSrc = 'https:' + iframeSrc;
+          else if (iframeSrc.startsWith('/')) iframeSrc = `${targetOrigin}${iframeSrc}`;
+
+          const typeLabel = (btn.type === 'dublaj') ? 'Dublaj' : ((btn.type === 'altyazili') ? 'Altyazılı' : (btn.type === 'genel' ? 'Dil+' : btn.type));
+          const cleanBtnLabel = btn.label || `Kaynak ${btn.index + 1}`;
+
+          const resolved = await resolveVideoparkSource(iframeSrc, targetUrl);
+          if (resolved && (resolved.type === 'm3u8' || resolved.type === 'mp4')) {
+            directStreams.push(resolved.url);
+            streamRefererMap.set(resolved.url, iframeSrc);
+            streamTypeMap.set(resolved.url, resolved.type);
+            if (Array.isArray(resolved.tracks)) allTracks.push(...resolved.tracks);
+            namedStreams.push({
+              label: `▶ ${cleanBtnLabel} (${typeLabel} - ${resolved.type.toUpperCase()})`,
+              url: resolved.url,
+              rawUrl: resolved.url,
+              type: resolved.type,
+              referer: iframeSrc
+            });
+          } else {
+            const embedUrl = (resolved && resolved.type === 'embed') ? resolved.url : iframeSrc;
+            if (embedUrl.toLowerCase().includes('youtube.com') || embedUrl.toLowerCase().includes('youtu.be')) {
+              trailerIframes.push(embedUrl);
+            } else {
+              movieIframes.push(embedUrl);
+              namedStreams.push({
+                label: `📺 ${cleanBtnLabel} (${typeLabel} - Embed)`,
+                url: embedUrl,
+                rawUrl: embedUrl,
+                type: 'embed',
+                referer: targetUrl
+              });
+            }
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  const partsMatch = html.match(/class=["'][^"']*video-parts[^"']*["']([\s\S]*?)<\/div>/i);
+  if (partsMatch) {
+    const partLinks = [...partsMatch[1].matchAll(/<a[^>]*data-video_url=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
+    for (const pl of partLinks) {
+      let vUrl = pl[1].trim();
+      if (vUrl.startsWith('//')) vUrl = 'https:' + vUrl;
+      if (!movieIframes.includes(vUrl)) movieIframes.push(vUrl);
+    }
+  }
+
+  const scxMatch = html.match(/var\s+scx\s*=\s*({[\s\S]*?});/i);
+  if (scxMatch) {
+    try {
+      const scxObj = JSON.parse(scxMatch[1]);
+      for (const sKey in scxObj) {
+        const sVal = scxObj[sKey];
+        if (!sVal || !sVal.sx) continue;
+        for (const item of [...(sVal.sx.p || []), ...(sVal.sx.t || [])]) {
+          if (typeof item !== 'string') continue;
+          if (item.startsWith('http')) {
+            if (!movieIframes.includes(item)) movieIframes.push(item);
+          } else {
+            try {
+              const decoded = Buffer.from(rot13(item), 'base64').toString('utf-8').trim();
+              if (decoded.startsWith('http') && !movieIframes.includes(decoded)) movieIframes.push(decoded);
+            } catch {}
+          }
+        }
+      }
+    } catch (_) {}
+  }
+}
+
+/**
+ * Aday embed iframe sayfalarının içeriğini tarayıp doğrudan akışları çıkarır.
+ */
+async function scanEmbedIframes({ movieIframes, targetUrl, preferredMethod, directStreams, streamRefererMap, streamTypeMap, allTracks, chosenEmbedUrl }) {
+  let updatedChosenEmbedUrl = chosenEmbedUrl;
+  if (movieIframes.length === 0 || preferredMethod === 'direct') {
+    return updatedChosenEmbedUrl;
+  }
+
+  for (const iframeUrl of movieIframes.slice(0, 4)) {
+    try {
+      let iframeHtml = null;
+      try {
+        const iframeRes = await fetch(iframeUrl, {
+          headers: { 'User-Agent': USER_AGENT, 'Referer': targetUrl },
+          redirect: 'follow'
+        });
+        if (iframeRes.ok) iframeHtml = await iframeRes.text();
+      } catch {}
+
+      if (!iframeHtml && (iframeUrl.includes('closeload') || iframeUrl.includes('rapid') || iframeUrl.includes('filmmakinesi') || iframeUrl.includes('hdfilmcehennemi'))) {
+        try {
+          iframeHtml = await dumpPageHtmlWithYtdlp(iframeUrl, targetUrl);
+        } catch {}
+      }
+
+      if (iframeHtml) {
+        const apiStreams = await extractDirectAndDynamicStreams({
+          html: iframeHtml,
+          sourceUrl: iframeUrl,
+          directStreams,
+          streamRefererMap,
+          streamTypeMap,
+          allTracks
+        });
+        if ((directStreams.length > 0 || apiStreams.length > 0) && !updatedChosenEmbedUrl) {
+          updatedChosenEmbedUrl = iframeUrl;
+        }
+      }
+    } catch {}
+  }
+
+  return updatedChosenEmbedUrl;
+}
+
+/**
+ * Bulunan akış, embed, fragman ve VTT altyazılarını proxy URL'leriyle son yanıta dönüştürür.
+ */
+function buildExtractionResponse({ targetUrl, title, poster, extractStartedAt, safeHost, preferredMethod, namedStreams, directStreams, movieIframes, trailerIframes, iframes, chosenEmbedUrl, allTracks, streamRefererMap, streamTypeMap }) {
+  const allStreams = [];
+  const makePlayableUrl = (u, ref) => {
+    if (ref && (isHlsStreamUrl(u, streamTypeMap) || u.includes('.mp4') || u.includes('.ts'))) {
+      return `/api/tools/web-stream-proxy?url=${encodeURIComponent(u)}&referer=${encodeURIComponent(ref)}`;
+    }
+    return u;
+  };
+
+  let primaryDirectUrl = null;
+  let primaryDirectType = null;
+  let primaryDirectReferer = null;
+  let effectiveEmbedUrl = null;
+
+  if (namedStreams.length > 0) {
+    const firstDirect = namedStreams.find(s => s.type === 'm3u8' || s.type === 'mp4');
+    if (firstDirect) {
+      primaryDirectUrl = firstDirect.url;
+      primaryDirectType = firstDirect.type;
+      primaryDirectReferer = firstDirect.referer || targetUrl;
+    } else {
+      effectiveEmbedUrl = namedStreams[0].url;
+    }
+
+    const seen = new Set();
+    for (const ns of namedStreams) {
+      if (seen.has(ns.url)) continue;
+      seen.add(ns.url);
+      const isDirect = (ns.type === 'm3u8' || ns.type === 'mp4');
+      allStreams.push({
+        label: ns.label,
+        url: isDirect ? makePlayableUrl(ns.url, ns.referer) : ns.url,
+        rawUrl: ns.rawUrl || ns.url,
+        type: ns.type,
+        referer: ns.referer || targetUrl,
+        isTrailer: false
+      });
+    }
+
+    if (trailerIframes.length > 0) {
+      trailerIframes.slice(0, 1).forEach((emb) => {
+        allStreams.push({
+          label: '🎬 Fragman / Tanıtım (YouTube)',
+          url: emb,
+          rawUrl: emb,
+          type: 'embed',
+          referer: targetUrl,
+          isTrailer: true
+        });
+      });
+    }
+  } else {
+    const sortedDirect = directStreams.length > 0
+      ? [...directStreams].sort((a, b) => (isHlsStreamUrl(b, streamTypeMap) ? 1 : 0) - (isHlsStreamUrl(a, streamTypeMap) ? 1 : 0))
+      : [];
+
+    if (sortedDirect.length > 0) {
+      primaryDirectUrl = sortedDirect[0];
+      primaryDirectType = isHlsStreamUrl(primaryDirectUrl, streamTypeMap) ? 'm3u8' : 'mp4';
+      primaryDirectReferer = streamRefererMap.get(primaryDirectUrl) || chosenEmbedUrl || targetUrl;
+    }
+
+    effectiveEmbedUrl = movieIframes[0] || (directStreams.length === 0 ? iframes[0] : null);
+
+    sortedDirect.forEach((u, idx) => {
+      const isM3u8 = isHlsStreamUrl(u, streamTypeMap);
+      const stRef = streamRefererMap.get(u) || chosenEmbedUrl || targetUrl;
+      const host = getHostLabel(stRef || u);
+      allStreams.push({
+        label: `▶ ${idx + 1}. Film (${isM3u8 ? 'HLS' : 'MP4'} - ${host})`,
+        url: makePlayableUrl(u, stRef),
+        rawUrl: u,
+        type: isM3u8 ? 'm3u8' : 'mp4',
+        referer: stRef,
+        isTrailer: false
+      });
+    });
+
+    movieIframes.slice(0, 6).forEach((emb) => {
+      allStreams.push({
+        label: `📺 Gömülü Film (${getEmbedLabel(emb)})`,
+        url: emb,
+        rawUrl: emb,
+        type: 'embed',
+        referer: targetUrl,
+        isTrailer: false
+      });
+    });
+
+    trailerIframes.slice(0, 2).forEach((emb) => {
+      allStreams.push({
+        label: '🎬 Fragman / Tanıtım (YouTube)',
+        url: emb,
+        rawUrl: emb,
+        type: 'embed',
+        referer: targetUrl,
+        isTrailer: true
+      });
+    });
+  }
+
+  const playerUrl = primaryDirectUrl
+    ? makePlayableUrl(primaryDirectUrl, primaryDirectReferer)
+    : (effectiveEmbedUrl || null);
+  const playerType = primaryDirectUrl ? primaryDirectType : (effectiveEmbedUrl ? 'embed' : null);
+
+  if (!playerUrl) {
+    console.warn(`[WEBSTREAM] Çözümleme başarısız (${Date.now() - extractStartedAt}ms): ${safeHost} -> Oynatılabilir akış veya embed tespit edilemedi.`);
+    return {
+      success: false,
+      error: 'Sayfada oynatılabilir video akışı veya embed oynatıcı tespit edilemedi.',
+      title,
+      sourceUrl: targetUrl
+    };
+  }
+
+  const activeReferer = primaryDirectReferer || effectiveEmbedUrl || targetUrl;
+  const processedTracks = allTracks.map(t => {
+    if (t && t.file && t.file.startsWith('http')) {
+      return {
+        ...t,
+        file: `/api/tools/web-stream-proxy?url=${encodeURIComponent(t.file)}&referer=${encodeURIComponent(activeReferer)}`
+      };
+    }
+    return t;
+  });
+
+  console.log(`[WEBSTREAM] Çözümleme başarılı (${Date.now() - extractStartedAt}ms): ${safeHost} | Tip=${playerType || 'bilinmiyor'} | Akış=${allStreams.length} | Altyazı=${processedTracks.length} | Kapak=${poster ? 'Var' : 'Yok'}`);
+
+  return {
+    success: true,
+    title,
+    sourceUrl: targetUrl,
+    streamUrl: playerUrl,
+    streamType: playerType,
+    embedUrl: effectiveEmbedUrl,
+    directStreamUrl: primaryDirectUrl || playerUrl,
+    streamReferer: activeReferer,
+    allStreams,
+    hasMultipleStreams: allStreams.length > 1,
+    promptUserSelection: preferredMethod === 'prompt',
+    tracks: processedTracks,
+    poster,
+    referer: activeReferer
+  };
+}
+
 /**
  * Verilen bir URL'yi analiz edip oynatılabilir stream/iframe kaynaklarını tespit eder.
  *
@@ -857,10 +1307,15 @@ export async function extractStreamFromUrl(rawUrl, preferredMethod = 'auto') {
     targetUrl = 'https://' + targetUrl;
   }
 
+  const extractStartedAt = Date.now();
+  let safeHost = targetUrl;
+  try { safeHost = new URL(targetUrl).hostname; } catch (_) {}
+  console.log(`[WEBSTREAM] Çözümleme başlatıldı: ${safeHost} (yöntem=${preferredMethod})`);
+
   try {
-    // 0. Eğer kullanıcı doğrudan bir .m3u8 veya .mp4 linki verdiyse
     if (targetUrl.includes('.m3u8') || targetUrl.includes('.mp4') || targetUrl.includes('master.txt')) {
       const streamType = (targetUrl.includes('.m3u8') || targetUrl.includes('master.txt')) ? 'm3u8' : 'mp4';
+      console.log(`[WEBSTREAM] Doğrudan akış algılandı (${Date.now() - extractStartedAt}ms): ${safeHost} | Tip=${streamType}`);
       return {
         success: true,
         title: 'Doğrudan Medya Akışı',
@@ -875,7 +1330,6 @@ export async function extractStreamFromUrl(rawUrl, preferredMethod = 'auto') {
       };
     }
 
-    // 0b. Kullanıcı doğrudan yt-dlp motorunu seçtiyse öncelikle yt-dlp'yi dene
     if (preferredMethod === 'ytdlp') {
       const ytdlpResult = await tryExtractWithYtdlp(targetUrl);
       if (ytdlpResult && ytdlpResult.streamUrl) {
@@ -896,137 +1350,25 @@ export async function extractStreamFromUrl(rawUrl, preferredMethod = 'auto') {
       }
     }
 
-    // Akışların kaynak referer ve tür eşleştirmesi
+    const pageResult = await fetchPrimaryPageHtml(rawUrl, targetUrl);
+    if (pageResult.earlyReturn) return pageResult.earlyReturn;
+    targetUrl = pageResult.targetUrl;
+    const html = pageResult.html;
+
     const streamRefererMap = new Map();
     const streamTypeMap = new Map();
     const allTracks = [];
     const namedStreams = [];
+    let directStreams = [];
 
-    function isHlsUrl(u) {
-      if (!u) return false;
-      const mapped = streamTypeMap.get(u);
-      if (mapped === 'hls' || mapped === 'm3u8') return true;
-      if (mapped === 'mp4') return false;
-      return u.includes('.m3u8') || u.includes('master.txt') || u.includes('/m/') || u.includes('/mm/') || u.includes('/mx/') || u.includes('workers.dev') || u.includes('cdnimage') || /\/m[0-9a-z]\//i.test(u);
-    }
+    const { title, poster } = extractPageMeta(html, targetUrl);
 
-    // 1. Ana sayfayı fetch et
-    const pageRes = await fetch(targetUrl, {
-      headers: {
-        'User-Agent': USER_AGENT,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Referer': targetUrl
-      },
-      redirect: 'follow'
-    });
-
-    let html = '';
-    if (!pageRes.ok) {
-      // 1. HTTP 403 veya Cloudflare koruması varsa yt-dlp ile sayfa HTML'ini çekmeyi dene
-      const dumpedHtml = await dumpPageHtmlWithYtdlp(targetUrl);
-      if (dumpedHtml && dumpedHtml.length > 500) {
-        html = dumpedHtml;
-      } else {
-        // HTML alınamadıysa doğrudan yt-dlp akış çözümlemesini dene
-        const ytdlpResult = await tryExtractWithYtdlp(targetUrl);
-        if (ytdlpResult && ytdlpResult.streamUrl) {
-          return {
-            success: true,
-            title: cleanWebStreamTitle(ytdlpResult.title) || 'Web Video Akışı',
-            sourceUrl: targetUrl,
-            streamUrl: ytdlpResult.streamUrl,
-            streamType: ytdlpResult.streamType,
-            embedUrl: null,
-            directStreamUrl: ytdlpResult.streamUrl,
-            allStreams: [{ label: `Çözümlenen Akış (${ytdlpResult.streamType.toUpperCase()})`, url: ytdlpResult.streamUrl, type: ytdlpResult.streamType, referer: targetUrl }],
-            poster: '',
-            referer: targetUrl,
-            streamReferer: targetUrl
-          };
-        }
-
-        const isCf = pageRes.status === 403;
-        const errorMsg = isCf
-          ? 'Bu site Cloudflare koruması (Turnstile / Bot Gate) kullanmaktadır. Akış koruma arkasında kaldığından dahili tarayıcı veya HaYTooL uzantısı ile sayfayı açıp oynatmayı deneyebilirsiniz.'
-          : `Sayfaya erişilemedi (HTTP ${pageRes.status}).`;
-
-        return {
-          success: false,
-          isCloudflare: isCf,
-          error: errorMsg
-        };
-      }
-    } else {
-      html = await pageRes.text();
-    }
-
-    // 1b. Eğer kullanıcı bir dizi ana sayfası verdi ise (örn: /dizi/gibi/), sayfadaki ilk bölümü otomatik tespit et ve ona yönlendir
-    if (html && (targetUrl.includes('/dizi/') && !targetUrl.includes('/bolum/') && !targetUrl.includes('sezon-'))) {
-      const firstEpMatch = html.match(/href=["']([^"'\s]*\/bolum\/[^"'\s]+)["']/i);
-      if (firstEpMatch && firstEpMatch[1]) {
-        try {
-          targetUrl = new URL(firstEpMatch[1], rawUrl).href;
-          const epRes = await fetch(targetUrl, {
-            headers: { 'User-Agent': USER_AGENT, 'Referer': rawUrl }
-          });
-          if (epRes.ok) {
-            html = await epRes.text();
-          }
-        } catch {}
-      }
-    }
-
-    const { title, poster } = extractPageMeta(html);
-
-    // 2. Sayfada doğrudan m3u8 veya mp4 var mı kontrol et
-    let directStreams = extractDirectVideoUrls(html);
-    directStreams.forEach(u => streamRefererMap.set(u, targetUrl));
-
-    // 3. Ana sayfadaki dinamik API çağrılarını çöz (Sayfa doğrudan embed oynatıcı olabilir)
-    const directApiStreams = await resolveDynamicApiStreams(html, targetUrl);
-    for (const item of directApiStreams) {
-      const u = typeof item === 'string' ? item : item.url;
-      const t = typeof item === 'object' && item.type ? item.type : 'hls';
-      directStreams.push(u);
-      streamRefererMap.set(u, targetUrl);
-      if (t === 'hls' || t === 'm3u8' || isHlsUrl(u)) {
-        streamTypeMap.set(u, 'm3u8');
-      }
-    }
-
-    // 4. Ana sayfadaki dinamik / şifreli JWPlayer kodlarını sandbox ile çöz
-    const mainSandboxResult = extractJwplayerFromSandbox(html, targetUrl);
-    if (mainSandboxResult && Array.isArray(mainSandboxResult.streams)) {
-      for (const s of mainSandboxResult.streams) {
-        directStreams.push(s.url);
-        streamRefererMap.set(s.url, targetUrl);
-        if (s.type === 'hls' || isHlsUrl(s.url)) {
-          streamTypeMap.set(s.url, 'm3u8');
-        }
-      }
-      if (Array.isArray(mainSandboxResult.tracks)) {
-        allTracks.push(...mainSandboxResult.tracks);
-      }
-    }
-
-    // 5. Packed JS kodlarını açıp orada ara
-    const unpackedBlocks = unpackAllPackedJs(html);
-    for (const code of unpackedBlocks) {
-      const fromPacked = extractDirectVideoUrls(code);
-      fromPacked.forEach(u => streamRefererMap.set(u, targetUrl));
-      directStreams.push(...fromPacked);
-    }
-
-    // Tekilleştir
+    await extractDirectAndDynamicStreams({ html, sourceUrl: targetUrl, directStreams, streamRefererMap, streamTypeMap, allTracks });
     directStreams = Array.from(new Set(directStreams));
 
-    // 6. Iframe embed kaynaklarını topla ve filmleri fragmandan ayır
-    const rawIframes = extractIframeSources(html, targetUrl);
     const movieIframes = [];
     const trailerIframes = [];
-
-    for (const u of rawIframes) {
+    for (const u of extractIframeSources(html, targetUrl)) {
       const lower = u.toLowerCase();
       if (lower.includes('youtube.com') || lower.includes('youtu.be') || lower.includes('trailer') || lower.includes('fragman') || lower.includes('tanitim') || lower.includes('teaser') || lower.includes('preview')) {
         trailerIframes.push(u);
@@ -1035,153 +1377,12 @@ export async function extractStreamFromUrl(rawUrl, preferredMethod = 'auto') {
       }
     }
 
-    // 6b. jetfilmizle ve benzeri AJAX ile player çeken siteler (POST /jetplayer veya film_id)
-    const filmIdMatch = html.match(/name=["']film_id["'][^>]*value=["']([^"']+)["']/i) ||
-                        html.match(/value=["']([^"']+)["'][^>]*name=["']film_id["']/i);
-    if (filmIdMatch && (html.includes('player-source-btn') || html.includes('jetplayer') || html.includes('film_id'))) {
-      const filmId = filmIdMatch[1];
-      try {
-        const targetOrigin = new URL(targetUrl).origin;
-        const endpoint = `${targetOrigin}/jetplayer`;
-
-        // Sayfadaki kaynak butonlarını tespit et
-        const rawBtns = [...html.matchAll(/<button[^>]*class="[^"]*player-source-btn[^"]*"[^>]*data-source-index="(\d+)"[^>]*data-player-type="([^"]+)"[^>]*>([\s\S]*?)<\/button>/gi)];
-        let buttons = rawBtns.map(b => ({
-          index: parseInt(b[1], 10),
-          type: b[2].trim(),
-          label: b[3].replace(/<[^>]+>/g, '').trim()
-        }));
-
-        if (buttons.length === 0) {
-          ['dublaj', 'altyazili', 'genel'].forEach(pt => {
-            for (let i = 0; i < 6; i++) {
-              buttons.push({ index: i, type: pt, label: `Kaynak ${i + 1}` });
-            }
-          });
-        }
-
-        for (const btn of buttons) {
-          try {
-            const jetRes = await fetch(endpoint, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest',
-                'User-Agent': USER_AGENT,
-                'Referer': targetUrl
-              },
-              body: `film_id=${filmId}&source_index=${btn.index}&player_type=${btn.type}`,
-              signal: AbortSignal.timeout(6000)
-            });
-            if (jetRes.ok) {
-              const jetHtml = await jetRes.text();
-              const iframeMatch = jetHtml.match(/<iframe[^>]+src=["']([^"']+)["']/i);
-              if (iframeMatch && iframeMatch[1]) {
-                let iframeSrc = iframeMatch[1].trim();
-                if (iframeSrc.startsWith('//')) iframeSrc = 'https:' + iframeSrc;
-                else if (iframeSrc.startsWith('/')) iframeSrc = `${targetOrigin}${iframeSrc}`;
-
-                const typeLabel = (btn.type === 'dublaj') ? 'Dublaj' : ((btn.type === 'altyazili') ? 'Altyazılı' : (btn.type === 'genel' ? 'Dil+' : btn.type));
-                const cleanBtnLabel = btn.label || `Kaynak ${btn.index + 1}`;
-
-                // videopark resolver ile doğrudan stream veya embed linkini çöz
-                const resolved = await resolveVideoparkSource(iframeSrc, targetUrl);
-                if (resolved && (resolved.type === 'm3u8' || resolved.type === 'mp4')) {
-                  directStreams.push(resolved.url);
-                  streamRefererMap.set(resolved.url, iframeSrc);
-                  streamTypeMap.set(resolved.url, resolved.type);
-                  if (Array.isArray(resolved.tracks)) {
-                    allTracks.push(...resolved.tracks);
-                  }
-                  namedStreams.push({
-                    label: `▶ ${cleanBtnLabel} (${typeLabel} - ${resolved.type.toUpperCase()})`,
-                    url: resolved.url,
-                    rawUrl: resolved.url,
-                    type: resolved.type,
-                    referer: iframeSrc
-                  });
-                } else if (resolved && resolved.type === 'embed') {
-                  movieIframes.push(resolved.url);
-                  namedStreams.push({
-                    label: `📺 ${cleanBtnLabel} (${typeLabel} - Embed)`,
-                    url: resolved.url,
-                    rawUrl: resolved.url,
-                    type: 'embed',
-                    referer: targetUrl
-                  });
-                } else {
-                  if (iframeSrc.toLowerCase().includes('youtube.com') || iframeSrc.toLowerCase().includes('youtu.be')) {
-                    trailerIframes.push(iframeSrc);
-                  } else {
-                    movieIframes.push(iframeSrc);
-                    namedStreams.push({
-                      label: `📺 ${cleanBtnLabel} (${typeLabel} - Embed)`,
-                      url: iframeSrc,
-                      rawUrl: iframeSrc,
-                      type: 'embed',
-                      referer: targetUrl
-                    });
-                  }
-                }
-              }
-            }
-          } catch (_) {}
-        }
-      } catch (_) {}
-    }
-
-    // 6d. filmmakinesi ve benzeri sitelerdeki video-parts kaynak butonları
-    const partsMatch = html.match(/class=["'][^"']*video-parts[^"']*["']([\s\S]*?)<\/div>/i);
-    if (partsMatch) {
-      const partLinks = [...partsMatch[1].matchAll(/<a[^>]*data-video_url=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
-      for (const pl of partLinks) {
-        let vUrl = pl[1].trim();
-        const pLabel = pl[2].replace(/<[^>]+>/g, '').trim() || 'Kaynak';
-        if (vUrl.startsWith('//')) vUrl = 'https:' + vUrl;
-        if (!movieIframes.includes(vUrl)) {
-          movieIframes.push(vUrl);
-        }
-      }
-    }
-    const scxMatch = html.match(/var\s+scx\s*=\s*({[\s\S]*?});/i);
-    if (scxMatch) {
-      try {
-        const scxObj = JSON.parse(scxMatch[1]);
-        for (const sKey in scxObj) {
-          const sVal = scxObj[sKey];
-          if (sVal && sVal.sx) {
-            const allItems = [...(sVal.sx.p || []), ...(sVal.sx.t || [])];
-            for (const item of allItems) {
-              if (typeof item === 'string') {
-                if (item.startsWith('http')) {
-                  if (!movieIframes.includes(item)) movieIframes.push(item);
-                } else {
-                  try {
-                    const decoded = Buffer.from(rot13(item), 'base64').toString('utf-8').trim();
-                    if (decoded.startsWith('http') && !movieIframes.includes(decoded)) {
-                      movieIframes.push(decoded);
-                    }
-                  } catch {}
-                }
-              }
-            }
-          }
-        }
-      } catch (_) {}
-    }
+    await collectSiteSpecificSources({ html, targetUrl, movieIframes, trailerIframes, directStreams, streamRefererMap, streamTypeMap, allTracks, namedStreams });
 
     const iframes = [...movieIframes, ...trailerIframes];
     let chosenEmbedUrl = movieIframes[0] || iframes[0] || null;
 
-    // Eğer kullanıcı doğrudan 'embed' oynatıcı modunu seçtiyse hemen döndür
     if (preferredMethod === 'embed' && movieIframes.length > 0) {
-      const allEmbedStreams = movieIframes.map((emb, idx) => ({
-        label: getEmbedLabel(emb),
-        url: emb,
-        rawUrl: emb,
-        type: 'embed',
-        referer: targetUrl
-      }));
       return {
         success: true,
         title: title || 'Gömülü Video Oynatıcı',
@@ -1191,275 +1392,40 @@ export async function extractStreamFromUrl(rawUrl, preferredMethod = 'auto') {
         embedUrl: movieIframes[0],
         directStreamUrl: movieIframes[0],
         streamReferer: targetUrl,
-        allStreams: allEmbedStreams,
+        allStreams: movieIframes.map(emb => ({ label: getEmbedLabel(emb), url: emb, rawUrl: emb, type: 'embed', referer: targetUrl })),
         tracks: [],
         poster,
         referer: targetUrl
       };
     }
 
-    // 7. Iframe'lerin içine girip doğrudan akış ve dinamik API çağrılarını tara (direct modunda iframe sandboxing atlanır)
-    if (movieIframes.length > 0 && preferredMethod !== 'direct') {
-      for (const iframeUrl of movieIframes.slice(0, 4)) {
-        try {
-          let iframeHtml = null;
-          try {
-            const iframeRes = await fetch(iframeUrl, {
-              headers: {
-                'User-Agent': USER_AGENT,
-                'Referer': targetUrl
-              },
-              redirect: 'follow'
-            });
-            if (iframeRes.ok) {
-              iframeHtml = await iframeRes.text();
-            }
-          } catch {}
-
-          // Cloudflare Turnstile / 403 korumalı embed sayfaları (CloseLoad, Rapidrame vb.) için yt-dlp ile referer'lı dump al
-          if (!iframeHtml && (iframeUrl.includes('closeload') || iframeUrl.includes('rapid') || iframeUrl.includes('filmmakinesi') || iframeUrl.includes('hdfilmcehennemi'))) {
-            try {
-              iframeHtml = await dumpPageHtmlWithYtdlp(iframeUrl, targetUrl);
-            } catch {}
-          }
-
-          if (iframeHtml) {
-            // 7a. Sandbox ile JWPlayer / dinamik şifreli kaynakları çöz (cpe3e, rk5, ai73, v54, w6wf vb.)
-            const sandboxResult = extractJwplayerFromSandbox(iframeHtml, iframeUrl);
-            if (sandboxResult && Array.isArray(sandboxResult.streams)) {
-              for (const s of sandboxResult.streams) {
-                directStreams.push(s.url);
-                streamRefererMap.set(s.url, iframeUrl);
-                if (s.type === 'hls' || isHlsUrl(s.url)) {
-                  streamTypeMap.set(s.url, 'm3u8');
-                }
-              }
-              if (Array.isArray(sandboxResult.tracks)) {
-                allTracks.push(...sandboxResult.tracks);
-              }
-            }
-
-            // 7b. Iframe içindeki dinamik stream API (/dl?op=get_stream, worker /api/stream vb.)
-            const apiStreams = await resolveDynamicApiStreams(iframeHtml, iframeUrl);
-            for (const item of apiStreams) {
-              const u = typeof item === 'string' ? item : item.url;
-              const t = typeof item === 'object' && item.type ? item.type : 'hls';
-              directStreams.push(u);
-              streamRefererMap.set(u, iframeUrl);
-              if (t === 'hls' || t === 'm3u8' || isHlsUrl(u)) {
-                streamTypeMap.set(u, 'm3u8');
-              }
-            }
-
-            // 7c. Iframe içindeki doğrudan akışlar
-            const fromIframe = extractDirectVideoUrls(iframeHtml);
-            fromIframe.forEach(u => streamRefererMap.set(u, iframeUrl));
-            directStreams.push(...fromIframe);
-
-            // 7d. Iframe içindeki packed JS
-            const iframePacked = unpackAllPackedJs(iframeHtml);
-            for (const code of iframePacked) {
-              const fromPack = extractDirectVideoUrls(code);
-              fromPack.forEach(u => streamRefererMap.set(u, iframeUrl));
-              directStreams.push(...fromPack);
-            }
-
-            if ((directStreams.length > 0 || apiStreams.length > 0) && !chosenEmbedUrl) {
-              chosenEmbedUrl = iframeUrl;
-            }
-          }
-        } catch {}
-      }
-    }
-
+    chosenEmbedUrl = await scanEmbedIframes({ movieIframes, targetUrl, preferredMethod, directStreams, streamRefererMap, streamTypeMap, allTracks, chosenEmbedUrl });
     directStreams = Array.from(new Set(directStreams));
 
-    // 8. Hala bulunamadıysa yt-dlp ile dene (fragman değilse)
     if (directStreams.length === 0 && chosenEmbedUrl && !chosenEmbedUrl.includes('youtube.com') && !chosenEmbedUrl.includes('youtu.be')) {
       const ytdlpResult = await tryExtractWithYtdlp(chosenEmbedUrl);
       if (ytdlpResult && ytdlpResult.streamUrl) {
         directStreams.push(ytdlpResult.streamUrl);
         streamRefererMap.set(ytdlpResult.streamUrl, chosenEmbedUrl);
-        if (ytdlpResult.streamType === 'm3u8' || isHlsUrl(ytdlpResult.streamUrl)) {
+        if (ytdlpResult.streamType === 'm3u8' || isHlsStreamUrl(ytdlpResult.streamUrl, streamTypeMap)) {
           streamTypeMap.set(ytdlpResult.streamUrl, 'm3u8');
         }
       }
     }
 
-    // 9. Sonuçları derle
-    const allStreams = [];
-
-    function makePlayableUrl(u, ref) {
-      if (ref && (isHlsUrl(u) || u.includes('.mp4') || u.includes('.ts'))) {
-        return `/api/tools/web-stream-proxy?url=${encodeURIComponent(u)}&referer=${encodeURIComponent(ref)}`;
-      }
-      return u;
-    }
-
-    let primaryDirectUrl = null;
-    let primaryDirectType = null;
-    let primaryDirectReferer = null;
-    let effectiveEmbedUrl = null;
-
-    if (namedStreams.length > 0) {
-      const firstDirect = namedStreams.find(s => s.type === 'm3u8' || s.type === 'mp4');
-      if (firstDirect) {
-        primaryDirectUrl = firstDirect.url;
-        primaryDirectType = firstDirect.type;
-        primaryDirectReferer = firstDirect.referer || targetUrl;
-      } else {
-        effectiveEmbedUrl = namedStreams[0].url;
-      }
-
-      // Adlandırılmış kaynakları doğrudan allStreams içine ekle
-      const seen = new Set();
-      for (const ns of namedStreams) {
-        if (!seen.has(ns.url)) {
-          seen.add(ns.url);
-          const isDirect = (ns.type === 'm3u8' || ns.type === 'mp4');
-          allStreams.push({
-            label: ns.label,
-            url: isDirect ? makePlayableUrl(ns.url, ns.referer) : ns.url,
-            rawUrl: ns.rawUrl || ns.url,
-            type: ns.type,
-            referer: ns.referer || targetUrl,
-            isTrailer: false
-          });
-        }
-      }
-
-      // Varsa YouTube fragmanını da ekle
-      if (trailerIframes.length > 0) {
-        trailerIframes.slice(0, 1).forEach((emb) => {
-          allStreams.push({
-            label: `🎬 Fragman / Tanıtım (YouTube)`,
-            url: emb,
-            rawUrl: emb,
-            type: 'embed',
-            referer: targetUrl,
-            isTrailer: true
-          });
-        });
-      }
-    } else {
-      if (directStreams.length > 0) {
-        const sorted = directStreams.sort((a, b) => {
-          const aM3u8 = isHlsUrl(a);
-          const bM3u8 = isHlsUrl(b);
-          return (bM3u8 ? 1 : 0) - (aM3u8 ? 1 : 0);
-        });
-        primaryDirectUrl = sorted[0];
-        primaryDirectType = isHlsUrl(primaryDirectUrl) ? 'm3u8' : 'mp4';
-        primaryDirectReferer = streamRefererMap.get(primaryDirectUrl) || chosenEmbedUrl || targetUrl;
-      }
-
-      effectiveEmbedUrl = movieIframes[0] || (directStreams.length === 0 ? iframes[0] : null);
-
-      // 1. Önce doğrudan oynatılabilir HLS / MP4 akışlarını ekle (Filmler)
-      let movieStreamCount = 0;
-      if (directStreams.length > 0) {
-        const sorted = directStreams.sort((a, b) => {
-          const aM3u8 = isHlsUrl(a);
-          const bM3u8 = isHlsUrl(b);
-          return (bM3u8 ? 1 : 0) - (aM3u8 ? 1 : 0);
-        });
-        sorted.forEach((u) => {
-          movieStreamCount++;
-          const isM3u8 = isHlsUrl(u);
-          const stRef = streamRefererMap.get(u) || chosenEmbedUrl || targetUrl;
-          const host = getHostLabel(stRef || u);
-          allStreams.push({
-            label: `▶ ${movieStreamCount}. Film (${isM3u8 ? 'HLS' : 'MP4'} - ${host})`,
-            url: makePlayableUrl(u, stRef),
-            rawUrl: u,
-            type: isM3u8 ? 'm3u8' : 'mp4',
-            referer: stRef,
-            isTrailer: false
-          });
-        });
-      }
-
-      // 2. Ardından alternatif olarak site yerleşik Embed oynatıcılarını ekle (Film Embedleri)
-      if (movieIframes.length > 0) {
-        movieIframes.slice(0, 6).forEach((emb) => {
-          allStreams.push({
-            label: `📺 Gömülü Film (${getEmbedLabel(emb)})`,
-            url: emb,
-            rawUrl: emb,
-            type: 'embed',
-            referer: targetUrl,
-            isTrailer: false
-          });
-        });
-      }
-
-      // 3. Varsa YouTube fragman / tanıtım videolarını en sona ekle
-      if (trailerIframes.length > 0) {
-        trailerIframes.slice(0, 2).forEach((emb) => {
-          allStreams.push({
-            label: `🎬 Fragman / Tanıtım (YouTube)`,
-            url: emb,
-            rawUrl: emb,
-            type: 'embed',
-            referer: targetUrl,
-            isTrailer: true
-          });
-        });
-      }
-    }
-
-    const playerUrl = primaryDirectUrl 
-      ? makePlayableUrl(primaryDirectUrl, primaryDirectReferer)
-      : (effectiveEmbedUrl || null);
-    const playerType = primaryDirectUrl ? primaryDirectType : (effectiveEmbedUrl ? 'embed' : null);
-
-    if (!playerUrl) {
-      return {
-        success: false,
-        error: 'Sayfada oynatılabilir video akışı veya embed oynatıcı tespit edilemedi.',
-        title,
-        sourceUrl: targetUrl
-      };
-    }
-
-    const activeReferer = primaryDirectReferer || effectiveEmbedUrl || targetUrl;
-
-    // Altyazı VTT dosyalarını proxy üzerinden geçirerek CORS ve Referer engellerini aş
-    const processedTracks = allTracks.map(t => {
-      if (t && t.file && t.file.startsWith('http')) {
-        return {
-          ...t,
-          file: `/api/tools/web-stream-proxy?url=${encodeURIComponent(t.file)}&referer=${encodeURIComponent(activeReferer)}`
-        };
-      }
-      return t;
+    return buildExtractionResponse({
+      targetUrl, title, poster, extractStartedAt, safeHost, preferredMethod,
+      namedStreams, directStreams, movieIframes, trailerIframes, iframes,
+      chosenEmbedUrl, allTracks, streamRefererMap, streamTypeMap
     });
-
-    return {
-      success: true,
-      title,
-      sourceUrl: targetUrl,
-      streamUrl: playerUrl,
-      streamType: playerType,
-      embedUrl: effectiveEmbedUrl,
-      directStreamUrl: primaryDirectUrl || playerUrl,
-      streamReferer: activeReferer,
-      allStreams,
-      hasMultipleStreams: allStreams.length > 1,
-      promptUserSelection: preferredMethod === 'prompt',
-      tracks: processedTracks,
-      poster,
-      referer: activeReferer
-    };
-
   } catch (err) {
+    console.error(`[WEBSTREAM] Çözümleme hatası (${Date.now() - extractStartedAt}ms): ${safeHost} -> ${err.message}`);
     return {
       success: false,
       error: `Çözümleme sırasında hata oluştu: ${err.message}`
     };
   }
 }
-
 // --- KAYNAK SİTELERDE ARAMA SİSTEMİ (MULTI-SITE SEARCH) ---
 
 let cachedDizipalParams = null;

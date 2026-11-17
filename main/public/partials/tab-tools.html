@@ -419,4 +419,96 @@
           </div>
         </div>
 
+        <!-- 7. BÖLÜM: İndirilen YouTube Videoları Uzak Durum Kontrolü -->
+        <div class="card hidden" id="tools-remote-status-container" style="padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+          <div class="compare-toolbar">
+            <div class="compare-toolbar-copy">
+              <span class="compare-eyebrow" id="remote-status-eyebrow" data-i18n="remote_status_eyebrow">YouTube Uzak Sunucu Denetimi</span>
+              <p id="remote-status-copy" data-i18n="remote_status_copy">İndirilmiş YouTube videolarının güncel yayında kalma durumunu tarayın; silinen veya liste dışı kalanlar vurgulanır.</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <button type="button" class="btn btn-primary" id="btn-remote-status-scan-all" onclick="startRemoteStatusScan(false)" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="radar" style="width: 16px; height: 16px;"></i>
+                <span data-i18n="remote_status_btn_scan_all">Tümünü Tara</span>
+              </button>
+              <button type="button" class="btn btn-secondary" id="btn-remote-status-scan-unchecked" onclick="startRemoteStatusScan(true)" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="scan-search" style="width: 16px; height: 16px;"></i>
+                <span data-i18n="remote_status_btn_scan_unchecked">Taranmayanları Tara</span>
+              </button>
+              <button type="button" class="btn btn-danger hidden" id="btn-remote-status-cancel" onclick="cancelRemoteStatusScan()" style="display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="square" style="width: 15px; height: 15px;"></i>
+                <span data-i18n="remote_status_btn_cancel">İptal Et</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="remote-status-progress-wrap" class="hidden" role="status" aria-live="polite" style="padding: 12px 16px; border-radius: 10px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.22); display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 0.88rem;">
+              <span style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-main);">
+                <i data-lucide="loader" class="spin" style="width: 16px; height: 16px; color: var(--accent-color);"></i>
+                <span id="remote-status-progress-label" data-i18n="remote_status_scanning">YouTube videoları kontrol ediliyor...</span>
+              </span>
+              <span id="remote-status-progress-count" style="font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent-color);">0 / 0 (0%)</span>
+            </div>
+            <div style="width: 100%; height: 6px; border-radius: 999px; background: rgba(148, 163, 184, 0.2); overflow: hidden;">
+              <div id="remote-status-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #818cf8); transition: width 0.2s ease;"></div>
+            </div>
+            <div id="remote-status-progress-current" style="font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+          </div>
+
+          <div id="remote-status-summary" class="compare-health-summary" aria-live="polite">
+            <button type="button" class="compare-health-card" data-remote-filter="all" onclick="setRemoteStatusFilter('all')">
+              <i data-lucide="youtube" aria-hidden="true"></i><span class="compare-health-value" id="remote-stat-total">0</span><span data-i18n="remote_status_stat_total">Toplam YT Videosu</span>
+            </button>
+            <button type="button" class="compare-health-card" data-remote-filter="changed" onclick="setRemoteStatusFilter('changed')">
+              <i data-lucide="alert-triangle" aria-hidden="true"></i><span class="compare-health-value" id="remote-stat-changed">0</span><span data-i18n="remote_status_stat_changed">Durumu Değişen</span>
+            </button>
+            <button type="button" class="compare-health-card" data-remote-filter="deleted" onclick="setRemoteStatusFilter('deleted')">
+              <i data-lucide="trash-2" aria-hidden="true"></i><span class="compare-health-value" id="remote-stat-deleted">0</span><span data-i18n="remote_status_stat_deleted">Silinen / Kaldırılan</span>
+            </button>
+            <button type="button" class="compare-health-card" data-remote-filter="unlisted" onclick="setRemoteStatusFilter('unlisted')">
+              <i data-lucide="eye-off" aria-hidden="true"></i><span class="compare-health-value" id="remote-stat-unlisted">0</span><span data-i18n="remote_status_stat_unlisted">Liste Dışı</span>
+            </button>
+            <button type="button" class="compare-health-card" data-remote-filter="private" onclick="setRemoteStatusFilter('private')">
+              <i data-lucide="lock" aria-hidden="true"></i><span class="compare-health-value" id="remote-stat-private">0</span><span data-i18n="remote_status_stat_private">Gizli Video</span>
+            </button>
+            <button type="button" class="compare-health-card is-healthy" data-remote-filter="public" onclick="setRemoteStatusFilter('public')">
+              <i data-lucide="check-circle-2" aria-hidden="true"></i><span class="compare-health-value" id="remote-stat-public">0</span><span data-i18n="remote_status_stat_public">Herkese Açık</span>
+            </button>
+          </div>
+
+          <div class="deleted-videos-controls" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <input type="search" id="remote-status-search-input" data-i18n-placeholder="remote_status_search_placeholder" placeholder="Video adı, kanal veya ID ara..." oninput="filterRemoteStatusTable()" style="flex: 1; min-width: 220px;">
+            <div id="remote-status-filter-pills" style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-secondary btn-xs" data-remote-pill="changed" onclick="setRemoteStatusFilter('changed')" data-i18n="remote_status_filter_changed">Yalnızca Değişenler</button>
+              <button type="button" class="btn btn-secondary btn-xs" data-remote-pill="all" onclick="setRemoteStatusFilter('all')" data-i18n="remote_status_filter_all">Tümü</button>
+              <button type="button" class="btn btn-secondary btn-xs" data-remote-pill="deleted" onclick="setRemoteStatusFilter('deleted')" data-i18n="remote_status_filter_deleted">Silinenler</button>
+              <button type="button" class="btn btn-secondary btn-xs" data-remote-pill="unlisted" onclick="setRemoteStatusFilter('unlisted')" data-i18n="remote_status_filter_unlisted">Liste Dışı</button>
+              <button type="button" class="btn btn-secondary btn-xs" data-remote-pill="private" onclick="setRemoteStatusFilter('private')" data-i18n="remote_status_filter_private">Gizliler</button>
+              <button type="button" class="btn btn-secondary btn-xs" data-remote-pill="public" onclick="setRemoteStatusFilter('public')" data-i18n="remote_status_filter_public">Herkese Açık</button>
+              <button type="button" class="btn btn-secondary btn-xs" data-remote-pill="unchecked" onclick="setRemoteStatusFilter('unchecked')" data-i18n="remote_status_filter_unchecked">Taranmayanlar</button>
+            </div>
+          </div>
+
+          <div id="remote-status-table-wrap" class="table-container" style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; max-height: 520px; overflow-y: auto;">
+            <table class="tools-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+              <thead style="background: var(--bg-card); position: sticky; top: 0; z-index: 1;">
+                <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted);">
+                  <th style="padding: 10px 12px;" data-i18n="remote_status_col_video">Video</th>
+                  <th style="padding: 10px 12px;" data-i18n="remote_status_col_channel">Kanal</th>
+                  <th style="padding: 10px 12px;" data-i18n="remote_status_col_remote">Uzak Sunucu Durumu</th>
+                  <th style="padding: 10px 12px;" data-i18n="remote_status_col_checked_at">Son Kontrol</th>
+                  <th style="padding: 10px 12px; text-align: right;" data-i18n="remote_status_col_actions">İşlemler</th>
+                </tr>
+              </thead>
+              <tbody id="remote-status-table-body"></tbody>
+            </table>
+          </div>
+
+          <div id="remote-status-empty" class="hidden text-center" style="padding: 30px; background: rgba(56, 189, 248, 0.04); border: 1px dashed var(--border-color); border-radius: 12px; color: var(--text-muted);">
+            <i data-lucide="radar" style="width: 36px; height: 36px; margin-bottom: 8px; opacity: 0.55;"></i>
+            <p style="font-weight: 500; margin: 0; font-size: 0.95rem;" id="remote-status-empty-msg">Gösterilecek indirilmiş YouTube videosu bulunmuyor.</p>
+          </div>
+        </div>
+
       </section>

@@ -13,6 +13,7 @@ import { renderChannelsList, getChannelsRenderSignature, buildChannelCardElement
 window.buildChannelCardElement = buildChannelCardElement;
 // Araçlar ve dosya karşılaştırma alt modülü
 import './modules/tools.js';
+import './modules/remoteStatus.js';
 import './modules/fakap.js';
 import { getDownloadedUserOrder, saveDownloadedUserOrder, sortDownloadedItems, moveDownloadedItemInUserOrder } from './modules/downloadedPlaylist.js';
 import { renderPendingMergeSection, updateMergeQueueState, handleMergeProgressEvent } from './modules/mergeQueue.js';
@@ -139,6 +140,109 @@ import { initContextMenu, closeContextMenu, toggleAppFullscreen } from './module
 window.initContextMenu = initContextMenu;
 window.closeContextMenu = closeContextMenu;
 window.toggleAppFullscreen = toggleAppFullscreen;
+
+// Gerçek zamanlı SSE (/api/events) ve aktif indirme telemetrisi modülü
+import { registerSseClientContext, getEventSource, connectSSE, updateActiveDownloadProgress } from './modules/sseClient.js';
+window.getEventSource = getEventSource;
+window.connectSSE = connectSSE;
+window.updateActiveDownloadProgress = updateActiveDownloadProgress;
+registerSseClientContext({
+  getLocalDb: () => localDb,
+  setLocalDb: (db) => { localDb = db; window.localDb = db; },
+  getCurrentLang: () => currentLang,
+  getTranslations: () => translations,
+  updateUI: (db) => updateUI(db),
+  showToast: (msg, type, thumb) => showToast(msg, type, thumb),
+  updateDiskSpace: () => updateDiskSpace(),
+  updateScanProgressToast: (data) => typeof window.updateScanProgressToast === 'function' && window.updateScanProgressToast(data),
+  handleMergeProgressEvent: (data) => handleMergeProgressEvent(data),
+  updateMergeQueueState: (data) => updateMergeQueueState(data),
+  showDiskWarning: (data) => showDiskWarning(data),
+  updateFfmpegInstallUI: (data) => updateFfmpegInstallUI(data),
+  showUpdateNotification: (data) => showUpdateNotification(data),
+  appendLogToConsoleModal: (data) => appendLogToConsoleModal(data)
+});
+
+// Gömülü oynatıcı modalı boyut/sürükleme/küçültme/yönelim/Discord RPC modülü
+import {
+  registerPlayerModalContext,
+  resetAndApplyPlayerDimensions,
+  togglePlayerMinimize,
+  makeElementDraggable,
+  makeElementResizable,
+  adjustPlayerOrientation,
+  showPlayerTransientOverlay,
+  triggerVolumeHUD,
+  sendPlayerActivity
+} from './modules/playerModal.js';
+window.resetAndApplyPlayerDimensions = resetAndApplyPlayerDimensions;
+window.togglePlayerMinimize = togglePlayerMinimize;
+window.makeElementDraggable = makeElementDraggable;
+window.makeElementResizable = makeElementResizable;
+window.adjustPlayerOrientation = adjustPlayerOrientation;
+window.showPlayerTransientOverlay = showPlayerTransientOverlay;
+window.triggerVolumeHUD = triggerVolumeHUD;
+window.sendPlayerActivity = sendPlayerActivity;
+registerPlayerModalContext({
+  getLocalDb: () => localDb,
+  getVideoPlayerInstance: () => videoPlayerInstance,
+  getCurrentPlayingVideoId: () => currentPlayingVideoId
+});
+
+// Süresi dolmuş videolar için otomatik silme onay modalı modülü
+import {
+  registerAutoDeleteModalContext,
+  checkPendingAutoDeleteOnLoad,
+  openVideoFromAutoDeleteModal,
+  showAutoDeleteConfirmModal,
+  hideAutoDeleteConfirmModal,
+  confirmAutoDeleteAll,
+  postponeAutoDelete,
+  resetAutoDeletePostponed,
+  initAutoDeleteModalButtons
+} from './modules/autoDeleteModal.js';
+window.checkPendingAutoDeleteOnLoad = checkPendingAutoDeleteOnLoad;
+window.openVideoFromAutoDeleteModal = openVideoFromAutoDeleteModal;
+window.showAutoDeleteConfirmModal = showAutoDeleteConfirmModal;
+window.hideAutoDeleteConfirmModal = hideAutoDeleteConfirmModal;
+window.confirmAutoDeleteAll = confirmAutoDeleteAll;
+window.postponeAutoDelete = postponeAutoDelete;
+window.resetAutoDeletePostponed = resetAutoDeletePostponed;
+registerAutoDeleteModalContext({
+  getLocalDb: () => localDb,
+  getPendingVideos: () => pendingAutoDeleteVideos,
+  setPendingVideos: (v) => { pendingAutoDeleteVideos = v; window.pendingAutoDeleteVideos = v; },
+  showToast: (msg, type) => showToast(msg, type),
+  escapeHtml: (s) => escapeHtml(s),
+  updateDiskSpace: () => updateDiskSpace()
+});
+
+// Kütüphane ve İndirilenler filtre/sıralama durum kalıcılığı modülü
+import {
+  registerFilterStateContext,
+  saveHistoryFilterState,
+  restoreHistoryFilterState,
+  saveDownloadedFilterState,
+  restoreDownloadedFilterState
+} from './modules/filterState.js';
+window.saveHistoryFilterState = saveHistoryFilterState;
+window.restoreHistoryFilterState = restoreHistoryFilterState;
+window.saveDownloadedFilterState = saveDownloadedFilterState;
+window.restoreDownloadedFilterState = restoreDownloadedFilterState;
+registerFilterStateContext({
+  getLocalDb: () => localDb,
+  getHistoryViewMode: () => historyViewMode,
+  getHistorySortMode: () => historySortMode,
+  setHistorySortMode: (v) => { historySortMode = v; },
+  getDownloadedSortVal: () => downloadedSortVal,
+  setDownloadedSortVal: (v) => { downloadedSortVal = v; },
+  getDownloadedViewMode: () => downloadedViewMode,
+  getDownloadedOnlyResume: () => downloadedOnlyPartiallyWatched,
+  setDownloadedOnlyResume: (v) => { downloadedOnlyPartiallyWatched = !!v; },
+  getDownloadedOnlyRemoteChanged: () => downloadedOnlyRemoteChanged,
+  setDownloadedOnlyRemoteChanged: (v) => { downloadedOnlyRemoteChanged = !!v; },
+  setDownloadedFilterChannel: (v) => { downloadedFilterChannel = v; }
+});
 
 window.handleInlineTranslateSubClick = async function() {
   const videoId = window.currentPlayingVideoId;
@@ -326,7 +430,6 @@ window.localDb = localDb;
 window._settingsFormPopulated = false;
 let currentPlayingVideoId = null;
 window.currentPlayingVideoId = null;
-let eventSource = null;
 let currentLang = 'tr';
 
 // IPTV modülünü başlat ve durum köprüsünü kur
@@ -571,6 +674,8 @@ let downloadedFilterPlatform = 'all'; // all, youtube, tiktok, x, instagram
 window.downloadedFilterPlatform = 'all';
 let downloadedOnlyPartiallyWatched = false;
 window.downloadedOnlyPartiallyWatched = downloadedOnlyPartiallyWatched;
+let downloadedOnlyRemoteChanged = false;
+window.downloadedOnlyRemoteChanged = downloadedOnlyRemoteChanged;
 
 // İndirilen Videolar Tab Elemanları
 const downloadedGrid = document.getElementById('downloaded-grid');
@@ -619,7 +724,7 @@ const pathTabMap = {
   '/watch': 'webstream'
 };
 
-const validToolsSubSections = ['compare', 'categories', 'ape', 'subscriptions', 'deleted', 'bulk-delete'];
+const validToolsSubSections = ['compare', 'remote-status', 'categories', 'ape', 'subscriptions', 'deleted', 'bulk-delete', 'fakap'];
 
 function normalizeToolsSubSection(sub) {
   return validToolsSubSections.includes(sub) ? sub : 'compare';
@@ -713,283 +818,7 @@ window.addEventListener('popstate', (event) => {
   switchTab(tabId, false);
 });
 
-/**
- * Sunucu ile Server-Sent Events (SSE) bağlantısı kurar,
- * canlı indirme ilerlemelerini, veritabanı güncellemelerini ve bildirimleri dinler.
- */
-function connectSSE() {
-  if (eventSource) {
-    eventSource.close();
-  }
-
-  eventSource = new EventSource('/api/events');
-
-  eventSource.onopen = () => {
-    if (statusIndicator) statusIndicator.className = 'status-dot online';
-    if (connectionStatus) {
-      connectionStatus.textContent = currentLang === 'en' ? 'Connected' : 'Bağlandı';
-      connectionStatus.className = 'value text-muted';
-    }
-    const statusText = document.getElementById('topbar-status-text');
-    const badgeConn = document.getElementById('badge-connection');
-    const t = translations[currentLang] || translations.tr;
-    if (statusText) statusText.textContent = t.connection_active;
-    if (badgeConn) badgeConn.title = t.connection_active;
-    updateDiskSpace();
-
-    // Sayfa açıldığında veya yenilendiğinde bekleyen süresi dolmuş video kontrolü
-    if (typeof checkPendingAutoDeleteOnLoad === 'function') {
-      checkPendingAutoDeleteOnLoad();
-    }
-  };
-
-  eventSource.onerror = (err) => {
-    if (statusIndicator) statusIndicator.className = 'status-dot offline';
-    if (connectionStatus) {
-      connectionStatus.textContent = currentLang === 'en' ? 'Connection Lost' : 'Bağlantı Kesildi';
-      connectionStatus.className = 'value text-muted';
-    }
-    const statusText = document.getElementById('topbar-status-text');
-    const badgeConn = document.getElementById('badge-connection');
-    const t = translations[currentLang] || translations.tr;
-    if (statusText) statusText.textContent = t.connection_lost;
-    if (badgeConn) badgeConn.title = t.connection_lost;
-  };
-
-  // Sunucunun periyodik çerez sağlık denetimi sonucu: topbar çerez rozetini güncelle
-  eventSource.addEventListener('cookie_status', () => {
-    if (typeof window.checkYouTubeAuthStatus === 'function') window.checkYouTubeAuthStatus();
-  });
-
-  // Veritabanı Güncelleme Bildirimi
-  eventSource.addEventListener('db_update', (e) => {
-    const db = JSON.parse(e.data);
-    localDb = db;
-    window.localDb = db;
-    updateUI(db);
-  });
-
-  // Tek Kayıt Güncelleme Bildirimi (hedefli — tüm veritabanı yerine yalnızca değişen kayıt)
-  // Performans: RSS taraması gibi yoğun anlarda yüzlerce event gelebilir; render 400ms'de bir toplu yapılır.
-  let historyUiUpdateTimer = null;
-  eventSource.addEventListener('history_updated', (e) => {
-    const data = JSON.parse(e.data);
-    const { id, updates } = data || {};
-    if (!id || !updates) return;
-    if (localDb && Array.isArray(localDb.history)) {
-      const item = localDb.history.find(h => h.id === id);
-      if (item) Object.assign(item, updates);
-    }
-
-    // Eğer güncelleme yalnızca anlık indirme ilerleme metrikleriyse (progress, speed, eta, fileSize):
-    // Tüm Kütüphane / İndirilenler grid'ini sıfırdan render etmek DOM'u ve kullanıcı seçimlerini bozar.
-    // Bu metrikler için sadece aktif indirme başlığı ve kuyruk rozeti güncellenir, grid render edilmez.
-    const updateKeys = Object.keys(updates);
-    const isOnlyProgressMetrics = updateKeys.length > 0 && updateKeys.every(k => ['progress', 'speed', 'eta', 'fileSize'].includes(k));
-    if (isOnlyProgressMetrics) {
-      if (typeof updateActiveDownloadProgress === 'function') {
-        updateActiveDownloadProgress({ id, ...updates });
-      }
-      const queueBadge = document.querySelector(`.queue-table-row[data-id="${id}"] .queue-item-status-badge span, .queue-item[data-id="${id}"] .queue-item-status-badge span`);
-      if (queueBadge && updates.progress !== undefined) {
-        queueBadge.textContent = `%${updates.progress}`;
-      }
-      return;
-    }
-
-    if (historyUiUpdateTimer) clearTimeout(historyUiUpdateTimer);
-    historyUiUpdateTimer = setTimeout(() => {
-      historyUiUpdateTimer = null;
-      updateUI(localDb);
-    }, 400);
-  });
-
-  // İndirme İlerleme Bildirimi
-  eventSource.addEventListener('progress', (e) => {
-    const data = JSON.parse(e.data);
-    updateActiveDownloadProgress(data);
-    // Fakap sayfası açıksa ilerleme çubuğunu canlı güncelle
-    if (typeof window.updateFakapProgress === 'function') window.updateFakapProgress(data);
-  });
-
-  // Kanal Tarama İlerleme Bildirimi
-  eventSource.addEventListener('channel_scan_progress', (e) => {
-    const data = JSON.parse(e.data);
-    updateScanProgressToast(data);
-  });
-
-  eventSource.addEventListener('merge_progress', (e) => {
-    try { handleMergeProgressEvent(JSON.parse(e.data)); } catch (_) {}
-  });
-  eventSource.addEventListener('merge_queue_state', (e) => {
-    try { updateMergeQueueState(JSON.parse(e.data)); } catch (_) {}
-  });
-
-  // Temp sürücüsü dolu uyarısı (yt-dlp açılamaz)
-  eventSource.addEventListener('disk_warning', (e) => {
-    showDiskWarning(JSON.parse(e.data));
-  });
-
-  // Sistem Log Bildirimi (Toast ve Masaüstü Bildirimi)
-  eventSource.addEventListener('status_log', (e) => {
-    const log = JSON.parse(e.data);
-    showToast(log.message, log.type, log.thumbnail);
-
-    // Masaüstü Bildirimi (Sadece indirme tamamlanma başarısında ve ayarlarda izin verilmişse)
-    if (localDb.settings.showNotifications !== false &&
-        log.type === 'success' && 
-        'Notification' in window && 
-        Notification.permission === 'granted' &&
-        !log.message.includes('silindi') &&
-        !log.message.includes('temizlendi') &&
-        !log.message.includes('deleted') &&
-        !log.message.includes('cleared')) {
-      const isEn = localDb.settings.lang === 'en';
-      new Notification(isEn ? 'HaYTool Download Completed' : 'HaYTool İndirme Tamamlandı', {
-        body: log.message,
-        icon: '/logo.png'
-      });
-    }
-  });
-
-  // Sunucudan gelen sekme geçiş bildirimini dinler
-  eventSource.addEventListener('switch_tab', (e) => {
-    try {
-      const tabName = JSON.parse(e.data);
-      if (window.switchTab) window.switchTab(tabName);
-    } catch (err) {
-      console.error('Sekme geçiş hatası:', err);
-    }
-  });
-
-  // Sunucudan gelen video oynatma bildirimini dinler (bildirim / protokol tıklaması)
-  eventSource.addEventListener('play_video', (e) => {
-    try {
-      const data = JSON.parse(e.data || '{}');
-      if (data && data.id) {
-        if (typeof window.playVideoEmbedded === 'function') {
-          window.playVideoEmbedded(data.id);
-        }
-      }
-    } catch (err) {
-      console.error('Video oynatma hatası:', err);
-    }
-  });
-
-  // Sunucudan gelen web video / dizi oynatma bildirimini dinler (eklenti / harici gönderim)
-  eventSource.addEventListener('open_webstream', (e) => {
-    try {
-      const data = JSON.parse(e.data || '{}');
-      if (data && data.url) {
-        // C# WebView2 Masaüstü Penceresini Öne Getir (BringToFront)
-        try {
-          if (window.chrome && window.chrome.webview && window.chrome.webview.hostObjects && window.chrome.webview.hostObjects.playerBridge) {
-            window.chrome.webview.hostObjects.playerBridge.bringToFront();
-          }
-        } catch (err) {}
-
-        if (typeof window.switchTab === 'function') window.switchTab('webstream');
-        setTimeout(() => {
-          if (typeof window.playWebStreamUrl === 'function') {
-            window.playWebStreamUrl(encodeURIComponent(data.url));
-          }
-        }, 100);
-      }
-    } catch (err) {
-      console.error('Web stream açma hatası:', err);
-    }
-  });
-
-  // FFmpeg İndirme İlerleme Bildirimi
-  eventSource.addEventListener('ffmpeg_download', (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      updateFfmpegInstallUI(data);
-    } catch (err) {
-      console.error('FFmpeg progress parse error:', err);
-    }
-  });
-
-  // GitHub Güncelleme Durumu Bildirimi
-  // GitHub Güncelleme Durumu Bildirimi
-  eventSource.addEventListener('update_status', (e) => {
-    try {
-      const update = JSON.parse(e.data);
-      if (update && update.updateAvailable) {
-        showUpdateNotification(update);
-      }
-    } catch (err) {
-      console.error('Update status event parse error:', err);
-    }
-  });
-
-  // Otomatik Silme Onay Bildirimi
-  eventSource.addEventListener('auto_delete_pending', (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      if (data && Array.isArray(data.videos) && data.videos.length > 0) {
-        showAutoDeleteConfirmModal(data.videos);
-      }
-    } catch (err) {
-      console.error('auto_delete_pending parse error:', err);
-    }
-  });
-
-  // Sistem Konsolu Log Akışı
-  eventSource.addEventListener('terminal_log', (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      appendLogToConsoleModal(data);
-    } catch (err) {}
-  });
-
-  // Ham sistem çıktısı (tray konsoluyla aynı kaynak) — yalnızca "Ham Çıktı" modunda gösterilir
-  eventSource.addEventListener('terminal_raw', (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      if (typeof window.appendRawLogToConsole === 'function') window.appendRawLogToConsole(data);
-    } catch (err) {}
-  });
-}
-
-
-/**
- * Aktif indirme ilerlemesini (yüzde, hız, boyut vb.) canlı olarak arayüzde günceller.
- * 
- * @param {object} data İlerleme veri nesnesi
- */
-function updateActiveDownloadProgress(data) {
-  noActiveDownload.classList.add('hidden');
-  activeDownloadDetails.classList.remove('hidden');
-
-  activeProgressBar.style.width = `${data.progress}%`;
-  activePercent.textContent = `${data.progress}%`;
-  activeSize.textContent = data.fileSize || '-- MB';
-  activeEta.textContent = data.eta || '--:--';
-  activeSpeed.textContent = data.speed || '0 KB/s';
-
-  // Downloader Sekmesi Canlı Telemetri Güncellemesi
-  const dlFill = document.getElementById('downloader-progress-fill');
-  const dlPercent = document.getElementById('downloader-progress-percent');
-  const dlSpeed = document.getElementById('downloader-progress-speed');
-  const dlEta = document.getElementById('downloader-progress-eta');
-  if (dlFill) dlFill.style.width = `${data.progress}%`;
-  if (dlPercent) dlPercent.textContent = `${data.progress}%`;
-  if (dlSpeed && data.speed) dlSpeed.textContent = data.speed;
-  if (dlEta && data.eta) dlEta.textContent = data.eta;
-
-  const thumbImg = document.getElementById('active-thumbnail-img');
-  const thumbPlc = document.getElementById('active-thumbnail-placeholder');
-  if (thumbImg && thumbPlc && data.id) {
-    const thumbUrl = 'https://i.ytimg.com/vi/' + data.id + '/mqdefault.jpg';
-    if (thumbImg.style.display === 'none' || !thumbImg.src || thumbImg.src.endsWith('/logo.png')) {
-      thumbImg.src = thumbUrl;
-      thumbImg.style.display = 'block';
-      thumbPlc.style.display = 'none';
-    }
-  }
-}
-
+// SSE (/api/events) ve aktif indirme ilerleme telemetrisi -> ./modules/sseClient.js
 
 // === FILTER CHIP HELPERS ===
 function toggleFilterChip(checkboxId) {
@@ -2436,8 +2265,25 @@ function updateUI(db) {
       resumeBtnEl.classList.toggle('active', !!downloadedOnlyPartiallyWatched);
     }
 
+    const isRemoteChangedVideo = (item) => ['deleted', 'unlisted', 'private', 'members_only'].includes(item.remoteStatus);
+    const remoteChangedCount = filteredDownloaded.filter(isRemoteChangedVideo).length;
+    const remoteChangedBadge = document.getElementById('badge-remote-changed-count');
+    if (remoteChangedBadge) {
+      remoteChangedBadge.textContent = remoteChangedCount;
+      remoteChangedBadge.style.display = remoteChangedCount > 0 ? 'inline-block' : 'none';
+    }
+
+    const remoteChangedBtnEl = document.getElementById('downloaded-filter-remote-changed-btn');
+    if (remoteChangedBtnEl) {
+      remoteChangedBtnEl.classList.toggle('active', !!downloadedOnlyRemoteChanged);
+    }
+
     if (downloadedOnlyPartiallyWatched) {
       filteredDownloaded = filteredDownloaded.filter(isPartiallyWatchedVideo);
+    }
+
+    if (downloadedOnlyRemoteChanged) {
+      filteredDownloaded = filteredDownloaded.filter(isRemoteChangedVideo);
     }
     
     // Seçilen kritere göre sırala (Tarih, Boyut veya Kullanıcı)
@@ -2587,6 +2433,9 @@ function updateUI(db) {
 
     const settingsCheckOnStartup = document.getElementById('settings-checkonstartup');
     if (settingsCheckOnStartup && document.activeElement !== settingsCheckOnStartup) settingsCheckOnStartup.checked = db.settings.checkChannelsOnStartup === true;
+
+    const settingsScanRemoteStartup = document.getElementById('settings-scan-remote-startup');
+    if (settingsScanRemoteStartup && document.activeElement !== settingsScanRemoteStartup) settingsScanRemoteStartup.checked = db.settings.scanRemoteStatusOnStartup !== false;
 
     const settingsCheckYtdlpOnStartup = document.getElementById('settings-check-ytdlp-on-startup');
     if (settingsCheckYtdlpOnStartup && document.activeElement !== settingsCheckYtdlpOnStartup) settingsCheckYtdlpOnStartup.checked = db.settings.checkYtdlpOnStartup === true;
@@ -2834,6 +2683,22 @@ window.toggleDownloadedResumeFilter = function() {
   window.downloadedOnlyPartiallyWatched = downloadedOnlyPartiallyWatched;
   const btn = document.getElementById('downloaded-filter-resume-btn');
   if (btn) btn.classList.toggle('active', downloadedOnlyPartiallyWatched);
+  if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
+  if (typeof localDb !== 'undefined') {
+    if (typeof updateUI === 'function') {
+      updateUI(localDb);
+    } else if (typeof renderUI === 'function') {
+      renderUI(localDb);
+    }
+  }
+};
+
+// Türkçe Açıklama: İndirilenler sekmesinde sadece YouTube uzak sunucu durumu değişen (yıldızlı) videoları filtreler
+window.toggleDownloadedRemoteChangedFilter = function() {
+  downloadedOnlyRemoteChanged = !downloadedOnlyRemoteChanged;
+  window.downloadedOnlyRemoteChanged = downloadedOnlyRemoteChanged;
+  const btn = document.getElementById('downloaded-filter-remote-changed-btn');
+  if (btn) btn.classList.toggle('active', downloadedOnlyRemoteChanged);
   if (typeof saveDownloadedFilterState === 'function') saveDownloadedFilterState();
   if (typeof localDb !== 'undefined') {
     if (typeof updateUI === 'function') {
@@ -3265,431 +3130,11 @@ document.addEventListener('keydown', (e) => {
  * 
  * @param {string} videoId Oynatılacak video ID'si
  */
-// Türkçe Açıklama: Yüzen oynatıcı modalının boyut ve konum stillerini temizleyip video formatına (Shorts / Geniş Ekran) ve kayıtlı ayarlara göre orantılı uygular.
-/**
- * Oynatıcı modalının boyut ve en-boy oranını video türüne göre yapılandırır.
- * 
- * @param {boolean} isShort Videonun Shorts/dikey olup olmadığı
- * @param {boolean} [isMinimized=false] Modalın küçültülmüş PiP modunda olup olmadığı
- */
-function resetAndApplyPlayerDimensions(isShort = false, isMinimized = false) {
-  const modal = document.getElementById('player-modal');
-  if (!modal) return;
-
-  const modalContent = modal.querySelector('.player-modal-content');
-  const modalBody = modal.querySelector('.player-modal-body');
-  if (!modalContent || !modalBody) return;
-
-  if (isShort) {
-    modal.classList.add('is-short-player');
-  } else {
-    modal.classList.remove('is-short-player');
-  }
-
-  if (isMinimized) {
-    modal.classList.add('minimized');
-  } else {
-    modal.classList.remove('minimized');
-  }
-
-  const suffix = isShort ? '-short' : '-wide';
-  const savedWidth = localStorage.getItem(`player-modal${suffix}-width`);
-  const savedHeight = localStorage.getItem(`player-modal${suffix}-height`);
-  const savedLeft = localStorage.getItem(`player-modal${suffix}-left`);
-  const savedTop = localStorage.getItem(`player-modal${suffix}-top`);
-
-  if (!isMinimized && savedWidth && savedHeight) {
-    modalContent.style.width = savedWidth;
-    modalContent.style.height = savedHeight;
-    modalContent.style.left = savedLeft || '';
-    modalContent.style.top = savedTop || '';
-    modalContent.style.right = savedLeft ? 'auto' : '20px';
-    modalContent.style.bottom = savedTop ? 'auto' : '20px';
-
-    const headerEl = modalContent.querySelector('.player-modal-header') || modalContent.querySelector('.modal-header');
-    const headerHeight = headerEl ? headerEl.offsetHeight : 38;
-    const bodyHeight = parseInt(savedHeight, 10) - headerHeight;
-    if (bodyHeight > 50) {
-      modalBody.style.height = `${bodyHeight}px`;
-    } else {
-      modalBody.style.height = '';
-    }
-  } else {
-    // Varsayılan temiz boyutlandırma (inline stilleri temizle, CSS kurallarına bırak)
-    modalContent.style.width = '';
-    modalContent.style.height = '';
-    modalContent.style.left = '';
-    modalContent.style.top = '';
-    modalContent.style.right = '20px';
-    modalContent.style.bottom = '20px';
-    modalBody.style.height = '';
-  }
-
-  if (isShort) {
-    modalBody.style.aspectRatio = '9 / 16';
-  } else {
-    modalBody.style.aspectRatio = '16 / 9';
-  }
-}
-window.resetAndApplyPlayerDimensions = resetAndApplyPlayerDimensions;
-
-// Türkçe Açıklama: Gömülü video oynatıcı modalının boyutunu küçültür veya eski boyutuna geri getirir.
-/**
- * Oynatıcı modalını küçültür (minimize) veya geri yükler.
- */
-window.togglePlayerMinimize = function() {
-  const modal = document.getElementById('player-modal');
-  const btn = document.getElementById('minimize-player-modal-btn');
-  if (!modal) return;
-  
-  modal.classList.toggle('minimized');
-  const isMinimized = modal.classList.contains('minimized');
-  const isShort = modal.classList.contains('is-short-player');
-
-  resetAndApplyPlayerDimensions(isShort, isMinimized);
-
-  if (btn) {
-    const icon = btn.querySelector('i') || btn.querySelector('[data-lucide]');
-    if (icon) {
-      icon.setAttribute('data-lucide', isMinimized ? 'maximize-2' : 'minus');
-    }
-    btn.title = isMinimized ? (localDb.settings && localDb.settings.lang === 'en' ? 'Maximize' : 'Büyüt') : (localDb.settings && localDb.settings.lang === 'en' ? 'Minimize' : 'Küçült');
-  }
-  try {
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  } catch (e) {}
-
-  if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
-    setTimeout(() => videoPlayerInstance.resize(), 50);
-  }
-};
+// Oynatıcı modal boyutlandırma/küçültme/sürükleme/yönelim/Discord RPC -> ./modules/playerModal.js
 
 let currentVideoSponsorSegments = [];
 let lastSkippedSegmentStart = -1;
 let playerResizeObserver = null;
-
-// Türkçe Açıklama: Gömülü video oynatıcı modalının başlık çubuğundan tutularak ekranda serbestçe ve ekran sınırları içinde taşınmasını sağlar.
-/**
- * Oynatıcı modalını başlık barından taşınabilir hale getirir.
- * 
- * @param {HTMLElement} modalContent Taşınacak modal içerik elementi
- * @param {HTMLElement} dragHeader Sürükleme tutamacı olarak kullanılacak başlık elementi
- */
-function makeElementDraggable(modalContent, dragHeader) {
-  if (!modalContent || !dragHeader) return;
-  let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-
-  dragHeader.onmousedown = dragMouseDown;
-
-  function dragMouseDown(e) {
-    e = e || window.event;
-    if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input') || e.target.closest('select')) {
-      return;
-    }
-    e.preventDefault();
-    pos3 = e.clientX;
-    pos4 = e.clientY;
-    document.onmouseup = closeDragElement;
-    document.onmousemove = elementDrag;
-  }
-
-  function elementDrag(e) {
-    e = e || window.event;
-    e.preventDefault();
-    pos1 = pos3 - e.clientX;
-    pos2 = pos4 - e.clientY;
-    pos3 = e.clientX;
-    pos4 = e.clientY;
-    
-    const newTop = modalContent.offsetTop - pos2;
-    const newLeft = modalContent.offsetLeft - pos1;
-
-    const maxLeft = window.innerWidth - modalContent.offsetWidth - 10;
-    const maxTop = window.innerHeight - modalContent.offsetHeight - 10;
-
-    modalContent.style.bottom = 'auto';
-    modalContent.style.right = 'auto';
-    modalContent.style.left = `${Math.max(10, Math.min(newLeft, maxLeft))}px`;
-    modalContent.style.top = `${Math.max(10, Math.min(newTop, maxTop))}px`;
-  }
-
-  function closeDragElement() {
-    document.onmouseup = null;
-    document.onmousemove = null;
-    const isShort = modalContent.closest('#player-modal')?.classList.contains('is-short-player');
-    const suffix = isShort ? '-short' : '-wide';
-    localStorage.setItem(`player-modal${suffix}-left`, modalContent.style.left);
-    localStorage.setItem(`player-modal${suffix}-top`, modalContent.style.top);
-  }
-}
-
-// Türkçe Açıklama: Gömülü video oynatıcı modalının köşelerinden veya kenarlarından en-boy oranını (16:9 veya 9:16) bozmadan orantılı olarak yeniden boyutlandırılmasını sağlar.
-/**
- * Oynatıcı modalını en-boy oranı kilitli olarak orantılı boyutlandırılabilir hale getirir.
- * 
- * @param {HTMLElement} modalContent Boyutlandırılacak modal içerik elementi
- */
-function makeElementResizable(modalContent) {
-  if (!modalContent) return;
-  const handles = modalContent.querySelectorAll('.resize-handle');
-  
-  handles.forEach(handle => {
-    handle.onmousedown = resizeMouseDown;
-    
-    function resizeMouseDown(e) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const modal = modalContent.closest('#player-modal');
-      const isShort = modal ? modal.classList.contains('is-short-player') : false;
-      
-      // Video elementinden veya sınıftan gerçek en-boy oranını al
-      const rawVideo = modalContent.querySelector('video') || (window.videoPlayerInstance && window.videoPlayerInstance.video);
-      let ratio = 16 / 9;
-      if (rawVideo && rawVideo.videoWidth && rawVideo.videoHeight) {
-        ratio = rawVideo.videoWidth / rawVideo.videoHeight;
-      } else if (isShort) {
-        ratio = 9 / 16;
-      }
-
-      const isRight = handle.classList.contains('bottom-right') || handle.classList.contains('top-right') || handle.classList.contains('edge-right');
-      const isLeft = handle.classList.contains('bottom-left') || handle.classList.contains('top-left') || handle.classList.contains('edge-left');
-      const isBottom = handle.classList.contains('bottom-left') || handle.classList.contains('bottom-right') || handle.classList.contains('edge-bottom');
-      const isTop = handle.classList.contains('top-left') || handle.classList.contains('top-right') || handle.classList.contains('edge-top');
-      
-      const startRect = modalContent.getBoundingClientRect();
-      const startWidth = startRect.width;
-      const startHeight = startRect.height;
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startLeft = startRect.left;
-      const startTop = startRect.top;
-      
-      const headerEl = modalContent.querySelector('.player-modal-header') || modalContent.querySelector('.modal-header');
-      const headerHeight = headerEl ? headerEl.offsetHeight : 38;
-
-      document.onmousemove = elementResize;
-      document.onmouseup = closeResizeElement;
-      
-      function elementResize(e) {
-        e.preventDefault();
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-
-        let newWidth = startWidth;
-
-        if (isRight) {
-          newWidth = startWidth + dx;
-        } else if (isLeft) {
-          newWidth = startWidth - dx;
-        } else if (isBottom) {
-          const newBodyHeight = (startHeight - headerHeight) + dy;
-          newWidth = newBodyHeight * ratio;
-        } else if (isTop) {
-          const newBodyHeight = (startHeight - headerHeight) - dy;
-          newWidth = newBodyHeight * ratio;
-        }
-
-        // Minimum ve maksimum sınır kontrolleri
-        const minWidth = isShort ? 200 : 280;
-        const maxWidth = Math.min(1000, window.innerWidth - 20);
-        newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
-
-        let newBodyHeight = Math.round(newWidth / ratio);
-        let newTotalHeight = newBodyHeight + headerHeight;
-
-        // Ekran yüksekliğini aşmama kontrolü
-        const maxHeight = window.innerHeight - 20;
-        if (newTotalHeight > maxHeight) {
-          newTotalHeight = maxHeight;
-          newBodyHeight = newTotalHeight - headerHeight;
-          newWidth = Math.round(newBodyHeight * ratio);
-        }
-
-        // Yeni konum hesaplama (Sol veya Üstten çekildiyse başlangıç konumunu kaydır)
-        let newLeft = startLeft;
-        let newTop = startTop;
-
-        if (isLeft) {
-          newLeft = startLeft + (startWidth - newWidth);
-        }
-        if (isTop) {
-          newTop = startTop + (startHeight - newTotalHeight);
-        }
-
-        // Ekran dışına taşmayı sınırla
-        newLeft = Math.max(10, Math.min(newLeft, window.innerWidth - newWidth - 10));
-        newTop = Math.max(10, Math.min(newTop, window.innerHeight - newTotalHeight - 10));
-
-        modalContent.style.width = `${Math.round(newWidth)}px`;
-        modalContent.style.height = `${Math.round(newTotalHeight)}px`;
-        modalContent.style.left = `${Math.round(newLeft)}px`;
-        modalContent.style.top = `${Math.round(newTop)}px`;
-        modalContent.style.right = 'auto';
-        modalContent.style.bottom = 'auto';
-
-        const bodyEl = modalContent.querySelector('.player-modal-body');
-        if (bodyEl) {
-          bodyEl.style.height = `${Math.round(newBodyHeight)}px`;
-        }
-      }
-      
-      function closeResizeElement() {
-        document.onmousemove = null;
-        document.onmouseup = null;
-        
-        const suffix = isShort ? '-short' : '-wide';
-        localStorage.setItem(`player-modal${suffix}-width`, modalContent.style.width);
-        localStorage.setItem(`player-modal${suffix}-height`, modalContent.style.height);
-        localStorage.setItem(`player-modal${suffix}-left`, modalContent.style.left);
-        localStorage.setItem(`player-modal${suffix}-top`, modalContent.style.top);
-        
-        if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
-          videoPlayerInstance.resize();
-        }
-      }
-    }
-  });
-}
-
-// drawSponsorSegmentsOnTimeline fonksiyonu ./modules/player/sponsorBlock.js modülünden içe aktarılmıştır.
-
-/**
- * Videonun en-boy oranına göre oynatıcının yönelimini (dikey/yatay) ayarlar.
- * Dikey videolar için hem modal hem de inline wrapper'a 'is-short-player' sınıfı ekler ve gerçek video oranını atar.
- * 
- * @param {HTMLVideoElement} videoElement Kontrol edilecek video DOM elementi
- */
-function adjustPlayerOrientation(videoElement) {
-  const modal = document.getElementById('player-modal');
-  const inlineWrapper = document.querySelector('.inline-player-wrapper');
-  if (!videoElement) return;
-  
-  if (videoElement.videoWidth && videoElement.videoHeight) {
-    const isVertical = videoElement.videoHeight > videoElement.videoWidth;
-    const ratio = `${videoElement.videoWidth} / ${videoElement.videoHeight}`;
-
-    if (modal) {
-      const isMinimized = modal.classList.contains('minimized');
-      resetAndApplyPlayerDimensions(isVertical, isMinimized);
-      const modalBody = modal.querySelector('.player-modal-body');
-      if (modalBody) {
-        modalBody.style.aspectRatio = ratio;
-      }
-      if (isVertical) {
-        modal.classList.add('is-short-player', 'is-vertical-player');
-      } else {
-        modal.classList.remove('is-vertical-player');
-      }
-    }
-
-    if (inlineWrapper) {
-      if (isVertical) {
-        inlineWrapper.classList.add('is-short-player', 'is-vertical-player');
-        inlineWrapper.style.aspectRatio = ratio;
-      } else {
-        inlineWrapper.classList.remove('is-short-player', 'is-vertical-player');
-        inlineWrapper.style.aspectRatio = '';
-      }
-    }
-
-    const plyrEls = document.querySelectorAll('#player-modal .plyr, .inline-player-wrapper .plyr');
-    plyrEls.forEach(el => {
-      if (isVertical) {
-        el.classList.add('plyr--is-vertical');
-      } else {
-        el.classList.remove('plyr--is-vertical');
-      }
-    });
-
-    if (videoPlayerInstance && typeof videoPlayerInstance.resize === 'function') {
-      setTimeout(() => videoPlayerInstance.resize(), 50);
-    }
-  }
-}
-
-window.showPlayerTransientOverlay = function(htmlContent, durationMs = 1200) {
-  const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
-  const isInline = (activeTab === 'downloaded');
-  let container = null;
-  if (isInline) {
-    container = document.getElementById('inline-player-body');
-  } else if (activeTab === 'iptv') {
-    const slotIdx = window.activeIptvSlot !== undefined ? window.activeIptvSlot : 0;
-    const activeSlotEl = document.querySelector(`.iptv-slot[data-slot="${slotIdx}"]`);
-    if (activeSlotEl) {
-      container = activeSlotEl.querySelector('.slot-body');
-    }
-  } else {
-    const modal = document.getElementById('player-modal');
-    if (modal && !modal.classList.contains('hidden')) {
-      container = modal.querySelector('.player-modal-body');
-    }
-  }
-  
-  if (!container) return;
-
-  let overlay = container.querySelector('.player-transient-overlay');
-  if (overlay) {
-    if (overlay._fadeOutTimer) clearTimeout(overlay._fadeOutTimer);
-  } else {
-    overlay = document.createElement('div');
-    overlay.className = 'player-transient-overlay';
-    container.appendChild(overlay);
-  }
-
-  overlay.innerHTML = htmlContent;
-  
-  overlay._fadeOutTimer = setTimeout(() => {
-    overlay.style.animation = 'fadeOut 0.25s ease-in forwards';
-    setTimeout(() => {
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    }, 250);
-  }, durationMs);
-};
-
-window.triggerVolumeHUD = function(volume) {
-  const volPercent = Math.round(volume * 100);
-  const icon = volPercent === 0 ? 'volume-x' : (volPercent < 33 ? 'volume' : (volPercent < 66 ? 'volume-1' : 'volume-2'));
-  const html = `
-    <div class="player-transient-card volume-hud-card">
-      <i data-lucide="${icon}" style="width: 32px; height: 32px; color: var(--accent-primary);"></i>
-      <div class="transient-title">${volPercent}%</div>
-    </div>
-  `;
-  if (typeof showPlayerTransientOverlay === 'function') {
-    showPlayerTransientOverlay(html, 800);
-  }
-  try { lucide.createIcons(); } catch(e) {}
-};
-
-/**
- * Türkçe Açıklama: Oynatılan videonun başlığını ve kanal adını Discord RPC durumuna yansıtmak üzere backend API'ye gönderir.
- * 
- * @param {boolean} isPlaying - Oynatım durumu (true: oynatılıyor, false: durduruldu)
- * @returns {void}
- */
-function sendPlayerActivity(isPlaying, customTitle = null, customChannel = null) {
-  if (localDb.settings && localDb.settings.discordRpcEnabled === false) return;
-
-  let title = customTitle || null;
-  let channelName = customChannel || null;
-
-  if (isPlaying && !title && currentPlayingVideoId) {
-    const video = (localDb.history || []).find(h => h.id === currentPlayingVideoId);
-    if (video) {
-      title = video.title || null;
-      channelName = video.channelName || null;
-    }
-  }
-
-  fetch('/api/player/activity', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title: isPlaying ? title : null, channelName: isPlaying ? channelName : null })
-  }).catch(e => console.error('[Discord RPC] Durum gönderim hatası:', e));
-}
-window.sendPlayerActivity = sendPlayerActivity;
 
 let activePlayRequestId = 0;
 
@@ -4974,18 +4419,14 @@ window.updateInlinePlayerMetadata = function(videoObj) {
   const isCompleted = video && video.status === 'completed';
   const isMissing = video && video.fileMissing === true;
   let streamUrl = `/api/video-stream?videoId=${videoId}`;
-
-  // Eğer WPF Player (WebView2) içindeysek ve video indirilmesi tamamlanmış yerel bir video ise doğrudan sanal yerel disk yolunu kullan
-  if (isCompleted && !isMissing && window.chrome?.webview && video.filePath) {
-    const pathNormalized = video.filePath.replace(/\\/g, '/');
-    const match = pathNormalized.match(/^([a-zA-Z]):\/(.*)$/);
-    if (match) {
-      const driveLetter = match[1].toLowerCase();
-      const relativePath = match[2];
-      const encodedPath = relativePath.split('/').map(seg => encodeURIComponent(seg)).join('/');
-      streamUrl = `http://haytool-${driveLetter}.local/${encodedPath}`;
-    } else {
-      streamUrl = `file:///${encodeURI(pathNormalized)}`;
+  // Masaüstü uygulamasında (WebView2) sunucu stream yerine doğrudan yerel diskten oynat (sıfır ağ yükü ve anında ileri/geri sarma)
+  if (isCompleted && !isMissing && video.filePath && typeof window !== 'undefined' && window.chrome && window.chrome.webview) {
+    const normalizedPath = video.filePath.replace(/\\/g, '/');
+    const driveMatch = normalizedPath.match(/^([a-zA-Z]):\/(.*)$/);
+    if (driveMatch) {
+      const driveLetter = driveMatch[1].toLowerCase();
+      const restPath = driveMatch[2].split('/').map(seg => encodeURIComponent(seg)).join('/');
+      streamUrl = `http://haytool-${driveLetter}.local/${restPath}`;
     }
   }
 
@@ -6088,659 +5529,14 @@ if (confirmDeleteBtn) {
 let pendingAutoDeleteVideos = [];
 window.pendingAutoDeleteVideos = pendingAutoDeleteVideos;
 
-/**
- * Sayfa açıldığında veya SSE bağlandığında bekleyen süresi dolmuş video kontrolü yapar.
- */
-async function checkPendingAutoDeleteOnLoad() {
-  try {
-    const res = await fetch('/api/auto-delete/pending');
-    const data = await res.json();
-    if (data.success && Array.isArray(data.videos) && data.videos.length > 0) {
-      showAutoDeleteConfirmModal(data.videos);
-    }
-  } catch (err) {
-    console.warn('[Auto-Delete] Bekleyen video kontrolü yapılamadı:', err.message);
-  }
-}
-window.checkPendingAutoDeleteOnLoad = checkPendingAutoDeleteOnLoad;
-
-/**
- * Süresi dolmuş videolar için toplu silme onay modalını açar ve videoları listeler.
- * 
- * @param {Array<object>} videos Silinmesi beklenen video listesi
- */
-function openVideoFromAutoDeleteModal(videoId, titleText) {
-  const idStr = String(videoId || '').trim();
-  if (!idStr) return;
-  if (idStr.startsWith('fakap_') && typeof window.playFakapVideo === 'function') {
-    window.playFakapVideo(idStr, titleText);
-    return;
-  }
-  if (typeof window.playVideoEmbedded === 'function') {
-    window.playVideoEmbedded(idStr);
-    const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
-    if (activeTab === 'downloaded' && typeof window.switchInlinePlayerToModal === 'function') {
-      setTimeout(() => {
-        try { window.switchInlinePlayerToModal(); } catch (e) {}
-      }, 60);
-    }
-  }
-}
-window.openVideoFromAutoDeleteModal = openVideoFromAutoDeleteModal;
-
-function showAutoDeleteConfirmModal(videos) {
-  const modal = document.getElementById('auto-delete-confirm-modal');
-  const listEl = document.getElementById('auto-delete-pending-list');
-  const countEl = document.getElementById('auto-delete-modal-title');
-  if (!modal || !listEl) return;
-
-  pendingAutoDeleteVideos = Array.isArray(videos) ? videos : [];
-  window.pendingAutoDeleteVideos = pendingAutoDeleteVideos;
-  if (pendingAutoDeleteVideos.length === 0) return;
-
-  const isEn = (localDb.settings && localDb.settings.lang === 'en') || (window.currentLang === 'en');
-  if (countEl) {
-    countEl.textContent = isEn 
-      ? `${pendingAutoDeleteVideos.length} Expired Videos to Delete`
-      : `${pendingAutoDeleteVideos.length} Adet Süresi Dolan Video Silinecek`;
-  }
-
-  listEl.innerHTML = '';
-  pendingAutoDeleteVideos.forEach(v => {
-    const itemEl = document.createElement('div');
-    itemEl.id = `auto-delete-item-${v.id}`;
-    itemEl.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px; transition: background 0.15s ease;';
-    const reasonBadge = v.reason ? `<span style="font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; background: rgba(239, 68, 68, 0.15); color: var(--accent-red); font-weight: 500;">${escapeHtml(v.reason)}</span>` : '';
-    const safeTitleAttr = escapeHtml(v.title || '').replace(/'/g, '&#39;');
-    const playHint = isEn ? 'Click to watch video' : 'Videoyu izlemek için tıklayın';
-    itemEl.innerHTML = `
-      <div onclick="openVideoFromAutoDeleteModal('${v.id}', '${safeTitleAttr}')" title="${playHint}" style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; cursor: pointer;">
-        <div style="position: relative; width: 64px; height: 36px; flex-shrink: 0; border-radius: 4px; overflow: hidden;">
-          <img src="${v.thumbnail || '/api/video/' + v.id + '/thumbnail'}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='/logo.png'" />
-          <div style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.35); display: flex; align-items: center; justify-content: center;">
-            <i data-lucide="play" style="width: 14px; height: 14px; color: #fff; fill: #fff;"></i>
-          </div>
-        </div>
-        <div style="flex: 1; min-width: 0;">
-          <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(v.title || '')}">${escapeHtml(v.title || '')}</div>
-          <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-            <span>${escapeHtml(v.channelName || '')}</span>
-            ${v.fileSize ? `<span>• ${escapeHtml(v.fileSize)}</span>` : ''}
-            ${reasonBadge}
-          </div>
-        </div>
-      </div>
-      <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openVideoFromAutoDeleteModal('${v.id}', '${safeTitleAttr}')" title="${playHint}" style="display: inline-flex; align-items: center; gap: 4px; color: var(--accent-primary); border-color: rgba(168, 85, 247, 0.3); background: rgba(168, 85, 247, 0.08); padding: 4px 10px; font-size: 0.78rem;">
-          <i data-lucide="play" style="width: 13px; height: 13px;"></i>
-          <span>${isEn ? 'Open' : 'Aç'}</span>
-        </button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); showDeleteModal('${v.id}')" title="${isEn ? 'Delete this video' : 'Bu videoyu sil'}" style="display: inline-flex; align-items: center; gap: 4px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); padding: 4px 10px; font-size: 0.78rem;">
-          <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
-          <span>${isEn ? 'Delete' : 'Sil'}</span>
-        </button>
-      </div>
-    `;
-    listEl.appendChild(itemEl);
-  });
-  if (typeof lucide !== 'undefined' && lucide.createIcons) {
-    try { lucide.createIcons({ root: listEl }); } catch(e) {}
-  }
-
-  modal.classList.remove('hidden');
-}
-window.showAutoDeleteConfirmModal = showAutoDeleteConfirmModal;
-
-function hideAutoDeleteConfirmModal() {
-  const modal = document.getElementById('auto-delete-confirm-modal');
-  if (modal) modal.classList.add('hidden');
-}
-window.hideAutoDeleteConfirmModal = hideAutoDeleteConfirmModal;
-
-const closeAutoDeleteModalBtn = document.getElementById('close-auto-delete-modal-btn');
-if (closeAutoDeleteModalBtn) {
-  closeAutoDeleteModalBtn.addEventListener('click', hideAutoDeleteConfirmModal);
-}
-
-/**
- * Süresi dolan videoların tamamının silinmesini onaylar.
- */
-async function confirmAutoDeleteAll() {
-  const isEn = (localDb.settings && localDb.settings.lang === 'en') || (window.currentLang === 'en');
-  const btn = document.getElementById('btn-confirm-auto-delete-all');
-  if (btn) btn.disabled = true;
-
-  try {
-    let ids = (window.pendingAutoDeleteVideos || pendingAutoDeleteVideos || []).map(v => v?.id || v).filter(Boolean);
-    if (ids.length === 0) {
-      try {
-        const pRes = await fetch('/api/auto-delete/pending');
-        const pData = await pRes.json();
-        if (pData.success && Array.isArray(pData.videos)) {
-          ids = pData.videos.map(v => v.id);
-        }
-      } catch (e) {}
-    }
-
-    const res = await fetch('/api/auto-delete/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoIds: ids })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(isEn ? `${data.count} videos deleted permanently.` : `${data.count} adet video diskten başarıyla silindi.`, 'success');
-      hideAutoDeleteConfirmModal();
-      pendingAutoDeleteVideos = [];
-      window.pendingAutoDeleteVideos = [];
-      if (typeof updateDiskSpace === 'function') setTimeout(updateDiskSpace, 1500);
-    } else {
-      showToast(data.error || (isEn ? 'Deletion failed.' : 'Silme işlemi başarısız oldu.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Server communication error.' : 'Sunucu ile iletişim hatası.', 'error');
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-window.confirmAutoDeleteAll = confirmAutoDeleteAll;
-
-/**
- * Süresi dolan videoların silinmesini belirtilen dakika, saat veya gün kadar erteler.
- * 
- * @param {number|object} opts Erteleme gün sayısı veya { minutes, hours, days } nesnesi
- */
-async function postponeAutoDelete(opts = 2) {
-  const isEn = (localDb.settings && localDb.settings.lang === 'en') || (window.currentLang === 'en');
-  try {
-    let ids = (window.pendingAutoDeleteVideos || pendingAutoDeleteVideos || []).map(v => v?.id || v).filter(Boolean);
-    if (ids.length === 0) {
-      try {
-        const pRes = await fetch('/api/auto-delete/pending');
-        const pData = await pRes.json();
-        if (pData.success && Array.isArray(pData.videos)) {
-          ids = pData.videos.map(v => v.id);
-        }
-      } catch (e) {}
-    }
-
-    const payload = { videoIds: ids };
-    if (typeof opts === 'number') {
-      payload.days = opts;
-    } else if (opts && typeof opts === 'object') {
-      if (opts.minutes) payload.minutes = opts.minutes;
-      else if (opts.hours) payload.hours = opts.hours;
-      else if (opts.days) payload.days = opts.days;
-      else payload.days = 2;
-    } else {
-      payload.days = 2;
-    }
-
-    const res = await fetch('/api/auto-delete/postpone', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (data.success) {
-      const totalMins = data.minutes || ((data.days || 2) * 1440);
-      let msg = '';
-      if (totalMins >= 1440 && totalMins % 1440 === 0) {
-        const d = totalMins / 1440;
-        msg = isEn ? `Deletion postponed by ${d} day(s).` : `Silme işlemi ${d} gün ertelendi.`;
-      } else if (totalMins >= 60 && totalMins % 60 === 0) {
-        const h = totalMins / 60;
-        msg = isEn ? `Deletion postponed by ${h} hour(s).` : `Silme işlemi ${h} saat ertelendi.`;
-      } else {
-        msg = isEn ? `Deletion postponed by ${totalMins} minute(s).` : `Silme işlemi ${totalMins} dakika ertelendi.`;
-      }
-      showToast(msg, 'info');
-      hideAutoDeleteConfirmModal();
-      pendingAutoDeleteVideos = [];
-      window.pendingAutoDeleteVideos = [];
-    } else {
-      showToast(data.error || (isEn ? 'Postpone failed.' : 'Erteleme başarısız oldu.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Server communication error.' : 'Sunucu ile iletişim hatası.', 'error');
-  }
-}
-window.postponeAutoDelete = postponeAutoDelete;
-
-/**
- * Ertelenmiş otomatik silme sürelerini sıfırlar ve süresi dolan videolar varsa onay penceresini hemen açar.
- */
-async function resetAutoDeletePostponed() {
-  const isEn = (localDb.settings && localDb.settings.lang === 'en') || (window.currentLang === 'en');
-  try {
-    const res = await fetch('/api/auto-delete/reset-postponed', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-    if (data.success) {
-      if (Array.isArray(data.videos) && data.videos.length > 0) {
-        showAutoDeleteConfirmModal(data.videos);
-        showToast(
-          isEn
-            ? `Postponements reset. ${data.videos.length} expired video(s) listed.`
-            : `Ertelemeler sıfırlandı. ${data.videos.length} adet süresi dolan video listelendi.`,
-          'info'
-        );
-      } else {
-        showToast(
-          isEn
-            ? `Postponements reset (${data.resetCount || 0}). No expired videos found.`
-            : `Erteleme süreleri sıfırlandı (${data.resetCount || 0} video). Şu an süresi dolmuş video yok.`,
-          'info'
-        );
-      }
-    } else {
-      showToast(data.error || (isEn ? 'Reset failed.' : 'Sıfırlama başarısız oldu.'), 'error');
-    }
-  } catch (err) {
-    showToast(isEn ? 'Server communication error.' : 'Sunucu ile iletişim hatası.', 'error');
-  }
-}
-window.resetAutoDeletePostponed = resetAutoDeletePostponed;
-
-// Doğrudan buton dinleyicilerini bağla (güvenlik ve yedek katman)
-function initAutoDeleteModalButtons() {
-  const btnMap = [
-    { id: 'btn-postpone-m1', opts: { minutes: 1 } },
-    { id: 'btn-postpone-m3', opts: { minutes: 3 } },
-    { id: 'btn-postpone-m5', opts: { minutes: 5 } },
-    { id: 'btn-postpone-m10', opts: { minutes: 10 } },
-    { id: 'btn-postpone-m15', opts: { minutes: 15 } },
-    { id: 'btn-postpone-h1', opts: { hours: 1 } },
-    { id: 'btn-postpone-h3', opts: { hours: 3 } },
-    { id: 'btn-postpone-h6', opts: { hours: 6 } },
-    { id: 'btn-postpone-1', opts: { days: 1 } },
-    { id: 'btn-postpone-2', opts: { days: 2 } },
-    { id: 'btn-postpone-3', opts: { days: 3 } }
-  ];
-  btnMap.forEach(({ id, opts }) => {
-    const pBtn = document.getElementById(id);
-    if (pBtn && !pBtn.dataset.bound) {
-      pBtn.dataset.bound = 'true';
-      pBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        postponeAutoDelete(opts);
-      });
-    }
-  });
-}
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAutoDeleteModalButtons);
+// Otomatik silme onay modalı -> ./modules/autoDeleteModal.js
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initAutoDeleteModalButtons);
 } else {
   initAutoDeleteModalButtons();
 }
 
-
-// === FILTER PERSISTENCE SYSTEM (KÜTÜPHANE & İNDİRİLENLER) ===
-function saveHistoryFilterState() {
-  try {
-    const durationSelect = document.getElementById('history-duration-filter');
-    const dateSelect = document.getElementById('history-date-filter');
-    const showShortsCb = document.getElementById('history-show-shorts');
-    const showLiveCb = document.getElementById('history-show-live');
-    const showUpcomingCb = document.getElementById('history-show-upcoming');
-    const showMembersCb = document.getElementById('history-show-members');
-    const noAutoDlCb = document.getElementById('history-only-no-auto-download');
-    const notDownloadedCb = document.getElementById('history-only-not-downloaded');
-    const onlyLiveProcessingCb = document.getElementById('history-only-live-processing');
-    const showHiddenCb = document.getElementById('history-show-hidden');
-
-    // Not: Kanal filtresi (historyFilterChannel) bilinçli olarak kalıcı duruma DAHIL EDILMEZ —
-    // kullanici her acilista "Tum Kanallar" ile baslamak istiyor (kanal filtresine gerek yok).
-    const state = {
-      duration: durationSelect ? durationSelect.value : 'off',
-      date: dateSelect ? dateSelect.value : (window.historyFilterDays || 'all'),
-      showShorts: showShortsCb ? showShortsCb.checked : false,
-      showLive: showLiveCb ? showLiveCb.checked : (window.historyShowLive !== false),
-      showUpcoming: showUpcomingCb ? showUpcomingCb.checked : !!window.historyShowUpcoming,
-      showMembers: showMembersCb ? showMembersCb.checked : (window.historyShowMembers !== false),
-      noAutoDownload: noAutoDlCb ? noAutoDlCb.checked : !!window.historyOnlyNoAutoDownload,
-      notDownloaded: notDownloadedCb ? notDownloadedCb.checked : !!window.historyOnlyNotDownloaded,
-      onlyLiveProcessing: onlyLiveProcessingCb ? onlyLiveProcessingCb.checked : !!window.historyOnlyLiveProcessing,
-      showHidden: showHiddenCb ? showHiddenCb.checked : !!window.historyShowHidden,
-      viewMode: typeof historyViewMode !== 'undefined' ? historyViewMode : 'grid'
-    };
-
-    localStorage.setItem('haytool_history_filters_v2', JSON.stringify(state));
-
-    // Configwin.ini kalıcılığı: hızlı filtre çipleri sunucuya da yazılır (kanal filtresi hariç)
-    if (localDb && localDb.settings) {
-      const iniPatch = {
-        showShorts: state.showShorts !== false,
-        historyShowLive: state.showLive !== false,
-        historyShowUpcoming: !!state.showUpcoming,
-        historyShowMembers: state.showMembers !== false,
-        historyOnlyNoAutoDownload: !!state.noAutoDownload,
-        historyOnlyNotDownloaded: !!state.notDownloaded,
-        historyOnlyLiveProcessing: !!state.onlyLiveProcessing,
-        historyShowHidden: !!state.showHidden
-      };
-      Object.assign(localDb.settings, iniPatch);
-      fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(iniPatch)
-      }).catch(err => console.error('saveHistoryFilterState ini error:', err));
-    }
-  } catch (err) {
-    console.error('saveHistoryFilterState error:', err);
-  }
-}
-window.saveHistoryFilterState = saveHistoryFilterState;
-
-function restoreHistoryFilterState() {
-  try {
-    // Configwin.ini / db.settings öncelikli görünüm modu (kullanıcı en son nasıl bıraktıysa)
-    const dbViewMode = localDb.settings && localDb.settings.historyViewMode;
-    if (dbViewMode === 'grid' || dbViewMode === 'list') {
-      window.historyViewMode = dbViewMode;
-      const viewGridBtn = document.getElementById('view-grid-btn');
-      const viewListBtn = document.getElementById('view-list-btn');
-      if (viewGridBtn && viewListBtn) {
-        viewGridBtn.classList.toggle('active', dbViewMode === 'grid');
-        viewListBtn.classList.toggle('active', dbViewMode === 'list');
-      }
-    }
-
-    // Kütüphane sıralama (configwin.ini / db.settings öncelikli)
-    const dbHistorySort = localDb.settings && localDb.settings.historySortMode;
-    const storedHistorySort = localStorage.getItem('history-sort-val');
-    if (dbHistorySort || storedHistorySort) {
-      historySortMode = dbHistorySort || storedHistorySort || 'date-desc';
-      window.historySortMode = historySortMode;
-      const sortGroup = document.getElementById('history-sort-group');
-      if (sortGroup) {
-        sortGroup.querySelectorAll('.sort-btn').forEach(b => {
-          const ds = b.getAttribute('data-sort');
-          const isActive = ds === historySortMode || (ds === 'date' && String(historySortMode).startsWith('date-'));
-          b.classList.toggle('active', isActive);
-        });
-        const dateLabel = document.getElementById('history-sort-date-label');
-        if (dateLabel) dateLabel.textContent = historySortMode === 'date-asc' ? 'Tarih ▲' : 'Tarih ▼';
-      }
-    }
-
-    // Configwin.ini / db.settings öncelikli hızlı filtre çipleri (kalıcılık INI üzerinden)
-    const ini = localDb.settings || {};
-    const iniHas = {
-      showLive: ini.historyShowLive !== undefined,
-      showUpcoming: ini.historyShowUpcoming !== undefined,
-      noAutoDownload: ini.historyOnlyNoAutoDownload !== undefined,
-      notDownloaded: ini.historyOnlyNotDownloaded !== undefined,
-      onlyLiveProcessing: ini.historyOnlyLiveProcessing !== undefined,
-      showMembers: ini.historyShowMembers !== undefined,
-      showHidden: ini.historyShowHidden !== undefined
-    };
-    if (iniHas.showLive) window.historyShowLive = ini.historyShowLive !== false;
-    if (iniHas.showUpcoming) window.historyShowUpcoming = ini.historyShowUpcoming === true;
-    if (iniHas.noAutoDownload) window.historyOnlyNoAutoDownload = ini.historyOnlyNoAutoDownload;
-    if (iniHas.notDownloaded) window.historyOnlyNotDownloaded = ini.historyOnlyNotDownloaded;
-    if (iniHas.onlyLiveProcessing) window.historyOnlyLiveProcessing = ini.historyOnlyLiveProcessing;
-    if (iniHas.showMembers) window.historyShowMembers = ini.historyShowMembers;
-    if (iniHas.showHidden) window.historyShowHidden = ini.historyShowHidden;
-
-    const raw = localStorage.getItem('haytool_history_filters_v2');
-    if (!raw) return;
-    const state = JSON.parse(raw);
-
-    // Kanal filtresi bilinçli olarak geri yüklenmez — her açılışta "Tüm Kanallar" ile başlanır.
-    const channelSelect = document.getElementById('history-channel-filter');
-    if (channelSelect) channelSelect.value = 'all';
-    window.historyFilterChannel = 'all';
-
-    if (state.duration !== undefined) {
-      const durationSelect = document.getElementById('history-duration-filter');
-      if (durationSelect) durationSelect.value = state.duration;
-      if (!localDb.settings) localDb.settings = {};
-      localDb.settings.historyDurationFilter = state.duration;
-    }
-
-    if (state.date !== undefined) {
-      window.historyFilterDays = state.date;
-      const dateSelect = document.getElementById('history-date-filter');
-      if (dateSelect) dateSelect.value = state.date;
-    }
-
-    // localStorage'daki değerler yalnızca INI'de tanımlı değilse uygulanır (INI öncelikli)
-    if (state.showLive !== undefined && !iniHas.showLive) window.historyShowLive = state.showLive !== false;
-    if (state.showUpcoming !== undefined && !iniHas.showUpcoming) window.historyShowUpcoming = !!state.showUpcoming;
-    if (state.noAutoDownload !== undefined && !iniHas.noAutoDownload) window.historyOnlyNoAutoDownload = !!state.noAutoDownload;
-    if (state.notDownloaded !== undefined && !iniHas.notDownloaded) window.historyOnlyNotDownloaded = !!state.notDownloaded;
-    if (state.showMembers !== undefined && !iniHas.showMembers) window.historyShowMembers = state.showMembers !== false;
-    if (state.showHidden !== undefined && !iniHas.showHidden) window.historyShowHidden = !!state.showHidden;
-    if (state.onlyLiveProcessing !== undefined && !iniHas.onlyLiveProcessing) window.historyOnlyLiveProcessing = !!state.onlyLiveProcessing;
-    if (state.showShorts !== undefined) {
-      if (!localDb.settings) localDb.settings = {};
-      localDb.settings.showShorts = !!state.showShorts;
-    }
-
-    const checkMap = {
-      'history-show-shorts': state.showShorts,
-      'history-show-live': window.historyShowLive !== false,
-      'history-show-upcoming': !!window.historyShowUpcoming,
-      'history-show-members': window.historyShowMembers !== false,
-      'history-only-no-auto-download': window.historyOnlyNoAutoDownload,
-      'history-only-not-downloaded': window.historyOnlyNotDownloaded,
-      'history-only-live-processing': window.historyOnlyLiveProcessing,
-      'history-show-hidden': window.historyShowHidden
-    };
-
-    for (const [id, val] of Object.entries(checkMap)) {
-      if (val !== undefined) {
-        const cb = document.getElementById(id);
-        if (cb) cb.checked = !!val;
-        if (typeof syncFilterChipUI === 'function') syncFilterChipUI(id);
-      }
-    }
-
-    if (typeof updateHistoryFiltersCount === 'function') updateHistoryFiltersCount();
-
-    if (state.viewMode && !(localDb.settings && localDb.settings.historyViewMode)) {
-      window.historyViewMode = state.viewMode;
-      const viewGridBtn = document.getElementById('view-grid-btn');
-      const viewListBtn = document.getElementById('view-list-btn');
-      if (viewGridBtn && viewListBtn) {
-        viewGridBtn.classList.toggle('active', state.viewMode === 'grid');
-        viewListBtn.classList.toggle('active', state.viewMode === 'list');
-      }
-    }
-  } catch (err) {
-    console.error('restoreHistoryFilterState error:', err);
-  }
-}
-window.restoreHistoryFilterState = restoreHistoryFilterState;
-
-function saveDownloadedFilterState() {
-  try {
-    const channelSelect = document.getElementById('downloaded-channel-filter');
-    const showShortsCb = document.getElementById('downloaded-show-shorts');
-    const searchInput = document.getElementById('downloaded-search-input');
-
-    // Boş string ("") asla kaydedilmemeli; tanımlı kanal yoksa 'all' varsayılan olmalı
-    let chosenChannel = window.downloadedFilterChannel || (channelSelect ? channelSelect.value : 'all');
-    if (!chosenChannel || chosenChannel.trim() === '') {
-      chosenChannel = 'all';
-    }
-
-    const state = {
-      channel: chosenChannel,
-      sortVal: typeof downloadedSortVal !== 'undefined' ? downloadedSortVal : 'date-desc',
-      showShorts: showShortsCb ? showShortsCb.checked : false,
-      viewMode: typeof downloadedViewMode !== 'undefined' ? downloadedViewMode : 'grid',
-      onlyResume: typeof downloadedOnlyPartiallyWatched !== 'undefined' ? !!downloadedOnlyPartiallyWatched : false,
-      searchQuery: searchInput ? searchInput.value : ''
-    };
-
-    localStorage.setItem('haytool_downloaded_filters_v2', JSON.stringify(state));
-
-    // Configwin.ini kalıcılığı: indirilenler filtre durumu sunucuya da yazılır
-    // Aynı origin'deki tüm portlar (4141, EXE içi WebView2) bu alanları db.settings üzerinden okur.
-    if (localDb && localDb.settings) {
-      const iniPatch = {
-        downloadedFilterChannel: state.channel,
-        downloadedSortMode: state.sortVal,
-        downloadedShowShorts: state.showShorts,
-        downloadedViewMode: state.viewMode,
-        downloadedOnlyResume: state.onlyResume,
-        downloadedSearchQuery: state.searchQuery
-      };
-      Object.assign(localDb.settings, iniPatch);
-      fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(iniPatch)
-      }).catch(err => console.error('[HaYTooL] saveDownloadedFilterState ini hata:', err));
-    }
-  } catch (err) {
-    console.error('saveDownloadedFilterState error:', err);
-  }
-}
-window.saveDownloadedFilterState = saveDownloadedFilterState;
-
-function restoreDownloadedFilterState() {
-  try {
-    // Configwin.ini / db.settings öncelikli görünüm modu ve sıralama
-    const dbDlMode = localDb.settings && localDb.settings.downloadedViewMode;
-    if (dbDlMode === 'grid' || dbDlMode === 'list') {
-      window.downloadedViewMode = dbDlMode;
-      const gridBtn = document.getElementById('downloaded-view-grid-btn');
-      const listBtn = document.getElementById('downloaded-view-list-btn');
-      if (gridBtn && listBtn) {
-        gridBtn.classList.toggle('active', dbDlMode === 'grid');
-        listBtn.classList.toggle('active', dbDlMode === 'list');
-      }
-    }
-    if (localDb.settings && localDb.settings.downloadedSortMode) {
-      const initialSort = localDb.settings.downloadedSortMode === 'auto-delete' ? 'date-desc' : localDb.settings.downloadedSortMode;
-      downloadedSortVal = initialSort;
-      window.downloadedSortVal = initialSort;
-      localStorage.setItem('downloaded-sort-val', initialSort);
-      if (typeof syncDownloadedSortButtons === 'function') syncDownloadedSortButtons(initialSort);
-      if (typeof updateSidebarSortButtons === 'function') updateSidebarSortButtons();
-    }
-
-    // configwin.ini öncelikli INI alanlarını oku (tüm portlarda + EXE'de kalıcı)
-    const ini = localDb.settings || {};
-    const hasValidIniChannel = ini.downloadedFilterChannel && typeof ini.downloadedFilterChannel === 'string' && ini.downloadedFilterChannel.trim() !== '' && ini.downloadedFilterChannel !== 'all';
-    const iniHasDl = {
-      channel: hasValidIniChannel,
-      onlyResume: ini.downloadedOnlyResume !== undefined,
-      showShorts: ini.downloadedShowShorts !== undefined,
-      searchQuery: ini.downloadedSearchQuery !== undefined
-    };
-
-    // Kanal filtresi INI'den
-    if (iniHasDl.channel) {
-      window.downloadedFilterChannel = ini.downloadedFilterChannel;
-      downloadedFilterChannel = ini.downloadedFilterChannel;
-      if (typeof parseDownloadedFilterString === 'function') {
-        window.downloadedFilterState = parseDownloadedFilterString(ini.downloadedFilterChannel);
-      }
-      const channelSelectEl = document.getElementById('downloaded-channel-filter');
-      if (channelSelectEl) channelSelectEl.value = ini.downloadedFilterChannel;
-    } else {
-      window.downloadedFilterChannel = 'all';
-      downloadedFilterChannel = 'all';
-      window.downloadedFilterState = { mode: 'include', categories: [], channels: [], platform: 'all' };
-      const channelSelectEl = document.getElementById('downloaded-channel-filter');
-      if (channelSelectEl) channelSelectEl.value = 'all';
-    }
-
-    // Yarım kalma filtresi INI'den
-    if (iniHasDl.onlyResume) {
-      downloadedOnlyPartiallyWatched = !!ini.downloadedOnlyResume;
-      window.downloadedOnlyPartiallyWatched = downloadedOnlyPartiallyWatched;
-      const resumeBtn = document.getElementById('downloaded-filter-resume-btn');
-      if (resumeBtn) resumeBtn.classList.toggle('active', downloadedOnlyPartiallyWatched);
-    }
-
-    // Arama sorgusu INI'den
-    if (iniHasDl.searchQuery && ini.downloadedSearchQuery) {
-      const searchInput = document.getElementById('downloaded-search-input');
-      if (searchInput && !searchInput.value) searchInput.value = ini.downloadedSearchQuery;
-    }
-
-    const raw = localStorage.getItem('haytool_downloaded_filters_v2');
-    if (!raw) return;
-    const state = JSON.parse(raw);
-
-    // localStorage alanları yalnızca INI'de tanımlı değilse uygulanır
-    const channelSelect = document.getElementById('downloaded-channel-filter');
-    if (channelSelect && state.channel && state.channel.trim() !== '' && !iniHasDl.channel) {
-      channelSelect.value = state.channel;
-      window.downloadedFilterChannel = state.channel;
-      downloadedFilterChannel = state.channel;
-      if (typeof parseDownloadedFilterString === 'function') {
-        window.downloadedFilterState = parseDownloadedFilterString(state.channel);
-      }
-    }
-
-    if (state.sortVal && !(localDb.settings && localDb.settings.downloadedSortMode)) {
-      downloadedSortVal = state.sortVal;
-      window.downloadedSortVal = state.sortVal;
-      localStorage.setItem('downloaded-sort-val', state.sortVal);
-      if (typeof syncDownloadedSortButtons === 'function') syncDownloadedSortButtons(state.sortVal);
-      if (typeof updateSidebarSortButtons === 'function') updateSidebarSortButtons();
-    }
-
-    const showShortsCb = document.getElementById('downloaded-show-shorts');
-    const inlineCb = document.getElementById('inline-playlist-show-shorts');
-    const dbHasShowShorts = localDb.settings && localDb.settings.showShorts !== undefined;
-    const finalShowShorts = dbHasShowShorts ? !!localDb.settings.showShorts : (state.showShorts !== undefined ? !!state.showShorts : false);
-
-    if (showShortsCb) showShortsCb.checked = finalShowShorts;
-    if (inlineCb) inlineCb.checked = finalShowShorts;
-    if (!localDb.settings) localDb.settings = {};
-    localDb.settings.showShorts = finalShowShorts;
-
-    if (state.viewMode && !(localDb.settings && localDb.settings.downloadedViewMode)) {
-      window.downloadedViewMode = state.viewMode;
-      const gridBtn = document.getElementById('downloaded-view-grid-btn');
-      const listBtn = document.getElementById('downloaded-view-list-btn');
-      if (gridBtn && listBtn) {
-        gridBtn.classList.toggle('active', state.viewMode === 'grid');
-        listBtn.classList.toggle('active', state.viewMode === 'list');
-      }
-    }
-
-    if (state.onlyResume !== undefined && !iniHasDl.onlyResume) {
-      downloadedOnlyPartiallyWatched = !!state.onlyResume;
-      window.downloadedOnlyPartiallyWatched = downloadedOnlyPartiallyWatched;
-      const resumeBtn = document.getElementById('downloaded-filter-resume-btn');
-      if (resumeBtn) {
-        resumeBtn.classList.toggle('active', downloadedOnlyPartiallyWatched);
-      }
-    }
-
-    // Arama sorgusu localStorage'dan (INI yoksa)
-    if (state.searchQuery && !iniHasDl.searchQuery) {
-      const searchInput = document.getElementById('downloaded-search-input');
-      if (searchInput && !searchInput.value) searchInput.value = state.searchQuery;
-    }
-
-    if (typeof updateDownloadedViewButtonUI === 'function') {
-      updateDownloadedViewButtonUI();
-    }
-    if (typeof syncDownloadedSortButtons === 'function') {
-      syncDownloadedSortButtons();
-    }
-    const shortsChipBtn = document.getElementById('btn-dl-show-shorts');
-    if (shortsChipBtn) {
-      const showShortsCb = document.getElementById('downloaded-show-shorts');
-      const isShorts = !!(showShortsCb && showShortsCb.checked);
-      shortsChipBtn.classList.toggle('active', isShorts);
-    }
-  } catch (err) {
-    console.error('restoreDownloadedFilterState error:', err);
-  }
-}
-window.restoreDownloadedFilterState = restoreDownloadedFilterState;
+// Kütüphane ve İndirilenler filtre/sıralama kalıcılığı -> ./modules/filterState.js
 
 // Kütüphane Sıralama Butonları Dinleyicisi
 const historySortGroup = document.getElementById('history-sort-group');

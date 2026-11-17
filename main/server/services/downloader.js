@@ -4,7 +4,7 @@ import { dataRootDir } from '../config.js';
 import path from 'path';
 import os from 'os';
 import dns from 'dns';
-import { spawn, exec } from 'child_process';
+import { spawn, exec, execFile } from 'child_process';
 import { 
   readDb, 
   writeDb, 
@@ -19,6 +19,34 @@ import { getTempSpaceInfo, isTempExtractionError, buildDiskFullMessage, DISK_FUL
 import { isInsideFakap } from './fakapPaths.js';
 import { mergeQueue, getItemStagingDir } from './mergeQueue.js';
 import { playAppSound } from './soundService.js';
+import { validateSafeExternalUrl } from '../middleware/security.js';
+
+async function saveWebStreamPosterSidecar(videoPath, posterUrl, refererUrl) {
+  try {
+    if (!videoPath || !posterUrl || !posterUrl.startsWith('http')) return;
+    const ext = path.extname(videoPath);
+    if (!ext) return;
+    const basePath = videoPath.slice(0, -ext.length);
+    for (const imgExt of ['.jpg', '.jpeg', '.webp', '.png']) {
+      if (fs.existsSync(basePath + imgExt)) return;
+    }
+    const urlCheck = await validateSafeExternalUrl(posterUrl);
+    if (!urlCheck.ok) return;
+    const resp = await fetch(posterUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/133.0.0.0 Safari/537.36',
+        ...(refererUrl && refererUrl.startsWith('http') ? { 'Referer': refererUrl } : {})
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!resp.ok) return;
+    const ct = (resp.headers.get('content-type') || '').toLowerCase();
+    if (!ct.startsWith('image/')) return;
+    const buf = Buffer.from(await resp.arrayBuffer());
+    if (buf.length < 1024) return;
+    fs.writeFileSync(basePath + '.jpg', buf);
+  } catch {}
+}
 
 // Türkçe Açıklama: İndirmeleri gerçekleştiren yt-dlp motorunun varlığını kontrol eder, yoksa GitHub üzerinden otomatik indirir.
 export async function ensureYtdlp() {
@@ -658,6 +686,7 @@ export class DownloadQueue {
         if (video.audioBitrate) historyItem.audioBitrate = video.audioBitrate;
         if (video.referer) historyItem.referer = video.referer;
         if (video.platform) historyItem.platform = video.platform;
+        if (video.thumbnail) historyItem.thumbnail = video.thumbnail;
         if (video.isFakap !== undefined) historyItem.isFakap = video.isFakap;
         if (video.originalId) historyItem.originalId = video.originalId;
         delete historyItem.error;
@@ -921,58 +950,16 @@ export class DownloadQueue {
     this.download(nextVideo);
   }
 
-  async download(video) {
-    try {
-      await ensureYtdlp();
-    } catch (err) {
-      updateHistoryItem(video.id, {
-        status: 'failed',
-        error: 'yt-dlp motoru yüklenemedi.'
-      });
-      this.activeDownloads = Math.max(0, this.activeDownloads - 1);
-      this.notifyTrayState();
-      broadcast('db_update', readDb());
-      this.process();
-      return;
-    }
-
-    const db = readDb();
-    const settings = db.settings;
-
-    // Türkçe Açıklama: Temp sürücüsü doluysa yt-dlp açılamaz; indirmeyi başlatmadan uyar ve kuyruğu duraklat (toplu hata zincirini önler).
-    const tempInfo = getTempSpaceInfo();
-    if (tempInfo.low) {
-      const diskMsg = buildDiskFullMessage(settings.lang, tempInfo);
-      updateHistoryItem(video.id, { status: 'failed', progress: 0, speed: '', eta: '', error: diskMsg, errorCode: DISK_FULL_ERROR_CODE });
-      this.isPaused = true;
-      this.activeDownloads = Math.max(0, this.activeDownloads - 1);
-      this.notifyTrayState();
-      addTerminalLog(`[Kuyruk] ${diskMsg}`, 'error');
-      broadcast('disk_warning', tempInfo);
-      broadcast('db_update', readDb());
-      return;
-    }
-
-    updateHistoryItem(video.id, { status: 'downloading', progress: 0 });
-    addTerminalLog(`[Kuyruk] "${video.title}" videosu için indirme süreci başlatıldı.`, 'info');
-    playSystemSound('start');
-    showWindowsNotification(
-      settings.lang === 'en' ? 'Download Started' : 'İndirme Başlatıldı',
-      settings.lang === 'en' ? `"${video.title}" download process has started.` : `"${video.title}" videosunun indirme işlemi başladı.`,
-      'download_start',
-      {
-        channelName: video.channelName || '',
-        thumbnail: video.thumbnail || (video.id ? `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg` : '')
-      }
-    );
-
+  /**
+   * Video için hedef klasör, dosya şablonu ve temizlik işlemlerini çözümler.
+   */
+  _resolveDownloadTarget(video, settings, db) {
     const skipChannelFolder = video.skipChannelFolder === true;
     let targetBaseDir = settings.downloadPath;
     if (video.isFakap) {
       targetBaseDir = (settings.fakapPath || '').trim() || path.join(settings.downloadPath, 'Fakap');
     }
 
-    // Özel 0- ön ekli klasör tespiti
     let folderSubName = video.channelName || '';
     const vUrl = (video.url || '').toLowerCase();
     const isFollowedChannel = video.channelId && db.channels && db.channels.some(c => c.id === video.channelId);
@@ -1005,7 +992,7 @@ export class DownloadQueue {
         console.error('İndirme klasörü oluşturulamadı:', err);
       }
     } else {
-      // Türkçe Açıklama: Önceki başarısız/yarım kalmış indirmelerden kalan birleşmemiş parçaları (.f137.mp4, .part vb.) temizle
+      // Önceki başarısız/yarım kalmış indirmelerden kalan birleşmemiş parçaları (.f137.mp4, .part vb.) temizle
       try {
         const filesInDir = fs.readdirSync(outputDir);
         for (const f of filesInDir) {
@@ -1017,14 +1004,12 @@ export class DownloadQueue {
     }
 
     const isMp3 = (video.customFormat === 'audio-mp3');
-
     let outputFilename = skipChannelFolder
       ? `%(title)s [${ytVideoId}].%(ext)s`
       : `${video.channelName} - %(title)s [${ytVideoId}].%(ext)s`;
 
     let safeStreamTitle = '';
     if (isWebStream) {
-      // Web dizi ve filmleri için temiz başlık ve güvenilir dosya adı
       safeStreamTitle = (video.title || 'Web_Video')
         .replace(/\s*[-–|•]\s*Dizipal.*$/i, '')
         .replace(/\s*[-–|•]\s*Film\s*izle.*$/i, '')
@@ -1036,11 +1021,28 @@ export class DownloadQueue {
         .trim();
       outputFilename = `${safeStreamTitle} [${ytVideoId}].%(ext)s`;
     }
-    
+
+    return {
+      skipChannelFolder,
+      targetBaseDir,
+      folderSubName,
+      vUrl,
+      isWebStream,
+      outputDir,
+      ytVideoId,
+      isMp3,
+      outputFilename,
+      safeStreamTitle
+    };
+  }
+
+  /**
+   * yt-dlp komut argümanlarını kalite, çerez, proxy, donanım hızlandırma ve Oyun Modu (DeferMerge) ayarlarına göre üretir.
+   */
+  _buildYtdlpDownloadArgs(video, settings, db, targetInfo) {
+    const { targetBaseDir, vUrl, isWebStream, outputDir, isMp3, outputFilename } = targetInfo;
     const userLang = settings.lang || 'tr';
-    const subLangs = userLang === 'en'
-      ? 'en,en-orig'
-      : `${userLang},${userLang}-orig,en,en-orig`;
+    const subLangs = userLang === 'en' ? 'en,en-orig' : `${userLang},${userLang}-orig,en,en-orig`;
 
     const args = [
       video.url,
@@ -1057,163 +1059,114 @@ export class DownloadQueue {
     ];
 
     if (!isWebStream) {
-      args.push(
-        '--write-subs',
-        '--write-auto-subs',
-        '--sub-langs', subLangs,
-        '--sub-format', 'srt/vtt/best'
-      );
+      args.push('--write-subs', '--write-auto-subs', '--sub-langs', subLangs, '--sub-format', 'srt/vtt/best');
     } else {
-      // Web akışları için gerekli Referer ve modern User-Agent başlıkları
       const webReferer = video.referer || video.webUrl || video.url;
-      if (webReferer) {
-        args.push('--referer', webReferer);
-      }
+      if (webReferer) args.push('--referer', webReferer);
       args.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36');
     }
 
     const hasWorkingFfmpegEarly = testFfmpegSync();
     const isLiveStreamNow = (video.duration === 'live' || video.status === 'live');
     const isYouTubeUrl = (vUrl.includes('youtube.com') || vUrl.includes('youtu.be')) && (!video.platform || video.platform === 'youtube');
-    // MP3 indirmeleri doğrudan dönüştürülür, DeferMerge gecikmesine sokulmaz
     const isDeferMerge = Boolean(settings.deferMerge) && isYouTubeUrl && hasWorkingFfmpegEarly && (settings.mergeType || 'single') !== 'separate' && !isLiveStreamNow && !isMp3;
+
     if (Boolean(settings.deferMerge) && !isYouTubeUrl) {
       addTerminalLog(`[Oyun Modu] YouTube dışı kaynak (${video.platform || 'Harici'}) algılandı — Oyun Modu ertelemesi atlanarak doğrudan indiriliyor: "${video.title}"`, 'info');
     }
+
     const deferStagingDir = isDeferMerge ? getItemStagingDir(targetBaseDir, video.id) : '';
     if (isDeferMerge) {
       try {
-        if (fs.existsSync(deferStagingDir)) {
-          fs.rmSync(deferStagingDir, { recursive: true, force: true });
-        }
+        if (fs.existsSync(deferStagingDir)) fs.rmSync(deferStagingDir, { recursive: true, force: true });
         fs.mkdirSync(deferStagingDir, { recursive: true });
       } catch (e) {}
       args.push('--fixup', 'never');
     }
 
-    // SSD / Hızlı Geçici Klasörde İndir ve Birleştir (Tamamlanınca Hedefe Taşı)
     if (isDeferMerge) {
       if (settings.useTempDownloadStaging === true) {
-        const stagingDir = getStagingTempDir();
-        args.push('-P', `home:${deferStagingDir}`);
-        args.push('-P', `temp:${stagingDir}`);
-        args.push('-o', outputFilename);
+        args.push('-P', `home:${deferStagingDir}`, '-P', `temp:${getStagingTempDir()}`, '-o', outputFilename);
       } else {
         args.push('-o', path.join(deferStagingDir, outputFilename));
       }
     } else if (settings.useTempDownloadStaging === true) {
-      const stagingDir = getStagingTempDir();
-      args.push('-P', `home:${outputDir}`);
-      args.push('-P', `temp:${stagingDir}`);
-      args.push('-o', outputFilename);
+      args.push('-P', `home:${outputDir}`, '-P', `temp:${getStagingTempDir()}`, '-o', outputFilename);
     } else {
       args.push('-o', path.join(outputDir, outputFilename));
     }
 
-    if (!isMp3) {
-      args.push('--write-description');
-    }
+    if (!isMp3) args.push('--write-description');
 
     const prefLang = (settings.preferredAudioLang && settings.preferredAudioLang !== 'auto')
       ? settings.preferredAudioLang
       : (settings.lang || 'tr');
-
     args.push('--add-header', `Accept-Language:${prefLang}-${prefLang.toUpperCase()},${prefLang};q=0.9,en-US;q=0.8,en;q=0.7`);
-    
+
     const cookieArgs = getCookieArgs(settings);
     const hasCookies = cookieArgs.length > 0;
 
     if (isYouTubeUrl) {
-      if (video._fallbackClient) {
-        args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=${video._fallbackClient}`);
-      } else if (hasCookies) {
-        // Çerez aktifken: visionos, ios, android, web_creator, mweb, web
-        args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=visionos,ios,android,web_creator,mweb,web`);
-      } else {
-        // Anonim modda: visionos, ios, android, web
-        args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=visionos,ios,android,web`);
-      }
+      const clientList = video._fallbackClient || (hasCookies ? 'visionos,ios,android,web_creator,mweb,web' : 'visionos,ios,android,web');
+      args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=${clientList}`);
     }
 
     args.push('--remote-components', 'ejs:github');
-    if (video._fallbackCodec || video.retryAttempt === 2) {
-      // 2. Deneme (Son Şans) Güvenli Mod: Bozuk AV01 akışlarını atlayıp kararlı AVC1 (h264) veya VP9 formatına öncelik verir
-      args.push('--format-sort', 'hasvid,res,fps,hdr,vcodec:h264:vp9');
-    } else {
-      args.push('--format-sort', 'hasvid,res,fps,hdr,vcodec');
-    }
+    args.push('--format-sort', (video._fallbackCodec || video.retryAttempt === 2) ? 'hasvid,res,fps,hdr,vcodec:h264:vp9' : 'hasvid,res,fps,hdr,vcodec');
 
     const effectiveSpeed = getEffectiveSpeedLimit(settings);
-    if (effectiveSpeed && effectiveSpeed > 0) {
-      args.push('--limit-rate', `${effectiveSpeed}K`);
-    }
+    if (effectiveSpeed && effectiveSpeed > 0) args.push('--limit-rate', `${effectiveSpeed}K`);
 
-    // Çerez kaynağını ekle (cookies.txt -> Dahili WebView2 -> Harici Tarayıcı) - Web akışlarında YouTube çerezleri gönderilmez
-    if (hasCookies && !isWebStream) {
-      args.push(...cookieArgs);
-    }
-
-    if (video._proxy) {
-      args.push('--proxy', video._proxy);
-    }
+    if (hasCookies && !isWebStream) args.push(...cookieArgs);
+    if (video._proxy) args.push('--proxy', video._proxy);
 
     const channelConfig = db.channels.find(c => c.id === video.channelId);
-    const videoQuality = (channelConfig && channelConfig.quality && channelConfig.quality !== 'default') 
-      ? channelConfig.quality 
-      : settings.quality;
+    const videoQuality = (channelConfig && channelConfig.quality && channelConfig.quality !== 'default') ? channelConfig.quality : settings.quality;
 
     const hasWorkingFfmpeg = testFfmpegSync();
     let actualMergeType = settings.mergeType || 'single';
-
     if (actualMergeType === 'merge' && !hasWorkingFfmpeg) {
       actualMergeType = 'single';
-      console.log(`[Warning] FFmpeg is not found or not working. Falling back to 'single' download mode.\n`);
-      addTerminalLog(`[Warning] FFmpeg not found or not working. Falling back to single file download (best pre-merged quality).`, 'warning');
+      console.log("[Warning] FFmpeg is not found or not working. Falling back to 'single' download mode.\n");
+      addTerminalLog('[Warning] FFmpeg not found or not working. Falling back to single file download (best pre-merged quality).', 'warning');
     }
 
     const audioPrefChain = `bestaudio[language^=${prefLang}]/bestaudio[language=original]/bestaudio`;
+    const excludeAv01 = (video._fallbackCodec || video.retryAttempt === 2) ? '[vcodec!^=av01]' : '';
 
     if (video.isFakap) {
-      // Türkçe Açıklama: Fakap yedeği istenen çözünürlükte yoksa sırayla bir üst basamağa çıkar
-      // (144 -> 240 -> 360). Hiçbiri yoksa mevcut en düşük akışa düşer; böylece video asla boşta kalmaz.
       const LADDER = [144, 240, 360];
-      let maxH = 144;
       const fakapQ = String(settings.fakapQuality || '144').replace(/p$/i, '');
-      if (fakapQ === 'best') maxH = 4320;
-      else maxH = parseInt(fakapQ, 10) || 144;
+      const maxH = fakapQ === 'best' ? 4320 : (parseInt(fakapQ, 10) || 144);
       const steps = LADDER.filter(h => h >= maxH);
       if (steps.length === 0) steps.push(maxH);
       const fakapParts = [];
       if (isDeferMerge) {
         for (const h of steps) {
-          fakapParts.push(`((bestvideo[height<=${h}]),(${audioPrefChain}))`);
-          fakapParts.push(`best[height<=${h}]`);
+          fakapParts.push(`((bestvideo[height<=${h}]),(${audioPrefChain}))`, `best[height<=${h}]`);
         }
         fakapParts.push('((worstvideo),(worstaudio))/worst');
         args.push('-f', fakapParts.join('/'));
       } else {
         for (const h of steps) {
-          fakapParts.push(`bestvideo[height<=${h}]+bestaudio[language^=${prefLang}]`);
-          fakapParts.push(`bestvideo[height<=${h}]+bestaudio[language=original]`);
-          fakapParts.push(`bestvideo[height<=${h}]+bestaudio`);
-          fakapParts.push(`best[height<=${h}]`);
+          fakapParts.push(
+            `bestvideo[height<=${h}]+bestaudio[language^=${prefLang}]`,
+            `bestvideo[height<=${h}]+bestaudio[language=original]`,
+            `bestvideo[height<=${h}]+bestaudio`,
+            `best[height<=${h}]`
+          );
         }
         fakapParts.push('worstvideo+worstaudio/worst');
         args.push('-f', fakapParts.join('/'));
-        if (hasWorkingFfmpeg) {
-          args.push('--merge-output-format', 'mp4');
-        }
+        if (hasWorkingFfmpeg) args.push('--merge-output-format', 'mp4');
       }
     } else if (isWebStream) {
-      // Web Video & Dizi Akışları (m3u8/mp4) için en temiz ve hızlı akış
       if (isMp3) {
         const bitrate = video.audioBitrate || '320';
         args.push('-f', 'bestaudio/best', '--extract-audio', '--audio-format', 'mp3', '--audio-quality', `${bitrate}K`);
       } else {
         args.push('-f', 'bestvideo+bestaudio/best');
-        if (hasWorkingFfmpeg) {
-          args.push('--merge-output-format', 'mp4');
-        }
+        if (hasWorkingFfmpeg) args.push('--merge-output-format', 'mp4');
       }
     } else if (video.customFormat) {
       const fmt = video.customFormat;
@@ -1225,51 +1178,35 @@ export class DownloadQueue {
           args.push('-f', audioPrefChain, '--extract-audio', '--audio-format', 'mp3', '--audio-quality', `${bitrate}K`, '--embed-thumbnail');
         }
       } else {
-        let maxH = 1080;
-        if (fmt === 'video-720p') maxH = 720;
-        else if (fmt === 'video-480p') maxH = 480;
-        else if (fmt === 'video-360p') maxH = 360;
-        else if (fmt === 'video-240p') maxH = 240;
-        else if (fmt === 'video-144p') maxH = 144;
-        else if (fmt === 'video-best' || fmt === 'video-4k' || fmt === 'video-2160p') maxH = 4320;
-        else if (fmt === 'video-1440p' || fmt === 'video-2k') maxH = 1440;
-        else if (fmt === 'video-1080p') maxH = 1080;
-
-        const excludeAv01 = (video._fallbackCodec || video.retryAttempt === 2) ? '[vcodec!^=av01]' : '';
+        const formatHeightMap = {
+          'video-720p': 720, 'video-480p': 480, 'video-360p': 360, 'video-240p': 240, 'video-144p': 144,
+          'video-best': 4320, 'video-4k': 4320, 'video-2160p': 4320, 'video-1440p': 1440, 'video-2k': 1440, 'video-1080p': 1080
+        };
+        const maxH = formatHeightMap[fmt] || 1080;
         const vSpec = `bestvideo[height<=${maxH}]${excludeAv01}`;
         if (isDeferMerge) {
           args.push('-f', `((${vSpec}),(${audioPrefChain}))/best[height<=${maxH}]/best`);
         } else {
-          const fmtCombo = `${vSpec}+bestaudio[language^=${prefLang}]/${vSpec}+bestaudio[language=original]/${vSpec}+bestaudio/best[height<=${maxH}]/best`;
-          args.push('-f', fmtCombo);
-          if (hasWorkingFfmpeg) {
-            args.push('--merge-output-format', 'mp4');
-          }
+          args.push('-f', `${vSpec}+bestaudio[language^=${prefLang}]/${vSpec}+bestaudio[language=original]/${vSpec}+bestaudio/best[height<=${maxH}]/best`);
+          if (hasWorkingFfmpeg) args.push('--merge-output-format', 'mp4');
         }
       }
     } else {
-      let maxH = (videoQuality === '1080p') ? 1080 : ((videoQuality === '720p') ? 720 : 4320);
-      const excludeAv01 = (video._fallbackCodec || video.retryAttempt === 2) ? '[vcodec!^=av01]' : '';
+      const maxH = (videoQuality === '1080p') ? 1080 : ((videoQuality === '720p') ? 720 : 4320);
       const vSpec = `bestvideo[height<=${maxH}]${excludeAv01}`;
-      const fmtCombo = `${vSpec}+bestaudio[language^=${prefLang}]/${vSpec}+bestaudio[language=original]/${vSpec}+bestaudio/best[height<=${maxH}]/best`;
-      
       if (actualMergeType === 'separate') {
         args.push('-f', `${vSpec},${audioPrefChain}`);
       } else if (isDeferMerge) {
         args.push('-f', `((${vSpec}),(${audioPrefChain}))/best[height<=${maxH}]/best`);
       } else {
-        args.push('-f', fmtCombo);
-        if (hasWorkingFfmpeg) {
-          args.push('--merge-output-format', 'mp4');
-        }
+        args.push('-f', `${vSpec}+bestaudio[language^=${prefLang}]/${vSpec}+bestaudio[language=original]/${vSpec}+bestaudio/best[height<=${maxH}]/best`);
+        if (hasWorkingFfmpeg) args.push('--merge-output-format', 'mp4');
       }
     }
 
     if (settings.writeThumbnail || isMp3) {
       args.push('--write-thumbnail');
-      if (hasWorkingFfmpeg && !isDeferMerge) {
-        args.push('--convert-thumbnails', 'jpg');
-      }
+      if (hasWorkingFfmpeg && !isDeferMerge) args.push('--convert-thumbnails', 'jpg');
     }
 
     if (isDeferMerge) {
@@ -1278,42 +1215,131 @@ export class DownloadQueue {
       addTerminalLog(deferLog, 'info');
     } else if (hasWorkingFfmpeg) {
       args.push('--ffmpeg-location', path.dirname(getFfmpegPath()));
-
       const hwMode = settings.hardwareAcceleration || 'auto';
       const hwInfo = detectHwaccel();
       const effectiveHw = (hwMode === 'auto') ? hwInfo.recommended : hwMode;
 
-      if (effectiveHw === 'nvenc' && (hwInfo.nvenc || hwMode === 'nvenc')) {
-        args.push('--postprocessor-args', 'VideoConvertor:-c:v h264_nvenc');
-        const logMsg = '[DONANIM HIZLANDIRMA] NVIDIA NVENC GPU hızlandırması devrede.';
-        console.log(logMsg);
-        addTerminalLog(logMsg, 'info');
-      } else if (effectiveHw === 'qsv' && (hwInfo.qsv || hwMode === 'qsv')) {
-        args.push('--postprocessor-args', 'VideoConvertor:-c:v h264_qsv');
-        const logMsg = '[DONANIM HIZLANDIRMA] Intel Quick Sync (QSV) hızlandırması devrede.';
-        console.log(logMsg);
-        addTerminalLog(logMsg, 'info');
-      } else if (effectiveHw === 'amf' && (hwInfo.amf || hwMode === 'amf')) {
-        args.push('--postprocessor-args', 'VideoConvertor:-c:v h264_amf');
-        const logMsg = '[DONANIM HIZLANDIRMA] AMD AMF GPU hızlandırması devrede.';
-        console.log(logMsg);
-        addTerminalLog(logMsg, 'info');
+      const codecMap = {
+        nvenc: { codec: 'h264_nvenc', label: '[DONANIM HIZLANDIRMA] NVIDIA NVENC GPU hızlandırması devrede.' },
+        qsv: { codec: 'h264_qsv', label: '[DONANIM HIZLANDIRMA] Intel Quick Sync (QSV) hızlandırması devrede.' },
+        amf: { codec: 'h264_amf', label: '[DONANIM HIZLANDIRMA] AMD AMF GPU hızlandırması devrede.' }
+      };
+      const selectedHw = codecMap[effectiveHw];
+      if (selectedHw && (hwInfo[effectiveHw] || hwMode === effectiveHw)) {
+        args.push('--postprocessor-args', `VideoConvertor:-c:v ${selectedHw.codec}`);
+        console.log(selectedHw.label);
+        addTerminalLog(selectedHw.label, 'info');
       } else {
         args.push('--postprocessor-args', 'VideoConvertor:-c:v libx264');
       }
     }
-    // Canlı Yayın Garantili İndirme: Sadece aktif canlı yayınlarda --live-from-start kullan, normal ve sonlanmış yayınlarda kullanma
+
     if (video.duration === 'live' || video.status === 'live') {
       args.push('--live-from-start', '--concurrent-fragments', '4', '--hls-use-mpegts');
     } else if (video._singleFragmentMode || video.retryAttempt === 2) {
-      // 2. Deneme (Son Şans) Güvenli Mod: Mükerrer DASH başlık bozulmasını önlemek için tek parça akışı kullanılır
       args.push('--concurrent-fragments', '1');
     } else {
       args.push('--concurrent-fragments', '4');
     }
     args.push('--fragment-retries', '10', '--retries', '5', '--retry-sleep', 'fragment:exp=1:20', '--skip-unavailable-fragments');
 
-    const startLogMsg = `[İNDİRME] İndirme başlatılıyor: "${video.title}"`;
+    return { args, isDeferMerge, deferStagingDir, isYouTubeUrl };
+  }
+
+  /**
+   * 30 dakikalık genel zaman aşımı ve canlı yayın %0 takılma bekçilerini bağlar.
+   */
+  _attachDownloadWatchdogs(video) {
+    const killProcTree = (proc) => {
+      try {
+        if (process.platform === 'win32') {
+          execFile('taskkill', ['/pid', String(proc.pid), '/T', '/F'], () => {});
+        } else {
+          process.kill(-proc.pid);
+        }
+      } catch (e) {
+        try { proc.kill(); } catch (_) {}
+      }
+    };
+
+    const timeoutTimer = setTimeout(() => {
+      const procInfo = this.activeProcesses.get(video.id);
+      if (procInfo && procInfo.process) {
+        console.error(`[Zaman Aşımı] "${video.title}" indirme/birleştirme işlemi 30 dakikayı geçtiği için sonlandırılıyor.`);
+        addTerminalLog(`[Zaman Aşımı] "${video.title}" işlemi 30 dakikayı geçtiği için otomatik sonlandırıldı.`, 'error');
+        killProcTree(procInfo.process);
+        updateHistoryItem(video.id, { status: 'error', error: 'İndirme zaman aşımına uğradı (Takıldı).' });
+      }
+    }, 30 * 60 * 1000);
+
+    const isLiveTarget = (video.duration === 'live' || video.status === 'live');
+    const stallTimer = isLiveTarget ? setTimeout(() => {
+      const procInfo = this.activeProcesses.get(video.id);
+      if (procInfo && procInfo.status === 'downloading' && (!procInfo.progress || procInfo.progress === 0)) {
+        console.warn(`[Canlı Yayın Koruması] "${video.title}" 45 saniyedir %0'da takıldı. Canlı yayın VOD işleme aşamasında olduğu için indirme ertelendi.`);
+        addTerminalLog(`[Canlı Yayın Koruması] "${video.title}" %0'da takıldı. Canlı yayın henüz yeni sonlandı, YouTube VOD işlemesi bekleniyor.`, 'warning');
+        killProcTree(procInfo.process);
+
+        if (procInfo.timeoutTimer) clearTimeout(procInfo.timeoutTimer);
+        this.activeProcesses.delete(video.id);
+        this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+
+        updateHistoryItem(video.id, { status: 'waiting_live_processing', error: 'Canlı yayın yeni sonlandı, YouTube VOD işlemesi bekleniyor.' });
+        this.process();
+      }
+    }, 45000) : null;
+
+    return { timeoutTimer, stallTimer };
+  }
+
+  async download(video) {
+    try {
+      await ensureYtdlp();
+    } catch (err) {
+      updateHistoryItem(video.id, { status: 'failed', error: 'yt-dlp motoru yüklenemedi.' });
+      this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+      this.notifyTrayState();
+      broadcast('db_update', readDb());
+      this.process();
+      return;
+    }
+
+    const db = readDb();
+    const settings = db.settings;
+
+    const tempInfo = getTempSpaceInfo();
+    if (tempInfo.low) {
+      const diskMsg = buildDiskFullMessage(settings.lang, tempInfo);
+      updateHistoryItem(video.id, { status: 'failed', progress: 0, speed: '', eta: '', error: diskMsg, errorCode: DISK_FULL_ERROR_CODE });
+      this.isPaused = true;
+      this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+      this.notifyTrayState();
+      addTerminalLog(`[Kuyruk] ${diskMsg}`, 'error');
+      broadcast('disk_warning', tempInfo);
+      broadcast('db_update', readDb());
+      return;
+    }
+
+    updateHistoryItem(video.id, { status: 'downloading', progress: 0 });
+    addTerminalLog(`[Kuyruk] "${video.title}" videosu için indirme süreci başlatıldı.`, 'info');
+    playSystemSound('start');
+    showWindowsNotification(
+      settings.lang === 'en' ? 'Download Started' : 'İndirme Başlatıldı',
+      settings.lang === 'en' ? `"${video.title}" download process has started.` : `"${video.title}" videosunun indirme işlemi başladı.`,
+      'download_start',
+      {
+        channelName: video.channelName || '',
+        thumbnail: video.thumbnail || (video.id ? `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg` : '')
+      }
+    );
+
+    const targetInfo = this._resolveDownloadTarget(video, settings, db);
+    const { folderSubName, isWebStream, outputDir, isMp3 } = targetInfo;
+    const { args, isDeferMerge, deferStagingDir, isYouTubeUrl } = this._buildYtdlpDownloadArgs(video, settings, db, targetInfo);
+
+    const srcLabel = isYouTubeUrl ? 'YouTube' : (video.platform || 'WebStream');
+    const qLabel = isMp3 ? 'MP3' : (video.quality || 'Best');
+    const startLogMsg = `[İNDİRME] Başlatıldı (${srcLabel} | ${qLabel}): "${video.title}"`;
     const cmdLogMsg = `[KOMUT] yt-dlp ${args.join(' ')}`;
     console.log(startLogMsg);
     console.log(cmdLogMsg);
@@ -1323,66 +1349,15 @@ export class DownloadQueue {
     const localTemp = getLocalTempDir();
     const spawnOptions = {
       env: { ...process.env, TEMP: localTemp, TMP: localTemp, PYTHONIOENCODING: 'utf-8', LC_ALL: 'en_US.UTF-8' },
-      ...(process.platform === 'win32' 
-        ? { stdio: ['ignore', 'pipe', 'pipe'] } 
+      ...(process.platform === 'win32'
+        ? { stdio: ['ignore', 'pipe', 'pipe'] }
         : { stdio: ['ignore', 'pipe', 'pipe'], detached: true })
     };
-    const timeoutDuration = 30 * 60 * 1000;
     const downloadProc = spawnYtdlp(args, spawnOptions);
     if (downloadProc.stdout) downloadProc.stdout.setEncoding('utf8');
     if (downloadProc.stderr) downloadProc.stderr.setEncoding('utf8');
-    
-    const timeoutTimer = setTimeout(() => {
-      const procInfo = this.activeProcesses.get(video.id);
-      if (procInfo && procInfo.process) {
-        console.error(`[Zaman Aşımı] "${video.title}" indirme/birleştirme işlemi 30 dakikayı geçtiği için sonlandırılıyor.`);
-        addTerminalLog(`[Zaman Aşımı] "${video.title}" işlemi 30 dakikayı geçtiği için otomatik sonlandırıldı.`, 'error');
-        
-        try {
-          if (process.platform === 'win32') {
-            exec(`taskkill /pid ${procInfo.process.pid} /T /F`);
-          } else {
-            process.kill(-procInfo.process.pid);
-          }
-        } catch (e) {
-          procInfo.process.kill();
-        }
-        
-        updateHistoryItem(video.id, {
-          status: 'error',
-          error: 'İndirme zaman aşımına uğradı (Takıldı).'
-        });
-      }
-    }, timeoutDuration);
 
-    // %0 Takılma Koruması (Yeni sonlanmış VOD işleme sürecindeki canlı yayınlar için 45sn zaman aşımı)
-    const isLiveTarget = (video.duration === 'live' || video.status === 'live');
-    const stallTimer = isLiveTarget ? setTimeout(() => {
-      const procInfo = this.activeProcesses.get(video.id);
-      if (procInfo && procInfo.status === 'downloading' && (!procInfo.progress || procInfo.progress === 0)) {
-        console.warn(`[Canlı Yayın Koruması] "${video.title}" 45 saniyedir %0'da takıldı. Canlı yayın VOD işleme aşamasında olduğu için indirme ertelendi.`);
-        addTerminalLog(`[Canlı Yayın Koruması] "${video.title}" %0'da takıldı. Canlı yayın henüz yeni sonlandı, YouTube VOD işlemesi bekleniyor.`, 'warning');
-        
-        try {
-          if (process.platform === 'win32') {
-            exec(`taskkill /pid ${procInfo.process.pid} /T /F`);
-          } else {
-            procInfo.process.kill();
-          }
-        } catch (e) {}
-
-        if (procInfo.timeoutTimer) clearTimeout(procInfo.timeoutTimer);
-        this.activeProcesses.delete(video.id);
-        this.activeDownloads = Math.max(0, this.activeDownloads - 1);
-
-        updateHistoryItem(video.id, {
-          status: 'waiting_live_processing',
-          error: 'Canlı yayın yeni sonlandı, YouTube VOD işlemesi bekleniyor.'
-        });
-        this.process();
-      }
-    }, 45000) : null;
-
+    const { timeoutTimer, stallTimer } = this._attachDownloadWatchdogs(video);
     this.activeProcesses.set(video.id, {
       process: downloadProc,
       status: 'downloading',
@@ -1953,6 +1928,10 @@ export class DownloadQueue {
           const actualQuality = actualPath ? getVideoResolution(actualPath) : null;
           const actualDurationInfo = actualPath ? getVideoDurationFromFile(actualPath) : null;
 
+          if (isWebStream && video.thumbnail && video.thumbnail.startsWith('http')) {
+            saveWebStreamPosterSidecar(actualPath, video.thumbnail, video.webUrl || video.referer);
+          }
+
           updateHistoryItem(video.id, {
             status: 'completed',
             progress: 100,
@@ -1968,9 +1947,10 @@ export class DownloadQueue {
             ...(actualQuality ? { actualQuality } : {}),
             ...(actualDurationInfo ? { duration: actualDurationInfo.duration, durationSeconds: actualDurationInfo.durationSeconds } : {})
           });
-          console.log(`İndirme tamamlandı: ${resolvedTitle}`);
+          const dlSummary = [calculatedSize, actualQuality, actualDurationInfo?.duration].filter(Boolean).join(' · ');
+          console.log(`[DOWNLOAD OK] "${resolvedTitle}" (${dlSummary || 'Tamamlandı'}) -> ${actualPath}`);
           broadcast('status_log', { message: `İndirme tamamlandı: ${resolvedTitle}`, type: 'success', thumbnail: `/api/video/${video.id}/thumbnail` });
-          addTerminalLog(`[Kuyruk] İndirme SUCCESSFUL: "${resolvedTitle}" -> Dosya Yolu: ${actualPath}`, 'success');
+          addTerminalLog(`[Kuyruk] İndirme SUCCESSFUL: "${resolvedTitle}" (${dlSummary || 'Tamamlandı'}) -> Dosya Yolu: ${actualPath}`, 'success');
           playSystemSound('success');
           showWindowsNotification(
             settings.lang === 'en' ? 'Download Completed' : 'İndirme Tamamlandı',

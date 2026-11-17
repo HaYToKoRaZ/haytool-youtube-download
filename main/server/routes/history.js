@@ -25,6 +25,13 @@ import { buildCookieHeader } from '../services/cookieHealth.js';
 import { closeActiveVideoStreams } from './streams.js';
 import { physicallyDeleteVideoFiles, getVideoRemainingMs, getVideoAutoDeleteReason } from '../services/autoDeleteService.js';
 import { isInsideFakap } from '../services/fakapPaths.js';
+import {
+  getDownloadedYouTubeItems,
+  getRemoteStatusSummary,
+  getRemoteStatusScanState,
+  startRemoteStatusScan,
+  cancelRemoteStatusScan
+} from '../services/remoteStatusScanner.js';
 
 export const router = express.Router();
 
@@ -1732,9 +1739,10 @@ router.post('/select-folder', localhostOnly, (req, res) => {
   const currentPath = (bodyStart && fs.existsSync(bodyStart)) ? bodyStart : (db.settings.downloadPath || '');
   const escapedPath = currentPath.replace(/'/g, "''");
   
-  const psCommand = `powershell -NoProfile -STA -Command "Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Please select a download folder'; $dialog.SelectedPath = '${escapedPath}'; $dialog.ShowNewFolderButton = $true; $form = New-Object System.Windows.Forms.Form; $form.TopMost = $true; $form.Opacity = 0; $form.Show(); $form.Activate(); $result = $dialog.ShowDialog($form); $form.Close(); if ($result -eq 'OK') { Write-Output $dialog.SelectedPath } else { Write-Output 'CANCEL' }"`;
+  const psScript = `Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Please select a download folder'; $dialog.SelectedPath = '${escapedPath}'; $dialog.ShowNewFolderButton = $true; $form = New-Object System.Windows.Forms.Form; $form.TopMost = $true; $form.Opacity = 0; $form.Show(); $form.Activate(); $result = $dialog.ShowDialog($form); $form.Close(); if ($result -eq 'OK') { Write-Output $dialog.SelectedPath } else { Write-Output 'CANCEL' }`;
+  const encodedPs = Buffer.from(psScript, 'utf16le').toString('base64');
   
-  exec(psCommand, (err, stdout, stderr) => {
+  execFile('powershell.exe', ['-NoProfile', '-STA', '-EncodedCommand', encodedPs], (err, stdout, stderr) => {
     if (err) {
       console.error('Folder selection error:', err.message || stderr);
       return res.status(500).json({ error: 'Klasör seçim penceresi açılamadı.' });
@@ -1785,7 +1793,7 @@ router.post('/open-folder', localhostOnly, (req, res) => {
 
   if (process.platform === 'win32') {
     const resolvedFolder = path.resolve(folder);
-    exec(`explorer.exe "${resolvedFolder}"`);
+    execFile('explorer.exe', [resolvedFolder], () => {});
     const folderName = path.basename(resolvedFolder);
     const escapedFolder = folderName.replace(/'/g, "''");
     setTimeout(() => {
@@ -1805,7 +1813,7 @@ router.post('/open-folder', localhostOnly, (req, res) => {
   } else if (process.platform === 'darwin') {
     open(folder);
   } else {
-    exec(`xdg-open "${path.resolve(folder)}"`);
+    execFile('xdg-open', [path.resolve(folder)], () => {});
   }
   res.json({ success: true });
 });
@@ -2908,5 +2916,72 @@ router.post('/tools/copy-file-to-clipboard', localhostOnly, (req, res) => {
     });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * İndirilmiş YouTube videolarının kayıtlı uzak durum özetini ve listesini döndürür.
+ * @route GET /api/tools/remote-status
+ */
+router.get('/tools/remote-status', localhostOnly, (req, res) => {
+  try {
+    const db = readDb();
+    const ytItems = getDownloadedYouTubeItems(db).map(item => ({
+      id: item.id,
+      originalId: item.originalId || item.id,
+      title: item.title || item.id,
+      channelId: item.channelId || '',
+      channelName: item.channelName || '',
+      thumbnail: item.thumbnail || '',
+      duration: item.duration || '',
+      downloadedAt: item.downloadedAt || '',
+      publishedAt: item.publishedAt || '',
+      fileMissing: Boolean(item.fileMissing),
+      remoteStatus: item.remoteStatus || '',
+      remoteReason: item.remoteReason || '',
+      remoteTitle: item.remoteTitle || '',
+      remoteCheckedAt: item.remoteCheckedAt || ''
+    }));
+    res.json({
+      success: true,
+      scanState: getRemoteStatusScanState(),
+      summary: getRemoteStatusSummary(db),
+      items: ytItems
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * İndirilmiş YouTube videoları için uzak sunucu durum taraması başlatır.
+ * @route POST /api/tools/remote-status/scan
+ */
+router.post('/tools/remote-status/scan', localhostOnly, (req, res) => {
+  try {
+    const { onlyUnchecked, videoId } = req.body || {};
+    const result = startRemoteStatusScan({
+      onlyUnchecked: Boolean(onlyUnchecked),
+      videoId: videoId ? String(videoId).trim() : null
+    });
+    if (!result.started) {
+      return res.status(409).json({ success: false, error: result.error, scanState: result.scanState });
+    }
+    res.json({ success: true, scanState: result.scanState });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Devam eden uzak sunucu durum taramasını iptal eder.
+ * @route POST /api/tools/remote-status/cancel
+ */
+router.post('/tools/remote-status/cancel', localhostOnly, (req, res) => {
+  try {
+    const scanState = cancelRemoteStatusScan();
+    res.json({ success: true, scanState });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });

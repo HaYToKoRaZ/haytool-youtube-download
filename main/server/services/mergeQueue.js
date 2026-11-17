@@ -583,7 +583,9 @@ class MergeQueue {
       type: 'success',
       thumbnail: `/api/video/${item.id}/thumbnail`
     });
-    addTerminalLog(`[Birleştirme Kuyruğu] TAMAMLANDI: "${resolvedTitle}" -> ${finalOutputPath}`, 'success');
+    const mergeSummary = [calculatedSize, actualQuality, actualDurationInfo?.duration].filter(Boolean).join(' · ');
+    console.log(`[FFMPEG] Birleştirme tamamlandı: "${resolvedTitle}"${mergeSummary ? ` (${mergeSummary})` : ''} -> ${finalOutputPath}`);
+    addTerminalLog(`[Birleştirme Kuyruğu] TAMAMLANDI: "${resolvedTitle}"${mergeSummary ? ` (${mergeSummary})` : ''} -> ${finalOutputPath}`, 'success');
 
     // Video indirme ve birleştirme süreci tamamen bittiğinde kullanıcıya indirme tamamlandı bildirimi verilir
     playAppSound('download_complete');

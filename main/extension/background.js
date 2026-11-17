@@ -1,16 +1,15 @@
 // Multimedia HaYTooL Chromium Extension Background Service Worker
-let BACKEND_PORT = 4141;
-
 async function getBackendUrl() {
+  let port = 4141;
   try {
     if (chrome.storage && chrome.storage.sync) {
       const data = await chrome.storage.sync.get(['haytoolPort']);
       if (data && data.haytoolPort) {
-        BACKEND_PORT = parseInt(data.haytoolPort, 10) || 4141;
+        port = parseInt(data.haytoolPort, 10) || 4141;
       }
     }
   } catch {}
-  return `http://127.0.0.1:${BACKEND_PORT}`;
+  return `http://127.0.0.1:${port}`;
 }
 
 async function sendUrlToWebStream(url) {
@@ -83,10 +82,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       targetUrl = info.pageUrl || (tab && tab.url);
     }
     if (targetUrl) {
-      sendUrlToWebStream(targetUrl);
+      await sendUrlToWebStream(targetUrl);
     }
   } else if (info.menuItemId === 'haytool-open-webstream-tab') {
-    sendUrlToWebStream('');
+    await sendUrlToWebStream('');
   } else if (info.menuItemId === 'haytool-open-youtube') {
     chrome.tabs.create({ url: 'https://www.youtube.com' });
   } else if (info.menuItemId === 'haytool-open-website') {

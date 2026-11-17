@@ -41,8 +41,8 @@ Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 [CustomMessages]
 english.WelcomeLinks=Explore: <a href="https://haytokoraz.github.io/haytool-youtube-download/">Website</a>  ·  <a href="https://haytokoraz.github.io/">HaYTooL Portal</a>
 turkish.WelcomeLinks=Ziyaret edin: <a href="https://haytokoraz.github.io/haytool-youtube-download/">Web Sitesi</a>  ·  <a href="https://haytokoraz.github.io/">HaYTooL Portalı</a>
-english.DeleteUserDataPrompt=Permanently delete this installation's user data? This removes db.json, cookies.txt, bin\cookies.txt, configwin.ini, channels.ini, categories.ini, wv2_debug.log, logs, and backup from this Multimedia HaYTooL folder only. Other HaYTooL applications are not affected.
-turkish.DeleteUserDataPrompt=Bu kurulumun kullanıcı verileri kalıcı olarak silinsin mi? Yalnızca bu Multimedia HaYTooL klasöründeki db.json, cookies.txt, bin\cookies.txt, configwin.ini, channels.ini, categories.ini, wv2_debug.log, logs ve backup silinir. Diğer HaYTooL uygulamaları etkilenmez.
+english.DeleteUserDataPrompt=Permanently delete this installation's user data? This removes haytool.db, cookies.txt, bin\cookies.txt, configwin.ini, channels.ini, categories.ini, wv2_debug.log, logs, and backup from this Multimedia HaYTooL folder only. Other HaYTooL applications are not affected.
+turkish.DeleteUserDataPrompt=Bu kurulumun kullanıcı verileri kalıcı olarak silinsin mi? Yalnızca bu Multimedia HaYTooL klasöründeki haytool.db, cookies.txt, bin\cookies.txt, configwin.ini, channels.ini, categories.ini, wv2_debug.log, logs ve backup silinir. Diğer HaYTooL uygulamaları etkilenmez.
 english.DeleteUserDataFailure=Some selected user data could not be deleted. Close Multimedia HaYTooL and try uninstalling again, or remove the remaining files manually.
 turkish.DeleteUserDataFailure=Seçilen bazı kullanıcı verileri silinemedi. Multimedia HaYTooL'u kapatıp kaldırmayı yeniden deneyin veya kalan dosyaları elle silin.
 
@@ -88,7 +88,7 @@ var
 begin
   AppDir := ExpandConstant('{app}');
   Result :=
-    FileExists(AppDir + '\db.json') or
+    FileExists(AppDir + '\haytool.db') or
     FileExists(AppDir + '\cookies.txt') or
     FileExists(AppDir + '\bin\cookies.txt') or
     FileExists(AppDir + '\configwin.ini') or
@@ -135,7 +135,9 @@ var
   Failed: Boolean;
 begin
   Failed := False;
-  DeleteUserDataFile('db.json', Failed);
+  DeleteUserDataFile('haytool.db', Failed);
+  DeleteUserDataFile('haytool.db-wal', Failed);
+  DeleteUserDataFile('haytool.db-shm', Failed);
   DeleteUserDataFile('cookies.txt', Failed);
   DeleteUserDataFile('bin\cookies.txt', Failed);
   DeleteUserDataFile('configwin.ini', Failed);

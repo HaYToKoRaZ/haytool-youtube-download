@@ -17,6 +17,8 @@ import { dataRootDir } from '../config.js';
 import { 
   readDb, 
   writeDb, 
+  invalidateDbCache,
+  syncWithIni,
   syncDbWithDisk, 
   updateHistoryItem,
   defaultDownloadDir,
@@ -718,6 +720,7 @@ router.post('/settings', localhostOnly, async (req, res) => {
   // 2. Boolean (Açık/Kapalı) Güvenlik Doğrulamaları
   const booleanFields = [
     'useAlternativeSpeed', 'deferMerge', 'sponsorBlockEnabled', 'checkChannelsOnStartup',
+    'scanRemoteStatusOnStartup',
     'checkYtdlpOnStartup',
     'autoDownload', 'writeThumbnail', 'showShorts', 'hideOnDelete',
     'playSounds', 'showNotifications', 'autoOpenBrowser', 'discordRpcEnabled',
@@ -2053,8 +2056,8 @@ router.post('/restore', localhostOnly, async (req, res) => {
     const rootDir = path.resolve(process.cwd());
     
     if (backupContent.db) {
-      const dbFilePath = path.join(dataRootDir, 'db.json');
-      fs.writeFileSync(dbFilePath, JSON.stringify(backupContent.db, null, 2), 'utf8');
+      await writeDb(backupContent.db);
+      invalidateDbCache();
     }
     
     if (backupContent.channelsIni) {
@@ -2074,7 +2077,11 @@ router.post('/restore', localhostOnly, async (req, res) => {
       const configPath = path.join(dataRootDir, configIniName);
       fs.writeFileSync(configPath, backupContent.configIni, 'utf8');
     }
-    
+
+    invalidateDbCache();
+    const restoredDb = readDb();
+    syncWithIni(restoredDb);
+    await writeDb(restoredDb);
     syncDbWithDisk();
     
     addTerminalLog(`[Sistem] Yedek başarıyla geri yüklendi: ${filename}`, 'success');
@@ -2114,8 +2121,8 @@ router.post('/restore-upload', localhostOnly, async (req, res) => {
     const rootDir = path.resolve(process.cwd());
 
     if (backupContent.db) {
-      const dbFilePath = path.join(dataRootDir, 'db.json');
-      fs.writeFileSync(dbFilePath, JSON.stringify(backupContent.db, null, 2), 'utf8');
+      await writeDb(backupContent.db);
+      invalidateDbCache();
     }
 
     if (backupContent.channelsIni) {
@@ -2136,6 +2143,10 @@ router.post('/restore-upload', localhostOnly, async (req, res) => {
       fs.writeFileSync(configPath, backupContent.configIni, 'utf8');
     }
 
+    invalidateDbCache();
+    const restoredDb = readDb();
+    syncWithIni(restoredDb);
+    await writeDb(restoredDb);
     syncDbWithDisk();
 
     addTerminalLog(`[Sistem] Karşıdan yüklenen yedek başarıyla sisteme aktarıldı.`, 'success');
@@ -2215,7 +2226,7 @@ router.post('/settings/open-temp', localhostOnly, (req, res) => {
 
     if (process.platform === 'win32') {
       const resolvedFolder = path.resolve(tempDir);
-      exec(`explorer.exe "${resolvedFolder}"`);
+      execFile('explorer.exe', [resolvedFolder], () => {});
       const folderName = path.basename(resolvedFolder);
       const escapedFolder = folderName.replace(/'/g, "''");
       setTimeout(() => {
@@ -2365,7 +2376,7 @@ router.get('/settings/cli-path-status', localhostOnly, (req, res) => {
   }
 
   const appDir = getCliAppDir();
-  exec('powershell -NoProfile -Command "[System.Environment]::GetEnvironmentVariable(\'Path\', \'User\')"', { windowsHide: true }, (err, stdout) => {
+  execFile('powershell.exe', ['-NoProfile', '-Command', "[System.Environment]::GetEnvironmentVariable('Path', 'User')"], { windowsHide: true }, (err, stdout) => {
     if (err) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -2401,7 +2412,7 @@ router.post('/settings/cli-path-toggle', localhostOnly, (req, res) => {
   const appDir = getCliAppDir();
   const targetNorm = path.normalize(appDir).toLowerCase();
 
-  exec('powershell -NoProfile -Command "[System.Environment]::GetEnvironmentVariable(\'Path\', \'User\')"', { windowsHide: true }, (err, stdout) => {
+  execFile('powershell.exe', ['-NoProfile', '-Command', "[System.Environment]::GetEnvironmentVariable('Path', 'User')"], { windowsHide: true }, (err, stdout) => {
     if (err) {
       return res.status(500).json({ success: false, error: 'PATH okunamadı: ' + err.message });
     }
@@ -2424,7 +2435,7 @@ router.post('/settings/cli-path-toggle', localhostOnly, (req, res) => {
     const b64 = Buffer.from(newPathVal, 'utf8').toString('base64');
     const psScript = `[System.Environment]::SetEnvironmentVariable('Path', [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${b64}')), 'User')`;
 
-    exec(`powershell -NoProfile -Command "${psScript}"`, { windowsHide: true }, (setErr) => {
+    execFile('powershell.exe', ['-NoProfile', '-Command', psScript], { windowsHide: true }, (setErr) => {
       if (setErr) {
         return res.status(500).json({ success: false, error: 'PATH güncellenemedi: ' + setErr.message });
       }

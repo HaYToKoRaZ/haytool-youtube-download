@@ -741,6 +741,16 @@ let _virtualScrollAttached = false;
 const ITEM_HEIGHT = 52; // Piksel cinsinden kesin kart yuvası yüksekliği (48px kart + 4px gap)
 const BUFFER_ITEMS = 6;  // Görünüm alanı dışındaki yedek kart sayısı
 
+function escapeIptvHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[m]));
+}
+
 function createChannelElement(ch) {
   const item = document.createElement('div');
   item.className = 'iptv-channel-item';
@@ -753,8 +763,10 @@ function createChannelElement(ch) {
 
   const flagHtml = ch.country ? getCountryFlagHtml(ch.country, 'iptv-flag-img') : '';
   const logoSrc = ch.logo || '';
+  const safeLogoSrc = escapeIptvHtml(logoSrc);
+  const safeName = escapeIptvHtml(ch.displayName || ch.name);
   const logoHtml = logoSrc
-    ? `<img class="iptv-ch-logo" src="${logoSrc}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=\\'iptv-ch-logo placeholder\\'>${IPTV_TV_SVG}</div>'">`
+    ? `<img class="iptv-ch-logo" src="${safeLogoSrc}" alt="" loading="lazy" referrerpolicy="no-referrer">`
     : `<div class="iptv-ch-logo placeholder">${IPTV_TV_SVG}</div>`;
 
   const starFill = isFav ? 'currentColor' : 'none';
@@ -763,11 +775,11 @@ function createChannelElement(ch) {
   item.innerHTML = `
     ${logoHtml}
     <div class="iptv-ch-info">
-      <span class="iptv-ch-name" title="${ch.displayName || ch.name}">${ch.displayName || ch.name}</span>
+      <span class="iptv-ch-name" title="${safeName}">${safeName}</span>
       <div class="iptv-ch-meta">
         ${flagHtml}
-        ${ch.category ? `<span class="iptv-ch-tag">${ch.category}</span>` : ''}
-        ${ch.quality ? `<span class="iptv-ch-tag">${ch.quality}</span>` : ''}
+        ${ch.category ? `<span class="iptv-ch-tag">${escapeIptvHtml(ch.category)}</span>` : ''}
+        ${ch.quality ? `<span class="iptv-ch-tag">${escapeIptvHtml(ch.quality)}</span>` : ''}
       </div>
     </div>
     <div class="iptv-ch-actions">
@@ -776,6 +788,16 @@ function createChannelElement(ch) {
       </button>
     </div>
   `;
+
+  const logoImg = item.querySelector('img.iptv-ch-logo');
+  if (logoImg) {
+    logoImg.addEventListener('error', () => {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'iptv-ch-logo placeholder';
+      placeholder.innerHTML = IPTV_TV_SVG;
+      logoImg.replaceWith(placeholder);
+    }, { once: true });
+  }
 
   item.addEventListener('click', (e) => {
     if (e.target.closest('.iptv-fav-btn')) return;
@@ -1696,7 +1718,12 @@ export function clearIptvSlot(slotIndex, save = true) {
       cur.loadTimer = null;
     }
     try {
-      if (cur.hls) cur.hls.destroy();
+      if (cur.hls) {
+        const oldHls = cur.hls;
+        try { oldHls.stopLoad(); } catch {}
+        try { oldHls.detachMedia(); } catch {}
+        setTimeout(() => { try { oldHls.destroy(); } catch {} }, 60);
+      }
       if (cur.videoElement) {
         cur.videoElement.pause();
         cur.videoElement.src = '';

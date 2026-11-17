@@ -1,13 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -15,6 +19,11 @@ namespace HaYTooLPlayer
 {
     public class TrayManager : IDisposable
     {
+        private static readonly HttpClient _httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(8)
+        };
+
         private readonly MainWindow _mainWindow;
         private NotifyIcon? _trayIcon;
         private Icon? _defaultTrayIcon;
@@ -44,19 +53,20 @@ namespace HaYTooLPlayer
         private ToolStripMenuItem? _restartItem;
         private ToolStripMenuItem? _exitItem;
 
-        // Konsol Penceresi ve Bellek Tamponu
-        private readonly StringBuilder _consoleBuffer = new StringBuilder();
-        private readonly object _bufferLock = new object();
-        private Form? _logForm;
-        private RichTextBox? _logTextBox;
-        private Label? _cmdLabel;
-        private Button? _sendButton;
-        private Button? _clearButton;
-        private Button? _openLogButton;
+        private readonly ConsoleWindowController _console;
 
         public TrayManager(MainWindow mainWindow)
         {
             _mainWindow = mainWindow;
+            _console = new ConsoleWindowController(
+                _httpClient,
+                GetAppPort,
+                () => _currentLang,
+                GetThemeSetting,
+                () => _nodeProcess != null && !_nodeProcess.HasExited,
+                SendCommandToNode,
+                ExitApplication
+            );
             InitTray();
             StartNode();
         }
@@ -200,7 +210,12 @@ namespace HaYTooLPlayer
                 if (_nodeProcess != null && !_nodeProcess.HasExited) return;
 
                 int port = GetAppPort();
-                if (IsPortResponding(port)) return; // Zaten çalışıyor
+                if (IsPortResponding(port))
+                {
+                    // Harici backend zaten ayakta: SSE ve /api/logs?raw=1 üzerinden bağlan
+                    _console.StartDetachedLogSyncIfNeeded();
+                    return;
+                }
 
                 string backendPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "Multimedia HaYTooL Backend.exe");
                 ProcessStartInfo psi;
@@ -232,7 +247,7 @@ namespace HaYTooLPlayer
                 {
                     if (e.Data != null)
                     {
-                        AppendLog(e.Data);
+                        _console.AppendLog(e.Data);
                     }
                 };
 
@@ -240,14 +255,14 @@ namespace HaYTooLPlayer
                 {
                     if (e.Data != null)
                     {
-                        AppendLog("[HATA] " + e.Data);
+                        _console.AppendLog("[HATA] " + e.Data);
                     }
                 };
 
                 _nodeProcess.Start();
                 _nodeProcess.BeginOutputReadLine();
                 _nodeProcess.BeginErrorReadLine();
-                AppendLog("[TRAY] Backend sunucu süreci başlatıldı.");
+                _console.AppendLog("[TRAY] Backend sunucu süreci başlatıldı.");
             }
             catch (Exception ex)
             {
@@ -327,33 +342,26 @@ namespace HaYTooLPlayer
                 if (!_isQueryingStatus)
                 {
                     _isQueryingStatus = true;
-                    ThreadPool.QueueUserWorkItem(state =>
+                    _ = Task.Run(async () =>
                     {
                         try
                         {
                             string url = GetAppUrl("/api/downloader/active-status");
-                            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                            request.Timeout = 1500;
-                            request.Method = "GET";
-                            using (WebResponse response = request.GetResponse())
-                            using (Stream stream = response.GetResponseStream())
-                            using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
-                            {
-                                string json = reader.ReadToEnd();
-                                var matchActive = Regex.Match(json, "\"activeDownloads\"\\s*:\\s*(\\d+)");
-                                int active = 0;
-                                if (matchActive.Success) int.TryParse(matchActive.Groups[1].Value, out active);
-                                var matchDownloading = Regex.Match(json, "\"isDownloading\"\\s*:\\s*(true|false)");
-                                bool downloading = matchDownloading.Success && matchDownloading.Groups[1].Value == "true";
-                                var matchPrevent = Regex.Match(json, "\"preventSleep\"\\s*:\\s*(true|false)");
-                                bool preventSleep = !matchPrevent.Success || matchPrevent.Groups[1].Value == "true";
+                            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1500));
+                            string json = await _httpClient.GetStringAsync(url, cts.Token).ConfigureAwait(false);
+                            var matchActive = Regex.Match(json, "\"activeDownloads\"\\s*:\\s*(\\d+)");
+                            int active = 0;
+                            if (matchActive.Success) int.TryParse(matchActive.Groups[1].Value, out active);
+                            var matchDownloading = Regex.Match(json, "\"isDownloading\"\\s*:\\s*(true|false)");
+                            bool downloading = matchDownloading.Success && matchDownloading.Groups[1].Value == "true";
+                            var matchPrevent = Regex.Match(json, "\"preventSleep\"\\s*:\\s*(true|false)");
+                            bool preventSleep = !matchPrevent.Success || matchPrevent.Groups[1].Value == "true";
 
-                                _mainWindow.Dispatcher.Invoke(() =>
-                                {
-                                    _isDownloadingActive = downloading || active > 0;
-                                    UpdateSleepPrevention((downloading || active > 0) && preventSleep);
-                                });
-                            }
+                            _mainWindow.Dispatcher.Invoke(() =>
+                            {
+                                _isDownloadingActive = downloading || active > 0;
+                                UpdateSleepPrevention((downloading || active > 0) && preventSleep);
+                            });
                         }
                         catch {}
                         finally
@@ -430,23 +438,26 @@ namespace HaYTooLPlayer
             }
         }
 
-        private void TriggerCheckChannels(object? sender, EventArgs e)
+        private void PostTrayApiFireAndForget(string endpoint, string? jsonBody = null)
         {
-            ThreadPool.QueueUserWorkItem(state =>
+            _ = Task.Run(async () =>
             {
                 try
                 {
-                    string url = GetAppUrl("/api/history/sync");
-                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                    request.Method = "POST";
-                    request.ContentType = "application/json";
-                    byte[] body = Encoding.UTF8.GetBytes("{\"source\":\"tray\"}");
-                    request.ContentLength = body.Length;
-                    using (Stream stream = request.GetRequestStream()) stream.Write(body, 0, body.Length);
-                    using (WebResponse response = request.GetResponse()) {}
+                    string url = GetAppUrl(endpoint);
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    using HttpContent? content = jsonBody != null
+                        ? new StringContent(jsonBody, Encoding.UTF8, "application/json")
+                        : null;
+                    using var resp = await _httpClient.PostAsync(url, content, cts.Token).ConfigureAwait(false);
                 }
                 catch {}
             });
+        }
+
+        private void TriggerCheckChannels(object? sender, EventArgs e)
+        {
+            PostTrayApiFireAndForget("/api/history/sync", "{\"source\":\"tray\"}");
         }
 
         public void PasteAndDownloadCommand(bool openQueueWindow = false, bool silentOnError = false)
@@ -494,19 +505,7 @@ namespace HaYTooLPlayer
             {
                 _altSpeedItem.Checked = !_altSpeedItem.Checked;
             }
-
-            ThreadPool.QueueUserWorkItem(state =>
-            {
-                try
-                {
-                    string url = GetAppUrl("/api/settings/toggle-alt-speed");
-                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                    request.Method = "POST";
-                    request.ContentLength = 0;
-                    using (WebResponse response = request.GetResponse()) {}
-                }
-                catch {}
-            });
+            PostTrayApiFireAndForget("/api/settings/toggle-alt-speed");
         }
 
         private void ToggleDeferMerge(object? sender, EventArgs e)
@@ -515,19 +514,7 @@ namespace HaYTooLPlayer
             {
                 _deferMergeItem.Checked = !_deferMergeItem.Checked;
             }
-
-            ThreadPool.QueueUserWorkItem(state =>
-            {
-                try
-                {
-                    string url = GetAppUrl("/api/settings/toggle-defer-merge");
-                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                    request.Method = "POST";
-                    request.ContentLength = 0;
-                    using (WebResponse response = request.GetResponse()) {}
-                }
-                catch {}
-            });
+            PostTrayApiFireAndForget("/api/settings/toggle-defer-merge");
         }
 
         private void ToggleDiscordRpc(object? sender, EventArgs e)
@@ -536,19 +523,7 @@ namespace HaYTooLPlayer
             {
                 _discordRpcItem.Checked = !_discordRpcItem.Checked;
             }
-
-            ThreadPool.QueueUserWorkItem(state =>
-            {
-                try
-                {
-                    string url = GetAppUrl("/api/settings/toggle-discord-rpc");
-                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                    request.Method = "POST";
-                    request.ContentLength = 0;
-                    using (WebResponse response = request.GetResponse()) {}
-                }
-                catch {}
-            });
+            PostTrayApiFireAndForget("/api/settings/toggle-discord-rpc");
         }
 
         private bool GetIniBoolSetting(string targetKey, bool defaultValue = false)
@@ -753,28 +728,12 @@ namespace HaYTooLPlayer
             }
             catch {}
 
-            // 2. db.json kontrol et
-            try
-            {
-                string dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "db.json");
-                if (File.Exists(dbPath))
-                {
-                    string content = File.ReadAllText(dbPath, Encoding.UTF8);
-                    var match = Regex.Match(content, "\"autoOpenBrowser\"\\s*:\\s*(false|true)", RegexOptions.IgnoreCase);
-                    if (match.Success)
-                    {
-                        return bool.Parse(match.Groups[1].Value);
-                    }
-                }
-            }
-            catch {}
-
             return true; // Varsayılan: true
         }
 
         public static string GetDoubleClickActionSetting()
         {
-            // 1. configwin.ini kontrol et
+            // configwin.ini kontrol et
             try
             {
                 string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configwin.ini");
@@ -799,28 +758,12 @@ namespace HaYTooLPlayer
             }
             catch {}
 
-            // 2. db.json kontrol et
-            try
-            {
-                string dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "db.json");
-                if (File.Exists(dbPath))
-                {
-                    string content = File.ReadAllText(dbPath, Encoding.UTF8);
-                    var match = Regex.Match(content, "\"doubleClickAction\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
-                    if (match.Success)
-                    {
-                        return match.Groups[1].Value.ToLowerInvariant();
-                    }
-                }
-            }
-            catch {}
-
             return "player"; // Varsayılan: player
         }
 
         public static string GetThemeSetting()
         {
-            // 1. configwin.ini kontrol et
+            // configwin.ini kontrol et
             try
             {
                 string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configwin.ini");
@@ -840,22 +783,6 @@ namespace HaYTooLPlayer
                                 return val.ToLowerInvariant();
                             }
                         }
-                    }
-                }
-            }
-            catch {}
-
-            // 2. db.json kontrol et
-            try
-            {
-                string dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "db.json");
-                if (File.Exists(dbPath))
-                {
-                    string content = File.ReadAllText(dbPath, Encoding.UTF8);
-                    var match = Regex.Match(content, "\"theme\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
-                    if (match.Success)
-                    {
-                        return match.Groups[1].Value.ToLowerInvariant();
                     }
                 }
             }
@@ -1024,83 +951,27 @@ namespace HaYTooLPlayer
             }
         }
 
-        private ContextMenuStrip BuildQuickCmdMenu(ComboBox commandComboBox, Action<string> sendAction)
-        {
-            bool isEn = _currentLang == "en";
-            ContextMenuStrip qMenu = new ContextMenuStrip();
-            string theme = GetThemeSetting();
-            bool isDark = !string.Equals(theme, "light", StringComparison.OrdinalIgnoreCase);
-            qMenu.Renderer = new HaYTooLMenuRenderer(isDark);
-
-            void AddPreset(string title, string cmd, string desc, bool autoExecute = true)
-            {
-                var item = new ToolStripMenuItem(title);
-                item.ToolTipText = desc;
-                item.Click += (s, e) =>
-                {
-                    commandComboBox.Text = cmd;
-                    if (autoExecute)
-                    {
-                        sendAction(cmd);
-                        commandComboBox.Text = "";
-                    }
-                    else
-                    {
-                        commandComboBox.Focus();
-                        commandComboBox.SelectionStart = cmd.Length;
-                    }
-                };
-                qMenu.Items.Add(item);
-            }
-
-            // 1. Durum & Bilgi
-            AddPreset(isEn ? "📊 status   (Server & Queue Status)" : "📊 status   (Durum ve Hız Özeti)", "status", isEn ? "Shows download queue, speed limits & Turtle state" : "İndirme kuyruğunu, hız limitlerini ve kaplumbağa modunu listeler");
-
-            // 2. İndirme Kuyruğu
-            AddPreset(isEn ? "⏸️ pause    (Pause Download Queue)" : "⏸️ pause    (Kuyruğu Duraklat)", "pause", isEn ? "Pauses all downloads safely" : "İndirmeleri güvenle beklemeye alır");
-            AddPreset(isEn ? "▶️ resume   (Resume Download Queue)" : "▶️ resume   (Kuyruğu Devam Ettir)", "resume", isEn ? "Resumes paused download queue" : "Duraklatılan indirmeleri devam ettirir");
-            AddPreset(isEn ? "📥 pd       (Download Video Link...)" : "📥 pd       (Video Linki İndir...)", "pd https://www.youtube.com/watch?v=", isEn ? "Inserts pd template into box for you to paste URL" : "Kutuya link şablonu yazar, linkinizi yapıştırıp gönderebilirsiniz", autoExecute: false);
-
-            qMenu.Items.Add(new ToolStripSeparator());
-
-            // 3. Hız ve Kaplumbağa Modu
-            AddPreset(isEn ? "🔄 toggle   (Toggle Turtle Speed Mode)" : "🔄 toggle   (Kaplumbağa Modu Aç/Kapat)", "toggle", isEn ? "Switches between normal and alternative speed limits" : "Normal ve alternatif hız profili arasında geçiş yapar");
-            AddPreset(isEn ? "🐢 ton      (Enable Turtle Speed)" : "🐢 ton      (Kaplumbağa Hızını Aç)", "ton", isEn ? "Enables alternative speed limit" : "Alternatif hız profilini aktif hale getirir");
-            AddPreset(isEn ? "⚡ toff     (Disable Turtle Speed)" : "⚡ toff     (Kaplumbağa Hızını Kapat)", "toff", isEn ? "Disables turtle speed, returns to normal limit" : "Normal hız limitine döner");
-            AddPreset(isEn ? "🚀 speed    (Set Normal Speed...)" : "🚀 speed    (Normal Hız Sınırı...)", "speed 2500", isEn ? "Sets download speed limit in KB/s (e.g. speed 2500 or speed off)" : "Normal indirme hızını KB/s olarak ayarlar (örn: speed 2500 veya speed off)", autoExecute: false);
-            AddPreset(isEn ? "🐌 altspeed (Set Turtle Speed...)" : "🐌 altspeed (Kaplumbağa Hız Sınırı...)", "altspeed 500", isEn ? "Sets alternative speed limit in KB/s (e.g. altspeed 500)" : "Kaplumbağa hız profilini KB/s olarak ayarlar (örn: altspeed 500)", autoExecute: false);
-
-            qMenu.Items.Add(new ToolStripSeparator());
-
-            // 4. Bakım & Araçlar
-            AddPreset(isEn ? "🔍 check    (Scan Followed Channels)" : "🔍 check    (Kanalları RSS ile Tara)", "check", isEn ? "Instantly scans channels for newly uploaded videos" : "Takip edilen kanalları yeni videolar için anında tarar");
-            AddPreset(isEn ? "💾 backup   (Take Instant Backup)" : "💾 backup   (Sistem Yedeği Al)", "backup", isEn ? "Takes immediate database and configuration backup" : "Anlık veritabanı ve ayar yedeği oluşturur");
-            AddPreset(isEn ? "🧹 fakap    (Run Fakap Maintenance)" : "🧹 fakap    (Fakap Yedeklerini Temizle)", "fakap", isEn ? "Cleans up expired Fakap backups according to retention days" : "Süresi dolan otomatik yedekleri temizler");
-
-            qMenu.Items.Add(new ToolStripSeparator());
-
-            // 5. Konsol ve Çıkış
-            AddPreset(isEn ? "❓ help     (List All CLI Commands)" : "❓ help     (Tüm Komutları Konsola Yaz)", "help", isEn ? "Displays complete guide of all available commands" : "Tüm kullanılabilir komutları konsolda gösterir");
-            AddPreset(isEn ? "🧹 clear    (Clear Terminal Screen)" : "🧹 clear    (Terminal Ekranını Temizle)", "clear", isEn ? "Clears output logs from current window" : "Terminal penceresindeki yazıları temizler");
-            AddPreset(isEn ? "🛑 stop     (Safely Terminate App)" : "🛑 stop     (Uygulamayı Güvenle Kapat)", "stop", isEn ? "Shuts down server and closes application" : "Sunucuyu ve uygulamayı güvenle kapatır");
-
-            ApplyThemeToItems(qMenu.Items, isDark);
-            return qMenu;
-        }
-
         private string GetLanguageSetting()
         {
+            // 1. configwin.ini kontrol et
             try
             {
-                string dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "db.json");
-                if (File.Exists(dbPath))
+                string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configwin.ini");
+                if (File.Exists(iniPath))
                 {
-                    string content = File.ReadAllText(dbPath, Encoding.UTF8);
-                    var match = Regex.Match(content, "\"lang\"\\s*:\\s*\"([^\"]+)\"");
-                    if (match.Success) return match.Groups[1].Value.ToLower();
+                    foreach (string line in File.ReadAllLines(iniPath))
+                    {
+                        int eq = line.IndexOf('=');
+                        if (eq != -1 && string.Equals(line.Substring(0, eq).Trim(), "lang", StringComparison.OrdinalIgnoreCase))
+                        {
+                            string val = line.Substring(eq + 1).Trim().ToLowerInvariant();
+                            if (!string.IsNullOrEmpty(val)) return val;
+                        }
+                    }
                 }
             }
             catch {}
+
             return "tr";
         }
 
@@ -1453,29 +1324,20 @@ namespace HaYTooLPlayer
                 string portStr = MainWindow.ReadIniSetting("port", "4141");
                 if (!int.TryParse(portStr, out int port) || port <= 0) port = 4141;
                 string url = $"http://127.0.0.1:{port}/api/cli/exec";
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                request.Method = "POST";
-                request.ContentType = "application/json; charset=utf-8";
-                request.Timeout = 8000;
-                string escaped = command.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", " ");
-                byte[] body = Encoding.UTF8.GetBytes("{\"command\":\"" + escaped + "\"}");
-                request.ContentLength = body.Length;
-                using (Stream reqStream = request.GetRequestStream())
+                string payload = JsonSerializer.Serialize(new { command });
+                using var request = new HttpRequestMessage(HttpMethod.Post, url)
                 {
-                    reqStream.Write(body, 0, body.Length);
-                }
-                using (WebResponse resp = request.GetResponse())
-                using (Stream respStream = resp.GetResponseStream())
-                using (StreamReader reader = new StreamReader(respStream, Encoding.UTF8))
+                    Content = new StringContent(payload, Encoding.UTF8, "application/json")
+                };
+                using var resp = _httpClient.Send(request);
+                resp.EnsureSuccessStatusCode();
+                string json = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("message", out var msgProp) && msgProp.ValueKind == JsonValueKind.String)
                 {
-                    string json = reader.ReadToEnd();
-                    var m = Regex.Match(json, "\"message\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
-                    if (m.Success)
-                    {
-                        responseMessage = Regex.Unescape(m.Groups[1].Value);
-                    }
-                    return true;
+                    responseMessage = msgProp.GetString() ?? "";
                 }
+                return true;
             }
             catch
             {
@@ -1490,428 +1352,34 @@ namespace HaYTooLPlayer
                 if (_nodeProcess != null && !_nodeProcess.HasExited)
                 {
                     _nodeProcess.StandardInput.WriteLine(command);
-                    AppendLog("[GİRDİ] > " + command);
+                    _console.AppendLog("[GİRDİ] > " + command);
                     return;
                 }
 
+                _console.AppendLog("[GİRDİ] > " + command);
                 // Backend ayrı süreç olarak çalışıyorsa HTTP /api/cli/exec üzerinden ilet
                 ThreadPool.QueueUserWorkItem(_ =>
                 {
-                    if (TrySendHttpCliCommandStatic(command, out string msg) && !string.IsNullOrEmpty(msg))
+                    bool ok = TrySendHttpCliCommandStatic(command, out string msg);
+                    // SSE aktifse sunucu çıktısı terminal_raw olayından gelecektir; aksi halde doğrudan ekle
+                    if ((!ok || !_console.IsDetachedLogStreamActive) && !string.IsNullOrEmpty(msg))
                     {
-                        AppendLog(msg);
+                        _console.AppendLog(msg);
                     }
                 });
             }
             catch (Exception ex)
             {
-                AppendLog("[HATA] Komut iletilemedi: " + ex.Message);
+                _console.AppendLog("[HATA] Komut iletilemedi: " + ex.Message);
             }
         }
 
-        private void AppendLog(string text)
-        {
-            if (string.IsNullOrEmpty(text)) return;
-
-            text = Regex.Replace(text, @"\x1b\[[0-9;]*m", "");
-
-            if (!Regex.IsMatch(text, @"^\[\d{2}:\d{2}:\d{2}\]"))
-            {
-                text = DateTime.Now.ToString("[HH:mm:ss] ") + text;
-            }
-
-            string formattedText = text + "\r\n";
-
-            lock (_bufferLock)
-            {
-                _consoleBuffer.Append(formattedText);
-                if (_consoleBuffer.Length > 100000)
-                {
-                    _consoleBuffer.Remove(0, 50000);
-                }
-            }
-
-            if (_logForm != null && !_logForm.IsDisposed && _logTextBox != null && !_logTextBox.IsDisposed)
-            {
-                try
-                {
-                    _logTextBox.BeginInvoke(new Action(() =>
-                    {
-                        AppendColoredText(_logTextBox, formattedText);
-                        _logTextBox.SelectionStart = _logTextBox.TextLength;
-                        _logTextBox.ScrollToCaret();
-                    }));
-                }
-                catch {}
-            }
-        }
-
-        private void AppendColoredText(RichTextBox box, string text)
-        {
-            if (box == null || box.IsDisposed || string.IsNullOrEmpty(text)) return;
-
-            string timestampPart = "";
-            string bodyPart = text;
-
-            var match = Regex.Match(text, @"^(\[\d{2}:\d{2}:\d{2}\]\s*)(.*)$", RegexOptions.Singleline);
-            if (match.Success)
-            {
-                timestampPart = match.Groups[1].Value;
-                bodyPart = match.Groups[2].Value;
-            }
-
-            Color bodyColor = Color.FromArgb(220, 220, 220);
-
-            // Error and warning tags take precedence over their subsystem tag (for example [RSS] [HATA]).
-            if (bodyPart.Contains("[HATA]") || bodyPart.Contains("[ERROR]") || bodyPart.Contains("[RSS HATA]"))
-            {
-                bodyColor = Color.FromArgb(255, 105, 105);
-            }
-            else if (bodyPart.Contains("[WARN]") || bodyPart.Contains("[WARNING]") || bodyPart.Contains("[UYARI]") || bodyPart.Contains("[yt-dlp Uyarı]") || bodyPart.Contains("WARNING"))
-            {
-                bodyColor = Color.FromArgb(255, 190, 90);
-            }
-            else if (bodyPart.Contains("[SUCCESS]") || bodyPart.Contains("[İndirme Başarılı]") || bodyPart.Contains("[DOWNLOAD OK]") || bodyPart.Contains("İndirme Tamamlandı"))
-            {
-                bodyColor = Color.FromArgb(105, 230, 155);
-            }
-            else if (bodyPart.Contains("[INFO]"))
-            {
-                bodyColor = Color.FromArgb(115, 185, 255);
-            }
-            else if (bodyPart.Contains("[API]"))
-            {
-                bodyColor = Color.FromArgb(110, 165, 255);
-            }
-            else if (bodyPart.Contains("[RSS Fallback]"))
-            {
-                bodyColor = Color.FromArgb(205, 135, 255);
-            }
-            else if (bodyPart.Contains("[RSS]"))
-            {
-                if (bodyPart.Contains("Manuel tetikleme")) bodyColor = Color.FromArgb(255, 140, 0);
-                else if (bodyPart.Contains("Sunucu başlangıcı")) bodyColor = Color.FromArgb(186, 85, 211);
-                else bodyColor = Color.FromArgb(225, 145, 255);
-            }
-            else if (bodyPart.Contains("[403 Koruması]") || bodyPart.Contains("[Kuyruk Auto-Retry]") || bodyPart.Contains("[İndirme Fallback]"))
-            {
-                bodyColor = Color.FromArgb(255, 185, 0);
-            }
-            else if (bodyPart.Contains("[CANLI]") || bodyPart.Contains("[CANLI YAYIN]"))
-            {
-                bodyColor = Color.FromArgb(0, 255, 200);
-            }
-            else if (bodyPart.Contains("[DOWNLOAD]") || bodyPart.Contains("[İNDİRME]"))
-            {
-                bodyColor = Color.FromArgb(0, 225, 255);
-            }
-            else if (bodyPart.Contains("[KOMUT]") || bodyPart.Contains("Komut:"))
-            {
-                bodyColor = Color.FromArgb(245, 200, 50);
-            }
-            else if (bodyPart.Contains("[DATABASE]"))
-            {
-                bodyColor = Color.FromArgb(255, 255, 0);
-            }
-            else if (bodyPart.Contains("[IPTV]"))
-            {
-                bodyColor = Color.FromArgb(100, 149, 237);
-            }
-            else if (bodyPart.Contains("[SYSTEM]") || bodyPart.Contains("[Sistem]") || bodyPart.Contains("[TRAY]"))
-            {
-                bodyColor = Color.FromArgb(50, 205, 50);
-            }
-            else if (bodyPart.Contains("[TRAY_CMD]") || bodyPart.Contains("[GİRDİ]"))
-            {
-                bodyColor = Color.FromArgb(255, 215, 105);
-            }
-
-            if (!string.IsNullOrEmpty(timestampPart))
-            {
-                Color timestampColor = Color.FromArgb(170, 175, 210);
-                box.SelectionStart = box.TextLength;
-                box.SelectionLength = 0;
-                box.SelectionColor = timestampColor;
-                box.SelectionFont = box.Font;
-                box.AppendText(timestampPart);
-            }
-
-            Font defaultFont = box.Font;
-            Font boldFont = defaultFont;
-            try { boldFont = new Font(box.Font, FontStyle.Bold); } catch { boldFont = defaultFont; }
-
-            Color counterColor = Color.FromArgb(255, 215, 0);
-            Color nameColor = Color.FromArgb(0, 240, 255);
-
-            var regex = new Regex(@"(\b\d+\/\d+\b)|(""[^""]+"")");
-            int lastIndex = 0;
-
-            foreach (Match m in regex.Matches(bodyPart))
-            {
-                if (m.Index > lastIndex)
-                {
-                    string normalSegment = bodyPart.Substring(lastIndex, m.Index - lastIndex);
-                    box.SelectionStart = box.TextLength;
-                    box.SelectionLength = 0;
-                    box.SelectionColor = bodyColor;
-                    box.SelectionFont = defaultFont;
-                    box.AppendText(normalSegment);
-                }
-
-                if (m.Groups[1].Success)
-                {
-                    box.SelectionStart = box.TextLength;
-                    box.SelectionLength = 0;
-                    box.SelectionColor = counterColor;
-                    box.SelectionFont = boldFont;
-                    box.AppendText(m.Value);
-                }
-                else if (m.Groups[2].Success)
-                {
-                    box.SelectionStart = box.TextLength;
-                    box.SelectionLength = 0;
-                    box.SelectionColor = bodyColor;
-                    box.SelectionFont = defaultFont;
-                    box.AppendText("\"");
-
-                    string innerName = m.Value.Substring(1, m.Value.Length - 2);
-                    box.SelectionStart = box.TextLength;
-                    box.SelectionLength = 0;
-                    box.SelectionColor = nameColor;
-                    box.SelectionFont = boldFont;
-                    box.AppendText(innerName);
-
-                    box.SelectionStart = box.TextLength;
-                    box.SelectionLength = 0;
-                    box.SelectionColor = bodyColor;
-                    box.SelectionFont = defaultFont;
-                    box.AppendText("\"");
-                }
-
-                lastIndex = m.Index + m.Length;
-            }
-
-            if (lastIndex < bodyPart.Length)
-            {
-                string remaining = bodyPart.Substring(lastIndex);
-                box.SelectionStart = box.TextLength;
-                box.SelectionLength = 0;
-                box.SelectionColor = bodyColor;
-                box.SelectionFont = defaultFont;
-                box.AppendText(remaining);
-            }
-
-            box.SelectionColor = box.ForeColor;
-            box.SelectionFont = defaultFont;
-        }
-
-        private void ShowConsoleWindow()
-        {
-            if (_logForm != null && !_logForm.IsDisposed)
-            {
-                _logForm.Focus();
-                return;
-            }
-
-            string theme = GetThemeSetting();
-            bool isDark = !string.Equals(theme, "light", StringComparison.OrdinalIgnoreCase);
-
-            _logForm = new Form();
-            _logForm.Text = _currentLang == "en" ? "Multimedia HaYTooL - Terminal Output & Console" : "Multimedia HaYTooL - Terminal Çıktısı & Konsol";
-            _logForm.Size = new Size(1000, 640);
-            _logForm.StartPosition = FormStartPosition.CenterScreen;
-            _logForm.BackColor = isDark ? Color.FromArgb(18, 18, 24) : Color.FromArgb(245, 245, 248);
-
-            string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
-            if (File.Exists(iconPath))
-            {
-                try { _logForm.Icon = new Icon(iconPath); } catch {}
-            }
-
-            TableLayoutPanel mainLayout = new TableLayoutPanel();
-            mainLayout.Dock = DockStyle.Fill;
-            mainLayout.RowCount = 2;
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 56F));
-
-            _logTextBox = new RichTextBox();
-            _logTextBox.ReadOnly = true;
-            _logTextBox.Dock = DockStyle.Fill;
-            _logTextBox.BackColor = Color.FromArgb(10, 10, 16);
-            _logTextBox.ForeColor = Color.FromArgb(240, 240, 240);
-            _logTextBox.Font = new Font("Consolas", 11.5f);
-            _logTextBox.BorderStyle = BorderStyle.None;
-
-            lock (_bufferLock)
-            {
-                string[] lines = _consoleBuffer.ToString().Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-                foreach (var line in lines)
-                {
-                    if (string.IsNullOrEmpty(line)) continue;
-                    AppendColoredText(_logTextBox, line + "\r\n");
-                }
-            }
-
-            _logTextBox.SelectionStart = _logTextBox.TextLength;
-            _logTextBox.ScrollToCaret();
-
-            mainLayout.Controls.Add(_logTextBox, 0, 0);
-
-            Panel commandPanel = new Panel();
-            commandPanel.Dock = DockStyle.Fill;
-            commandPanel.BackColor = isDark ? Color.FromArgb(24, 24, 34) : Color.FromArgb(235, 235, 240);
-            commandPanel.Padding = new Padding(10);
-
-            _cmdLabel = new Label();
-            _cmdLabel.Text = _currentLang == "en" ? "Command:" : "Komut:";
-            _cmdLabel.ForeColor = isDark ? Color.FromArgb(240, 240, 240) : Color.FromArgb(24, 24, 27);
-            _cmdLabel.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
-            _cmdLabel.AutoSize = true;
-            _cmdLabel.Location = new Point(10, 18);
-
-            ComboBox commandComboBox = new ComboBox();
-            commandComboBox.Font = new Font("Consolas", 10.5f);
-            commandComboBox.BackColor = isDark ? Color.FromArgb(32, 32, 46) : Color.White;
-            commandComboBox.ForeColor = isDark ? Color.White : Color.FromArgb(24, 24, 27);
-            commandComboBox.Location = new Point(75, 14);
-            commandComboBox.Size = new Size(commandPanel.ClientSize.Width - 520, 26);
-            commandComboBox.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
-            commandComboBox.Items.AddRange(new string[] {
-                "help", "status", "pause", "resume", "ton", "toff", "toggle", "speed", "altspeed", "pd", "check", "backup", "fakap", "clear", "stop"
-            });
-
-            Action<string> executeCmd = (cmd) =>
-            {
-                if (string.IsNullOrWhiteSpace(cmd)) return;
-                string lower = cmd.Trim().ToLowerInvariant();
-                if (lower == "clear")
-                {
-                    lock (_bufferLock) { _consoleBuffer.Length = 0; }
-                    _logTextBox.Clear();
-                }
-                else if (lower == "exit" || lower == "quit" || lower == "stop")
-                {
-                    ExitApplication();
-                }
-                else
-                {
-                    SendCommandToNode(cmd.Trim());
-                }
-            };
-
-            Button _quickCmdButton = new Button();
-            _quickCmdButton.Text = _currentLang == "en" ? "⚡ Presets ▾" : "⚡ Hızlı Komutlar ▾";
-            _quickCmdButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
-            _quickCmdButton.BackColor = Color.FromArgb(124, 58, 237);
-            _quickCmdButton.ForeColor = Color.White;
-            _quickCmdButton.FlatStyle = FlatStyle.Flat;
-            _quickCmdButton.FlatAppearance.BorderSize = 0;
-            _quickCmdButton.Location = new Point(commandPanel.ClientSize.Width - 435, 13);
-            _quickCmdButton.Size = new Size(140, 28);
-            _quickCmdButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
-            _quickCmdButton.Cursor = Cursors.Hand;
-
-            ContextMenuStrip quickMenu = BuildQuickCmdMenu(commandComboBox, executeCmd);
-            _quickCmdButton.Click += (s, ev) =>
-            {
-                quickMenu.Show(_quickCmdButton, new Point(0, _quickCmdButton.Height + 2));
-            };
-
-            _sendButton = new Button();
-            _sendButton.Text = _currentLang == "en" ? "Send" : "Gönder";
-            _sendButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
-            _sendButton.BackColor = Color.FromArgb(16, 185, 129);
-            _sendButton.ForeColor = Color.White;
-            _sendButton.FlatStyle = FlatStyle.Flat;
-            _sendButton.FlatAppearance.BorderSize = 0;
-            _sendButton.Location = new Point(commandPanel.ClientSize.Width - 285, 13);
-            _sendButton.Size = new Size(85, 28);
-            _sendButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
-            _sendButton.Cursor = Cursors.Hand;
-
-            _clearButton = new Button();
-            _clearButton.Text = _currentLang == "en" ? "Clear" : "Temizle";
-            _clearButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
-            _clearButton.BackColor = Color.FromArgb(245, 158, 11);
-            _clearButton.ForeColor = Color.White;
-            _clearButton.FlatStyle = FlatStyle.Flat;
-            _clearButton.FlatAppearance.BorderSize = 0;
-            _clearButton.Location = new Point(commandPanel.ClientSize.Width - 190, 13);
-            _clearButton.Size = new Size(85, 28);
-            _clearButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
-            _clearButton.Cursor = Cursors.Hand;
-
-            _clearButton.Click += (s, ev) =>
-            {
-                lock (_bufferLock) { _consoleBuffer.Length = 0; }
-                _logTextBox.Clear();
-            };
-
-            _openLogButton = new Button();
-            _openLogButton.Text = _currentLang == "en" ? "Logs" : "Loglar";
-            _openLogButton.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
-            _openLogButton.BackColor = Color.FromArgb(14, 165, 233);
-            _openLogButton.ForeColor = Color.White;
-            _openLogButton.FlatStyle = FlatStyle.Flat;
-            _openLogButton.FlatAppearance.BorderSize = 0;
-            _openLogButton.Location = new Point(commandPanel.ClientSize.Width - 95, 13);
-            _openLogButton.Size = new Size(85, 28);
-            _openLogButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
-            _openLogButton.Cursor = Cursors.Hand;
-
-            _openLogButton.Click += (s, ev) =>
-            {
-                string logsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-                if (Directory.Exists(logsDir))
-                {
-                    Process.Start(new ProcessStartInfo("explorer.exe", logsDir) { UseShellExecute = true });
-                }
-                else
-                {
-                    System.Windows.Forms.MessageBox.Show("Log klasörü bulunamadı.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            };
-
-            commandComboBox.KeyDown += (s, ev) =>
-            {
-                if (ev.KeyCode == Keys.Enter)
-                {
-                    ev.SuppressKeyPress = true;
-                    string cmd = commandComboBox.Text.Trim();
-                    if (!string.IsNullOrEmpty(cmd))
-                    {
-                        executeCmd(cmd);
-                        commandComboBox.Text = "";
-                    }
-                }
-            };
-
-            _sendButton.Click += (s, ev) =>
-            {
-                string cmd = commandComboBox.Text.Trim();
-                if (!string.IsNullOrEmpty(cmd))
-                {
-                    executeCmd(cmd);
-                    commandComboBox.Text = "";
-                    commandComboBox.Focus();
-                }
-            };
-
-            commandPanel.Controls.Add(_cmdLabel);
-            commandPanel.Controls.Add(commandComboBox);
-            commandPanel.Controls.Add(_quickCmdButton);
-            commandPanel.Controls.Add(_sendButton);
-            commandPanel.Controls.Add(_clearButton);
-            commandPanel.Controls.Add(_openLogButton);
-
-            mainLayout.Controls.Add(commandPanel, 0, 1);
-            _logForm.Controls.Add(mainLayout);
-            _logForm.Show();
-        }
+        private void ShowConsoleWindow() => _console.Show();
 
         public void Dispose()
         {
             UpdateSleepPrevention(false);
+            _console.Dispose();
             if (_downloadMonitorTimer != null)
             {
                 _downloadMonitorTimer.Stop();

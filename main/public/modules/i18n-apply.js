@@ -131,6 +131,8 @@ export function applyLanguage(lang) {
   el('btn-bulk-delete-dl-toggle', 'btn_bulk_delete_dl_toggle');
   el('btn-text-resume-filter', 'btn_filter_resume');
   elQuery('#downloaded-filter-resume-btn', 'btn_filter_resume_title', 'title');
+  el('btn-text-remote-changed-filter', 'btn_filter_remote_changed');
+  elQuery('#downloaded-filter-remote-changed-btn', 'btn_filter_remote_changed_title', 'title');
 
   // Ayarlar Alt Sekme Butonları (Subtabs)
   el('settings-subtab-label-all', 'settings_subtab_all');
@@ -257,6 +259,8 @@ export function applyLanguage(lang) {
   elQuery('label[for="settings-autoopenbrowser"] + span', 'desc_auto_open_browser');
   elQuery('label[for="settings-checkonstartup"]:not(.toggle-label)', 'label_check_on_startup');
   elQuery('label[for="settings-checkonstartup"] + span', 'desc_check_on_startup');
+  el('label-scan-remote-startup', 'label_scan_remote_startup');
+  el('desc-scan-remote-startup', 'desc_scan_remote_startup');
   elQuery('label[for="settings-discordrpc"]:not(.toggle-label)', 'label_discord_rpc');
   elQuery('label[for="settings-discordrpc"] + span', 'desc_discord_rpc');
   elQuery('label[for="settings-prevent-sleep"]:not(.toggle-label)', 'label_prevent_sleep');

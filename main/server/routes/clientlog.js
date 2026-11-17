@@ -42,9 +42,9 @@ router.post('/client-log', localhostOnly, (req, res) => {
     const stack = cleanText(ev.s, MAX_STACK);
     const url = cleanText(ev.u, MAX_URL);
     const ts = (typeof ev.t === 'number' && ev.t > 0) ? ` ${new Date(ev.t).toLocaleTimeString('tr-TR')}` : '';
-    const line = `[CLIENT${ts}] ${msg}` + (stack ? ` | ${stack}` : '') + (url ? ` | ${url}` : '');
-    // Türkçe Açıklama: server.js'deki console.log sarmalayıcısı bu satırı haytool_session_*.log'a da yazar.
-    console.log(line);
+    const line = `[CLIENT${ts}] [HATA] ${msg}` + (stack ? ` | ${stack}` : '') + (url ? ` | ${url}` : '');
+    // Türkçe Açıklama: server.js'deki console.error sarmalayıcısı bu satırı hem kırmızı [HATA] olarak konsola hem de haytool_session_*.log'a yazar.
+    console.error(line);
   }
   res.status(204).end();
 });

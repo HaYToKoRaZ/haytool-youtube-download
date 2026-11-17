@@ -39,15 +39,21 @@ namespace HaYTooLPlayer
 
             try
             {
-                string dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "db.json");
-                if (File.Exists(dbPath))
+                bool useCustomTitlebar = false;
+                string iniPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configwin.ini");
+                if (File.Exists(iniPath))
                 {
-                    string text = File.ReadAllText(dbPath);
-                    if (text.Contains("\"customTitlebar\": true") || text.Contains("\"customTitlebar\":true"))
+                    foreach (string line in File.ReadAllLines(iniPath))
                     {
-                        ApplyCustomTitlebar(true);
+                        int eq = line.IndexOf('=');
+                        if (eq != -1 && string.Equals(line.Substring(0, eq).Trim(), "customTitlebar", StringComparison.OrdinalIgnoreCase))
+                        {
+                            useCustomTitlebar = string.Equals(line.Substring(eq + 1).Trim(), "true", StringComparison.OrdinalIgnoreCase);
+                            break;
+                        }
                     }
                 }
+                if (useCustomTitlebar) ApplyCustomTitlebar(true);
             }
             catch {}
 
@@ -134,7 +140,7 @@ namespace HaYTooLPlayer
             }
             catch {}
 
-            InitializeAsync();
+            _ = InitializeAsync();
         }
 
         public void ApplyCustomTitlebar(bool enable)
@@ -671,26 +677,47 @@ namespace HaYTooLPlayer
             }
         }
 
-        private async void InitializeAsync()
+        private async Task InitializeAsync()
         {
             // Arka plan sunucusunun açık olduğundan emin ol
             EnsureBackendRunning();
 
             try
             {
-                // CoreWebView2Environment ile CORS'u devre dışı bırak ve otomatik oynatmayı bypass et
+                // CoreWebView2Environment ile otomatik oynatma politikasını ve donanım/yazılım render kipini yapılandır
                 string profileName = isSilentCookieRefresh ? "HaYTooLPlayer_Silent" : "HaYTooLPlayer_Main";
                 string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), profileName);
                 bool useCpuRender = ReadIniSetting("playerGpuMode", "gpu").Equals("cpu", StringComparison.OrdinalIgnoreCase);
                 string browserArgs = useCpuRender
-                    ? "--disable-web-security --autoplay-policy=no-user-gesture-required --disable-gpu --disable-gpu-compositing --disable-accelerated-video-decode"
-                    : "--disable-web-security --autoplay-policy=no-user-gesture-required --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist";
+                    ? "--autoplay-policy=no-user-gesture-required --disable-gpu --disable-gpu-compositing --disable-accelerated-video-decode"
+                    : "--autoplay-policy=no-user-gesture-required --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist";
                 var options = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions(browserArgs);
                 var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
 
                 // WebView2 Başlat
                 await webView.EnsureCoreWebView2Async(env);
+#if DEBUG
                 webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+#else
+                webView.CoreWebView2.Settings.AreDevToolsEnabled = ReadIniSetting("devToolsEnabled", "false").Equals("true", StringComparison.OrdinalIgnoreCase);
+#endif
+                // Türkçe Açıklama: Masaüstü uygulamasında yerel diskteki videoları Node.js stream olmadan doğrudan okuyabilmek için sanal ana bilgisayar eşlemesi
+                try
+                {
+                    foreach (string drive in Directory.GetLogicalDrives())
+                    {
+                        if (string.IsNullOrEmpty(drive) || drive.Length < 1) continue;
+                        string driveLetter = drive.Substring(0, 1).ToLowerInvariant();
+                        if (char.IsLetter(driveLetter[0]) && Directory.Exists(drive))
+                        {
+                            webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                                $"haytool-{driveLetter}.local",
+                                drive,
+                                Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+                        }
+                    }
+                }
+                catch {}
 
                 string debugLogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wv2_debug.log");
                 try { File.AppendAllText(debugLogFile, $"[{DateTime.Now}] WebView2 Initialized.\n"); } catch {}
@@ -742,25 +769,6 @@ namespace HaYTooLPlayer
 
                 // JavaScript Köprüsünü (Bridge) Kaydet
                 webView.CoreWebView2.AddHostObjectToScript("playerBridge", new PlayerBridge(this));
-
-                // Tüm yerel sürücüleri (C:\, D:\ vb.) WebView2 sanal ana bilgisayarına eşle (Güvenlik engellerini aşmak için)
-                try
-                {
-                    foreach (string drive in Directory.GetLogicalDrives())
-                    {
-                        try
-                        {
-                            string driveLetter = drive.Substring(0, 1).ToLower();
-                            webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                                $"haytool-{driveLetter}.local",
-                                drive,
-                                CoreWebView2HostResourceAccessKind.Allow
-                            );
-                        }
-                        catch {}
-                    }
-                }
-                catch {}
 
                 // Tam ekran taleplerini dinle
                 webView.CoreWebView2.ContainsFullScreenElementChanged += WebCoreWebView2_ContainsFullScreenElementChanged;
@@ -1092,12 +1100,6 @@ namespace HaYTooLPlayer
                     Uri appUri = new Uri(appUrl);
                     Uri targetUri = new Uri(uri);
 
-                    // haytool-X.local adresleri SetVirtualHostNameToFolderMapping ile eşlenmiş
-                    // sanal sürücü kaynaklarıdır (video, thumbnail vb.). Bunlar WebView2 içi kaynak
-                    // olduğundan dış tarayıcıya yönlendirilmemelidir.
-                    bool isVirtualDrive = targetUri.Host.StartsWith("haytool-", StringComparison.OrdinalIgnoreCase)
-                                       && targetUri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase);
-
                     // YouTube ve Google oturum açma / embed sayfaları dahili profilde çerez ve oynatıcı için WebView2 içinde kalmalıdır
                     bool isAuthDomain = targetUri.Host.EndsWith("youtube.com", StringComparison.OrdinalIgnoreCase)
                                      || targetUri.Host.EndsWith("youtube-nocookie.com", StringComparison.OrdinalIgnoreCase)
@@ -1107,10 +1109,11 @@ namespace HaYTooLPlayer
                                      || targetUri.Host.EndsWith("googleusercontent.com", StringComparison.OrdinalIgnoreCase);
 
                     bool isLocalApp = (targetUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || targetUri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)) && targetUri.Port == appUri.Port;
+                    bool isVirtualDrive = targetUri.Host.StartsWith("haytool-", StringComparison.OrdinalIgnoreCase)
+                                       && targetUri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase);
 
-                    // Eğer dahili sanal sürücü değilse, oturum sayfası değilse
-                    // ve localhost/backend sunucumuz da değilse dış tarayıcıya aç
-                    if (!isVirtualDrive && !isAuthDomain && !isLocalApp)
+                    // Eğer oturum sayfası, sanal yerel disk veya localhost/backend sunucumuz değilse dış tarayıcıya aç
+                    if (!isAuthDomain && !isLocalApp && !isVirtualDrive)
                     {
                         // Navigasyonu iptal et
                         e.Cancel = true;
@@ -1346,8 +1349,8 @@ namespace HaYTooLPlayer
                             string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), profileName);
                             bool useCpuRender = ReadIniSetting("playerGpuMode", "gpu").Equals("cpu", StringComparison.OrdinalIgnoreCase);
                 string browserArgs = useCpuRender
-                    ? "--disable-web-security --autoplay-policy=no-user-gesture-required --disable-gpu --disable-gpu-compositing --disable-accelerated-video-decode"
-                    : "--disable-web-security --autoplay-policy=no-user-gesture-required --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist";
+                    ? "--autoplay-policy=no-user-gesture-required --disable-gpu --disable-gpu-compositing --disable-accelerated-video-decode"
+                    : "--autoplay-policy=no-user-gesture-required --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist";
                 var options = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions(browserArgs);
                             var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
                             await wv.EnsureCoreWebView2Async(env);

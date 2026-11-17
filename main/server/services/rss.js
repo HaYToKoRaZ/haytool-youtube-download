@@ -271,13 +271,31 @@ export function parseDurationFromHtml(html, isShortFallback = false) {
         pStatus = playability.status || '';
         const offlineSlateRuns = playability.liveStreamability?.liveStreamabilityRenderer?.offlineSlate?.liveStreamOfflineSlateRenderer?.mainText?.runs;
         const offlineSlateText = Array.isArray(offlineSlateRuns) ? offlineSlateRuns.map(r => r?.text || '').join(' ') : '';
-        rawPlayReason =
+        const errMsgRenderer = playability.errorScreen?.playerErrorMessageRenderer;
+        const extractPlayRuns = (field) => {
+          if (!field) return '';
+          if (field.simpleText) return String(field.simpleText);
+          if (Array.isArray(field.runs)) return field.runs.map(r => r?.text || '').join('');
+          return '';
+        };
+        const primaryPlayReason = String(
           playability.reason ||
-          playability.errorScreen?.playerErrorMessageRenderer?.reason?.simpleText ||
-          playability.errorScreen?.playerErrorMessageRenderer?.subreason?.simpleText ||
+          extractPlayRuns(errMsgRenderer?.reason) ||
+          ''
+        ).trim();
+        const subPlayReason = String(
+          extractPlayRuns(errMsgRenderer?.subreason) ||
           playability.errorScreen?.playerInterstitialRenderer?.content?.interstitialViewModel?.description?.content ||
-          offlineSlateText ||
-          '';
+          ''
+        ).trim();
+        const isGenericPlayReason = /^(bu video kullan[ıi]lam[ıi]yor|video unavailable)\.?$/i.test(primaryPlayReason);
+        if (subPlayReason && (!primaryPlayReason || isGenericPlayReason)) {
+          rawPlayReason = subPlayReason;
+        } else if (primaryPlayReason && subPlayReason && primaryPlayReason !== subPlayReason) {
+          rawPlayReason = `${primaryPlayReason} — ${subPlayReason}`;
+        } else {
+          rawPlayReason = primaryPlayReason || subPlayReason || offlineSlateText || '';
+        }
 
         if (pStatus === 'UNPLAYABLE' || pStatus === 'LOGIN_REQUIRED' || pStatus === 'ERROR') {
           const hasMembersOffer = Boolean(
@@ -876,7 +894,7 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
                 const result = await fetchVideoDuration(videoId);
                 if (result && !result.isUnavailable && result.duration) {
                   if (result.duration === 'live' && !result.isLiveProcessing && (existingHistory.duration !== 'live' || existingHistory.status === 'upcoming')) {
-                    console.log(`[RSS] Upcoming video is now LIVE: ${item.title}`);
+                    console.log(`[RSS] "${channel.name}" kanalında yaklaşan yayın CANLI olarak başladı: "${item.title}"`);
                     addTerminalLog(`[RSS] "${item.title}" yayını CANLI olarak başladı! (${channel.name})`, 'info');
                     const release = await acquireDbLock();
                     try {
@@ -893,7 +911,7 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
                       release();
                     }
                   } else if (result.duration !== 'upcoming' && result.duration !== 'live') {
-                    console.log(`[RSS] Upcoming/live video is now published/completed: ${item.title}`);
+                    console.log(`[RSS] "${channel.name}" kanalında canlı/yaklaşan yayın normal videoya dönüştü (${result.duration}): "${item.title}"`);
                     addTerminalLog(`[RSS] Yaklaşan/Canlı yayın artık normal video halinde yayında: "${item.title}" (${channel.name})`, 'info');
 
                     let lockReleased = false;
@@ -922,7 +940,7 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
                           if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
                             shouldDownload = false;
                             freshHistory.status = 'ignored';
-                            console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
+                            console.log(`[RSS] [Shorts Filtresi] "${channel.name}" kanalında Shorts indirme kapalı (${result.duration} <= ${shortsLimit}sn). Atlandı: "${item.title}"`);
                           }
 
                           if (shouldDownload) {
@@ -971,7 +989,7 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
                 }
               }
             } catch (e) {
-              console.error(`Error checking upcoming/live video status for ${videoId}:`, e.message);
+              console.error(`[RSS] [HATA] "${channel.name}" canlı/yaklaşan yayın durumu kontrol edilemedi (${videoId}): ${e.message}`);
             }
           }
         } else {
@@ -1046,7 +1064,8 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
               release();
             }
           } else {
-            console.log(`[RSS] Yeni video keşfedildi: ${item.title}`);
+            const translatedTitle = item.title;
+            console.log(`[RSS] Yeni video keşfedildi ("${channel.name}"): "${item.title}"`);
             addTerminalLog(`[RSS] Yeni video keşfedildi: "${item.title}" (${channel.name})`, 'success');
             
             let publishedAt = publishDateStr;
@@ -1060,7 +1079,7 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
                   if (result.publishedAt) publishedAt = result.publishedAt;
                 }
               } catch (e) {
-                console.error('Error fetching duration for newly discovered video:', e.message);
+                console.error(`[RSS] [HATA] "${channel.name}" yeni video süre bilgisi alınamadı (${videoId}): ${e.message}`);
               }
             }
 
@@ -1104,35 +1123,36 @@ export async function checkSingleChannelRss(channel, isFirstStart = false) {
               const liveHandling = freshDb.settings.liveStreamHandling || 'instant_retry';
 
               const isAutoDownloadDisabled = !freshDb.settings.autoDownload || (channelConfig ? channelConfig.autoDownload === false : false);
+              let shouldDownload = true;
 
               if (isAutoDownloadDisabled) {
                 shouldDownload = false;
                 historyItem.status = 'ignored';
-                console.log(`Auto-download disabled. Ignoring: ${item.title}`);
+                console.log(`[RSS] "${channel.name}" kanalında otomatik indirme kapalı. Atlandı: "${item.title}"`);
               } else if (liveHandling === 'ignore_live' && (duration === 'upcoming' || duration === 'live')) {
                 shouldDownload = false;
                 historyItem.status = 'ignored';
-                console.log(`Live stream / premiere ignored per user settings: ${item.title}`);
+                console.log(`[RSS] "${channel.name}" kanalında canlı yayın/prömiyer kullanıcı ayarı gereği atlandı: "${item.title}"`);
               } else if (liveHandling === 'vod_only' && (duration === 'upcoming' || duration === 'live')) {
                 shouldDownload = false;
                 historyItem.status = duration === 'upcoming' ? 'upcoming' : 'waiting_live_processing';
-                console.log(`Live stream detected. Deferring download until VOD conversion: ${item.title}`);
+                console.log(`[RSS] "${channel.name}" kanalında canlı yayın tespit edildi, VOD kaydına dönüşmesi bekleniyor: "${item.title}"`);
               } else if (duration === 'upcoming') {
                 shouldDownload = false;
                 historyItem.status = 'upcoming';
-                console.log(`Upcoming premiere/stream detected. Tracking until broadcast finishes: ${item.title}`);
+                console.log(`[RSS] "${channel.name}" kanalında yaklaşan prömiyer/yayın tespit edildi, yayın bitene kadar takip ediliyor: "${item.title}"`);
               } else if (duration === 'live') {
                 shouldDownload = true;
                 historyItem.status = 'waiting';
-                console.log(`Live stream detected. Queueing for instant download attempt: ${item.title}`);
+                console.log(`[RSS] "${channel.name}" kanalında aktif canlı yayın tespit edildi, anında indirme kuyruğuna alınıyor: "${item.title}"`);
               } else if (!downloadShorts && !duration) {
                 shouldDownload = false;
                 historyItem.status = 'waiting_duration';
-                console.log(`[RSS] Video süresi henüz çözülmedi ve kanal shorts istemiyor. Süre analizi bekleniyor: ${item.title}`);
+                console.log(`[RSS] "${channel.name}" kanalında video süresi henüz çözülmedi ve Shorts kapalı. Süre analizi bekleniyor: "${item.title}"`);
               } else if (!downloadShorts && isShortDuration(duration, shortsLimit)) {
                 shouldDownload = false;
                 historyItem.status = 'ignored';
-                console.log(`Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
+                console.log(`[RSS] [Shorts Filtresi] "${channel.name}" kanalında Shorts indirme kapalı (${duration} <= ${shortsLimit}sn). Atlandı: "${item.title}"`);
               } else {
                 historyItem.status = 'waiting';
               }
@@ -1278,9 +1298,21 @@ export async function resolveMissingDurations() {
       continue;
     }
 
-    // YouTube harici kaynaklar (X, Instagram, TikTok, Facebook vb.) RSS/Süre çözümleme döngüsünden tamamen hariç tutulur
-    const isExternal = String(item.id || '').startsWith('ext_') || (item.source && item.source !== 'youtube') || item.isExternal;
+    // YouTube harici kaynaklar (Webden İzle ws_, X, Instagram, TikTok vb.) YouTube süre/metadata döngüsünden hariç tutulur
+    const isExternal = String(item.id || '').startsWith('ext_') ||
+      String(item.id || '').startsWith('ws_') ||
+      (item.platform && item.platform !== 'youtube') ||
+      (item.source && item.source !== 'youtube') ||
+      item.isExternal;
     if (isExternal) {
+      if (!item.duration && item.status === 'completed' && item.filePath && fs.existsSync(item.filePath)) {
+        const fileDur = getVideoDurationFromFile(item.filePath);
+        if (fileDur && fileDur.duration) {
+          item.duration = fileDur.duration;
+          item.durationSeconds = fileDur.durationSeconds;
+          updated = true;
+        }
+      }
       continue;
     }
 
@@ -1672,12 +1704,12 @@ export async function checkAllChannelsRssParallel() {
                         freshHistory.status = 'ignored';
                         writeDb(latestDb);
                         broadcast('db_update', latestDb);
-                        console.log(`[RSS Paralel] Auto-download disabled for channel ${channel.name}. Ignoring converted video: ${item.title}`);
+                        console.log(`[RSS Paralel] "${channel.name}" kanalında otomatik indirme kapalı, videoya dönüşen yayın atlandı: "${item.title}"`);
                       } else if (!downloadShorts && isShortDuration(result.duration, shortsLimit)) {
                         freshHistory.status = 'ignored';
                         writeDb(latestDb);
                         broadcast('db_update', latestDb);
-                        console.log(`[RSS Paralel] Short video detected. Ignoring converted video: ${item.title}`);
+                        console.log(`[RSS Paralel] [Shorts Filtresi] "${channel.name}" kanalında Shorts indirme kapalı (${result.duration} <= ${shortsLimit}sn), videoya dönüşen yayın atlandı: "${item.title}"`);
                       } else {
                         freshHistory.status = 'waiting';
                         videoToAdd = {
@@ -1792,7 +1824,7 @@ export async function checkAllChannelsRssParallel() {
                   }
                 }
               } catch (e) {
-                console.error(`[RSS Paralel] Error fetching duration for newly discovered video:`, e.message);
+                console.error(`[RSS Paralel] [HATA] "${channel.name}" yeni video süre detayı çekilemedi (${videoId}):`, e.message);
               }
             }
 
@@ -1821,31 +1853,31 @@ export async function checkAllChannelsRssParallel() {
               // Tarihi geçmiş olduğu teyit edildiyse asla indirilmez
               shouldDownload = false;
               historyItem.status = 'ignored';
-              console.log(`[RSS Paralel] Tarihi geçmiş eski video tespit edildi, kuyruğa alınmadı: ${item.title} (${publishedAt})`);
+              console.log(`[RSS Paralel] "${channel.name}" kanalında tarihi geçmiş eski video tespit edildi, kuyruğa alınmadı: "${item.title}" (${publishedAt})`);
             } else if (liveHandling === 'ignore_live' && (duration === 'upcoming' || duration === 'live')) {
               shouldDownload = false;
               historyItem.status = 'ignored';
-              console.log(`[RSS Paralel] Live stream / premiere ignored per user settings: ${item.title}`);
+              console.log(`[RSS Paralel] "${channel.name}" kanalında canlı yayın/prömiyer kullanıcı ayarı gereği atlandı: "${item.title}"`);
             } else if (liveHandling === 'vod_only' && (duration === 'upcoming' || duration === 'live')) {
               shouldDownload = false;
               historyItem.status = duration === 'upcoming' ? 'upcoming' : 'waiting_live_processing';
-              console.log(`[RSS Paralel] Live stream detected. Deferring download until VOD conversion: ${item.title}`);
+              console.log(`[RSS Paralel] "${channel.name}" kanalında canlı yayın tespit edildi, VOD kaydına dönüşmesi bekleniyor: "${item.title}"`);
             } else if (duration === 'upcoming') {
               shouldDownload = false;
               historyItem.status = 'upcoming';
-              console.log(`[RSS Paralel] Upcoming video detected. Tracking until broadcast finishes: ${item.title}`);
+              console.log(`[RSS Paralel] "${channel.name}" kanalında yaklaşan yayın tespit edildi, yayın bitene kadar takip ediliyor: "${item.title}"`);
             } else if (duration === 'live') {
               shouldDownload = true;
               historyItem.status = 'waiting';
-              console.log(`[RSS Paralel] Live stream detected. Queueing for instant download attempt: ${item.title}`);
+              console.log(`[RSS Paralel] "${channel.name}" kanalında canlı yayın tespit edildi, anında indirme kuyruğuna alınıyor: "${item.title}"`);
             } else if (!downloadShorts && !duration) {
               shouldDownload = false;
               historyItem.status = 'waiting_duration';
-              console.log(`[RSS Paralel] Video süresi henüz çözülmedi ve kanal shorts istemiyor. Süre analizi bekleniyor: ${item.title}`);
+              console.log(`[RSS Paralel] "${channel.name}" kanalında video süresi henüz çözülmedi ve Shorts kapalı. Süre analizi bekleniyor: "${item.title}"`);
             } else if (!downloadShorts && isShortDuration(duration, shortsLimit)) {
               shouldDownload = false;
               historyItem.status = 'ignored';
-              console.log(`[RSS Paralel] Short video detected and channel doesn't allow shorts. Ignoring: ${item.title}`);
+              console.log(`[RSS Paralel] [Shorts Filtresi] "${channel.name}" kanalında Shorts indirme kapalı (${duration} <= ${shortsLimit}sn). Atlandı: "${item.title}"`);
             } else {
               historyItem.status = 'waiting';
             }

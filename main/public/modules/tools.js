@@ -71,6 +71,7 @@ export function initTools(getState) {
 
   const sections = [
     ['nav-tools-compare-btn', 'compare'],
+    ['nav-tools-remote-status-btn', 'remote-status'],
     ['nav-tools-categories-btn', 'categories'],
     ['nav-tools-ape-btn', 'ape'],
     ['nav-tools-subs-btn', 'subscriptions'],
@@ -988,10 +989,11 @@ window.initDownloaderUI = initDownloaderUI;
 window.toggleToolsDropdown = toggleToolsDropdown;
 
 export function showToolsSubSection(section) {
-  const known = ['compare', 'categories', 'ape', 'subscriptions', 'deleted', 'bulk-delete', 'fakap'];
+  const known = ['compare', 'remote-status', 'categories', 'ape', 'subscriptions', 'deleted', 'bulk-delete', 'fakap'];
   window.currentToolsSubSection = known.includes(section) ? section : 'compare';
 
   const compareContainer = document.getElementById('tools-compare-container');
+  const remoteStatusContainer = document.getElementById('tools-remote-status-container');
   const bulkContainer = document.getElementById('tools-bulk-delete-container');
   const categoriesContainer = document.getElementById('tools-categories-container');
   const apeContainer = document.getElementById('tools-ape-container');
@@ -1003,6 +1005,7 @@ export function showToolsSubSection(section) {
   const toolsHeaderIcon = document.getElementById('tools-modal-icon');
 
   if (compareContainer) compareContainer.classList.add('hidden');
+  if (remoteStatusContainer) remoteStatusContainer.classList.add('hidden');
   if (bulkContainer) bulkContainer.classList.add('hidden');
   if (categoriesContainer) categoriesContainer.classList.add('hidden');
   if (apeContainer) apeContainer.classList.add('hidden');
@@ -1010,9 +1013,17 @@ export function showToolsSubSection(section) {
   if (deletedContainer) deletedContainer.classList.add('hidden');
   if (fakapContainer) fakapContainer.classList.add('hidden');
 
-  const isEn = localDb.settings?.lang === 'en';
+  const activeLang = localDb.settings?.lang || 'tr';
+  const t = translations[activeLang] || translations.tr;
+  const isEn = activeLang === 'en';
 
-  if (section === 'categories' && categoriesContainer) {
+  if (section === 'remote-status' && remoteStatusContainer) {
+    remoteStatusContainer.classList.remove('hidden');
+    if (toolsHeaderTitle) toolsHeaderTitle.textContent = t.tools_remote_status_title || 'İndirilen YouTube Videoları Uzak Durum Kontrolü';
+    if (toolsHeaderDesc) toolsHeaderDesc.textContent = t.tools_remote_status_desc || 'Yalnızca indirilmiş YouTube videolarınızı tarayarak silinen, gizliye alınan veya liste dışı kalanları tespit eder.';
+    if (toolsHeaderIcon) toolsHeaderIcon.setAttribute('data-lucide', 'radar');
+    if (typeof window.loadRemoteStatusTool === 'function') window.loadRemoteStatusTool();
+  } else if (section === 'categories' && categoriesContainer) {
     categoriesContainer.classList.remove('hidden');
     if (toolsHeaderTitle) toolsHeaderTitle.textContent = isEn ? 'Edit Channel Categories' : 'Kanal Kategorilerini Düzenleme';
     if (toolsHeaderDesc) toolsHeaderDesc.textContent = isEn ? 'Create, edit, or delete categories to group your channels.' : 'Kanallarınızı gruplandırmak için kategoriler oluşturabilir, düzenleyebilir veya silebilirsiniz.';

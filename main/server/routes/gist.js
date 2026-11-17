@@ -1,7 +1,7 @@
 // Türkçe Açıklama: GitHub Gist üzerinden kanallar (channels.ini) senkronizasyonu, token doğrulaması, Gist push ve pull API rotaları modülü.
 import express from 'express';
 import fs from 'fs';
-import { readDb, writeDb, syncWithIni } from '../database.js';
+import { readDb, writeDb, syncWithIni, invalidateDbCache } from '../database.js';
 import { channelsIniPath, dataRootDir } from '../config.js';
 import { localhostOnly } from '../middleware/security.js';
 import { broadcast, addTerminalLog } from '../services/sse.js';
@@ -316,7 +316,7 @@ router.post('/pull', localhostOnly, async (req, res) => {
     const files = gistData.files || {};
     const rootDir = dataRootDir;
 
-    // 1. db.json (Yerel aktif token'ı koru)
+    // 1. db.json yedeğini doğrudan SQLite veritabanına aktar (Yerel aktif token'ı koru)
     if (files['db.json'] && files['db.json'].content) {
       try {
         const parsedDb = JSON.parse(files['db.json'].content);
@@ -325,7 +325,8 @@ router.post('/pull', localhostOnly, async (req, res) => {
           parsedDb.settings.githubToken = token || (currentDb.settings || {}).githubToken;
           parsedDb.settings.githubGistId = gistId || (currentDb.settings || {}).githubGistId;
         }
-        await fs.promises.writeFile(`${rootDir}/db.json`, JSON.stringify(parsedDb, null, 2), 'utf-8');
+        await writeDb(parsedDb);
+        invalidateDbCache();
       } catch (e) {
         console.error('[Gist Pull Error] db.json ayrıştırılamadı:', e.message);
       }
@@ -353,7 +354,7 @@ router.post('/pull', localhostOnly, async (req, res) => {
     db.settings.githubToken = token;
     db.settings.githubGistId = gistId;
     syncWithIni(db);
-    writeDb(db);
+    await writeDb(db);
 
     broadcast('db_update', db);
     broadcast('status_log', { message: 'Sistem yedeği GitHub Gist üzerinden başarıyla güncellendi.', type: 'success' });

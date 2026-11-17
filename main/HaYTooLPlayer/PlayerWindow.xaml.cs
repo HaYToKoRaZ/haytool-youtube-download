@@ -139,10 +139,12 @@ namespace HaYTooLPlayer
             if (!string.IsNullOrEmpty(publishDate)) formattedTitle += " - " + publishDate;
             this.Title = formattedTitle;
 
-            InitializeAsync();
+            _ = InitializeAsync();
         }
 
-        private async void InitializeAsync()
+        private string? _tempPlayerHtmlPath;
+
+        private async Task InitializeAsync()
         {
             try
             {
@@ -974,11 +976,11 @@ namespace HaYTooLPlayer
 </body>
 </html>";
 
-                // Geçici dosyaya yaz ve yükle
-                string tempHtmlPath = Path.Combine(Path.GetTempPath(), "haytool_plyr_player.html");
-                File.WriteAllText(tempHtmlPath, htmlContent, System.Text.Encoding.UTF8);
+                // Pencereye özgü benzersiz geçici dosyaya yaz ve yükle (eşzamanlı oynatıcı çakışmalarını önler)
+                _tempPlayerHtmlPath = Path.Combine(Path.GetTempPath(), $"haytool_plyr_{Guid.NewGuid():N}.html");
+                File.WriteAllText(_tempPlayerHtmlPath, htmlContent, System.Text.Encoding.UTF8);
 
-                playerWebView.CoreWebView2.Navigate(new Uri(tempHtmlPath).AbsoluteUri);
+                playerWebView.CoreWebView2.Navigate(new Uri(_tempPlayerHtmlPath).AbsoluteUri);
             }
             catch (Exception ex)
             {
@@ -1017,6 +1019,14 @@ namespace HaYTooLPlayer
             try
             {
                 playerWebView.Dispose();
+            }
+            catch {}
+            try
+            {
+                if (!string.IsNullOrEmpty(_tempPlayerHtmlPath) && File.Exists(_tempPlayerHtmlPath))
+                {
+                    File.Delete(_tempPlayerHtmlPath);
+                }
             }
             catch {}
             base.OnClosed(e);

@@ -373,6 +373,12 @@
     activeCurrentStreamData.streamUrl = targetSource.url;
     activeCurrentStreamData.streamType = targetSource.type;
     activeCurrentStreamData.streamReferer = targetSource.referer || activeCurrentStreamData.referer;
+    const rawCandidate = unwrapWebStreamProxy(targetSource.rawUrl || targetSource.url).url;
+    if (targetSource.type === 'm3u8' || targetSource.type === 'mp4' || isDirectPlayableStreamUrl(rawCandidate)) {
+      activeCurrentStreamData.directStreamUrl = rawCandidate;
+    } else {
+      activeCurrentStreamData.directStreamUrl = null;
+    }
     if (targetSource.type === 'embed') {
       activeCurrentStreamData.embedUrl = targetSource.url;
     } else {
@@ -567,6 +573,14 @@
         } catch {
           window.open(event.data.url, '_blank');
         }
+      }
+
+      // Sandbox içindeki karttan gelen adres kopyalama talebi
+      if (event.data && event.data.type === 'HAYTOOL_COPY_URL' && event.data.url) {
+        try {
+          await navigator.clipboard.writeText(event.data.url);
+          if (typeof showToast === 'function') showToast('Bağlantı panoya kopyalandı.', 'success');
+        } catch {}
       }
     });
 
@@ -768,17 +782,62 @@
     }
   }
 
+  function unwrapWebStreamProxy(rawUrl) {
+    if (!rawUrl || typeof rawUrl !== 'string') return { url: rawUrl || '', referer: '' };
+    if (!rawUrl.includes('/api/tools/web-stream-proxy?')) {
+      return { url: rawUrl, referer: '' };
+    }
+    try {
+      const parsed = new URL(rawUrl, window.location.origin);
+      return {
+        url: parsed.searchParams.get('url') || rawUrl,
+        referer: parsed.searchParams.get('referer') || ''
+      };
+    } catch {
+      return { url: rawUrl, referer: '' };
+    }
+  }
+
+  function isDirectPlayableStreamUrl(u) {
+    if (!u || typeof u !== 'string' || !/^https?:\/\//i.test(u)) return false;
+    return u.includes('.m3u8') || u.includes('.mp4') || u.includes('.mpd') ||
+      u.includes('master.txt') || u.includes('/m/') || u.includes('/mm/') ||
+      u.includes('/mx/') || u.includes('workers.dev') || u.includes('cdnimage') ||
+      /\/m[0-9a-z]\//i.test(u);
+  }
+
   // --- DOWNLOAD STREAM INTEGRATION ---
   window.downloadCurrentStream = async function () {
     if (!activeCurrentStreamData) return;
-    let targetUrl = activeCurrentStreamData.directStreamUrl;
-    if (!targetUrl || (!targetUrl.includes('.m3u8') && !targetUrl.includes('.mp4'))) {
-      const foundStream = (activeCurrentStreamData.allStreams || []).find(s => s.type === 'm3u8' || s.type === 'mp4' || s.url?.includes('.m3u8') || s.url?.includes('.mp4'));
-      if (foundStream) targetUrl = foundStream.url;
+    const allStreams = activeCurrentStreamData.allStreams || [];
+    const activeEntry = allStreams.find(s => s && s.url === activeCurrentStreamData.streamUrl) || null;
+
+    let selectedStream = null;
+    let rawCandidate = '';
+    if (activeEntry && (activeEntry.type === 'm3u8' || activeEntry.type === 'mp4' || isDirectPlayableStreamUrl(activeEntry.rawUrl || activeEntry.url))) {
+      selectedStream = activeEntry;
+      rawCandidate = activeEntry.rawUrl || activeEntry.url;
+    } else if (activeCurrentStreamData.directStreamUrl) {
+      rawCandidate = activeCurrentStreamData.directStreamUrl;
+    } else if (activeCurrentStreamData.streamType === 'm3u8' || activeCurrentStreamData.streamType === 'mp4') {
+      rawCandidate = activeCurrentStreamData.streamUrl;
+    } else {
+      const fallbackStream = allStreams.find(s => s && !s.isTrailer && (s.type === 'm3u8' || s.type === 'mp4' || isDirectPlayableStreamUrl(s.rawUrl || s.url)));
+      if (fallbackStream) {
+        selectedStream = fallbackStream;
+        rawCandidate = fallbackStream.rawUrl || fallbackStream.url;
+      } else if (activeEntry) {
+        selectedStream = activeEntry;
+        rawCandidate = activeEntry.rawUrl || activeEntry.url;
+      } else {
+        rawCandidate = activeCurrentStreamData.streamUrl || activeCurrentStreamData.embedUrl || activeCurrentStreamData.sourceUrl;
+      }
     }
-    if (!targetUrl) targetUrl = activeCurrentStreamData.streamUrl || activeCurrentStreamData.sourceUrl;
+
+    const unwrapped = unwrapWebStreamProxy(rawCandidate);
+    const targetUrl = unwrapped.url || activeCurrentStreamData.sourceUrl;
     const title = activeCurrentStreamData.title || 'Web Video';
-    const referer = activeCurrentStreamData.streamReferer || activeCurrentStreamData.referer || activeCurrentStreamData.embedUrl || activeCurrentStreamData.sourceUrl || targetUrl;
+    const referer = (selectedStream && selectedStream.referer) || unwrapped.referer || activeCurrentStreamData.streamReferer || activeCurrentStreamData.referer || activeCurrentStreamData.embedUrl || activeCurrentStreamData.sourceUrl || targetUrl;
 
     if (!targetUrl) return;
 
@@ -795,6 +854,7 @@
           webUrl: activeCurrentStreamData.sourceUrl || targetUrl,
           referer: referer,
           title: title,
+          thumbnail: activeCurrentStreamData.poster || '',
           platform: 'webstream',
           format: 'video-best'
         })
@@ -1019,6 +1079,15 @@
     } catch {}
   };
 
+  function destroyHlsSafely(hls) {
+    if (!hls) return;
+    try { hls.stopLoad(); } catch {}
+    try { hls.detachMedia(); } catch {}
+    setTimeout(() => {
+      try { hls.destroy(); } catch {}
+    }, 60);
+  }
+
   function cleanupActivePlayer() {
     if (activePlyrInstance) {
       try {
@@ -1031,9 +1100,7 @@
       activePlyrInstance = null;
     }
     if (activeHlsInstance) {
-      try {
-        activeHlsInstance.destroy();
-      } catch {}
+      destroyHlsSafely(activeHlsInstance);
       activeHlsInstance = null;
     }
     const audioBar = document.getElementById('webstream-audio-tracks-bar');
@@ -1119,8 +1186,12 @@
           if (data.fatal) {
             console.warn('[WebStream] HLS fatal error:', data.type, data.details);
             if (embedUrl) {
-              // HLS 403 / CORS hatası durumunda otomatik iframe oynatıcıya geç
-              mountStreamPlayer({ ...streamData, streamType: 'embed', streamUrl: embedUrl });
+              // HLS 403 / CORS hatası durumunda otomatik iframe oynatıcıya geç (senkron destroy yarışını önlemek için 0ms ertele)
+              if (activeHlsInstance === hls) activeHlsInstance = null;
+              destroyHlsSafely(hls);
+              setTimeout(() => {
+                mountStreamPlayer({ ...streamData, streamType: 'embed', streamUrl: embedUrl });
+              }, 0);
               return;
             }
             switch (data.type) {
@@ -1131,7 +1202,8 @@
                 hls.recoverMediaError();
                 break;
               default:
-                hls.destroy();
+                if (activeHlsInstance === hls) activeHlsInstance = null;
+                destroyHlsSafely(hls);
                 break;
             }
           }

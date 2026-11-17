@@ -312,6 +312,7 @@ export async function performAutoSave() {
     unloadUiOnHide: document.getElementById('settings-unload-ui-on-hide') ? document.getElementById('settings-unload-ui-on-hide').checked : (localDb.settings?.unloadUiOnHide !== false),
     playerGpuMode: document.getElementById('settings-player-gpu-mode') ? document.getElementById('settings-player-gpu-mode').value : (localDb.settings?.playerGpuMode || 'gpu'),
     checkChannelsOnStartup: document.getElementById('settings-checkonstartup') ? document.getElementById('settings-checkonstartup').checked : false,
+    scanRemoteStatusOnStartup: document.getElementById('settings-scan-remote-startup') ? document.getElementById('settings-scan-remote-startup').checked : (localDb.settings?.scanRemoteStatusOnStartup !== false),
     checkYtdlpOnStartup: document.getElementById('settings-check-ytdlp-on-startup') ? document.getElementById('settings-check-ytdlp-on-startup').checked : false,
     ytdlpStartupTarget: document.getElementById('ytdlp-target-select') ? document.getElementById('ytdlp-target-select').value : (localDb.settings?.ytdlpStartupTarget || 'nightly'),
     discordRpcEnabled: document.getElementById('settings-discordrpc') ? document.getElementById('settings-discordrpc').checked : false,

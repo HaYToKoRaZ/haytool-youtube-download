@@ -6,13 +6,13 @@ import { fileURLToPath } from 'url';
 import open from 'open';
 import dns from 'dns';
 import { spawn, execFile, exec } from 'child_process';
-import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, getFfmpegPath } from '../services/paths.js';
+import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, getFfmpegPath, getVideoDurationFromFile } from '../services/paths.js';
 import { updateChannelFullInfo } from './channels.js';
 import { getCookieArgs } from '../services/downloader.js';
 import { writeDb } from '../database.js';
 import { broadcast } from '../services/sse.js';
 import { readDb, findVideoFileInDownloadDir } from '../database.js';
-import { localhostOnly } from '../middleware/security.js';
+import { localhostOnly, validateSafeExternalUrl, isAllowedLocalOrigin } from '../middleware/security.js';
 import { generateVideoSummary, generateCommentsSummary, getLmStudioModels, checkLlamaEngineStatus, downloadAndInstallLlamaEngine, scanGgufModels, stopLlamaEngine, startRecommendedModelDownload, getRecommendedModelDownloadStatus, cancelRecommendedModelDownload } from '../services/aiSummary.js';
 import { getTtsStatus, downloadPiperEngine, downloadPiperVoice, speakText, stopTtsEngine, VOICE_CATALOG, getTtsCacheDir } from '../services/tts.js';
 import { extractStreamFromUrl, searchWebStreams, dumpPageHtmlWithYtdlp } from '../services/streamExtractor.js';
@@ -138,10 +138,11 @@ const PLATFORM_SVG_BANNERS = {
   x: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="#0b0e14"/><g transform="translate(136, 66) scale(2)" fill="#ffffff"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></g></svg>`,
   instagram: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="ig" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#f09433"/><stop offset="25%" stop-color="#e6683c"/><stop offset="50%" stop-color="#dc2743"/><stop offset="75%" stop-color="#cc2366"/><stop offset="100%" stop-color="#bc1888"/></linearGradient></defs><rect width="320" height="180" fill="url(#ig)"/><g transform="translate(136, 66) scale(2)" fill="#ffffff"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></g></svg>`,
   youtube: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="#0f0f13"/><g transform="translate(136, 66) scale(2)" fill="#ff0000"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></g></svg>`,
-  iptv: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="iptvgrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0284c7"/><stop offset="100%" stop-color="#4f46e5"/></linearGradient></defs><rect width="320" height="180" fill="url(#iptvgrad)"/><g transform="translate(136, 66) scale(2)" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></g></svg>`
+  iptv: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="iptvgrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0284c7"/><stop offset="100%" stop-color="#4f46e5"/></linearGradient></defs><rect width="320" height="180" fill="url(#iptvgrad)"/><g transform="translate(136, 66) scale(2)" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></g></svg>`,
+  webstream: `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="wsgrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#4c1d95"/></linearGradient></defs><rect width="320" height="180" fill="url(#wsgrad)"/><g transform="translate(136, 66) scale(2)" stroke="#c4b5fd" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="m10 8 4 2.5-4 2.5V8z"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></g></svg>`
 };
 
-router.get('/video/:videoId/thumbnail', localhostOnly, (req, res) => {
+router.get('/video/:videoId/thumbnail', localhostOnly, async (req, res) => {
   const rawId = req.params.videoId;
   const videoId = String(rawId).replace(/^fakap_/, '');
 
@@ -151,9 +152,36 @@ router.get('/video/:videoId/thumbnail', localhostOnly, (req, res) => {
     item = db.queue.find(q => q.id === rawId || q.id === videoId);
   }
 
+  const isWebStreamItem = String(rawId).startsWith('ws_') || item?.platform === 'webstream';
+
   let filePath = item?.filePath;
   if (!filePath || !fs.existsSync(filePath)) {
     filePath = findVideoFileInDownloadDir(videoId, db.settings?.downloadPath);
+  }
+
+  function finishFallback() {
+    if (item && item.thumbnail && item.thumbnail.startsWith('http')) {
+      return res.redirect(item.thumbnail);
+    }
+
+    if (/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+      return res.redirect(`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`);
+    }
+
+    let platform = item?.platform || (isWebStreamItem ? 'webstream' : '');
+    if (!platform && item) {
+      const u = (item.webUrl || item.url || '').toLowerCase();
+      if (u.includes('tiktok.com')) platform = 'tiktok';
+      else if (u.includes('twitter.com') || u.includes('x.com')) platform = 'x';
+      else if (u.includes('instagram.com')) platform = 'instagram';
+    }
+
+    if (platform && PLATFORM_SVG_BANNERS[platform]) {
+      res.setHeader('Content-Type', 'image/svg+xml');
+      return res.send(PLATFORM_SVG_BANNERS[platform]);
+    }
+
+    res.redirect('/logo.png');
   }
 
   if (filePath && fs.existsSync(filePath)) {
@@ -169,8 +197,69 @@ router.get('/video/:videoId/thumbnail', localhostOnly, (req, res) => {
         }
       }
 
-      // Eğer diskte hazır kapak resmi yoksa ve video dosyası mevcutsa, FFmpeg ile 2. saniyeden kare çıkar
       const outJpg = basePath + '.jpg';
+
+      // Webden İzle (ws_/webstream): önce afiş URL'sini indirip diske önbellekle; yoksa jenerik/intro atlayan akıllı sahne karesi al (YouTube hariç)
+      if (isWebStreamItem) {
+        if (item && item.thumbnail && item.thumbnail.startsWith('http')) {
+          try {
+            const urlCheck = await validateSafeExternalUrl(item.thumbnail);
+            if (urlCheck.ok) {
+              const imgRes = await fetch(item.thumbnail, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/133.0.0.0 Safari/537.36',
+                  ...((item.webUrl || item.referer)?.startsWith('http') ? { 'Referer': item.webUrl || item.referer } : {})
+                },
+                signal: AbortSignal.timeout(6000)
+              });
+              const ct = (imgRes.headers.get('content-type') || '').toLowerCase();
+              if (imgRes.ok && ct.startsWith('image/')) {
+                const buf = Buffer.from(await imgRes.arrayBuffer());
+                if (buf.length >= 1024) {
+                  fs.writeFileSync(outJpg, buf);
+                  return res.sendFile(outJpg);
+                }
+              }
+            }
+          } catch {}
+        }
+
+        const ffmpegBin = getFfmpegPath();
+        if (fs.existsSync(ffmpegBin)) {
+          let durSec = Number(item?.durationSeconds) || 0;
+          if (durSec <= 0) {
+            try {
+              const info = getVideoDurationFromFile(filePath);
+              if (info && info.durationSeconds > 0) durSec = info.durationSeconds;
+            } catch {}
+          }
+          const seekSec = durSec > 600
+            ? Math.min(480, Math.round(durSec * 0.15))
+            : (durSec > 10 ? Math.round(durSec * 0.25) : (durSec > 0 ? Math.max(1, Math.floor(durSec * 0.5)) : 30));
+          const useThumbFilter = durSec >= 10 || durSec === 0;
+          const runExtract = (sec, withFilter, onFail) => {
+            const ffArgs = ['-y', '-ss', String(sec), '-i', filePath];
+            if (withFilter) ffArgs.push('-vf', 'thumbnail=15');
+            ffArgs.push('-vframes', '1', '-q:v', '2', outJpg);
+            execFile(ffmpegBin, ffArgs, (err) => {
+              if (!err && fs.existsSync(outJpg)) {
+                return res.sendFile(outJpg);
+              }
+              onFail();
+            });
+          };
+          try {
+            runExtract(seekSec, useThumbFilter, () => {
+              // Kısa video veya seek taşması durumunda güvenli 2. saniye geri dönüşü
+              runExtract(2, false, finishFallback);
+            });
+            return;
+          } catch {}
+        }
+        return finishFallback();
+      }
+
+      // YouTube ve diğer kaynaklar: mevcut -ss 00:00:02 davranışı korunur
       const ffmpegBin = getFfmpegPath();
       if (fs.existsSync(ffmpegBin)) {
         try {
@@ -195,31 +284,6 @@ router.get('/video/:videoId/thumbnail', localhostOnly, (req, res) => {
     } catch (err) {
       console.error(`Error reading thumbnail for ${videoId}:`, err.message);
     }
-  }
-
-  function finishFallback() {
-    if (item && item.thumbnail && item.thumbnail.startsWith('http')) {
-      return res.redirect(item.thumbnail);
-    }
-
-    if (/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-      return res.redirect(`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`);
-    }
-
-    let platform = item?.platform;
-    if (!platform && item) {
-      const u = (item.webUrl || item.url || '').toLowerCase();
-      if (u.includes('tiktok.com')) platform = 'tiktok';
-      else if (u.includes('twitter.com') || u.includes('x.com')) platform = 'x';
-      else if (u.includes('instagram.com')) platform = 'instagram';
-    }
-
-    if (platform && PLATFORM_SVG_BANNERS[platform]) {
-      res.setHeader('Content-Type', 'image/svg+xml');
-      return res.send(PLATFORM_SVG_BANNERS[platform]);
-    }
-
-    res.redirect('/logo.png');
   }
 
   finishFallback();
@@ -1688,9 +1752,23 @@ function dumpVttWithYtdlp(url, referer = null) {
 // Türkçe Açıklama: Referer veya CORS korumalı video akış parçalarını ve m3u8 bildirimlerini tarayıcıya güvenle ileten proxy köprüsü.
 router.get('/tools/web-stream-proxy', async (req, res) => {
   try {
+    const reqOrigin = req.headers.origin;
+    if (reqOrigin) {
+      if (!isAllowedLocalOrigin(reqOrigin)) {
+        return res.status(403).send('Güvenlik nedeniyle harici kaynak erişimi engellendi.');
+      }
+      res.setHeader('Access-Control-Allow-Origin', reqOrigin);
+      res.setHeader('Vary', 'Origin');
+    }
+
     const targetUrl = req.query.url;
     const referer = req.query.referer || targetUrl;
     if (!targetUrl) return res.status(400).send('URL parametresi zorunludur.');
+
+    const urlCheck = await validateSafeExternalUrl(String(targetUrl));
+    if (!urlCheck.ok) {
+      return res.status(403).send(urlCheck.error || 'Güvenlik nedeniyle hedef adrese erişim engellendi.');
+    }
 
     const fetchHeaders = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
@@ -1699,9 +1777,13 @@ router.get('/tools/web-stream-proxy', async (req, res) => {
     if (req.headers.range) fetchHeaders['Range'] = req.headers.range;
 
     let response = null;
+    const headerAbort = new AbortController();
+    const headerTimeout = setTimeout(() => headerAbort.abort(), 15000);
     try {
-      response = await fetch(targetUrl, { headers: fetchHeaders });
-    } catch {}
+      response = await fetch(targetUrl, { headers: fetchHeaders, signal: headerAbort.signal });
+    } catch {} finally {
+      clearTimeout(headerTimeout);
+    }
 
     // Cloudflare / 403 korumalı VTT altyazıları için yt-dlp ile doğrudan dump al
     if ((!response || !response.ok) && (targetUrl.includes('.vtt') || targetUrl.includes('/subs.') || targetUrl.includes('subs.rapidvid.org'))) {
@@ -1710,7 +1792,6 @@ router.get('/tools/web-stream-proxy', async (req, res) => {
         if (vttData) {
           res.status(200);
           res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
-          res.setHeader('Access-Control-Allow-Origin', '*');
           return res.send(vttData);
         }
       } catch {}
@@ -1724,7 +1805,6 @@ router.get('/tools/web-stream-proxy', async (req, res) => {
 
     const contentType = response.headers.get('content-type');
     if (contentType) res.setHeader('Content-Type', contentType);
-    res.setHeader('Access-Control-Allow-Origin', '*');
 
     // Eğer m3u8 manifest, playlist veya master/sublist ise içerisindeki URI ve chunk linklerini proxy formatına dönüştür
     const isManifestCandidate = targetUrl.includes('.m3u8') || targetUrl.includes('master.txt') || targetUrl.includes('sublist') || targetUrl.includes('.txt') || (contentType && (contentType.includes('mpegurl') || contentType.includes('application/x-mpegURL')));
@@ -1793,6 +1873,13 @@ router.get('/tools/webstream-browse-proxy', localhostOnly, async (req, res) => {
   if (!targetUrl || typeof targetUrl !== 'string') {
     return res.status(400).send('URL parametresi gereklidir.');
   }
+
+  const urlCheck = await validateSafeExternalUrl(targetUrl);
+  if (!urlCheck.ok) {
+    return res.status(403).send(urlCheck.error || 'Güvenlik nedeniyle bu adrese gezinme izni verilmedi.');
+  }
+
+  const serverOrigin = `${req.protocol}://${req.get('host') || 'localhost:4141'}`;
 
   try {
     const u = new URL(targetUrl);
@@ -2010,11 +2097,12 @@ router.get('/tools/webstream-browse-proxy', localhostOnly, async (req, res) => {
     }
 
     function copyLink() {
-      navigator.clipboard.writeText(currentUrl).then(function() {
-        alert('Bağlantı panoya kopyalandı!');
-      }).catch(function() {
-        prompt('Bağlantıyı kopyalayabilirsiniz:', currentUrl);
-      });
+      try {
+        window.parent.postMessage({ type: 'HAYTOOL_COPY_URL', url: currentUrl }, '*');
+      } catch(e) {}
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(currentUrl).catch(function() {});
+      }
     }
   </script>
 </body>
@@ -2035,9 +2123,16 @@ router.get('/tools/webstream-browse-proxy', localhostOnly, async (req, res) => {
     html = html.replace(/<base[^>]*>/gi, '');
     html = html.replace(/<meta[^>]*http-equiv=["'](?:Content-Security-Policy|X-Frame-Options)["'][^>]*>/gi, '');
 
-    // Frame-buster betiklerini etkisiz hale getir
+    // Frame-buster, sahte-devtools ve CF telemetri betiklerini etkisiz hale getir
     html = html.replace(/window\.top\s*!==?\s*window\.self/gi, 'false');
     html = html.replace(/top\.location\s*=/gi, 'window.location =');
+    html = html.replace(/<script\b[^>]*\bsrc=["'][^"']*devtools-detect[^"']*["'][^>]*>\s*<\/script>/gi, '');
+    html = html.replace(/<script\b[^>]*>(?:(?!<\/script>)[\s\S])*?window\.__CF\$cv\$params(?:(?!<\/script>)[\s\S])*?<\/script>/gi, '');
+
+    let targetHostname = '';
+    try {
+      targetHostname = new URL(finalUrl).hostname || '';
+    } catch {}
 
     const baseHrefTag = `<base href="${finalUrl}">`;
     const injectedScript = `
@@ -2045,7 +2140,64 @@ router.get('/tools/webstream-browse-proxy', localhostOnly, async (req, res) => {
 (function() {
   var realParent = window.parent;
   var currentUrl = ${JSON.stringify(finalUrl)};
-  var proxyOrigin = window.location.origin;
+  var targetHostname = ${JSON.stringify(targetHostname)};
+  var proxyOrigin = ${JSON.stringify(serverOrigin)};
+
+  // Opaque sandbox (allow-scripts allow-forms) içinde document.domain ve storage/cookie SecurityError hatalarını önle
+  if (targetHostname) {
+    try {
+      Object.defineProperty(Document.prototype, 'domain', {
+        get: function() { return targetHostname; },
+        set: function() {},
+        configurable: true
+      });
+    } catch(e) {}
+    try {
+      Object.defineProperty(document, 'domain', {
+        get: function() { return targetHostname; },
+        set: function() {},
+        configurable: true
+      });
+    } catch(e) {}
+  }
+
+  try {
+    void document.cookie;
+  } catch(e) {
+    var _memCookies = {};
+    try {
+      Object.defineProperty(Document.prototype, 'cookie', {
+        get: function() {
+          return Object.keys(_memCookies).map(function(k) { return k + '=' + _memCookies[k]; }).join('; ');
+        },
+        set: function(val) {
+          var pair = String(val || '').split(';')[0];
+          var eq = pair.indexOf('=');
+          if (eq > 0) _memCookies[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim();
+        },
+        configurable: true
+      });
+    } catch(e2) {}
+  }
+
+  ['localStorage', 'sessionStorage'].forEach(function(prop) {
+    try {
+      void window[prop];
+    } catch(e) {
+      var store = {};
+      var memStorage = {
+        getItem: function(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+        setItem: function(k, v) { store[String(k)] = String(v); },
+        removeItem: function(k) { delete store[String(k)]; },
+        clear: function() { store = {}; },
+        key: function(i) { return Object.keys(store)[i] || null; },
+        get length() { return Object.keys(store).length; }
+      };
+      try {
+        Object.defineProperty(window, prop, { get: function() { return memStorage; }, configurable: true });
+      } catch(e2) {}
+    }
+  });
 
   // İstenmeyen reklam popuplarını engelle
   try {
@@ -2143,16 +2295,36 @@ router.get('/tools/webstream-browse-proxy', localhostOnly, async (req, res) => {
     e.stopPropagation();
     window.location.href = wrapProxyUrl(absTarget);
   }, true);
+
+  // Site içi GET arama formlarını da proxy üzerinden yönlendir
+  document.addEventListener('submit', function(e) {
+    var form = e.target && e.target.closest ? e.target.closest('form') : null;
+    if (!form) return;
+    var method = String(form.getAttribute('method') || 'get').toLowerCase();
+    if (method !== 'get') return;
+    try {
+      var rawAction = form.getAttribute('action') || currentUrl;
+      var actionUrl = new URL(rawAction, currentUrl);
+      var fd = new FormData(form);
+      fd.forEach(function(val, key) {
+        if (typeof val === 'string') actionUrl.searchParams.set(key, val);
+      });
+      reportNav(actionUrl.href);
+      e.preventDefault();
+      e.stopPropagation();
+      window.location.href = wrapProxyUrl(actionUrl.href);
+    } catch(err) {}
+  }, true);
 })();
 </script>
 `;
 
     // <head> etiketinin hemen ardına enjekte et, yoksa başına ekle
     const headInjection = baseHrefTag + '\n' + injectedScript;
-    if (html.includes('<head>')) {
-      html = html.replace('<head>', '<head>' + headInjection);
-    } else if (html.includes('<html>')) {
-      html = html.replace('<html>', '<html><head>' + headInjection + '</head>');
+    if (/<head[^>]*>/i.test(html)) {
+      html = html.replace(/<head[^>]*>/i, m => m + headInjection);
+    } else if (/<html[^>]*>/i.test(html)) {
+      html = html.replace(/<html[^>]*>/i, m => m + '<head>' + headInjection + '</head>');
     } else {
       html = headInjection + html;
     }

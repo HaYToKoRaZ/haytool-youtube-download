@@ -571,10 +571,17 @@
               <div class="downloaded-toolbar-divider"></div>
 
               <!-- 6) Yarım Kalanlar -->
-              <button class="btn btn-secondary toolbar-unified-btn" id="downloaded-filter-resume-btn" onclick="toggleDownloadedResumeFilter()" title="Sadece izlemeyi yarıda bıraktığınız videoları gösterir">
-                <i data-lucide="history" style="width:14px;height:14px;"></i>
-                <span id="btn-text-resume-filter">Yarım Kalanlar</span>
+              <button type="button" class="btn btn-secondary toolbar-unified-btn hover-expand-filter-btn" id="downloaded-filter-resume-btn" onclick="toggleDownloadedResumeFilter()" title="Sadece izlemeyi yarıda bıraktığınız videoları gösterir">
+                <i data-lucide="history" style="width:14px;height:14px;flex-shrink:0;"></i>
+                <span id="btn-text-resume-filter" class="hover-expand-label">Yarım Kalanlar</span>
                 <span id="badge-resume-count" style="display: none;">0</span>
+              </button>
+
+              <!-- 6b) Uzak Durumu Değişenler (Yıldızlı Videolar) -->
+              <button type="button" class="btn btn-secondary toolbar-unified-btn hover-expand-filter-btn" id="downloaded-filter-remote-changed-btn" onclick="toggleDownloadedRemoteChangedFilter()" title="Sadece YouTube uzak sunucu durumu değişen (silinmiş, gizli, liste dışı veya üyelere özel) yıldızlı videoları gösterir">
+                <span class="remote-filter-star-icon" aria-hidden="true">★</span>
+                <span id="btn-text-remote-changed-filter" class="hover-expand-label">Uzak Durumu Değişenler</span>
+                <span id="badge-remote-changed-count" style="display: none;">0</span>
               </button>
 
               <!-- 7) Shorts Çipi -->

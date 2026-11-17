@@ -182,22 +182,64 @@ router.post('/download', localhostOnly, async (req, res) => {
   let finalDownloadUrl = '';
   let effectiveReferer = incomingReferer;
 
-  const isWebStreamRequest = incomingPlatform === 'webstream' || (url && (url.includes('.m3u8') || url.includes('.mpd')));
+  function unwrapProxyStreamUrl(rawUrl) {
+    if (!rawUrl || typeof rawUrl !== 'string' || !rawUrl.includes('/api/tools/web-stream-proxy?')) {
+      return { url: rawUrl || '', referer: '' };
+    }
+    try {
+      const parsed = new URL(rawUrl, 'http://127.0.0.1');
+      return {
+        url: parsed.searchParams.get('url') || rawUrl,
+        referer: parsed.searchParams.get('referer') || ''
+      };
+    } catch {
+      return { url: rawUrl, referer: '' };
+    }
+  }
+
+  function isDirectWebStreamUrl(u) {
+    if (!u || typeof u !== 'string' || !/^https?:\/\//i.test(u)) return false;
+    return u.includes('.m3u8') || u.includes('.mp4') || u.includes('.mpd') ||
+      u.includes('master.txt') || u.includes('/m/') || u.includes('/mm/') ||
+      u.includes('/mx/') || u.includes('workers.dev') || u.includes('cdnimage') ||
+      /\/m[0-9a-z]\//i.test(u);
+  }
+
+  const normalizedIncoming = unwrapProxyStreamUrl(url);
+  const effectiveIncomingUrl = normalizedIncoming.url || url;
+  if (!effectiveReferer && normalizedIncoming.referer) {
+    effectiveReferer = normalizedIncoming.referer;
+  }
+
+  const isKnownWebStreamSite = /(?:jetfilmizle|dizipal|fullhdfilmizlesene|hdfilmcehennemi|filmmakinesi)\./i.test(effectiveIncomingUrl || '');
+  const isWebStreamRequest = incomingPlatform === 'webstream' || isKnownWebStreamSite ||
+    (effectiveIncomingUrl && (effectiveIncomingUrl.includes('.m3u8') || effectiveIncomingUrl.includes('.mpd') || (url && url.includes('/api/tools/web-stream-proxy?'))));
 
   if (isWebStreamRequest) {
     isDirectUrl = true;
-    finalDownloadUrl = url;
+    finalDownloadUrl = effectiveIncomingUrl;
 
     // Eğer gönderilen bağlantı doğrudan bir akış değil de embed veya web sayfası ise çözümle
-    if (!finalDownloadUrl.includes('.m3u8') && !finalDownloadUrl.includes('.mp4')) {
+    if (!isDirectWebStreamUrl(finalDownloadUrl)) {
       try {
         const extracted = await extractStreamFromUrl(finalDownloadUrl);
-        const resolvedDirect = extracted?.directStreamUrl || (extracted?.streamType !== 'embed' ? extracted?.streamUrl : null);
-        if (extracted && extracted.success && resolvedDirect) {
-          finalDownloadUrl = resolvedDirect;
-          effectiveReferer = extracted.streamReferer || extracted.referer || effectiveReferer;
+        let resolvedDirect = extracted?.directStreamUrl || null;
+        if (!resolvedDirect && Array.isArray(extracted?.allStreams)) {
+          const directCandidate = extracted.allStreams.find(s => s && !s.isTrailer && (s.type === 'm3u8' || s.type === 'mp4'));
+          if (directCandidate) resolvedDirect = directCandidate.rawUrl || directCandidate.url;
+        }
+        if (!resolvedDirect && extracted?.streamType !== 'embed') {
+          resolvedDirect = extracted?.streamUrl || null;
+        }
+        const unwrappedResolved = unwrapProxyStreamUrl(resolvedDirect);
+        if (extracted && extracted.success && unwrappedResolved.url) {
+          finalDownloadUrl = unwrappedResolved.url;
+          effectiveReferer = unwrappedResolved.referer || extracted.streamReferer || extracted.referer || effectiveReferer;
           if (!title || title === 'Web Video' || title.startsWith('http')) {
             title = extracted.title;
+          }
+          if (!thumbnail && extracted.poster) {
+            thumbnail = extracted.poster;
           }
         }
       } catch (_) {}

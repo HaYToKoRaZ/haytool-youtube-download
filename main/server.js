@@ -30,20 +30,29 @@ function colorizeText(text) {
   
   // Tag renklendirmeleri
   colored = colored.replace(/^(\[INFO\])/gi, `${brightBlue}$1${reset}`);
-  colored = colored.replace(/^(\[SUCCESS\])/gi, `${green}$1${reset}`);
-  colored = colored.replace(/^(\[WARN(?:ING)?\])/gi, `${yellow}$1${reset}`);
-  colored = colored.replace(/^(\[RSS\])/g, `${magenta}$1${reset}`);
+  colored = colored.replace(/^(\[SUCCESS\]|\[DOWNLOAD OK\]|\[Download Success\])/gi, `${brightGreen}$1${reset}`);
+  colored = colored.replace(/^(\[WARN(?:ING)?\]|\[UYARI\]|\[Channel Check WARN\])/gi, `${yellow}$1${reset}`);
+  colored = colored.replace(/^(\[RSS\]|\[RSS Parallel\])/g, `${magenta}$1${reset}`);
   colored = colored.replace(/^(\[RSS Fallback\])/g, `${brightMagenta}$1${reset}`);
-  colored = colored.replace(/^(\[DOWNLOAD\]|\[İNDİRME\])/gi, `${cyan}$1${reset}`);
-  colored = colored.replace(/^(\[KOMUT\])/gi, `${yellow}$1${reset}`);
-  colored = colored.replace(/^(\[yt-dlp Uyarı\]|yt-dlp uyarı satırı:)/gi, `${yellow}$1${reset}`);
+  colored = colored.replace(/^(\[DOWNLOAD\]|\[İNDİRME\]|\[Download Fallback\])/gi, `${cyan}$1${reset}`);
+  colored = colored.replace(/^(\[WEBSTREAM\])/gi, `${brightMagenta}$1${reset}`);
+  colored = colored.replace(/^(\[Uzak Durum\]|\[Remote Status\])/gi, `${brightCyan}$1${reset}`);
+  colored = colored.replace(/^(\[FFMPEG\]|\[Birleştirme Kuyruğu\]|\[Merge Queue\])/gi, `${brightYellow}$1${reset}`);
+  colored = colored.replace(/^(\[FAKAP\])/gi, `${yellow}$1${reset}`);
+  colored = colored.replace(/^(\[Çerez Sağlık\]|\[Cookie Health\]|\[COOKIE\])/gi, `${brightYellow}$1${reset}`);
+  colored = colored.replace(/^(\[NET\])/gi, `${brightGreen}$1${reset}`);
+  colored = colored.replace(/^(\[Kuyruk\]|\[Queue\])/gi, `${brightCyan}$1${reset}`);
+  colored = colored.replace(/^(\[CLIENT[^\]]*\])/gi, `${brightMagenta}$1${reset}`);
+  colored = colored.replace(/^(\[KOMUT\]|\[CMD\]|\[Console\])/gi, `${yellow}$1${reset}`);
+  colored = colored.replace(/^(\[yt-dlp Uyarı\]|\[yt-dlp Warn\]|yt-dlp uyarı satırı:)/gi, `${yellow}$1${reset}`);
   colored = colored.replace(/^(\[yt-dlp\])/gi, `${brightMagenta}$1${reset}`);
   colored = colored.replace(/^(\[GIST\]|\[Gist\])/gi, `${brightMagenta}$1${reset}`);
   colored = colored.replace(/^(\[DATABASE\])/g, `${yellow}$1${reset}`);
   colored = colored.replace(/^(\[IPTV\])/g, `${brightBlue}$1${reset}`);
-  colored = colored.replace(/^(\[SYSTEM\]|\[Sistem\])/g, `${green}$1${reset}`);
+  colored = colored.replace(/^(\[SYSTEM\]|\[Sistem\]|\[System\]|\[Sistem Açılışı\]|\[Startup\]|\[Server\]|\[Motor\]|\[Engine\]|\[Güncelleme\]|\[Update\]|\[Disk Sync\]|\[Ayarlar\]|\[Settings\]|\[Channel Check\]|\[Shorts Filter\])/gi, `${green}$1${reset}`);
+  colored = colored.replace(/^([╔╠╚][═]+|║)/gm, `${brightMagenta}$1${reset}`);
   colored = colored.replace(/^(\[API\])/g, `${blue}$1${reset}`);
-  colored = colored.replace(/^(\[HATA\]|\[ERROR\])/gi, `${red}$1${reset}`);
+  colored = colored.replace(/^(\[HATA\]|\[ERROR\]|\[RSS ERROR\]|\[Download Error\]|\[Channel Check ERROR\])/gi, `${red}$1${reset}`);
 
   // [Abone & Avatar 70/101] veya [Kanal Logosu 70/101] veya [Abone Sayısı 70/101] veya [ 70/101] veya [70/101] sayacı renklendirme (Parlak Sarı/Kalın)
   colored = colored.replace(/\[([^\]]*?)(\b\d+\/\d+\b)([^\]]*?)\]/g, 
@@ -61,6 +70,7 @@ function colorizeText(text) {
 import fs from 'fs';
 import path from 'path';
 import { dataRootDir } from './server/config.js';
+import { translateConsoleLog, setConsoleLang, isEnglishConsole } from './server/utils/consoleTranslator.js';
 
 // Oturum Log Yönetimi ve Otomatik Rotasyon (Son 30 oturum logu saklanır)
 const logsDir = path.join(dataRootDir, 'logs');
@@ -99,6 +109,25 @@ function getSessionTimestamp() {
 
 const sessionLogFile = path.join(logsDir, `haytool_session_${getSessionTimestamp()}.log`);
 
+const MAX_RECENT_ERRORS = 100;
+const recentErrorLogs = [];
+let apiVerboseLogging = false;
+
+function recordRecentError(level, text) {
+  const clean = String(text || '').replace(/\x1b\[[0-9;]*m/g, '').trim();
+  if (!clean) return;
+  const isErrorLike = level === 'error' || level === 'warn' || /\[HATA\]|\[ERROR\]|\[WARN|\[UYARI\]|\[CLIENT[^\]]*\]|->\s*[45]\d{2}\b/.test(clean);
+  if (!isErrorLike) return;
+  recentErrorLogs.push({
+    time: new Date().toLocaleTimeString('tr-TR'),
+    level,
+    text: clean.slice(0, 350)
+  });
+  if (recentErrorLogs.length > MAX_RECENT_ERRORS) {
+    recentErrorLogs.shift();
+  }
+}
+
 function appendSessionLog(text) {
   if (!text) return;
   const cleanText = String(text).replace(/\x1b\[[0-9;]*m/g, '');
@@ -108,18 +137,26 @@ function appendSessionLog(text) {
 }
 
 console.log = function(...args) {
-  const text = args.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
+  const translatedArgs = args.map(arg => (typeof arg === 'string' ? translateConsoleLog(arg) : arg));
+  const text = translatedArgs.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
   appendSessionLog(text);
-  const colorized = args.map(arg => colorizeText(arg));
+  recordRecentError('info', text);
+  const colorized = translatedArgs.map(arg => colorizeText(arg));
   originalLog.apply(console, colorized);
 };
 
 console.error = function(...args) {
-  const text = args.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
-  appendSessionLog(`[HATA] ${text}`);
+  const translatedArgs = args.map(arg => (typeof arg === 'string' ? translateConsoleLog(arg) : arg));
+  const text = translatedArgs.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
+  const errTag = isEnglishConsole() ? '[ERROR]' : '[HATA]';
+  const hasErrTag = /\[(HATA|ERROR|RSS HATA|RSS ERROR|Channel Check ERROR|Download Error|yt-dlp Error)\]/i.test(text);
+  const taggedText = hasErrTag ? text : `${errTag} ${text}`;
+  appendSessionLog(taggedText);
+  recordRecentError('error', taggedText);
   const reset = '\x1b[0m';
   const red = '\x1b[31m';
-  const colorized = args.map(arg => {
+  const outArgs = hasErrTag ? translatedArgs : [errTag, ...translatedArgs];
+  const colorized = outArgs.map(arg => {
     if (typeof arg === 'string') {
       return `${red}${arg}${reset}`;
     }
@@ -129,11 +166,17 @@ console.error = function(...args) {
 };
 
 console.warn = function(...args) {
-  const text = args.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
-  appendSessionLog(`[UYARI] ${text}`);
+  const translatedArgs = args.map(arg => (typeof arg === 'string' ? translateConsoleLog(arg) : arg));
+  const text = translatedArgs.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
+  const warnTag = isEnglishConsole() ? '[WARN]' : '[UYARI]';
+  const hasWarnTag = /\[(UYARI|WARN|WARNING|Channel Check WARN|yt-dlp Uyarı|yt-dlp Warn)\]/i.test(text);
+  const taggedText = hasWarnTag ? text : `${warnTag} ${text}`;
+  appendSessionLog(taggedText);
+  recordRecentError('warn', taggedText);
   const reset = '\x1b[0m';
   const yellow = '\x1b[33m';
-  const colorized = args.map(arg => {
+  const outArgs = hasWarnTag ? translatedArgs : [warnTag, ...translatedArgs];
+  const colorized = outArgs.map(arg => {
     if (typeof arg === 'string') {
       return `${yellow}${arg}${reset}`;
     }
@@ -144,11 +187,15 @@ console.warn = function(...args) {
 
 // Asenkron süreç ve iş parçacığı hata yakalayıcıları (nodejs-backend-patterns)
 process.on('unhandledRejection', (reason) => {
-  console.error('[Unhandled Rejection]', reason && reason.stack ? reason.stack : reason);
+  const detail = reason && reason.stack ? reason.stack : reason;
+  console.error('[HATA] [Yakalanmamış Promise Hatası]', detail);
+  try { addTerminalLog(`[HATA] Yakalanmamış Promise: ${reason?.message || reason}`, 'error'); } catch {}
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('[Uncaught Exception]', err && err.stack ? err.stack : err);
+  const detail = err && err.stack ? err.stack : err;
+  console.error('[HATA] [Yakalanmamış İstisna]', detail);
+  try { addTerminalLog(`[HATA] Yakalanmamış İstisna: ${err?.message || err}`, 'error'); } catch {}
 });
 
 
@@ -158,7 +205,7 @@ import net from 'net';
 import https from 'https';
 import http from 'http';
 import open from 'open';
-import { exec, execSync } from 'child_process';
+import { execFile, execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 // Çekirdek Backend Modülleri
@@ -171,7 +218,8 @@ import {
 import { 
   getFfmpegPath, 
   ytdlpPath,
-  cleanLocalTempDir 
+  cleanLocalTempDir,
+  testFfmpegSync
 } from './server/services/paths.js';
 import { downloadQueue, getEffectiveSpeedLimit, performYtdlpUpdate, resolveItemDownloadUrl, showWindowsNotification } from './server/services/downloader.js';
 import { playAppSound } from './server/services/soundService.js';
@@ -182,11 +230,12 @@ import {
   checkPendingLiveStreams
 } from './server/services/rss.js';
 import { addTerminalLog, broadcast, attachConsoleBridge } from './server/services/sse.js';
-import { startCookieHealthCheck } from './server/services/cookieHealth.js';
+import { startCookieHealthCheck, getLastCookieHealth } from './server/services/cookieHealth.js';
 import { startNetworkHealthCheck } from './server/services/networkHealth.js';
 import { startFakapService, cleanupExpired } from './server/services/fakapService.js';
 import { startMaintenanceService } from './server/services/maintenanceService.js';
-import { gzipSync } from 'zlib';
+import { startRemoteStatusScan } from './server/services/remoteStatusScanner.js';
+import { gzip } from 'zlib';
 import { discordRpc } from './server/services/discord.js';
 import { setIptvChannels, downloadHlsJsIfNeeded } from './server/services/iptv.js';
 import { checkAndProcessAutoDelete } from './server/services/autoDeleteService.js';
@@ -226,19 +275,34 @@ const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: '2mb' }));
 
-// Türkçe Açıklama: Vanilla zlib ile gzip sıkıştırma middleware'i.
-// Yalnızca gzip destekleyen istemcilere ve 1KB üzeri yanıtlara uygulanır.
-// SSE (EventSource) yanıtları res.write ile aktığı için bu katmandan etkilenmez.
+// Türkçe Açıklama: Vanilla zlib ile asenkron ve seçici gzip sıkıştırma middleware'i.
+// Yalnızca gzip destekleyen istemcilere, 1KB üzeri metin/JSON/HTML/JS yanıtlarına libuv iş parçacığında uygulanır.
+// Video/ses/ikili tamponlar ve SSE (EventSource) yanıtları bu katmandan etkilenmez.
 app.use((req, res, next) => {
   const acceptEncoding = req.headers['accept-encoding'] || '';
   if (!acceptEncoding.includes('gzip')) return next();
   const originalSend = res.send.bind(res);
   res.send = (body) => {
+    const contentType = String(res.getHeader('Content-Type') || '').toLowerCase();
+    const isBinaryOrCompressed =
+      contentType.startsWith('video/') ||
+      contentType.startsWith('audio/') ||
+      (contentType.startsWith('image/') && !contentType.includes('svg')) ||
+      contentType.includes('zip') ||
+      contentType.includes('octet-stream') ||
+      (Buffer.isBuffer(body) && !contentType);
     const buf = Buffer.isBuffer(body) ? body : (typeof body === 'string' ? Buffer.from(body, 'utf8') : null);
-    if (buf && buf.length > 1024) {
-      res.setHeader('Content-Encoding', 'gzip');
-      res.setHeader('Vary', 'Accept-Encoding');
-      return originalSend(gzipSync(buf));
+    if (!isBinaryOrCompressed && buf && buf.length > 1024 && !res.headersSent) {
+      gzip(buf, (err, compressed) => {
+        if (res.headersSent || res.writableEnded) return;
+        if (err) {
+          return originalSend(body);
+        }
+        res.setHeader('Content-Encoding', 'gzip');
+        res.setHeader('Vary', 'Accept-Encoding');
+        return originalSend(compressed);
+      });
+      return res;
     }
     return originalSend(body);
   };
@@ -272,6 +336,39 @@ const isDev = process.env.NODE_ENV === 'development';
 
 // API Rota Grupları
 app.use('/api', localhostOnly);
+
+// Akıllı, gürültüsüz API telemetri katmanı (yüksek frekanslı yoklama/thumbnail/SSE hariç)
+app.use('/api', (req, res, next) => {
+  const pathUrl = req.path || '';
+  const isNoisyPoll =
+    pathUrl === '/events' ||
+    pathUrl === '/logs' ||
+    pathUrl === '/system/console-stats' ||
+    pathUrl === '/client-log' ||
+    pathUrl === '/player/activity' ||
+    pathUrl === '/version' ||
+    /^\/video\/[^/]+\/thumbnail/.test(pathUrl) ||
+    pathUrl === '/merge-queue/status' ||
+    pathUrl === '/downloader/status' ||
+    pathUrl === '/downloader/active-status' ||
+    pathUrl === '/queue/status';
+
+  const startedAt = Date.now();
+  res.on('finish', () => {
+    const elapsedMs = Date.now() - startedAt;
+    const isMutating = req.method !== 'GET' && req.method !== 'HEAD';
+    const isError = res.statusCode >= 400;
+    const isSlow = elapsedMs >= 450;
+
+    if (!apiVerboseLogging && isNoisyPoll && !isError && !isSlow) return;
+    if (apiVerboseLogging || isError || isSlow || isMutating) {
+      const tag = isError ? '[API] [HATA]' : (isSlow ? '[API] [YAVAŞ]' : '[API]');
+      console.log(`${tag} ${req.method} /api${pathUrl} -> ${res.statusCode} (${elapsedMs}ms)`);
+    }
+  });
+  next();
+});
+
 app.use('/api', queueRouter);
 app.use('/api', settingsRouter);
 app.use('/api/channels', channelsRouter);
@@ -284,6 +381,59 @@ app.use('/api/fakap', fakapRouter);
 app.use('/api', clientLogRouter);
 app.get('/api/version', (req, res) => {
   res.json({ version: appVersion });
+});
+app.get('/api/system/console-stats', localhostOnly, (req, res) => {
+  try {
+    const db = readDb();
+    const history = Array.isArray(db.history) ? db.history : [];
+    const activeItems = history.filter(h => h.status === 'downloading' || h.status === 'merging');
+    const waitingItems = history.filter(h => h.status === 'waiting');
+    const directActiveId = downloadQueue.activeVideoId || (activeItems[0] ? activeItems[0].id : null);
+    const activeItem = directActiveId
+      ? history.find(h => h.id === directActiveId)
+      : (activeItems[0] || null);
+    const activeCount = Math.max(
+      activeItems.length,
+      typeof downloadQueue.activeDownloads === 'number' ? downloadQueue.activeDownloads : 0,
+      downloadQueue.activeProcesses ? downloadQueue.activeProcesses.size : 0
+    );
+    const waitingCount = Math.max(
+      waitingItems.length,
+      downloadQueue.queue ? downloadQueue.queue.length : 0
+    );
+    const pendingMergeCount = history.filter(h => h.status === 'pending_merge' || h.status === 'merging_deferred').length;
+    const mem = process.memoryUsage();
+    const cookieHealth = getLastCookieHealth();
+    const effectiveSpeed = getEffectiveSpeedLimit(db.settings || {});
+    res.json({
+      success: true,
+      port: PORT,
+      version: appVersion,
+      uptimeSec: Math.floor(process.uptime()),
+      memoryMb: Math.round(mem.rss / (1024 * 1024)),
+      heapUsedMb: Math.round(mem.heapUsed / (1024 * 1024)),
+      logsDir,
+      dataRootDir,
+      sessionLogFile,
+      activeCount,
+      waitingCount,
+      queueCount: activeCount + waitingCount,
+      activeVideoId: directActiveId || null,
+      activeTitle: activeItem ? activeItem.title : '',
+      activeSpeed: activeItem ? (activeItem.speed || '') : '',
+      activeProgress: activeItem ? Math.round(Number(activeItem.progress) || 0) : 0,
+      isPaused: Boolean(downloadQueue.isPaused),
+      pendingMergeCount,
+      cookieHealthy: cookieHealth ? Boolean(cookieHealth.healthy) : null,
+      speedLimitKb: effectiveSpeed || 0,
+      turtleActive: Boolean(db.settings?.useAlternativeSpeed),
+      gameMode: Boolean(db.settings?.deferMerge),
+      verboseApi: apiVerboseLogging,
+      lang: db.settings?.lang || 'tr'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 // GitHub Güncelleme Kontrolü Rotası
 app.get('/api/updates/check', (req, res) => {
@@ -356,7 +506,7 @@ export function getCompositeIndexHtml() {
 app.get([
   '/', '/index.html', '/home', '/download', '/downlist', '/channels', '/settings', '/iptv', '/downloader', '/tools',
   '/webstream', '/watch',
-  '/tools/compare', '/tools/deleted', '/tools/categories', '/tools/ape', '/tools/subscriptions', '/tools/bulk-delete'
+  '/tools/compare', '/tools/deleted', '/tools/categories', '/tools/ape', '/tools/subscriptions', '/tools/bulk-delete', '/tools/remote-status'
 ], (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -398,7 +548,8 @@ app.all('/api/*', (req, res) => {
 
 // Express Global Hata Yakalama Middleware'i (nodejs-backend-patterns)
 app.use((err, req, res, next) => {
-  console.error('[API Sunucu Hatası]', err && err.stack ? err.stack : err);
+  const msg = err && err.stack ? err.stack : (err && err.message ? err.message : String(err));
+  console.error(`[API] [HATA] ${req.method} ${req.originalUrl} -> İşlenmeyen sunucu hatası: ${msg}`);
   if (res.headersSent) {
     return next(err);
   }
@@ -412,6 +563,7 @@ app.use((err, req, res, next) => {
 
 // Başlangıç Yolu ve Veritabanı Doğrulama Kontrolleri
 const initialDbState = readDb();
+setConsoleLang(initialDbState.settings?.lang || 'tr');
 downloadQueue.isPaused = !!initialDbState.settings.isPaused;
 
 // IPTV Önbelleğini Yükle
@@ -484,7 +636,7 @@ async function checkGithubUpdates() {
             releaseNotes: data.body || '',
             checkedAt: new Date().toISOString()
           };
-          console.log(`Yeni bir güncelleme mevcut: ${remoteTag}. Geçerli sürüm: v${currentVersion}`);
+          console.log(`[Güncelleme] Yeni sürüm mevcut: ${remoteTag} (geçerli: v${currentVersion})`);
           broadcast('update_status', updateState);
         } else {
           updateState = {
@@ -494,14 +646,14 @@ async function checkGithubUpdates() {
             releaseNotes: null,
             checkedAt: new Date().toISOString()
           };
-          console.log(`Yazılım güncel. Geçerli sürüm: v${currentVersion}, En son sürüm: ${remoteTag}`);
+          console.log(`[Güncelleme] Yazılım güncel: v${currentVersion} (GitHub: ${remoteTag})`);
         }
       }
     } else if (response.status === 403 || response.status === 429) {
-      console.warn('[GitHub Updates]: API hız sınırı aşıldı (rate limit exceeded), güncelleme kontrolü ertelendi.');
+      console.warn('[Güncelleme] GitHub API hız sınırı aşıldı, kontrol ertelendi.');
     }
   } catch (err) {
-    console.warn('GitHub güncelleme kontrolü sırasında hata oluştu:', err.message);
+    console.warn('[Güncelleme] Kontrol hatası:', err.message);
   }
 }
 
@@ -510,7 +662,7 @@ function ensureYtdlp() {
   return new Promise((resolve, reject) => {
     const filename = os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
     if (fs.existsSync(ytdlpPath)) {
-      console.log(`${filename} zaten mevcut.`);
+      console.log(`[Motor] ${filename} doğrulandı ve hazır.`);
       return resolve(ytdlpPath);
     }
     const err = new Error(`${filename} bulunamadı! Lütfen yt-dlp/ klasörü altına ${filename} dosyasını ekleyin.`);
@@ -761,13 +913,14 @@ async function executeCliCommand(rawLine) {
   const subArg = (args[0] || '').toLowerCase();
 
   const reply = (msg, logType = null, notifyTitle = null) => {
-    console.log(msg);
-    if (logType) addTerminalLog(msg, logType);
+    const outMsg = translateConsoleLog(msg);
+    console.log(outMsg);
+    if (logType) addTerminalLog(outMsg, logType);
     playAppSound('cli');
     if (notifyTitle) {
-      showWindowsNotification(notifyTitle, msg.replace(/^\[Console\]\s*/, ''));
+      showWindowsNotification(notifyTitle, outMsg.replace(/^\[Console\]\s*/, ''));
     }
-    return { ok: true, message: msg };
+    return { ok: true, message: outMsg };
   };
 
   if (command === 'help' || command === '?' || command === 'komutlar') {
@@ -786,9 +939,85 @@ async function executeCliCommand(rawLine) {
       '  • check / tara / scan          : Takip edilen kanalları anında RSS ile denetler\n' +
       '  • backup / yedek               : Sistem veritabanı ve ayarlarının anlık yedeğini alır\n' +
       '  • fakap / fakap-run            : Fakap otomatik yedekleme kontrolünü anında çalıştırır\n' +
+      '  • diag / health / sistem       : RAM, çalışma süresi, FFmpeg/yt-dlp, çerez ve disk tanısı verir\n' +
+      '  • queue / kuyruk               : Aktif indirme ve kuyrukta/birleştirmede bekleyenleri listeler\n' +
+      '  • errors [N] / hatalar [N]     : Oturumdaki son N hata ve uyarı satırını özetler\n' +
+      '  • verbose [on|off]             : Tüm API HTTP istek günlüklemesini açar veya kapatır\n' +
       '  • open / hide / tray / stop    : Pencereyi açar, tepsiye gizler, simgeyi gösterir veya kapatır\n' +
       '  • clear                        : Konsol ekranını temizler';
     return reply(helpMsg);
+  }
+
+  if (command === 'diag' || command === 'health' || command === 'sistem') {
+    const db = readDb();
+    const mem = process.memoryUsage();
+    const rssMb = Math.round(mem.rss / (1024 * 1024));
+    const heapMb = Math.round(mem.heapUsed / (1024 * 1024));
+    const up = Math.floor(process.uptime());
+    const hh = String(Math.floor(up / 3600)).padStart(2, '0');
+    const mm = String(Math.floor((up % 3600) / 60)).padStart(2, '0');
+    const ss = String(up % 60).padStart(2, '0');
+    const ffmpegOk = testFfmpegSync();
+    const ytdlpOk = fs.existsSync(ytdlpPath);
+    const cookieState = getLastCookieHealth();
+    const cookieLabel = cookieState === null ? 'Henüz test edilmedi' : (cookieState.healthy ? 'Sağlıklı' : 'Geçersiz / Yenileme Gerekli');
+    let diskText = 'Bilinmiyor';
+    try {
+      const statFs = fs.statfsSync(db.settings.downloadPath || dataRootDir);
+      const freeGb = ((statFs.bavail * statFs.bsize) / (1024 * 1024 * 1024)).toFixed(1);
+      diskText = `${freeGb} GB boş`;
+    } catch {}
+    const msg = `[Console] Sistem Tanı Raporu:\n` +
+      `  • Sürüm & Port   : v${appVersion} | http://127.0.0.1:${PORT} | Node ${process.version}\n` +
+      `  • Çalışma & RAM  : ${hh}:${mm}:${ss} | RSS: ${rssMb} MB (Heap: ${heapMb} MB)\n` +
+      `  • Araçlar        : yt-dlp=${ytdlpOk ? 'Hazır' : 'Eksik'} | ffmpeg=${ffmpegOk ? 'Hazır' : 'Eksik'}\n` +
+      `  • Çerez & API    : YouTube Çerez="${cookieLabel}" | Verbose API=${apiVerboseLogging ? 'AÇIK' : 'KAPALI'}\n` +
+      `  • Dizin & Disk   : Data="${dataRootDir}" | İndirme="${db.settings.downloadPath}" (${diskText})\n` +
+      `  • Oturum Logu    : ${path.basename(sessionLogFile)}`;
+    return reply(msg, 'info');
+  }
+
+  if (command === 'queue' || command === 'kuyruk') {
+    const db = readDb();
+    const history = Array.isArray(db.history) ? db.history : [];
+    const active = history.filter(h => h.status === 'downloading' || h.status === 'merging');
+    const waiting = history.filter(h => h.status === 'waiting');
+    const pendingMerge = history.filter(h => h.status === 'pending_merge' || h.status === 'merging_deferred');
+    const lines = [
+      `[Console] Kuyruk Özeti (Aktif: ${active.length} | Bekleyen: ${waiting.length} | Birleştirme: ${pendingMerge.length} | Durum: ${downloadQueue.isPaused ? 'DURAKLATILDI' : 'AKTİF'})`
+    ];
+    active.forEach(item => {
+      lines.push(`  ▶ [AKTİF] "${item.title}" (%${item.progress || 0}${item.speed ? ' · ' + item.speed : ''}${item.eta ? ' · ETA ' + item.eta : ''})`);
+    });
+    waiting.slice(0, 12).forEach((item, idx) => {
+      lines.push(`  ⏳ [${idx + 1}/${waiting.length}] "${item.title}" (${item.platform || 'youtube'})`);
+    });
+    if (waiting.length > 12) lines.push(`  ... ve ${waiting.length - 12} bekleyen öğe daha.`);
+    pendingMerge.slice(0, 5).forEach((item, idx) => {
+      lines.push(`  🎞 [MERGE ${idx + 1}/${pendingMerge.length}] "${item.title}"`);
+    });
+    return reply(lines.join('\n'), 'info');
+  }
+
+  if (command === 'errors' || command === 'hatalar') {
+    const countArg = parseInt(args[0] || '15', 10);
+    const limit = (!isNaN(countArg) && countArg > 0) ? Math.min(countArg, MAX_RECENT_ERRORS) : 15;
+    if (recentErrorLogs.length === 0) {
+      return reply('[Console] Bu oturumda henüz hata veya uyarı kaydedilmedi.', 'success');
+    }
+    const slice = recentErrorLogs.slice(-limit);
+    const lines = [`[Console] Son ${slice.length} Hata / Uyarı (Toplam hafıza: ${recentErrorLogs.length}):`];
+    slice.forEach((e, idx) => {
+      lines.push(`  ${idx + 1}. [${e.time}] ${e.text}`);
+    });
+    return reply(lines.join('\n'));
+  }
+
+  if (command === 'verbose' || command === 'log-api') {
+    if (subArg === 'on' || subArg === 'ac' || subArg === '1') apiVerboseLogging = true;
+    else if (subArg === 'off' || subArg === 'kapat' || subArg === '0') apiVerboseLogging = false;
+    else apiVerboseLogging = !apiVerboseLogging;
+    return reply(`[Console] Ayrıntılı API HTTP günlüğü ${apiVerboseLogging ? 'AÇILDI' : 'KAPATILDI'}.`, 'info');
   }
 
   if (command === 'exit' || command === 'quit' || command === 'stop') {
@@ -1078,27 +1307,52 @@ if (process.argv.length <= 2) {
     cleanOldLogs();
 
     const db = readDb();
+    const activeLang = (db.settings?.lang || 'tr').toLowerCase();
+    setConsoleLang(activeLang);
     console.log(`[TRAY_CMD] lang=${db.settings.lang || 'tr'}`);
 
     if (db.settings.discordRpcEnabled) {
       discordRpc.connect();
     }
 
-    console.log(`
-    ====================================================
-     _    _         __     __ _______  ___   ___   _      
-    | |  | |  __ _  \\ \\   / /|__   __|/ _ \\ / _ \\ | |     
-    | |__| | / _\` |  \\ \\_/ /    | |  | (_) | (_) || |     
-    |  __  || (_| |   \\   /     | |   \\___/ \\___/ | |     
-    | |  | | \\__,_|    | |      | |               | |____ 
-    |_|  |_|           |_|      |_|               |______|
+    const isEn = activeLang !== 'tr';
+    const startupHistory = Array.isArray(db.history) ? db.history : [];
+    const startupCompleted = startupHistory.filter(h => h.status === 'completed').length;
+    const startupWaiting = startupHistory.filter(h => h.status === 'waiting' || h.status === 'downloading').length;
+    const startupPendingMerge = startupHistory.filter(h => h.status === 'pending_merge' || h.status === 'merging_deferred').length;
+    const startupSpeed = getEffectiveSpeedLimit(db.settings || {});
+    const ytdlpBadge = fs.existsSync(ytdlpPath) ? (isEn ? '✔ Ready' : '✔ Hazır') : (isEn ? '⏳ Checking' : '⏳ Kontrol ediliyor');
+    const ffmpegBadge = testFfmpegSync() ? (isEn ? '✔ Ready' : '✔ Hazır') : (isEn ? '⏳ Checking' : '⏳ Kontrol ediliyor');
+    const speedBadge = startupSpeed > 0 ? `${startupSpeed} KB/s` : (isEn ? 'Unlimited' : 'Limitsiz');
+    const onOff = (v) => v ? (isEn ? 'Açık' : 'Açık') : (isEn ? 'Kapalı' : 'Kapalı');
+    const onOffEn = (v) => v ? 'On' : 'Off';
 
-               -- Premium Otomasyonu --
-                      Versiyon: v${appVersion}
-           Yapımcı: HaYTo
-    ====================================================
-    `);
-    console.log(`Sunucu http://localhost:${PORT} portunda çalışıyor.`);
+    const bannerLines = isEn ? [
+      `╔═══════════════════════════════════════════════════════════════════════════`,
+      `║  ▶ MULTIMEDIA HaYTooL  v${appVersion}   ·   Desktop Media & Download Engine`,
+      `╠═══════════════════════════════════════════════════════════════════════════`,
+      `║  🌐 Server   : http://localhost:${PORT}   |   Node ${process.version}`,
+      `║  📂 Data Dir : "${dataRootDir}"`,
+      `║  ⚙  Engines  : yt-dlp ${ytdlpBadge}   ·   ffmpeg ${ffmpegBadge}   ·   Log: ${path.basename(sessionLogFile)}`,
+      `║  📚 Library  : ${(db.channels || []).length} channels   ·   ${startupCompleted} downloaded   ·   ${startupWaiting} queued   ·   ${startupPendingMerge} merge`,
+      `║  🎛  Modes    : Speed=${speedBadge}  ·  Turtle=${onOffEn(db.settings?.useAlternativeSpeed)}  ·  Game=${onOffEn(db.settings?.deferMerge)}  ·  AutoDL=${onOffEn(db.settings?.autoDownload)}  ·  Fakap=${onOffEn(db.settings?.fakapEnabled !== false)}`,
+      `╠═══════════════════════════════════════════════════════════════════════════`,
+      `║  💡 Commands : "diag" (health) · "queue" · "errors" · "verbose" · "help"`,
+      `╚═══════════════════════════════════════════════════════════════════════════`
+    ] : [
+      `╔═══════════════════════════════════════════════════════════════════════════`,
+      `║  ▶ MULTIMEDIA HaYTooL  v${appVersion}   ·   Masaüstü Medya & İndirme Motoru`,
+      `╠═══════════════════════════════════════════════════════════════════════════`,
+      `║  🌐 Adres       : http://localhost:${PORT}   |   Node ${process.version}`,
+      `║  📂 Veri Dizini : "${dataRootDir}"`,
+      `║  ⚙  Motorlar    : yt-dlp ${ytdlpBadge}   ·   ffmpeg ${ffmpegBadge}   ·   Log: ${path.basename(sessionLogFile)}`,
+      `║  📚 Kütüphane   : ${(db.channels || []).length} kanal   ·   ${startupCompleted} indirilen   ·   ${startupWaiting} kuyrukta   ·   ${startupPendingMerge} birleştirme`,
+      `║  🎛  Modlar      : Hız=${speedBadge}  ·  Turtle=${onOff(db.settings?.useAlternativeSpeed)}  ·  OyunModu=${onOff(db.settings?.deferMerge)}  ·  Otoİndirme=${onOff(db.settings?.autoDownload)}  ·  Fakap=${onOff(db.settings?.fakapEnabled !== false)}`,
+      `╠═══════════════════════════════════════════════════════════════════════════`,
+      `║  💡 Komutlar    : "diag" (tanı) · "queue" (kuyruk) · "errors" (hata) · "help"`,
+      `╚═══════════════════════════════════════════════════════════════════════════`
+    ];
+    console.log(bannerLines.join('\n'));
     
     if (!fs.existsSync(db.settings.downloadPath)) {
       try {
@@ -1286,6 +1540,16 @@ if (process.argv.length <= 2) {
           console.error('[RSS] Başlangıç taramasında hata oluştu:', err.message);
         }
       }
+
+      const latestDb = readDb();
+      if (latestDb.settings && latestDb.settings.scanRemoteStatusOnStartup !== false) {
+        try {
+          addTerminalLog('[Sistem Açılışı] İndirilen YouTube videoları uzak durum taraması arka planda başlatılıyor...', 'info');
+          startRemoteStatusScan({ onlyUnchecked: false });
+        } catch (err) {
+          console.error('[Uzak Durum] Başlangıç taramasında hata oluştu:', err.message);
+        }
+      }
     }, 7000);
 
     // YouTube Oturum Çerezlerini Periyodik Olarak Arka Planda Yenile (Her 30 dakikada bir)
@@ -1308,7 +1572,7 @@ if (process.argv.length <= 2) {
         if (process.platform === 'win32') {
           if (actionPref === 'player' && playerExists) {
             try {
-              exec(`"${playerExists}" "/downlist"`, { cwd: baseDir, windowsHide: false }, (err) => {
+              execFile(playerExists, ['/downlist'], { cwd: baseDir, windowsHide: false }, (err) => {
                 if (err) {
                   console.log(`Multimedia HaYTooL açılamadı, sistem tarayıcısına yönlendiriliyor: ${err.message}`);
                   open(targetUrl).catch(() => {});
@@ -1318,7 +1582,7 @@ if (process.argv.length <= 2) {
               open(targetUrl).catch(() => {});
             }
           } else if (actionPref === 'embedded') {
-            exec(`start msedge --app="${targetUrl}"`, { shell: true }, (err) => {
+            execFile('cmd.exe', ['/c', 'start', '', 'msedge', `--app=${targetUrl}`], { windowsHide: true }, (err) => {
               if (err) {
                 console.log(`Edge App modu açılamadı, varsayılan tarayıcı açılıyor: ${err.message}`);
                 open(targetUrl).catch(() => {});
@@ -1341,12 +1605,12 @@ if (process.argv.length <= 2) {
           }
           
           if (appBrowser) {
-            exec(`${appBrowser} --app="${targetUrl}"`, (err) => {
+            execFile(appBrowser, [`--app=${targetUrl}`], (err) => {
               if (err) console.log(`AppMode açılamadı, lütfen ${targetUrl} adresine manuel gidin.`);
             });
           } else {
             // Fallback
-            exec(`xdg-open "${targetUrl}"`, (err) => {
+            execFile('xdg-open', [targetUrl], (err) => {
               if (err) {
                 console.log(`Tarayıcı otomatik açılamadı, lütfen ${targetUrl} adresine manuel gidin.`);
               }

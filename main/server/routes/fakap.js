@@ -4,7 +4,7 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { readDb, writeDb } from '../database.js';
 import { broadcast } from '../services/sse.js';
 import { localhostOnly } from '../middleware/security.js';
@@ -181,8 +181,9 @@ router.post('/select-folder', localhostOnly, (req, res) => {
   const db = readDb();
   const current = getFakapDir(db) || '';
   const escapedPath = current.replace(/'/g, "''");
-  const psCommand = `powershell -NoProfile -STA -Command "Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Select Fakap folder'; $dialog.SelectedPath = '${escapedPath}'; $dialog.ShowNewFolderButton = $true; $form = New-Object System.Windows.Forms.Form; $form.TopMost = $true; $form.Opacity = 0; $form.Show(); $form.Activate(); $result = $dialog.ShowDialog($form); $form.Close(); if ($result -eq 'OK') { Write-Output $dialog.SelectedPath } else { Write-Output 'CANCEL' }"`;
-  exec(psCommand, (err, stdout) => {
+  const psScript = `Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Select Fakap folder'; $dialog.SelectedPath = '${escapedPath}'; $dialog.ShowNewFolderButton = $true; $form = New-Object System.Windows.Forms.Form; $form.TopMost = $true; $form.Opacity = 0; $form.Show(); $form.Activate(); $result = $dialog.ShowDialog($form); $form.Close(); if ($result -eq 'OK') { Write-Output $dialog.SelectedPath } else { Write-Output 'CANCEL' }`;
+  const encodedPs = Buffer.from(psScript, 'utf16le').toString('base64');
+  execFile('powershell.exe', ['-NoProfile', '-STA', '-EncodedCommand', encodedPs], (err, stdout) => {
     if (err) return res.status(500).json({ error: 'Klasör seçim penceresi açılamadı.' });
     const selected = stdout.trim();
     if (selected && selected !== 'CANCEL') res.json({ success: true, path: selected });
@@ -194,8 +195,9 @@ router.post('/select-folder', localhostOnly, (req, res) => {
 router.post('/open-folder', localhostOnly, (req, res) => {
   const folder = ensureFakapDir(readDb()) || getFakapDir(readDb());
   if (!folder) return res.status(400).json({ error: 'Fakap klasörü tanımlı değil.' });
-  if (process.platform === 'win32') exec(`explorer.exe "${path.resolve(folder)}"`);
-  else if (process.platform === 'darwin') exec(`open "${folder}"`);
-  else exec(`xdg-open "${folder}"`);
+  const resolved = path.resolve(folder);
+  if (process.platform === 'win32') execFile('explorer.exe', [resolved], () => {});
+  else if (process.platform === 'darwin') execFile('open', [resolved], () => {});
+  else execFile('xdg-open', [resolved], () => {});
   res.json({ success: true });
 });

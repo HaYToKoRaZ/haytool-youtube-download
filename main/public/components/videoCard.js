@@ -221,7 +221,20 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
             </button>
           `;
         } else {
-          statusHtml = `<span class="status-dot-completed" title="${t.card_download_completed || 'İndirildi'}"></span>`;
+          const isRemoteChanged = ['deleted', 'unlisted', 'private', 'members_only'].includes(item.remoteStatus);
+          if (isRemoteChanged) {
+            const remoteStatusMeta = {
+              deleted: { label: t.remote_status_badge_deleted || 'Silinmiş / Kaldırılmış', color: '#ef4444' },
+              unlisted: { label: t.remote_status_badge_unlisted || 'Liste Dışı', color: '#f59e0b' },
+              private: { label: t.remote_status_badge_private || 'Gizli', color: '#f97316' },
+              members_only: { label: t.remote_status_badge_members || 'Üyelere Özel', color: '#a855f7' }
+            };
+            const meta = remoteStatusMeta[item.remoteStatus] || { label: item.remoteStatus, color: '#f59e0b' };
+            const remoteTooltip = `${t.remote_status_col_remote || 'Uzak Sunucu Durumu'}: ${meta.label}${item.remoteReason ? ' — ' + item.remoteReason : ''}`;
+            statusHtml = `<span class="status-star-remote-changed" data-remote-status="${escapeHtml(item.remoteStatus)}" title="${escapeHtml(remoteTooltip)}" style="color: ${meta.color}; font-size: 0.95rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; cursor: help; flex-shrink: 0; filter: drop-shadow(0 0 4px ${meta.color}66);">★</span>`;
+          } else {
+            statusHtml = `<span class="status-dot-completed" title="${t.card_download_completed || 'İndirildi'}"></span>`;
+          }
           actionsHtml = `
             <button class="btn-icon btn-action-yt" onclick="event.stopPropagation(); ${openWebAction}" title="${webActionBtnTitle}">
             ${webActionBtnSvg}
@@ -551,9 +564,15 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
         </div>
       ` : '';
 
+      const isWebStreamPoster = platform === 'webstream';
+      const thumbBgStyle = isWebStreamPoster ? `; --poster-bg: url('/api/video/${item.id}/thumbnail')` : '';
+      const thumbOnLoadAttr = isWebStreamPoster
+        ? ` onload="if(this.naturalWidth && this.naturalHeight && (this.naturalWidth / this.naturalHeight) >= 1.35 && this.parentElement){this.parentElement.classList.add('is-landscape-poster');}"`
+        : '';
+
       card.innerHTML = `
-        <div class="video-thumbnail-wrapper" data-video-id="${item.id}" data-platform="${platform}" onclick="if(window._justDraggedSortable) { event.stopPropagation(); return; } ${clickAction}" style="cursor: pointer; position: relative;" title="${clickTitle}">
-          <img class="video-thumbnail" draggable="false" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" loading="lazy" decoding="async" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
+        <div class="video-thumbnail-wrapper${isWebStreamPoster ? ' is-webstream-poster' : ''}" data-video-id="${item.id}" data-platform="${platform}" onclick="if(window._justDraggedSortable) { event.stopPropagation(); return; } ${clickAction}" style="cursor: pointer; position: relative${thumbBgStyle}" title="${clickTitle}">
+          <img class="video-thumbnail" draggable="false" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" loading="lazy" decoding="async"${thumbOnLoadAttr} onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
           ${userSortControlsHtml}
           ${qualityBadgeHtml}
           ${unlistedBadgeHtml}

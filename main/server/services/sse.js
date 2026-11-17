@@ -1,4 +1,6 @@
 // Türkçe Açıklama: Sunucu tarafındaki olayları (SSE) bağlı olan tüm tarayıcılara ileten ve terminal günlüklerini yöneten yayın modülü.
+import { translateConsoleLog, isEnglishConsole } from '../utils/consoleTranslator.js';
+
 export let clients = [];
 export let terminalLogs = [];
 const MAX_LOGS = 300;
@@ -22,11 +24,12 @@ export function attachConsoleBridge() {
   consoleBridgeAttached = true;
 
   const wrap = (level, original) => function (...args) {
+    const translatedArgs = args.map(a => (typeof a === 'string' ? translateConsoleLog(a) : a));
     try {
-      original.apply(console, args);
+      original.apply(console, translatedArgs);
     } catch (e) {}
     try {
-      const message = args.map(a => (typeof a === 'string' ? a : (() => {
+      const message = translatedArgs.map(a => (typeof a === 'string' ? a : (() => {
         try { return JSON.stringify(a); } catch (e) { return String(a); }
       })())).join(' ');
       pushRawLog(level, message);
@@ -59,7 +62,10 @@ function pushRawLog(level, message) {
 
   // Taşan satırlar için tek bir özet satırı bırak
   if (droppedSinceReset === 1) {
-    const notice = { timestamp: new Date().toISOString(), type: 'warn', message: '... ham çıktı hız sınırı: bazı satırlar atlandı ...', raw: true };
+    const dropMsg = isEnglishConsole()
+      ? '... raw output rate limit: some lines skipped ...'
+      : '... ham çıktı hız sınırı: bazı satırlar atlandı ...';
+    const notice = { timestamp: new Date().toISOString(), type: 'warn', message: dropMsg, raw: true };
     rawLogs.push(notice);
     if (rawLogs.length > MAX_RAW_LOGS) rawLogs.shift();
     broadcast('terminal_raw', notice);
@@ -117,7 +123,7 @@ export function broadcastHistoryUpdate(id, updates) {
  * @param {string} type Günlük kategorisi ('info', 'success', 'warning', 'error')
  */
 export function addTerminalLog(message, type = 'info') {
-  const trimmed = message.trim();
+  const trimmed = translateConsoleLog(String(message || '')).trim();
   if (!trimmed) return;
 
   // Process stdout'a yazarak Tray "Konsol Çıktısını Göster" penceresine iletilmesini sağla
