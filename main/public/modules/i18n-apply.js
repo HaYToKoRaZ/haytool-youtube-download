@@ -7,14 +7,19 @@
  * Bağımlılıklar: translations (utils/i18n.js) ve app.js getState() getter'ı.
  */
 
-import { translations } from '../utils/i18n.js';
+import { translations, ensureLanguageLoaded } from '../utils/i18n.js';
 
 let currentLang = 'tr';
 
 export function applyLanguage(lang) {
   currentLang = lang || localStorage.getItem('haytool_user_lang') || 'tr';
   try { localStorage.setItem('haytool_user_lang', currentLang); } catch (e) {}
-  const t = translations[currentLang] || translations.tr;
+  if (!translations[currentLang] && typeof ensureLanguageLoaded === 'function') {
+    ensureLanguageLoaded(currentLang).then(() => {
+      if (translations[currentLang]) applyLanguage(currentLang);
+    }).catch(() => {});
+  }
+  const t = translations[currentLang] || translations.tr || {};
   
   const el = (id, key, prop = 'textContent') => {
     const element = document.getElementById(id);

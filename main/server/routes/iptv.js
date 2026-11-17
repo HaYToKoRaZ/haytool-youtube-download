@@ -11,6 +11,7 @@ import {
   iptvCountriesList, 
   iptvCategoriesList, 
   setIptvChannels, 
+  ensureIptvChannelsLoaded,
   iptvCachePath 
 } from '../services/iptv.js';
 import { broadcast } from '../services/sse.js';
@@ -34,6 +35,7 @@ export const router = express.Router();
  * @returns {void}
  */
 router.get('/status', (req, res) => {
+  ensureIptvChannelsLoaded();
   res.json(iptvUpdateStatus);
 });
 
@@ -189,6 +191,7 @@ router.post('/update', localhostOnly, async (req, res) => {
  * @returns {void}
  */
 router.get('/channels', (req, res) => {
+  ensureIptvChannelsLoaded();
   let { page = 1, limit = 200, search = '', country = '', category = '', forceAll = '' } = req.query;
   page = parseInt(page, 10) || 1;
   limit = parseInt(limit, 10);
@@ -259,6 +262,7 @@ router.get('/channels', (req, res) => {
  * @name GET /api/iptv/random
  */
 router.get('/random', (req, res) => {
+  ensureIptvChannelsLoaded();
   const { search = '', country = '', category = '' } = req.query;
   let filtered = iptvChannelsMemory;
 

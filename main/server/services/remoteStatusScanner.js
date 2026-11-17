@@ -24,6 +24,84 @@ let scanState = {
 };
 
 let cancelRequested = false;
+let startupScanScheduled = false;
+let pendingStartupRemoteAlerts = [];
+
+/**
+ * Bir videonun uzak sunucu durumu değiştiği (silindi, gizlendi, liste dışı veya üyelere özel olduğu)
+ * için otomatik silme ve kanal video sınırı kurallarından muaf olup olmadığını döndürür.
+ *
+ * @param {object} item - Veritabanı history öğesi
+ * @returns {boolean}
+ */
+export function isRemoteStatusProtected(item) {
+  return Boolean(item && ['deleted', 'unlisted', 'private', 'members_only'].includes(item.remoteStatus));
+}
+
+/**
+ * Sunucu açılışında uzak durum taramasının planlandığını işaretler (otomatik silmenin tarama bitimini beklemesi için).
+ *
+ * @param {boolean} scheduled
+ */
+export function setStartupRemoteScanScheduled(scheduled) {
+  startupScanScheduled = Boolean(scheduled);
+}
+
+/**
+ * Açılış uzak durum taraması henüz tamamlanmadıysa otomatik silmenin bekletilmesi gerektiğini bildirir.
+ *
+ * @returns {boolean}
+ */
+export function isStartupRemoteScanPendingOrRunning() {
+  return Boolean(startupScanScheduled || scanState.running);
+}
+
+/**
+ * Açılış taramasında tespit edilen ve henüz kullanıcı tarafından kapatılmamış uzak durum uyarılarını döndürür.
+ *
+ * @returns {Array<object>}
+ */
+export function getPendingStartupRemoteAlerts() {
+  return Array.isArray(pendingStartupRemoteAlerts) ? [...pendingStartupRemoteAlerts] : [];
+}
+
+/**
+ * Açılış uzak durum uyarı penceresindeki videoları onaylar veya bu oturum için kapatır.
+ *
+ * @param {object} [options]
+ * @param {Array<string>|null} [options.videoIds=null]
+ * @param {boolean} [options.permanent=false] - true ise aynı durum için sonraki açılışlarda tekrar uyarmaz
+ * @returns {{ acknowledged: number, remaining: number }}
+ */
+export function acknowledgeStartupRemoteAlerts(options = {}) {
+  const { videoIds = null, permanent = false } = options;
+  const targetSet = Array.isArray(videoIds) && videoIds.length > 0 ? new Set(videoIds.map(String)) : null;
+  let acknowledged = 0;
+
+  if (permanent) {
+    const db = readDb();
+    const candidates = (db.history || []).filter(item =>
+      isRemoteStatusProtected(item) && (!targetSet || targetSet.has(String(item.id)))
+    );
+    for (const item of candidates) {
+      updateHistoryItem(item.id, { remoteNotifiedStatus: item.remoteStatus });
+      acknowledged++;
+    }
+  } else {
+    acknowledged = targetSet ? pendingStartupRemoteAlerts.filter(v => targetSet.has(String(v.id))).length : pendingStartupRemoteAlerts.length;
+  }
+
+  if (targetSet) {
+    pendingStartupRemoteAlerts = pendingStartupRemoteAlerts.filter(v => !targetSet.has(String(v.id)));
+  } else {
+    pendingStartupRemoteAlerts = [];
+  }
+
+  return {
+    acknowledged,
+    remaining: pendingStartupRemoteAlerts.length
+  };
+}
 
 /**
  * Bir geçmiş kaydının taranabilir tamamlanmış bir YouTube videosu olup olmadığını belirler.
@@ -387,7 +465,7 @@ function broadcastScanProgress() {
  * @returns {{ started: boolean, error?: string, scanState: object }}
  */
 export function startRemoteStatusScan(options = {}) {
-  const { onlyUnchecked = false, videoId = null } = options;
+  const { onlyUnchecked = false, videoId = null, isStartupScan = false, onComplete = null } = options;
 
   if (scanState.running) {
     return {
@@ -429,7 +507,13 @@ export function startRemoteStatusScan(options = {}) {
   broadcastScanProgress();
 
   if (targets.length === 0) {
+    if (isStartupScan) {
+      startupScanScheduled = false;
+    }
     addTerminalLog('[Uzak Durum] Taranacak uygun indirilmiş YouTube videosu bulunamadı.', 'info');
+    if (typeof onComplete === 'function') {
+      try { onComplete(); } catch (_) {}
+    }
     return { started: true, scanState: getRemoteStatusScanState() };
   }
 
@@ -479,7 +563,7 @@ export function startRemoteStatusScan(options = {}) {
 
           if (['deleted', 'unlisted', 'private', 'members_only'].includes(checkRes.remoteStatus)) {
             addTerminalLog(
-              `[Uzak Durum] Değişiklik tespit edildi: "${item.title || rawYtId}" -> ${checkRes.remoteStatus.toUpperCase()}${checkRes.remoteReason ? ` (${checkRes.remoteReason})` : ''}`,
+              `[Uzak Durum] Değişiklik tespit edildi: "${item.title || rawYtId}" -> ${checkRes.remoteStatus.toUpperCase()}${checkRes.remoteReason ? ` (${checkRes.remoteReason})` : ''} (Oto-silmeden muaf tutuldu)`,
               'warning'
             );
           }
@@ -512,6 +596,37 @@ export function startRemoteStatusScan(options = {}) {
           `[Uzak Durum] Tarama tamamlandı: ${scanState.processed} video kontrol edildi, ${scanState.changed} değişiklik (Silinen: ${scanState.deleted}, Liste Dışı: ${scanState.unlisted}, Gizli: ${scanState.privateCount}, Üyelere Özel: ${scanState.membersOnly}).`,
           scanState.changed > 0 ? 'warning' : 'success'
         );
+
+        const freshDb = readDb();
+        broadcast('db_update', freshDb);
+
+        if (isStartupScan) {
+          const alertVideos = getDownloadedYouTubeItems(freshDb)
+            .filter(item => isRemoteStatusProtected(item) && item.remoteNotifiedStatus !== item.remoteStatus)
+            .map(item => ({
+              id: item.id,
+              originalId: item.originalId || item.id,
+              title: item.title || item.id,
+              channelId: item.channelId || '',
+              channelName: item.channelName || '',
+              fileSize: item.fileSize || '',
+              fileMissing: Boolean(item.fileMissing),
+              remoteStatus: item.remoteStatus,
+              remoteReason: item.remoteReason || '',
+              remoteTitle: item.remoteTitle || '',
+              remoteCheckedAt: item.remoteCheckedAt || '',
+              thumbnail: `/api/video/${item.id}/thumbnail`
+            }));
+
+          if (alertVideos.length > 0) {
+            pendingStartupRemoteAlerts = alertVideos;
+            broadcast('remote_status_startup_alert', {
+              videos: alertVideos,
+              count: alertVideos.length,
+              summary: getRemoteStatusSummary(freshDb)
+            });
+          }
+        }
       }
     } catch (err) {
       scanState.running = false;
@@ -519,8 +634,14 @@ export function startRemoteStatusScan(options = {}) {
       scanState.error = err.message;
       addTerminalLog(`[Uzak Durum] [HATA] Tarama sırasında hata: ${err.message}`, 'error');
     } finally {
+      if (isStartupScan) {
+        startupScanScheduled = false;
+      }
       cancelRequested = false;
       broadcastScanProgress();
+      if (typeof onComplete === 'function') {
+        try { onComplete(); } catch (_) {}
+      }
     }
   })();
 

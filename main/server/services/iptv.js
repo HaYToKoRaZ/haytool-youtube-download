@@ -21,6 +21,17 @@ export const iptvUpdateStatus = {
 export let iptvChannelsMemory = [];
 export let iptvCountriesList = [];
 export let iptvCategoriesList = [];
+let iptvCacheLoaded = false;
+
+/**
+ * IPTV kanal önbelleğini yalnızca ilk ihtiyaç anında (Lazy-Load) diskten belleğe yükler.
+ * IPTV sekmesi açılmadıkça 2.6 MB JSON dosyasını RAM'de tutmaz.
+ */
+export function ensureIptvChannelsLoaded() {
+  if (iptvCacheLoaded) return;
+  iptvCacheLoaded = true;
+  loadIptvCache();
+}
 
 /**
  * Türkçe Açıklama: IPTV oynatımında kullanılan hls.min.js kütüphanesi yerelde yoksa CDN üzerinden indirip kaydeder.
@@ -166,5 +177,6 @@ function loadIptvCache() {
  */
 export function setIptvChannels(channels) {
   iptvChannelsMemory = channels;
+  iptvCacheLoaded = true;
   computeIptvFilters();
 }

@@ -11,6 +11,14 @@ categories.ini
 # Yerel Veritabanı
 db.json
 db.json*
+haytool.db
+haytool.db*
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+.env
+.env.local
 *.tmp
 *.bak
 *.bak*
@@ -85,3 +93,4 @@ Microsoft.Web.WebView2.*.xml
 .codebase-memory/
 .cbmignore
 .codebaseignore
+main/.last_remote_scan_date

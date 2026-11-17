@@ -417,6 +417,33 @@ export async function toggleAlternativeSpeed() {
 window.toggleAlternativeSpeed = toggleAlternativeSpeed;
 
 /**
+ * Eşzamanlı indirme limitini (1-5) sunucuya kaydeder.
+ */
+export async function updateConcurrentLimit() {
+  const select = document.getElementById('queue-concurrent-limit');
+  if (!select) return;
+  const limit = parseInt(select.value, 10) || 1;
+  try {
+    const res = await fetch('/api/settings/concurrent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (window.localDb?.settings) window.localDb.settings.maxConcurrentDownloads = data.limit;
+      const isEn = (window.localDb?.settings?.lang || localStorage.getItem('haytool_user_lang')) === 'en';
+      showToast(isEn ? `Concurrent downloads set to ${data.limit}.` : `Eşzamanlı indirme limiti ${data.limit} olarak güncellendi.`, 'success');
+    } else {
+      showToast(data.error || 'Limit güncellenemedi.', 'error');
+    }
+  } catch (err) {
+    showToast('Bağlantı hatası.', 'error');
+  }
+}
+window.updateConcurrentLimit = updateConcurrentLimit;
+
+/**
  * Kullanıcının girdiği hız limitini (KB/s) sunucuya göndererek kaydeder.
  */
 export async function updateQueueSpeedLimit() {

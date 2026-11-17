@@ -23,14 +23,16 @@ import { triggerSilentCookieRefresh } from './settings.js';
 import { updateChannelFullInfo } from './channels.js';
 import { buildCookieHeader } from '../services/cookieHealth.js';
 import { closeActiveVideoStreams } from './streams.js';
-import { physicallyDeleteVideoFiles, getVideoRemainingMs, getVideoAutoDeleteReason } from '../services/autoDeleteService.js';
+import { physicallyDeleteVideoFiles, getVideoRemainingMs, getVideoAutoDeleteReason, isRemoteStatusProtected } from '../services/autoDeleteService.js';
 import { isInsideFakap } from '../services/fakapPaths.js';
 import {
   getDownloadedYouTubeItems,
   getRemoteStatusSummary,
   getRemoteStatusScanState,
   startRemoteStatusScan,
-  cancelRemoteStatusScan
+  cancelRemoteStatusScan,
+  getPendingStartupRemoteAlerts,
+  acknowledgeStartupRemoteAlerts
 } from '../services/remoteStatusScanner.js';
 
 export const router = express.Router();
@@ -2629,7 +2631,7 @@ router.post('/auto-delete/confirm', localhostOnly, async (req, res) => {
 
     let deletedCount = 0;
     for (const item of (db.history || [])) {
-      if (item.status === 'completed' && item.filePath) {
+      if (item.status === 'completed' && item.filePath && !isRemoteStatusProtected(item)) {
         if (!idsToDelete || idsToDelete.has(item.id)) {
           const remainingMs = getVideoRemainingMs(item, db);
           if (remainingMs !== null && remainingMs <= 0) {
@@ -2981,6 +2983,46 @@ router.post('/tools/remote-status/cancel', localhostOnly, (req, res) => {
   try {
     const scanState = cancelRemoteStatusScan();
     res.json({ success: true, scanState });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Açılış uzak durum taramasında tespit edilen ve henüz kapatılmamış uyarı listesini döndürür.
+ * @route GET /api/tools/remote-status/startup-alert
+ */
+router.get('/tools/remote-status/startup-alert', localhostOnly, (req, res) => {
+  try {
+    const videos = getPendingStartupRemoteAlerts();
+    res.json({
+      success: true,
+      videos,
+      count: videos.length
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Açılış uzak durum uyarı penceresini onaylar veya bu oturum için kapatır.
+ * @route POST /api/tools/remote-status/ack-alert
+ */
+router.post('/tools/remote-status/ack-alert', localhostOnly, (req, res) => {
+  try {
+    const { videoIds, permanent } = req.body || {};
+    const result = acknowledgeStartupRemoteAlerts({
+      videoIds: Array.isArray(videoIds) ? videoIds : null,
+      permanent: Boolean(permanent)
+    });
+    if (permanent) {
+      broadcast('db_update', readDb());
+    }
+    res.json({
+      success: true,
+      ...result
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

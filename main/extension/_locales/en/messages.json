@@ -10,6 +10,7 @@
   "typeNoneDetected": { "message": "No YouTube page detected" },
   "btnDownloadVideo": { "message": "Download Video" },
   "btnAddChannel": { "message": "Follow Channel" },
+  "btnFollowVideoChannel": { "message": "Follow This Channel" },
   "btnOpenApp": { "message": "Open HaYTooL" },
   "msgSuccessDownload": { "message": "Added to download queue!" },
   "msgSuccessChannel": { "message": "Channel added to follow list!" },

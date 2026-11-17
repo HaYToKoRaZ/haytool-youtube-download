@@ -427,6 +427,21 @@ export function getVideoRemainingInfo(item, db) {
 
   if (effectiveDays <= 0 && effectiveMaxCount <= 0) return null;
 
+  const isRemoteProtected = ['deleted', 'unlisted', 'private', 'members_only'].includes(item.remoteStatus);
+  if (isRemoteProtected) {
+    const isEn = (db.settings && db.settings.lang === 'en') || (typeof window !== 'undefined' && window.currentLang === 'en');
+    return {
+      remainingMs: Infinity,
+      isExpired: false,
+      isProtected: true,
+      remainingDays: Infinity,
+      badgeText: isEn ? '🛡️ Exempt' : '🛡️ Muaf',
+      tooltip: isEn
+        ? 'Exempt from auto-delete & channel video limit because its YouTube status changed (Deleted/Unlisted/Private)'
+        : 'Uzak sunucu durumu değiştiği (Silinmiş/Liste Dışı/Gizli) için otomatik silmeden ve kanal video sınırından muaftır'
+    };
+  }
+
   // Erteleme kontrolü
   const isPostponed = item.autoDeletePostponedUntil && item.autoDeletePostponedUntil > Date.now();
 
@@ -459,10 +474,14 @@ export function getVideoRemainingInfo(item, db) {
     isDayExpired = dayRemainingMs <= 0;
   }
 
-  // 2. Sayı hesabı
+  // 2. Sayı hesabı (Uzak durumu değişmiş korunan videolar kotadan düşülür)
   let isCountExceeded = false;
   if (effectiveMaxCount > 0 && channel) {
-    const channelCompleted = (db.history || []).filter(h => h.channelId === item.channelId && h.status === 'completed');
+    const channelCompleted = (db.history || []).filter(h =>
+      h.channelId === item.channelId &&
+      h.status === 'completed' &&
+      !['deleted', 'unlisted', 'private', 'members_only'].includes(h.remoteStatus)
+    );
     if (channelCompleted.length > effectiveMaxCount) {
       channelCompleted.sort((a, b) => {
         const timeA = new Date(a.completedAt || a.publishedAt || a.downloadedAt || 0).getTime();
@@ -636,7 +655,8 @@ export function getSiteFaviconInfo(item) {
   }
   const fallback = getSiteFaviconFallbackDataUri(platform);
   const isBuiltInBrand = platform === 'x' || platform === 'instagram' || platform === 'tiktok' || platform === 'youtube';
-  const src = (!isBuiltInBrand && domain)
+  const isCdnOrStreamHost = /^(srv\d+|cdn\d*|edge\d*|stream\d*|media\d*|static\d*|vid\d*|hls\d*)\./i.test(domain) || String(item?.id || '').startsWith('ws_');
+  const src = (!isBuiltInBrand && !isCdnOrStreamHost && domain)
     ? `https://${domain}/favicon.ico`
     : fallback;
   return { src, fallback, domain, platform };
@@ -651,10 +671,10 @@ export function getChannelOrSiteAvatarHtml(item, className = 'video-card-channel
   if (!item) return '';
   const platform = detectVideoPlatform(item);
   if (platform === 'youtube' && hasFollowedChannelAvatar(item.channelId, channelsOverride)) {
-    return `<img src="/api/channels/${encodeURIComponent(item.channelId)}/avatar" class="${className}" alt="" aria-hidden="true" loading="lazy" decoding="async" onerror="this.style.display='none';" />`;
+    return `<img src="/api/channels/${encodeURIComponent(item.channelId)}/avatar" class="${className}" width="24" height="24" alt="" aria-hidden="true" loading="lazy" decoding="async" onerror="this.style.display='none';" />`;
   }
   const { src, fallback } = getSiteFaviconInfo(item);
-  return `<img src="${src}" class="${className} site-favicon-avatar" alt="" aria-hidden="true" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=&quot;${fallback}&quot;;" />`;
+  return `<img src="${src}" class="${className} site-favicon-avatar" width="24" height="24" alt="" aria-hidden="true" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=&quot;${fallback}&quot;;" />`;
 }
 
 /**

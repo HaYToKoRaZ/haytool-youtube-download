@@ -94,14 +94,14 @@
                   </div>
                 </div>
 
-                <!-- Aktif Videoyu Sil Butonu (Çöp Kutusu) -->
                 <!-- Yapay Zekâ ile Özet Çıkar Butonu -->
                 <button class="btn btn-secondary btn-sm" id="inline-btn-summary" title="Yapay Zekâ ile Özet Çıkar" data-i18n-title="inline_btn_summary" onclick="toggleSummaryPanel()" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: #a855f7; background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.25);">
                   <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
                 </button>
 
-                <button class="btn btn-secondary btn-sm btn-action-danger" id="inline-btn-delete-active" title="Videoyu Sil" data-i18n-title="btn_delete_history" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--accent-red); background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.25);">
-                  <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                <!-- Klavye Kısayolları Butonu -->
+                <button class="btn btn-secondary btn-sm" id="inline-btn-shortcuts" onclick="openShortcutsModal('player')" title="Klavye Kısayolları (?)" aria-label="Klavye Kısayolları (?)" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                  <i data-lucide="keyboard" style="width: 16px; height: 16px;"></i>
                 </button>
 
                 <!-- Altyazı Rengi Seçici -->
@@ -549,7 +549,7 @@
                   <!-- JS (populateChannelFilters) ile arama inputu + logolu kanallar yüklenecek -->
                 </div>
               </div>
-              <select id="downloaded-channel-filter" style="display:none;" onchange="onDownloadedChannelFilterChange()">
+              <select id="downloaded-channel-filter" style="display:none;">
                 <option value="all">Tüm Kanallar</option>
               </select>
 

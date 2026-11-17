@@ -460,8 +460,11 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
       const currentSort = isDownloadedGrid ? (sortVal || (typeof window !== 'undefined' ? window.downloadedSortVal : '') || '') : '';
       const isAutoDeleteFilter = isDownloadedGrid && currentSort === 'auto-delete';
       const expireInfo = (isAutoDeleteFilter && item.status === 'completed' && !isMissing) ? getVideoRemainingInfo(item, currentDb) : null;
+      const expireBadgeBg = expireInfo?.isProtected ? 'rgba(16, 185, 129, 0.16)' : (expireInfo?.isExpired ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.15)');
+      const expireBadgeColor = expireInfo?.isProtected ? '#10b981' : (expireInfo?.isExpired ? '#ef4444' : '#f59e0b');
+      const expireBadgeBorder = expireInfo?.isProtected ? 'rgba(16, 185, 129, 0.35)' : (expireInfo?.isExpired ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.3)');
       const expireBadgeHtml = expireInfo ? `
-        <span class="video-card-expire-badge ${expireInfo.isExpired ? 'is-expired' : ''}" title="${escapeHtml(expireInfo.tooltip)}" style="font-size: 0.72rem; padding: 1px 5px; border-radius: 4px; background: ${expireInfo.isExpired ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.15)'}; color: ${expireInfo.isExpired ? '#ef4444' : '#f59e0b'}; font-weight: 600; cursor: help; border: 1px solid ${expireInfo.isExpired ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.3)'};">
+        <span class="video-card-expire-badge ${expireInfo.isExpired ? 'is-expired' : ''} ${expireInfo.isProtected ? 'is-protected' : ''}" title="${escapeHtml(expireInfo.tooltip)}" style="font-size: 0.72rem; padding: 1px 5px; border-radius: 4px; background: ${expireBadgeBg}; color: ${expireBadgeColor}; font-weight: 600; cursor: help; border: 1px solid ${expireBadgeBorder};">
           ${escapeHtml(expireInfo.badgeText)}
         </span>
       ` : '';
@@ -572,7 +575,7 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
 
       card.innerHTML = `
         <div class="video-thumbnail-wrapper${isWebStreamPoster ? ' is-webstream-poster' : ''}" data-video-id="${item.id}" data-platform="${platform}" onclick="if(window._justDraggedSortable) { event.stopPropagation(); return; } ${clickAction}" style="cursor: pointer; position: relative${thumbBgStyle}" title="${clickTitle}">
-          <img class="video-thumbnail" draggable="false" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" loading="lazy" decoding="async"${thumbOnLoadAttr} onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
+          <img class="video-thumbnail" draggable="false" width="320" height="180" src="/api/video/${item.id}/thumbnail" alt="Video Resmi" loading="lazy" decoding="async"${thumbOnLoadAttr} onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect width=%22320%22 height=%22180%22 fill=%22%2316142a%22/><text x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22>Kapak Resmi Yok</text></svg>'">
           ${userSortControlsHtml}
           ${qualityBadgeHtml}
           ${unlistedBadgeHtml}

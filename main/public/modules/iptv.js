@@ -9,6 +9,7 @@
 // ─── Modül-içi Durum Değişkenleri ───
 let iptvPlayers = [null, null, null, null]; // Slot 0..3
 let activeIptvSlot = 0;
+if (typeof window !== 'undefined') window.activeIptvSlot = 0;
 let iptvIsLoading = false;
 let iptvSearchQuery = '';
 let iptvSelectedCountry = '';
@@ -406,10 +407,12 @@ export function initIptv(getState) {
   // Klavye Kısayolları (Space, F, M, ArrowUp/Down, ArrowLeft/Right, J/L, R, 1-4)
   initIptvKeyboardShortcuts();
 
-  // İlk yükleme
-  loadIptvChannels();
-  checkIptvStatus();
-  startIptvStatusPolling();
+  // İlk yükleme: Yalnızca IPTV sekmesi aktifse çalıştır (diğer sekmelerde sıfır IPTV yükü)
+  if (document.getElementById('tab-iptv')?.classList.contains('active')) {
+    loadIptvChannels();
+    checkIptvStatus();
+    startIptvStatusPolling();
+  }
 }
 
 /**
@@ -445,8 +448,13 @@ function initIptvKeyboardShortcuts() {
         if (playBtn) {
           playBtn.click();
         } else if (video) {
-          if (video.paused) video.play().catch(() => {});
-          else video.pause();
+          if (video.paused) {
+            video.play().catch(() => {});
+            if (typeof window.showCenterBounceIcon === 'function') window.showCenterBounceIcon('play');
+          } else {
+            video.pause();
+            if (typeof window.showCenterBounceIcon === 'function') window.showCenterBounceIcon('pause');
+          }
         }
         break;
       }
@@ -457,10 +465,17 @@ function initIptvKeyboardShortcuts() {
         const fsBtn = slotEl.querySelector('.osd-fullscreen-btn');
         if (fsBtn) {
           fsBtn.click();
-        } else if (!document.fullscreenElement) {
-          slotEl.requestFullscreen().catch(() => {});
         } else {
-          document.exitFullscreen().catch(() => {});
+          const willBeFs = !document.fullscreenElement;
+          if (willBeFs) {
+            slotEl.requestFullscreen().catch(() => {});
+          } else {
+            document.exitFullscreen().catch(() => {});
+          }
+          if (typeof window.showActionToast === 'function') {
+            const fsLabel = getTranslation(willBeFs ? 'hud_fullscreen' : 'hud_exit_fullscreen', willBeFs ? 'Tam Ekran' : 'Pencere Modu');
+            window.showActionToast(willBeFs ? 'maximize' : 'minimize', fsLabel, 1700);
+          }
         }
         break;
       }
@@ -474,6 +489,10 @@ function initIptvKeyboardShortcuts() {
         } else if (video) {
           video.muted = !video.muted;
           iptvUserExplicitlyMuted = video.muted;
+          if (typeof window.showActionToast === 'function') {
+            const mLabel = getTranslation(video.muted ? 'hud_muted' : 'hud_unmuted', video.muted ? 'Sessiz' : 'Ses Açık');
+            window.showActionToast(video.muted ? 'volume-x' : 'volume-2', mLabel, 1600);
+          }
         }
         break;
       }
@@ -491,8 +510,8 @@ function initIptvKeyboardShortcuts() {
           } else {
             video.volume = nextVol;
             iptvGlobalVolume = nextVol;
+            if (typeof window.triggerVolumeHUD === 'function') window.triggerVolumeHUD(nextVol);
           }
-          if (p?.showOsd) p.showOsd();
         }
         break;
       }
@@ -510,8 +529,8 @@ function initIptvKeyboardShortcuts() {
           } else {
             video.volume = nextVol;
             iptvGlobalVolume = nextVol;
+            if (typeof window.triggerVolumeHUD === 'function') window.triggerVolumeHUD(nextVol);
           }
-          if (p?.showOsd) p.showOsd();
         }
         break;
       }
@@ -1224,7 +1243,14 @@ export async function playIptvChannel(slotIndex, streamUrl, displayName, options
 
   const wrapper = slotEl.querySelector('.slot-video-wrapper');
   const placeholder = slotEl.querySelector('.slot-placeholder');
-  const video = slotEl.querySelector(`#iptv-video-${slot}`);
+  let video = slotEl.querySelector(`#iptv-video-${slot}`);
+  if (wrapper && !video) {
+    video = document.createElement('video');
+    video.id = `iptv-video-${slot}`;
+    video.className = 'iptv-native-video';
+    video.playsInline = true;
+    wrapper.insertBefore(video, wrapper.firstChild);
+  }
 
   if (!wrapper || !video) return;
 
@@ -1559,7 +1585,11 @@ export async function playIptvChannel(slotIndex, streamUrl, displayName, options
       const { maxTime } = getDvrRange();
       video.currentTime = maxTime;
       video.play().catch(() => {});
-      flashIcon('radio');
+      if (typeof window.showActionToast === 'function') {
+        window.showActionToast('radio', 'CANLI', 1400);
+      } else {
+        flashIcon('radio');
+      }
     };
   }
 
@@ -1568,11 +1598,19 @@ export async function playIptvChannel(slotIndex, streamUrl, displayName, options
     if (video.paused) {
       video.play().catch(() => {});
       if (playBtn) playBtn.innerHTML = '<i data-lucide="pause"></i>';
-      flashIcon('play');
+      if (typeof window.showCenterBounceIcon === 'function') {
+        window.showCenterBounceIcon('play');
+      } else {
+        flashIcon('play');
+      }
     } else {
       video.pause();
       if (playBtn) playBtn.innerHTML = '<i data-lucide="play"></i>';
-      flashIcon('pause');
+      if (typeof window.showCenterBounceIcon === 'function') {
+        window.showCenterBounceIcon('pause');
+      } else {
+        flashIcon('pause');
+      }
       showOsd();
     }
     if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
@@ -1587,7 +1625,11 @@ export async function playIptvChannel(slotIndex, streamUrl, displayName, options
       e.stopPropagation();
       const { minTime } = getDvrRange();
       video.currentTime = Math.max(minTime, (video.currentTime || 0) - 10);
-      flashIcon('rotate-ccw');
+      if (typeof window.showActionToast === 'function') {
+        window.showActionToast('rewind', '-10s', 1400);
+      } else {
+        flashIcon('rotate-ccw');
+      }
     };
   }
 
@@ -1596,7 +1638,11 @@ export async function playIptvChannel(slotIndex, streamUrl, displayName, options
       e.stopPropagation();
       const { maxTime } = getDvrRange();
       video.currentTime = Math.min(maxTime, (video.currentTime || 0) + 10);
-      flashIcon('rotate-cw');
+      if (typeof window.showActionToast === 'function') {
+        window.showActionToast('fast-forward', '+10s', 1400);
+      } else {
+        flashIcon('rotate-cw');
+      }
     };
   }
 
@@ -1618,6 +1664,10 @@ export async function playIptvChannel(slotIndex, streamUrl, displayName, options
       video.muted = !video.muted;
       iptvUserExplicitlyMuted = video.muted;
       updateVolumeUI();
+      if (typeof window.showActionToast === 'function') {
+        const mLabel = getTranslation(video.muted ? 'hud_muted' : 'hud_unmuted', video.muted ? 'Sessiz' : 'Ses Açık');
+        window.showActionToast(video.muted ? 'volume-x' : 'volume-2', mLabel, 1600);
+      }
     };
   }
 
@@ -1632,6 +1682,9 @@ export async function playIptvChannel(slotIndex, streamUrl, displayName, options
         iptvUserExplicitlyMuted = false;
       }
       updateVolumeUI();
+      if (typeof window.triggerVolumeHUD === 'function') {
+        window.triggerVolumeHUD(val);
+      }
     };
   }
 
@@ -1646,6 +1699,9 @@ export async function playIptvChannel(slotIndex, streamUrl, displayName, options
       iptvUserExplicitlyMuted = false;
     }
     updateVolumeUI();
+    if (typeof window.triggerVolumeHUD === 'function') {
+      window.triggerVolumeHUD(newVol);
+    }
   };
 
   // İlk ses arayüzü senkronizasyonu
@@ -1666,10 +1722,15 @@ export async function playIptvChannel(slotIndex, streamUrl, displayName, options
   if (fullscreenBtn) {
     fullscreenBtn.onclick = (e) => {
       e.stopPropagation();
-      if (!document.fullscreenElement) {
+      const willBeFs = !document.fullscreenElement;
+      if (willBeFs) {
         slotEl.requestFullscreen().catch(() => {});
       } else {
         document.exitFullscreen().catch(() => {});
+      }
+      if (typeof window.showActionToast === 'function') {
+        const fsLabel = getTranslation(willBeFs ? 'hud_fullscreen' : 'hud_exit_fullscreen', willBeFs ? 'Tam Ekran' : 'Pencere Modu');
+        window.showActionToast(willBeFs ? 'maximize' : 'minimize', fsLabel, 1700);
       }
     };
   }
@@ -1786,6 +1847,10 @@ export function stopAllIptvPlayers() {
 
 export function stopAllIptvPlayersAndClear() {
   stopAllIptvPlayers();
+  if (iptvStatusInterval) {
+    clearInterval(iptvStatusInterval);
+    iptvStatusInterval = null;
+  }
   localStorage.removeItem('haytool_iptv_state');
 }
 
@@ -1910,6 +1975,7 @@ export async function stopIptvPvr(slotIndex, silent = false) {
 
 export function selectIptvSlot(slotIndex) {
   activeIptvSlot = Math.max(0, Math.min(3, slotIndex));
+  if (typeof window !== 'undefined') window.activeIptvSlot = activeIptvSlot;
   document.querySelectorAll('.iptv-slot').forEach(s => s.classList.remove('active'));
   const activeEl = document.querySelector(`.iptv-slot[data-slot="${activeIptvSlot}"]`);
   if (activeEl) activeEl.classList.add('active');
@@ -2093,7 +2159,9 @@ export function restoreIptvState() {
 // ─── IPTV Durum Denetimi ───
 
 export async function checkIptvStatus() {
+  if (!document.getElementById('tab-iptv')?.classList.contains('active')) return;
   try {
+    if (!iptvStatusInterval) startIptvStatusPolling();
     const res = await fetch('/api/iptv/status');
     const data = await res.json();
     const infoEl = document.getElementById('iptv-status-info');
@@ -2236,6 +2304,7 @@ if (typeof window !== 'undefined') {
   window.getCountryFlag = getCountryFlag;
   window.getCountryName = getCountryName;
   window.iptvPlayers = iptvPlayers;
+  window.ensureHlsLoaded = ensureHlsLoaded;
 }
 
 if (typeof document !== 'undefined') {

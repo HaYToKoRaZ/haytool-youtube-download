@@ -1142,7 +1142,10 @@ namespace HaYTooLPlayer
             commandComboBox.Size = new Size(commandPanel.ClientSize.Width - 525, 26);
             commandComboBox.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
             commandComboBox.Items.AddRange(new string[] {
-                "diag", "queue", "errors 15", "verbose on", "verbose off", "help", "status", "pause", "resume", "ton", "toff", "toggle", "speed", "altspeed", "pd", "check", "backup", "fakap", "clear", "stop"
+                "status", "diag", "queue", "errors 15", "verbose on", "verbose off",
+                "gton", "gtoff", "gameon", "gameoff", "game", "merge", "merge-pause",
+                "pause", "resume", "ton", "toff", "toggle", "speed", "altspeed", "pd",
+                "check", "backup", "fakap", "open", "hide", "tray", "help", "clear", "stop"
             });
 
             Action<string> executeCmd = (cmd) =>

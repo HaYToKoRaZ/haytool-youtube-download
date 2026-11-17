@@ -849,7 +849,8 @@ export const tr = {
   fakap_reset_done: 'kayıt silindi.',
   fakap_disable_all_confirm: 'Tüm kanallarda Fakap kapatılacak. Emin misiniz?',
   fakap_disable_all_done: 'Tüm kanallarda Fakap kapatıldı.',
-  fakap_badge_title: 'Fakap Otomatik Yedek',
+  fakap_badge_title: 'Fakap Otomatik Yedek'
+,
     card_download_label: 'İndirilme',
   card_publish_label: 'Yayınlanma',
   card_download_time: 'İndirme',
@@ -1214,5 +1215,23 @@ export const tr = {
   label_scan_remote_startup: "Başlangıçta Uzak Durum Taraması (YT)",
   desc_scan_remote_startup: "Açılışta indirilen YouTube videolarının silinme ve liste dışı durumunu kontrol et",
   btn_filter_remote_changed: "Uzak Durumu Değişenler",
-  btn_filter_remote_changed_title: "Sadece YouTube uzak sunucu durumu değişen (silinmiş, gizli, liste dışı veya üyelere özel) yıldızlı videoları gösterir"
+  btn_filter_remote_changed_title: "Sadece YouTube uzak sunucu durumu değişen (silinmiş, gizli, liste dışı veya üyelere özel) yıldızlı videoları gösterir",
+  status_merging_short: "Birleştiriliyor",
+  remote_alert_modal_title: "{count} İndirilen Videonun Uzak Durumu Değişti",
+  remote_alert_modal_desc: "Aşağıdaki indirilmiş videoların YouTube üzerindeki durumu (Silindi / Liste Dışı / Gizli) değişti. Yerel arşivinizin korunması için bu videolar <strong>Otomatik Video Silme</strong> ve <strong>Kanal Maksimum Video Sınırı</strong> kurallarından otomatik olarak muaf tutuldu.",
+  remote_alert_btn_open_tool: "Uzak Durum Aracında Gör",
+  remote_alert_btn_later: "Sonra Hatırlat",
+  remote_alert_btn_ack: "Anladım (Tekrar Bildirme)",
+  remote_alert_exempt_badge: "🛡️ Oto-Silmeden Muaf",
+  hud_fullscreen: "Tam Ekran",
+  hud_exit_fullscreen: "Pencere Modu",
+  hud_muted: "Sessiz",
+  hud_unmuted: "Ses Açık",
+  hud_subtitles_on: "Altyazı Açık",
+  hud_subtitles_off: "Altyazı Kapalı",
+  hud_theater_on: "Sinema Modu",
+  hud_theater_off: "Normal Mod",
+  hud_seek_start: "Başa Dön",
+  hud_seek_end: "Sona Git",
+  hud_sponsor_skipped: "Sponsor Atlandı"
 };

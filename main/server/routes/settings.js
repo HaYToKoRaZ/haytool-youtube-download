@@ -843,54 +843,8 @@ router.post('/settings', localhostOnly, async (req, res) => {
     }, 100);
   }
 
-  if (speedLimitChanged && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-    const videoId = downloadQueue.activeVideoId;
-    const historyItem = db.history.find(h => h.id === videoId);
-    if (historyItem) {
-      console.log(`[Ayarlar] Hız sınırı değişti (${oldSpeedLimit} -> ${newSpeedLimit}). Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: ${historyItem.title}`);
-      addTerminalLog(`[Ayarlar] Hız sınırı değişti. Aktif indirme yeni hız sınırı ile yeniden başlatılıyor: "${historyItem.title}"`, 'info');
-      
-      const targetUrl = resolveItemDownloadUrl(historyItem);
-      downloadQueue.queue.unshift({
-        id: videoId,
-        originalId: historyItem.originalId || videoId,
-        title: historyItem.title,
-        channelId: historyItem.channelId,
-        channelName: historyItem.channelName,
-        url: targetUrl,
-        webUrl: historyItem.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
-        platform: historyItem.platform,
-        publishedAt: historyItem.publishedAt || ''
-      });
-      
-      updateHistoryItem(videoId, {
-        status: 'waiting',
-        progress: historyItem.progress || 0,
-        speed: '',
-        eta: ''
-      });
-      
-      const proc = downloadQueue.activeProcess;
-      const pid = proc.pid;
-      
-      downloadQueue.activeProcess = null;
-      downloadQueue.activeVideoId = null;
-      if (downloadQueue.activeDownloads > 0) {
-        downloadQueue.activeDownloads--;
-      }
-      
-      exec(`taskkill /F /T /PID ${pid}`, (err) => {
-        try {
-          proc.kill('SIGKILL');
-        } catch (e) {
-          // Kasıtlı sessiz: taskkill zaten süreci öldürdüyse proc.kill hata verir — bu beklenen bir durumdur.
-        }
-        
-        setTimeout(() => {
-          downloadQueue.process();
-        }, 1000);
-      });
-    }
+  if (speedLimitChanged) {
+    downloadQueue.restartActiveDownloadsForSpeedChange(oldSpeedLimit, newSpeedLimit);
   }
 
   if (db.settings.mergeType === 'merge' && !fs.existsSync(getFfmpegPath())) {
@@ -1457,38 +1411,8 @@ router.post('/settings/toggle-alt-speed', localhostOnly, async (req, res) => {
   await writeDb(db);
   broadcast('db_update', db);
   
-  if (oldSpeed !== newSpeed && downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-    const videoId = downloadQueue.activeVideoId;
-    const historyItem = db.history.find(h => h.id === videoId);
-    if (historyItem) {
-      const targetUrl = resolveItemDownloadUrl(historyItem);
-      downloadQueue.queue.unshift({
-        id: videoId,
-        originalId: historyItem.originalId || videoId,
-        title: historyItem.title,
-        channelId: historyItem.channelId,
-        channelName: historyItem.channelName,
-        url: targetUrl,
-        webUrl: historyItem.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
-        platform: historyItem.platform,
-        publishedAt: historyItem.publishedAt || ''
-      });
-      updateHistoryItem(videoId, {
-        status: 'waiting',
-        progress: historyItem.progress || 0,
-        speed: '',
-        eta: ''
-      });
-      const proc = downloadQueue.activeProcess;
-      const pid = proc.pid;
-      downloadQueue.activeProcess = null;
-      downloadQueue.activeVideoId = null;
-      if (downloadQueue.activeDownloads > 0) downloadQueue.activeDownloads--;
-      exec(`taskkill /F /T /PID ${pid}`, () => {
-        try { proc.kill('SIGKILL'); } catch (e) { /* Kasıtlı sessiz: Süreç sonlandırma hatası */ }
-        setTimeout(() => downloadQueue.process(), 1000);
-      });
-    }
+  if (oldSpeed !== newSpeed) {
+    downloadQueue.restartActiveDownloadsForSpeedChange(oldSpeed, newSpeed);
   }
   res.json({ success: true, settings: db.settings });
 });

@@ -152,6 +152,8 @@ export function fetchWithProxyWaterfall(targetUrl) {
 export function downloadChannelAvatar(url, channelName) {
   return new Promise((resolve) => {
     if (!url || !channelName) return resolve('');
+    // 900x900 (3.09 MB RGBA RAM) yerine 176x176 (~0.12 MB RGBA RAM) boyutu indir
+    const optimizedAvatarUrl = String(url).replace(/=s\d+-c/i, '=s176-c');
     const db = readDb();
     const channelDir = path.join(db.settings.downloadPath, channelName);
     const destPath = path.join(channelDir, 'avatar.jpg');
@@ -179,7 +181,7 @@ export function downloadChannelAvatar(url, channelName) {
         return resolve('');
       }
       
-      const activeUrl = proxies[proxyIdx](url);
+      const activeUrl = proxies[proxyIdx](optimizedAvatarUrl);
       let urlObj;
       try {
         urlObj = new URL(activeUrl);

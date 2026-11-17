@@ -3,6 +3,19 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.4.4] - 2026-11-17
+- **feat(queue/merge-progress):** YouTube ve birleştirme kuyruğundaki FFmpeg merge işlemi için Kuyruk sekmesinde anlık `%0–%100` canlı ilerleme çubuğu eklendi; `downloader.js` süresi FFmpeg `out_time_us` verisiyle milisaniye bazlı hesaplanıp SSE üzerinden yayınlandı.
+- **feat(remote-status/protection):** Uygulama açılışında silinen, gizlenen veya liste dışı kalan YouTube videoları için `İndirilen Videonun Uzak Durumu Değişti` uyarı penceresi eklendi (`İzle`, `YouTube`, `Sil` butonlarıyla); bu videolar Otomatik Silme ve Kanal Maksimum Video Sınırı kurallarından `Oto-Silmeden Muaf` olarak korundu.
+- **feat(extension/subscribe):** Tarayıcı eklentisi pop-up arayüzüne, herhangi bir YouTube video sayfasındayken kanalı doğrudan HaYTooL'da takip etmeyi sağlayan buton eklendi.
+- **fix(queue/resume):** Aktif indirme sürerken Alternatif Hız Limiti (Kaplumbağa Modu) veya Oyun Modu değiştirildiğinde indirme ilerlemesinin sıfırlanmaması sağlandı (`deferMerge`, `--continue` koruması ve temiz duraklatma).
+- **fix(cli/validation):** Hatalı CLI yazımlarında (`statsu` vb.) GUI'nin açılıp beyaz ekrana düşmesi engellendi; `cliSuggest.js` ve `TrayManager.IsKnownUiOrLaunchArg` ile Levenshtein yazım önerisi (`EXIT_CODE=1`) ve sıkı parametre doğrulaması eklendi.
+- **docs(readme/websites):** `README.md` dil barı gerçek bayrak ikonlarıyla güncellendi; `websites/` tanıtım sitesi ve araç/ayar envanteri `v12.4.4` özellikleriyle eşitlendi; `haytool.db*` dosyaları `.gitignore` ve `release.yml` kapsamına alındı.
+
+## [12.4.3] - 2026-11-17
+- **feat(db/sqlite):** `db.json` yerine yerleşik `node:sqlite` (`haytool.db`) WAL motoru, `diskSync.js`, `iniSync.js` ve makineye bağlı AES-256 hassas ayar şifrelemesi devreye alındı.
+- **feat(remote-status/scanner):** YouTube uzak video durum tarayıcısı (`remoteStatusScanner.js`), kart rozetleri ve araç paneli eklendi.
+- **feat(tray-console/modularization):** Sistem Tepsisi Zengin Konsolu (`ConsoleWindowController.cs`), `consoleTranslator.js` ve modüler `main/public/modules/` (filtreleme, oynatıcı, SSE, uzak durum) mimarisine geçildi.
+
 ## [12.4.2] - 2026-11-10
 - **feat(extension/turtle-mode):** Tarayıcı eklentisi açılır menüsüne (popup) tek tıkla Kaplumbağa Hız Modu (Turtle Speed / Alternatif Hız Sınırı) açma-kapatma anahtarı ve anlık hız limiti göstergesi eklendi; `/api/settings/toggle-alt-speed` uç noktasıyla senkronize edildi.
 - **feat(extension/context-menu):** Eklenti simgesi sağ tık menüsüne YouTube Ana Sayfası (`▶️`), Resmi Web Sitesi (`🌐`) ve Eklenti Ayarları (`⚙️`) ikonlu seçenekleri eklendi; `chrome.contextMenus.removeAll()` ile mükerrer kimlik kayıt hataları önlendi.

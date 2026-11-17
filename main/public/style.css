@@ -643,6 +643,8 @@ body.light-theme .sort-btn.active {
   gap: 8px;
   color: var(--text-main);
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .nav-item:hover, .tools-btn:hover {
@@ -709,6 +711,12 @@ body.light-theme .sort-btn.active {
 .nav-item[data-tab="channels"]:hover i,
 .nav-item[data-tab="channels"]:hover svg {
   transform: rotate(-15deg) scale(1.28);
+}
+
+/* 5b. Web İzle: Play Square Pop & Tilt */
+.nav-item[data-tab="webstream"]:hover i,
+.nav-item[data-tab="webstream"]:hover svg {
+  transform: scale(1.28) rotate(8deg);
 }
 
 /* 6. Araçlar: Mechanical Wrench 90-Degree Rotation */
@@ -6686,10 +6694,19 @@ body.light-theme .nav-item.pd-btn {
 }
 
 /* ==========================================
-   Plyr Player Customizations (Mor/Purple)
+   Plyr Player Customizations (Tema Uyumlu)
    ========================================== */
-:root {
-  --plyr-color-main: var(--primary);
+:root,
+body,
+body.light-theme,
+body.matrix-theme,
+body.discord-theme,
+body.youtube-theme {
+  --plyr-color-main: var(--accent-primary, var(--primary));
+}
+
+.plyr--full-ui input[type='range'] {
+  color: var(--accent-primary, var(--primary));
 }
 
 /* ==========================================
@@ -11122,7 +11139,281 @@ body.light-theme .iptv-ch-logo {
   line-height: 1.4;
 }
 
-/* Light Theme Overrides for Transient Overlay Card */
+/* Modern Volume HUD - Right Center (Dikey Bar) */
+.volume-hud-modern {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 105;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 18px 16px 18px;
+  min-width: 70px;
+  background: rgba(14, 12, 24, 0.52);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border-radius: 16px;
+  pointer-events: none;
+  user-select: none;
+  animation: volumeHudIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.volume-hud-modern.hud-exit {
+  animation: volumeHudOut 0.2s ease-in forwards;
+}
+
+@keyframes volumeHudIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(14px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+  }
+}
+
+@keyframes volumeHudOut {
+  from {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-50%) translateX(14px) scale(0.95);
+  }
+}
+
+.volume-hud-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.volume-hud-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--accent-primary);
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 8px var(--primary-glow, rgba(138, 43, 226, 0.45)));
+}
+
+.volume-hud-percent {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: 'Outfit', sans-serif;
+  color: rgba(255, 255, 255, 0.95);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+
+.volume-hud-bar-track {
+  width: 8px;
+  height: 96px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.16);
+  position: relative;
+  overflow: hidden;
+}
+
+.volume-hud-bar-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  border-radius: 4px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 10px var(--primary-glow, rgba(138, 43, 226, 0.55));
+  transition: height 0.08s ease-out;
+}
+
+/* Player Action Toast - Top-Right (Büyütülmüş & Okunaklı) */
+.player-action-toast-container {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  z-index: 106;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.iptv-slot .player-action-toast-container {
+  top: 54px;
+}
+
+.player-action-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 22px;
+  border-radius: 12px;
+  background: rgba(14, 12, 24, 0.52);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.42);
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.18rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  animation: actionToastSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  user-select: none;
+}
+
+.player-action-toast.toast-exit {
+  animation: actionToastSlideOut 0.2s ease-in forwards;
+}
+
+.player-action-toast-icon {
+  width: 26px;
+  height: 26px;
+  color: var(--accent-primary);
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 6px var(--primary-glow, rgba(138, 43, 226, 0.45)));
+}
+
+.player-action-toast-text {
+  line-height: 1.1;
+}
+
+@keyframes actionToastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(18px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes actionToastSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(18px) scale(0.94);
+  }
+}
+
+/* Center Play/Pause Bounce Indicator */
+.player-center-bounce {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 105;
+  pointer-events: none;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: rgba(14, 12, 24, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: centerBounceIn 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.player-center-bounce.bounce-exit {
+  animation: centerBounceOut 0.18s ease-in forwards;
+}
+
+.player-center-bounce-icon {
+  width: 42px;
+  height: 42px;
+  color: var(--accent-primary);
+  filter: drop-shadow(0 0 10px var(--primary-glow, rgba(138, 43, 226, 0.5)));
+}
+
+@keyframes centerBounceIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes centerBounceOut {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+
+/* Video Title Overlay - Top-Left (Seekbar ile birebir senkron belirir/kaybolur) */
+.player-video-title-overlay {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  z-index: 105;
+  pointer-events: none;
+  font-size: 0.84rem;
+  font-weight: 600;
+  font-family: 'Outfit', sans-serif;
+  color: rgba(255, 255, 255, 0.96);
+  background: rgba(14, 12, 24, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 3px solid var(--accent-primary);
+  padding: 5px 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  user-select: none;
+}
+
+:fullscreen .player-video-title-overlay.visible,
+:fullscreen .plyr:not(.plyr--hide-controls) .player-video-title-overlay,
+.plyr--fullscreen-active:not(.plyr--hide-controls) .player-video-title-overlay,
+.plyr--fullscreen-fallback .player-video-title-overlay.visible,
+.plyr--fullscreen-fallback:not(.plyr--hide-controls) .player-video-title-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+:fullscreen .plyr.plyr--hide-controls .player-video-title-overlay:not(.visible),
+.plyr--fullscreen-active.plyr--hide-controls .player-video-title-overlay:not(.visible),
+.plyr--fullscreen-fallback.plyr--hide-controls .player-video-title-overlay:not(.visible) {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* Light Theme Overrides for Transient Overlay Card and Modern Player HUD */
 body.light-theme .player-transient-card {
   background: rgba(255, 255, 255, 0.95);
   border-color: rgba(0, 0, 0, 0.08);
@@ -11132,6 +11423,218 @@ body.light-theme .player-transient-card {
 
 body.light-theme .player-transient-card .transient-desc {
   color: var(--text-muted);
+}
+
+body.light-theme .volume-hud-modern,
+body.light-theme .player-action-toast,
+body.light-theme .player-center-bounce,
+body.light-theme .player-video-title-overlay {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(0, 0, 0, 0.1);
+  border-left-color: var(--accent-primary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  color: var(--text-main);
+}
+body.light-theme .volume-hud-modern,
+body.light-theme .player-action-toast {
+  background: rgba(255, 255, 255, 0.58);
+}
+body.light-theme .volume-hud-percent {
+  color: var(--text-main);
+}
+body.light-theme .volume-hud-bar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+body.light-theme .player-action-toast {
+  color: var(--text-main);
+}
+
+/* Matrix Theme Overrides for Modern Player HUD */
+body.matrix-theme .volume-hud-modern,
+body.matrix-theme .player-action-toast,
+body.matrix-theme .player-center-bounce,
+body.matrix-theme .player-video-title-overlay {
+  background: rgba(3, 16, 5, 0.92);
+  border-color: rgba(0, 255, 65, 0.35);
+  border-left-color: var(--accent-primary);
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.25);
+}
+body.matrix-theme .volume-hud-modern,
+body.matrix-theme .player-action-toast {
+  background: rgba(3, 16, 5, 0.55);
+}
+body.matrix-theme .volume-hud-bar-track {
+  background: rgba(0, 255, 65, 0.15);
+}
+body.matrix-theme .volume-hud-percent,
+body.matrix-theme .player-action-toast,
+body.matrix-theme .player-video-title-overlay {
+  color: #e0ffe6;
+}
+
+/* Discord Theme Overrides for Modern Player HUD */
+body.discord-theme .volume-hud-modern,
+body.discord-theme .player-action-toast,
+body.discord-theme .player-center-bounce,
+body.discord-theme .player-video-title-overlay {
+  background: rgba(43, 45, 49, 0.94);
+  border-color: rgba(88, 101, 242, 0.38);
+  border-left-color: var(--accent-primary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+body.discord-theme .volume-hud-modern,
+body.discord-theme .player-action-toast {
+  background: rgba(43, 45, 49, 0.55);
+}
+body.discord-theme .volume-hud-bar-track {
+  background: rgba(255, 255, 255, 0.15);
+}
+body.discord-theme .volume-hud-percent,
+body.discord-theme .player-action-toast,
+body.discord-theme .player-video-title-overlay {
+  color: #f2f3f5;
+}
+
+/* YouTube Theme Overrides for Modern Player HUD */
+body.youtube-theme .volume-hud-modern,
+body.youtube-theme .player-action-toast,
+body.youtube-theme .player-center-bounce,
+body.youtube-theme .player-video-title-overlay {
+  background: rgba(24, 24, 24, 0.94);
+  border-color: rgba(255, 0, 0, 0.35);
+  border-left-color: var(--accent-primary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+body.youtube-theme .volume-hud-modern,
+body.youtube-theme .player-action-toast {
+  background: rgba(24, 24, 24, 0.55);
+}
+body.youtube-theme .volume-hud-bar-track {
+  background: rgba(255, 255, 255, 0.15);
+}
+body.youtube-theme .volume-hud-percent,
+body.youtube-theme .player-action-toast,
+body.youtube-theme .player-video-title-overlay {
+  color: #f1f1f1;
+}
+
+/* Plyr Hover Speed Control Strip */
+.plyr-speed-control-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.plyr-speed-btn {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.78rem !important;
+  font-weight: 700 !important;
+  min-width: 42px;
+  padding: 5px 7px !important;
+  line-height: 1 !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+  border-radius: 6px;
+}
+
+.plyr-speed-btn.is-boosted {
+  color: var(--accent-primary) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.plyr-screenshot-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 6px !important;
+  border-radius: 6px;
+}
+
+.plyr-speed-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(46px, 1fr));
+  gap: 5px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(14, 12, 24, 0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.52);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  z-index: 120;
+}
+
+.plyr-speed-popover::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 12px;
+}
+
+.plyr-speed-control-wrap:hover .plyr-speed-popover,
+.plyr-speed-control-wrap:focus-within .plyr-speed-popover {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.plyr-speed-option {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 5px 6px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.plyr-speed-option:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: var(--accent-primary);
+}
+
+.plyr-speed-option.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+  box-shadow: 0 0 10px var(--primary-glow, rgba(138, 43, 226, 0.45));
+}
+
+body.light-theme .plyr-speed-popover {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+body.light-theme .plyr-speed-option {
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+body.matrix-theme .plyr-speed-popover {
+  background: rgba(3, 16, 5, 0.88);
+  border-color: rgba(0, 255, 65, 0.35);
+}
+body.discord-theme .plyr-speed-popover {
+  background: rgba(43, 45, 49, 0.9);
+  border-color: rgba(88, 101, 242, 0.38);
+}
+body.youtube-theme .plyr-speed-popover {
+  background: rgba(24, 24, 24, 0.9);
+  border-color: rgba(255, 0, 0, 0.35);
 }
 
 /* ==========================================================================
@@ -16095,9 +16598,34 @@ body.youtube-theme .context-menu-divider {
 }
 
 .webstream-side-tab-btn.active, .webstream-empty-tab-btn.active {
-  background: rgba(239, 68, 68, 0.2) !important;
-  color: #fff !important;
+  background: var(--primary-glow, rgba(138, 43, 226, 0.22)) !important;
+  color: var(--text-main) !important;
+  border: 1px solid var(--primary) !important;
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+  box-shadow: 0 2px 8px var(--primary-glow, rgba(138, 43, 226, 0.25));
+}
+
+/* RAM & GPU Optimizasyonu: Tekrarlanan kart, buton, üst bar ve rozetlerdeki ağır backdrop-filter katmanlarını kapat (Modallar ve Video HUD'ları korunur) */
+.topbar,
+.nav-item,
+.tools-btn,
+.status-badge,
+.video-card,
+.channel-card,
+.queue-item,
+.queue-table-row,
+.card,
+.filter-chip-btn,
+.custom-dropdown-trigger,
+.history-toolbar,
+.downloaded-toolbar,
+.video-duration-badge,
+.quality-badge,
+.platform-badge,
+.iptv-slot,
+.btn,
+.btn-icon {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 

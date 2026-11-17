@@ -6,6 +6,9 @@ import fs from 'fs';
 import path from 'path';
 import { readDb, writeDb, recordDeletedVideo } from '../database.js';
 import { broadcast, addTerminalLog } from './sse.js';
+import { isRemoteStatusProtected, isStartupRemoteScanPendingOrRunning } from './remoteStatusScanner.js';
+
+export { isRemoteStatusProtected };
 
 /**
  * Bir video kaydının dosyasını ve yan dosyalarını (.jpg, .webp, .description, .srt, .vtt) diskten temizler.
@@ -94,6 +97,10 @@ export function getVideoDownloadTimestamp(item) {
 export function getVideoRemainingMs(item, db) {
   if (!item || item.status !== 'completed' || !item.filePath) return null;
 
+  // Uzak sunucuda silinmiş, gizlenmiş, liste dışı veya üyelere özel olmuş videolar
+  // otomatik silme (gün) ve kanal maksimum video sınırı kurallarından tamamen muaftır.
+  if (isRemoteStatusProtected(item)) return null;
+
   // Fakap Otomatik Yedek Saklama Süresi Kuralı
   if (item.isFakap || (item.id && String(item.id).startsWith('fakap_'))) {
     const rawFakapRetention = db.settings?.fakapRetentionDays;
@@ -151,7 +158,7 @@ export function getVideoRemainingMs(item, db) {
   let countRemainingMs = null;
   if (effectiveMaxCount > 0) {
     const channelVideos = (db.history || [])
-      .filter(h => h.channelId === item.channelId && h.status === 'completed' && h.filePath)
+      .filter(h => h.channelId === item.channelId && h.status === 'completed' && h.filePath && !isRemoteStatusProtected(h))
       .sort((a, b) => getVideoDownloadTimestamp(b) - getVideoDownloadTimestamp(a));
 
     const itemRank = channelVideos.findIndex(v => v.id === item.id);
@@ -180,7 +187,7 @@ export function getVideoRemainingMs(item, db) {
  * Silinme uyarısı veya onay modalı için videonun silinme nedenini döner.
  */
 export function getVideoAutoDeleteReason(item, db) {
-  if (!item || item.status !== 'completed' || !item.filePath) return '';
+  if (!item || item.status !== 'completed' || !item.filePath || isRemoteStatusProtected(item)) return '';
 
   if (item.isFakap || (item.id && String(item.id).startsWith('fakap_'))) {
     const rawFakapRetention = db.settings?.fakapRetentionDays;
@@ -205,7 +212,7 @@ export function getVideoAutoDeleteReason(item, db) {
   let countExpired = false;
   if (effectiveMaxCount > 0) {
     const channelVideos = (db.history || [])
-      .filter(h => h.channelId === item.channelId && h.status === 'completed' && h.filePath)
+      .filter(h => h.channelId === item.channelId && h.status === 'completed' && h.filePath && !isRemoteStatusProtected(h))
       .sort((a, b) => getVideoDownloadTimestamp(b) - getVideoDownloadTimestamp(a));
     const itemRank = channelVideos.findIndex(v => v.id === item.id);
     if (itemRank >= effectiveMaxCount) {
@@ -240,6 +247,9 @@ export function getVideoAutoDeleteReason(item, db) {
 export function checkAndProcessAutoDelete(downloadQueue) {
   if (downloadQueue && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
     return; // Aktif indirme varken ertele
+  }
+  if (isStartupRemoteScanPendingOrRunning()) {
+    return; // Açılış uzak durum taraması bitene kadar ertele (yeni silinen videoların yanlışlıkla silinmesini önler)
   }
 
   const db = readDb();
@@ -299,6 +309,7 @@ export function checkAndProcessAutoDelete(downloadQueue) {
  * @returns {Array<object>} Bekleyen video listesi
  */
 export function getPendingAutoDeleteVideos() {
+  if (isStartupRemoteScanPendingOrRunning()) return [];
   const db = readDb();
   const requireConfirm = db.settings.autoDeleteRequireConfirmation !== false;
   if (!requireConfirm) return [];

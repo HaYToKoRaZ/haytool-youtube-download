@@ -170,6 +170,7 @@ export const defaultDb = {
     customTitlebar: false,
     shortsMigrationDone: true,
     cookieDefaultMigrationDone: true,
+    channelIntervalInMinutes: true,
     downloadSpeedLimit: 0,
     useAlternativeSpeed: false,
     deferMerge: false,

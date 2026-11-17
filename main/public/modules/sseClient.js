@@ -65,6 +65,9 @@ export function connectSSE() {
     if (typeof window.checkPendingAutoDeleteOnLoad === 'function') {
       window.checkPendingAutoDeleteOnLoad();
     }
+    if (typeof window.checkStartupRemoteStatusAlertOnLoad === 'function') {
+      window.checkStartupRemoteStatusAlertOnLoad();
+    }
   };
 
   _eventSource.onerror = () => {
@@ -88,11 +91,16 @@ export function connectSSE() {
     if (typeof window.checkYouTubeAuthStatus === 'function') window.checkYouTubeAuthStatus();
   });
 
+  let dbUpdateUiTimer = null;
   _eventSource.addEventListener('db_update', (e) => {
     const db = JSON.parse(e.data);
     _ctx.setLocalDb(db);
     window.localDb = db;
-    _ctx.updateUI(db);
+    if (dbUpdateUiTimer) clearTimeout(dbUpdateUiTimer);
+    dbUpdateUiTimer = setTimeout(() => {
+      dbUpdateUiTimer = null;
+      _ctx.updateUI(_ctx.getLocalDb());
+    }, 250);
   });
 
   let historyUiUpdateTimer = null;
@@ -109,10 +117,23 @@ export function connectSSE() {
     const updateKeys = Object.keys(updates);
     const isOnlyProgressMetrics = updateKeys.length > 0 && updateKeys.every(k => ['progress', 'speed', 'eta', 'fileSize'].includes(k));
     if (isOnlyProgressMetrics) {
-      updateActiveDownloadProgress({ id, ...updates });
+      const currentItem = localDb?.history?.find(h => h.id === id);
+      const effectiveStatus = updates.status || currentItem?.status || 'downloading';
+      updateActiveDownloadProgress({ id, status: effectiveStatus, ...updates });
+      const rowEl = document.querySelector(`.queue-table-row[data-id="${id}"], .queue-item[data-id="${id}"]`);
+      if (rowEl && updates.progress !== undefined) {
+        rowEl.style.setProperty('--dl-progress', `${updates.progress}%`);
+      }
       const queueBadge = document.querySelector(`.queue-table-row[data-id="${id}"] .queue-item-status-badge span, .queue-item[data-id="${id}"] .queue-item-status-badge span`);
       if (queueBadge && updates.progress !== undefined) {
-        queueBadge.textContent = `%${updates.progress}`;
+        const lang = _ctx.getCurrentLang();
+        const t = (_ctx.getTranslations() || {})[lang] || {};
+        if (effectiveStatus === 'merging' || (rowEl && rowEl.classList.contains('queue-item-merging'))) {
+          const mergeShort = t.status_merging_short || (lang === 'en' ? 'Merging' : 'Birleştiriliyor');
+          queueBadge.textContent = `${mergeShort} %${updates.progress}`;
+        } else {
+          queueBadge.textContent = `%${updates.progress}`;
+        }
       }
       return;
     }
@@ -140,6 +161,15 @@ export function connectSSE() {
       const data = JSON.parse(e.data);
       if (typeof window.handleRemoteStatusScanProgress === 'function') {
         window.handleRemoteStatusScanProgress(data);
+      }
+    } catch (_) {}
+  });
+
+  _eventSource.addEventListener('remote_status_startup_alert', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data && Array.isArray(data.videos) && data.videos.length > 0 && typeof window.showRemoteStatusStartupAlertModal === 'function') {
+        window.showRemoteStatusStartupAlertModal(data.videos, data.summary);
       }
     } catch (_) {}
   });
@@ -279,11 +309,39 @@ export function updateActiveDownloadProgress(data) {
   if (noActiveDownload) noActiveDownload.classList.add('hidden');
   if (activeDownloadDetails) activeDownloadDetails.classList.remove('hidden');
 
+  const isMerging = data.status === 'merging';
+  const lang = _ctx.getCurrentLang();
+  const t = (_ctx.getTranslations() || {})[lang] || {};
+
   if (activeProgressBar) activeProgressBar.style.width = `${data.progress}%`;
-  if (activePercent) activePercent.textContent = `${data.progress}%`;
-  if (activeSize) activeSize.textContent = data.fileSize || '-- MB';
+  if (activePercent) {
+    if (isMerging) {
+      const mergeLabel = t.status_merging || (lang === 'en' ? 'Merging (FFmpeg)...' : 'Birleştiriliyor (FFmpeg)...');
+      activePercent.textContent = `${mergeLabel.replace(/\.+$/, '')}: %${data.progress}`;
+    } else {
+      activePercent.textContent = `${data.progress}%`;
+    }
+  }
+  if (activeSize && data.fileSize) activeSize.textContent = data.fileSize;
+  else if (activeSize && !activeSize.textContent) activeSize.textContent = '-- MB';
   if (activeEta) activeEta.textContent = data.eta || '--:--';
-  if (activeSpeed) activeSpeed.textContent = data.speed || '0 KB/s';
+  if (activeSpeed) activeSpeed.textContent = data.speed || (isMerging ? 'FFmpeg...' : '0 KB/s');
+
+  if (data.id && data.progress !== undefined) {
+    const rowEl = document.querySelector(`.queue-table-row[data-id="${data.id}"], .queue-item[data-id="${data.id}"]`);
+    if (rowEl) {
+      rowEl.style.setProperty('--dl-progress', `${data.progress}%`);
+    }
+    const queueBadge = document.querySelector(`.queue-table-row[data-id="${data.id}"] .queue-item-status-badge span, .queue-item[data-id="${data.id}"] .queue-item-status-badge span`);
+    if (queueBadge) {
+      if (isMerging || (rowEl && rowEl.classList.contains('queue-item-merging'))) {
+        const mergeShort = t.status_merging_short || (lang === 'en' ? 'Merging' : 'Birleştiriliyor');
+        queueBadge.textContent = `${mergeShort} %${data.progress}`;
+      } else {
+        queueBadge.textContent = `%${data.progress}`;
+      }
+    }
+  }
 
   const dlFill = document.getElementById('downloader-progress-fill');
   const dlPercent = document.getElementById('downloader-progress-percent');

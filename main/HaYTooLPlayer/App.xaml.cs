@@ -197,15 +197,30 @@ public partial class App : System.Windows.Application
                 {
                     if (resolvedCli.Length == 0)
                     {
-                        Environment.Exit(0);
+                        Environment.Exit(1);
                         return;
                     }
-                    if (TrayManager.TrySendHttpCliCommandStatic(resolvedCli, out string cliReply))
+                    if (TrayManager.TrySendHttpCliCommandStatic(resolvedCli, out string cliReply, out bool cliOk))
                     {
                         WriteCliConsoleOutput(cliReply);
-                        Environment.Exit(0);
+                        Environment.Exit(cliOk ? 0 : 1);
                         return;
                     }
+                }
+
+                // UI rota/protokol/pencere argümanı değilse (hatalı yazım veya bilinmeyen komut),
+                // arayüzü açıp WebView2'yi geçersiz yola yönlendirmek yerine doğrudan hata + öneri bas
+                if (e.Args != null && e.Args.Length > 0 && !TrayManager.IsKnownUiOrLaunchArg(rawArgs))
+                {
+                    if (TrayManager.TrySendHttpCliCommandStatic(rawArgs.Trim(), out string errReply, out bool cliOk))
+                    {
+                        WriteCliConsoleOutput(errReply);
+                        Environment.Exit(cliOk ? 0 : 1);
+                        return;
+                    }
+                    WriteCliConsoleOutput(TrayManager.BuildUnknownCliCommandMessage(rawArgs));
+                    Environment.Exit(1);
+                    return;
                 }
 
                 Process current = Process.GetCurrentProcess();
@@ -323,14 +338,30 @@ public partial class App : System.Windows.Application
             try { args.SetObserved(); } catch {}
         };
 
-        RootWindow = new MainWindow();
-        MainWindow mainWindow = RootWindow;
-        this.MainWindow = mainWindow;
-
         bool isSilent = TrayManager.IsSilentMode(e.Args);
         bool silentCookieMode = e.Args != null && e.Args.Any(a => a.Equals("--silent-cookie-refresh", StringComparison.OrdinalIgnoreCase) || a.Equals("REFRESH_COOKIES", StringComparison.OrdinalIgnoreCase));
         bool isTrayOnly = e.Args != null && e.Args.Any(a => a.Equals("--tray-only", StringComparison.OrdinalIgnoreCase) || a.Equals("--minimized", StringComparison.OrdinalIgnoreCase) || a.Equals("/minimized", StringComparison.OrdinalIgnoreCase));
         string? startupCliCmd = (e.Args != null && e.Args.Length > 0) ? ResolveEffectiveCliCommand(rawArgs) : null;
+
+        // Uygulama kapalıyken geçersiz/bilinmeyen CLI komutu girildiyse veya pano boşsa pencere açmadan çık
+        if (e.Args != null && e.Args.Length > 0 && startupCliCmd != null && startupCliCmd.Length == 0)
+        {
+            if (_instanceMutex != null) { try { _instanceMutex.ReleaseMutex(); } catch {} _instanceMutex.Dispose(); _instanceMutex = null; }
+            Environment.Exit(1);
+            return;
+        }
+        if (e.Args != null && e.Args.Length > 0 && !isSilent && !silentCookieMode && !isTrayOnly && startupCliCmd == null && !TrayManager.IsKnownUiOrLaunchArg(rawArgs))
+        {
+            WriteCliConsoleOutput(TrayManager.BuildUnknownCliCommandMessage(rawArgs));
+            if (_instanceMutex != null) { try { _instanceMutex.ReleaseMutex(); } catch {} _instanceMutex.Dispose(); _instanceMutex = null; }
+            Environment.Exit(1);
+            return;
+        }
+
+        RootWindow = new MainWindow();
+        MainWindow mainWindow = RootWindow;
+        this.MainWindow = mainWindow;
+
         bool isJumpListRoute = e.Args != null && e.Args.Length > 0 && rawArgs.StartsWith("/") && !isTrayOnly && !silentCookieMode && !isSilent;
 
         // Kullanıcı doğrudan exe'yi çalıştırdığında (sessiz/tepsi/CLI başlatma parametresi yoksa) arayüz açılır.
@@ -362,7 +393,7 @@ public partial class App : System.Windows.Application
                     for (int i = 0; i < 20; i++)
                     {
                         Thread.Sleep(500);
-                        if (TrayManager.TrySendHttpCliCommandStatic(cmdToRun, out string replyMsg))
+                        if (TrayManager.TrySendHttpCliCommandStatic(cmdToRun, out string replyMsg, out bool _))
                         {
                             WriteCliConsoleOutput(replyMsg);
                             break;

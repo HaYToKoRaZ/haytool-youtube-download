@@ -290,6 +290,48 @@ router.get('/video/:videoId/thumbnail', localhostOnly, async (req, res) => {
 });
 
 /**
+ * Oynatılan videonun o anki karesini PNG ekran görüntüsü olarak yakalar (Canvas CORS engeli durumunda yedek).
+ *
+ * @name GET /api/video/:videoId/screenshot
+ */
+router.get('/video/:videoId/screenshot', localhostOnly, (req, res) => {
+  const { videoId } = req.params;
+  if (!/^[a-zA-Z0-9_-]{3,64}$/.test(videoId)) {
+    return res.status(400).json({ error: 'Invalid Video ID format' });
+  }
+  const timeSec = Math.max(0, parseFloat(req.query.time) || 0);
+  const db = readDb();
+  const item = (db.history || []).find(h => h.id === videoId);
+  let filePath = item?.filePath;
+  if (!filePath || !fs.existsSync(filePath)) {
+    filePath = findVideoFileInDownloadDir(videoId);
+  }
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Video dosyası bulunamadı.' });
+  }
+  const ffmpegBin = getFfmpegPath();
+  if (!fs.existsSync(ffmpegBin)) {
+    return res.status(500).json({ error: 'FFmpeg bulunamadı.' });
+  }
+  execFile(ffmpegBin, [
+    '-y',
+    '-ss', timeSec.toFixed(3),
+    '-i', filePath,
+    '-frames:v', '1',
+    '-f', 'image2pipe',
+    '-vcodec', 'png',
+    '-'
+  ], { encoding: 'buffer', maxBuffer: 25 * 1024 * 1024 }, (err, stdout) => {
+    if (err || !stdout || stdout.length === 0) {
+      return res.status(500).json({ error: 'Kare yakalanamadı.' });
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(stdout);
+  });
+});
+
+/**
  * Belirtilen videonun alternatif kapak resimleri URL listesini ve DeArrow karelerini döner.
  * 
  * @name GET /api/video/:videoId/alt-thumbnails

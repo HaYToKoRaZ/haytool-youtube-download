@@ -1233,6 +1233,140 @@ namespace HaYTooLPlayer
             catch {}
         }
 
+        private static readonly string[] KnownCliCatalog = new[]
+        {
+            "status", "info", "durum",
+            "diag", "health", "sistem",
+            "queue", "kuyruk",
+            "errors", "hatalar",
+            "verbose", "log-api",
+            "gton", "gtoff",
+            "gameon", "gameoff", "game",
+            "merge", "merge-pause",
+            "pause", "duraklat",
+            "resume", "devam",
+            "ton", "toff", "toggle", "turtle",
+            "speed", "altspeed",
+            "pd", "paste", "pano",
+            "check", "scan", "tara",
+            "backup", "yedek",
+            "fakap", "fakap-run",
+            "play", "oynat",
+            "open", "show", "hide", "tray",
+            "stop", "exit", "clear", "help"
+        };
+
+        private static readonly HashSet<string> KnownUiRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "/", "/index.html", "/home", "/download", "/downlist", "/queue",
+            "/downloaded", "/channels", "/settings", "/iptv", "/downloader",
+            "/tools", "/webstream", "/watch", "/logout", "/logout-youtube",
+            "/tools/compare", "/tools/deleted", "/tools/categories",
+            "/tools/ape", "/tools/subscriptions", "/tools/bulk-delete", "/tools/remote-status"
+        };
+
+        public static bool IsKnownUiOrLaunchArg(string rawArgs)
+        {
+            if (string.IsNullOrWhiteSpace(rawArgs)) return true;
+            string trimmed = rawArgs.Trim();
+            string lower = trimmed.ToLowerInvariant();
+            string noPrefix = lower.TrimStart('-', '/');
+
+            if (KnownUiRoutes.Contains(trimmed)) return true;
+            if (lower.StartsWith("http://") || lower.StartsWith("https://") ||
+                lower.StartsWith("haytool://") || lower.StartsWith("haytool:") ||
+                lower.StartsWith("/play/"))
+            {
+                return true;
+            }
+
+            switch (noPrefix)
+            {
+                case "silent":
+                case "headless":
+                case "silent-cookie-refresh":
+                case "refresh_cookies":
+                case "logout":
+                case "tray-only":
+                case "minimized":
+                case "exit":
+                case "stop":
+                case "quit":
+                case "kill":
+                case "close":
+                case "hide":
+                case "min":
+                case "minimize":
+                case "show":
+                case "open":
+                case "gui":
+                case "tray":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static int ComputeLevenshteinDistance(string a, string b)
+        {
+            int m = a.Length;
+            int n = b.Length;
+            if (m == 0) return n;
+            if (n == 0) return m;
+            int[] prev = new int[n + 1];
+            int[] curr = new int[n + 1];
+            for (int j = 0; j <= n; j++) prev[j] = j;
+            for (int i = 1; i <= m; i++)
+            {
+                curr[0] = i;
+                for (int j = 1; j <= n; j++)
+                {
+                    int cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                    curr[j] = Math.Min(Math.Min(prev[j] + 1, curr[j - 1] + 1), prev[j - 1] + cost);
+                }
+                (prev, curr) = (curr, prev);
+            }
+            return prev[n];
+        }
+
+        public static string BuildUnknownCliCommandMessage(string rawCmd)
+        {
+            string trimmed = (rawCmd ?? "").Trim();
+            string first = string.IsNullOrWhiteSpace(trimmed)
+                ? ""
+                : trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant().TrimStart('-', '/');
+
+            int maxDist = first.Length <= 3 ? 1 : (first.Length <= 6 ? 2 : 3);
+            var suggestions = KnownCliCatalog
+                .Where(c => !string.Equals(c, first, StringComparison.OrdinalIgnoreCase))
+                .Select(c =>
+                {
+                    int dist = ComputeLevenshteinDistance(first, c);
+                    bool isPrefix = c.StartsWith(first, StringComparison.OrdinalIgnoreCase) || (first.Length >= 3 && first.StartsWith(c, StringComparison.OrdinalIgnoreCase));
+                    return (Candidate: c, Dist: dist, Score: isPrefix ? Math.Min(dist, 1) - 0.25 : dist, Match: dist <= maxDist || isPrefix);
+                })
+                .Where(x => x.Match)
+                .OrderBy(x => x.Score)
+                .ThenBy(x => x.Dist)
+                .ThenBy(x => x.Candidate, StringComparer.OrdinalIgnoreCase)
+                .Take(3)
+                .Select(x => x.Candidate)
+                .ToList();
+
+            bool isEn = string.Equals(MainWindow.ReadIniSetting("lang", "tr"), "en", StringComparison.OrdinalIgnoreCase);
+            if (suggestions.Count > 0)
+            {
+                string joined = string.Join(", ", suggestions);
+                return isEn
+                    ? $"[Console] Unknown command: \"{first}\". Did you mean: {joined}? Type \"help\" or \"?\" for the command reference."
+                    : $"[Console] Bilinmeyen komut: \"{first}\". Bunu mu demek istediniz: {joined}? Komut rehberi için \"help\" veya \"?\" yazabilirsiniz.";
+            }
+
+            return isEn
+                ? $"[Console] Unknown command: \"{first}\". Type \"help\" or \"?\" for the command reference."
+                : $"[Console] Bilinmeyen komut: \"{first}\". Komut rehberi için \"help\" veya \"?\" yazabilirsiniz.";
+        }
+
         public static bool IsHeadlessCliCommand(string rawCmd)
         {
             if (string.IsNullOrWhiteSpace(rawCmd)) return false;
@@ -1247,6 +1381,18 @@ namespace HaYTooLPlayer
                 case "status":
                 case "info":
                 case "durum":
+                case "diag":
+                case "health":
+                case "sistem":
+                case "queue":
+                case "kuyruk":
+                case "errors":
+                case "hatalar":
+                case "verbose":
+                case "log-api":
+                case "play":
+                case "oynat":
+                case "clear":
                 case "ton":
                 case "turtleon":
                 case "turtleac":
@@ -1318,7 +1464,13 @@ namespace HaYTooLPlayer
 
         public static bool TrySendHttpCliCommandStatic(string command, out string responseMessage)
         {
+            return TrySendHttpCliCommandStatic(command, out responseMessage, out _);
+        }
+
+        public static bool TrySendHttpCliCommandStatic(string command, out string responseMessage, out bool commandOk)
+        {
             responseMessage = "";
+            commandOk = false;
             try
             {
                 string portStr = MainWindow.ReadIniSetting("port", "4141");
@@ -1333,6 +1485,14 @@ namespace HaYTooLPlayer
                 resp.EnsureSuccessStatusCode();
                 string json = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
                 using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("ok", out var okProp) && (okProp.ValueKind == JsonValueKind.True || okProp.ValueKind == JsonValueKind.False))
+                {
+                    commandOk = okProp.GetBoolean();
+                }
+                else
+                {
+                    commandOk = true;
+                }
                 if (doc.RootElement.TryGetProperty("message", out var msgProp) && msgProp.ValueKind == JsonValueKind.String)
                 {
                     responseMessage = msgProp.GetString() ?? "";
@@ -1349,6 +1509,37 @@ namespace HaYTooLPlayer
         {
             try
             {
+                string trimmed = (command ?? "").Trim();
+                string first = string.IsNullOrWhiteSpace(trimmed)
+                    ? ""
+                    : trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant().TrimStart('-', '/');
+
+                if (first == "open" || first == "show" || first == "gui")
+                {
+                    _console.AppendLog("[GİRDİ] > " + trimmed);
+                    _mainWindow.Dispatcher.Invoke(() => _mainWindow.BringWindowToFront());
+                    _console.AppendLog("[Console] Pencere öne getiriliyor.");
+                    return;
+                }
+                if (first == "hide" || first == "min" || first == "minimize")
+                {
+                    _console.AppendLog("[GİRDİ] > " + trimmed);
+                    _mainWindow.Dispatcher.Invoke(() =>
+                    {
+                        EnsureTrayVisible();
+                        _ = _mainWindow.HideToTrayAsync();
+                    });
+                    _console.AppendLog("[Console] Pencere sistem tepsisine gizleniyor.");
+                    return;
+                }
+                if (first == "tray")
+                {
+                    _console.AppendLog("[GİRDİ] > " + trimmed);
+                    _mainWindow.Dispatcher.Invoke(() => EnsureTrayVisible());
+                    _console.AppendLog("[Console] Sistem tepsisi simgesi görünür yapıldı.");
+                    return;
+                }
+
                 if (_nodeProcess != null && !_nodeProcess.HasExited)
                 {
                     _nodeProcess.StandardInput.WriteLine(command);
@@ -1360,9 +1551,9 @@ namespace HaYTooLPlayer
                 // Backend ayrı süreç olarak çalışıyorsa HTTP /api/cli/exec üzerinden ilet
                 ThreadPool.QueueUserWorkItem(_ =>
                 {
-                    bool ok = TrySendHttpCliCommandStatic(command, out string msg);
+                    bool sent = TrySendHttpCliCommandStatic(command, out string msg, out bool _);
                     // SSE aktifse sunucu çıktısı terminal_raw olayından gelecektir; aksi halde doğrudan ekle
-                    if ((!ok || !_console.IsDetachedLogStreamActive) && !string.IsNullOrEmpty(msg))
+                    if ((!sent || !_console.IsDetachedLogStreamActive) && !string.IsNullOrEmpty(msg))
                     {
                         _console.AppendLog(msg);
                     }

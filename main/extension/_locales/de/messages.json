@@ -10,6 +10,7 @@
   "typeNoneDetected": { "message": "Keine YouTube-Seite geöffnet" },
   "btnDownloadVideo": { "message": "Video herunterladen" },
   "btnAddChannel": { "message": "Kanal abonnieren" },
+  "btnFollowVideoChannel": { "message": "Diesen Kanal abonnieren" },
   "btnOpenApp": { "message": "HaYTooL öffnen" },
   "msgSuccessDownload": { "message": "Zur Warteschlange hinzugefügt!" },
   "msgSuccessChannel": { "message": "Kanal zur Liste hinzugefügt!" },

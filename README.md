@@ -10,14 +10,25 @@
 </p>
 
 <p align="center">
-  <a href="#-english-version"><b>🇬🇧 English Version</b></a> | <a href="#-türkçe-versiyon"><b>🇹🇷 Türkçe Versiyon</b></a> | <a href="https://haytokoraz.github.io/haytool-youtube-download/" target="_blank"><b>🌐 Official Website</b></a> | <a href="https://haytokoraz.github.io/" target="_blank"><b>🌟 All Apps / Tüm Uygulamalar</b></a>
+  <a href="#english-version"><img src="main/public/flags/gb.png" width="22" height="15" alt="UK Flag" style="vertical-align: -2px; border-radius: 2px;" /> <b>English Version</b></a> &nbsp;|&nbsp; <a href="#turkce-versiyon"><img src="main/public/flags/tr.png" width="22" height="15" alt="TR Flag" style="vertical-align: -2px; border-radius: 2px;" /> <b>Türkçe Versiyon</b></a> &nbsp;|&nbsp; <a href="https://haytokoraz.github.io/haytool-youtube-download/" target="_blank"><b>🌐 Official Website</b></a> &nbsp;|&nbsp; <a href="https://haytokoraz.github.io/" target="_blank"><b>🌟 All Apps / Tüm Uygulamalar</b></a>
+</p>
+
+<p align="center">
+  <b>🌍 7 UI & Extension Languages / 7 Arayüz & Eklenti Dili:</b>&nbsp;
+  <img src="main/public/flags/tr.png" width="18" height="12" alt="TR" style="vertical-align: -1px; border-radius: 2px;" /> Türkçe &nbsp;·&nbsp;
+  <img src="main/public/flags/gb.png" width="18" height="12" alt="EN" style="vertical-align: -1px; border-radius: 2px;" /> English &nbsp;·&nbsp;
+  <img src="main/public/flags/de.png" width="18" height="12" alt="DE" style="vertical-align: -1px; border-radius: 2px;" /> Deutsch &nbsp;·&nbsp;
+  <img src="main/public/flags/es.png" width="18" height="12" alt="ES" style="vertical-align: -1px; border-radius: 2px;" /> Español &nbsp;·&nbsp;
+  <img src="main/public/flags/pt.png" width="18" height="12" alt="PT" style="vertical-align: -1px; border-radius: 2px;" /> Português &nbsp;·&nbsp;
+  <img src="main/public/flags/ru.png" width="18" height="12" alt="RU" style="vertical-align: -1px; border-radius: 2px;" /> Русский &nbsp;·&nbsp;
+  <img src="main/public/flags/sa.png" width="18" height="12" alt="AR" style="vertical-align: -1px; border-radius: 2px;" /> العربية
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Status" />
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20CachyOS-blue?style=for-the-badge" alt="Platform" />
   <img src="https://img.shields.io/badge/Language-Node.js%20%7C%20Vanilla%20JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="Language" />
-  <img src="https://img.shields.io/badge/Database-JSON%20(Lowdb%20Logic)-red?style=for-the-badge&logo=json" alt="Database" />
+  <img src="https://img.shields.io/badge/Database-SQLite%20(WAL%20%2B%20AES--256)%20%7C%20JSON-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="Database" />
   <br>
   <img src="https://img.shields.io/badge/UI-Vanilla%20CSS3%20%7C%20Lucide%20Icons-1572B6?style=for-the-badge&logo=css3" alt="UI" />
   <img src="https://img.shields.io/badge/Player-Plyr-ff0000?style=for-the-badge&logo=youtube" alt="Players" />
@@ -30,7 +41,10 @@
 
 ---
 
-# 🇬🇧 English Version
+<a id="english-version"></a>
+<a id="-english-version"></a>
+
+# <img src="main/public/flags/gb.png" width="28" height="20" alt="UK Flag" style="vertical-align: -3px; border-radius: 3px;" /> English Version
 
 ## 🎯 Core Philosophy
 
@@ -72,7 +86,45 @@
 * **YouTube Watch History Sync:** While watching locally, your playback position is periodically synced to your actual YouTube watch history (30s interval + on pause/close). Deleting a video with "also mark as watched" uses the real video duration, so YouTube shows it as fully watched — not just appended to history.
 * **WebView2 Built-in Cookie System:** Session cookies are captured from the built-in WebView2 player window — no browser extensions or third-party cookie files needed. Use "Sign in to YouTube" from the tray or Settings to log in securely inside the app; cookies are kept alive with automatic background refresh.
 * **Web Video & Series Streamer ("Web Watch" Tab):** Dedicated tab with embedded YouTube-style split player layout to watch external video streams directly. Automatically unpacks Dean Edwards packed JavaScript, bypasses betting/ad banners, resolves iframes, and plays HLS (.m3u8) / MP4 streams ad-free with history tracking.
-* **Smart Browser Extension Integration:** Chrome/Chromium extension with one-click URL transmission. Right-click any link or page to send it straight to the desktop Multimedia HaYTooL app via Windows foreground IPC bridge, along with instant Turtle speed toggling.
+* **Smart Browser Extension Integration:** Chrome/Chromium extension with one-click URL transmission. Right-click any link or page to send it straight to the desktop Multimedia HaYTooL app via Windows foreground IPC bridge, along with instant Turtle speed toggling and **direct channel following ("➕ Follow This Channel") right from any YouTube video page**.
+* **YouTube Remote Status Scanner & Archive Protection (`🛡️ Exempt`):** Automatically scans your downloaded YouTube videos on startup (or on demand) to detect videos that became **Deleted/Removed**, **Unlisted**, **Private**, or **Members-Only** on YouTube. Marks changed videos with a `★` status badge, displays a rich startup alert modal with Watch / YouTube / Delete actions, and **automatically exempts them from Auto-Delete (days) and Channel Max Video Limits** so your irreplaceable archive copies are never lost.
+* **Game Mode (Deferred FFmpeg Merge Queue) & Live Merge Progress (`%0–%100`):** Enable Game Mode to download raw video/audio streams at full speed with **0% FFmpeg CPU/GPU load** while gaming, then merge them sequentially afterward. During standard downloads, the Queue tab displays real-time **FFmpeg merge percentage (`%0 → %100`), disk muxing speed (`MB/s`), and ETA**.
+* **Lossless Speed-Limit Switching & Pause/Resume (`--continue`):** Toggle Turtle Mode, adjust KB/s speed limits, or pause/resume active downloads on the fly without resetting progress to `0%`—partial `.part`/`.ytdl` streams and custom format selections are preserved seamlessly.
+* **Fakap Auto-Backup Archive:** Independent low-resolution (`144p` / `240p` / `360p`) automatic backup copy engine with its own dedicated storage directory and custom retention period.
+* **AI Video Summaries & Voice Read-Aloud (TTS):** Generates clean, timestamp-free narrative summaries from video subtitles using **LM Studio (Local), Ollama / Local GGUF, Groq (Llama 3.3), Google Gemini Flash**, or the built-in **API-free NLP engine**, with AES-256 encrypted local API key storage and TTS voice playback.
+* **IPTV Multi-Screen Live TV & PVR Recording:** Watch up to 4 concurrent live TV streams in a quad-split grid, filter channels by category, and record live streams directly to disk.
+
+---
+
+## 🧰 Quick Tools Menu & 10-Category Settings Panel
+
+### 🔧 Built-in Tools Dropdown (`Tools` Menu)
+| Tool | Function |
+| :--- | :--- |
+| **📋 PD (Paste & Download)** | Instantly reads the clipboard URL and enqueues it for download |
+| **🎬 Multi-Platform Downloader** | Downloads from YouTube, TikTok, X (Twitter), Instagram, Facebook, Twitch, Kick, Vimeo, Dailymotion & Reddit with custom quality/MP3 bitrate |
+| **🍿 Web Video & Series Streamer** | Multi-engine stream extractor (Smart Sandbox / CloseLoad / JWPlayer worker, `yt-dlp`, Regex, Iframe) + cross-site movie/series search & audio language switcher |
+| **🔄 Folder Comparison & 1-Click Sync** | Compares physical files on disk against SQLite records to import untracked files, clean unrelated files, or flag missing videos |
+| **📡 Remote Status Check (YT)** | Audits downloaded YouTube videos against YouTube servers (`Deleted`, `Unlisted`, `Private`, `Members-Only`) with `🛡️ Exempt` auto-delete protection |
+| **🏷️ Channel Categories Manager** | Organizes followed channels into custom categories (`categories.ini`) for multi-tag filtering |
+| **👁️ APE — Mark as Watched** | Marks single videos or entire channels (last 1–200 videos) as watched locally and in your real YouTube Watch History |
+| **🧩 Browser Extension Guide** | One-click setup modal for Chrome, Edge, Brave, Helium & Opera (Manifest V3) |
+| **👥 YouTube Subscriptions Importer** | Pulls your real YouTube subscriptions list so you can follow channels in HaYTooL with one click |
+| **🗑️ Deleted Videos History** | Lists the last 100 deleted videos (manual or auto-deleted) with one-click re-download |
+| **📦 Fakap (Auto-Backups)** | Dedicated viewer and manager for low-resolution automatic archive copies |
+| **💻 Live System Console & 🌐 Active DNS** | Real-time SSE log console with CLI command runner + active network adapter & DNS latency inspector |
+
+### ⚙️ Categorized Settings Architecture (with Instant Search)
+1. **General & Appearance:** 7 languages, 5 themes (`Dark`, `Light`, `Matrix`, `Discord`, `YouTube`), custom frameless titlebar, **Tray UI Sleep Mode** (unloads WebView2 RAM/GPU when closed to tray), and **Topbar Live Weather & Precipitation Popover** (GPS / city search).
+2. **Download & Hardware Acceleration:** SSD Temp Staging (mechanical HDD protection), FFmpeg GPU encoding (`NVIDIA NVENC`, `Intel QSV`, `AMD AMF`, `CPU`), **Game Mode**, normal & Turtle (`🐢`) speed limits, preferred audio dubbing language, and OS sleep prevention.
+3. **Library & Storage:** Auto-Delete by retention days & **Per-Channel Max Video Count (`autoDeleteMaxCount`)**, confirmation & postpone modal (`1m` to `3d`), and **3-Tier Disk Sync** (`Fast Existence`, `Smart FFprobe`, `Full FFprobe`).
+4. **Automation & Channels:** RSS check interval, per-channel Shorts duration limit, **Live Stream & Premiere VOD handling** (`Instant Retry`, `VOD Only`, `Ignore`), startup channel scan, **Startup Remote Status Scan (YT)**, and Fakap master controls.
+5. **Player:** Zero-lag C# WebView2 virtual-host disk playback, SponsorBlock, Return YouTube Dislike (RYD), 11-language subtitle translation & 12-color styling, Theater Mode & Floating PiP window.
+6. **YouTube Account:** Built-in WebView2 login, automatic background cookie health check & silent refresh (`15m`–`12h`), and bidirectional watchtime sync.
+7. **Notifications & Integration:** Hero-image Windows Toast notifications, `haytool://play/{id}` click-to-play protocol registration, 7 completion sound profiles, 1-click **Windows `PATH` (`HKCU\Environment\Path`)** CLI installer, and Discord Rich Presence.
+8. **System & Engine:** SSD-friendly Proxy Waterfall duration lookup, `yt-dlp` Standalone EXE vs System Python mode, and `yt-dlp` Nightly/Stable version switcher with startup auto-update.
+9. **Backup & Cloud Sync:** Automatic daily `.zip` backup rotation (`10 normal + 7 daily protected = 17 max`) and **GitHub Gist Online Cloud Sync** (Push / Pull / Auto-sync).
+10. **AI & Voice:** AI subtitle summarization (**LM Studio**, **Ollama / GGUF**, **Groq**, **Google Gemini Flash**, or **API-free NLP**) + TTS voice reader.
 
 ---
 
@@ -191,10 +243,11 @@ You can manage download queues, Game Mode (deferred FFmpeg merge), speeds, launc
 
 ## 📂 Configuration Files
 
+* **`haytool.db`:** Primary high-performance local **SQLite database** (WAL mode + AES-256 encrypted secrets) storing download history, channels, queue state, and metadata.
 * **`configwin.ini`:** Windows-specific parameters (download path, port, alternative speed toggle).
 * **`configunix.ini`:** Linux/macOS-specific parameters.
-* **`channels.ini`:** Monitored channels list and their download rules.
-* **`db.json`:** Lightweight local database storing download history, queue state, and metadata.
+* **`channels.ini` & `categories.ini`:** Monitored channels list, per-channel download/retention rules, and custom channel categories.
+* **`db.json`:** Legacy/backup JSON snapshot format supported inside `.zip` system backups and GitHub Gist sync.
 
 ---
 
@@ -210,7 +263,10 @@ You can manage download queues, Game Mode (deferred FFmpeg merge), speeds, launc
 ---
 ---
 
-# 🇹🇷 Türkçe Versiyon
+<a id="turkce-versiyon"></a>
+<a id="-türkçe-versiyon"></a>
+
+# <img src="main/public/flags/tr.png" width="28" height="20" alt="TR Flag" style="vertical-align: -3px; border-radius: 3px;" /> Türkçe Versiyon
 
 ## 🎯 Temel Felsefe
 
@@ -252,7 +308,45 @@ You can manage download queues, Game Mode (deferred FFmpeg merge), speeds, launc
 * **YouTube İzleme Geçmişi Senkronu:** Videoları yerel oynatıcıda izlerken oynatma konumunuz gerçek YouTube izleme geçmişinize periyodik olarak eşitlenir (30 sn'de bir + durdurma/kapatmada). "YouTube'da da izlendi olarak işaretle" ile silinen videolar gerçek süreleri kullanılarak YouTube'da tamamen izlenmiş olarak gösterilir — yalnızca geçmişe eklenmez.
 * **WebView2 Yerleşik Çerez Sistemi:** Oturum çerezleri yerleşik WebView2 oynatıcı penceresinden alınır — tarayıcı eklentisi veya harici çerez dosyası gerekmez. Tepsi veya Ayarlar'daki "YouTube'da Oturum Aç" ile uygulama içinde güvenle oturum açabilirsiniz; çerezler arka planda otomatik yenilemeyle canlı tutulur.
 * **Web Video & Dizi Çözücü ("Web İzle" Sekmesi):** Ayrı bir sekme ve yerleşik YouTube tarzı bölünmüş oynatıcı düzeniyle Dizipal, Vidmoly ve popüler dizi/film sitelerindeki şifreli (packed) JS kodlarını ve iframe kaynaklarını çözer; bahis reklam videolarını filtreleyerek akışı doğrudan masaüstü uygulamasında reklamsız oynatır.
-* **Akıllı Tarayıcı Eklentisi Entegrasyonu:** Chrome/Chromium tarayıcı eklentisiyle web'de gezinirken tek tıkla veya sağ tık menüsünden herhangi bir sayfayı/linki doğrudan masaüstü Multimedia HaYTooL uygulamasına gönderin; Windows API köprüsüyle uygulama otomatik öne gelerek oynatmayı başlatır. Ayrıca tek tıkla Kaplumbağa hız sınırı yönetimi sunar.
+* **Akıllı Tarayıcı Eklentisi Entegrasyonu:** Chrome/Chromium tarayıcı eklentisiyle web'de gezinirken tek tıkla veya sağ tık menüsünden herhangi bir sayfayı/linki doğrudan masaüstü Multimedia HaYTooL uygulamasına gönderin; Windows API köprüsüyle uygulama otomatik öne gelerek oynatmayı başlatır. Ayrıca tek tıkla Kaplumbağa hız sınırı yönetimi ve **YouTube video sayfasındayken doğrudan "➕ Bu Kanalı Takibe Al"** seçeneği sunar.
+* **YouTube Uzak Durum Tarayıcısı & Arşiv Koruması (`🛡️ Muaf`):** İndirilen YouTube videolarınızı sistem açılışında (veya manuel olarak) tarayarak YouTube'da **Silinen / Kaldırılan**, **Liste Dışı**, **Gizli** veya **Üyelere Özel** duruma geçenleri tespit eder. Video kartlarına `★` rozeti ekler, açılışta İzle / YouTube / Sil butonlu uyarı penceresi gösterir ve bu videoları **Otomatik Video Silme (Gün) ile Kanal Maksimum Video Sınırı kurallarından otomatik olarak muaf tutar**.
+* **Oyun Modu (Ertelenmiş FFmpeg Birleştirme) & Canlı Birleştirme Yüzdesi (`%0–%100`):** Oyun oynarken videoları **%0 FFmpeg işlemci/ekran kartı yüküyle** tam hızda ham akış olarak indirip birleştirmeyi sonraya erteleyebilirsiniz. Normal indirmelerde ise Kuyruk sekmesinde gerçek zamanlı **FFmpeg birleştirme yüzdesi (`%0 → %100`), disk birleştirme hızı (`MB/s`) ve kalan süre (ETA)** canlı gösterilir.
+* **Kayıpsız Hız Sınırı Değişimi & Duraklat/Devam Ettir (`--continue`):** Aktif indirme sürerken Kaplumbağa Modunu açıp kapatabilir, hız sınırını değiştirebilir veya kuyruğu duraklatıp devam ettirebilirsiniz; `.part`/`.ytdl` dosyaları ve seçili format korunarak indirme `%0`'a düşmeden kaldığı yerden devam eder.
+* **Fakap Otomatik Yedekleme Arşivi:** Takip edilen kanalların videolarını bağımsız bir klasöre düşük çözünürlükte (`144p` / `240p` / `360p`) otomatik yedekleyen ve kendine özel saklama süresi bulunan ikincil arşiv motoru.
+* **Yapay Zekâ (AI) Video Özeti & Sesli Okuma (TTS):** Altyazılardan zaman damgasız akıcı konu özeti çıkarır; **LM Studio (Yerel), Ollama / Yerel GGUF, Groq (Llama 3.3), Google Gemini Flash** veya **Apisiz Doğal Dil Motoru** ile çalışır (API anahtarları AES-256 ile şifrelenir).
+* **IPTV Çoklu Canlı TV & PVR Kayıt:** 4 ekrana kadar eşzamanlı canlı yayın izleme, kategori filtreleme ve canlı yayınları doğrudan diske kaydetme (PVR).
+
+---
+
+## 🧰 Hızlı Araçlar Menüsü & 10 Kategorili Ayarlar Mimarisi
+
+### 🔧 Üst Bar "Araçlar" Açılır Menüsü (12 Entegre Araç)
+| Araç | Görevi |
+| :--- | :--- |
+| **📋 PD (Yapıştır & İndir)** | Panodaki bağlantıyı tek tıkla okuyup doğrudan indirme kuyruğuna ekler |
+| **🎬 Çoklu Platform Downloader** | YouTube, TikTok, X (Twitter), Instagram, Facebook, Twitch, Kick, Vimeo, Dailymotion ve Reddit'ten özel çözünürlük / MP3 bitrate seçimiyle indirir |
+| **🍿 Web Video & Dizi Çözücü** | Çoklu motor (Akıllı Sandbox / CloseLoad / JWPlayer işçisi, `yt-dlp`, Regex kazıyıcı, Iframe), kaynak sitelerde film/dizi arama ve Türkçe Dublaj / Orijinal ses seçimi |
+| **🔄 Dosya Karşılaştırma & Senkron** | İndirme klasöründeki fiziksel dosyalarla SQLite veritabanını karşılaştırır; yetim dosyaları içeri aktarır, alakasız dosyaları ve boş klasörleri temizler |
+| **📡 Uzak Durum Kontrolü (YT)** | İndirilmiş YouTube videolarının silinme, gizlenme ve liste dışı kalma durumunu denetler; `🛡️ Oto-Silmeden Muaf` koruması sağlar |
+| **🏷️ Kanal Kategorilerini Düzenleme** | Kanalları özel kategorilere (`categories.ini`) ayırarak Kütüphane ve İndirilenler'de çoklu filtreleme sunar |
+| **👁️ APE — İzlendi İşaretleme** | Tekil videoları veya bir kanalın son 1–200 videosunu tek tıkla kütüphanede ve gerçek YouTube geçmişinizde izlendi işaretler |
+| **🧩 Tarayıcı Eklentisi Rehberi** | Chrome, Edge, Brave, Helium ve Opera için tek tıkla klasör seçili Manifest V3 kurulum rehberi |
+| **👥 YouTube Abonelikleri** | Gerçek YouTube hesabınızdaki abonelikleri çekerek tek tıkla HaYTooL'da takibe almanızı sağlar |
+| **🗑️ Silinen Videolar** | Son 100 silinen videoyu (manuel veya oto-silme) listeler ve tek tıkla yeniden indirme imkânı verir |
+| **📦 Fakap (Yedekler)** | Düşük çözünürlüklü otomatik yedek kopyalarını bağımsız sayfada listeler ve oynatır |
+| **💻 Sistem Konsolu (Live) & 🌐 Aktif DNS** | Canlı SSE log ekranı, interaktif CLI komut satırı ve aktif ağ/DNS gecikme analizi |
+
+### ⚙️ 10 Kategorili Modern Ayarlar Paneli (Anlık Arama Destekli)
+1. **Genel & Görünüm:** 7 dil, 5 dinamik tema (`Koyu`, `Açık`, `Matrix`, `Discord`, `YouTube`), çerçevesiz modern pencere başlığı, **Tepsiye Küçültüldüğünde Arayüzü Uyutma (RAM/GPU Tasarrufu)** ve **Üst Bar Canlı Hava Durumu & Yağış İhtimali Popover'ı** (GPS / şehir arama).
+2. **İndirme:** **SSD Tamponlama (Mekanik Harici HDD Koruma Modu)**, FFmpeg GPU donanım hızlandırma (`NVIDIA NVENC`, `Intel QSV`, `AMD AMF`, `CPU`), **Oyun Modu**, normal ve Kaplumbağa (`🐢`) hız sınırları, öncelikli ses/dublaj dili ve indirirken uykuyu engelleme.
+3. **Kütüphane & Depolama:** Gün bazlı otomatik silme, **Kanal Başına Maksimum Video Sınırı (`autoDeleteMaxCount`)**, silme öncesi onay ve erteleme penceresi (`1dk`–`3g`), **3 Kademeli Disk Senkronizasyonu** (`Hızlı Varlık`, `Akıllı FFprobe`, `Tam FFprobe`).
+4. **Otomasyon & Kanallar:** RSS tarama aralığı, Shorts süre sınırı, **Canlı Yayın & Prömiyer VOD Yönetimi** (`Anında İndir & Tekrar Dene`, `Sadece VOD`, `Göz Ardı Et`), açılış kanal taraması, **Başlangıçta Uzak Durum Taraması (YT)** ve Fakap genel anahtarı.
+5. **Oynatıcı:** Sıfır gecikmeli C# WebView2 disk oynatımı, SponsorBlock, Return YouTube Dislike (RYD), 11 dilde altyazı çevirisi, 12 renk/boyut ayarı, Sinema Modu ve Yüzen PiP oynatıcı.
+6. **YouTube Hesabı:** Yerleşik WebView2 oturum açma, arka planda periyodik çerez sağlık denetimi ve sessiz yenileme (`15dk`–`12sa`), çift yönlü izleme süresi senkronu.
+7. **Bildirim & Entegrasyon:** Kapak görselli Windows bildirimleri, `haytool://play/{id}` tek tıkla oynatma protokolü, 7 farklı bildirim sesi, tek tıkla **Windows `PATH` (`HKCU\Environment\Path`)** CLI entegrasyonu ve Discord Rich Presence.
+8. **Sistem & Motor:** SSD dostu Proxy Waterfall süre sorgulama, `yt-dlp` Standalone EXE veya Sistem Python modu, `yt-dlp` Nightly/Stable sürüm seçici ve açılışta otomatik güncelleme.
+9. **Yedekleme & Senkronizasyon:** Otomatik günlük `.zip` sistem yedeği rotasyonu (`10 Normal + 7 Günlük Korunan = Maks 17 Yedek`) ve **GitHub Gist Çevrimiçi (Online) Bulut Senkronizasyonu** (Push / Pull / Otomatik).
+10. **Yapay Zekâ & Ses:** Altyazıdan AI video özeti (**LM Studio**, **Ollama / GGUF**, **Groq**, **Google Gemini Flash** veya **Apisiz NLP**) ve sesli okuma (TTS).
 
 ---
 
@@ -371,10 +465,11 @@ Oynatıcı aktifken, aşağıdaki kısayollar ile oynatımı kontrol edebilirsin
 
 ## 📂 Yapılandırma Dosyaları
 
+* **`haytool.db`:** İndirme geçmişi, kanallar, kuyruk durumu ve şifreli anahtarları (AES-256) barındıran yüksek performanslı yerel **SQLite (WAL modu) veritabanı**.
 * **`configwin.ini`:** Windows işletim sisteminde çalışırken kullanılan ayarlar (indirme yolu, port, alternatif hız durumu).
 * **`configunix.ini`:** Linux/macOS işletim sistemlerinde çalışırken kullanılan ayarlar.
-* **`channels.ini`:** Takip edilen kanalların listesi ve indirme kuralları.
-* **`db.json`:** İndirme geçmişi, kuyruk ve veritabanı şablonunu barındıran yerel veritabanı dosyası.
+* **`channels.ini` & `categories.ini`:** Takip edilen kanalların listesi, kanala özel indirme/silme kuralları ve kategori tanımları.
+* **`db.json`:** `.zip` sistem yedekleri ve GitHub Gist bulut senkronizasyonu içinde kullanılan taşınabilir JSON anlık görüntü formatı.
 
 ---
 

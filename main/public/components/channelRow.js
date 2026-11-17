@@ -392,6 +392,10 @@ export function buildChannelCardElement(channel, categories, t) {
           <img 
             id="${avatarImgId}"
             class="channel-card-avatar-img"
+            width="56"
+            height="56"
+            loading="lazy"
+            decoding="async"
             src="/api/channels/${channel.id}/avatar"
             alt="${escapeHtml(channel.name)}"
             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"

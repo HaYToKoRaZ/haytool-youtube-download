@@ -123,7 +123,7 @@
   </div>
   <!-- Otomatik Silme Toplu Onay ve Erteleme Modalı -->
   <div id="auto-delete-confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="auto-delete-modal-title" style="z-index: 10005;">
-    <div class="modal-content card" style="max-width: 780px; width: 95%; max-height: 88vh; display: flex; flex-direction: column;">
+    <div class="modal-content card" style="max-width: 960px; width: 96%; max-height: 88vh; display: flex; flex-direction: column;">
       <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
         <h3 style="display: flex; align-items: center; gap: 8px; color: var(--accent-red); margin: 0; font-size: 1.15rem;">
           <i data-lucide="alert-triangle"></i>
@@ -162,6 +162,47 @@
           <button class="btn btn-primary btn-sm" id="btn-confirm-auto-delete-all" onclick="confirmAutoDeleteAll()" style="padding: 5px 12px; font-size: 0.78rem; white-space: nowrap; background: linear-gradient(135deg, var(--accent-red), #ff4d88); box-shadow: 0 4px 15px var(--accent-red-glow);">
             <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
             <span id="btn-text-confirm-auto-delete">Tümünü Şimdi Sil</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Açılışta Uzak Durumu Değişen Videolar Uyarı ve Koruma Modalı -->
+  <div id="remote-status-alert-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="remote-status-alert-modal-title" style="z-index: 10006;">
+    <div class="modal-content card" style="max-width: 960px; width: 96%; max-height: 88vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+        <h3 style="display: flex; align-items: center; gap: 8px; color: #f59e0b; margin: 0; font-size: 1.15rem;">
+          <span style="font-size: 1.2rem; line-height: 1; filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.55));">★</span>
+          <span id="remote-status-alert-modal-title">Uzak Sunucu Durumu Değişen Videolar</span>
+        </h3>
+        <button class="modal-close-btn" id="close-remote-status-alert-modal-btn" onclick="acknowledgeRemoteStatusAlert(false)" aria-label="Kapat">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 16px 0; overflow-y: auto; flex: 1;">
+        <div id="remote-status-alert-protection-banner" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 12px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; font-size: 0.83rem; line-height: 1.4;">
+          <i data-lucide="shield-check" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
+          <span id="remote-status-alert-modal-desc">
+            Aşağıdaki indirilmiş videoların YouTube üzerindeki durumu (Silindi / Liste Dışı / Gizli) değişti. Yerel arşivinizin korunması için bu videolar <strong>Otomatik Video Silme</strong> ve <strong>Kanal Maksimum Video Sınırı</strong> kurallarından otomatik olarak muaf tutuldu.
+          </span>
+        </div>
+        <div id="remote-status-alert-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; padding-right: 4px;">
+          <!-- JS ile doldurulacak video kartları -->
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 6px;">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-remote-alert-open-tool" onclick="openRemoteStatusToolFromAlert()" style="padding: 6px 12px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px;">
+          <i data-lucide="globe" style="width: 14px; height: 14px;"></i>
+          <span id="btn-text-remote-alert-open-tool">Uzak Durum Aracında Gör</span>
+        </button>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-remote-alert-later" onclick="acknowledgeRemoteStatusAlert(false)" style="padding: 6px 12px; font-size: 0.78rem;">
+            <span id="btn-text-remote-alert-later">Sonra Hatırlat</span>
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-remote-alert-ack-permanent" onclick="acknowledgeRemoteStatusAlert(true)" style="padding: 6px 14px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px;">
+            <i data-lucide="check-circle-2" style="width: 14px; height: 14px;"></i>
+            <span id="btn-text-remote-alert-ack">Anladım (Tekrar Bildirme)</span>
           </button>
         </div>
       </div>

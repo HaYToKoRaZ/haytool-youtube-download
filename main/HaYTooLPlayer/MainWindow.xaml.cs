@@ -266,6 +266,7 @@ namespace HaYTooLPlayer
                 cookieKeepaliveTimer.Interval = TimeSpan.FromMinutes(15);
                 cookieKeepaliveTimer.Tick += async (s, e) =>
                 {
+                    if (_uiUnloaded) return;
                     try
                     {
                         await SyncYouTubeCookiesToFileAsync();
@@ -282,6 +283,9 @@ namespace HaYTooLPlayer
 
         [DllImport("user32.dll")]
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("kernel32.dll")]
+        private static extern bool SetProcessWorkingSetSize(IntPtr proc, int min, int max);
 
         private const int SW_MAXIMIZE = 3;
         private const int SW_SHOW = 5;
@@ -340,10 +344,23 @@ namespace HaYTooLPlayer
                         webView.CoreWebView2.MemoryUsageTargetLevel = CoreWebView2MemoryUsageTargetLevel.Low;
                     }
                     catch {}
+                    await System.Threading.Tasks.Task.Delay(300);
+                    try
+                    {
+                        await webView.CoreWebView2.TrySuspendAsync();
+                    }
+                    catch {}
                 }
             }
             catch {}
             this.Hide();
+            try
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                SetProcessWorkingSetSize(Process.GetCurrentProcess().Handle, -1, -1);
+            }
+            catch {}
         }
 
         public bool RestoreUiIfUnloaded(string? targetPath = null)
@@ -466,7 +483,7 @@ namespace HaYTooLPlayer
                             {
                                 if (path == "REFRESH_COOKIES" || path == "--silent-cookie-refresh")
                                 {
-                                    SyncYouTubeCookiesToFileAsync();
+                                    OpenYouTubeCookieWindow("https://www.youtube.com", true);
                                 }
                                 return;
                             }
@@ -689,8 +706,8 @@ namespace HaYTooLPlayer
                 string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), profileName);
                 bool useCpuRender = ReadIniSetting("playerGpuMode", "gpu").Equals("cpu", StringComparison.OrdinalIgnoreCase);
                 string browserArgs = useCpuRender
-                    ? "--autoplay-policy=no-user-gesture-required --disable-gpu --disable-gpu-compositing --disable-accelerated-video-decode"
-                    : "--autoplay-policy=no-user-gesture-required --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist";
+                    ? "--autoplay-policy=no-user-gesture-required --disk-cache-size=52428800 --disable-gpu --disable-gpu-compositing --disable-accelerated-video-decode"
+                    : "--autoplay-policy=no-user-gesture-required --disk-cache-size=52428800 --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist";
                 var options = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions(browserArgs);
                 var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
 
@@ -722,7 +739,7 @@ namespace HaYTooLPlayer
                 string debugLogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wv2_debug.log");
                 try { File.AppendAllText(debugLogFile, $"[{DateTime.Now}] WebView2 Initialized.\n"); } catch {}
 
-                // JavaScript Konsol Logları ve Sayfa Hatalarını Yakala
+                // JavaScript Hata Loglarını Yakala (console.log IPC yükünü kaldır, yalnızca gerçek hataları yaz)
                 await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(@"
                     (function() {
                         window.__IS_HAYTOOL_DESKTOP__ = true;
@@ -733,20 +750,10 @@ namespace HaYTooLPlayer
                                 }
                             } catch(e) {}
                         };
-                        const origLog = console.log;
                         const origErr = console.error;
-                        const origWarn = console.warn;
-                        console.log = function(...args) {
-                            origLog.apply(console, args);
-                            sendLog('log', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
-                        };
                         console.error = function(...args) {
                             origErr.apply(console, args);
                             sendLog('error', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
-                        };
-                        console.warn = function(...args) {
-                            origWarn.apply(console, args);
-                            sendLog('warn', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
                         };
                         window.addEventListener('error', function(e) {
                             sendLog('uncaught_error', e.message + ' at ' + e.filename + ':' + e.lineno);
@@ -801,18 +808,12 @@ namespace HaYTooLPlayer
                     else
                     {
                         // Normal arayüz açılışında UI thread'i kilitlemeden arka planda çerezleri kontrol et
+                        // (Gizli 2. WebView2 penceresi RAM sıçramasına yol açtığı için kaldırıldı; çerezler doğrudan CookieManager'dan okunur)
                         System.Threading.Tasks.Task.Run(async () =>
                         {
                             await System.Threading.Tasks.Task.Delay(4000);
                             this.Dispatcher.Invoke(() => SyncYouTubeCookiesToFileAsync());
                         });
-
-                        // Kullanıcı talebi: Açılışta arka planda gizlice YouTube oturumunu aç ve çerezleri al
-                        if (!_hasStartupCookieWindowShown)
-                        {
-                            _hasStartupCookieWindowShown = true;
-                            this.Dispatcher.InvokeAsync(() => OpenYouTubeCookieWindow(null, isBackgroundStartup: true));
-                        }
                     }
 
                     if (e.IsSuccess && !string.IsNullOrEmpty(_pendingPlayVideoId))
@@ -1349,8 +1350,8 @@ namespace HaYTooLPlayer
                             string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), profileName);
                             bool useCpuRender = ReadIniSetting("playerGpuMode", "gpu").Equals("cpu", StringComparison.OrdinalIgnoreCase);
                 string browserArgs = useCpuRender
-                    ? "--autoplay-policy=no-user-gesture-required --disable-gpu --disable-gpu-compositing --disable-accelerated-video-decode"
-                    : "--autoplay-policy=no-user-gesture-required --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist";
+                    ? "--autoplay-policy=no-user-gesture-required --disk-cache-size=52428800 --disable-gpu --disable-gpu-compositing --disable-accelerated-video-decode"
+                    : "--autoplay-policy=no-user-gesture-required --disk-cache-size=52428800 --enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist";
                 var options = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions(browserArgs);
                             var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
                             await wv.EnsureCoreWebView2Async(env);
@@ -1358,13 +1359,20 @@ namespace HaYTooLPlayer
 
                         wv.CoreWebView2.NavigationCompleted += (navSender, navArgs) =>
                         {
-                            // Sayfa yüklendiğinde çerezleri diske senkronize et
+                            // Sayfa yüklendiğinde çerezleri diske senkronize et; arka plan yenilemesiyse kısa süre sonra kapat
                             if (navArgs.IsSuccess)
                             {
                                 System.Threading.Tasks.Task.Run(async () =>
                                 {
-                                    await System.Threading.Tasks.Task.Delay(2000);
-                                    await this.Dispatcher.InvokeAsync(() => SyncYouTubeCookiesToFileAsync());
+                                    await System.Threading.Tasks.Task.Delay(2500);
+                                    await this.Dispatcher.InvokeAsync(async () =>
+                                    {
+                                        await SyncYouTubeCookiesToFileAsync();
+                                        if (isBackgroundStartup && cookieWin != null && cookieWin.IsLoaded && cookieWin.Opacity == 0)
+                                        {
+                                            try { cookieWin.Close(); } catch {}
+                                        }
+                                    });
                                 });
                             }
                         };
@@ -1380,17 +1388,16 @@ namespace HaYTooLPlayer
                     }
                 };
 
-                // Açılışta otomatik başlatıldıysa 30 saniye sonra pencereyi otomatik kapat
+                // Arka plan yenileme penceresi takılı kalırsa en fazla 20 saniye sonra otomatik kapat
                 if (isBackgroundStartup)
                 {
                     System.Threading.Tasks.Task.Run(async () =>
                     {
-                        await System.Threading.Tasks.Task.Delay(30000);
+                        await System.Threading.Tasks.Task.Delay(20000);
                         await this.Dispatcher.InvokeAsync(async () =>
                         {
                             try
                             {
-                                // Eğer pencere hala arka plan modundaysa (kullanıcı manuel öne getirmemişse) kapat
                                 if (cookieWin != null && cookieWin.IsLoaded && cookieWin.Opacity == 0)
                                 {
                                     await SyncYouTubeCookiesToFileAsync();
@@ -1402,13 +1409,18 @@ namespace HaYTooLPlayer
                     });
                 }
 
-                // Pencere kapandığında taze çerezleri cookies.txt dosyasına yaz
+                // Pencere kapandığında taze çerezleri cookies.txt dosyasına yaz ve WebView2 kontrolünü bellekten düşür
                 cookieWin.Closed += async (s, e) =>
                 {
                     _cookieWindowInstance = null;
                     try
                     {
                         await SyncYouTubeCookiesToFileAsync();
+                    }
+                    catch {}
+                    try
+                    {
+                        wv.Dispose();
                     }
                     catch {}
                 };

@@ -612,6 +612,187 @@ export class DownloadQueue {
     } catch (e) {}
   }
 
+  /**
+   * Aktif veya geçmişteki bir öğeden tüm özel format, referer ve klasör ayarlarını koruyarak kuyruk nesnesi üretir.
+   */
+  buildQueueItemPreserveState(historyItem, activeVideoObj = null, extraFlags = {}) {
+    const src = activeVideoObj || historyItem || {};
+    const videoId = src.id || historyItem?.id;
+    const targetUrl = src.url || resolveItemDownloadUrl(historyItem || src);
+    return {
+      ...(activeVideoObj ? activeVideoObj : {}),
+      id: videoId,
+      originalId: src.originalId || historyItem?.originalId || videoId,
+      title: historyItem?.title || src.title || '',
+      channelId: historyItem?.channelId || src.channelId || '',
+      channelName: historyItem?.channelName || src.channelName || '',
+      url: targetUrl,
+      webUrl: historyItem?.webUrl || src.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
+      platform: historyItem?.platform || src.platform || 'youtube',
+      publishedAt: historyItem?.publishedAt || src.publishedAt || '',
+      customFormat: src.customFormat || historyItem?.customFormat || undefined,
+      audioBitrate: src.audioBitrate || historyItem?.audioBitrate || undefined,
+      referer: src.referer || historyItem?.referer || '',
+      isFakap: src.isFakap !== undefined ? src.isFakap : Boolean(historyItem?.isFakap),
+      skipChannelFolder: src.skipChannelFolder !== undefined ? src.skipChannelFolder : Boolean(historyItem?.skipChannelFolder),
+      duration: historyItem?.duration || src.duration || '',
+      thumbnail: historyItem?.thumbnail || src.thumbnail || '',
+      ...extraFlags
+    };
+  }
+
+  /**
+   * Hız sınırı değiştiğinde yalnızca ağdan indirme ('downloading') aşamasındaki süreçleri
+   * .part / .ytdl ve Oyun Modu klasörlerini SİLMEDEN yeni hız sınırı ile kaldığı yerden devam ettirir.
+   * FFmpeg birleştirme ('merging') aşamasındaki süreçlere dokunmaz.
+   */
+  restartActiveDownloadsForSpeedChange(oldSpeedLimit, newSpeedLimit) {
+    const db = readDb();
+    const pidsToKill = [];
+    let restartedCount = 0;
+
+    for (const [videoId, procInfo] of Array.from(this.activeProcesses.entries())) {
+      // Birleştirme (merging) aşamasında ağ indirmesi zaten %100 bitmiştir; süreci öldürme!
+      if (!procInfo || procInfo.status !== 'downloading') continue;
+
+      const historyItem = db.history.find(h => h.id === videoId);
+      const activeVideo = procInfo.video || historyItem;
+      if (procInfo.timeoutTimer) clearTimeout(procInfo.timeoutTimer);
+      if (procInfo.stallTimer) clearTimeout(procInfo.stallTimer);
+
+      this.activeProcesses.delete(videoId);
+      if (this.activeDownloads > 0) {
+        this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+      }
+
+      if (historyItem || activeVideo) {
+        restartedCount++;
+        const currentProgress = procInfo.progress || historyItem?.progress || 0;
+        const title = historyItem?.title || activeVideo?.title || videoId;
+        console.log(`[Hız Sınırı] Limit değişti (${oldSpeedLimit} -> ${newSpeedLimit} KB/s). Kaldığı yerden (%${currentProgress}) yeni hızla devam ettiriliyor: ${title}`);
+        addTerminalLog(`[Hız Sınırı] Hız sınırı güncellendi (${newSpeedLimit > 0 ? newSpeedLimit + ' KB/s' : 'Sınırsız'}). "${title}" kaldığı yerden (%${currentProgress}) devam ediyor...`, 'info');
+
+        const queueItem = this.buildQueueItemPreserveState(historyItem, activeVideo, {
+          _preservePartFiles: true,
+          _isSpeedRestart: true,
+          _resumeProgress: currentProgress
+        });
+
+        if (!this.queue.some(q => q.id === videoId)) {
+          this.queue.unshift(queueItem);
+        }
+
+        updateHistoryItem(videoId, {
+          status: 'waiting',
+          progress: currentProgress,
+          speed: '',
+          eta: ''
+        });
+      }
+
+      const proc = procInfo.process;
+      if (proc && proc.pid) {
+        pidsToKill.push({ pid: proc.pid, proc });
+      }
+    }
+
+    if (restartedCount === 0) return 0;
+
+    this.notifyTrayState();
+
+    const finishRestart = () => {
+      if (!this.isPaused) {
+        setTimeout(() => {
+          this.process();
+        }, 400);
+      }
+    };
+
+    if (pidsToKill.length === 0) {
+      finishRestart();
+      return restartedCount;
+    }
+
+    let remaining = pidsToKill.length;
+    for (const { pid, proc } of pidsToKill) {
+      if (process.platform === 'win32') {
+        exec(`taskkill /F /T /PID ${pid}`, () => {
+          try { proc.kill('SIGKILL'); } catch (e) {}
+          remaining--;
+          if (remaining <= 0) finishRestart();
+        });
+      } else {
+        try { process.kill(-pid, 'SIGKILL'); } catch (e) { try { proc.kill('SIGKILL'); } catch (_) {} }
+        remaining--;
+        if (remaining <= 0) finishRestart();
+      }
+    }
+
+    return restartedCount;
+  }
+
+  /**
+   * Kuyruk duraklatıldığında aktif 'downloading' süreçlerini .part dosyalarını koruyarak kuyruğun başına iade eder.
+   * 'merging' (FFmpeg birleştirme) aşamasındaki süreçleri bozmaz.
+   */
+  interruptActiveDownloadsForPause() {
+    const db = readDb();
+    let pausedCount = 0;
+
+    for (const [videoId, procInfo] of Array.from(this.activeProcesses.entries())) {
+      if (!procInfo || procInfo.status !== 'downloading') continue;
+
+      const historyItem = db.history.find(h => h.id === videoId);
+      const activeVideo = procInfo.video || historyItem;
+      if (procInfo.timeoutTimer) clearTimeout(procInfo.timeoutTimer);
+      if (procInfo.stallTimer) clearTimeout(procInfo.stallTimer);
+
+      this.activeProcesses.delete(videoId);
+      if (this.activeDownloads > 0) {
+        this.activeDownloads = Math.max(0, this.activeDownloads - 1);
+      }
+
+      if (historyItem || activeVideo) {
+        pausedCount++;
+        const currentProgress = procInfo.progress || historyItem?.progress || 0;
+        const title = historyItem?.title || activeVideo?.title || videoId;
+        console.log(`[Kuyruk] Aktif indirme duraklatıldı ve kısmi dosyaları korunarak kuyruğa iade edildi (%${currentProgress}): ${title}`);
+        addTerminalLog(`[Kuyruk] Aktif indirme duraklatıldı (%${currentProgress} korundu): "${title}"`, 'info');
+
+        const queueItem = this.buildQueueItemPreserveState(historyItem, activeVideo, {
+          _preservePartFiles: true,
+          _isPauseResume: true,
+          _resumeProgress: currentProgress
+        });
+
+        if (!this.queue.some(q => q.id === videoId)) {
+          this.queue.unshift(queueItem);
+        }
+
+        updateHistoryItem(videoId, {
+          status: 'waiting',
+          progress: currentProgress,
+          speed: '',
+          eta: ''
+        });
+      }
+
+      const proc = procInfo.process;
+      if (proc && proc.pid) {
+        if (process.platform === 'win32') {
+          exec(`taskkill /F /T /PID ${proc.pid}`, () => {
+            try { proc.kill('SIGKILL'); } catch (e) {}
+          });
+        } else {
+          try { process.kill(-proc.pid, 'SIGKILL'); } catch (e) { try { proc.kill('SIGKILL'); } catch (_) {} }
+        }
+      }
+    }
+
+    this.notifyTrayState();
+    return pausedCount;
+  }
+
   async add(video) {
     if (this.queue.some(item => item.id === video.id)) return;
 
@@ -991,8 +1172,9 @@ export class DownloadQueue {
       } catch (err) {
         console.error('İndirme klasörü oluşturulamadı:', err);
       }
-    } else {
+    } else if (!video._preservePartFiles) {
       // Önceki başarısız/yarım kalmış indirmelerden kalan birleşmemiş parçaları (.f137.mp4, .part vb.) temizle
+      // (Hız sınırı değişimi veya duraklat/devam ettir durumlarında _preservePartFiles=true olduğu için .part dosyaları korunur)
       try {
         const filesInDir = fs.readdirSync(outputDir);
         for (const f of filesInDir) {
@@ -1046,6 +1228,7 @@ export class DownloadQueue {
 
     const args = [
       video.url,
+      '--continue',
       '--no-playlist',
       '--no-mtime',
       '--ignore-errors',
@@ -1078,7 +1261,9 @@ export class DownloadQueue {
     const deferStagingDir = isDeferMerge ? getItemStagingDir(targetBaseDir, video.id) : '';
     if (isDeferMerge) {
       try {
-        if (fs.existsSync(deferStagingDir)) fs.rmSync(deferStagingDir, { recursive: true, force: true });
+        if (!video._preservePartFiles && fs.existsSync(deferStagingDir)) {
+          fs.rmSync(deferStagingDir, { recursive: true, force: true });
+        }
         fs.mkdirSync(deferStagingDir, { recursive: true });
       } catch (e) {}
       args.push('--fixup', 'never');
@@ -1320,22 +1505,33 @@ export class DownloadQueue {
       return;
     }
 
-    updateHistoryItem(video.id, { status: 'downloading', progress: 0 });
-    addTerminalLog(`[Kuyruk] "${video.title}" videosu için indirme süreci başlatıldı.`, 'info');
-    playSystemSound('start');
-    showWindowsNotification(
-      settings.lang === 'en' ? 'Download Started' : 'İndirme Başlatıldı',
-      settings.lang === 'en' ? `"${video.title}" download process has started.` : `"${video.title}" videosunun indirme işlemi başladı.`,
-      'download_start',
-      {
-        channelName: video.channelName || '',
-        thumbnail: video.thumbnail || (video.id ? `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg` : '')
-      }
-    );
+    const resumePct = (typeof video._resumeProgress === 'number' && video._resumeProgress > 0) ? video._resumeProgress : 0;
+    const isSilentResume = Boolean(video._isSpeedRestart || video._isPauseResume);
+    delete video._isSpeedRestart;
+    delete video._isPauseResume;
+    delete video._resumeProgress;
+
+    updateHistoryItem(video.id, { status: 'downloading', progress: resumePct });
+    if (isSilentResume) {
+      addTerminalLog(`[Kuyruk] "${video.title}" videosu kaldığı yerden (%${resumePct}) devam ettiriliyor.`, 'info');
+    } else {
+      addTerminalLog(`[Kuyruk] "${video.title}" videosu için indirme süreci başlatıldı.`, 'info');
+      playSystemSound('start');
+      showWindowsNotification(
+        settings.lang === 'en' ? 'Download Started' : 'İndirme Başlatıldı',
+        settings.lang === 'en' ? `"${video.title}" download process has started.` : `"${video.title}" videosunun indirme işlemi başladı.`,
+        'download_start',
+        {
+          channelName: video.channelName || '',
+          thumbnail: video.thumbnail || (video.id ? `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg` : '')
+        }
+      );
+    }
 
     const targetInfo = this._resolveDownloadTarget(video, settings, db);
     const { folderSubName, isWebStream, outputDir, isMp3 } = targetInfo;
     const { args, isDeferMerge, deferStagingDir, isYouTubeUrl } = this._buildYtdlpDownloadArgs(video, settings, db, targetInfo);
+    delete video._preservePartFiles;
 
     const srcLabel = isYouTubeUrl ? 'YouTube' : (video.platform || 'WebStream');
     const qLabel = isMp3 ? 'MP3' : (video.quality || 'Best');
@@ -1364,7 +1560,7 @@ export class DownloadQueue {
       video: video,
       timeoutTimer: timeoutTimer,
       stallTimer: stallTimer,
-      progress: 0
+      progress: resumePct
     });
 
     downloadProc.stdout.on('data', (data) => {
@@ -1391,30 +1587,137 @@ export class DownloadQueue {
                               output.includes('[VideoConvertor]') || 
                               output.includes('[postprocess]') || 
                               output.includes('[ExtractAudio]');
-      
-      let isProgress100 = false;
-      const progressMatch = output.match(/\[download\]\s+(\d+\.\d+)%\s+of/);
-      if (progressMatch) {
-        const percent = parseFloat(progressMatch[1]);
-        if (percent >= 100.0) {
-          isProgress100 = true;
-        }
-      }
 
-      if (!isDeferMerge && (isMergingOutput || isProgress100)) {
+      if (!isDeferMerge && isMergingOutput) {
         const procInfo = this.activeProcesses.get(video.id);
         if (procInfo && procInfo.status === 'downloading') {
           procInfo.status = 'merging';
+          procInfo.progress = 0;
+          procInfo.lastMergePct = 0;
           console.log(`[Kuyruk] "${video.title}" videosunun indirmesi bitti, FFmpeg birleştirme (merge) aşamasına geçildi.`);
           addTerminalLog(`[Kuyruk] "${video.title}" videosunun indirmesi bitti, FFmpeg birleştirme (merge) aşamasına geçildi.`, 'warning');
-          
+
           updateHistoryItem(video.id, {
             status: 'merging',
-            progress: 100,
-            speed: '',
-            eta: ''
+            progress: 0,
+            speed: 'FFmpeg...',
+            eta: '--:--'
           });
           broadcast('db_update', readDb());
+          broadcast('progress', {
+            id: video.id,
+            status: 'merging',
+            progress: 0,
+            speed: 'FFmpeg...',
+            eta: '--:--'
+          });
+
+          // FFmpeg birleştirme sürecini diskteki kaynak akış (.fXXX) ve hedef (.temp.mp4 / .mp3) boyut oranından canlı takip et
+          const ytIdForMerge = targetInfo.ytVideoId || video.originalId || String(video.id || '').replace(/^fakap_/, '');
+          const mergeScanDirs = Array.from(new Set([
+            outputDir,
+            ...(settings.useTempDownloadStaging === true ? [getStagingTempDir()] : [])
+          ].filter(Boolean)));
+          const mergeStartTime = Date.now();
+          let maxSourceTotalBytes = 0;
+
+          if (procInfo.mergeProgressTimer) clearInterval(procInfo.mergeProgressTimer);
+          procInfo.mergeProgressTimer = setInterval(() => {
+            const activeInfo = this.activeProcesses.get(video.id);
+            if (!activeInfo || activeInfo.status !== 'merging') {
+              if (procInfo.mergeProgressTimer) {
+                clearInterval(procInfo.mergeProgressTimer);
+                delete procInfo.mergeProgressTimer;
+              }
+              return;
+            }
+
+            try {
+              let currentSourceBytes = 0;
+              let mergedOutputBytes = 0;
+              const idTag = `[${ytIdForMerge}]`;
+
+              for (const dir of mergeScanDirs) {
+                if (!fs.existsSync(dir)) continue;
+                const files = fs.readdirSync(dir);
+                for (const f of files) {
+                  if (!f.includes(idTag)) continue;
+                  const lowerF = f.toLowerCase();
+                  if (lowerF.endsWith('.ytdl') || lowerF.endsWith('.json') || lowerF.endsWith('.description') || lowerF.endsWith('.srt') || lowerF.endsWith('.vtt') || lowerF.endsWith('.jpg') || lowerF.endsWith('.webp') || lowerF.endsWith('.png')) {
+                    continue;
+                  }
+                  let fSize = 0;
+                  try {
+                    fSize = fs.statSync(path.join(dir, f)).size;
+                  } catch (_) {
+                    continue;
+                  }
+
+                  const isStreamPart = /\.f[a-zA-Z0-9_-]+\.(mp4|m4a|webm|mkv|opus|aac|ts)$/i.test(f) && !lowerF.includes('.temp.');
+                  const isTempMerged = lowerF.includes('.temp.') || (isMp3 && lowerF.endsWith('.mp3')) || (!isStreamPart && /\.(mp4|mkv|webm|mp3)$/i.test(lowerF));
+
+                  if (isStreamPart) {
+                    currentSourceBytes += fSize;
+                  } else if (isTempMerged) {
+                    mergedOutputBytes = Math.max(mergedOutputBytes, fSize);
+                  }
+                }
+              }
+
+              if (currentSourceBytes > maxSourceTotalBytes) {
+                maxSourceTotalBytes = currentSourceBytes;
+              }
+
+              let pct = activeInfo.lastMergePct || 0;
+              let speedStr = 'FFmpeg...';
+              let etaStr = '--:--';
+
+              if (maxSourceTotalBytes > 0 && mergedOutputBytes > 0) {
+                pct = Math.min(99, Math.max(1, Math.round((mergedOutputBytes / maxSourceTotalBytes) * 100)));
+                const elapsedSec = Math.max(0.15, (Date.now() - mergeStartTime) / 1000);
+                const mbPerSec = (mergedOutputBytes / (1024 * 1024)) / elapsedSec;
+                if (mbPerSec >= 0.5) {
+                  speedStr = `FFmpeg · ${mbPerSec.toFixed(1)} MB/s`;
+                  const remBytes = Math.max(0, maxSourceTotalBytes - mergedOutputBytes);
+                  const etaSec = Math.max(0, Math.ceil((remBytes / (1024 * 1024)) / mbPerSec));
+                  etaStr = etaSec > 0
+                    ? `${String(Math.floor(etaSec / 60)).padStart(2, '0')}:${String(etaSec % 60).padStart(2, '0')}`
+                    : '00:01';
+                }
+              } else {
+                // Çok küçük veya anlık birleştirmelerde görünür ilerleme adımı
+                const elapsedMs = Date.now() - mergeStartTime;
+                pct = Math.min(95, Math.max(5, Math.round(elapsedMs / 80)));
+              }
+
+              if (pct !== activeInfo.lastMergePct) {
+                activeInfo.lastMergePct = pct;
+                activeInfo.progress = pct;
+                const totalMbStr = maxSourceTotalBytes > 0
+                  ? (maxSourceTotalBytes >= 1024 * 1024 * 1024
+                    ? `${(maxSourceTotalBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+                    : `${Math.max(1, Math.round(maxSourceTotalBytes / (1024 * 1024)))} MB`)
+                  : undefined;
+
+                updateHistoryItem(video.id, {
+                  status: 'merging',
+                  progress: pct,
+                  speed: speedStr,
+                  eta: etaStr,
+                  ...(totalMbStr ? { fileSize: totalMbStr } : {})
+                }, { persist: false });
+
+                broadcast('progress', {
+                  id: video.id,
+                  status: 'merging',
+                  progress: pct,
+                  speed: speedStr,
+                  eta: etaStr,
+                  ...(totalMbStr ? { fileSize: totalMbStr } : {})
+                });
+              }
+            } catch (_) {}
+          }, 150);
         }
       }
 
@@ -1579,6 +1882,10 @@ export class DownloadQueue {
       }
       if (procInfo.stallTimer) {
         clearTimeout(procInfo.stallTimer);
+      }
+      if (procInfo.mergeProgressTimer) {
+        clearInterval(procInfo.mergeProgressTimer);
+        delete procInfo.mergeProgressTimer;
       }
 
       this.activeProcesses.delete(video.id);

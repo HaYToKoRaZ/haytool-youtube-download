@@ -63,22 +63,23 @@ export function drawSponsorSegmentsOnTimeline(duration, playerType = 'plyr') {
     wrapper.style.transform = 'translateY(-50%)';
     wrapper.style.borderRadius = '3px';
     wrapper.style.overflow = 'hidden';
+    wrapper.style.boxShadow = '0 0 0 1px rgba(0, 0, 0, 0.45)';
   }
 
   const categoryColors = {
-    sponsor: 'rgba(74, 222, 128, 0.85)',      // Green
-    selfpromo: 'rgba(250, 204, 21, 0.85)',     // Yellow
-    interaction: 'rgba(56, 189, 248, 0.85)',   // Blue
-    intro: 'rgba(45, 212, 191, 0.85)',         // Teal
-    outro: 'rgba(192, 132, 252, 0.85)',        // Purple
-    preview: 'rgba(244, 63, 94, 0.85)',        // Pink/Red
-    music_offtopic: 'rgba(244, 63, 94, 0.85)'
+    sponsor: 'rgba(74, 222, 128, 0.94)',      // Green
+    selfpromo: 'rgba(250, 204, 21, 0.94)',     // Yellow
+    interaction: 'rgba(56, 189, 248, 0.94)',   // Blue
+    intro: 'rgba(45, 212, 191, 0.94)',         // Teal
+    outro: 'rgba(192, 132, 252, 0.94)',        // Purple
+    preview: 'rgba(244, 63, 94, 0.94)',        // Pink/Red
+    music_offtopic: 'rgba(244, 63, 94, 0.94)'
   };
 
   currentVideoSponsorSegments.forEach(seg => {
     const leftPercent = (seg.start / duration) * 100;
     const widthPercent = ((seg.end - seg.start) / duration) * 100;
-    const color = categoryColors[seg.category] || 'rgba(74, 222, 128, 0.85)';
+    const color = categoryColors[seg.category] || 'rgba(74, 222, 128, 0.94)';
 
     const marker = document.createElement('div');
     marker.style.position = 'absolute';
@@ -86,6 +87,7 @@ export function drawSponsorSegmentsOnTimeline(duration, playerType = 'plyr') {
     marker.style.width = `${Math.max(widthPercent, 0.5)}%`;
     marker.style.height = '100%';
     marker.style.backgroundColor = color;
+    marker.style.boxShadow = 'inset 1px 0 0 rgba(0, 0, 0, 0.45), inset -1px 0 0 rgba(0, 0, 0, 0.45)';
     marker.style.pointerEvents = 'none';
     marker.style.borderRadius = '0';
 
@@ -206,6 +208,11 @@ export function checkAndSkipSponsor(currentTime, videoElementOrPlayer) {
             : `Sponsor alanı otomatik atlandı (${Math.round(seg.start)}. sn - ${Math.round(seg.end)}. sn)`, 
           'info'
         );
+        if (typeof window.showActionToast === 'function') {
+          const currentLang = window.currentLang || (window.localDb && window.localDb.settings && window.localDb.settings.lang) || 'tr';
+          const sbLabel = window.translations?.[currentLang]?.hud_sponsor_skipped || 'Sponsor Atlandı';
+          window.showActionToast('skip-forward', sbLabel, 2000);
+        }
         if (window.videoPlayerInstance) {
           try { window.videoPlayerInstance.seek = seg.end; } catch (e) {}
         }

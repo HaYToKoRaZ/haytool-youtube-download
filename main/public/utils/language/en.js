@@ -849,7 +849,8 @@ export const en = {
   fakap_reset_done: 'records deleted.',
   fakap_disable_all_confirm: 'Fakap will be disabled on all channels. Are you sure?',
   fakap_disable_all_done: 'Fakap disabled on all channels.',
-  fakap_badge_title: 'Fakap Auto Backup',
+  fakap_badge_title: 'Fakap Auto Backup'
+,
     card_download_label: 'Downloaded',
   card_publish_label: 'Published',
   card_download_time: 'Downloaded',
@@ -1214,5 +1215,23 @@ export const en = {
   label_scan_remote_startup: "Startup Remote Status Scan (YT)",
   desc_scan_remote_startup: "Check downloaded YouTube videos for deleted or unlisted status on startup",
   btn_filter_remote_changed: "Remote Status Changed",
-  btn_filter_remote_changed_title: "Show only starred videos whose YouTube remote status changed (deleted, private, unlisted, or members-only)"
+  btn_filter_remote_changed_title: "Show only starred videos whose YouTube remote status changed (deleted, private, unlisted, or members-only)",
+  status_merging_short: "Merging",
+  remote_alert_modal_title: "{count} Downloaded Videos Changed Status on YouTube",
+  remote_alert_modal_desc: "The YouTube status of the downloaded videos below has changed (Deleted / Unlisted / Private). To protect your local archive, these videos are automatically <strong>exempt from Auto-Delete and Channel Max Video Limits</strong>.",
+  remote_alert_btn_open_tool: "View in Remote Status Tool",
+  remote_alert_btn_later: "Remind Later",
+  remote_alert_btn_ack: "Got It (Don't Warn Again)",
+  remote_alert_exempt_badge: "🛡️ Exempt from Auto-Delete",
+  hud_fullscreen: "Fullscreen",
+  hud_exit_fullscreen: "Exit Fullscreen",
+  hud_muted: "Muted",
+  hud_unmuted: "Sound On",
+  hud_subtitles_on: "Subtitles On",
+  hud_subtitles_off: "Subtitles Off",
+  hud_theater_on: "Theater Mode",
+  hud_theater_off: "Normal Mode",
+  hud_seek_start: "Start",
+  hud_seek_end: "End",
+  hud_sponsor_skipped: "Sponsor Skipped"
 };

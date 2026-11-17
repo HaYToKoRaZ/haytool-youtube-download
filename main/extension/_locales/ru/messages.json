@@ -10,6 +10,7 @@
   "typeNoneDetected": { "message": "Страница YouTube не открыта" },
   "btnDownloadVideo": { "message": "Скачать видео" },
   "btnAddChannel": { "message": "Подписаться на канал" },
+  "btnFollowVideoChannel": { "message": "Отслеживать этот канал" },
   "btnOpenApp": { "message": "Открыть HaYTooL" },
   "msgSuccessDownload": { "message": "Добавлено в очередь загрузки!" },
   "msgSuccessChannel": { "message": "Канал добавлен в отслеживаемые!" },

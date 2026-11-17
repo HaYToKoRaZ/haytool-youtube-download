@@ -1111,9 +1111,11 @@
       mount.innerHTML = '';
     }
   }
+  window.cleanupWebStreamPlayer = cleanupActivePlayer;
+  window.getWebStreamPlyrInstance = () => activePlyrInstance;
 
   // --- PLAYER MOUNT (PLYR / HLS / RESUME / AUTO NEXT) ---
-  function mountStreamPlayer(streamData, resumePositionOverride = null) {
+  async function mountStreamPlayer(streamData, resumePositionOverride = null) {
     cleanupActivePlayer();
     const mount = document.getElementById('webstream-player-mount');
     if (!mount) return;
@@ -1121,6 +1123,10 @@
     const { streamUrl, streamType, embedUrl, sourceUrl } = streamData;
     const isM3u8 = streamType === 'm3u8' || (streamUrl && (streamUrl.includes('.m3u8') || streamUrl.includes('master.txt') || streamUrl.includes('/m/') || streamUrl.includes('/mm/') || streamUrl.includes('/mx/') || streamUrl.includes('workers.dev') || streamUrl.includes('cdnimages')));
     const isMp4 = !isM3u8 && (streamType === 'mp4' || (streamUrl && streamUrl.includes('.mp4')));
+
+    if (isM3u8 && typeof Hls === 'undefined' && typeof window.ensureHlsLoaded === 'function') {
+      await window.ensureHlsLoaded();
+    }
 
     if (isM3u8 || isMp4) {
       const videoEl = document.createElement('video');
@@ -1225,13 +1231,40 @@
         activePlyrInstance = new Plyr(videoEl, {
           autoplay: true,
           captions: { active: isSubEnabled, update: true },
+          speed: { selected: 1, options: [0.5, 0.75, 0.85, 0.9, 1, 1.05, 1.1, 1.15, 1.25, 1.5, 1.75, 2] },
           controls: [
             'play-large', 'play', 'progress', 'current-time', 'duration',
             'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
           ],
-          keyboard: { focused: true, global: true },
+          keyboard: { focused: false, global: false },
           tooltips: { controls: true, seek: true }
         });
+
+        const wsTitle = streamData.title || document.getElementById('webstream-active-title')?.textContent || '';
+        const attachWebStreamHud = () => {
+          const plyrEl = mount.querySelector('.plyr') || mount;
+          if (typeof window.initVideoTitleOverlay === 'function' && wsTitle) {
+            window.initVideoTitleOverlay(wsTitle, plyrEl);
+          }
+          if (typeof window.injectSpeedControlToPlyr === 'function') {
+            window.injectSpeedControlToPlyr(activePlyrInstance, plyrEl);
+          }
+          if (plyrEl && !plyrEl._boundWsWheel) {
+            plyrEl._boundWsWheel = true;
+            plyrEl.addEventListener('wheel', (e) => {
+              e.preventDefault();
+              const curVol = activePlyrInstance ? activePlyrInstance.volume : videoEl.volume;
+              const nextVol = Math.max(0, Math.min(1, curVol + (e.deltaY < 0 ? 0.04 : -0.04)));
+              if (activePlyrInstance) activePlyrInstance.volume = nextVol;
+              else videoEl.volume = nextVol;
+              if (typeof window.triggerVolumeHUD === 'function') {
+                window.triggerVolumeHUD(nextVol);
+              }
+            }, { passive: false });
+          }
+        };
+        attachWebStreamHud();
+        activePlyrInstance.on('ready', attachWebStreamHud);
 
         // Kullanıcı altyazıyı açıp kapattığında tercihi hatırla
         activePlyrInstance.on('captionsenabled', () => {

@@ -1021,11 +1021,20 @@ router.get('/:id/avatar', (req, res) => {
   
   const avatarPath = path.join(db.settings.downloadPath, channel.name, 'avatar.jpg');
   if (fs.existsSync(avatarPath)) {
+    try {
+      const stat = fs.statSync(avatarPath);
+      // Eski 900x900 (50-170 KB, 3.09 MB RGBA) avatarları arka planda 176x176 (~5 KB) sürümüyle otomatik yenile
+      if (stat.size > 25000 && channel.avatar && channel.avatar.includes('=s')) {
+        downloadChannelAvatar(channel.avatar, channel.name).catch(() => {});
+        return res.redirect(channel.avatar.replace(/=s\d+-c/i, '=s176-c'));
+      }
+    } catch {}
+    res.setHeader('Cache-Control', 'public, max-age=86400');
     return res.sendFile(avatarPath);
   }
   
   if (channel.avatar) {
-    return res.redirect(channel.avatar);
+    return res.redirect(channel.avatar.replace(/=s\d+-c/i, '=s176-c'));
   }
   
   res.status(404).send('Avatar bulunamadı.');
@@ -1326,14 +1335,18 @@ export async function resolveChannelId(input, existingChannelId = null) {
     }
 
     let avatarUrl = '';
-    const ogImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
-    const linkImageMatch = html.match(/<link rel="image_src" href="([^"]+)"/);
-    if (ogImageMatch) {
-      avatarUrl = ogImageMatch[1];
-    } else if (linkImageMatch) {
-      avatarUrl = linkImageMatch[1];
-    } else {
-      const avatarMatch = html.match(/"avatarViewModel"\s*:\s*\{\s*"image"\s*:\s*\{\s*"sources"\s*:\s*\[\s*\{\s*"url"\s*:\s*"([^"]+)"/);
+    if (!isVideoUrl) {
+      const ogImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+      const linkImageMatch = html.match(/<link rel="image_src" href="([^"]+)"/);
+      if (ogImageMatch) {
+        avatarUrl = ogImageMatch[1];
+      } else if (linkImageMatch) {
+        avatarUrl = linkImageMatch[1];
+      }
+    }
+    if (!avatarUrl) {
+      const avatarMatch = html.match(/"avatarViewModel"\s*:\s*\{\s*"image"\s*:\s*\{\s*"sources"\s*:\s*\[\s*\{\s*"url"\s*:\s*"([^"]+)"/) ||
+                          html.match(/"videoOwnerRenderer"\s*:\s*\{\s*"thumbnail"\s*:\s*\{\s*"thumbnails"\s*:\s*\[\s*\{\s*"url"\s*:\s*"([^"]+)"/);
       avatarUrl = avatarMatch ? avatarMatch[1] : '';
     }
 

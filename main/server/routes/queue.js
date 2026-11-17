@@ -75,54 +75,7 @@ router.post('/queue/pause', localhostOnly, (req, res) => {
   console.log('[Kuyruk] Kullanıcı isteği ile kuyruk duraklatıldı.');
   addTerminalLog('[Kuyruk] İndirme sırası duraklatıldı.', 'warning');
   
-  if (downloadQueue.activeProcess && downloadQueue.activeVideoId) {
-    const videoId = downloadQueue.activeVideoId;
-    const historyItem = db.history.find(h => h.id === videoId);
-    
-    if (historyItem) {
-      console.log(`[Kuyruk] Aktif indirme durduruldu ve kuyruğa iade edildi: ${historyItem.title}`);
-      addTerminalLog(`[Kuyruk] Aktif indirme durduruldu ve kuyruğa iade edildi: "${historyItem.title}"`, 'info');
-      
-      const targetUrl = resolveItemDownloadUrl(historyItem);
-      downloadQueue.queue.unshift({
-        id: videoId,
-        originalId: historyItem.originalId || videoId,
-        title: historyItem.title,
-        channelId: historyItem.channelId,
-        channelName: historyItem.channelName,
-        url: targetUrl,
-        webUrl: historyItem.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
-        platform: historyItem.platform,
-        publishedAt: historyItem.publishedAt || ''
-      });
-      
-      updateHistoryItem(videoId, {
-        status: 'waiting',
-        progress: historyItem.progress || 0,
-        speed: '',
-        eta: ''
-      });
-      
-      const proc = downloadQueue.activeProcess;
-      const pid = proc.pid;
-      
-      downloadQueue.activeProcess = null;
-      downloadQueue.activeVideoId = null;
-      if (downloadQueue.activeDownloads > 0) {
-        downloadQueue.activeDownloads--;
-      }
-      
-      if (pid) {
-        exec(`taskkill /F /T /PID ${pid}`, (err) => {
-          try {
-            proc.kill('SIGKILL');
-          } catch (e) {
-            // Kasıtlı sessiz: Süreç zaten kapanmış veya bulunamamış olabilir
-          }
-        });
-      }
-    }
-  }
+  downloadQueue.interruptActiveDownloadsForPause();
   
   broadcast('db_update', readDb());
   res.json({ success: true, isPaused: true });
@@ -205,21 +158,30 @@ router.post('/queue/reorder', localhostOnly, (req, res) => {
   const shouldBeDownloading = activeAndWaitingItems.slice(0, maxConcurrent);
   const shouldBeWaiting = activeAndWaitingItems.slice(maxConcurrent);
 
+  // Önce mevcut kuyrukta bulunan öğelerin özel ayarlarını (customFormat, _preservePartFiles vb.) haritalayalım
+  const existingQueueMap = new Map(downloadQueue.queue.map(q => [q.id, q]));
+
   // 2. Şu an aktif indirilmekte olup da 'shouldBeWaiting' listesinde yer alanları durdurup sıraya iade edelim
   shouldBeWaiting.forEach(item => {
-    if (item.status === 'downloading' || item.status === 'merging') {
-      console.log(`[Kuyruk] Sırası geriye kayan aktif indirme/birleştirme durduruluyor: ${item.title}`);
-      addTerminalLog(`[Kuyruk] Sırası geriye kayan aktif işlem durduruldu ve kuyruğa iade edildi: "${item.title}"`, 'info');
+    if (item.status === 'downloading') {
+      console.log(`[Kuyruk] Sırası geriye kayan aktif indirme durduruluyor: ${item.title}`);
+      addTerminalLog(`[Kuyruk] Sırası geriye kayan aktif indirme duraklatıldı ve kuyruğa iade edildi: "${item.title}"`, 'info');
       
       const procInfo = downloadQueue.activeProcesses.get(item.id);
       if (procInfo) {
         const proc = procInfo.process;
         const pid = proc.pid;
+        const currentProgress = procInfo.progress || item.progress || 0;
         
-        if (procInfo.timeoutTimer) {
-          clearTimeout(procInfo.timeoutTimer);
-        }
+        if (procInfo.timeoutTimer) clearTimeout(procInfo.timeoutTimer);
+        if (procInfo.stallTimer) clearTimeout(procInfo.stallTimer);
         
+        existingQueueMap.set(item.id, downloadQueue.buildQueueItemPreserveState(item, procInfo.video, {
+          _preservePartFiles: true,
+          _isPauseResume: true,
+          _resumeProgress: currentProgress
+        }));
+
         downloadQueue.activeProcesses.delete(item.id);
         if (downloadQueue.activeDownloads > 0) {
           downloadQueue.activeDownloads--;
@@ -245,36 +207,16 @@ router.post('/queue/reorder', localhostOnly, (req, res) => {
   const startList = [];
   shouldBeDownloading.forEach(item => {
     if (item.status === 'waiting') {
-      const targetUrl = resolveItemDownloadUrl(item);
-      startList.push({
-        id: item.id,
-        originalId: item.originalId || item.id,
-        title: item.title,
-        channelId: item.channelId,
-        channelName: item.channelName,
-        url: targetUrl,
-        webUrl: item.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
-        platform: item.platform,
-        publishedAt: item.publishedAt || ''
-      });
+      startList.push(downloadQueue.buildQueueItemPreserveState(item, existingQueueMap.get(item.id)));
     }
   });
 
   // Kalan tüm waiting öğeleri de olmaları gereken sırayla downloadQueue.queue'ya dolduralım
   const remainingWaitingList = [];
   shouldBeWaiting.forEach(item => {
-    const targetUrl = resolveItemDownloadUrl(item);
-    remainingWaitingList.push({
-      id: item.id,
-      originalId: item.originalId || item.id,
-      title: item.title,
-      channelId: item.channelId,
-      channelName: item.channelName,
-      url: targetUrl,
-      webUrl: item.webUrl || (targetUrl.startsWith('http') ? targetUrl : ''),
-      platform: item.platform,
-      publishedAt: item.publishedAt || ''
-    });
+    if (item.status === 'waiting') {
+      remainingWaitingList.push(downloadQueue.buildQueueItemPreserveState(item, existingQueueMap.get(item.id)));
+    }
   });
 
   // downloadQueue'yu sıfırlayıp yeni sırasına göre dolduruyoruz

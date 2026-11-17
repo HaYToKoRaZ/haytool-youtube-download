@@ -176,6 +176,10 @@ const cbChannelAutoDl = document.getElementById('cb-channel-autodl');
 const cbChannelShorts = document.getElementById('cb-channel-shorts');
 const inpShortsLimit = document.getElementById('inp-shorts-limit');
 const cbChannelFakap = document.getElementById('cb-channel-fakap');
+const videoFollowChannelRow = document.getElementById('video-follow-channel-row');
+const btnFollowVideoChannel = document.getElementById('btn-follow-video-channel');
+const btnFollowVideoChannelText = document.getElementById('btn-follow-video-channel-text');
+const btnToggleVideoChannelOpts = document.getElementById('btn-toggle-video-channel-opts');
 
 let currentDetected = null; // { type: 'video' | 'channel' | 'none', url: string, platform: string, videoId?: string }
 
@@ -312,6 +316,7 @@ async function init() {
 
     videoOptionsPanel.classList.add('hidden');
     channelOptionsPanel.classList.add('hidden');
+    if (videoFollowChannelRow) videoFollowChannelRow.classList.add('hidden');
 
     if (btnWebstream) btnWebstream.classList.add('hidden');
 
@@ -324,6 +329,13 @@ async function init() {
       btnAction.style.color = '';
       videoOptionsPanel.classList.remove('hidden');
       if (btnWebstream) btnWebstream.classList.remove('hidden');
+      if (detected.platform === 'YouTube' && videoFollowChannelRow) {
+        videoFollowChannelRow.classList.remove('hidden');
+        if (btnFollowVideoChannel) btnFollowVideoChannel.disabled = !isServerOnline;
+        if (btnFollowVideoChannelText) {
+          btnFollowVideoChannelText.textContent = getMessage('btnFollowVideoChannel', 'Bu Kanalı Takibe Al');
+        }
+      }
     } else if (detected.type === 'channel') {
       detectTypeLabel.textContent = `${detected.platform} Kanalı Algılandı`;
       btnActionText.textContent = getMessage('btnAddChannel', 'Ayarlarla Takibe Al');
@@ -477,6 +489,59 @@ if (btnWebstream) {
     const targetUrl = (currentDetected && currentDetected.url) || (targetUrlEl && targetUrlEl.textContent);
     if (targetUrl && targetUrl.startsWith('http')) {
       await sendToWebStream(targetUrl);
+    }
+  });
+}
+
+if (btnToggleVideoChannelOpts) {
+  btnToggleVideoChannelOpts.addEventListener('click', () => {
+    if (!channelOptionsPanel) return;
+    channelOptionsPanel.classList.toggle('hidden');
+  });
+}
+
+if (btnFollowVideoChannel) {
+  btnFollowVideoChannel.addEventListener('click', async () => {
+    if (!currentDetected || !currentDetected.url) return;
+    feedbackBox.className = 'feedback';
+    feedbackBox.style.display = 'none';
+
+    btnFollowVideoChannel.disabled = true;
+    if (btnFollowVideoChannelText) {
+      btnFollowVideoChannelText.textContent = 'Kanal Ekleniyor...';
+    }
+
+    const autoDownload = cbChannelAutoDl ? cbChannelAutoDl.checked : true;
+    const downloadShorts = cbChannelShorts ? cbChannelShorts.checked : false;
+    const shortsDurationLimit = (inpShortsLimit && parseInt(inpShortsLimit.value, 10)) || 180;
+    const isFakap = cbChannelFakap ? cbChannelFakap.checked : false;
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/channels`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: currentDetected.url,
+          autoDownload,
+          downloadShorts,
+          shortsDurationLimit,
+          isFakap
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const chName = data.channel?.name ? ` (${data.channel.name})` : '';
+        showFeedback(`${getMessage('msgSuccessChannel', 'Kanal takibe alındı!')}${chName}`, 'success');
+      } else {
+        showFeedback(data.error || getMessage('msgError', 'Kanal eklenemedi.'), 'error');
+      }
+    } catch (err) {
+      showFeedback(getMessage('msgError', 'Bağlantı kurulamadı.'), 'error');
+    } finally {
+      btnFollowVideoChannel.disabled = false;
+      if (btnFollowVideoChannelText) {
+        btnFollowVideoChannelText.textContent = getMessage('btnFollowVideoChannel', 'Bu Kanalı Takibe Al');
+      }
     }
   });
 }

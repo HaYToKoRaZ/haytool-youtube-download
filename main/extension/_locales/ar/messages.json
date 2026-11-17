@@ -10,6 +10,7 @@
   "typeNoneDetected": { "message": "صفحة يوتيوب غير مفتوحة" },
   "btnDownloadVideo": { "message": "تنزيل الفيديو" },
   "btnAddChannel": { "message": "متابعة القناة" },
+  "btnFollowVideoChannel": { "message": "متابعة هذه القناة" },
   "btnOpenApp": { "message": "فتح HaYTooL" },
   "msgSuccessDownload": { "message": "تمت الإضافة إلى قائمة التنزيل!" },
   "msgSuccessChannel": { "message": "تمت إضافة القناة إلى المتابعة!" },

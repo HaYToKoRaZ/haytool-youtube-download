@@ -10,6 +10,7 @@
   "typeNoneDetected": { "message": "YouTube sayfası açık değil" },
   "btnDownloadVideo": { "message": "Videoyu İndir" },
   "btnAddChannel": { "message": "Kanalı Takibe Al" },
+  "btnFollowVideoChannel": { "message": "Bu Kanalı Takibe Al" },
   "btnOpenApp": { "message": "HaYTooL'u Aç" },
   "msgSuccessDownload": { "message": "İndirme kuyruğuna eklendi!" },
   "msgSuccessChannel": { "message": "Kanal takibe alındı!" },

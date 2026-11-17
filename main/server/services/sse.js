@@ -89,10 +89,11 @@ export function removeClient(client) {
  * @param {*} data Gönderilecek olay verisi
  */
 export function broadcast(event, data) {
-  let dataToSend = data;
+  if (!clients || clients.length === 0) return;
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   clients.forEach(client => {
     try {
-      client.write(`event: ${event}\ndata: ${JSON.stringify(dataToSend)}\n\n`);
+      client.write(payload);
     } catch (e) {
       // Hatalı/kopmuş bağlantıları sessizce yut
     }
@@ -106,10 +107,11 @@ export function broadcast(event, data) {
  * @param {object} updates - Güncellenen alanlar
  */
 export function broadcastHistoryUpdate(id, updates) {
-  const payload = { id, updates };
+  if (!clients || clients.length === 0) return;
+  const payload = `event: history_updated\ndata: ${JSON.stringify({ id, updates })}\n\n`;
   clients.forEach(client => {
     try {
-      client.write(`event: history_updated\ndata: ${JSON.stringify(payload)}\n\n`);
+      client.write(payload);
     } catch (e) {
       // Hatalı/kopmuş bağlantıları sessizce yut
     }
