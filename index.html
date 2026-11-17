@@ -30,6 +30,7 @@
 
       <ul class="nav-links">
         <li><a href="#features" data-i18n="nav_features">Özellikler</a></li>
+        <li><a href="#toolkit" data-i18n="nav_toolkit">Araçlar & Ayarlar</a></li>
         <li><a href="#screenshots" data-i18n="nav_screenshots">Ekran Görüntüleri</a></li>
         <li><a href="#shortcuts" data-i18n="nav_shortcuts">Kısayollar</a></li>
         <li><a href="#install" data-i18n="nav_install">Kurulum</a></li>
@@ -37,7 +38,7 @@
       </ul>
 
       <div style="display: flex; align-items: center; gap: 1rem;">
-        <button id="lang-switch-btn" class="lang-switch-btn">🌐 English</button>
+        <button id="lang-switch-btn" class="lang-switch-btn"><img src="https://flagcdn.com/w20/gb.png" width="18" height="12" alt="EN" style="border-radius: 2px;" /> <span>English</span></button>
         <a href="https://github.com/HaYToKoRaZ/haytool-youtube-download" target="_blank" rel="noopener" class="btn-primary" style="padding: 0.45rem 1rem; font-size: 0.88rem; box-shadow: none;">
           ⭐ Star
         </a>
@@ -88,6 +89,16 @@
           <p data-i18n="stat_languages_sub">Otomatik Altyazı Çevirisi</p>
         </div>
       </div>
+
+      <div class="hero-lang-flags" aria-label="Supported Languages">
+        <span class="flag-chip"><img src="https://flagcdn.com/w20/tr.png" width="16" height="11" alt="TR"> Türkçe</span>
+        <span class="flag-chip"><img src="https://flagcdn.com/w20/gb.png" width="16" height="11" alt="EN"> English</span>
+        <span class="flag-chip"><img src="https://flagcdn.com/w20/de.png" width="16" height="11" alt="DE"> Deutsch</span>
+        <span class="flag-chip"><img src="https://flagcdn.com/w20/es.png" width="16" height="11" alt="ES"> Español</span>
+        <span class="flag-chip"><img src="https://flagcdn.com/w20/pt.png" width="16" height="11" alt="PT"> Português</span>
+        <span class="flag-chip"><img src="https://flagcdn.com/w20/ru.png" width="16" height="11" alt="RU"> Русский</span>
+        <span class="flag-chip"><img src="https://flagcdn.com/w20/sa.png" width="16" height="11" alt="AR"> العربية</span>
+      </div>
     </div>
 
     <!-- Hero Sağ: Ultra-Modern Uygulama Vitrin Mockup'ı & Sevimli Maskot -->
@@ -100,13 +111,24 @@
             <span class="dot dot-green"></span>
           </div>
           <div class="mockup-title">Multimedia HaYTooL - Live Desktop Deck</div>
-          <div class="mockup-badge">v10.0</div>
+          <div class="mockup-badge">v12.4.4</div>
         </div>
         <div class="mockup-screen">
           <img src="assets/screenshots/tr-indirilenler.png" alt="HaYTooL Live App Preview" class="mockup-img">
           <div class="mockup-overlay-badge">
             <span class="badge-pulse"></span>
-            <span>Canlı Oynatıcı & IPTV Hazır</span>
+            <span data-i18n="mockup_live_badge">Canlı Oynatıcı · Uzak Durum Koruması · Oyun Modu</span>
+          </div>
+        </div>
+        <!-- Canlı Kuyruk & FFmpeg Birleştirme Telemetri Önizleme Çubuğu -->
+        <div class="mockup-telemetry-bar">
+          <div class="telemetry-row">
+            <span class="telemetry-tag"><span class="spin-dot"></span> <span data-i18n="telemetry_merge_label">FFmpeg Birleştiriliyor: %84</span></span>
+            <span class="telemetry-meta">FFmpeg · 112.4 MB/s · ETA 00:02</span>
+            <span class="telemetry-shield" data-i18n="telemetry_shield_label">🛡️ Oto-Silmeden Muaf</span>
+          </div>
+          <div class="telemetry-progress-track">
+            <div class="telemetry-progress-fill"></div>
           </div>
         </div>
       </div>
@@ -132,64 +154,64 @@
       <!-- Özellik 1 -->
       <div class="feature-card">
         <div class="feature-icon-box">📡</div>
-        <h3>Arka Planda Otomasyon</h3>
-        <p>Takip ettiğiniz kanalların RSS akışlarını periyodik kontrol eder. Yeni bir video yüklendiğinde anında yerel diskinize indirir.</p>
+        <h3 data-i18n="feat_1_title">Arka Planda Otomasyon</h3>
+        <p data-i18n="feat_1_desc">Takip ettiğiniz kanalların RSS akışlarını periyodik kontrol eder. Yeni bir video yüklendiğinde anında yerel diskinize indirir.</p>
       </div>
 
       <!-- Özellik 2 -->
       <div class="feature-card">
         <div class="feature-icon-box">🛡️</div>
-        <h3>100% Reklamsız & SponsorBlock</h3>
-        <p>Sponsorlu bölümleri, introları ve abonelik hatırlatmalarını zaman tünelinde otomatik atlar. Sıfır reklam, sıfır dikkat dağınıklığı.</p>
+        <h3 data-i18n="feat_2_title">100% Reklamsız & SponsorBlock</h3>
+        <p data-i18n="feat_2_desc">Sponsorlu bölümleri, introları ve abonelik hatırlatmalarını zaman tünelinde otomatik atlar. Sıfır reklam, sıfır dikkat dağınıklığı.</p>
       </div>
 
       <!-- Özellik 3 -->
       <div class="feature-card">
         <div class="feature-icon-box">📦</div>
-        <h3>Taşınabilir & Sıfır Bağımlılık</h3>
-        <p>Node.js, yt-dlp ve FFmpeg arşivin içinde hazır gelir. Harici hiçbir kurulum veya paket yöneticisi gerekmez.</p>
+        <h3 data-i18n="feat_3_title">Taşınabilir & Sıfır Bağımlılık</h3>
+        <p data-i18n="feat_3_desc">Node.js, yt-dlp ve FFmpeg arşivin içinde hazır gelir. Harici hiçbir kurulum veya paket yöneticisi gerekmez.</p>
       </div>
 
       <!-- Özellik 4 -->
       <div class="feature-card">
         <div class="feature-icon-box">🎬</div>
-        <h3>Çift Oynatıcı & C# Desktop Player</h3>
-        <p>İster tarayıcıda Artplayer / Plyr ile izleyin, ister bağımsız C# WPF native oynatıcıyla diskten sıfır gecikmeyle yürütün.</p>
+        <h3 data-i18n="feat_4_title">Çift Oynatıcı & C# Desktop Player</h3>
+        <p data-i18n="feat_4_desc">İster tarayıcıda Plyr ile izleyin, ister yerleşik C# WebView2 masaüstü oynatıcıyla diskten sıfır gecikmeyle yürütün.</p>
       </div>
 
       <!-- Özellik 5 -->
       <div class="feature-card">
         <div class="feature-icon-box">💬</div>
-        <h3>Çok Dilli Altyazı & Çeviri</h3>
-        <p>Türkçe/İngilizce altyazıları otomatik çeker. 11 hedef dilde anlık çeviri ve 12 farklı altyazı renk/boyut özelleştirmesi sunar.</p>
+        <h3 data-i18n="feat_5_title">Çok Dilli Altyazı & Çeviri</h3>
+        <p data-i18n="feat_5_desc">Türkçe/İngilizce altyazıları otomatik çeker. 11 hedef dilde anlık çeviri ve 12 farklı altyazı renk/boyut özelleştirmesi sunar.</p>
       </div>
 
       <!-- Özellik 6 -->
       <div class="feature-card">
         <div class="feature-icon-box">🔄</div>
-        <h3>APE & Gerçek Geçmiş Senkronu</h3>
-        <p>İzleme konumunuzu otomatik gerçek YouTube izleme geçmişinize senkronize eder. Toplu video işaretleme desteği sağlar.</p>
+        <h3 data-i18n="feat_6_title">APE & Gerçek Geçmiş Senkronu</h3>
+        <p data-i18n="feat_6_desc">İzleme konumunuzu otomatik gerçek YouTube izleme geçmişinize senkronize eder. Toplu video işaretleme (1-200) desteği sağlar.</p>
       </div>
 
       <!-- Özellik 7 -->
       <div class="feature-card">
         <div class="feature-icon-box">🎮</div>
-        <h3>Discord Rich Presence (RPC)</h3>
-        <p>İzlediğiniz videoyu, kanal adını ve süresini Discord durumunuzda şık bir şekilde otomatik gösterir.</p>
+        <h3 data-i18n="feat_7_title">Discord Rich Presence (RPC)</h3>
+        <p data-i18n="feat_7_desc">İzlediğiniz videoyu, kanal adını ve süresini Discord durumunuzda şık bir şekilde otomatik gösterir.</p>
       </div>
 
       <!-- Özellik 8 -->
       <div class="feature-card">
         <div class="feature-icon-box">⚙️</div>
-        <h3>Kanal Bazlı Kurallar</h3>
-        <p>Her kanala özel otomatik indirme, Shorts videolarını engelleme ve maksimum/minimum süre filtreleri belirleyin.</p>
+        <h3 data-i18n="feat_8_title">Kanal Bazlı Kurallar & Kota</h3>
+        <p data-i18n="feat_8_desc">Her kanala özel otomatik indirme, Shorts engelleme, saklama günü ve kanal başına maksimum video sınırı belirleyin.</p>
       </div>
 
       <!-- Özellik 9: IPTV Canlı TV -->
       <div class="feature-card">
         <div class="feature-icon-box">📺</div>
-        <h3 data-i18n="feat_iptv_title">IPTV Çoklu Canlı TV</h3>
-        <p data-i18n="feat_iptv_desc">4 ekrana kadar eşzamanlı canlı yayın izleme, otomatik m3u8 oynatıcı ve özel kategori filtreleme ile televizyon deneyimi.</p>
+        <h3 data-i18n="feat_iptv_title">IPTV Çoklu Canlı TV & PVR</h3>
+        <p data-i18n="feat_iptv_desc">4 ekrana kadar eşzamanlı canlı yayın izleme, PVR diske kayıt, otomatik m3u8 oynatıcı ve özel kategori filtreleme.</p>
       </div>
 
       <!-- Özellik 10: RYD Entegrasyonu -->
@@ -209,8 +231,8 @@
       <!-- Özellik 12 -->
       <div class="feature-card">
         <div class="feature-icon-box">🖥️</div>
-        <h3>Windows Sistem Tepsisi & Konsol</h3>
-        <p>Sistem tepsisinde (Tray) arka planda sessiz çalışır. Etkileşimli terminal komutları ile (`ton`, `toff`, `pd`) anında yönetilebilir.</p>
+        <h3 data-i18n="feat_12_title">Windows Sistem Tepsisi & Konsol</h3>
+        <p data-i18n="feat_12_desc">Sistem tepsisinde sessiz çalışır, gizlendiğinde RAM/GPU belleğini uyutur. Canlı konsol ve CLI komutları ile yönetilir.</p>
       </div>
 
       <!-- Özellik 13: Web Video & Dizi Çözücü -->
@@ -223,8 +245,214 @@
       <!-- Özellik 14: Akıllı Tarayıcı Eklentisi -->
       <div class="feature-card">
         <div class="feature-icon-box">🧩</div>
-        <h3 data-i18n="feat_ext_title">Akıllı Tarayıcı Eklentisi</h3>
-        <p data-i18n="feat_ext_desc">Web'de gezinirken tek tıkla veya sağ tık menüsünden herhangi bir sayfayı/linki masaüstü HaYTooL uygulamasına gönderin, anında oynatın.</p>
+        <h3 data-i18n="feat_ext_title">Akıllı Tarayıcı Eklentisi (MV3)</h3>
+        <p data-i18n="feat_ext_desc">YouTube videosu izlerken doğrudan kanalı takibe alın, tek tıkla video indirin veya Kaplumbağa hız sınırını değiştirin.</p>
+      </div>
+
+      <!-- Özellik 15: Uzak Durum Tarayıcısı & Muafiyet -->
+      <div class="feature-card feature-card-highlight">
+        <div class="feature-icon-box">📡</div>
+        <h3 data-i18n="feat_remote_title">Uzak Durum Tarayıcısı & 🛡️ Muafiyet</h3>
+        <p data-i18n="feat_remote_desc">Açılışta indirilen YouTube videolarının silinme, gizlenme ve liste dışı durumunu tarar; uyarı penceresiyle bildirir ve otomatik silmeden muaf tutar.</p>
+      </div>
+
+      <!-- Özellik 16: Oyun Modu & Canlı Birleştirme Yüzdesi -->
+      <div class="feature-card feature-card-highlight">
+        <div class="feature-icon-box">🕹️</div>
+        <h3 data-i18n="feat_gamemode_title">Oyun Modu & Canlı Merge (%0–%100)</h3>
+        <p data-i18n="feat_gamemode_desc">Oyun oynarken %0 FFmpeg yüküyle tam hızda indirin. Kuyrukta canlı FFmpeg birleştirme yüzdesini görün ve hız değişiminde %0'a düşmeden devam edin.</p>
+      </div>
+
+      <!-- Özellik 17: Yapay Zekâ Video Özeti & Sesli Okuma -->
+      <div class="feature-card">
+        <div class="feature-icon-box">✨</div>
+        <h3 data-i18n="feat_ai_title">Yapay Zekâ (AI) Video Özeti & TTS</h3>
+        <p data-i18n="feat_ai_desc">LM Studio, Ollama/GGUF, Groq, Gemini Flash veya Apisiz NLP motoruyla altyazılardan konu özeti çıkarın ve sesli dinleyin.</p>
+      </div>
+
+      <!-- Özellik 18: SQLite, Fakap & GitHub Gist -->
+      <div class="feature-card">
+        <div class="feature-icon-box">🗄️</div>
+        <h3 data-i18n="feat_sqlite_title">SQLite Motoru, Fakap & Gist Bulut</h3>
+        <p data-i18n="feat_sqlite_desc">AES-256 şifreli yerel SQLite (WAL) veritabanı, Fakap düşük çözünürlüklü otomatik yedek arşivi, 17 slotlu günlük ZIP yedeği ve GitHub Gist senkronu.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HIZLI ARAÇLAR MENÜSÜ & 10 KATEGORİLİ AYARLAR VİTRİNİ -->
+  <section id="toolkit" class="section toolkit-section">
+    <div class="section-header">
+      <span class="section-tag" data-i18n="toolkit_tag">🧰 Komuta Merkezi</span>
+      <h2 class="section-title" data-i18n="toolkit_title">12 Entegre Araç & 10 Kategorili Ayar Mimarisi</h2>
+      <p class="section-desc" data-i18n="toolkit_desc">Üst bardaki Hızlı Araçlar açılır menüsü ve anlık arama destekli modern ayarlar paneliyle her detay elinizin altında.</p>
+    </div>
+
+    <div class="toolkit-tabs">
+      <button type="button" class="toolkit-tab-btn active" data-toolkit-tab="tools" onclick="switchToolkitTab('tools')">
+        <span>🔧</span> <span data-i18n="toolkit_tab_tools">12 Hızlı Araç Menüsü</span>
+      </button>
+      <button type="button" class="toolkit-tab-btn" data-toolkit-tab="settings" onclick="switchToolkitTab('settings')">
+        <span>⚙️</span> <span data-i18n="toolkit_tab_settings">10 Kategorili Ayarlar Paneli</span>
+      </button>
+    </div>
+
+    <div id="toolkit-panel-tools" class="toolkit-grid active">
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">📋</span>
+        <div>
+          <h4 data-i18n="tool_1_t">PD (Yapıştır & İndir)</h4>
+          <p data-i18n="tool_1_d">Panodaki bağlantıyı tek tıkla okuyup doğrudan kuyruğa ekler.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🎬</span>
+        <div>
+          <h4 data-i18n="tool_2_t">Çoklu Platform Downloader</h4>
+          <p data-i18n="tool_2_d">YouTube, TikTok, X, Instagram, Kick, Twitch, Reddit özel format & MP3 indirici.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🍿</span>
+        <div>
+          <h4 data-i18n="tool_3_t">Web Video & Dizi Çözücü</h4>
+          <p data-i18n="tool_3_d">Akıllı Sandbox (CloseLoad/JWPlayer), film/dizi arama ve dublaj/orijinal ses seçimi.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🔄</span>
+        <div>
+          <h4 data-i18n="tool_4_t">Dosya Karşılaştırma & Senkron</h4>
+          <p data-i18n="tool_4_d">Disk ile SQLite veritabanını karşılaştırır; yetim dosyaları tek tıkla içeri aktarır.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card highlight-pill">
+        <span class="toolkit-pill-icon">📡</span>
+        <div>
+          <h4 data-i18n="tool_5_t">Uzak Durum Kontrolü (YT)</h4>
+          <p data-i18n="tool_5_d">Silinen, gizlenen ve liste dışı kalan videoları tespit eder; 🛡️ oto-silmeden muaf tutar.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🏷️</span>
+        <div>
+          <h4 data-i18n="tool_6_t">Kanal Kategorileri</h4>
+          <p data-i18n="tool_6_d">Kanalları özel kategorilere ayırarak Kütüphane ve İndirilenler'de filtreler.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">👁️</span>
+        <div>
+          <h4 data-i18n="tool_7_t">APE — İzlendi İşaretleme</h4>
+          <p data-i18n="tool_7_d">Tekil videoları veya kanalın son 1–200 videosunu gerçek YouTube geçmişinde izlendi işaretler.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🧩</span>
+        <div>
+          <h4 data-i18n="tool_8_t">Tarayıcı Eklentisi (MV3)</h4>
+          <p data-i18n="tool_8_d">Video sayfasından doğrudan kanal takibi, tek tıkla indirme ve hız profili kontrolü.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">👥</span>
+        <div>
+          <h4 data-i18n="tool_9_t">YouTube Abonelikleri</h4>
+          <p data-i18n="tool_9_d">YouTube hesabınızdaki abonelikleri çekerek tek tıkla takibe almanızı sağlar.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🗑️</span>
+        <div>
+          <h4 data-i18n="tool_10_t">Silinen Videolar Geçmişi</h4>
+          <p data-i18n="tool_10_d">Son 100 silinen videoyu listeler ve tek tıkla yeniden kuyruğa ekler.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">📦</span>
+        <div>
+          <h4 data-i18n="tool_11_t">Fakap (Otomatik Yedekler)</h4>
+          <p data-i18n="tool_11_d">144p/240p/360p düşük çözünürlüklü otomatik yedek arşivini yönetir ve oynatır.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">💻</span>
+        <div>
+          <h4 data-i18n="tool_12_t">Canlı Konsol & Aktif DNS</h4>
+          <p data-i18n="tool_12_d">Canlı SSE log terminali, CLI komut satırı ve aktif ağ/DNS gecikme analizi.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="toolkit-panel-settings" class="toolkit-grid">
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🎨</span>
+        <div>
+          <h4 data-i18n="set_1_t">1. Genel & Görünüm</h4>
+          <p data-i18n="set_1_d">7 dil, 5 tema, çerçevesiz pencere, Tepside RAM/GPU Uyutma ve Üst Bar Canlı Hava Durumu.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card highlight-pill">
+        <span class="toolkit-pill-icon">⚡</span>
+        <div>
+          <h4 data-i18n="set_2_t">2. İndirme & GPU Hızlandırma</h4>
+          <p data-i18n="set_2_d">SSD Tamponlama (HDD Koruma), NVENC/QSV/AMF GPU birleştirme, Oyun Modu ve kayıpsız hız sınırı.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">📚</span>
+        <div>
+          <h4 data-i18n="set_3_t">3. Kütüphane & Depolama</h4>
+          <p data-i18n="set_3_d">Gün ve Maksimum Video Sınırı ile oto-silme, erteleme penceresi ve 3 kademeli FFprobe disk senkronu.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🤖</span>
+        <div>
+          <h4 data-i18n="set_4_t">4. Otomasyon & Kanallar</h4>
+          <p data-i18n="set_4_d">RSS sıklığı, Canlı Yayın/Prömiyer VOD yönetimi, Açılış Uzak Durum Taraması ve Fakap anahtarı.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🎬</span>
+        <div>
+          <h4 data-i18n="set_5_t">5. Oynatıcı & Altyazı</h4>
+          <p data-i18n="set_5_d">Sıfır gecikmeli C# WebView2 disk oynatımı, SponsorBlock, RYD dislike ve 11 dil çeviri.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🔐</span>
+        <div>
+          <h4 data-i18n="set_6_t">6. YouTube Hesabı & Çerez</h4>
+          <p data-i18n="set_6_d">Yerleşik WebView2 oturum açma, periyodik çerez sağlık denetimi ve izleme geçmişi senkronu.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🔔</span>
+        <div>
+          <h4 data-i18n="set_7_t">7. Bildirim & Entegrasyon</h4>
+          <p data-i18n="set_7_d">Kapak görselli bildirimler, haytool://play protokolü, 7 ses profili, Windows PATH ve Discord RPC.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">🧠</span>
+        <div>
+          <h4 data-i18n="set_8_t">8. Sistem & Motor</h4>
+          <p data-i18n="set_8_d">SSD dostu Proxy Waterfall süre sorgulama, yt-dlp Nightly/Stable kanal seçici ve otomatik güncelleme.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">☁️</span>
+        <div>
+          <h4 data-i18n="set_9_t">9. Yedekleme & Gist Bulut</h4>
+          <p data-i18n="set_9_d">Günlük otomatik ZIP yedeği (Maks 17 rotasyon) ve GitHub Gist çevrimiçi bulut senkronizasyonu.</p>
+        </div>
+      </div>
+      <div class="toolkit-pill-card">
+        <span class="toolkit-pill-icon">✨</span>
+        <div>
+          <h4 data-i18n="set_10_t">10. Yapay Zekâ & Ses (TTS)</h4>
+          <p data-i18n="set_10_d">LM Studio, Ollama, Groq, Gemini Flash veya Apisiz NLP ile altyazı özeti ve sesli okuma.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -239,9 +467,9 @@
 
     <!-- Sekmeler -->
     <div class="gallery-tabs">
-      <button class="tab-btn active" data-tab="all">Tümü / All</button>
-      <button class="tab-btn" data-tab="tr">🇹🇷 Türkçe Arayüz</button>
-      <button class="tab-btn" data-tab="en">🇬🇧 English Interface</button>
+      <button class="tab-btn active" data-tab="all" data-i18n="gallery_tab_all">Tümü / All</button>
+      <button class="tab-btn" data-tab="tr"><img src="https://flagcdn.com/w20/tr.png" width="18" height="12" alt="TR" style="vertical-align: -1px; border-radius: 2px; margin-right: 4px;" /> <span data-i18n="gallery_tab_tr">Türkçe Arayüz</span></button>
+      <button class="tab-btn" data-tab="en"><img src="https://flagcdn.com/w20/gb.png" width="18" height="12" alt="EN" style="vertical-align: -1px; border-radius: 2px; margin-right: 4px;" /> <span data-i18n="gallery_tab_en">English Interface</span></button>
     </div>
 
     <!-- Görseller Grid -->
@@ -313,9 +541,9 @@
           Klasör içindeki <b>Multimedia HaYTooL.exe</b> dosyasını çift tıklatarak sistem tepsisinde başlatabilirsiniz.
         </p>
         <p style="color: var(--text-muted);" data-i18n="install_win_player">
-          Veya bağımsız masaüstü C# oynatıcısını çalıştırmak için:
+          Tekil birleşik masaüstü oynatıcısını, tepsi modunu veya sessiz servisi başlatmak için:
         </p>
-        <div class="code-box">HaYTooL-Player.exe</div>
+        <div class="code-box">"Multimedia HaYTooL.exe" &nbsp;|&nbsp; .\haytool --tray-only &nbsp;|&nbsp; .\haytool silent</div>
         <p style="color: var(--text-muted); font-size: 0.88rem;" data-i18n="install_win_port">
           Dashboard varsayılan olarak <span style="color: #FFB703;">http://localhost:4141</span> adresinde açılır.
         </p>

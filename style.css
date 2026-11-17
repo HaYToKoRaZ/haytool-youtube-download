@@ -1055,3 +1055,217 @@ body::before {
     height: 200px;
   }
 }
+
+/* 7 DİL BAYRAK ŞERİDİ & CANLI TELEMETRİ ÇUBUĞU */
+.hero-lang-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 1.25rem;
+}
+
+.flag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.68rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-glass);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-main);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease;
+}
+
+.flag-chip:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 183, 3, 0.45);
+}
+
+.flag-chip img {
+  border-radius: 2px;
+  display: block;
+}
+
+.mockup-telemetry-bar {
+  padding: 0.75rem 1rem;
+  background: rgba(12, 14, 19, 0.92);
+  border-top: 1px solid var(--border-glass);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.telemetry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+  font-size: 0.75rem;
+}
+
+.telemetry-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #eab308;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.spin-dot {
+  width: 8px;
+  height: 8px;
+  border: 1.8px solid #eab308;
+  border-top-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  animation: htSpin 0.9s linear infinite;
+}
+
+@keyframes htSpin {
+  to { transform: rotate(360deg); }
+}
+
+.telemetry-meta {
+  color: var(--text-muted);
+  font-family: monospace;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.telemetry-shield {
+  padding: 0.12rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #10b981;
+  font-weight: 700;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.telemetry-progress-track {
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.telemetry-progress-fill {
+  width: 84%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f59e0b 0%, #10b981 100%);
+}
+
+.feature-card-highlight {
+  border-color: rgba(255, 183, 3, 0.32);
+  background: linear-gradient(160deg, rgba(30, 33, 42, 0.88) 0%, rgba(255, 183, 3, 0.06) 100%);
+}
+
+/* KOMUTA MERKEZİ: 12 ARAÇ & 10 AYAR KATEGORİSİ */
+.toolkit-section {
+  padding-top: 2rem;
+}
+
+.toolkit-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.85rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.toolkit-tab-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  color: var(--text-muted);
+  padding: 0.7rem 1.4rem;
+  border-radius: 999px;
+  font-family: var(--font-family);
+  font-size: 0.94rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toolkit-tab-btn:hover {
+  color: #fff;
+  border-color: rgba(255, 183, 3, 0.4);
+}
+
+.toolkit-tab-btn:active,
+.btn-primary:active,
+.btn-secondary:active,
+.lang-switch-btn:active {
+  transform: scale(0.98);
+}
+
+.toolkit-tab-btn.active {
+  background: linear-gradient(135deg, rgba(255, 0, 0, 0.22), rgba(255, 183, 3, 0.18));
+  border-color: var(--cat-gold);
+  color: #fff;
+  box-shadow: 0 6px 22px rgba(255, 183, 3, 0.18);
+}
+
+.toolkit-grid {
+  display: none;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.toolkit-grid.active {
+  display: grid;
+}
+
+.toolkit-pill-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1.1rem 1.2rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, background 0.22s ease;
+}
+
+.toolkit-pill-card:hover {
+  transform: translateY(-3px);
+  background: var(--bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.toolkit-pill-card.highlight-pill {
+  border-color: rgba(16, 185, 129, 0.38);
+  background: linear-gradient(145deg, rgba(22, 24, 29, 0.85), rgba(16, 185, 129, 0.08));
+}
+
+.toolkit-pill-icon {
+  font-size: 1.45rem;
+  line-height: 1;
+  padding: 0.55rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+.toolkit-pill-card h4 {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.25rem;
+}
+
+.toolkit-pill-card p {
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
