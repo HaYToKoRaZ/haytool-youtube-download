@@ -1292,5 +1292,14 @@ export const es = {
   shortcut_seek_end: "Ir al final del video",
   shortcut_dvr_back: "Retroceder DVR en vivo (10s)",
   shortcut_dvr_fwd: "Avanzar DVR en vivo (10s)",
-  shortcut_open_cheatsheet: "Abrir guía de atajos de teclado"
+  shortcut_open_cheatsheet: "Abrir guía de atajos de teclado",
+  shortcut_video_zoom: "Hacer zoom en el video",
+  player_zoom_btn_title: "Zoom de video (Z)",
+  player_zoom_reset: "1x (Restablecer)",
+  player_zoom_mode_on: "Zoom",
+  player_zoom_mode_off: "Zoom: 1x",
+  player_zoom_drag_hint: "Arrastrar",
+  player_zoom_wheel_hint: "Rueda para zoom",
+  shortcut_zoom_mouse_pan: "Zoom y desplazamiento con ratón",
+  shortcut_zoom_wheel_key: "Ctrl + Rueda"
 };

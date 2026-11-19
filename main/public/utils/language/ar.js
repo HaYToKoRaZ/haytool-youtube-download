@@ -1292,5 +1292,14 @@ export const ar = {
   shortcut_seek_end: "الانتقال إلى نهاية الفيديو",
   shortcut_dvr_back: "إرجاع البث المباشر DVR (10ث)",
   shortcut_dvr_fwd: "تقديم البث المباشر DVR (10ث)",
-  shortcut_open_cheatsheet: "فتح دليل اختصارات لوحة المفاتيح"
+  shortcut_open_cheatsheet: "فتح دليل اختصارات لوحة المفاتيح",
+  shortcut_video_zoom: "تكبير إطار الفيديو (Zoom)",
+  player_zoom_btn_title: "تكبير الفيديو (Z)",
+  player_zoom_reset: "1x (إعادة تعيين)",
+  player_zoom_mode_on: "تكبير",
+  player_zoom_mode_off: "التكبير: 1x",
+  player_zoom_drag_hint: "اسحب للتحريك",
+  player_zoom_wheel_hint: "مرّر للتكبير",
+  shortcut_zoom_mouse_pan: "التكبير والتحريك بالماوس",
+  shortcut_zoom_wheel_key: "Ctrl + التمرير"
 };

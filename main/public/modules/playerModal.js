@@ -1,4 +1,5 @@
 // Türkçe Açıklama: Gömülü video oynatıcı modalı boyutlandırma, sürükleme, küçültme, yönelim ve Discord RPC aktivite modülü.
+import { injectZoomControlToPlyr, getVideoZoomCropRect } from './player/videoZoom.js';
 
 let _ctx = {
   getLocalDb: () => window.localDb || { settings: {}, history: [] },
@@ -762,6 +763,8 @@ export function injectSpeedControlToPlyr(plyrInst, containerEl = null) {
     controls.appendChild(shotBtn);
   }
 
+  injectZoomControlToPlyr(plyrInst, root);
+
   syncUI(plyrInst.speed || 1);
   if (typeof plyrInst.on === 'function') {
     plyrInst.on('ratechange', () => syncUI(plyrInst.speed || 1));
@@ -783,15 +786,25 @@ export async function captureAndShareVideoFrame(plyrInst, root) {
   const curSec = Math.floor(videoEl.currentTime || 0);
   const fileName = `${safeName}_${curSec}s.png`;
 
+  const zoomCrop = getVideoZoomCropRect(videoEl, root);
   let blob = null;
   try {
     const w = videoEl.videoWidth || 1280;
     const h = videoEl.videoHeight || 720;
     const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
+    if (zoomCrop) {
+      canvas.width = Math.max(320, zoomCrop.sw);
+      canvas.height = Math.max(180, zoomCrop.sh);
+    } else {
+      canvas.width = w;
+      canvas.height = h;
+    }
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(videoEl, 0, 0, w, h);
+    if (zoomCrop) {
+      ctx.drawImage(videoEl, zoomCrop.sx, zoomCrop.sy, zoomCrop.sw, zoomCrop.sh, 0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.drawImage(videoEl, 0, 0, w, h);
+    }
     blob = await new Promise((resolve, reject) => {
       try {
         canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob null'))), 'image/png');
@@ -803,7 +816,11 @@ export async function captureAndShareVideoFrame(plyrInst, root) {
     // Çapraz kaynak (haytool-d.local) tuval kısıtı varsa sunucudan FFmpeg ile anlık kare al
     if (videoId) {
       try {
-        const res = await fetch(`/api/video/${encodeURIComponent(videoId)}/screenshot?time=${encodeURIComponent(videoEl.currentTime || 0)}`);
+        let shotUrl = `/api/video/${encodeURIComponent(videoId)}/screenshot?time=${encodeURIComponent(videoEl.currentTime || 0)}`;
+        if (zoomCrop) {
+          shotUrl += `&cx=${zoomCrop.nx.toFixed(4)}&cy=${zoomCrop.ny.toFixed(4)}&cw=${zoomCrop.nw.toFixed(4)}&ch=${zoomCrop.nh.toFixed(4)}`;
+        }
+        const res = await fetch(shotUrl);
         if (res.ok) blob = await res.blob();
       } catch (_) {}
     }

@@ -1292,5 +1292,14 @@ export const de = {
   shortcut_seek_end: "Zum Ende springen",
   shortcut_dvr_back: "Live-DVR zurückspulen (10s)",
   shortcut_dvr_fwd: "Live-DVR vorspulen (10s)",
-  shortcut_open_cheatsheet: "Tastenkürzel-Übersicht öffnen"
+  shortcut_open_cheatsheet: "Tastenkürzel-Übersicht öffnen",
+  shortcut_video_zoom: "Video-Bild zoomen",
+  player_zoom_btn_title: "Video-Bild zoomen (Z)",
+  player_zoom_reset: "1x (Zurücksetzen)",
+  player_zoom_mode_on: "Zoom",
+  player_zoom_mode_off: "Zoom: 1x",
+  player_zoom_drag_hint: "Ziehen zum Verschieben",
+  player_zoom_wheel_hint: "Mausrad zum Zoomen",
+  shortcut_zoom_mouse_pan: "Maus-Zoom & Verschieben (Pan)",
+  shortcut_zoom_wheel_key: "Strg + Mausrad"
 };

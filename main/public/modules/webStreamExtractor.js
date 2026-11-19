@@ -1269,6 +1269,9 @@
           if (plyrEl && !plyrEl._boundWsWheel) {
             plyrEl._boundWsWheel = true;
             plyrEl.addEventListener('wheel', (e) => {
+              if (typeof window.handleVideoZoomWheel === 'function' && window.handleVideoZoomWheel(e, plyrEl)) {
+                return;
+              }
               e.preventDefault();
               const curVol = activePlyrInstance ? activePlyrInstance.volume : videoEl.volume;
               const step = typeof window.getPlayerVolumeStep === 'function' ? window.getPlayerVolumeStep() : 0.05;

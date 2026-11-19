@@ -314,15 +314,24 @@ router.get('/video/:videoId/screenshot', localhostOnly, (req, res) => {
   if (!fs.existsSync(ffmpegBin)) {
     return res.status(500).json({ error: 'FFmpeg bulunamadı.' });
   }
-  execFile(ffmpegBin, [
+  const ffArgs = [
     '-y',
     '-ss', timeSec.toFixed(3),
-    '-i', filePath,
-    '-frames:v', '1',
-    '-f', 'image2pipe',
-    '-vcodec', 'png',
-    '-'
-  ], { encoding: 'buffer', maxBuffer: 25 * 1024 * 1024 }, (err, stdout) => {
+    '-i', filePath
+  ];
+  const cx = parseFloat(req.query.cx);
+  const cy = parseFloat(req.query.cy);
+  const cw = parseFloat(req.query.cw);
+  const ch = parseFloat(req.query.ch);
+  if (
+    Number.isFinite(cx) && Number.isFinite(cy) && Number.isFinite(cw) && Number.isFinite(ch) &&
+    cx >= 0 && cy >= 0 && cw > 0.01 && ch > 0.01 &&
+    cx + cw <= 1.001 && cy + ch <= 1.001
+  ) {
+    ffArgs.push('-vf', `crop=iw*${Math.min(1, cw).toFixed(4)}:ih*${Math.min(1, ch).toFixed(4)}:iw*${Math.max(0, cx).toFixed(4)}:ih*${Math.max(0, cy).toFixed(4)}`);
+  }
+  ffArgs.push('-frames:v', '1', '-f', 'image2pipe', '-vcodec', 'png', '-');
+  execFile(ffmpegBin, ffArgs, { encoding: 'buffer', maxBuffer: 25 * 1024 * 1024 }, (err, stdout) => {
     if (err || !stdout || stdout.length === 0) {
       return res.status(500).json({ error: 'Kare yakalanamadı.' });
     }

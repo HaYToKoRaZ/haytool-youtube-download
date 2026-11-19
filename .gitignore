@@ -51,6 +51,8 @@ bin/*.pdb
 main/bin/llama/
 main/bin/piper/
 main/bin/icons/
+main/Multimedia HaYTooL.exe
+main/bin/Multimedia HaYTooL Backend.exe
 
 # Derleme çıktıları ve geçici klasörler
 dist/

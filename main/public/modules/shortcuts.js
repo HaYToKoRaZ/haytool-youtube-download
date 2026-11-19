@@ -47,6 +47,13 @@ export const SHORTCUT_DEFINITIONS = [
     defaultBinding: { code: 'KeyS', key: 's', shiftKey: false, ctrlKey: false, altKey: false, numpad: false, label: 'S' }
   },
   {
+    id: 'player_zoom_toggle',
+    group: 'player',
+    labelKey: 'shortcut_video_zoom',
+    fallbackLabel: 'Videoyu Yakınlaştır (Zoom)',
+    defaultBinding: { code: 'KeyZ', key: 'z', shiftKey: false, ctrlKey: false, altKey: false, numpad: false, label: 'Z' }
+  },
+  {
     id: 'player_speed_up',
     group: 'player',
     labelKey: 'shortcut_speed_up',
@@ -705,7 +712,14 @@ export function renderShortcutsCheatsheetModal() {
     }).join('');
 
     const jumpPercentLabel = escapeHtml(t.shortcut_jump_percent || "Videonun %0 - %90'ına Atla");
+    const zoomMouseLabel = escapeHtml(t.shortcut_zoom_mouse_pan || 'Fare ile Zoom & Kaydır (Pan)');
+    const zoomWheelKey = escapeHtml(t.shortcut_zoom_wheel_key || 'Ctrl + Tekerlek');
+    const zoomDragKey = escapeHtml(t.player_zoom_drag_hint || 'Sürükle');
     playerPanel.innerHTML = dynamicItemsHtml + `
+      <div class="shortcut-item">
+        <span class="shortcut-desc">${zoomMouseLabel}</span>
+        <div class="shortcut-keys"><kbd>${zoomWheelKey}</kbd> <kbd>${zoomDragKey}</kbd> <kbd>Esc</kbd></div>
+      </div>
       <div class="shortcut-item">
         <span class="shortcut-desc">${jumpPercentLabel}</span>
         <div class="shortcut-keys"><kbd>0</kbd> ... <kbd>9</kbd></div>

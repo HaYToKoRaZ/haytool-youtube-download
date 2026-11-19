@@ -1292,5 +1292,14 @@ export const ru = {
   shortcut_seek_end: "В конец видео",
   shortcut_dvr_back: "Live DVR назад (10 сек.)",
   shortcut_dvr_fwd: "Live DVR вперёд (10 сек.)",
-  shortcut_open_cheatsheet: "Открыть справочник горячих клавиш"
+  shortcut_open_cheatsheet: "Открыть справочник горячих клавиш",
+  shortcut_video_zoom: "Масштаб кадра (Zoom)",
+  player_zoom_btn_title: "Увеличить кадр (Z)",
+  player_zoom_reset: "1x (Сброс)",
+  player_zoom_mode_on: "Зум",
+  player_zoom_mode_off: "Зум: 1x",
+  player_zoom_drag_hint: "Перетаскивайте",
+  player_zoom_wheel_hint: "Колёсико для зума",
+  shortcut_zoom_mouse_pan: "Масштаб и сдвиг мышью (Pan)",
+  shortcut_zoom_wheel_key: "Ctrl + Колёсико"
 };

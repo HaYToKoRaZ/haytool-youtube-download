@@ -61,6 +61,28 @@ jobs:
           if (-not (Test-Path $trayExe)) { throw "Derlenmiş tray EXE bulunamadı." }
           Copy-Item -LiteralPath $trayExe -Destination 'main\Multimedia HaYTooL.exe' -Force
 
+      - name: Build Windows backend executable
+        run: |
+          $pkg = Get-Content 'main\package.json' -Raw | ConvertFrom-Json
+          $appVer = if ($pkg.version) { $pkg.version } else { '12.4.6' }
+          New-Item -ItemType Directory -Force -Path 'main\bin' | Out-Null
+          $nodeSrc = (Get-Command node).Source
+          $backendExe = Join-Path $PWD 'main\bin\Multimedia HaYTooL Backend.exe'
+          Copy-Item -LiteralPath $nodeSrc -Destination $backendExe -Force
+          $rceditExe = Join-Path $env:TEMP 'rcedit-x64.exe'
+          Invoke-WebRequest -Uri 'https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe' -OutFile $rceditExe
+          $iconPath = Join-Path $PWD 'main\icon.ico'
+          & $rceditExe $backendExe `
+            --set-icon $iconPath `
+            --set-version-string 'CompanyName' 'HaYTooL' `
+            --set-version-string 'ProductName' 'Multimedia HaYTooL' `
+            --set-version-string 'FileDescription' 'Multimedia HaYTooL Backend' `
+            --set-version-string 'InternalName' 'Multimedia HaYTooL Backend' `
+            --set-version-string 'OriginalFilename' 'Multimedia HaYTooL Backend.exe' `
+            --set-version-string 'ProductVersion' $appVer `
+            --set-product-version $appVer
+          if ($LASTEXITCODE -ne 0) { throw "Backend EXE mühürlenemedi." }
+
       - name: Build Windows Portable ZIP
         run: |
           $tag = "${{ github.ref_name }}"

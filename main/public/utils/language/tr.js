@@ -1293,5 +1293,14 @@ export const tr = {
   shortcut_seek_end: "Videonun Sonuna Git",
   shortcut_dvr_back: "Canlı DVR Geri Sar (10s)",
   shortcut_dvr_fwd: "Canlı DVR İleri Sar (10s)",
-  shortcut_open_cheatsheet: "Klavye Kısayolları Rehberini Aç"
+  shortcut_open_cheatsheet: "Klavye Kısayolları Rehberini Aç",
+  shortcut_video_zoom: "Videoyu Yakınlaştır (Zoom)",
+  player_zoom_btn_title: "Videoyu Yakınlaştır (Zoom • Z)",
+  player_zoom_reset: "1x (Sıfırla)",
+  player_zoom_mode_on: "Zoom",
+  player_zoom_mode_off: "Zoom: 1x",
+  player_zoom_drag_hint: "Sürükle",
+  player_zoom_wheel_hint: "Tekerlek ile Yakınlaştır",
+  shortcut_zoom_mouse_pan: "Fare ile Zoom & Kaydır (Pan)",
+  shortcut_zoom_wheel_key: "Ctrl + Tekerlek"
 };

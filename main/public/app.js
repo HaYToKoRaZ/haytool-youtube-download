@@ -3268,6 +3268,22 @@ document.addEventListener('keydown', (e) => {
       return;
     }
 
+    if (matchesShortcut(e, 'player_zoom_toggle')) {
+      e.preventDefault();
+      if (typeof window.toggleVideoZoomShortcut === 'function') {
+        window.toggleVideoZoomShortcut(plyrInst?.elements?.container || player);
+      }
+      return;
+    }
+
+    if (e.key === 'Escape' && typeof window.isVideoZoomActive === 'function' && window.isVideoZoomActive(plyrInst?.elements?.container || player)) {
+      e.preventDefault();
+      if (typeof window.resetVideoZoom === 'function') {
+        window.resetVideoZoom(plyrInst?.elements?.container || player);
+      }
+      return;
+    }
+
     // Sayı tuşları (0-9) ile videonun %0 ila %90'ına atlama
     if (!e.ctrlKey && !e.altKey && !e.shiftKey && e.key >= '0' && e.key <= '9') {
       e.preventDefault();
@@ -4717,6 +4733,9 @@ window.updateInlinePlayerMetadata = function(videoObj) {
             if (plyrContainer && !plyrContainer._boundWheelDbl) {
               plyrContainer._boundWheelDbl = true;
               plyrContainer.addEventListener('wheel', (e) => {
+                if (typeof window.handleVideoZoomWheel === 'function' && window.handleVideoZoomWheel(e, plyrContainer)) {
+                  return;
+                }
                 e.preventDefault();
                 let currentVolume = videoPlayerInstance.volume;
                 const step = getPlayerVolumeStep();
