@@ -151,6 +151,7 @@ export function applyLanguage(lang) {
   el('settings-subtab-label-library', 'settings_subtab_library');
   el('settings-subtab-label-youtube', 'settings_subtab_youtube');
   el('settings-subtab-label-ai', 'settings_subtab_ai');
+  el('settings-subtab-label-shortcuts', 'settings_subtab_shortcuts');
 
   // Ayarlar Sekmesi Kart Başlıkları
   el('settings-title-general-text', 'settings_title_general_text');
@@ -162,6 +163,9 @@ export function applyLanguage(lang) {
   el('settings-title-library-text', 'settings_title_library_text');
   el('settings-title-youtube-text', 'settings_title_youtube_text');
   el('settings-title-ai-text', 'settings_title_ai_text');
+  el('settings-title-shortcuts-text', 'settings_title_shortcuts_text');
+  el('btn-text-reset-all-shortcuts', 'shortcuts_reset_all_btn');
+  el('desc-shortcuts-panel', 'settings_shortcuts_desc');
 
   elQuery('#tab-settings .content-header h2', 'settings_title');
   elQuery('#tab-settings .content-header p', 'settings_desc');
@@ -935,6 +939,10 @@ export function applyLanguage(lang) {
     bitrateSelect.options[0].text = t.downloader_bitrate_320 || '320 kbps (En Yüksek)';
     bitrateSelect.options[1].text = t.downloader_bitrate_192 || '192 kbps (Önerilen)';
     bitrateSelect.options[2].text = t.downloader_bitrate_128 || '128 kbps';
+  }
+
+  if (typeof window.initShortcutsManager === 'function') {
+    window.initShortcutsManager();
   }
 }
 

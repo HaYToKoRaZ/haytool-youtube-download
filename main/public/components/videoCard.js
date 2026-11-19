@@ -1,5 +1,6 @@
 import { escapeHtml, formatDate, formatDateTime, getDaysAgoText, getDaysAgoInfo, isShortVideo, isMembersOnlyVideo, parseTimeToSeconds, getVideoRemainingInfo, detectVideoPlatform, getPlatformBadgeHtml, getPlatformSvgIcon, getChannelOrSiteAvatarHtml, hasFollowedChannelAvatar } from '../utils/helpers.js?v=12.3.5.1';
 import { translations } from '../utils/i18n.js';
+import { classifyDownloadError } from '../modules/error-classifier.js';
 
 // YouTube SVG İkon Şablonu
 export const youtubeSvgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" style="display:inline-block !important;vertical-align:middle !important;fill:#ff0000 !important;stroke:none !important;width:16px !important;height:16px !important;"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.872.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" style="fill:#ff0000 !important;stroke:none !important;"/></svg>`;
@@ -296,31 +297,14 @@ export function renderVideoGrid(gridElement, videosList, viewMode) {
           </button>
         `;
       } else if (item.status === 'failed') {
-        let shortError = '';
-        if (item.error) {
-          const errorLines = item.error.split('\n')
-            .map(l => l.trim())
-            .filter(l => l.toUpperCase().includes('ERROR:'));
-          if (errorLines.length > 0) {
-            shortError = errorLines[errorLines.length - 1];
-          } else {
-            shortError = item.error.split('\n')[0] || item.error;
-          }
-          if (shortError.length > 150) {
-            shortError = shortError.substring(0, 150) + '...';
-          }
-        }
-        if (!shortError) {
-          shortError = t.downloader_invalid_url || 'İndirme başarısız oldu';
-        }
-
-        const isMembersOnly = isMembersOnlyVideo(item);
+        const classified = classifyDownloadError(item.error || '', t);
+        const tooltipText = `${classified.shortLabel}: ${classified.fullTooltip}`;
+        const isMembersOnly = isMembersOnlyVideo(item) || classified.code === 'members_only';
 
         if (isMembersOnly) {
-          const tooltipText = t.card_members_only ? `${t.card_members_only}: ${shortError}` : shortError;
           statusHtml = `<span class="status-dot-members" title="${escapeHtml(tooltipText)}"></span>`;
         } else {
-          statusHtml = `<span class="status-dot-failed" title="${escapeHtml(shortError)}"></span>`;
+          statusHtml = `<span class="status-dot-failed" title="${escapeHtml(tooltipText)}"></span>`;
         }
 
         actionsHtml = `

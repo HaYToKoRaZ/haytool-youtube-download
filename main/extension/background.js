@@ -12,16 +12,33 @@ async function getBackendUrl() {
   return `http://127.0.0.1:${port}`;
 }
 
+async function flashActionBadge(text, color) {
+  try {
+    if (!chrome.action || !chrome.action.setBadgeText) return;
+    await chrome.action.setBadgeBackgroundColor({ color });
+    await chrome.action.setBadgeText({ text });
+    setTimeout(() => {
+      chrome.action.setBadgeText({ text: '' }).catch(() => {});
+    }, 2000);
+  } catch {}
+}
+
 async function sendUrlToWebStream(url) {
   const backendUrl = await getBackendUrl();
   try {
-    await fetch(`${backendUrl}/api/tools/open-web-stream`, {
+    const res = await fetch(`${backendUrl}/api/tools/open-web-stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: url || '' })
     });
+    if (res.ok) {
+      await flashActionBadge('✓', '#16a34a');
+    } else {
+      await flashActionBadge('!', '#dc2626');
+    }
   } catch (err) {
     console.error('[HaYTooL Extension] Gönderim hatası:', err);
+    await flashActionBadge('!', '#dc2626');
   }
 }
 

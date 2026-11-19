@@ -722,17 +722,25 @@ router.delete('/categories/:id', localhostOnly, (req, res) => {
  * @param {object} channel Kanal nesnesi
  * @returns {Promise<object>} Güncellenen kanal nesnesi
  */
-export async function updateChannelFullInfo(channel) {
+export function formatSubscriberCount(subs) {
+  const n = typeof subs === 'number' ? subs : parseInt(String(subs || '').trim(), 10);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return n.toString();
+}
+
+export async function updateChannelFullInfo(channel, hintVideoId = null) {
   // 1. Birincil ve en güvenilir kaynak: Doğrudan resmi YouTube UC Kanal ID URL'si
   const channelIdUrl = `https://www.youtube.com/channel/${channel.id}`;
-  let info = await resolveChannelId(channelIdUrl, channel.id);
+  let info = await resolveChannelId(channelIdUrl, channel.id, hintVideoId);
 
   // 2. Yedek kaynak: Eğer kanal ID üzerinden abone sayısı/avatar alınamadıysa Handle veya İsim URL'sini dene
   if (!info || !info.subscriberCount || info.subscriberCount === '?') {
     const handleUrl = channel.handle && channel.handle.startsWith('http') 
       ? channel.handle 
       : `https://www.youtube.com/${channel.handle && channel.handle.startsWith('@') ? channel.handle : '@' + channel.name.replace(/\s+/g, '')}`;
-    const fallbackInfo = await resolveChannelId(handleUrl, channel.id);
+    const fallbackInfo = await resolveChannelId(handleUrl, channel.id, hintVideoId);
     if (fallbackInfo) {
       if (fallbackInfo.subscriberCount && fallbackInfo.subscriberCount !== '?') {
         if (!info) info = {};
@@ -1144,7 +1152,7 @@ export async function searchChannelsOnYoutube(query) {
  *   Kanalın temel bilgilerini içeren nesne
  * @throws {Error} Kanal bulunamazsa hata fırlatir
  */
-export async function resolveChannelId(input, existingChannelId = null) {
+export async function resolveChannelId(input, existingChannelId = null, hintVideoId = null) {
   const decodedInput = decodeURIComponent(input.trim());
   let targetUrl = decodedInput;
   let isVideoUrl = false;
@@ -1189,6 +1197,7 @@ export async function resolveChannelId(input, existingChannelId = null) {
       let channelName = '';
       let avatarUrl = '';
       let subCount = '';
+      let sampleVideoId = (hintVideoId && /^[a-zA-Z0-9_-]{11}$/.test(hintVideoId)) ? hintVideoId : '';
 
       try {
         const xml = await fetchWithProxyWaterfall(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}&hl=${hl}`);
@@ -1198,79 +1207,22 @@ export async function resolveChannelId(input, existingChannelId = null) {
         if (authorMatch) {
           channelName = authorMatch[1].trim();
         }
+        if (!sampleVideoId) {
+          const vidMatch = xml.match(/<yt:videoId>([a-zA-Z0-9_-]{11})<\/yt:videoId>/);
+          if (vidMatch) {
+            sampleVideoId = vidMatch[1];
+          }
+        }
       } catch (xmlErr) {
         console.log(`[RSS Fallback] Doğrudan XML başarısız: ${xmlErr.message}`);
       }
 
-      // Eğer kanal adı alınamadıysa veya saçma/boşsa Piped Channel API ile sorgula (Yasaklı kanalları mükemmel çözer)
-      if (!channelName || channelName === 'YouTube' || channelName.includes('Video - YouTube') || channelName.startsWith('Kanal UC')) {
-        try {
-          const pipedInfo = await fetchPipedChannelInfo(channelId);
-          if (pipedInfo && pipedInfo.name) {
-            channelName = pipedInfo.name;
-            avatarUrl = pipedInfo.avatar || avatarUrl;
-            subCount = pipedInfo.subscriberCount || subCount;
-            console.log(`[RSS Fallback] Piped API ile kanal adı ve görseli çözümlendi: ${channelName}`);
-          }
-        } catch (pipedErr) {
-          console.log(`[RSS Fallback] Piped API sorgu hatası: ${pipedErr.message}`);
-        }
+      if (!sampleVideoId && Array.isArray(db.history)) {
+        const histVid = db.history.find(h => h.channelId === channelId && /^[a-zA-Z0-9_-]{11}$/.test(h.id));
+        if (histVid) sampleVideoId = histVid.id;
       }
 
-      if (!channelName) {
-        channelName = `Kanal ${channelId}`;
-      }
-
-      if (!avatarUrl) {
-        try {
-          const db = readDb();
-          const args = [];
-          args.push('--js-runtimes', `node:${process.execPath}`);
-          args.push('--dump-single-json', '--flat-playlist', '--playlist-items', '1', `https://www.youtube.com/channel/${channelId}`);
-          
-          const localTemp = getLocalTempDir();
-          const spawnOptions = {
-            env: { ...process.env, TEMP: localTemp, TMP: localTemp },
-            ...(process.platform === 'win32' ? { windowsVerbatimArguments: false, windowsHide: true } : {})
-          };
-          
-          const ytdlpOutput = await new Promise((resDl, rejDl) => {
-            const proc = spawnYtdlp(args, spawnOptions);
-            let out = '';
-            let err = '';
-            proc.stdout.on('data', (d) => { out += d.toString(); });
-            proc.stderr.on('data', (d) => { err += d.toString(); });
-            proc.on('close', (code) => {
-              cleanMeiForPid(proc.pid);
-              if (code !== 0) return rejDl(new Error(`Exit code ${code}. Stderr: ${err}`));
-              if (!out || !out.trim()) return rejDl(new Error('yt-dlp boş çıktı döndürdü'));
-              resDl(out);
-            });
-          });
-
-          const parsedData = JSON.parse(ytdlpOutput);
-          if (parsedData.channel || parsedData.uploader) {
-            channelName = parsedData.channel || parsedData.uploader || channelName;
-          }
-          if (parsedData.thumbnails && parsedData.thumbnails.length > 0) {
-            const sortedThumbs = [...parsedData.thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
-            avatarUrl = sortedThumbs[0].url || '';
-          }
-          if (parsedData.subscriber_count) {
-            const subs = parsedData.subscriber_count;
-            if (subs >= 1000000) {
-              subCount = (subs / 1000000).toFixed(1) + 'M';
-            } else if (subs >= 1000) {
-              subCount = (subs / 1000).toFixed(1) + 'K';
-            } else {
-              subCount = subs.toString();
-            }
-          }
-        } catch (avatarErr) {
-          console.log(`[RSS Fallback] yt-dlp ile logo çekilemedi: ${avatarErr.message}. Proxy yedek görseli deneniyor...`);
-        }
-      }
-
+      // 1. Önce hızlı ve coğrafi engelden etkilenmeyen unavatar.io ile kanal logosunu çek
       if (!avatarUrl) {
         try {
           const unavatarRes = await fetchWithProxyWaterfall(`https://unavatar.io/youtube/${channelId}?json=true`);
@@ -1282,6 +1234,42 @@ export async function resolveChannelId(input, existingChannelId = null) {
         } catch (unavatarErr) {
           console.log(`[RSS Fallback] unavatar.io logo sorgusu başarısız: ${unavatarErr.message}`);
         }
+      }
+
+      // 2. Yasaklı kanallarda kanal sayfası engelli olsa bile kanalın tek bir videosu üzerinden abone sayısı çekilebilir
+      if (!subCount && sampleVideoId) {
+        try {
+          const videoSub = await getChannelSubscribersViaYtdlp(`https://www.youtube.com/watch?v=${sampleVideoId}`);
+          if (videoSub) {
+            subCount = videoSub;
+            console.log(`[RSS Fallback] Video sayfası (${sampleVideoId}) üzerinden kanal abone sayısı çekildi: ${subCount}`);
+          }
+        } catch (_) {}
+      }
+
+      // 3. Eğer kanal adı, avatar veya abone sayısı hâlâ eksikse Piped Channel API ile tamamla
+      if (!channelName || channelName === 'YouTube' || channelName.includes('Video - YouTube') || channelName.startsWith('Kanal UC') || !subCount || !avatarUrl) {
+        try {
+          const pipedInfo = await fetchPipedChannelInfo(channelId);
+          if (pipedInfo) {
+            if (pipedInfo.name && (!channelName || channelName === 'YouTube' || channelName.startsWith('Kanal UC'))) {
+              channelName = pipedInfo.name;
+            }
+            if (pipedInfo.avatar && !avatarUrl) {
+              avatarUrl = pipedInfo.avatar;
+            }
+            if (pipedInfo.subscriberCount && !subCount) {
+              subCount = pipedInfo.subscriberCount;
+            }
+            console.log(`[RSS Fallback] Piped API ile eksik kanal bilgileri tamamlandı: ${channelName} (Abone: ${subCount || '?'})`);
+          }
+        } catch (pipedErr) {
+          console.log(`[RSS Fallback] Piped API sorgu hatası: ${pipedErr.message}`);
+        }
+      }
+
+      if (!channelName) {
+        channelName = `Kanal ${channelId}`;
       }
 
       return {
@@ -1508,12 +1496,13 @@ export async function resolveChannelId(input, existingChannelId = null) {
  */
 export function getChannelSubscribersViaYtdlp(channelUrl) {
   return new Promise((resolve) => {
-    const db = readDb();
     const args = [
       '--js-runtimes', `node:${process.execPath}`,
-      '--print', 'subscriber_count'
+      '--no-playlist',
+      '--playlist-items', '1',
+      '--print', '%(channel_follower_count,subscriber_count)s',
+      channelUrl
     ];
-    args.push(channelUrl);
 
     const localTemp = getLocalTempDir();
     const spawnOptions = {
@@ -1529,20 +1518,17 @@ export function getChannelSubscribersViaYtdlp(channelUrl) {
     proc.on('close', (code) => {
       cleanMeiForPid(proc.pid);
       if (code === 0) {
-        const subs = parseInt(stdout.trim(), 10);
-        if (!isNaN(subs)) {
-          let subCount = '';
-          if (subs >= 1000000) {
-            subCount = (subs / 1000000).toFixed(1) + 'M';
-          } else if (subs >= 1000) {
-            subCount = (subs / 1000).toFixed(1) + 'K';
-          } else {
-            subCount = subs.toString();
-          }
-          return resolve(subCount);
+        const firstLine = (stdout || '').trim().split(/\r?\n/)[0];
+        const formatted = formatSubscriberCount(firstLine);
+        if (formatted) {
+          return resolve(formatted);
         }
       }
-      console.error(`[yt-dlp Subscriber Fetch Error]:`, stderr);
+      if (/This channel is not available/i.test(stderr)) {
+        console.log(`[Scraper] Kanal sayfası bölgede kısıtlı (${channelUrl}), RSS/video yedeğine geçiliyor...`);
+      } else if (stderr.trim()) {
+        console.warn(`[yt-dlp Subscriber Fetch Warn]: ${stderr.trim().split(/\r?\n/).slice(-1)[0]}`);
+      }
       resolve('');
     });
   });

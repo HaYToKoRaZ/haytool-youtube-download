@@ -423,6 +423,14 @@ export function syncWithIni(db) {
       db.settings.playerGpuMode = String(playerGpuMode).trim().toLowerCase();
     }
 
+    const volumeStep = getCaseInsensitiveKey(settingsSection, 'volumeStep');
+    if (volumeStep !== undefined) {
+      const parsedVolStep = parseInt(volumeStep, 10);
+      if (!isNaN(parsedVolStep) && parsedVolStep >= 1 && parsedVolStep <= 25) {
+        db.settings.volumeStep = parsedVolStep;
+      }
+    }
+
     const ttsVoiceId = getCaseInsensitiveKey(settingsSection, 'ttsVoiceId');
     if (ttsVoiceId !== undefined) db.settings.ttsVoiceId = String(ttsVoiceId).trim();
 
@@ -770,6 +778,7 @@ export async function saveSettingsToIni(db) {
   iniData.Settings.ggufGpuMode = (db.settings.ggufGpuMode !== false).toString();
   iniData.Settings.unloadUiOnHide = (db.settings.unloadUiOnHide !== false).toString();
   iniData.Settings.playerGpuMode = (db.settings.playerGpuMode || 'gpu').toString();
+  iniData.Settings.volumeStep = (db.settings.volumeStep !== undefined ? db.settings.volumeStep : 5).toString();
   iniData.Settings.ttsVoiceId = (db.settings.ttsVoiceId || '').toString();
   iniData.Settings.ttsSpeed = (db.settings.ttsSpeed !== undefined ? db.settings.ttsSpeed : 1).toString();
   iniData.Settings.ttsVoicesDir = (db.settings.ttsVoicesDir || '').toString();

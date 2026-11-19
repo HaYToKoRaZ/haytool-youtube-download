@@ -778,6 +778,27 @@ router.post('/settings', localhostOnly, async (req, res) => {
       req.body.downloadPath = db.settings.downloadPath;
     }
   }
+  if (req.body.customShortcuts !== undefined) {
+    if (req.body.customShortcuts && typeof req.body.customShortcuts === 'object' && !Array.isArray(req.body.customShortcuts)) {
+      const sanitizedShortcuts = {};
+      for (const [k, v] of Object.entries(req.body.customShortcuts).slice(0, 60)) {
+        if (typeof k === 'string' && v && typeof v === 'object') {
+          sanitizedShortcuts[k.slice(0, 60)] = {
+            code: String(v.code || '').slice(0, 40),
+            key: String(v.key || '').slice(0, 40),
+            shiftKey: Boolean(v.shiftKey),
+            ctrlKey: Boolean(v.ctrlKey),
+            altKey: Boolean(v.altKey),
+            numpad: Boolean(v.numpad),
+            label: String(v.label || '').slice(0, 40)
+          };
+        }
+      }
+      req.body.customShortcuts = sanitizedShortcuts;
+    } else {
+      delete req.body.customShortcuts;
+    }
+  }
 
   const prevInterval = db.settings.channelCheckInterval;
   const prevLiveRetryInterval = db.settings.liveStreamRetryInterval;
@@ -1299,29 +1320,34 @@ export function testCookiesValidity() {
   });
 }
 
+const _ffmpegVersionCache = new Map();
+
+function getCachedFfmpegBinaryVersion(binPath) {
+  if (!binPath || !fs.existsSync(binPath)) {
+    return { exists: false, path: binPath, version: null };
+  }
+  try {
+    const stat = fs.statSync(binPath);
+    const cacheKey = `${binPath}|${stat.mtimeMs}|${stat.size}`;
+    if (_ffmpegVersionCache.has(cacheKey)) {
+      return { exists: true, path: binPath, version: _ffmpegVersionCache.get(cacheKey) };
+    }
+    const out = execFileSync(binPath, ['-version'], { encoding: 'utf-8', timeout: 5000 });
+    const m = out.match(/ffmpeg version ([^\s]+)/i);
+    const ver = m ? m[1] : 'Bilinmiyor';
+    _ffmpegVersionCache.set(cacheKey, ver);
+    return { exists: true, path: binPath, version: ver };
+  } catch (e) {
+    return { exists: false, path: binPath, version: null };
+  }
+}
+
 function getLocalFfmpegInfo() {
   const appFfmpegPath = getAppFfmpegPath();
   const sysFfmpegPath = getSystemBinaryPath('ffmpeg');
 
-  let appInfo = { exists: false, path: appFfmpegPath, version: null };
-  if (fs.existsSync(appFfmpegPath)) {
-    try {
-      const out = execFileSync(appFfmpegPath, ['-version'], { encoding: 'utf-8', timeout: 5000 });
-      const m = out.match(/ffmpeg version ([^\s]+)/i);
-      appInfo.exists = true;
-      appInfo.version = m ? m[1] : 'Bilinmiyor';
-    } catch (e) {}
-  }
-
-  let sysInfo = { exists: false, path: sysFfmpegPath, version: null };
-  if (sysFfmpegPath && fs.existsSync(sysFfmpegPath)) {
-    try {
-      const out = execFileSync(sysFfmpegPath, ['-version'], { encoding: 'utf-8', timeout: 5000 });
-      const m = out.match(/ffmpeg version ([^\s]+)/i);
-      sysInfo.exists = true;
-      sysInfo.version = m ? m[1] : 'Bilinmiyor';
-    } catch (e) {}
-  }
+  const appInfo = getCachedFfmpegBinaryVersion(appFfmpegPath);
+  const sysInfo = getCachedFfmpegBinaryVersion(sysFfmpegPath);
 
   const activePath = getFfmpegPath();
   let activeSource = 'none';
@@ -1465,23 +1491,52 @@ router.post('/settings/toggle-defer-merge', localhostOnly, async (req, res) => {
   });
 });
 
-function getDirSize(dirPath) {
+let _dirSizeCache = { folder: '', mediaCount: -1, sizeBytes: 0, updatedAt: 0 };
+let _dirSizeInFlight = null;
+const DIR_SIZE_CACHE_TTL_MS = 60000;
+
+async function computeDirSizeAsync(dirPath) {
   let totalSize = 0;
   try {
-    const files = fs.readdirSync(dirPath);
-    for (const file of files) {
-      const filePath = path.join(dirPath, file);
-      const stat = fs.statSync(filePath);
-      if (stat.isDirectory()) {
-        totalSize += getDirSize(filePath);
-      } else {
-        totalSize += stat.size;
-      }
+    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const filePath = path.join(dirPath, entry.name);
+      try {
+        if (entry.isDirectory()) {
+          totalSize += await computeDirSizeAsync(filePath);
+        } else if (entry.isFile()) {
+          const stat = await fs.promises.stat(filePath);
+          totalSize += stat.size;
+        }
+      } catch (_) {}
     }
   } catch (e) {
     // Erişim kısıtlaması olan veya silinmiş dosya/klasör hatalarını yutuyoruz
   }
   return totalSize;
+}
+
+async function getDirSizeCached(dirPath, mediaCount) {
+  const now = Date.now();
+  if (
+    _dirSizeCache.folder === dirPath &&
+    _dirSizeCache.mediaCount === mediaCount &&
+    now - _dirSizeCache.updatedAt < DIR_SIZE_CACHE_TTL_MS
+  ) {
+    return _dirSizeCache.sizeBytes;
+  }
+  if (_dirSizeInFlight) {
+    return _dirSizeInFlight;
+  }
+  _dirSizeInFlight = computeDirSizeAsync(dirPath)
+    .then(sizeBytes => {
+      _dirSizeCache = { folder: dirPath, mediaCount, sizeBytes, updatedAt: Date.now() };
+      return sizeBytes;
+    })
+    .finally(() => {
+      _dirSizeInFlight = null;
+    });
+  return _dirSizeInFlight;
 }
 
 /**
@@ -1492,9 +1547,9 @@ function getDirSize(dirPath) {
  * @inner
  * @param {object} req - Express istek nesnesi
  * @param {object} res - Express yanıt nesnesi
- * @returns {void}
+ * @returns {Promise<void>}
  */
-router.get('/disk-space', (req, res) => {
+router.get('/disk-space', async (req, res) => {
   const db = readDb();
   const folder = db.settings.downloadPath || defaultDownloadDir;
   
@@ -1506,12 +1561,11 @@ router.get('/disk-space', (req, res) => {
     const freeBytes = stats.bfree * stats.bsize;
     const totalBytes = stats.blocks * stats.bsize;
     
-    const folderSizeBytes = getDirSize(folder);
-    
     const absPath = path.resolve(folder);
     const driveLetterMatch = absPath.match(/^([a-zA-Z]):/);
     const driveLetter = driveLetterMatch ? driveLetterMatch[1].toUpperCase() : '';
     const mediaCount = Array.isArray(db.history) ? db.history.length : 0;
+    const folderSizeBytes = await getDirSizeCached(absPath, mediaCount);
 
     return res.json({
       success: true,
@@ -2290,33 +2344,52 @@ function getCliAppDir() {
   return path.normalize(process.cwd());
 }
 
+let _cliPathStatusCache = null;
+let _cliPathStatusInFlight = null;
+
 /**
  * Windows Kullanıcı PATH durumunu sorgular.
  * @name GET /api/settings/cli-path-status
  */
-router.get('/settings/cli-path-status', localhostOnly, (req, res) => {
+router.get('/settings/cli-path-status', localhostOnly, async (req, res) => {
   if (process.platform !== 'win32') {
     return res.json({ success: true, supported: false, inPath: false, appDir: '' });
   }
 
   const appDir = getCliAppDir();
-  execFile('powershell.exe', ['-NoProfile', '-Command', "[System.Environment]::GetEnvironmentVariable('Path', 'User')"], { windowsHide: true }, (err, stdout) => {
-    if (err) {
-      return res.status(500).json({ success: false, error: err.message });
-    }
-    const currentPath = (stdout || '').trim();
-    const parts = currentPath.split(';').map(p => path.normalize(p.trim().replace(/^"|"$/g, '')).toLowerCase()).filter(Boolean);
-    const target = path.normalize(appDir).toLowerCase();
-    const inPath = parts.includes(target);
+  if (_cliPathStatusCache && _cliPathStatusCache.appDir === appDir && req.query.force !== '1') {
+    return res.json(_cliPathStatusCache);
+  }
 
-    res.json({
-      success: true,
-      supported: true,
-      inPath,
-      appDir,
-      registryKey: 'HKCU\\Environment\\Path'
+  if (!_cliPathStatusInFlight) {
+    _cliPathStatusInFlight = new Promise((resolve, reject) => {
+      execFile('powershell.exe', ['-NoProfile', '-Command', "[System.Environment]::GetEnvironmentVariable('Path', 'User')"], { windowsHide: true }, (err, stdout) => {
+        if (err) return reject(err);
+        const currentPath = (stdout || '').trim();
+        const parts = currentPath.split(';').map(p => path.normalize(p.trim().replace(/^"|"$/g, '')).toLowerCase()).filter(Boolean);
+        const target = path.normalize(appDir).toLowerCase();
+        const inPath = parts.includes(target);
+        const payload = {
+          success: true,
+          supported: true,
+          inPath,
+          appDir,
+          registryKey: 'HKCU\\Environment\\Path'
+        };
+        _cliPathStatusCache = payload;
+        resolve(payload);
+      });
+    }).finally(() => {
+      _cliPathStatusInFlight = null;
     });
-  });
+  }
+
+  try {
+    const result = await _cliPathStatusInFlight;
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 /**
@@ -2363,6 +2436,14 @@ router.post('/settings/cli-path-toggle', localhostOnly, (req, res) => {
       if (setErr) {
         return res.status(500).json({ success: false, error: 'PATH güncellenemedi: ' + setErr.message });
       }
+
+      _cliPathStatusCache = {
+        success: true,
+        supported: true,
+        inPath: action === 'enable',
+        appDir,
+        registryKey: 'HKCU\\Environment\\Path'
+      };
 
       res.json({
         success: true,

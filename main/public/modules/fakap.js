@@ -12,6 +12,7 @@
  */
 
 import { escapeHtml, formatDate } from '../utils/helpers.js';
+import { classifyDownloadError } from './error-classifier.js';
 
 let fakapCache = [];
 
@@ -130,7 +131,8 @@ function renderFakapCards(videos) {
         </button>
       `;
     } else if (isFailed) {
-      statusBadge = `<span class="status-dot-danger" title="${escapeHtml(item.error || 'Yedekleme başarısız')}"></span>`;
+      const classified = classifyDownloadError(item.error || '', t);
+      statusBadge = `<span class="status-dot-danger" title="${escapeHtml(`${classified.shortLabel}: ${classified.fullTooltip}`)}"></span>`;
       actionsHtml = `
         <button class="btn-icon video-action-delete" onclick="deleteFakapVideoById('${item.id}')" title="Kaydı Sil">
           <i data-lucide="trash-2"></i>

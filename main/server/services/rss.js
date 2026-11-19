@@ -1540,7 +1540,6 @@ export async function checkAllChannelsRssParallel() {
   const total = db.channels.length;
   
   addTerminalLog(`[RSS] ${total} kanal için ⚡ Hızlı Tarama başlatılıyor...`, 'info');
-  console.log(`[RSS] ${total} kanal için ⚡ Hızlı Tarama başlatılıyor...`);
 
   const rssLimit = db.settings.rssLimit || 5;
   
@@ -1553,7 +1552,6 @@ export async function checkAllChannelsRssParallel() {
         feed = await fetchChannelVideosYtdlp(channel.id, rssLimit);
       } catch (ytdlpErr) {
         if (!/does not have a (videos|streams|shorts) tab/i.test(ytdlpErr.message || '')) {
-          console.log(`[RSS] "${channel.name}" atlandı (${ytdlpErr.message})`);
           addTerminalLog(`[RSS] "${channel.name}" atlandı (${ytdlpErr.message}).`, 'warn');
         }
       }
@@ -1570,14 +1568,12 @@ export async function checkAllChannelsRssParallel() {
     let pausedLogged = false;
     while (downloadQueue && !downloadQueue.isPaused && (downloadQueue.activeDownloads > 0 || (downloadQueue.activeProcesses && downloadQueue.activeProcesses.size > 0))) {
       if (!pausedLogged) {
-        console.log(`[RSS] Aktif video indirmesi tespit edildi. Kanal taraması indirme bitene kadar duraklatıldı...`);
         addTerminalLog(`[RSS] Aktif video indirmesi nedeniyle kanal taraması duraklatıldı (İndirme bitince devam edecek).`, 'info');
         pausedLogged = true;
       }
       await new Promise(res => setTimeout(res, 2000));
     }
     if (pausedLogged) {
-      console.log(`[RSS] Video indirmesi tamamlandı, kanal taramasına kaldığı yerden devam ediliyor...`);
       addTerminalLog(`[RSS] Video indirmesi bitti, kanal taramasına devam ediliyor.`, 'info');
     }
 
@@ -1589,7 +1585,6 @@ export async function checkAllChannelsRssParallel() {
     const percent = Math.min(100, Math.round((processedCount / total) * 100));
     const logMsg = `[RSS] Kanallar kontrol ediliyor... (${processedCount}/${total} - %${percent})`;
     addTerminalLog(logMsg, 'info');
-    console.log(logMsg);
     broadcast('rss_progress', { processed: processedCount, total, percent });
   }
 
@@ -1970,7 +1965,6 @@ export async function checkAllChannelsRssParallel() {
 
   const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
   addTerminalLog(`[RSS] Hızlı Tarama tamamlandı: ${total} kanal ${durationSec} saniyede kontrol edildi. ${newVideosCount} yeni video bulundu.`, 'success');
-  console.log(`[RSS] Hızlı Tarama tamamlandı: ${total} kanal ${durationSec} saniyede kontrol edildi. ${newVideosCount} yeni video bulundu.`);
 
   return {
     success: true,
@@ -1998,7 +1992,6 @@ export async function triggerChannelCheck(source = 'manual') {
         setChannelScanInProgress(false);
       } else {
         const msg = `[Kanal Kontrolü] Kanal bilgisi (abone/avatar) güncellemesi devam ettiği için video RSS taraması ertelendi (Kaynak: ${source}).`;
-        console.log(msg);
         addTerminalLog(msg, 'info');
         return { success: false, deferred: true, message: 'Kanal güncellemesi nedeniyle video RSS taraması ertelendi.' };
       }
@@ -2014,7 +2007,6 @@ export async function triggerChannelCheck(source = 'manual') {
       isRssChecking = false;
     } else {
       const msg = `[Kanal Kontrolü] Zaten devam eden bir RSS taraması var (Kaynak: ${source}). Yeni istek atlandı.`;
-      console.log(msg);
       addTerminalLog(msg, 'info');
       return { success: false, inProgress: true, message: 'Tarama zaten devam ediyor.' };
     }
@@ -2028,7 +2020,6 @@ export async function triggerChannelCheck(source = 'manual') {
 
   if (hasActiveDownloads) {
     const msg = `[Kanal Kontrolü] Aktif video indirmesi veya dönüştürme devam ettiği için kanal taraması ertelendi (YouTube ban koruması).`;
-    console.log(msg);
     addTerminalLog(msg, 'warning');
     return { success: false, deferred: true, message: msg };
   }
@@ -2041,7 +2032,6 @@ export async function triggerChannelCheck(source = 'manual') {
     hasDeferredChannelCheck = true;
     deferredChannelCheckSource = source;
     const msg = `[Kanal Kontrolü] Süresi çözümlenmemiş videolar bulunduğu için kanal taraması ertelendi (YouTube ban koruması). Eksik süreler analiz ediliyor...`;
-    console.log(msg);
     addTerminalLog(msg, 'info');
     resolveMissingDurations();
     return { success: false, deferred: true, message: msg };
@@ -2059,7 +2049,6 @@ export async function triggerChannelCheck(source = 'manual') {
       manual: 'Manuel Tetikleme'
     };
     const label = sourceLabels[source] || source;
-    console.log(`[Kanal Kontrolü] Tüm kanallar denetleniyor (Kaynak: ${label})...`);
     addTerminalLog(`[Kanal Kontrolü] Tüm kanallar denetleniyor (${label})...`, 'info');
 
     const result = await checkAllChannelsRssParallel();

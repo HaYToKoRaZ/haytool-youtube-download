@@ -737,7 +737,15 @@ namespace HaYTooLPlayer
                 catch {}
 
                 string debugLogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wv2_debug.log");
-                try { File.AppendAllText(debugLogFile, $"[{DateTime.Now}] WebView2 Initialized.\n"); } catch {}
+                try
+                {
+                    if (File.Exists(debugLogFile) && new FileInfo(debugLogFile).Length > 2 * 1024 * 1024)
+                    {
+                        File.WriteAllText(debugLogFile, $"[{DateTime.Now}] Log boyutu 2 MB sınırını aştığı için sıfırlandı.\n");
+                    }
+                    File.AppendAllText(debugLogFile, $"[{DateTime.Now}] WebView2 Initialized.\n");
+                }
+                catch {}
 
                 // JavaScript Hata Loglarını Yakala (console.log IPC yükünü kaldır, yalnızca gerçek hataları yaz)
                 await webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(@"
@@ -990,11 +998,9 @@ namespace HaYTooLPlayer
             {
                 using (var client = new System.Net.Sockets.TcpClient())
                 {
-                    var result = client.BeginConnect("127.0.0.1", port, null, null);
-                    bool success = result.AsyncWaitHandle.WaitOne(300);
-                    if (!success) return false;
-                    client.EndConnect(result);
-                    return true;
+                    var connectTask = client.ConnectAsync("127.0.0.1", port);
+                    _ = connectTask.ContinueWith(t => _ = t.Exception, System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+                    return connectTask.Wait(300) && client.Connected;
                 }
             }
             catch

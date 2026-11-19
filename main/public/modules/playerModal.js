@@ -414,6 +414,13 @@ export function showPlayerTransientOverlay(htmlContent, durationMs = 1500) {
   }, durationMs);
 }
 
+export function getPlayerVolumeStep() {
+  const localDb = _ctx.getLocalDb();
+  const raw = parseInt(localDb?.settings?.volumeStep, 10);
+  const pct = (!isNaN(raw) && raw >= 1 && raw <= 25) ? raw : 5;
+  return pct / 100;
+}
+
 /**
  * Ses seviyesi değiştiğinde oynatıcının sağ ortasında dikey modern ses HUD göstergesini açar.
  * Ardışık ses değişimlerinde DOM'u silip yeniden oluşturmak yerine mevcut çubuğu akıcı biçimde günceller.

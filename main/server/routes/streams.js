@@ -7,7 +7,8 @@ import open from 'open';
 import dns from 'dns';
 import { spawn, execFile, exec } from 'child_process';
 import { ytdlpPath, getLocalTempDir, cleanMeiForPid, spawnYtdlp, getFfmpegPath, getVideoDurationFromFile } from '../services/paths.js';
-import { updateChannelFullInfo } from './channels.js';
+import { updateChannelFullInfo, formatSubscriberCount } from './channels.js';
+import { fetchWithProxyWaterfall, downloadChannelAvatar } from '../services/rss.js';
 import { getCookieArgs } from '../services/downloader.js';
 import { writeDb } from '../database.js';
 import { broadcast } from '../services/sse.js';
@@ -395,7 +396,7 @@ router.get('/video/:videoId/description', (req, res) => {
   return res.json({ success: true, description: '' });
 });
 
-function fetchDescriptionFromYtdlp(videoId) {
+function fetchVideoDetailsFromYtdlp(videoId) {
   return new Promise((resolve, reject) => {
     let db;
     try { db = readDb(); } catch(e) { db = {}; }
@@ -405,8 +406,9 @@ function fetchDescriptionFromYtdlp(videoId) {
     const args = [
       '--encoding', 'utf-8',
       '--no-playlist',
+      '--js-runtimes', `node:${process.execPath}`,
       ...cookieArgs,
-      '--get-description',
+      '--dump-single-json',
       `https://www.youtube.com/watch?v=${videoId}`
     ];
     
@@ -435,20 +437,32 @@ function fetchDescriptionFromYtdlp(videoId) {
 
     proc.on('close', (code) => {
       cleanMeiForPid(proc.pid);
-      const stdoutStr = Buffer.concat(stdoutChunks).toString('utf8');
-      const stderrStr = Buffer.concat(stderrChunks).toString('utf8');
+      const stdoutStr = Buffer.concat(stdoutChunks).toString('utf8').trim();
+      const stderrStr = Buffer.concat(stderrChunks).toString('utf8').trim();
       
-      if (code === 0) {
-        resolve(stdoutStr.trim());
+      if (code === 0 && stdoutStr) {
+        try {
+          const parsed = JSON.parse(stdoutStr);
+          return resolve({
+            description: String(parsed.description || '').trim(),
+            viewCount: typeof parsed.view_count === 'number' ? parsed.view_count : null,
+            channelFollowerCount: typeof parsed.channel_follower_count === 'number' ? parsed.channel_follower_count : null,
+            channelId: parsed.channel_id || null,
+            channelName: parsed.channel || parsed.uploader || null
+          });
+        } catch (parseErr) {
+          return reject(new Error(`JSON ayrıştırma hatası: ${parseErr.message}`));
+        }
       } else {
-        reject(new Error(stderrStr.trim() || `Exit code ${code}`));
+        reject(new Error(stderrStr || `Exit code ${code}`));
       }
     });
   });
 }
 
 /**
- * Belirtilen video için açıklama dosyasını ve yorumlarını YouTube'dan tazeleyip günceller.
+ * Belirtilen video için açıklama dosyasını, izlenme sayısını, kanal abone sayısını ve avatarını YouTube'dan tazeleyip günceller.
+ * Yasaklı kanallarda kanal sayfası engelli olsa bile doğrudan video sayfasından abone sayısını ve unavatar.io ile logoyu çeker.
  * 
  * @name POST /api/video/:videoId/refresh-details
  */
@@ -462,12 +476,14 @@ router.post('/video/:videoId/refresh-details', localhostOnly, async (req, res) =
     const db = readDb();
     const item = db.history.find(h => h.id === videoId || h.originalId === videoId);
 
-    // 1. YouTube'dan güncel açıklamayı çek
+    // 1. YouTube video sayfasından açıklama + izlenme + kanal abone sayısını tek seferde çek
     let updatedDesc = '';
+    let videoMeta = null;
     try {
-      updatedDesc = await fetchDescriptionFromYtdlp(videoId);
+      videoMeta = await fetchVideoDetailsFromYtdlp(videoId);
+      updatedDesc = videoMeta.description || '';
     } catch (e) {
-      console.warn(`[Refresh Details] Description fetch warning for ${videoId}:`, e.message);
+      console.warn(`[Refresh Details] Video details fetch warning for ${videoId}:`, e.message);
     }
 
     // .description dosyasını diske kaydet
@@ -480,34 +496,71 @@ router.post('/video/:videoId/refresh-details', localhostOnly, async (req, res) =
       } catch (e) {}
     }
 
-    // 2. Güncel İzlenme Sayısını Çek (RYD API)
-    let latestViews = (item && item.viewCount) || 0;
-    try {
-      const rydRes = await fetch(`https://returnyoutubedislikeapi.com/votes?videoId=${encodeURIComponent(videoId)}`, {
-        headers: { 'User-Agent': 'HaYTooL-YT-Downloader/1.0' }
-      });
-      if (rydRes.ok) {
-        const rydData = await rydRes.json();
-        if (rydData && rydData.viewCount) {
-          latestViews = rydData.viewCount;
-          if (item) item.viewCount = latestViews;
+    // 2. Güncel İzlenme Sayısını Çek (Önce yt-dlp videoMeta, yedek olarak RYD API)
+    let latestViews = (videoMeta && videoMeta.viewCount) || (item && item.viewCount) || 0;
+    if (!videoMeta || !videoMeta.viewCount) {
+      try {
+        const rydRes = await fetch(`https://returnyoutubedislikeapi.com/votes?videoId=${encodeURIComponent(videoId)}`, {
+          headers: { 'User-Agent': 'HaYTooL-YT-Downloader/1.0' }
+        });
+        if (rydRes.ok) {
+          const rydData = await rydRes.json();
+          if (rydData && rydData.viewCount) {
+            latestViews = rydData.viewCount;
+          }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
+    if (item && latestViews > 0) {
+      item.viewCount = latestViews;
+    }
 
-    // 3. Kanal Abone Sayısını Güncelle
+    // 3. Kanal Abone Sayısını ve Avatarını Güncelle
     let updatedChannel = null;
-    let targetChannelId = item ? item.channelId : null;
-    let targetChannelName = item ? item.channelName : null;
+    let targetChannelId = (item && item.channelId) || (videoMeta && videoMeta.channelId) || null;
+    let targetChannelName = (item && item.channelName) || (videoMeta && videoMeta.channelName) || null;
+    const directSubFormatted = videoMeta && videoMeta.channelFollowerCount
+      ? formatSubscriberCount(videoMeta.channelFollowerCount)
+      : '';
+    let resolvedSubscriberCount = directSubFormatted || null;
+    let avatarUpdated = false;
 
     if (db.channels && db.channels.length > 0) {
-      let channel = db.channels.find(c => (targetChannelId && c.id === targetChannelId) || (targetChannelName && c.name === targetChannelName));
+      const channel = db.channels.find(c => (targetChannelId && c.id === targetChannelId) || (targetChannelName && c.name === targetChannelName));
       if (channel) {
-        try {
-          await updateChannelFullInfo(channel);
+        targetChannelId = channel.id;
+        targetChannelName = channel.name;
+        if (directSubFormatted) {
+          // Video sayfasından abone sayısı zaten alındıysa yasaklı kanal sayfasına gidip hata üretme
+          channel.subscriberCount = directSubFormatted;
+          resolvedSubscriberCount = directSubFormatted;
+          console.log(`[Refresh Details] "${channel.name}" abone sayısı video sayfasından güncellendi: ${directSubFormatted}`);
+
+          // Kanal logosu eksikse veya yenilenmesi gerekiyorsa unavatar.io üzerinden çek
+          try {
+            const avatarDiskPath = path.join(db.settings.downloadPath || '', channel.name, 'avatar.jpg');
+            if (!channel.avatar || !fs.existsSync(avatarDiskPath)) {
+              const unavatarRes = await fetchWithProxyWaterfall(`https://unavatar.io/youtube/${channel.id}?json=true`);
+              const parsedUnavatar = JSON.parse(unavatarRes);
+              if (parsedUnavatar && parsedUnavatar.url) {
+                channel.avatar = parsedUnavatar.url;
+              }
+            }
+            if (channel.avatar) {
+              const dlRes = await downloadChannelAvatar(channel.avatar, channel.name);
+              avatarUpdated = Boolean(dlRes);
+            }
+          } catch (_) {}
           updatedChannel = channel;
-        } catch (err) {
-          console.warn(`[Refresh Details] Channel update warning for ${channel.name}:`, err.message);
+        } else {
+          try {
+            await updateChannelFullInfo(channel, videoId);
+            updatedChannel = channel;
+            resolvedSubscriberCount = channel.subscriberCount || null;
+            avatarUpdated = Boolean(channel.avatar);
+          } catch (err) {
+            console.warn(`[Refresh Details] Channel update warning for ${channel.name}:`, err.message);
+          }
         }
       }
     }
@@ -521,7 +574,8 @@ router.post('/video/:videoId/refresh-details', localhostOnly, async (req, res) =
       viewCount: latestViews,
       channelId: updatedChannel ? updatedChannel.id : targetChannelId,
       channelName: updatedChannel ? updatedChannel.name : targetChannelName,
-      subscriberCount: updatedChannel ? updatedChannel.subscriberCount : null
+      subscriberCount: resolvedSubscriberCount,
+      avatarUpdated
     });
   } catch (err) {
     console.error(`Error refreshing description/comments for ${videoId}:`, err.message);

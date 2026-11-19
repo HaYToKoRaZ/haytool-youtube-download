@@ -623,11 +623,9 @@ namespace HaYTooLPlayer
             {
                 using (var client = new System.Net.Sockets.TcpClient())
                 {
-                    var result = client.BeginConnect("127.0.0.1", port, null, null);
-                    bool ok = result.AsyncWaitHandle.WaitOne(350);
-                    if (!ok) return false;
-                    client.EndConnect(result);
-                    return true;
+                    var connectTask = client.ConnectAsync("127.0.0.1", port);
+                    _ = connectTask.ContinueWith(t => _ = t.Exception, System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+                    return connectTask.Wait(350) && client.Connected;
                 }
             }
             catch { return false; }

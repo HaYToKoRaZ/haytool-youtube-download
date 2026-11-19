@@ -6,6 +6,8 @@
  *           bağımsız arka plan PVR kayıt motoru ve 4'lü çoklu ekran yönetimi.
  */
 
+import { matchesShortcut } from './shortcuts.js';
+
 // ─── Modül-içi Durum Değişkenleri ───
 let iptvPlayers = [null, null, null, null]; // Slot 0..3
 let activeIptvSlot = 0;
@@ -434,195 +436,174 @@ function initIptvKeyboardShortcuts() {
     if (isTyping) return;
 
     // 4. Aktif slot ve video kontrolü
+    if (window.isCapturingShortcut) return;
     const p = iptvPlayers[activeIptvSlot];
     const video = p?.videoElement;
     const slotEl = document.querySelector(`.iptv-slot[data-slot="${activeIptvSlot}"]`);
     if (!slotEl) return;
 
-    switch (e.key) {
-      case ' ':
-      case 'k':
-      case 'K': {
-        e.preventDefault();
-        const playBtn = slotEl.querySelector('.osd-play-btn');
-        if (playBtn) {
-          playBtn.click();
-        } else if (video) {
-          if (video.paused) {
-            video.play().catch(() => {});
-            if (typeof window.showCenterBounceIcon === 'function') window.showCenterBounceIcon('play');
-          } else {
-            video.pause();
-            if (typeof window.showCenterBounceIcon === 'function') window.showCenterBounceIcon('pause');
-          }
-        }
-        break;
-      }
-
-      case 'f':
-      case 'F': {
-        e.preventDefault();
-        const fsBtn = slotEl.querySelector('.osd-fullscreen-btn');
-        if (fsBtn) {
-          fsBtn.click();
+    if (matchesShortcut(e, 'iptv_play_pause')) {
+      e.preventDefault();
+      const playBtn = slotEl.querySelector('.osd-play-btn');
+      if (playBtn) {
+        playBtn.click();
+      } else if (video) {
+        if (video.paused) {
+          video.play().catch(() => {});
+          if (typeof window.showCenterBounceIcon === 'function') window.showCenterBounceIcon('play');
         } else {
-          const willBeFs = !document.fullscreenElement;
-          if (willBeFs) {
-            slotEl.requestFullscreen().catch(() => {});
-          } else {
-            document.exitFullscreen().catch(() => {});
-          }
-          if (typeof window.showActionToast === 'function') {
-            const fsLabel = getTranslation(willBeFs ? 'hud_fullscreen' : 'hud_exit_fullscreen', willBeFs ? 'Tam Ekran' : 'Pencere Modu');
-            window.showActionToast(willBeFs ? 'maximize' : 'minimize', fsLabel, 1700);
-          }
+          video.pause();
+          if (typeof window.showCenterBounceIcon === 'function') window.showCenterBounceIcon('pause');
         }
-        break;
       }
+      return;
+    }
 
-      case 'm':
-      case 'M': {
-        e.preventDefault();
-        const muteBtn = slotEl.querySelector('.osd-mute-btn');
-        if (muteBtn) {
-          muteBtn.click();
-        } else if (video) {
-          video.muted = !video.muted;
-          iptvUserExplicitlyMuted = video.muted;
-          if (typeof window.showActionToast === 'function') {
-            const mLabel = getTranslation(video.muted ? 'hud_muted' : 'hud_unmuted', video.muted ? 'Sessiz' : 'Ses Açık');
-            window.showActionToast(video.muted ? 'volume-x' : 'volume-2', mLabel, 1600);
-          }
+    if (matchesShortcut(e, 'iptv_fullscreen')) {
+      e.preventDefault();
+      const fsBtn = slotEl.querySelector('.osd-fullscreen-btn');
+      if (fsBtn) {
+        fsBtn.click();
+      } else {
+        const willBeFs = !document.fullscreenElement;
+        if (willBeFs) {
+          slotEl.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
         }
-        break;
-      }
-
-      case 'ArrowUp': {
-        e.preventDefault();
-        if (e.shiftKey) {
-          playPrevIptvChannel();
-        } else if (video) {
-          const slider = slotEl.querySelector('.osd-volume-slider');
-          const nextVol = Math.min(1, Math.round((video.volume + 0.05) * 100) / 100);
-          if (slider) {
-            slider.value = nextVol;
-            slider.dispatchEvent(new Event('input', { bubbles: true }));
-          } else {
-            video.volume = nextVol;
-            iptvGlobalVolume = nextVol;
-            if (typeof window.triggerVolumeHUD === 'function') window.triggerVolumeHUD(nextVol);
-          }
+        if (typeof window.showActionToast === 'function') {
+          const fsLabel = getTranslation(willBeFs ? 'hud_fullscreen' : 'hud_exit_fullscreen', willBeFs ? 'Tam Ekran' : 'Pencere Modu');
+          window.showActionToast(willBeFs ? 'maximize' : 'minimize', fsLabel, 1700);
         }
-        break;
       }
+      return;
+    }
 
-      case 'ArrowDown': {
-        e.preventDefault();
-        if (e.shiftKey) {
-          playNextIptvChannel();
-        } else if (video) {
-          const slider = slotEl.querySelector('.osd-volume-slider');
-          const nextVol = Math.max(0, Math.round((video.volume - 0.05) * 100) / 100);
-          if (slider) {
-            slider.value = nextVol;
-            slider.dispatchEvent(new Event('input', { bubbles: true }));
-          } else {
-            video.volume = nextVol;
-            iptvGlobalVolume = nextVol;
-            if (typeof window.triggerVolumeHUD === 'function') window.triggerVolumeHUD(nextVol);
-          }
+    if (matchesShortcut(e, 'iptv_theater')) {
+      e.preventDefault();
+      if (typeof window.toggleTheaterMode === 'function') {
+        const isTheater = window.toggleTheaterMode();
+        if (typeof window.showActionToast === 'function') {
+          const tLabel = getTranslation(isTheater ? 'hud_theater_on' : 'hud_theater_off', isTheater ? 'Sinema Modu' : 'Normal Mod');
+          window.showActionToast('tv', tLabel, 1600);
         }
-        break;
       }
+      return;
+    }
 
-      case 'PageDown':
-      case ']':
-      case 'n':
-      case 'N':
-      case 'MediaTrackNext': {
-        e.preventDefault();
-        playNextIptvChannel();
-        break;
-      }
-
-      case 'PageUp':
-      case '[':
-      case 'b':
-      case 'B':
-      case 'MediaTrackPrevious': {
-        e.preventDefault();
-        playPrevIptvChannel();
-        break;
-      }
-
-      case 'ArrowLeft':
-      case 'j':
-      case 'J': {
-        e.preventDefault();
-        const rewindBtn = slotEl.querySelector('.osd-rewind-btn');
-        if (rewindBtn) {
-          rewindBtn.click();
-        } else if (video) {
-          video.currentTime = Math.max(0, video.currentTime - 10);
+    if (matchesShortcut(e, 'iptv_mute')) {
+      e.preventDefault();
+      const muteBtn = slotEl.querySelector('.osd-mute-btn');
+      if (muteBtn) {
+        muteBtn.click();
+      } else if (video) {
+        video.muted = !video.muted;
+        iptvUserExplicitlyMuted = video.muted;
+        if (typeof window.showActionToast === 'function') {
+          const mLabel = getTranslation(video.muted ? 'hud_muted' : 'hud_unmuted', video.muted ? 'Sessiz' : 'Ses Açık');
+          window.showActionToast(video.muted ? 'volume-x' : 'volume-2', mLabel, 1600);
         }
-        break;
       }
+      return;
+    }
 
-      case 'ArrowRight':
-      case 'l':
-      case 'L': {
-        e.preventDefault();
-        const forwardBtn = slotEl.querySelector('.osd-forward-btn');
-        if (forwardBtn) {
-          forwardBtn.click();
-        } else if (video) {
-          video.currentTime = video.currentTime + 10;
+    if (matchesShortcut(e, 'iptv_vol_up')) {
+      e.preventDefault();
+      if (video) {
+        const slider = slotEl.querySelector('.osd-volume-slider');
+        const step = typeof window.getPlayerVolumeStep === 'function' ? window.getPlayerVolumeStep() : 0.05;
+        const nextVol = Math.min(1, Math.round((video.volume + step) * 100) / 100);
+        if (slider) {
+          slider.value = nextVol;
+          slider.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          video.volume = nextVol;
+          iptvGlobalVolume = nextVol;
+          if (typeof window.triggerVolumeHUD === 'function') window.triggerVolumeHUD(nextVol);
         }
-        break;
       }
+      return;
+    }
 
-      case 'Home':
-      case '0': {
-        e.preventDefault();
-        const liveBtn = slotEl.querySelector('.osd-live-btn');
-        if (liveBtn) liveBtn.click();
-        break;
-      }
-
-      case 'p':
-      case 'P': {
-        e.preventDefault();
-        const pipBtn = slotEl.querySelector('.osd-pip-btn');
-        if (pipBtn) pipBtn.click();
-        break;
-      }
-
-      case 'r':
-      case 'R': {
-        e.preventDefault();
-        playRandomIptvChannel();
-        break;
-      }
-
-      case '?': {
-        e.preventDefault();
-        if (typeof window.openShortcutsModal === 'function') {
-          window.openShortcutsModal('iptv');
+    if (matchesShortcut(e, 'iptv_vol_down')) {
+      e.preventDefault();
+      if (video) {
+        const slider = slotEl.querySelector('.osd-volume-slider');
+        const step = typeof window.getPlayerVolumeStep === 'function' ? window.getPlayerVolumeStep() : 0.05;
+        const nextVol = Math.max(0, Math.round((video.volume - step) * 100) / 100);
+        if (slider) {
+          slider.value = nextVol;
+          slider.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          video.volume = nextVol;
+          iptvGlobalVolume = nextVol;
+          if (typeof window.triggerVolumeHUD === 'function') window.triggerVolumeHUD(nextVol);
         }
-        break;
       }
+      return;
+    }
 
-      default: {
-        // Çoklu ekranda 1, 2, 3, 4 tuşlarıyla slot seçimi
-        if (e.key >= '1' && e.key <= '4') {
-          const gridEl = document.getElementById('iptv-players-grid');
-          const isMulti = gridEl && (gridEl.classList.contains('dual-mode') || gridEl.classList.contains('quad-mode') || gridEl.classList.contains('sport-mode'));
-          if (isMulti) {
-            e.preventDefault();
-            selectIptvSlot(parseInt(e.key, 10) - 1);
-          }
-        }
-        break;
+    if (matchesShortcut(e, 'iptv_next_channel') || e.key === 'MediaTrackNext' || (e.key === 'ArrowDown' && e.shiftKey)) {
+      e.preventDefault();
+      playNextIptvChannel();
+      return;
+    }
+
+    if (matchesShortcut(e, 'iptv_prev_channel') || e.key === 'MediaTrackPrevious' || (e.key === 'ArrowUp' && e.shiftKey)) {
+      e.preventDefault();
+      playPrevIptvChannel();
+      return;
+    }
+
+    if (matchesShortcut(e, 'iptv_dvr_back')) {
+      e.preventDefault();
+      const rewindBtn = slotEl.querySelector('.osd-rewind-btn');
+      if (rewindBtn) {
+        rewindBtn.click();
+      } else if (video) {
+        video.currentTime = Math.max(0, video.currentTime - 10);
+      }
+      return;
+    }
+
+    if (matchesShortcut(e, 'iptv_dvr_fwd')) {
+      e.preventDefault();
+      const forwardBtn = slotEl.querySelector('.osd-forward-btn');
+      if (forwardBtn) {
+        forwardBtn.click();
+      } else if (video) {
+        video.currentTime = video.currentTime + 10;
+      }
+      return;
+    }
+
+    if (matchesShortcut(e, 'iptv_live_edge')) {
+      e.preventDefault();
+      const liveBtn = slotEl.querySelector('.osd-live-btn');
+      if (liveBtn) liveBtn.click();
+      return;
+    }
+
+    if (matchesShortcut(e, 'iptv_pip')) {
+      e.preventDefault();
+      const pipBtn = slotEl.querySelector('.osd-pip-btn');
+      if (pipBtn) pipBtn.click();
+      return;
+    }
+
+    if (matchesShortcut(e, 'iptv_random')) {
+      e.preventDefault();
+      playRandomIptvChannel();
+      return;
+    }
+
+    // Çoklu ekranda 1, 2, 3, 4 tuşlarıyla slot seçimi
+    if (!e.ctrlKey && !e.altKey && !e.shiftKey && e.key >= '1' && e.key <= '4') {
+      const gridEl = document.getElementById('iptv-players-grid');
+      const isMulti = gridEl && (gridEl.classList.contains('dual-mode') || gridEl.classList.contains('quad-mode') || gridEl.classList.contains('sport-mode'));
+      if (isMulti) {
+        e.preventDefault();
+        selectIptvSlot(parseInt(e.key, 10) - 1);
       }
     }
   });
@@ -1691,7 +1672,8 @@ export async function playIptvChannel(slotIndex, streamUrl, displayName, options
   // Tekerlek ile ses kontrolü
   slotEl.onwheel = (e) => {
     e.preventDefault();
-    const newVol = Math.min(1, Math.max(0, video.volume + (e.deltaY < 0 ? 0.05 : -0.05)));
+    const step = typeof window.getPlayerVolumeStep === 'function' ? window.getPlayerVolumeStep() : 0.05;
+    const newVol = Math.min(1, Math.max(0, Math.round((video.volume + (e.deltaY < 0 ? step : -step)) * 100) / 100));
     video.volume = newVol;
     iptvGlobalVolume = newVol;
     if (video.muted && newVol > 0) {

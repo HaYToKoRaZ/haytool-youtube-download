@@ -244,6 +244,7 @@ export const defaultDb = {
     ggufGpuMode: true,
     unloadUiOnHide: true,
     playerGpuMode: 'gpu',
+    volumeStep: 5,
     historyShowLive: true,
     historyShowUpcoming: false,
     ttsVoiceId: '',

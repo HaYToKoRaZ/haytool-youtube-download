@@ -41,6 +41,10 @@
                   <i data-lucide="play-circle"></i>
                   <span id="settings-subtab-label-media">Oynatıcı</span>
                 </button>
+                <button type="button" class="settings-subtab-btn" data-subtab="shortcuts" onclick="switchSettingsSubtab('shortcuts')" role="tab" aria-selected="false">
+                  <i data-lucide="keyboard"></i>
+                  <span id="settings-subtab-label-shortcuts">Kısayollar</span>
+                </button>
                 <button type="button" class="settings-subtab-btn" data-subtab="youtube" onclick="switchSettingsSubtab('youtube')" role="tab" aria-selected="false">
                   <i data-lucide="shield-check"></i>
                   <span id="settings-subtab-label-youtube">YouTube Hesabı</span>
@@ -641,6 +645,17 @@
                         <option value="cpu" id="opt-player-cpu">🖥️ İşlemci (CPU) ile Oynat — Yazılımsal Çözme (GPU Sorunları İçin)</option>
                       </select>
                       <small id="desc-player-gpu-mode" class="form-text">İndirilen videoların dahili oynatıcıda ve masaüstü arayüzünde ekran kartı (GPU) mı yoksa işlemci (CPU) ile mi çözüleceğini belirler (Değişiklik için yeniden başlatma gerekir).</small>
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-volume-step" id="label-volume-step" data-i18n="settings_volume_step_label">Oynatıcı Ses Değişim Adımı (%)</label>
+                      <select id="settings-volume-step">
+                        <option value="1">%1 (Hassas Ayar)</option>
+                        <option value="2">%2</option>
+                        <option value="3">%3</option>
+                        <option value="5">%5 (Varsayılan)</option>
+                        <option value="10">%10</option>
+                      </select>
+                      <small id="desc-volume-step" class="form-text" data-i18n="settings_volume_step_desc">Ana oynatıcı, IPTV ve Web İzle üzerinde fare tekerleği veya ok tuşlarıyla sesin kaçar puan değişeceğini belirler.</small>
                     </div>
                     <div class="form-group">
                       <label for="settings-subtitle-color" id="label-subtitle-color">Altyazı Rengi</label>
@@ -1382,6 +1397,24 @@
                       </div>
                     </div>
                 </div>
+                </div>
+                <div class="settings-subtab-panel active" id="settings-subtab-shortcuts" data-category="shortcuts">
+                  <div class="settings-card" id="subtab-shortcuts">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+                      <h3 class="settings-section-title" style="margin-bottom: 0;">
+                        <i data-lucide="keyboard"></i>
+                        <span id="settings-title-shortcuts-text">Klavye Kısayolları</span>
+                      </h3>
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-all-shortcuts" onclick="window.resetAllShortcuts && window.resetAllShortcuts()" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.76rem; padding: 6px 12px;">
+                        <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i>
+                        <span id="btn-text-reset-all-shortcuts">Tümünü Varsayılana Sıfırla</span>
+                      </button>
+                    </div>
+                    <p id="desc-shortcuts-panel" style="font-size: 0.8rem; color: var(--text-muted); margin: 0 0 14px 0;">
+                      Değiştirmek istediğiniz kısayolun yanındaki tuş kutusuna tıklayın ve klavyeden yeni tuşa basın. İptal etmek için Esc tuşunu kullanabilirsiniz.
+                    </p>
+                    <div class="form-grid" id="shortcuts-settings-list-container"></div>
+                  </div>
                 </div>
                 </div>
             </div>

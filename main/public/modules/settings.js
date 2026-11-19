@@ -311,6 +311,7 @@ export async function performAutoSave() {
     customTitlebar: document.getElementById('settings-custom-titlebar') ? document.getElementById('settings-custom-titlebar').checked : !!localDb.settings?.customTitlebar,
     unloadUiOnHide: document.getElementById('settings-unload-ui-on-hide') ? document.getElementById('settings-unload-ui-on-hide').checked : (localDb.settings?.unloadUiOnHide !== false),
     playerGpuMode: document.getElementById('settings-player-gpu-mode') ? document.getElementById('settings-player-gpu-mode').value : (localDb.settings?.playerGpuMode || 'gpu'),
+    volumeStep: document.getElementById('settings-volume-step') ? (parseInt(document.getElementById('settings-volume-step').value, 10) || 5) : (localDb.settings?.volumeStep || 5),
     checkChannelsOnStartup: document.getElementById('settings-checkonstartup') ? document.getElementById('settings-checkonstartup').checked : false,
     scanRemoteStatusOnStartup: document.getElementById('settings-scan-remote-startup') ? document.getElementById('settings-scan-remote-startup').checked : (localDb.settings?.scanRemoteStatusOnStartup !== false),
     checkYtdlpOnStartup: document.getElementById('settings-check-ytdlp-on-startup') ? document.getElementById('settings-check-ytdlp-on-startup').checked : false,
@@ -348,7 +349,10 @@ export async function performAutoSave() {
     fakapEnabled: document.getElementById('settings-fakap-enabled') ? document.getElementById('settings-fakap-enabled').checked : (localDb.settings?.fakapEnabled !== false),
     fakapPath: (document.getElementById('fakap-path-input') && document.getElementById('fakap-path-input').value.trim()) || (localDb.settings && localDb.settings.fakapPath) || '',
     fakapQuality: (document.getElementById('fakap-quality-select') && document.getElementById('fakap-quality-select').value) || (localDb.settings && localDb.settings.fakapQuality) || '360',
-    fakapRetentionDays: (document.getElementById('fakap-retention-select') && document.getElementById('fakap-retention-select').value) || (localDb.settings && localDb.settings.fakapRetentionDays) || 'never'
+    fakapRetentionDays: (document.getElementById('fakap-retention-select') && document.getElementById('fakap-retention-select').value) || (localDb.settings && localDb.settings.fakapRetentionDays) || 'never',
+    customShortcuts: (typeof window.getCustomShortcutsForSave === 'function')
+      ? window.getCustomShortcutsForSave()
+      : (localDb.settings?.customShortcuts || {})
   };
 
   const statusSpan = document.getElementById('settings-status');
@@ -1015,7 +1019,14 @@ export function toggleGeminiKeyVisibility() {
 }
 window.toggleGeminiKeyVisibility = toggleGeminiKeyVisibility;
 
+let _lastPopulateStatusCheckAt = 0;
+
 export function populateGistFields() {
+  const now = Date.now();
+  const shouldRunStatusChecks = (now - _lastPopulateStatusCheckAt) > 30000;
+  if (shouldRunStatusChecks) {
+    _lastPopulateStatusCheckAt = now;
+  }
   const geminiInput = document.getElementById('gemini-api-key-input');
   if (geminiInput && localDb.settings?.geminiApiKey) {
     geminiInput.value = localDb.settings.geminiApiKey;
@@ -1044,7 +1055,7 @@ export function populateGistFields() {
   if (ggufPathInput && localDb.settings?.ggufModelPath) {
     ggufPathInput.value = localDb.settings.ggufModelPath;
   }
-  if (localDb.settings?.ggufModelsDir || localDb.settings?.ggufModelPath) {
+  if (shouldRunStatusChecks && (localDb.settings?.ggufModelsDir || localDb.settings?.ggufModelPath)) {
     refreshGgufModelList(localDb.settings.ggufModelsDir || '', true);
   }
   const ggufGpuModeInput = document.getElementById('settings-gguf-gpu-mode');
@@ -1061,10 +1072,12 @@ export function populateGistFields() {
   if (ttsDirInput) {
     ttsDirInput.value = localDb.settings?.ttsVoicesDir || '';
   }
-  checkLlamaEngineStatusInUI();
-  checkTtsStatusInUI();
-  checkProtocolStatus();
-  checkCliPathStatus();
+  if (shouldRunStatusChecks) {
+    checkLlamaEngineStatusInUI();
+    checkTtsStatusInUI();
+    checkProtocolStatus();
+    checkCliPathStatus();
+  }
   const openaiInput = document.getElementById('openai-api-key-input');
   if (openaiInput && localDb.settings?.openAiApiKey) {
     openaiInput.value = localDb.settings.openAiApiKey;
@@ -2067,10 +2080,11 @@ window.handleProtocolUnregister = handleProtocolUnregister;
 /**
  * Windows PATH entegrasyon durumunu denetler ve Bildirim & Entegrasyon sekmesindeki kartı senkronize eder.
  */
-export async function checkCliPathStatus() {
+export async function checkCliPathStatus(prefetchedData = null) {
   try {
-    const res = await fetch('/api/settings/cli-path-status');
-    const data = await res.json();
+    const data = prefetchedData && typeof prefetchedData === 'object' && 'inPath' in prefetchedData
+      ? prefetchedData
+      : await (await fetch('/api/settings/cli-path-status')).json();
     const isEn = window.localDb?.settings?.lang === 'en';
     const card = document.getElementById('cli-path-integration-card');
     const badge = document.getElementById('badge-cli-path-status');

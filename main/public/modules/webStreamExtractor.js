@@ -930,10 +930,20 @@
       sidebarSectionTitle.textContent = isSideFav ? getTranslation('webstream_favorites', 'Favorilerim') : getTranslation('webstream_history', 'Son İzlenenler');
     }
 
+    const safeEncodeUrl = (u) => encodeURIComponent(String(u || '')).replace(/'/g, '%27');
+    const lblOpenSourceSite = escapeHtml(getTranslation('webstream_open_source_site', 'Kaynak Siteyi Aç'));
+    const lblSiteBtn = escapeHtml(getTranslation('webstream_site_btn', 'Site'));
+    const lblWatchBtn = escapeHtml(getTranslation('webstream_watch_btn', 'İzle'));
+    const lblRemoveFav = escapeHtml(getTranslation('webstream_remove_favorite', 'Favorilerden Çıkar'));
+    const lblDeleteItem = escapeHtml(getTranslation('webstream_delete_item', 'Sil'));
+
     if (sidebarListEl) {
       const targetItems = isSideFav ? favs : history;
       if (targetItems.length === 0) {
-        sidebarListEl.innerHTML = `<div style="color: var(--text-muted); font-size: 0.78rem; text-align: center; padding: 16px; border: 1px dashed var(--border-color); border-radius: 8px;">${isSideFav ? 'Henüz favori eklenmedi.' : 'Geçmiş boş.'}</div>`;
+        const emptySideText = isSideFav
+          ? escapeHtml(getTranslation('webstream_no_favorites_short', 'Henüz favori eklenmedi.'))
+          : escapeHtml(getTranslation('webstream_history_empty_short', 'Geçmiş boş.'));
+        sidebarListEl.innerHTML = `<div style="color: var(--text-muted); font-size: 0.78rem; text-align: center; padding: 16px; border: 1px dashed var(--border-color); border-radius: 8px;">${emptySideText}</div>`;
       } else {
         sidebarListEl.innerHTML = targetItems.map(item => {
           const progress = getStreamProgress(item.url) || item;
@@ -941,30 +951,32 @@
           const progWidth = hasProg ? Math.min(100, Math.max(2, progress.percent)) : 0;
           const timeText = hasProg ? `${formatTime(progress.currentTime)} / ${formatTime(progress.duration)}` : '';
           const originUrl = getOriginUrl(item.url);
+          const safeItemUrl = safeEncodeUrl(item.url);
+          const safeOriginUrl = safeEncodeUrl(originUrl);
 
           return `
             <div style="display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; transition: background 0.15s;">
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                <div style="flex: 1; overflow: hidden; cursor: pointer;" onclick="window.playWebStreamUrl('${encodeURIComponent(item.url)}')">
+                <div style="flex: 1; overflow: hidden; cursor: pointer;" onclick="window.playWebStreamUrl('${safeItemUrl}')">
                   <div style="font-weight: 600; font-size: 0.82rem; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</div>
                   <div style="font-size: 0.70rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px;">
                     <span style="color:#ef4444; font-weight:600;">${escapeHtml(getDomain(item.url))}</span>
-                    ${item.date ? ` • ${item.date}` : ''}
+                    ${item.date ? ` • ${escapeHtml(item.date)}` : ''}
                   </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="window.openWebStreamSite('${encodeURIComponent(originUrl)}')" title="Kaynak Siteyi Aç" style="padding: 4px 6px; font-size: 0.70rem;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="window.openWebStreamSite('${safeOriginUrl}')" title="${lblOpenSourceSite}" style="padding: 4px 6px; font-size: 0.70rem;">
                     <i data-lucide="globe" style="width: 12px; height: 12px;"></i>
                   </button>
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="window.playWebStreamUrl('${encodeURIComponent(item.url)}')" title="İzle" style="padding: 4px 8px; font-size: 0.72rem;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="window.playWebStreamUrl('${safeItemUrl}')" title="${lblWatchBtn}" style="padding: 4px 8px; font-size: 0.72rem;">
                     <i data-lucide="play" style="width: 12px; height: 12px;"></i>
                   </button>
                   ${isSideFav ? `
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.deleteWebStreamFavorite('${encodeURIComponent(item.url)}')" title="Favorilerden Çıkar" style="padding: 4px 6px; color: #eab308;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.deleteWebStreamFavorite('${safeItemUrl}')" title="${lblRemoveFav}" style="padding: 4px 6px; color: #eab308;">
                       <i data-lucide="star" style="width: 12px; height: 12px; fill: #eab308;"></i>
                     </button>
                   ` : `
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.deleteWebStreamHistoryItem('${encodeURIComponent(item.url)}')" title="Sil" style="padding: 4px 6px; color: var(--text-muted);">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.deleteWebStreamHistoryItem('${safeItemUrl}')" title="${lblDeleteItem}" style="padding: 4px 6px; color: var(--text-muted);">
                       <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i>
                     </button>
                   `}
@@ -991,7 +1003,10 @@
     if (emptyListEl) {
       const targetItems = isEmpFav ? favs : history;
       if (targetItems.length === 0) {
-        emptyListEl.innerHTML = `<div style="color: var(--text-muted); font-size: 0.84rem; text-align: center; padding: 24px; border: 1px dashed var(--border-color); border-radius: 10px;">${isEmpFav ? 'Henüz favori video veya dizi eklemediniz. Video izlerken ⭐ Favori butonuna basarak ekleyebilirsiniz.' : 'Henüz izlenen web videosu yok. Yukarıdan bir bağlantı yapıştırıp başlatabilirsiniz.'}</div>`;
+        const emptyMainText = isEmpFav
+          ? escapeHtml(getTranslation('webstream_no_favorites_empty', 'Henüz favori video veya dizi eklemediniz. Video izlerken ⭐ Favori butonuna basarak ekleyebilirsiniz.'))
+          : escapeHtml(getTranslation('webstream_history_empty_hint', 'Henüz izlenen web videosu yok. Yukarıdan bir bağlantı yapıştırıp başlatabilirsiniz.'));
+        emptyListEl.innerHTML = `<div style="color: var(--text-muted); font-size: 0.84rem; text-align: center; padding: 24px; border: 1px dashed var(--border-color); border-radius: 10px;">${emptyMainText}</div>`;
       } else {
         emptyListEl.innerHTML = targetItems.map(item => {
           const progress = getStreamProgress(item.url) || item;
@@ -999,11 +1014,13 @@
           const progWidth = hasProg ? Math.min(100, Math.max(2, progress.percent)) : 0;
           const timeText = hasProg ? `${formatTime(progress.currentTime)} / ${formatTime(progress.duration)}` : '';
           const originUrl = getOriginUrl(item.url);
+          const safeItemUrl = safeEncodeUrl(item.url);
+          const safeOriginUrl = safeEncodeUrl(originUrl);
 
           return `
             <div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 10px; transition: background 0.15s;">
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                <div style="flex: 1; overflow: hidden; cursor: pointer;" onclick="window.playWebStreamUrl('${encodeURIComponent(item.url)}')">
+                <div style="flex: 1; overflow: hidden; cursor: pointer;" onclick="window.playWebStreamUrl('${safeItemUrl}')">
                   <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.title)}</div>
                   <div style="font-size: 0.74rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; margin-top: 2px;">
                     <span style="color: #ef4444; font-weight: 600;">${escapeHtml(getDomain(item.url))}</span>
@@ -1013,20 +1030,20 @@
                   </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="window.openWebStreamSite('${encodeURIComponent(originUrl)}')" title="Kaynak Siteyi Aç (${escapeHtml(getDomain(item.url))})" style="padding: 6px 10px; font-size: 0.74rem; display: inline-flex; align-items: center; gap: 4px;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="window.openWebStreamSite('${safeOriginUrl}')" title="${lblOpenSourceSite} (${escapeHtml(getDomain(item.url))})" style="padding: 6px 10px; font-size: 0.74rem; display: inline-flex; align-items: center; gap: 4px;">
                     <i data-lucide="globe" style="width: 13px; height: 13px;"></i>
-                    <span>Site</span>
+                    <span>${lblSiteBtn}</span>
                   </button>
-                  <button type="button" class="btn btn-secondary btn-sm" onclick="window.playWebStreamUrl('${encodeURIComponent(item.url)}')" style="padding: 6px 12px; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="window.playWebStreamUrl('${safeItemUrl}')" style="padding: 6px 12px; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;">
                     <i data-lucide="play" style="width: 13px; height: 13px;"></i>
-                    <span>İzle</span>
+                    <span>${lblWatchBtn}</span>
                   </button>
                   ${isEmpFav ? `
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.deleteWebStreamFavorite('${encodeURIComponent(item.url)}')" title="Favorilerden Çıkar" style="padding: 6px 8px; color: #eab308;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.deleteWebStreamFavorite('${safeItemUrl}')" title="${lblRemoveFav}" style="padding: 6px 8px; color: #eab308;">
                       <i data-lucide="star" style="width: 13px; height: 13px; fill: #eab308;"></i>
                     </button>
                   ` : `
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.deleteWebStreamHistoryItem('${encodeURIComponent(item.url)}')" title="Sil" style="padding: 6px 8px; color: var(--text-muted);">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.deleteWebStreamHistoryItem('${safeItemUrl}')" title="${lblDeleteItem}" style="padding: 6px 8px; color: var(--text-muted);">
                       <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
                     </button>
                   `}
@@ -1254,7 +1271,8 @@
             plyrEl.addEventListener('wheel', (e) => {
               e.preventDefault();
               const curVol = activePlyrInstance ? activePlyrInstance.volume : videoEl.volume;
-              const nextVol = Math.max(0, Math.min(1, curVol + (e.deltaY < 0 ? 0.04 : -0.04)));
+              const step = typeof window.getPlayerVolumeStep === 'function' ? window.getPlayerVolumeStep() : 0.05;
+              const nextVol = Math.max(0, Math.min(1, Math.round((curVol + (e.deltaY < 0 ? step : -step)) * 100) / 100));
               if (activePlyrInstance) activePlyrInstance.volume = nextVol;
               else videoEl.volume = nextVol;
               if (typeof window.triggerVolumeHUD === 'function') {

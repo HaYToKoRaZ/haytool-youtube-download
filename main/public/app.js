@@ -15,6 +15,8 @@ window.buildChannelCardElement = buildChannelCardElement;
 import './modules/tools.js';
 import './modules/remoteStatus.js';
 import './modules/fakap.js';
+import { classifyDownloadError } from './modules/error-classifier.js';
+import { initShortcutsManager, matchesShortcut, renderShortcutsSettingsPanel, renderShortcutsCheatsheetModal } from './modules/shortcuts.js';
 import { getDownloadedUserOrder, saveDownloadedUserOrder, sortDownloadedItems, moveDownloadedItemInUserOrder } from './modules/downloadedPlaylist.js';
 import { renderPendingMergeSection, updateMergeQueueState, handleMergeProgressEvent } from './modules/mergeQueue.js';
 import { renderCliCommandsPanel } from './modules/cliCommands.js';
@@ -179,7 +181,8 @@ import {
   updateVideoTitleOverlay,
   getActivePlayerContainer,
   sendPlayerActivity,
-  injectSpeedControlToPlyr
+  injectSpeedControlToPlyr,
+  getPlayerVolumeStep
 } from './modules/playerModal.js';
 window.resetAndApplyPlayerDimensions = resetAndApplyPlayerDimensions;
 window.togglePlayerMinimize = togglePlayerMinimize;
@@ -195,6 +198,7 @@ window.updateVideoTitleOverlay = updateVideoTitleOverlay;
 window.getActivePlayerContainer = getActivePlayerContainer;
 window.sendPlayerActivity = sendPlayerActivity;
 window.injectSpeedControlToPlyr = injectSpeedControlToPlyr;
+window.getPlayerVolumeStep = getPlayerVolumeStep;
 registerPlayerModalContext({
   getLocalDb: () => localDb,
   getVideoPlayerInstance: () => videoPlayerInstance,
@@ -1129,6 +1133,7 @@ document.addEventListener('click', (e) => {
   }
 });
 document.addEventListener('keydown', (e) => {
+  if (window.isCapturingShortcut) return;
   if (e.key === 'Escape') {
     const shortcutsModal = document.getElementById('shortcuts-modal');
     if (shortcutsModal && !shortcutsModal.classList.contains('hidden')) {
@@ -1139,8 +1144,8 @@ document.addEventListener('keydown', (e) => {
     if (panel) panel.classList.remove('open');
   }
 
-  // '?' kısayolu ile kısayol cheatsheet modalını aç
-  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+  // Kısayol rehberi modalını aç (varsayılan '?')
+  if (matchesShortcut(e, 'global_shortcuts_help')) {
     const activeEl = document.activeElement;
     const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
     if (!isTyping) {
@@ -1811,27 +1816,9 @@ function updateUI(db) {
             const orderNoStr = `#${(idx + 1).toString().padStart(2, '0')}`;
             const durationStr = video.duration || '--:--';
             const rawError = video.error || '';
-            let shortError = '';
-            if (rawError) {
-              if (/yeler|üyeler|members-only|katıl|katil|join this channel/i.test(rawError)) {
-                shortError = t.card_members_only || 'Üyelere Özel';
-              } else if (/çerez|cookie|sign in to confirm your age/i.test(rawError)) {
-                shortError = isEn ? 'Cookie / Age Gate' : 'Oturum / Çerez Gerekli';
-              } else if (/private|unavailable|silinmiş|kaldırılmış/i.test(rawError)) {
-                shortError = isEn ? 'Removed / Private' : 'Video Gizli / Silinmiş';
-              } else if (/403|503|429|Forbidden/i.test(rawError)) {
-                shortError = '403 CDN Kısıtı';
-              } else if (/bulunamadı|not found/i.test(rawError)) {
-                shortError = 'Dosya Bulunamadı';
-              } else if (/canl[ıi]|live/i.test(rawError)) {
-                shortError = 'Canlı Yayın';
-              } else {
-                const firstLine = rawError.split('\n')[0] || rawError;
-                shortError = firstLine.length > 25 ? firstLine.substring(0, 25) + '...' : firstLine;
-              }
-            } else {
-              shortError = t.downloader_invalid_url || 'İndirme Hatası';
-            }
+            const classifiedErr = classifyDownloadError(rawError, t);
+            const shortError = classifiedErr.shortLabel;
+            const errorTooltip = classifiedErr.fullTooltip;
 
             if (viewMode === 'table') {
               item.className = 'queue-table-row split-table-row failed-row queue-item-failed';
@@ -1850,7 +1837,7 @@ function updateUI(db) {
                     ${escapeHtml(video.title)}
                   </div>
                   <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
-                    <span class="queue-meta-pill queue-meta-pill-error" title="${escapeHtml(rawError || shortError)}">
+                    <span class="queue-meta-pill queue-meta-pill-error" title="${escapeHtml(errorTooltip)}">
                       <i data-lucide="alert-triangle" style="width:9px; height:9px; flex-shrink:0;"></i>
                       <span>${escapeHtml(shortError)}</span>
                     </span>
@@ -1885,7 +1872,7 @@ function updateUI(db) {
               item.style.background = 'rgba(239, 68, 68, 0.02)';
               item.innerHTML = `
                 <div class="queue-item-status-group">
-                  <div class="queue-item-status-icon" style="display:flex; align-items:center; justify-content:center; color:#ef4444;" title="${isEn ? 'Failed' : 'Hata'}">
+                  <div class="queue-item-status-icon" style="display:flex; align-items:center; justify-content:center; color:#ef4444;" title="${escapeHtml(shortError)}">
                     <i data-lucide="alert-circle" style="width:14px; height:14px; color:#ef4444;"></i>
                   </div>
                   <span class="queue-order-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.25);">${orderNoStr}</span>
@@ -1906,7 +1893,7 @@ function updateUI(db) {
                       <i data-lucide="clock" style="width:9px; height:9px;"></i>
                       <span>${durationStr}</span>
                     </span>
-                    <span class="queue-meta-pill queue-meta-pill-error" title="${escapeHtml(rawError || shortError)}">
+                    <span class="queue-meta-pill queue-meta-pill-error" title="${escapeHtml(errorTooltip)}">
                       <i data-lucide="alert-triangle" style="width:9px; height:9px;"></i>
                       <span>${escapeHtml(shortError)}</span>
                     </span>
@@ -2536,6 +2523,11 @@ function updateUI(db) {
     const settingsPlayerGpuMode = document.getElementById('settings-player-gpu-mode');
     if (settingsPlayerGpuMode && document.activeElement !== settingsPlayerGpuMode) settingsPlayerGpuMode.value = db.settings.playerGpuMode || 'gpu';
 
+    const settingsVolumeStep = document.getElementById('settings-volume-step');
+    if (settingsVolumeStep && document.activeElement !== settingsVolumeStep) {
+      settingsVolumeStep.value = String(db.settings.volumeStep !== undefined ? db.settings.volumeStep : 5);
+    }
+
     const settingsLang = document.getElementById('settings-lang');
     const effectiveLang = db.settings.lang || localStorage.getItem('haytool_user_lang') || 'tr';
     if (settingsLang && document.activeElement !== settingsLang) {
@@ -2661,12 +2653,14 @@ function updateUI(db) {
     }
     
     window._settingsFormPopulated = true;
+    initShortcutsManager();
   }
 
   const isSettingsTabActive = !!document.getElementById('tab-settings')?.classList.contains('active');
   // Gist alanlarını ve bağlantılarını doldur (Yalnızca Ayarlar sekmesi aktifse)
   if (window._settingsFormPopulated && isSettingsTabActive) {
     populateGistFields();
+    renderShortcutsSettingsPanel();
   }
 
   if ((isToolsTabActive || isSettingsTabActive) && typeof updateFakapSettingsControls === 'function' && localDb?.settings) {
@@ -3099,170 +3093,189 @@ document.addEventListener('keydown', (e) => {
     const userLang = (localDb && localDb.settings && localDb.settings.lang) || localStorage.getItem('haytool_user_lang') || 'tr';
     const langDict = window.translations?.[userLang] || window.translations?.['tr'] || {};
 
-    switch (e.key) {
-      case ' ':
-      case 'k':
-      case 'K':
-        e.preventDefault();
-        if (activePlayer.paused) {
-          activePlayer.play().catch(() => {});
-          if (typeof showCenterBounceIcon === 'function') showCenterBounceIcon('play');
-        } else {
-          activePlayer.pause();
-          if (typeof showCenterBounceIcon === 'function') showCenterBounceIcon('pause');
-        }
-        break;
+    if (window.isCapturingShortcut) return;
 
-      case 'f':
-      case 'F':
-        e.preventDefault();
-        {
-          const willBeFs = !document.fullscreenElement;
-          activePlayer.toggleFullscreen();
-          if (typeof showActionToast === 'function') {
-            const fsLabel = willBeFs ? (langDict.hud_fullscreen || 'Tam Ekran') : (langDict.hud_exit_fullscreen || 'Pencere Modu');
-            showActionToast(willBeFs ? 'maximize' : 'minimize', fsLabel, 1700);
-          }
-        }
-        break;
+    if (matchesShortcut(e, 'player_play_pause')) {
+      e.preventDefault();
+      if (activePlayer.paused) {
+        activePlayer.play().catch(() => {});
+        if (typeof showCenterBounceIcon === 'function') showCenterBounceIcon('play');
+      } else {
+        activePlayer.pause();
+        if (typeof showCenterBounceIcon === 'function') showCenterBounceIcon('pause');
+      }
+      return;
+    }
 
-      case 't':
-      case 'T':
-        e.preventDefault();
-        if (typeof window.toggleTheaterMode === 'function') {
-          const isTheater = window.toggleTheaterMode();
-          if (typeof showActionToast === 'function') {
-            const tLabel = isTheater ? (langDict.hud_theater_on || 'Sinema Modu') : (langDict.hud_theater_off || 'Normal Mod');
-            showActionToast('tv', tLabel, 1600);
-          }
-        }
-        break;
+    if (matchesShortcut(e, 'player_fullscreen')) {
+      e.preventDefault();
+      const willBeFs = !document.fullscreenElement;
+      activePlayer.toggleFullscreen();
+      if (typeof showActionToast === 'function') {
+        const fsLabel = willBeFs ? (langDict.hud_fullscreen || 'Tam Ekran') : (langDict.hud_exit_fullscreen || 'Pencere Modu');
+        showActionToast(willBeFs ? 'maximize' : 'minimize', fsLabel, 1700);
+      }
+      return;
+    }
 
-      case 'm':
-      case 'M':
-        e.preventDefault();
-        activePlayer.muted = !activePlayer.muted;
+    if (matchesShortcut(e, 'player_theater')) {
+      e.preventDefault();
+      if (typeof window.toggleTheaterMode === 'function') {
+        const isTheater = window.toggleTheaterMode();
         if (typeof showActionToast === 'function') {
-          const mLabel = activePlayer.muted ? (langDict.hud_muted || 'Sessiz') : (langDict.hud_unmuted || 'Ses Açık');
-          showActionToast(activePlayer.muted ? 'volume-x' : 'volume-2', mLabel, 1600);
+          const tLabel = isTheater ? (langDict.hud_theater_on || 'Sinema Modu') : (langDict.hud_theater_off || 'Normal Mod');
+          showActionToast('tv', tLabel, 1600);
         }
-        break;
+      }
+      return;
+    }
 
-      case 'c':
-      case 'C':
-        e.preventDefault();
-        activePlayer.toggleCaptions();
+    if (matchesShortcut(e, 'player_mute')) {
+      e.preventDefault();
+      activePlayer.muted = !activePlayer.muted;
+      if (typeof showActionToast === 'function') {
+        const mLabel = activePlayer.muted ? (langDict.hud_muted || 'Sessiz') : (langDict.hud_unmuted || 'Ses Açık');
+        showActionToast(activePlayer.muted ? 'volume-x' : 'volume-2', mLabel, 1600);
+      }
+      return;
+    }
+
+    if (matchesShortcut(e, 'player_captions')) {
+      e.preventDefault();
+      activePlayer.toggleCaptions();
+      if (typeof showActionToast === 'function') {
+        const isSubOn = (videoPlayerInstance && videoPlayerInstance.captions && videoPlayerInstance.captions.active) || (localStorage.getItem('haytool_subtitles_enabled') === 'true');
+        const cLabel = isSubOn ? (langDict.hud_subtitles_on || 'Altyazı Açık') : (langDict.hud_subtitles_off || 'Altyazı Kapalı');
+        showActionToast('subtitles', cLabel, 1600);
+      }
+      return;
+    }
+
+    if (matchesShortcut(e, 'player_sponsorblock')) {
+      e.preventDefault();
+      const btnSBToggle = document.getElementById('inline-btn-sponsorblock-toggle');
+      if (btnSBToggle && typeof btnSBToggle.onclick === 'function') {
+        btnSBToggle.onclick();
+      } else {
+        if (!localDb.settings) localDb.settings = {};
+        const newStatus = !(localDb.settings.sponsorBlockEnabled === true);
+        localDb.settings.sponsorBlockEnabled = newStatus;
+        const settingsSB = document.getElementById('settings-sponsorblock');
+        if (settingsSB) settingsSB.checked = newStatus;
+        if (typeof window.updateSBToggleButtonUI === 'function') window.updateSBToggleButtonUI();
+        fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sponsorBlockEnabled: newStatus })
+        }).catch(() => {});
         if (typeof showActionToast === 'function') {
-          const isSubOn = (videoPlayerInstance && videoPlayerInstance.captions && videoPlayerInstance.captions.active) || (localStorage.getItem('haytool_subtitles_enabled') === 'true');
-          const cLabel = isSubOn ? (langDict.hud_subtitles_on || 'Altyazı Açık') : (langDict.hud_subtitles_off || 'Altyazı Kapalı');
-          showActionToast('subtitles', cLabel, 1600);
+          const sbTitle = newStatus
+            ? (langDict.sponsorblock_active_toast || 'SponsorBlock Aktif')
+            : (langDict.sponsorblock_disabled_toast || 'SponsorBlock Devre Dışı');
+          showActionToast(newStatus ? 'shield' : 'shield-off', sbTitle, 1600);
         }
-        break;
+      }
+      return;
+    }
 
-      case 'ArrowRight':
-        e.preventDefault();
-        activePlayer.currentTime = Math.min(duration, activePlayer.currentTime + 5);
-        if (typeof showActionToast === 'function') {
-          showActionToast('fast-forward', '+5s', 1400);
-        }
-        break;
+    if (matchesShortcut(e, 'player_seek_fwd_5')) {
+      e.preventDefault();
+      activePlayer.currentTime = Math.min(duration, activePlayer.currentTime + 5);
+      if (typeof showActionToast === 'function') {
+        showActionToast('fast-forward', '+5s', 1400);
+      }
+      return;
+    }
 
-      case 'ArrowLeft':
-        e.preventDefault();
-        activePlayer.currentTime = Math.max(0, activePlayer.currentTime - 5);
-        if (typeof showActionToast === 'function') {
-          showActionToast('rewind', '-5s', 1400);
-        }
-        break;
+    if (matchesShortcut(e, 'player_seek_back_5')) {
+      e.preventDefault();
+      activePlayer.currentTime = Math.max(0, activePlayer.currentTime - 5);
+      if (typeof showActionToast === 'function') {
+        showActionToast('rewind', '-5s', 1400);
+      }
+      return;
+    }
 
-      case 'l':
-      case 'L':
-        e.preventDefault();
-        activePlayer.currentTime = Math.min(duration, activePlayer.currentTime + 10);
-        if (typeof showActionToast === 'function') {
-          showActionToast('fast-forward', '+10s', 1400);
-        }
-        break;
+    if (matchesShortcut(e, 'player_seek_fwd_10')) {
+      e.preventDefault();
+      activePlayer.currentTime = Math.min(duration, activePlayer.currentTime + 10);
+      if (typeof showActionToast === 'function') {
+        showActionToast('fast-forward', '+10s', 1400);
+      }
+      return;
+    }
 
-      case 'j':
-      case 'J':
-        e.preventDefault();
-        activePlayer.currentTime = Math.max(0, activePlayer.currentTime - 10);
-        if (typeof showActionToast === 'function') {
-          showActionToast('rewind', '-10s', 1400);
-        }
-        break;
+    if (matchesShortcut(e, 'player_seek_back_10')) {
+      e.preventDefault();
+      activePlayer.currentTime = Math.max(0, activePlayer.currentTime - 10);
+      if (typeof showActionToast === 'function') {
+        showActionToast('rewind', '-10s', 1400);
+      }
+      return;
+    }
 
-      case 'ArrowUp':
-        e.preventDefault();
-        activePlayer.volume = Math.min(1, activePlayer.volume + 0.05);
-        break;
+    if (matchesShortcut(e, 'player_vol_up')) {
+      e.preventDefault();
+      activePlayer.volume = Math.min(1, Math.round((activePlayer.volume + getPlayerVolumeStep()) * 100) / 100);
+      return;
+    }
 
-      case 'ArrowDown':
-        e.preventDefault();
-        activePlayer.volume = Math.max(0, activePlayer.volume - 0.05);
-        break;
+    if (matchesShortcut(e, 'player_vol_down')) {
+      e.preventDefault();
+      activePlayer.volume = Math.max(0, Math.round((activePlayer.volume - getPlayerVolumeStep()) * 100) / 100);
+      return;
+    }
 
-      case 'Home':
-        e.preventDefault();
-        activePlayer.currentTime = 0;
-        if (typeof showActionToast === 'function') {
-          showActionToast('skip-back', langDict.hud_seek_start || 'Başa Dön', 1500);
-        }
-        break;
+    if (matchesShortcut(e, 'player_seek_start')) {
+      e.preventDefault();
+      activePlayer.currentTime = 0;
+      if (typeof showActionToast === 'function') {
+        showActionToast('skip-back', langDict.hud_seek_start || 'Başa Dön', 1500);
+      }
+      return;
+    }
 
-      case 'End':
-        e.preventDefault();
-        activePlayer.currentTime = duration;
-        if (typeof showActionToast === 'function') {
-          showActionToast('skip-forward', langDict.hud_seek_end || 'Sona Git', 1500);
-        }
-        break;
+    if (matchesShortcut(e, 'player_seek_end')) {
+      e.preventDefault();
+      activePlayer.currentTime = duration;
+      if (typeof showActionToast === 'function') {
+        showActionToast('skip-forward', langDict.hud_seek_end || 'Sona Git', 1500);
+      }
+      return;
+    }
 
-      case '>':
-        e.preventDefault();
-        {
-          const idx = speeds.indexOf(activePlayer.speed);
-          if (idx !== -1 && idx < speeds.length - 1) {
-            activePlayer.speed = speeds[idx + 1];
-          }
-        }
-        break;
+    if (matchesShortcut(e, 'player_speed_up')) {
+      e.preventDefault();
+      const idx = speeds.indexOf(activePlayer.speed);
+      if (idx !== -1 && idx < speeds.length - 1) {
+        activePlayer.speed = speeds[idx + 1];
+      } else if (idx === -1) {
+        const nextSpeed = speeds.find(s => s > activePlayer.speed);
+        if (nextSpeed) activePlayer.speed = nextSpeed;
+      }
+      return;
+    }
 
-      case '<':
-        e.preventDefault();
-        {
-          const idx = speeds.indexOf(activePlayer.speed);
-          if (idx !== -1 && idx > 0) {
-            activePlayer.speed = speeds[idx - 1];
-          }
-        }
-        break;
+    if (matchesShortcut(e, 'player_speed_down')) {
+      e.preventDefault();
+      const idx = speeds.indexOf(activePlayer.speed);
+      if (idx !== -1 && idx > 0) {
+        activePlayer.speed = speeds[idx - 1];
+      } else if (idx === -1) {
+        const prevSpeed = [...speeds].reverse().find(s => s < activePlayer.speed);
+        if (prevSpeed) activePlayer.speed = prevSpeed;
+      }
+      return;
+    }
 
-      default:
-        // Sayı tuşları (0-9) ile videonun %0 ila %90'ına atlama
-        if (e.key >= '0' && e.key <= '9') {
-          e.preventDefault();
-          const percent = parseInt(e.key, 10) * 10;
-          activePlayer.currentTime = duration * (percent / 100);
-          if (typeof showActionToast === 'function') {
-            showActionToast('crosshair', `%${percent}`, 1400);
-          }
-        }
-        if (e.key === '.' && e.shiftKey) {
-          e.preventDefault();
-          const idx = speeds.indexOf(activePlayer.speed);
-          if (idx !== -1 && idx < speeds.length - 1) {
-            activePlayer.speed = speeds[idx + 1];
-          }
-        } else if (e.key === ',' && e.shiftKey) {
-          e.preventDefault();
-          const idx = speeds.indexOf(activePlayer.speed);
-          if (idx !== -1 && idx > 0) {
-            activePlayer.speed = speeds[idx - 1];
-          }
-        }
-        break;
+    // Sayı tuşları (0-9) ile videonun %0 ila %90'ına atlama
+    if (!e.ctrlKey && !e.altKey && !e.shiftKey && e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      const percent = parseInt(e.key, 10) * 10;
+      activePlayer.currentTime = duration * (percent / 100);
+      if (typeof showActionToast === 'function') {
+        showActionToast('crosshair', `%${percent}`, 1400);
+      }
     }
   }
 });
@@ -4287,6 +4300,36 @@ window.updateInlinePlayerMetadata = function(videoObj) {
               if (localHist) localHist.viewCount = descData.viewCount;
             }
 
+            // Kanal abone sayısını ve avatarını oynatıcı üst çubuğunda anında tazele
+            if (descData.subscriberCount && descData.subscriberCount !== '?') {
+              const subsEl = document.getElementById('inline-player-channel-subs');
+              const subsTextEl = document.getElementById('inline-player-channel-subs-text');
+              const dividerEl = document.getElementById('inline-player-channel-divider');
+              if (subsEl && subsTextEl) {
+                subsTextEl.textContent = descData.subscriberCount;
+                subsEl.style.display = 'inline-flex';
+                if (dividerEl) dividerEl.style.display = 'inline';
+              }
+              const localCh = window.localDb?.channels?.find(c =>
+                (descData.channelId && c.id === descData.channelId) ||
+                (descData.channelName && c.name === descData.channelName)
+              );
+              if (localCh) localCh.subscriberCount = descData.subscriberCount;
+            }
+
+            if (descData.channelId) {
+              const avatarEl = document.getElementById('inline-player-channel-avatar');
+              const logoDividerEl = document.getElementById('inline-player-logo-divider');
+              const platformIconEl = document.getElementById('inline-player-platform-icon');
+              if (avatarEl && hasFollowedChannelAvatar(descData.channelId)) {
+                avatarEl.onerror = function() { this.style.display = 'none'; };
+                avatarEl.src = `/api/channels/${encodeURIComponent(descData.channelId)}/avatar?t=${Date.now()}`;
+                avatarEl.style.display = 'block';
+                if (logoDividerEl) logoDividerEl.style.display = 'inline';
+                if (platformIconEl) platformIconEl.style.display = 'none';
+              }
+            }
+
             // Yorumları yeniden yükle
             loadComments(videoId);
 
@@ -4676,11 +4719,12 @@ window.updateInlinePlayerMetadata = function(videoObj) {
               plyrContainer.addEventListener('wheel', (e) => {
                 e.preventDefault();
                 let currentVolume = videoPlayerInstance.volume;
+                const step = getPlayerVolumeStep();
                 let newVolume;
                 if (e.deltaY < 0) {
-                  newVolume = Math.min(1, currentVolume + 0.02);
+                  newVolume = Math.min(1, Math.round((currentVolume + step) * 100) / 100);
                 } else {
-                  newVolume = Math.max(0, currentVolume - 0.02);
+                  newVolume = Math.max(0, Math.round((currentVolume - step) * 100) / 100);
                 }
                 videoPlayerInstance.volume = newVolume;
                 if (typeof triggerVolumeHUD === 'function') {
@@ -4848,11 +4892,12 @@ window.updateInlinePlayerMetadata = function(videoObj) {
           player.addEventListener('wheel', (e) => {
             e.preventDefault();
             let currentVolume = player.volume;
+            const step = getPlayerVolumeStep();
             let newVolume;
             if (e.deltaY < 0) {
-              newVolume = Math.min(1, currentVolume + 0.02);
+              newVolume = Math.min(1, Math.round((currentVolume + step) * 100) / 100);
             } else {
-              newVolume = Math.max(0, currentVolume - 0.02);
+              newVolume = Math.max(0, Math.round((currentVolume - step) * 100) / 100);
             }
             player.volume = newVolume;
             if (typeof triggerVolumeHUD === 'function') {
@@ -8080,6 +8125,7 @@ setTimeout(() => {
 window.openShortcutsModal = function(initialTab = 'iptv') {
   const modal = document.getElementById('shortcuts-modal');
   if (!modal) return;
+  renderShortcutsCheatsheetModal();
   modal.classList.remove('hidden');
   if (typeof window.switchShortcutsTab === 'function') window.switchShortcutsTab(initialTab);
   if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();

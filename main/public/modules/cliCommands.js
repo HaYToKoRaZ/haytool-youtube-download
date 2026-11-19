@@ -53,7 +53,7 @@ export async function fetchCliPathStatus() {
       cliPathState.appDir = data.appDir || '';
       window.haytoolCliInPath = cliPathState.inPath;
       if (typeof window.checkCliPathStatus === 'function') {
-        window.checkCliPathStatus();
+        window.checkCliPathStatus(data);
       }
       renderCliCommandsPanel();
     }
