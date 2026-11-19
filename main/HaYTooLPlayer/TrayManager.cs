@@ -1549,7 +1549,7 @@ namespace HaYTooLPlayer
                 // Backend ayrı süreç olarak çalışıyorsa HTTP /api/cli/exec üzerinden ilet
                 ThreadPool.QueueUserWorkItem(_ =>
                 {
-                    bool sent = TrySendHttpCliCommandStatic(command, out string msg, out bool _);
+                    bool sent = TrySendHttpCliCommandStatic(command ?? string.Empty, out string msg, out bool _);
                     // SSE aktifse sunucu çıktısı terminal_raw olayından gelecektir; aksi halde doğrudan ekle
                     if ((!sent || !_console.IsDetachedLogStreamActive) && !string.IsNullOrEmpty(msg))
                     {

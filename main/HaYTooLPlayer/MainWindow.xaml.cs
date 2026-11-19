@@ -12,7 +12,7 @@ namespace HaYTooLPlayer
 {
     public partial class MainWindow : Window
     {
-        private System.Windows.Threading.DispatcherTimer cookieKeepaliveTimer;
+        private System.Windows.Threading.DispatcherTimer? cookieKeepaliveTimer;
         private bool isSilentCookieRefresh = false;
         private TrayManager? _trayManager;
         private bool _isHookAdded = false;
@@ -471,7 +471,7 @@ namespace HaYTooLPlayer
             {
                 try
                 {
-                    COPYDATASTRUCT cds = (COPYDATASTRUCT)Marshal.PtrToStructure(lParam, typeof(COPYDATASTRUCT));
+                    COPYDATASTRUCT cds = Marshal.PtrToStructure<COPYDATASTRUCT>(lParam);
                     string path = cds.lpData;
                     string debugLogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wv2_debug.log");
                     try { File.AppendAllText(debugLogFile, $"[{DateTime.Now}] WndProc WM_COPYDATA received: '{path}'\n"); } catch {}
@@ -595,7 +595,7 @@ namespace HaYTooLPlayer
 
                                 // Tepsi menüsünden SPA sekme yönlendirmeleri: tam sayfa navigate yapmak yerine
                                 // JavaScript switchTab() çağrısı kullan — video mini oynatıcıya geçer, kesilmez.
-                                string tabName = null;
+                                string? tabName = null;
                                 if (path == "/settings") tabName = "settings";
                                 else if (path == "/home") tabName = "history";
                                 else if (path == "/channels") tabName = "channels";
@@ -820,7 +820,7 @@ namespace HaYTooLPlayer
                         System.Threading.Tasks.Task.Run(async () =>
                         {
                             await System.Threading.Tasks.Task.Delay(4000);
-                            this.Dispatcher.Invoke(() => SyncYouTubeCookiesToFileAsync());
+                            this.Dispatcher.Invoke(() => { _ = SyncYouTubeCookiesToFileAsync(); });
                         });
                     }
 
@@ -847,9 +847,9 @@ namespace HaYTooLPlayer
 
                 // Komut satırı argümanı (örn: tam URL, /settings veya /downlist) varsa yönlendir
                 string[] args = Environment.GetCommandLineArgs();
-                string initialLoginUrl = null;
+                string? initialLoginUrl = null;
                 string targetPath = "/downlist";
-                string url = null;
+                string? url = null;
 
                 if (args.Length > 1)
                 {
@@ -885,7 +885,6 @@ namespace HaYTooLPlayer
 
                 if (!string.IsNullOrEmpty(initialLoginUrl))
                 {
-                    _hasStartupCookieWindowShown = true;
                     OpenYouTubeCookieWindow(initialLoginUrl, isBackgroundStartup: false);
                 }
             }
@@ -1074,7 +1073,7 @@ namespace HaYTooLPlayer
 
         private readonly WindowHelper.FullScreenState _webFullScreenState = new WindowHelper.FullScreenState();
 
-        private void WebCoreWebView2_ContainsFullScreenElementChanged(object sender, object e)
+        private void WebCoreWebView2_ContainsFullScreenElementChanged(object? sender, object e)
         {
             var webView = sender as Microsoft.Web.WebView2.Core.CoreWebView2;
             if (webView == null) return;
@@ -1093,7 +1092,7 @@ namespace HaYTooLPlayer
         }
 
         // Türkçe Açıklama: Dış link navigasyon isteklerini yakalar, iptal eder ve varsayılan tarayıcıda açar.
-        private void CoreWebView2_NavigationStarting(object sender, Microsoft.Web.WebView2.Core.CoreWebView2NavigationStartingEventArgs e)
+        private void CoreWebView2_NavigationStarting(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2NavigationStartingEventArgs e)
         {
             string uri = e.Uri;
             if (string.IsNullOrEmpty(uri)) return;
@@ -1139,7 +1138,7 @@ namespace HaYTooLPlayer
         }
 
         // Türkçe Açıklama: Target="_blank" şeklinde yeni pencerede açılmak istenen dış linkleri engeller ve varsayılan tarayıcıya yönlendirir.
-        private void CoreWebView2_NewWindowRequested(object sender, Microsoft.Web.WebView2.Core.CoreWebView2NewWindowRequestedEventArgs e)
+        private void CoreWebView2_NewWindowRequested(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2NewWindowRequestedEventArgs e)
         {
             try
             {
@@ -1282,8 +1281,7 @@ namespace HaYTooLPlayer
             catch {}
         }
 
-        private static bool _hasStartupCookieWindowShown = false;
-        private static Window _cookieWindowInstance = null;
+        private static Window? _cookieWindowInstance = null;
 
         // Türkçe Açıklama: YouTube oturum & çerez penceresini ana oynatıcı ile AYNI profil (HaYTooLPlayer_Main) altında açar.
         // Açılışta arka planda gizli (Opacity=0, ekran dışında) açılır, çerezleri alır ve 30 sn sonra otomatik kapanır.

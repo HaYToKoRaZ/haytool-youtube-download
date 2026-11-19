@@ -990,7 +990,7 @@ namespace HaYTooLPlayer
 
         private readonly WindowHelper.FullScreenState _playerFullScreenState = new WindowHelper.FullScreenState();
 
-        private void CoreWebView2_ContainsFullScreenElementChanged(object sender, object e)
+        private void CoreWebView2_ContainsFullScreenElementChanged(object? sender, object e)
         {
             var webView = sender as Microsoft.Web.WebView2.Core.CoreWebView2;
             if (webView == null) return;

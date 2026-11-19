@@ -93,61 +93,6 @@ export function computeIptvFilters() {
 }
 
 /**
- * Türkçe Açıklama: M3U biçimindeki kanal çalma listesi metnini satır satır analiz ederek yapılandırılmış kanal dizisine dönüştürür.
- * 
- * @param {string} m3uText - Ayrıştırılacak M3U metin içeriği
- * @returns {Array<Object>} Ayrıştırılmış IPTV kanal nesneleri dizisi
- */
-function parseM3U(m3uText) {
-  const lines = m3uText.split(/\r?\n/);
-  const channels = [];
-  let currentItem = null;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-
-    if (trimmed.startsWith('#EXTINF:')) {
-      currentItem = {};
-      
-      const tvgIdMatch = trimmed.match(/tvg-id="([^"]*)"/i);
-      const tvgNameMatch = trimmed.match(/tvg-name="([^"]*)"/i);
-      const tvgLogoMatch = trimmed.match(/tvg-logo="([^"]*)"/i);
-      const tvgCountryMatch = trimmed.match(/tvg-country="([^"]*)"/i);
-      const groupTitleMatch = trimmed.match(/group-title="([^"]*)"/i);
-
-      if (tvgIdMatch) currentItem.id = tvgIdMatch[1];
-      if (tvgNameMatch) currentItem.name = tvgNameMatch[1];
-      if (tvgLogoMatch) currentItem.logo = tvgLogoMatch[1];
-      
-      if (tvgCountryMatch && tvgCountryMatch[1]) {
-        currentItem.country = tvgCountryMatch[1].toUpperCase();
-      } else if (tvgIdMatch && tvgIdMatch[1]) {
-        const idM = tvgIdMatch[1].match(/\.([a-z]{2})(?:@|$)/i);
-        if (idM) currentItem.country = idM[1].toUpperCase();
-      }
-      if (groupTitleMatch) currentItem.category = groupTitleMatch[1];
-
-      const commaIndex = trimmed.lastIndexOf(',');
-      if (commaIndex !== -1) {
-        currentItem.displayName = trimmed.substring(commaIndex + 1).trim();
-      } else {
-        currentItem.displayName = currentItem.name || 'Unnamed Channel';
-      }
-    } else if (trimmed.startsWith('#')) {
-      continue;
-    } else if (currentItem) {
-      currentItem.url = trimmed;
-      if (currentItem.url.startsWith('http')) {
-        channels.push(currentItem);
-      }
-      currentItem = null;
-    }
-  }
-  return channels;
-}
-
-/**
  * Başlangıçta cache'i diskten yükleyen fonksiyon.
  */
 function loadIptvCache() {
