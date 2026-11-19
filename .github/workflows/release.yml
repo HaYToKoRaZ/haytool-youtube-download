@@ -49,12 +49,18 @@ jobs:
 
       - name: Build Windows tray application
         run: |
+          $pkg = Get-Content 'main\package.json' -Raw | ConvertFrom-Json
+          $appVer = if ($pkg.version) { $pkg.version.Trim() } else { "${{ github.ref_name }}".TrimStart('v') }
           dotnet publish main\HaYTooLPlayer\HaYTooLPlayer.csproj `
             -c Release `
             -r win-x64 `
             --self-contained false `
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=$appVer `
+            -p:AssemblyVersion=$appVer `
+            -p:FileVersion=$appVer `
+            -p:InformationalVersion=$appVer `
             -o tray-publish
           if ($LASTEXITCODE -ne 0) { throw "Tray uygulaması derlenemedi." }
           $trayExe = Join-Path $PWD 'tray-publish\Multimedia HaYTooL.exe'
