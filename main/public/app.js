@@ -3120,6 +3120,7 @@ document.addEventListener('keydown', (e) => {
 
     if (matchesShortcut(e, 'player_theater')) {
       e.preventDefault();
+      e.stopPropagation();
       if (typeof window.toggleTheaterMode === 'function') {
         const isTheater = window.toggleTheaterMode();
         if (typeof showActionToast === 'function') {
@@ -3294,7 +3295,7 @@ document.addEventListener('keydown', (e) => {
       }
     }
   }
-});
+}, true);
 
 // Türkçe Açıklama: İndirilen videoyu arayüz içerisindeki gömülü video oynatıcı (Plyr) modalında açarak yürütür.
 /**
@@ -4695,6 +4696,7 @@ window.updateInlinePlayerMetadata = function(videoObj) {
           'captions', 'settings', 'pip', 'fullscreen'
         ],
         settings: ['captions', 'speed', 'loop'],
+        keyboard: { focused: false, global: false },
         captions: { active: (localStorage.getItem('haytool_subtitles_enabled') === 'true'), update: true },
         speed: { selected: 1, options: [0.5, 0.75, 0.85, 0.9, 1, 1.05, 1.1, 1.15, 1.25, 1.5, 1.75, 2] },
         youtube: {

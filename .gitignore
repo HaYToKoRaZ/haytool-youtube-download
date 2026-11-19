@@ -36,6 +36,7 @@ cookies.txt
 # Yedekleme ve yerel araçlar
 .agents/
 backup/
+skills-lock.json
 
 # GitHub dosya boyutu limitini asan buyuk dosyalar
 ffmpeg.exe

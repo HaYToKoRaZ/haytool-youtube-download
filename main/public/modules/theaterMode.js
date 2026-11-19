@@ -51,8 +51,9 @@ export function updateTheaterUI(active) {
 }
 
 export function toggleTheaterMode(forceState) {
-  const container = document.getElementById('downloaded-inline-player-container');
-  if (!container) return;
+  const container = document.querySelector('#downloaded-inline-player-container:not(.hidden), #webstream-view-player:not(.hidden)')
+    || document.getElementById('downloaded-inline-player-container');
+  if (!container) return false;
 
   const willBeActive = (forceState !== undefined)
     ? Boolean(forceState)
@@ -86,6 +87,8 @@ export function toggleTheaterMode(forceState) {
     `, 800);
     try { window.lucide?.createIcons(); } catch(_) {}
   }
+
+  return willBeActive;
 }
 
 export function injectTheaterModeButtonToPlyr() {
