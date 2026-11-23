@@ -444,6 +444,71 @@ export async function updateConcurrentLimit() {
 window.updateConcurrentLimit = updateConcurrentLimit;
 
 /**
+ * YouTube Player Kurtarma Modunu ('auto' | 'tv' | 'off') sunucuya kaydeder.
+ * Neden bu 3 mod var?
+ * - 'auto' (Varsayılan): Normal günlerde YouTube'un standart 'main' player'ı en geniş format/kodek desteğini verir.
+ *   Sadece YouTube yeni player JS yayınlayıp yt-dlp'yi kırdığında (örn. Issue #18123 / addOnDisposeCallback)
+ *   çerezi (HD/Premium/Katıl) koruyarak player_js_variant=tv ile otomatik kurtarır.
+ * - 'tv' (Acil): yt-dlp patlak günlerde video başına 5-8 sn ilk deneme beklemesi olmadan doğrudan çerezli TV Player kullanır.
+ *   Yeni yt-dlp sürümü çıkınca tekrar 'auto' konumuna alınmalıdır.
+ * - 'off': Hiçbir yedek kurtarma yapmaz, yalnızca standart player kullanır.
+ */
+export async function updatePlayerRecoveryMode() {
+  const select = document.getElementById('queue-player-recovery-select');
+  if (!select) return;
+  const mode = select.value || 'auto';
+  const wrap = document.getElementById('queue-player-recovery-wrap');
+  if (wrap) wrap.dataset.mode = mode;
+
+  const t = (typeof window.getCurrentTranslations === 'function' ? window.getCurrentTranslations() : null) || {};
+  try {
+    const res = await fetch('/api/settings/player-recovery', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (window.localDb?.settings) window.localDb.settings.youtubePlayerRecovery = data.mode;
+      const msgMap = {
+        auto: t.toast_player_recovery_auto || 'YT Kurtarma: Otomatik mod aktif (hata olursa çerezli TV Player devreye girer).',
+        tv: t.toast_player_recovery_tv || 'YT Kurtarma: Acil TV Modu aktif (doğrudan çerezli TV Player). yt-dlp güncellenince Otomatik\'e alın.',
+        off: t.toast_player_recovery_off || 'YT Kurtarma: Kapalı (yalnızca standart YouTube player).'
+      };
+      showToast(msgMap[data.mode] || msgMap.auto, data.mode === 'tv' ? 'warning' : 'success');
+    } else {
+      showToast(data.error || 'Ayar güncellenemedi.', 'error');
+    }
+  } catch (err) {
+    showToast('Bağlantı hatası.', 'error');
+  }
+}
+window.updatePlayerRecoveryMode = updatePlayerRecoveryMode;
+
+/**
+ * Kuyruk başlığındaki YT Kurtarma bilgi popover'ını açıp kapatır.
+ */
+export function togglePlayerRecoveryInfo(event) {
+  if (event) event.stopPropagation();
+  const popover = document.getElementById('queue-player-recovery-popover');
+  if (!popover) return;
+  popover.classList.toggle('hidden');
+}
+window.togglePlayerRecoveryInfo = togglePlayerRecoveryInfo;
+
+if (typeof document !== 'undefined' && !window._playerRecoveryPopoverBound) {
+  window._playerRecoveryPopoverBound = true;
+  document.addEventListener('click', (e) => {
+    const popover = document.getElementById('queue-player-recovery-popover');
+    const wrap = document.getElementById('queue-player-recovery-wrap');
+    if (!popover || popover.classList.contains('hidden')) return;
+    if (wrap && !wrap.contains(e.target)) {
+      popover.classList.add('hidden');
+    }
+  });
+}
+
+/**
  * Kullanıcının girdiği hız limitini (KB/s) sunucuya göndererek kaydeder.
  */
 export async function updateQueueSpeedLimit() {

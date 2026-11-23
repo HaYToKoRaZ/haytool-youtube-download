@@ -471,6 +471,35 @@ router.post('/settings/concurrent', localhostOnly, (req, res) => {
 });
 
 /**
+ * YouTube Player Kurtarma Modunu ('auto' | 'tv' | 'off') kaydeder.
+ * - 'auto': Standart main player; YouTube JS challenge hatası olursa çerezli player_js_variant=tv ile 1 kez otomatik kurtarır.
+ * - 'tv': yt-dlp kırıldığında beklemesiz doğrudan çerezli player_js_variant=tv kullanır (güncelleme gelince 'auto'ya alınır).
+ * - 'off': Yalnızca standart main player kullanır, yedek kurtarma yapmaz.
+ *
+ * @name POST /api/settings/player-recovery
+ */
+router.post('/settings/player-recovery', localhostOnly, (req, res) => {
+  const { mode } = req.body || {};
+  const allowed = ['auto', 'tv', 'off'];
+  if (!allowed.includes(mode)) {
+    return res.status(400).json({ error: 'Geçersiz kurtarma modu. auto, tv veya off olmalıdır.' });
+  }
+
+  const db = readDb();
+  db.settings.youtubePlayerRecovery = mode;
+  writeDb(db);
+
+  const modeLabels = {
+    auto: 'Otomatik (Standart + Hata Halinde Çerezli TV Kurtarma)',
+    tv: 'TV Modu (Acil / Çerezli player_js_variant=tv)',
+    off: 'Kapalı (Yalnızca Standart Player)'
+  };
+  addTerminalLog(`[Kuyruk] YouTube Player Kurtarma Modu güncellendi: ${modeLabels[mode]}`, 'info');
+  broadcast('db_update', db);
+  res.json({ success: true, mode });
+});
+
+/**
  * İndirme motorunu, askıdaki tüm süreç kilitlerini ve aktif indirme sayaçlarını sıfırlar (Restart gerektirmeden).
  * 
  * @name POST /api/queue/reset-engine

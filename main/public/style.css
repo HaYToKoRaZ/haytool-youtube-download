@@ -16960,5 +16960,134 @@ body.light-theme .shortcut-reset-btn {
   background: rgba(168, 85, 247, 0.5);
 }
 
+/* Kuyruk Sekmesi: YouTube Player Kurtarma Modu (Açık/Koyu Tema Uyumlu) */
+.queue-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.player-recovery-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.player-recovery-wrap[data-mode="tv"] {
+  border-color: rgba(245, 158, 11, 0.55);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.15);
+}
+
+.player-recovery-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.player-recovery-wrap[data-mode="tv"] .player-recovery-icon {
+  color: #f59e0b;
+}
+
+.player-recovery-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.player-recovery-select {
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 0.78rem;
+  outline: none;
+  cursor: pointer;
+  max-width: 175px;
+}
+
+.player-recovery-select:focus {
+  border-color: var(--primary-color);
+}
+
+.player-recovery-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.player-recovery-info-btn svg,
+.player-recovery-info-btn i {
+  width: 14px;
+  height: 14px;
+}
+
+.player-recovery-info-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-hover, rgba(148, 163, 184, 0.14));
+  border-color: var(--border-color);
+}
+
+.player-recovery-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1200;
+  width: 340px;
+  max-width: min(360px, 85vw);
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.player-recovery-popover.hidden {
+  display: none;
+}
+
+.player-recovery-popover-title {
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--text-main);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 6px;
+}
+
+.player-recovery-popover-item {
+  color: var(--text-muted);
+}
+
+.player-recovery-popover-item strong {
+  color: var(--text-main);
+  display: inline;
+  margin-right: 4px;
+}
+
+
 
 

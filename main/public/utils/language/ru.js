@@ -1301,5 +1301,22 @@ export const ru = {
   player_zoom_drag_hint: "Перетаскивайте",
   player_zoom_wheel_hint: "Колёсико для зума",
   shortcut_zoom_mouse_pan: "Масштаб и сдвиг мышью (Pan)",
-  shortcut_zoom_wheel_key: "Ctrl + Колёсико"
+  shortcut_zoom_wheel_key: "Ctrl + Колёсико",
+  queue_player_recovery_label: "YT Резерв:",
+  queue_player_recovery_auto: "Авто (Рекомендуется)",
+  queue_player_recovery_tv: "Режим ТВ (Экстренный / Cookies)",
+  queue_player_recovery_off: "Выкл (Стандарт)",
+  queue_player_recovery_info_title: "Режимы восстановления плеера YouTube (С Cookies)",
+  queue_player_recovery_auto_title: "Авто (Рекомендуется):",
+  queue_player_recovery_auto_desc: "Обычно использует стандартный плеер YouTube. При ошибке JS в yt-dlp автоматически повторяет 1 раз с cookies через ТВ-плеер (+5-8 сек).",
+  queue_player_recovery_tv_title: "Режим ТВ (Экстренный / Cookies):",
+  queue_player_recovery_tv_desc: "Сразу скачивает через ТВ-плеер с cookies без ожидания при сбое yt-dlp. После обновления yt-dlp верните на Авто.",
+  queue_player_recovery_off_title: "Выкл (Стандарт):",
+  queue_player_recovery_off_desc: "Использует только стандартный плеер YouTube без резервного восстановления.",
+  toast_player_recovery_auto: "YT Резерв: Авто-режим включён (при ошибке переключится на ТВ-плеер с cookies).",
+  toast_player_recovery_tv: "YT Резерв: Экстренный ТВ-режим включён. Верните Авто после обновления yt-dlp.",
+  toast_player_recovery_off: "YT Резерв: Выключен (только стандартный плеер YouTube).",
+  toast_player_recovery_triggered: "Обнаружена ошибка плеера YouTube — автоматическое восстановление \"{title}\" через ТВ-плеер с cookies.",
+  err_js_challenge_title: "Ошибка JS плеера YouTube",
+  err_js_challenge_hint: "Обновление плеера YouTube сломало JS-решатель yt-dlp. Выберите 'Авто' или 'Режим ТВ' во вкладке Очередь либо обновите yt-dlp."
 };

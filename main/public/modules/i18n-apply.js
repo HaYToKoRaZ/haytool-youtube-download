@@ -77,8 +77,18 @@ export function applyLanguage(lang) {
   elQuery('#btn-update-all-subs-text', 'btn_update_all_subscribers');
 
   // İndirme Sırası Sekmesi
-  elQuery('#tab-queue-title', 'tab_queue_title');
-  elQuery('#tab-queue-desc', 'tab_queue_desc');
+  el('queue-player-recovery-label', 'queue_player_recovery_label');
+  el('opt-player-recovery-auto', 'queue_player_recovery_auto');
+  el('opt-player-recovery-tv', 'queue_player_recovery_tv');
+  el('opt-player-recovery-off', 'queue_player_recovery_off');
+  el('queue-player-recovery-info-btn', 'queue_player_recovery_info_title', 'title');
+  el('lbl-player-recovery-info-title', 'queue_player_recovery_info_title');
+  el('lbl-player-recovery-auto-title', 'queue_player_recovery_auto_title');
+  el('lbl-player-recovery-auto-desc', 'queue_player_recovery_auto_desc');
+  el('lbl-player-recovery-tv-title', 'queue_player_recovery_tv_title');
+  el('lbl-player-recovery-tv-desc', 'queue_player_recovery_tv_desc');
+  el('lbl-player-recovery-off-title', 'queue_player_recovery_off_title');
+  el('lbl-player-recovery-off-desc', 'queue_player_recovery_off_desc');
   el('lbl-queue-view-table', 'queue_view_table');
   el('lbl-queue-view-cards', 'queue_view_cards');
   elQuery('#queue-pause-text', (window.localDb?.settings && window.localDb.settings.isPaused) ? 'btn_resume_queue' : 'btn_pause_queue');

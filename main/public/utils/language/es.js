@@ -1301,5 +1301,22 @@ export const es = {
   player_zoom_drag_hint: "Arrastrar",
   player_zoom_wheel_hint: "Rueda para zoom",
   shortcut_zoom_mouse_pan: "Zoom y desplazamiento con ratón",
-  shortcut_zoom_wheel_key: "Ctrl + Rueda"
+  shortcut_zoom_wheel_key: "Ctrl + Rueda",
+  queue_player_recovery_label: "Rescate YT:",
+  queue_player_recovery_auto: "Auto (Recomendado)",
+  queue_player_recovery_tv: "Modo TV (Emergencia / Cookies)",
+  queue_player_recovery_off: "Desactivado (Estándar)",
+  queue_player_recovery_info_title: "Modos de Recuperación de Reproductor YouTube (Con Cookies)",
+  queue_player_recovery_auto_title: "Auto (Recomendado):",
+  queue_player_recovery_auto_desc: "Usa el reproductor estándar en días normales. Si yt-dlp falla con error JS, reintenta 1 vez automáticamente con cookies usando el reproductor TV (+5-8 s).",
+  queue_player_recovery_tv_title: "Modo TV (Emergencia / Cookies):",
+  queue_player_recovery_tv_desc: "Descarga directamente con el reproductor TV y cookies cuando yt-dlp falla. Vuelve a Auto tras actualizar yt-dlp.",
+  queue_player_recovery_off_title: "Desactivado (Estándar):",
+  queue_player_recovery_off_desc: "Usa solo el reproductor predeterminado de YouTube; no intenta recuperación.",
+  toast_player_recovery_auto: "Rescate YT: Modo Auto activado (respaldo con reproductor TV y cookies ante errores).",
+  toast_player_recovery_tv: "Rescate YT: Modo TV de emergencia activado. Vuelve a Auto cuando se actualice yt-dlp.",
+  toast_player_recovery_off: "Rescate YT: Desactivado (solo reproductor estándar).",
+  toast_player_recovery_triggered: "Error de reproductor YouTube detectado — recuperando \"{title}\" automáticamente con Modo TV y cookies.",
+  err_js_challenge_title: "Error JS del Reproductor YouTube",
+  err_js_challenge_hint: "Una actualización del reproductor de YouTube rompió el solucionador JS de yt-dlp. Activa 'Auto' o 'Modo TV (Emergencia)' en la pestaña Cola o actualiza yt-dlp."
 };

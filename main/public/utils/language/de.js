@@ -1301,5 +1301,22 @@ export const de = {
   player_zoom_drag_hint: "Ziehen zum Verschieben",
   player_zoom_wheel_hint: "Mausrad zum Zoomen",
   shortcut_zoom_mouse_pan: "Maus-Zoom & Verschieben (Pan)",
-  shortcut_zoom_wheel_key: "Strg + Mausrad"
+  shortcut_zoom_wheel_key: "Strg + Mausrad",
+  queue_player_recovery_label: "YT-Rettung:",
+  queue_player_recovery_auto: "Auto (Empfohlen)",
+  queue_player_recovery_tv: "TV-Modus (Notfall / Cookies)",
+  queue_player_recovery_off: "Aus (Standard)",
+  queue_player_recovery_info_title: "YouTube-Player-Wiederherstellung (Mit Cookies)",
+  queue_player_recovery_auto_title: "Auto (Empfohlen):",
+  queue_player_recovery_auto_desc: "Nutzt im Normalbetrieb den Standard-YouTube-Player. Bei yt-dlp-JS-Fehlern wird automatisch 1x mit Cookies über den TV-Player gerettet (+5-8 Sek.).",
+  queue_player_recovery_tv_title: "TV-Modus (Notfall / Cookies):",
+  queue_player_recovery_tv_desc: "Lädt bei defektem yt-dlp direkt ohne Wartezeit über den TV-Player mit Cookies. Nach yt-dlp-Update wieder auf Auto stellen.",
+  queue_player_recovery_off_title: "Aus (Standard):",
+  queue_player_recovery_off_desc: "Nutzt nur den Standard-Player von YouTube ohne automatische Wiederherstellung.",
+  toast_player_recovery_auto: "YT-Rettung: Auto-Modus aktiv (wechselt bei Fehler auf TV-Player mit Cookies).",
+  toast_player_recovery_tv: "YT-Rettung: Notfall-TV-Modus aktiv. Nach yt-dlp-Update wieder auf Auto stellen.",
+  toast_player_recovery_off: "YT-Rettung: Aus (nur Standard-YouTube-Player).",
+  toast_player_recovery_triggered: "YouTube-Player-Fehler erkannt — \"{title}\" wird automatisch im TV-Player-Modus mit Cookies gerettet.",
+  err_js_challenge_title: "YouTube-Player-JS-Fehler",
+  err_js_challenge_hint: "Ein YouTube-Player-Update hat den yt-dlp-JS-Solver unterbrochen. Wählen Sie im Warteschlangen-Tab 'Auto' oder 'TV-Modus (Notfall)' oder aktualisieren Sie yt-dlp."
 };

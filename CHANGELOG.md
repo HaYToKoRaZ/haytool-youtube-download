@@ -3,6 +3,12 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.5.0] - 2026-11-24
+- **feat(queue/player-recovery):** YouTube player JS güncellemelerinde (yt-dlp Issue #18123 / `addOnDisposeCallback`) çerezli HD/Premium/Katıl indirmelerini kesintisiz sürdürmek için Kuyruk sekmesi üst barına **YT Kurtarma Modu** (`Otomatik`, `TV Modu (Acil / Çerezli)`, `Kapalı`) ve mod farklarını açıklayan bilgi kartı eklendi (`POST /api/settings/player-recovery`).
+- **feat(downloader/auto-recovery):** `Otomatik` modda `n challenge` / `Only images are available` / `Requested format is not available` hataları algılandığında çerez korunarak `player_js_variant=tv` ile 1 kez otomatik kurtarma ve SSE üzerinden canlı toast bildirimi (`player_recovery_triggered`) eklendi.
+- **fix(downloader/errors):** `handleStderrLine` içinde Deno/Node ANSI renk kaçış kodları temizlendi; `error-classifier.js` içine `youtube_js_challenge` hata sınıfı ve 7 dilde (`tr`, `en`, `de`, `es`, `pt`, `ru`, `ar`) yeni arayüz/hata çevirileri eklendi.
+- **chore(ui/queue):** Kuyruk üst barındaki `#tab-queue-title` ve `#tab-queue-desc` kaldırılarak üst kontrol çubuğu tek satırda sadeleştirildi; uygulama, tarayıcı eklentisi ve Node.js backend `v12.5.0` sürümüne eşitlendi.
+
 ## [12.4.4] - 2026-11-17
 - **feat(queue/merge-progress):** YouTube ve birleştirme kuyruğundaki FFmpeg merge işlemi için Kuyruk sekmesinde anlık `%0–%100` canlı ilerleme çubuğu eklendi; `downloader.js` süresi FFmpeg `out_time_us` verisiyle milisaniye bazlı hesaplanıp SSE üzerinden yayınlandı.
 - **feat(remote-status/protection):** Uygulama açılışında silinen, gizlenen veya liste dışı kalan YouTube videoları için `İndirilen Videonun Uzak Durumu Değişti` uyarı penceresi eklendi (`İzle`, `YouTube`, `Sil` butonlarıyla); bu videolar Otomatik Silme ve Kanal Maksimum Video Sınırı kurallarından `Oto-Silmeden Muaf` olarak korundu.

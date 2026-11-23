@@ -1220,6 +1220,15 @@ function updateUI(db) {
     concurrentSelect.value = db.settings.maxConcurrentDownloads.toString();
   }
 
+  // YouTube Player Kurtarma Modu Dropdown Eşleme
+  const recoverySelect = document.getElementById('queue-player-recovery-select');
+  const recoveryWrap = document.getElementById('queue-player-recovery-wrap');
+  if (recoverySelect && db.settings) {
+    const mode = db.settings.youtubePlayerRecovery || 'auto';
+    recoverySelect.value = mode;
+    if (recoveryWrap) recoveryWrap.dataset.mode = mode;
+  }
+
   // 2. İstatistik Sayıcılar
   if (statChannelCount && db.channels) statChannelCount.textContent = db.channels.length;
   const channelsTotalCount = document.getElementById('channels-total-count');

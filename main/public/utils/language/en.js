@@ -1302,5 +1302,22 @@ export const en = {
   player_zoom_drag_hint: "Drag to Pan",
   player_zoom_wheel_hint: "Scroll to Zoom",
   shortcut_zoom_mouse_pan: "Mouse Zoom & Pan Frame",
-  shortcut_zoom_wheel_key: "Ctrl + Scroll"
+  shortcut_zoom_wheel_key: "Ctrl + Scroll",
+  queue_player_recovery_label: "YT Recovery:",
+  queue_player_recovery_auto: "Auto (Recommended)",
+  queue_player_recovery_tv: "TV Mode (Emergency / Cookies)",
+  queue_player_recovery_off: "Off (Standard)",
+  queue_player_recovery_info_title: "YouTube Player Recovery Modes (With Cookies)",
+  queue_player_recovery_auto_title: "Auto (Recommended):",
+  queue_player_recovery_auto_desc: "Uses standard YouTube player on normal days (zero difference). If yt-dlp fails with a JS error, automatically retries once with cookies using TV Player (+5-8s).",
+  queue_player_recovery_tv_title: "TV Mode (Emergency / Cookies):",
+  queue_player_recovery_tv_desc: "Downloads directly via cookie-authenticated TV Player without waiting when yt-dlp is broken. Switch back to Auto after updating yt-dlp.",
+  queue_player_recovery_off_title: "Off (Standard):",
+  queue_player_recovery_off_desc: "Uses only YouTube's default player; does not attempt recovery on errors.",
+  toast_player_recovery_auto: "YT Recovery: Auto mode enabled (falls back to TV Player with cookies on error).",
+  toast_player_recovery_tv: "YT Recovery: Emergency TV Mode enabled (direct TV Player with cookies). Switch back to Auto after yt-dlp updates.",
+  toast_player_recovery_off: "YT Recovery: Off (standard YouTube player only).",
+  toast_player_recovery_triggered: "YouTube player error detected — automatically recovering \"{title}\" using TV Player mode with cookies.",
+  err_js_challenge_title: "YouTube Player JS Error",
+  err_js_challenge_hint: "A YouTube player update broke the yt-dlp JS solver. Set 'YT Recovery' in the Queue tab to 'Auto' or 'TV Mode (Emergency)', or update yt-dlp."
 };

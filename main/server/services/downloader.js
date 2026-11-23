@@ -1293,7 +1293,20 @@ export class DownloadQueue {
 
     if (isYouTubeUrl) {
       const clientList = video._fallbackClient || (hasCookies ? 'visionos,ios,android,web_creator,mweb,web' : 'visionos,ios,android,web');
-      args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=${clientList}`);
+      /*
+       * YouTube Player Kurtarma Modu (youtubePlayerRecovery — yt-dlp Issue #18123 bağlamı):
+       * - Standart 'main' web player varsayılandır: en geniş format/kodek desteğini tek denemede sunar.
+       * - YouTube player JS'ini aniden değiştirdiğinde (örn. b485e332 / addOnDisposeCallback) yt-dlp güncellenene
+       *   kadar çerezli web istemcileri kırılabilir ve yalnızca storyboard resimleri dönebilir.
+       * - 'auto' (varsayılan): Normal günlerde standart main player kullanır; JS/format hatası alınırsa
+       *   çerezi (HD/Premium/Katıl) kaybetmeden player_js_variant=tv ile 1 kez otomatik kurtarır.
+       * - 'tv' (acil mod): İlk denemede doğrudan çerezli player_js_variant=tv kullanır (güncelleme gelince auto'ya çekilir).
+       * - 'off': Hiçbir yedek player varyantı eklemez.
+       */
+      const recoveryMode = settings.youtubePlayerRecovery || 'auto';
+      const useTvVariant = recoveryMode === 'tv' || Boolean(video._useTvPlayerVariant);
+      const variantArg = useTvVariant ? ';player_js_variant=tv' : '';
+      args.push('--extractor-args', `youtube:lang=${prefLang},${prefLang}-${prefLang.toUpperCase()};player_client=${clientList}${variantArg}`);
     }
 
     args.push('--remote-components', 'ejs:github');
@@ -1790,7 +1803,8 @@ export class DownloadQueue {
     let realErrorLines = [];
 
     function handleStderrLine(line) {
-      const trimmed = line.trim();
+      // ANSI renk/biçim kaçış kodlarını (örn. deno/node stack trace renkleri) temizle
+      const trimmed = line.replace(/\x1b\[[0-9;]*m/g, '').trim();
       if (!trimmed) return;
 
       const lowerTrimmed = trimmed.toLowerCase();
@@ -2374,6 +2388,51 @@ export class DownloadQueue {
           }, waitSec * 1000);
           return;
         } else {
+          // --- YouTube Player JS Kurtarma (Çerezli TV Player Fallback — yt-dlp Issue #18123) ---
+          // Normalde standart main player kullanılır. YouTube player JS'i kırıldığında (n challenge / addOnDisposeCallback /
+          // Only images are available / Requested format is not available) ve ayar 'auto' ise, çerez korunarak
+          // player_js_variant=tv ile 1 kez otomatik kurtarma yapılır ve kullanıcıya bildirim gönderilir.
+          const recoveryMode = settings.youtubePlayerRecovery || 'auto';
+          const combinedErrText = `${userFriendlyError}\n${errorOutput}`;
+          const isMembersOnlyErr = /yeler|üyeler|members-only|katıl|katil|join this channel|ayrıcalık|ayrcal/i.test(userFriendlyError);
+          const isJsPlayerChallengeError = /n challenge solving failed|addOnDisposeCallback|Only images are available|Requested format is not available/i.test(combinedErrText);
+
+          if (isYouTubeUrl && recoveryMode === 'auto' && !video._useTvPlayerVariant && !isMembersOnlyErr && isJsPlayerChallengeError) {
+            video._useTvPlayerVariant = true;
+            const recoveryLogMsg = settings.lang === 'en'
+              ? `[YT Player Recovery] YouTube JS challenge failed for "${video.title}". Automatically retrying with cookies using TV Player variant...`
+              : `[YT Player Kurtarma] "${video.title}" için YouTube JS player hatası algılandı. Çerez korunarak TV Player moduyla otomatik yeniden deneniyor...`;
+
+            console.warn(recoveryLogMsg);
+            addTerminalLog(recoveryLogMsg, 'warning');
+            broadcast('player_recovery_triggered', {
+              videoId: video.id,
+              title: video.title,
+              mode: 'tv',
+              thumbnail: `/api/video/${video.id}/thumbnail`
+            });
+
+            cleanupResidualFiles(video.id, video.channelName, settings.downloadPath, video.skipChannelFolder === true);
+
+            updateHistoryItem(video.id, {
+              status: 'waiting',
+              progress: 0,
+              speed: '',
+              eta: '',
+              error: settings.lang === 'en'
+                ? 'Retrying (TV Player Recovery)...'
+                : 'Yeniden Deneniyor (TV Player Kurtarma)...'
+            });
+
+            broadcast('db_update', readDb());
+
+            setTimeout(() => {
+              this.queue.unshift(video);
+              this.process();
+            }, 1500);
+            return;
+          }
+
           // --- Auto-Healing (2. Deneme / Son Şans Mimarisi) ---
           const isMergeOrCorruptError = /Invalid data found|Error opening input files|muxing failed|Conversion failed|moov atom not found|error reading header|Invalid argument|Corrupt/i.test(userFriendlyError) || /Invalid data found|Error opening input files|muxing failed|Conversion failed|moov atom not found|error reading header/i.test(errorOutput);
           const hasNotRetriedHealing = !video.retryAttempt || video.retryAttempt < 2;

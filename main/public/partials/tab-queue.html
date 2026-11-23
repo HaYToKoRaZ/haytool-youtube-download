@@ -1,9 +1,44 @@
       <!-- Tab: İndirme Sırası ve Kontrolü -->
       <section id="tab-queue" class="tab-content">
         <header class="content-header">
-          <div>
-            <h2 id="tab-queue-title">İndirme Sırası & Kontrol</h2>
-            <p id="tab-queue-desc">Aktif indirmeyi izleyin, sıradaki videoları sürükleyip bırakarak önceliklerini değiştirin.</p>
+          <div class="queue-header-left">
+            <!--
+              YouTube Player Kurtarma Modu (Çerezli Yedek Sistem — yt-dlp Issue #18123 bağlamı):
+              - Standart (main) YouTube player normalde en geniş format/kodek desteğini tek denemede verir.
+              - YouTube yeni player JS yayınladığında (örn. b485e332 / addOnDisposeCallback) yt-dlp güncellenene kadar
+                çerezli web istemcileri kırılabilir.
+              - Bu kontrol çerezi (HD/Premium/Katıl) kaybetmeden player_js_variant=tv yedek yolunu yönetir:
+                * auto: Normalde standart main player; JS hatası olursa otomatik çerezli TV Player ile 1 kez kurtarır.
+                * tv: yt-dlp patlakken beklemesiz doğrudan çerezli TV Player kullanır (güncelleme gelince auto'ya çekilir).
+                * off: Yalnızca standart main player kullanır, yedek kurtarma yapmaz.
+            -->
+            <div class="player-recovery-wrap" id="queue-player-recovery-wrap">
+              <i data-lucide="shield-check" class="player-recovery-icon"></i>
+              <span id="queue-player-recovery-label" class="player-recovery-label">YT Kurtarma:</span>
+              <select id="queue-player-recovery-select" class="player-recovery-select" onchange="updatePlayerRecoveryMode()">
+                <option value="auto" id="opt-player-recovery-auto">Otomatik (Önerilen)</option>
+                <option value="tv" id="opt-player-recovery-tv">TV Modu (Acil / Çerezli)</option>
+                <option value="off" id="opt-player-recovery-off">Kapalı (Standart)</option>
+              </select>
+              <button type="button" id="queue-player-recovery-info-btn" class="player-recovery-info-btn" onclick="togglePlayerRecoveryInfo(event)" title="Mod Farkları ve Bilgi" aria-label="Mod Farkları ve Bilgi">
+                <i data-lucide="info"></i>
+              </button>
+              <div id="queue-player-recovery-popover" class="player-recovery-popover hidden" role="dialog">
+                <div class="player-recovery-popover-title" id="lbl-player-recovery-info-title">YouTube Player Kurtarma Modları (Çerezli)</div>
+                <div class="player-recovery-popover-item">
+                  <strong id="lbl-player-recovery-auto-title">Otomatik (Önerilen):</strong>
+                  <span id="lbl-player-recovery-auto-desc">Normal günlerde standart YouTube player kullanır (sıfır fark). yt-dlp JS hatası verirse çerezi koruyarak TV Player ile 1 kez otomatik kurtarır (+5-8 sn).</span>
+                </div>
+                <div class="player-recovery-popover-item">
+                  <strong id="lbl-player-recovery-tv-title">TV Modu (Acil / Çerezli):</strong>
+                  <span id="lbl-player-recovery-tv-desc">yt-dlp bozukken bekleme olmadan doğrudan çerezli TV Player ile indirir. Yeni yt-dlp güncellemesi gelince Otomatik'e geri alın.</span>
+                </div>
+                <div class="player-recovery-popover-item">
+                  <strong id="lbl-player-recovery-off-title">Kapalı (Standart):</strong>
+                  <span id="lbl-player-recovery-off-desc">Yalnızca YouTube varsayılan player'ını kullanır; hata olursa yedek kurtarma denemez.</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="queue-header-actions" style="display:flex; gap:10px; align-items:center;">
             <!-- Dinamik Görünüm Değiştirici (Tablo / Kartlar) -->

@@ -185,6 +185,16 @@ export function connectSSE() {
     _ctx.showDiskWarning(JSON.parse(e.data));
   });
 
+  _eventSource.addEventListener('player_recovery_triggered', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      const t = (typeof window.getCurrentTranslations === 'function' ? window.getCurrentTranslations() : null) || {};
+      const tpl = t.toast_player_recovery_triggered || 'YouTube player hatası algılandı — "{title}" çerezli TV Player moduyla otomatik kurtarılıyor.';
+      const msg = tpl.replace('{title}', data?.title || 'Video');
+      _ctx.showToast(msg, 'warning', data?.thumbnail);
+    } catch (_) {}
+  });
+
   _eventSource.addEventListener('status_log', (e) => {
     const log = JSON.parse(e.data);
     _ctx.showToast(log.message, log.type, log.thumbnail);

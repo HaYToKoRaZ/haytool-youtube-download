@@ -1302,5 +1302,22 @@ export const tr = {
   player_zoom_drag_hint: "Sürükle",
   player_zoom_wheel_hint: "Tekerlek ile Yakınlaştır",
   shortcut_zoom_mouse_pan: "Fare ile Zoom & Kaydır (Pan)",
-  shortcut_zoom_wheel_key: "Ctrl + Tekerlek"
+  shortcut_zoom_wheel_key: "Ctrl + Tekerlek",
+  queue_player_recovery_label: "YT Kurtarma:",
+  queue_player_recovery_auto: "Otomatik (Önerilen)",
+  queue_player_recovery_tv: "TV Modu (Acil / Çerezli)",
+  queue_player_recovery_off: "Kapalı (Standart)",
+  queue_player_recovery_info_title: "YouTube Player Kurtarma Modları (Çerezli)",
+  queue_player_recovery_auto_title: "Otomatik (Önerilen):",
+  queue_player_recovery_auto_desc: "Normal günlerde standart YouTube player kullanır (sıfır fark). yt-dlp JS hatası verirse çerezi koruyarak TV Player ile 1 kez otomatik kurtarır (+5-8 sn).",
+  queue_player_recovery_tv_title: "TV Modu (Acil / Çerezli):",
+  queue_player_recovery_tv_desc: "yt-dlp bozukken bekleme olmadan doğrudan çerezli TV Player ile indirir. Yeni yt-dlp güncellemesi gelince Otomatik'e geri alın.",
+  queue_player_recovery_off_title: "Kapalı (Standart):",
+  queue_player_recovery_off_desc: "Yalnızca YouTube varsayılan player'ını kullanır; hata olursa yedek kurtarma denemez.",
+  toast_player_recovery_auto: "YT Kurtarma: Otomatik mod aktif (hata olursa çerezli TV Player devreye girer).",
+  toast_player_recovery_tv: "YT Kurtarma: Acil TV Modu aktif (doğrudan çerezli TV Player). yt-dlp güncellenince Otomatik'e alın.",
+  toast_player_recovery_off: "YT Kurtarma: Kapalı (yalnızca standart YouTube player).",
+  toast_player_recovery_triggered: "YouTube player hatası algılandı — \"{title}\" çerezli TV Player moduyla otomatik kurtarılıyor.",
+  err_js_challenge_title: "YouTube Player JS Hatası",
+  err_js_challenge_hint: "YouTube player güncellemesi yt-dlp JS çözücüsünü kırdı. Kuyruk sekmesinden 'YT Kurtarma' modunu 'Otomatik' veya 'TV Modu (Acil)' yapın ya da yt-dlp'yi güncelleyin."
 };

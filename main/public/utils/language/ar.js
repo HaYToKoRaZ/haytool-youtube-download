@@ -1301,5 +1301,22 @@ export const ar = {
   player_zoom_drag_hint: "اسحب للتحريك",
   player_zoom_wheel_hint: "مرّر للتكبير",
   shortcut_zoom_mouse_pan: "التكبير والتحريك بالماوس",
-  shortcut_zoom_wheel_key: "Ctrl + التمرير"
+  shortcut_zoom_wheel_key: "Ctrl + التمرير",
+  queue_player_recovery_label: "استرداد YT:",
+  queue_player_recovery_auto: "تلقائي (موصى به)",
+  queue_player_recovery_tv: "وضع TV (طوارئ / ملفات تعريف)",
+  queue_player_recovery_off: "إيقاف (قياسي)",
+  queue_player_recovery_info_title: "أوضاع استرداد مشغل YouTube (مع ملفات تعريف الارتباط)",
+  queue_player_recovery_auto_title: "تلقائي (موصى به):",
+  queue_player_recovery_auto_desc: "يستخدم مشغل YouTube القياسي في الأيام العادية. عند فشل yt-dlp بسبب خطأ JS، يعيد المحاولة تلقائياً مرة واحدة عبر مشغل TV مع الحفاظ على الكوكيز (+5-8 ثوانٍ).",
+  queue_player_recovery_tv_title: "وضع TV (طوارئ / ملفات تعريف):",
+  queue_player_recovery_tv_desc: "يحمل مباشرة عبر مشغل TV مع الكوكيز دون انتظار عند تعطل yt-dlp. أعده إلى تلقائي بعد تحديث yt-dlp.",
+  queue_player_recovery_off_title: "إيقاف (قياسي):",
+  queue_player_recovery_off_desc: "يستخدم مشغل YouTube الافتراضي فقط دون محاولة استرداد.",
+  toast_player_recovery_auto: "استرداد YT: الوضع التلقائي مفعل (يستخدم مشغل TV مع الكوكيز عند حدوث خطأ).",
+  toast_player_recovery_tv: "استرداد YT: وضع TV الطارئ مفعل. أعده إلى تلقائي بعد تحديث yt-dlp.",
+  toast_player_recovery_off: "استرداد YT: متوقف (المشغل القياسي فقط).",
+  toast_player_recovery_triggered: "تم اكتشاف خطأ في مشغل YouTube — جارٍ استرداد \"{title}\" تلقائياً بوضع مشغل TV مع الكوكيز.",
+  err_js_challenge_title: "خطأ JS في مشغل YouTube",
+  err_js_challenge_hint: "تحديث مشغل YouTube عطّل محلل JS في yt-dlp. اضبط 'استرداد YT' في تبويب قائمة الانتظار على 'تلقائي' أو 'وضع TV' أو حدّث yt-dlp."
 };

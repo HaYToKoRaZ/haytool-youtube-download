@@ -97,6 +97,10 @@ export function classifyDownloadError(rawError, t = {}) {
   ) {
     code = 'live_stream';
   } else if (
+    /n challenge solving failed|addOnDisposeCallback|Only images are available|Requested format is not available/i.test(raw)
+  ) {
+    code = 'youtube_js_challenge';
+  } else if (
     /bulunamadı|not found|No such file or directory/i.test(nonWarningText || raw)
   ) {
     code = 'file_not_found';
@@ -142,6 +146,10 @@ export function classifyDownloadError(rawError, t = {}) {
     live_stream: {
       title: t.err_live_stream_title || 'Canlı Yayın İşleniyor',
       hint: t.err_live_stream_hint || 'Canlı yayın henüz devam ediyor veya YouTube tarafından işleniyor. Tamamlandığında otomatik indirilecektir.'
+    },
+    youtube_js_challenge: {
+      title: t.err_js_challenge_title || 'YouTube Player JS Hatası',
+      hint: t.err_js_challenge_hint || 'YouTube player güncellemesi yt-dlp JS çözücüsünü kırdı. Kuyruk sekmesinden "YT Kurtarma" modunu "Otomatik" veya "TV Modu (Acil)" yapın ya da yt-dlp\'yi güncelleyin.'
     },
     file_not_found: {
       title: t.err_file_not_found_title || 'Dosya Bulunamadı',

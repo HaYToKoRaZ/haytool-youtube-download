@@ -1301,5 +1301,22 @@ export const pt = {
   player_zoom_drag_hint: "Arrastar",
   player_zoom_wheel_hint: "Roda para Zoom",
   shortcut_zoom_mouse_pan: "Zoom e Arrasto com o Mouse",
-  shortcut_zoom_wheel_key: "Ctrl + Roda"
+  shortcut_zoom_wheel_key: "Ctrl + Roda",
+  queue_player_recovery_label: "Resgate YT:",
+  queue_player_recovery_auto: "Auto (Recomendado)",
+  queue_player_recovery_tv: "Modo TV (Emergência / Cookies)",
+  queue_player_recovery_off: "Desativado (Padrão)",
+  queue_player_recovery_info_title: "Modos de Recuperação do Player YouTube (Com Cookies)",
+  queue_player_recovery_auto_title: "Auto (Recomendado):",
+  queue_player_recovery_auto_desc: "Usa o player padrão em dias normais. Se o yt-dlp falhar com erro de JS, tenta novamente 1 vez com cookies usando o TV Player (+5-8s).",
+  queue_player_recovery_tv_title: "Modo TV (Emergência / Cookies):",
+  queue_player_recovery_tv_desc: "Baixa diretamente pelo TV Player com cookies sem esperar quando o yt-dlp quebra. Volte para Auto após atualizar o yt-dlp.",
+  queue_player_recovery_off_title: "Desativado (Padrão):",
+  queue_player_recovery_off_desc: "Usa apenas o player padrão do YouTube; não tenta recuperação em caso de erro.",
+  toast_player_recovery_auto: "Resgate YT: Modo Auto ativado (recuperação automática via TV Player com cookies).",
+  toast_player_recovery_tv: "Resgate YT: Modo TV de emergência ativado. Volte para Auto após atualizar o yt-dlp.",
+  toast_player_recovery_off: "Resgate YT: Desativado (apenas player padrão do YouTube).",
+  toast_player_recovery_triggered: "Erro no player do YouTube detectado — recuperando \"{title}\" automaticamente no Modo TV com cookies.",
+  err_js_challenge_title: "Erro JS do Player YouTube",
+  err_js_challenge_hint: "Uma atualização do player do YouTube quebrou o resolvedor JS do yt-dlp. Use 'Auto' ou 'Modo TV (Emergência)' na aba Fila ou atualize o yt-dlp."
 };
