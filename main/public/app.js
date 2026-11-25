@@ -1472,7 +1472,7 @@ function updateUI(db) {
                   <span>${durationStr}</span>
                 </span>
               </div>
-              <div>
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:nowrap;">
                 ${sizeStr ? `
                   <span class="queue-meta-pill queue-meta-pill-size" title="${t.queue_col_size || 'Boyut'}">
                     <i data-lucide="hard-drive" style="width:10px; height:10px;"></i>
@@ -1484,6 +1484,15 @@ function updateUI(db) {
                     <span>${t.queue_calculating || 'Hesaplanıyor...'}</span>
                   </span>
                 `}
+                <button type="button"
+                  class="queue-meta-pill queue-play-after-btn ${(typeof window.isPlayAfterDownloadEnabled === 'function' && window.isPlayAfterDownloadEnabled(video.id)) ? 'active' : ''}"
+                  data-play-after-id="${video.id}"
+                  aria-pressed="${(typeof window.isPlayAfterDownloadEnabled === 'function' && window.isPlayAfterDownloadEnabled(video.id)) ? 'true' : 'false'}"
+                  onclick="togglePlayAfterDownload('${video.id}', event)"
+                  title="${t.queue_play_after_title || 'İndirme bitince videoyu otomatik oynat'}">
+                  <i data-lucide="play-circle" style="width:10px; height:10px;"></i>
+                  <span>${t.queue_play_after_btn || 'Bitince Oynat'}</span>
+                </button>
               </div>
               <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
                 ${!isMerging ? `
@@ -1591,6 +1600,15 @@ function updateUI(db) {
                       <span>${t.queue_calculating || 'Hesaplanıyor...'}</span>
                     </span>
                   `}
+                  <button type="button"
+                    class="queue-meta-pill queue-play-after-btn ${(typeof window.isPlayAfterDownloadEnabled === 'function' && window.isPlayAfterDownloadEnabled(video.id)) ? 'active' : ''}"
+                    data-play-after-id="${video.id}"
+                    aria-pressed="${(typeof window.isPlayAfterDownloadEnabled === 'function' && window.isPlayAfterDownloadEnabled(video.id)) ? 'true' : 'false'}"
+                    onclick="togglePlayAfterDownload('${video.id}', event)"
+                    title="${t.queue_play_after_title || 'İndirme bitince videoyu otomatik oynat'}">
+                    <i data-lucide="play-circle" style="width:10px; height:10px;"></i>
+                    <span>${t.queue_play_after_btn || 'Bitince Oynat'}</span>
+                  </button>
                   ${isDownloading ? `
                     <span class="queue-item-status-badge" style="font-size:0.68rem; display:inline-flex; align-items:center; gap:4px; padding: 2px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); font-weight: 600;">
                       <i class="spin-animation" style="width: 8px; height: 8px; display:inline-block; border: 1.5px solid #10b981; border-top-color: transparent; border-radius:50%;"></i>

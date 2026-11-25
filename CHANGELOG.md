@@ -3,6 +3,11 @@
 This file contains version-based details of improvements, bug fixes, and optimizations made in the HaYTool Youtube Download application.
 Bu dosyada, HaYTool Youtube Download uygulamasında yapılan geliştirmeler, hata düzeltmeleri ve optimizasyonlar sürüm bazlı olarak listelenmektedir.
 
+## [12.5.1] - 2026-11-25
+- **feat(queue/play-after-download):** **Kuyrukta "Bitince Oynat" otomatik oynatma seçeneği eklendi.** Hem Kart hem Tablo görünümünde boyut rozetinin sağına eklenen `.queue-play-after-btn` seçimi `localStorage` üzerinde kalıcı tutulur; indirme veya Oyun Modu birleştirmesi tamamlandığında video mevcut sekmeden kopmadan yerleşik oynatıcı modalında (`forceModal = true`) otomatik başlatılır (7 dil destekli).
+- **fix(modals/open-video):** **Süresi dolan ve uzak durumu değişen videolarda "Aç / İzle" butonunun çalışmama hatası giderildi.** Başlığında tek tırnak (`'`) geçen videolarda inline `onclick` HTML entity decode işlemi `SyntaxError` üretiyor ve İndirilenler sekmesinde `forceModal` eksikliği yarış durumuna yol açıyordu; `autoDeleteModal.js` ve `remoteStatus.js` doğrudan `addEventListener` ve `playVideoEmbedded(..., true)` kullanacak şekilde güncellendi.
+- **feat(extension/webstream-hint):** **Tarayıcı eklentisi aktif sekme oynatıcı kaynağını doğrudan aktarır.** Kullanıcı tarafından tarayıcıda açılıp doğrulanan aktif sekmedeki hazır `<video>` veya oynatıcı `<iframe>` kaynağı, başlık ve kapak bilgisiyle birlikte `POST /api/tools/open-web-stream` üzerinden masaüstü uygulamasına iletilir.
+
 ## [12.5.0] - 2026-11-24
 - **feat(queue/player-recovery):** YouTube player JS güncellemelerinde (yt-dlp Issue #18123 / `addOnDisposeCallback`) çerezli HD/Premium/Katıl indirmelerini kesintisiz sürdürmek için Kuyruk sekmesi üst barına **YT Kurtarma Modu** (`Otomatik`, `TV Modu (Acil / Çerezli)`, `Kapalı`) ve mod farklarını açıklayan bilgi kartı eklendi (`POST /api/settings/player-recovery`).
 - **feat(downloader/auto-recovery):** `Otomatik` modda `n challenge` / `Only images are available` / `Requested format is not available` hataları algılandığında çerez korunarak `player_js_variant=tv` ile 1 kez otomatik kurtarma ve SSE üzerinden canlı toast bildirimi (`player_recovery_triggered`) eklendi.

@@ -1319,5 +1319,10 @@ export const en = {
   toast_player_recovery_off: "YT Recovery: Off (standard YouTube player only).",
   toast_player_recovery_triggered: "YouTube player error detected — automatically recovering \"{title}\" using TV Player mode with cookies.",
   err_js_challenge_title: "YouTube Player JS Error",
-  err_js_challenge_hint: "A YouTube player update broke the yt-dlp JS solver. Set 'YT Recovery' in the Queue tab to 'Auto' or 'TV Mode (Emergency)', or update yt-dlp."
+  err_js_challenge_hint: "A YouTube player update broke the yt-dlp JS solver. Set 'YT Recovery' in the Queue tab to 'Auto' or 'TV Mode (Emergency)', or update yt-dlp.",
+  queue_play_after_btn: "Play After",
+  queue_play_after_title: "Automatically open and play this video in the built-in player once download finishes",
+  toast_play_after_enabled: "Will auto-play after download: \"{title}\"",
+  toast_play_after_disabled: "Auto-play after download cancelled.",
+  toast_play_after_starting: "Download complete — playing: \"{title}\""
 };

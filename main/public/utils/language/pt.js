@@ -1318,5 +1318,10 @@ export const pt = {
   toast_player_recovery_off: "Resgate YT: Desativado (apenas player padrão do YouTube).",
   toast_player_recovery_triggered: "Erro no player do YouTube detectado — recuperando \"{title}\" automaticamente no Modo TV com cookies.",
   err_js_challenge_title: "Erro JS do Player YouTube",
-  err_js_challenge_hint: "Uma atualização do player do YouTube quebrou o resolvedor JS do yt-dlp. Use 'Auto' ou 'Modo TV (Emergência)' na aba Fila ou atualize o yt-dlp."
+  err_js_challenge_hint: "Uma atualização do player do YouTube quebrou o resolvedor JS do yt-dlp. Use 'Auto' ou 'Modo TV (Emergência)' na aba Fila ou atualize o yt-dlp.",
+  queue_play_after_btn: "Reproduzir ao concluir",
+  queue_play_after_title: "Abrir e reproduzir automaticamente este vídeo no player integrado quando o download terminar",
+  toast_play_after_enabled: "Será reproduzido automaticamente ao concluir: \"{title}\"",
+  toast_play_after_disabled: "Reprodução automática cancelada.",
+  toast_play_after_starting: "Download concluído — reproduzindo: \"{title}\""
 };

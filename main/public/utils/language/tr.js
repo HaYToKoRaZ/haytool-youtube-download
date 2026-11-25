@@ -1319,5 +1319,10 @@ export const tr = {
   toast_player_recovery_off: "YT Kurtarma: Kapalı (yalnızca standart YouTube player).",
   toast_player_recovery_triggered: "YouTube player hatası algılandı — \"{title}\" çerezli TV Player moduyla otomatik kurtarılıyor.",
   err_js_challenge_title: "YouTube Player JS Hatası",
-  err_js_challenge_hint: "YouTube player güncellemesi yt-dlp JS çözücüsünü kırdı. Kuyruk sekmesinden 'YT Kurtarma' modunu 'Otomatik' veya 'TV Modu (Acil)' yapın ya da yt-dlp'yi güncelleyin."
+  err_js_challenge_hint: "YouTube player güncellemesi yt-dlp JS çözücüsünü kırdı. Kuyruk sekmesinden 'YT Kurtarma' modunu 'Otomatik' veya 'TV Modu (Acil)' yapın ya da yt-dlp'yi güncelleyin.",
+  queue_play_after_btn: "Bitince Oynat",
+  queue_play_after_title: "İndirme tamamlandığında videoyu uygulama içi oynatıcıda otomatik başlat",
+  toast_play_after_enabled: "Bitince otomatik oynatılacak: \"{title}\"",
+  toast_play_after_disabled: "Otomatik oynatma iptal edildi.",
+  toast_play_after_starting: "İndirme bitti — oynatılıyor: \"{title}\""
 };

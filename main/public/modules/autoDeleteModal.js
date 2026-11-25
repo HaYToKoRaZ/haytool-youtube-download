@@ -43,13 +43,8 @@ export function openVideoFromAutoDeleteModal(videoId, titleText) {
     return;
   }
   if (typeof window.playVideoEmbedded === 'function') {
-    window.playVideoEmbedded(idStr);
-    const activeTab = document.querySelector('.nav-item.active')?.getAttribute('data-tab') || 'history';
-    if (activeTab === 'downloaded' && typeof window.switchInlinePlayerToModal === 'function') {
-      setTimeout(() => {
-        try { window.switchInlinePlayerToModal(); } catch (e) {}
-      }, 60);
-    }
+    // forceModal = true: İndirilenler sekmesindeyken bile video doğrudan en üstteki #player-modal içinde açılır (yarış durumu yok)
+    window.playVideoEmbedded(idStr, null, false, true);
   }
 }
 
@@ -83,10 +78,9 @@ export function showAutoDeleteConfirmModal(videos) {
     itemEl.id = `auto-delete-item-${v.id}`;
     itemEl.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px; transition: background 0.15s ease;';
     const reasonBadge = v.reason ? `<span style="font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; background: rgba(239, 68, 68, 0.15); color: var(--accent-red); font-weight: 500;">${_ctx.escapeHtml(v.reason)}</span>` : '';
-    const safeTitleAttr = _ctx.escapeHtml(v.title || '').replace(/'/g, '&#39;');
     const playHint = isEn ? 'Click to watch video' : 'Videoyu izlemek için tıklayın';
     itemEl.innerHTML = `
-      <div onclick="openVideoFromAutoDeleteModal('${v.id}', '${safeTitleAttr}')" title="${playHint}" style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; cursor: pointer;">
+      <div class="auto-delete-row-open" title="${playHint}" style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; cursor: pointer;">
         <div style="position: relative; width: 64px; height: 36px; flex-shrink: 0; border-radius: 4px; overflow: hidden;">
           <img src="${v.thumbnail || '/api/video/' + v.id + '/thumbnail'}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='/logo.png'" />
           <div style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.35); display: flex; align-items: center; justify-content: center;">
@@ -103,16 +97,35 @@ export function showAutoDeleteConfirmModal(videos) {
         </div>
       </div>
       <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openVideoFromAutoDeleteModal('${v.id}', '${safeTitleAttr}')" title="${playHint}" style="display: inline-flex; align-items: center; gap: 4px; color: var(--accent-primary); border-color: rgba(168, 85, 247, 0.3); background: rgba(168, 85, 247, 0.08); padding: 4px 10px; font-size: 0.78rem;">
+        <button type="button" class="btn btn-secondary btn-sm auto-delete-btn-open" title="${playHint}" style="display: inline-flex; align-items: center; gap: 4px; color: var(--accent-primary); border-color: rgba(168, 85, 247, 0.3); background: rgba(168, 85, 247, 0.08); padding: 4px 10px; font-size: 0.78rem;">
           <i data-lucide="play" style="width: 13px; height: 13px;"></i>
           <span>${isEn ? 'Open' : 'Aç'}</span>
         </button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); showDeleteModal('${v.id}')" title="${isEn ? 'Delete this video' : 'Bu videoyu sil'}" style="display: inline-flex; align-items: center; gap: 4px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); padding: 4px 10px; font-size: 0.78rem;">
+        <button type="button" class="btn btn-secondary btn-sm auto-delete-btn-delete" title="${isEn ? 'Delete this video' : 'Bu videoyu sil'}" style="display: inline-flex; align-items: center; gap: 4px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); padding: 4px 10px; font-size: 0.78rem;">
           <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
           <span>${isEn ? 'Delete' : 'Sil'}</span>
         </button>
       </div>
     `;
+    // Inline onclick yerine doğrudan event listener: başlıkta tek/çift tırnak veya ters eğik çizgi olsa bile SyntaxError oluşmaz
+    const openRowEl = itemEl.querySelector('.auto-delete-row-open');
+    if (openRowEl) {
+      openRowEl.addEventListener('click', () => openVideoFromAutoDeleteModal(v.id, v.title || ''));
+    }
+    const openBtnEl = itemEl.querySelector('.auto-delete-btn-open');
+    if (openBtnEl) {
+      openBtnEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openVideoFromAutoDeleteModal(v.id, v.title || '');
+      });
+    }
+    const delBtnEl = itemEl.querySelector('.auto-delete-btn-delete');
+    if (delBtnEl) {
+      delBtnEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof window.showDeleteModal === 'function') window.showDeleteModal(v.id);
+      });
+    }
     listEl.appendChild(itemEl);
   });
   if (typeof lucide !== 'undefined' && lucide.createIcons) {

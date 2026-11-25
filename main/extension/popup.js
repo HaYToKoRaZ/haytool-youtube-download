@@ -461,14 +461,74 @@ btnAction.addEventListener('click', async () => {
   }
 });
 
+async function inspectActiveTabPlayerSource() {
+  try {
+    if (!chrome.scripting || !chrome.tabs) return null;
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id || !tab.url || !tab.url.startsWith('http')) return null;
+
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const ignoreRe = /(google|doubleclick|googlesyndication|facebook|twitter|disqus|recaptcha|hcaptcha|turnstile|challenges\.cloudflare|analytics|googletagmanager|ads\.|adservice|banner|chat)/i;
+        const pageTitle = (document.querySelector('meta[property="og:title"]')?.content || document.title || '').trim();
+        const poster = (document.querySelector('meta[property="og:image"]')?.content || '').trim();
+
+        const directMedia = [];
+        document.querySelectorAll('video, video source').forEach((el) => {
+          const src = (el.currentSrc || el.src || el.getAttribute('src') || '').trim();
+          if (src && /^https?:\/\//i.test(src) && !src.startsWith('blob:') && !ignoreRe.test(src)) {
+            directMedia.push(src);
+          }
+        });
+
+        const iframeCandidates = [];
+        document.querySelectorAll('iframe').forEach((ifr) => {
+          const rawSrc = (ifr.src || ifr.getAttribute('data-src') || ifr.getAttribute('data-lazy-src') || '').trim();
+          if (!rawSrc || !/^https?:\/\//i.test(rawSrc) || ignoreRe.test(rawSrc)) return;
+          const rect = ifr.getBoundingClientRect();
+          const area = Math.max(0, rect.width) * Math.max(0, rect.height);
+          const isPlayerHint = /(player|embed|video|stream|rplayer|closeload|rapid|vidmoly|moly|ok\.ru|vk\.com|sibnet|uqload|filemoon|dood|mixdrop|streamtape|vidoza|hdfilm|film)/i.test(rawSrc);
+          if (area >= 200 * 120 || isPlayerHint) {
+            iframeCandidates.push({ url: rawSrc, score: area + (isPlayerHint ? 500000 : 0) });
+          }
+        });
+        iframeCandidates.sort((a, b) => b.score - a.score);
+
+        return {
+          title: pageTitle,
+          poster,
+          directMediaUrl: directMedia[0] || '',
+          playerUrl: iframeCandidates[0]?.url || ''
+        };
+      }
+    });
+
+    return results && results[0] && results[0].result ? results[0].result : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 async function sendToWebStream(url) {
   if (!url) return;
   showFeedback('Masaüstü uygulamasına aktarılıyor...', 'warning');
   try {
+    // Kullanıcının kendi tarayıcısında açıp doğruladığı aktif sekmeden hazır oynatıcı kaynağını oku
+    const activeTabMeta = await inspectActiveTabPlayerSource();
+    const payload = {
+      url,
+      ...(activeTabMeta?.playerUrl ? { playerUrl: activeTabMeta.playerUrl } : {}),
+      ...(activeTabMeta?.directMediaUrl ? { directMediaUrl: activeTabMeta.directMediaUrl } : {}),
+      ...(activeTabMeta?.title ? { title: activeTabMeta.title } : {}),
+      ...(activeTabMeta?.poster ? { poster: activeTabMeta.poster } : {}),
+      referer: url
+    };
+
     const res = await fetch(`${BACKEND_URL}/api/tools/open-web-stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
+      body: JSON.stringify(payload)
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.success) {

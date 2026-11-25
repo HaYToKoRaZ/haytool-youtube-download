@@ -713,3 +713,145 @@ export async function clearAllFailedVideos() {
   }
 }
 window.clearAllFailedVideos = clearAllFailedVideos;
+
+// ============================================================================
+// İndirmeden Sonra Otomatik Oynat ("Bitince Oynat") Yönetimi
+// - Kullanıcı kuyruktaki bir veya birden fazla videoyu işaretleyebilir.
+// - Seçimler localStorage'da saklanır (sayfa yenilense de korunur).
+// - Video 'completed' olduğunda (Oyun Modu birleştirmesi dahil) işaret temizlenir
+//   ve video uygulama içi oynatıcı modalında hemen açılıp başlatılır.
+// ============================================================================
+const PLAY_AFTER_STORAGE_KEY = 'haytool_play_after_download_ids';
+const _playAfterTriggeredIds = new Set();
+
+function getPlayAfterDownloadSet() {
+  try {
+    const raw = localStorage.getItem(PLAY_AFTER_STORAGE_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr.map(String) : []);
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function savePlayAfterDownloadSet(idSet) {
+  try {
+    localStorage.setItem(PLAY_AFTER_STORAGE_KEY, JSON.stringify(Array.from(idSet)));
+  } catch (_) {}
+}
+
+/**
+ * Verilen video ID'si için "Bitince Oynat" işaretli mi döndürür.
+ * @param {string} videoId
+ * @returns {boolean}
+ */
+export function isPlayAfterDownloadEnabled(videoId) {
+  if (!videoId) return false;
+  return getPlayAfterDownloadSet().has(String(videoId));
+}
+window.isPlayAfterDownloadEnabled = isPlayAfterDownloadEnabled;
+
+/**
+ * Kuyruktaki bir video için "Bitince Oynat" seçeneğini açar/kapatır.
+ * @param {string} videoId
+ * @param {Event} [event]
+ */
+export function togglePlayAfterDownload(videoId, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const idStr = String(videoId || '').trim();
+  if (!idStr) return;
+
+  const set = getPlayAfterDownloadSet();
+  let isNowActive = false;
+  if (set.has(idStr)) {
+    set.delete(idStr);
+    isNowActive = false;
+  } else {
+    set.add(idStr);
+    _playAfterTriggeredIds.delete(idStr);
+    isNowActive = true;
+  }
+  savePlayAfterDownloadSet(set);
+
+  // Aynı video hem tablo hem kart DOM'unda varsa anında görsel güncelle
+  document.querySelectorAll(`.queue-play-after-btn[data-play-after-id="${CSS.escape(idStr)}"]`).forEach((btn) => {
+    btn.classList.toggle('active', isNowActive);
+    btn.setAttribute('aria-pressed', isNowActive ? 'true' : 'false');
+  });
+
+  const t = (typeof window.getCurrentTranslations === 'function' ? window.getCurrentTranslations() : null) || {};
+  const item = window.localDb?.history?.find(h => String(h.id) === idStr);
+  const title = item?.title || 'Video';
+
+  if (isNowActive) {
+    const tpl = t.toast_play_after_enabled || 'Bitince otomatik oynatılacak: "{title}"';
+    showToast(tpl.replace('{title}', title), 'success');
+  } else {
+    showToast(t.toast_play_after_disabled || 'Otomatik oynatma iptal edildi.', 'info');
+  }
+}
+window.togglePlayAfterDownload = togglePlayAfterDownload;
+
+/**
+ * Kuyruk/geçmiş güncellendiğinde "Bitince Oynat" işaretli videoları denetler.
+ * 'completed' olan ilk videoyu uygulama içi oynatıcı modalında hemen başlatır;
+ * iptal edilen/başarısız olan kayıtların işaretini temizler.
+ * @param {Array<object>} historyList
+ */
+export function checkAndTriggerPlayAfterDownload(historyList) {
+  if (!Array.isArray(historyList) || historyList.length === 0) return;
+  const set = getPlayAfterDownloadSet();
+  if (set.size === 0) return;
+
+  let changed = false;
+  let videoToPlay = null;
+
+  for (const idStr of Array.from(set)) {
+    const item = historyList.find(h => String(h.id) === idStr);
+    if (!item) {
+      set.delete(idStr);
+      changed = true;
+      continue;
+    }
+    if (item.status === 'completed') {
+      set.delete(idStr);
+      changed = true;
+      if (!_playAfterTriggeredIds.has(idStr)) {
+        _playAfterTriggeredIds.add(idStr);
+        videoToPlay = item;
+      }
+    } else if (item.status === 'failed' || item.status === 'ignored') {
+      set.delete(idStr);
+      changed = true;
+    }
+  }
+
+  if (changed) savePlayAfterDownloadSet(set);
+
+  if (videoToPlay) {
+    const idStr = String(videoToPlay.id);
+    const t = (typeof window.getCurrentTranslations === 'function' ? window.getCurrentTranslations() : null) || {};
+    const tpl = t.toast_play_after_starting || 'İndirme bitti — oynatılıyor: "{title}"';
+    showToast(tpl.replace('{title}', videoToPlay.title || 'Video'), 'success', `/api/video/${idStr}/thumbnail`);
+
+    // Mevcut sekmeden kopmadan uygulama içi oynatıcı modalında hemen aç ve başlat
+    setTimeout(() => {
+      try {
+        if (idStr.startsWith('fakap_') && typeof window.playFakapVideo === 'function') {
+          window.playFakapVideo(idStr, videoToPlay.title || '');
+          return;
+        }
+        if (typeof window.playVideoEmbedded === 'function') {
+          window.playVideoEmbedded(idStr, null, false, true);
+        }
+      } catch (err) {
+        console.error('[PlayAfterDownload] Otomatik oynatma hatası:', err);
+      }
+    }, 180);
+  }
+}
+window.checkAndTriggerPlayAfterDownload = checkAndTriggerPlayAfterDownload;

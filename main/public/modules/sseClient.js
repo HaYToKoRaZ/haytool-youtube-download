@@ -96,6 +96,9 @@ export function connectSSE() {
     const db = JSON.parse(e.data);
     _ctx.setLocalDb(db);
     window.localDb = db;
+    if (db && Array.isArray(db.history) && typeof window.checkAndTriggerPlayAfterDownload === 'function') {
+      window.checkAndTriggerPlayAfterDownload(db.history);
+    }
     if (dbUpdateUiTimer) clearTimeout(dbUpdateUiTimer);
     dbUpdateUiTimer = setTimeout(() => {
       dbUpdateUiTimer = null;
@@ -112,6 +115,9 @@ export function connectSSE() {
     if (localDb && Array.isArray(localDb.history)) {
       const item = localDb.history.find(h => h.id === id);
       if (item) Object.assign(item, updates);
+      if ((updates.status === 'completed' || updates.status === 'failed') && typeof window.checkAndTriggerPlayAfterDownload === 'function') {
+        window.checkAndTriggerPlayAfterDownload(localDb.history);
+      }
     }
 
     const updateKeys = Object.keys(updates);
@@ -247,9 +253,18 @@ export function connectSSE() {
         } catch (err) {}
 
         if (typeof window.switchTab === 'function') window.switchTab('webstream');
+        const hint = (data.playerUrl || data.directMediaUrl || data.title || data.poster)
+          ? {
+              playerUrl: data.playerUrl || '',
+              directMediaUrl: data.directMediaUrl || '',
+              title: data.title || '',
+              poster: data.poster || '',
+              referer: data.referer || data.url
+            }
+          : null;
         setTimeout(() => {
           if (typeof window.playWebStreamUrl === 'function') {
-            window.playWebStreamUrl(encodeURIComponent(data.url));
+            window.playWebStreamUrl(encodeURIComponent(data.url), hint);
           }
         }, 100);
       }

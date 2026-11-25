@@ -1318,5 +1318,10 @@ export const ar = {
   toast_player_recovery_off: "استرداد YT: متوقف (المشغل القياسي فقط).",
   toast_player_recovery_triggered: "تم اكتشاف خطأ في مشغل YouTube — جارٍ استرداد \"{title}\" تلقائياً بوضع مشغل TV مع الكوكيز.",
   err_js_challenge_title: "خطأ JS في مشغل YouTube",
-  err_js_challenge_hint: "تحديث مشغل YouTube عطّل محلل JS في yt-dlp. اضبط 'استرداد YT' في تبويب قائمة الانتظار على 'تلقائي' أو 'وضع TV' أو حدّث yt-dlp."
+  err_js_challenge_hint: "تحديث مشغل YouTube عطّل محلل JS في yt-dlp. اضبط 'استرداد YT' في تبويب قائمة الانتظار على 'تلقائي' أو 'وضع TV' أو حدّث yt-dlp.",
+  queue_play_after_btn: "تشغيل بعد الانتهاء",
+  queue_play_after_title: "فتح الفيديو وتشغيله تلقائياً في المشغل المدمج فور اكتمال التحميل",
+  toast_play_after_enabled: "سيتم التشغيل تلقائياً بعد الانتهاء: \"{title}\"",
+  toast_play_after_disabled: "تم إلغاء التشغيل التلقائي.",
+  toast_play_after_starting: "اكتمل التحميل — جارٍ التشغيل: \"{title}\""
 };

@@ -403,7 +403,7 @@ export function showRemoteStatusStartupAlertModal(videos) {
     const exemptLabel = t.remote_alert_exempt_badge || (isEn ? '🛡️ Exempt from Auto-Delete' : '🛡️ Oto-Silmeden Muaf');
 
     itemEl.innerHTML = `
-      <div onclick="if(typeof openVideoFromAutoDeleteModal==='function'){openVideoFromAutoDeleteModal('${escapeHtml(v.id)}','${escapeHtml(v.title || '').replace(/'/g, '&#39;')}')}else if(typeof playVideoEmbedded==='function'){playVideoEmbedded('${escapeHtml(v.id)}')}" title="${escapeHtml(playHint)}" style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; cursor: pointer;">
+      <div class="remote-alert-row-open" title="${escapeHtml(playHint)}" style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; cursor: pointer;">
         <div style="position: relative; width: 64px; height: 36px; flex-shrink: 0; border-radius: 4px; overflow: hidden; border: 1px solid var(--border-color);">
           <img src="${escapeHtml(v.thumbnail || '/api/video/' + v.id + '/thumbnail')}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='/logo.png'" />
           <div style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.35); display: flex; align-items: center; justify-content: center;">
@@ -427,20 +427,35 @@ export function showRemoteStatusStartupAlertModal(videos) {
       </div>
       <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
         ${!v.fileMissing ? `
-        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); if(typeof openVideoFromAutoDeleteModal==='function'){openVideoFromAutoDeleteModal('${escapeHtml(v.id)}','${escapeHtml(v.title || '').replace(/'/g, '&#39;')}')}else if(typeof playVideoEmbedded==='function'){playVideoEmbedded('${escapeHtml(v.id)}')}" title="${escapeHtml(playHint)}" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; font-size: 0.76rem;">
+        <button type="button" class="btn btn-secondary btn-sm remote-alert-btn-watch" title="${escapeHtml(playHint)}" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; font-size: 0.76rem;">
           <i data-lucide="play" style="width: 13px; height: 13px;"></i>
           <span>${isEn ? 'Watch' : 'İzle'}</span>
         </button>` : ''}
-        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openRemoteVideoOnYouTube('${escapeHtml(ytId)}')" title="${escapeHtml(t.btn_open_youtube || "YouTube'da Aç")}" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; font-size: 0.76rem;">
+        <button type="button" class="btn btn-secondary btn-sm remote-alert-btn-yt" title="${escapeHtml(t.btn_open_youtube || "YouTube'da Aç")}" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; font-size: 0.76rem;">
           <i data-lucide="external-link" style="width: 13px; height: 13px;"></i>
           <span>YouTube</span>
         </button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); if(typeof window.showDeleteModal==='function') window.showDeleteModal('${escapeHtml(v.id)}')" title="${escapeHtml(isEn ? 'Delete this video' : 'Bu videoyu sil')}" style="display: inline-flex; align-items: center; gap: 4px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); padding: 4px 9px; font-size: 0.76rem;">
+        <button type="button" class="btn btn-secondary btn-sm remote-alert-btn-del" title="${escapeHtml(isEn ? 'Delete this video' : 'Bu videoyu sil')}" style="display: inline-flex; align-items: center; gap: 4px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); padding: 4px 9px; font-size: 0.76rem;">
           <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
           <span>${isEn ? 'Delete' : 'Sil'}</span>
         </button>
       </div>
     `;
+    const openVideoSafe = () => {
+      if (typeof window.openVideoFromAutoDeleteModal === 'function') {
+        window.openVideoFromAutoDeleteModal(v.id, v.title || '');
+      } else if (typeof window.playVideoEmbedded === 'function') {
+        window.playVideoEmbedded(v.id, null, false, true);
+      }
+    };
+    const rowOpenEl = itemEl.querySelector('.remote-alert-row-open');
+    if (rowOpenEl) rowOpenEl.addEventListener('click', openVideoSafe);
+    const watchBtnEl = itemEl.querySelector('.remote-alert-btn-watch');
+    if (watchBtnEl) watchBtnEl.addEventListener('click', (e) => { e.stopPropagation(); openVideoSafe(); });
+    const ytBtnEl = itemEl.querySelector('.remote-alert-btn-yt');
+    if (ytBtnEl) ytBtnEl.addEventListener('click', (e) => { e.stopPropagation(); openRemoteVideoOnYouTube(ytId); });
+    const delBtnEl = itemEl.querySelector('.remote-alert-btn-del');
+    if (delBtnEl) delBtnEl.addEventListener('click', (e) => { e.stopPropagation(); if (typeof window.showDeleteModal === 'function') window.showDeleteModal(v.id); });
     listEl.appendChild(itemEl);
   });
 

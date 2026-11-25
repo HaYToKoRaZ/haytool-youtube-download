@@ -1318,5 +1318,10 @@ export const de = {
   toast_player_recovery_off: "YT-Rettung: Aus (nur Standard-YouTube-Player).",
   toast_player_recovery_triggered: "YouTube-Player-Fehler erkannt — \"{title}\" wird automatisch im TV-Player-Modus mit Cookies gerettet.",
   err_js_challenge_title: "YouTube-Player-JS-Fehler",
-  err_js_challenge_hint: "Ein YouTube-Player-Update hat den yt-dlp-JS-Solver unterbrochen. Wählen Sie im Warteschlangen-Tab 'Auto' oder 'TV-Modus (Notfall)' oder aktualisieren Sie yt-dlp."
+  err_js_challenge_hint: "Ein YouTube-Player-Update hat den yt-dlp-JS-Solver unterbrochen. Wählen Sie im Warteschlangen-Tab 'Auto' oder 'TV-Modus (Notfall)' oder aktualisieren Sie yt-dlp.",
+  queue_play_after_btn: "Danach abspielen",
+  queue_play_after_title: "Video nach Abschluss des Downloads automatisch im integrierten Player abspielen",
+  toast_play_after_enabled: "Wird nach dem Download automatisch abgespielt: \"{title}\"",
+  toast_play_after_disabled: "Automatisches Abspielen abgebrochen.",
+  toast_play_after_starting: "Download abgeschlossen — Wiedergabe: \"{title}\""
 };

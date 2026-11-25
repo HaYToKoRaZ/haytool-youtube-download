@@ -1794,10 +1794,56 @@ router.post('/video/:videoId/vote', localhostOnly, async (req, res) => {
 // Türkçe Açıklama: Harici web sitelerindeki (Dizipal, dizi/film siteleri) video akışını (.m3u8, .mp4, embed) çözümler.
 router.post('/tools/extract-web-stream', localhostOnly, async (req, res) => {
   try {
-    const { url, method } = req.body || {};
+    const { url, method, hint } = req.body || {};
     if (!url) {
       return res.status(400).json({ success: false, error: 'Lütfen geçerli bir web sitesi veya dizi bağlantısı girin.' });
     }
+
+    const cleanHint = (hint && typeof hint === 'object') ? hint : null;
+    const hintTitle = typeof cleanHint?.title === 'string' ? cleanHint.title.trim() : '';
+    const hintPoster = typeof cleanHint?.poster === 'string' ? cleanHint.poster.trim() : '';
+    const hintReferer = typeof cleanHint?.referer === 'string' && /^https?:\/\//i.test(cleanHint.referer) ? cleanHint.referer.trim() : url;
+
+    // 1. Kullanıcının kendi tarayıcısında açıp doğruladığı aktif sekmeden doğrudan medya (.m3u8/.mp4) geldiyse
+    if (cleanHint?.directMediaUrl && /^https?:\/\//i.test(cleanHint.directMediaUrl)) {
+      const mediaUrl = cleanHint.directMediaUrl.trim();
+      const sType = /\.m3u8(\?|$)/i.test(mediaUrl) ? 'm3u8' : 'mp4';
+      return res.json({
+        success: true,
+        sourceUrl: url,
+        url,
+        title: hintTitle || url,
+        poster: hintPoster,
+        streamUrl: mediaUrl,
+        streamType: sType,
+        referer: hintReferer,
+        streamReferer: hintReferer,
+        allStreams: [{
+          label: `Tarayıcı Aktif Akış (${sType.toUpperCase()})`,
+          url: mediaUrl,
+          type: sType,
+          referer: hintReferer
+        }]
+      });
+    }
+
+    // 2. Kullanıcının aktif sekmesinden oynatıcı iframe URL'si (playerUrl) geldiyse doğrudan onu çöz
+    if (cleanHint?.playerUrl && /^https?:\/\//i.test(cleanHint.playerUrl) && cleanHint.playerUrl.trim() !== url.trim()) {
+      const playerUrl = cleanHint.playerUrl.trim();
+      try {
+        const playerResult = await extractStreamFromUrl(playerUrl, method);
+        if (playerResult && playerResult.success) {
+          return res.json({
+            ...playerResult,
+            sourceUrl: url,
+            title: hintTitle || playerResult.title || url,
+            poster: hintPoster || playerResult.poster || '',
+            referer: playerResult.referer || hintReferer
+          });
+        }
+      } catch (_) {}
+    }
+
     const result = await extractStreamFromUrl(url, method);
     res.json(result);
   } catch (err) {
@@ -2443,11 +2489,17 @@ router.get('/tools/webstream-browse-proxy', localhostOnly, async (req, res) => {
 // Türkçe Açıklama: Tarayıcı eklentisinden veya harici istemcilerden gelen video bağlantısını HaYTooL Web İzle sekmesine iletir.
 router.post('/tools/open-web-stream', localhostOnly, (req, res) => {
   try {
-    const { url } = req.body || {};
+    const { url, playerUrl, directMediaUrl, title, poster, referer } = req.body || {};
     const cleanUrl = typeof url === 'string' ? url.trim() : '';
 
     if (cleanUrl) {
-      broadcast('open_webstream', { url: cleanUrl });
+      const payload = { url: cleanUrl };
+      if (typeof playerUrl === 'string' && /^https?:\/\//i.test(playerUrl.trim())) payload.playerUrl = playerUrl.trim();
+      if (typeof directMediaUrl === 'string' && /^https?:\/\//i.test(directMediaUrl.trim())) payload.directMediaUrl = directMediaUrl.trim();
+      if (typeof title === 'string' && title.trim()) payload.title = title.trim();
+      if (typeof poster === 'string' && /^https?:\/\//i.test(poster.trim())) payload.poster = poster.trim();
+      if (typeof referer === 'string' && /^https?:\/\//i.test(referer.trim())) payload.referer = referer.trim();
+      broadcast('open_webstream', payload);
     } else {
       broadcast('switch_tab', 'webstream');
     }

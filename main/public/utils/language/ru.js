@@ -1318,5 +1318,10 @@ export const ru = {
   toast_player_recovery_off: "YT Резерв: Выключен (только стандартный плеер YouTube).",
   toast_player_recovery_triggered: "Обнаружена ошибка плеера YouTube — автоматическое восстановление \"{title}\" через ТВ-плеер с cookies.",
   err_js_challenge_title: "Ошибка JS плеера YouTube",
-  err_js_challenge_hint: "Обновление плеера YouTube сломало JS-решатель yt-dlp. Выберите 'Авто' или 'Режим ТВ' во вкладке Очередь либо обновите yt-dlp."
+  err_js_challenge_hint: "Обновление плеера YouTube сломало JS-решатель yt-dlp. Выберите 'Авто' или 'Режим ТВ' во вкладке Очередь либо обновите yt-dlp.",
+  queue_play_after_btn: "Воспроизвести после",
+  queue_play_after_title: "Автоматически открыть и воспроизвести видео во встроенном плеере после завершения загрузки",
+  toast_play_after_enabled: "Автовоспроизведение после загрузки: \"{title}\"",
+  toast_play_after_disabled: "Автовоспроизведение отменено.",
+  toast_play_after_starting: "Загрузка завершена — воспроизведение: \"{title}\""
 };

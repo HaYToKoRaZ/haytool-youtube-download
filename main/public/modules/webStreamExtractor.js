@@ -1066,13 +1066,13 @@
     if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
-  window.playWebStreamUrl = function (encodedUrl) {
+  window.playWebStreamUrl = function (encodedUrl, hint = null) {
     const url = decodeURIComponent(encodedUrl);
     const inp = document.getElementById('webstream-tab-input');
     if (inp) {
       inp.value = url;
     }
-    startStreamExtraction(url);
+    startStreamExtraction(url, hint);
   };
 
   window.deleteWebStreamHistoryItem = function (encodedUrl) {
@@ -1346,7 +1346,7 @@
   }
 
   // --- STREAM EXTRACTION ORCHESTRATOR ---
-  async function startStreamExtraction(forceUrl = null) {
+  async function startStreamExtraction(forceUrl = null, hint = null) {
     const inpUrl = document.getElementById('webstream-tab-input');
     const btnPlay = document.getElementById('webstream-tab-play-btn');
     const btnIcon = document.getElementById('webstream-tab-btn-icon');
@@ -1370,11 +1370,11 @@
       const methodSel = document.getElementById('webstream-method-select');
       const selectedMethod = methodSel ? methodSel.value : (localStorage.getItem('webstream_extraction_method') || 'auto');
 
-      console.log('[startStreamExtraction] Sending request for:', targetUrl, 'method:', selectedMethod);
+      console.log('[startStreamExtraction] Sending request for:', targetUrl, 'method:', selectedMethod, 'hasHint:', Boolean(hint));
       const response = await fetch('/api/tools/extract-web-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl, method: selectedMethod })
+        body: JSON.stringify({ url: targetUrl, method: selectedMethod, ...(hint ? { hint } : {}) })
       });
 
       const data = await response.json();

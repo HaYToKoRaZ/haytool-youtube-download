@@ -1318,5 +1318,10 @@ export const es = {
   toast_player_recovery_off: "Rescate YT: Desactivado (solo reproductor estándar).",
   toast_player_recovery_triggered: "Error de reproductor YouTube detectado — recuperando \"{title}\" automáticamente con Modo TV y cookies.",
   err_js_challenge_title: "Error JS del Reproductor YouTube",
-  err_js_challenge_hint: "Una actualización del reproductor de YouTube rompió el solucionador JS de yt-dlp. Activa 'Auto' o 'Modo TV (Emergencia)' en la pestaña Cola o actualiza yt-dlp."
+  err_js_challenge_hint: "Una actualización del reproductor de YouTube rompió el solucionador JS de yt-dlp. Activa 'Auto' o 'Modo TV (Emergencia)' en la pestaña Cola o actualiza yt-dlp.",
+  queue_play_after_btn: "Reproducir al acabar",
+  queue_play_after_title: "Abrir y reproducir automáticamente este vídeo en el reproductor integrado al finalizar la descarga",
+  toast_play_after_enabled: "Se reproducirá automáticamente al finalizar: \"{title}\"",
+  toast_play_after_disabled: "Reproducción automática cancelada.",
+  toast_play_after_starting: "Descarga completada — reproduciendo: \"{title}\""
 };
